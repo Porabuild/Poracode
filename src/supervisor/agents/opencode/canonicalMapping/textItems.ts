@@ -136,6 +136,8 @@ export function closeOpenItems(state: OpenCodeMapperState): RuntimeEvent[] {
     events.push({ type: "item.completed", threadId: state.threadId, itemId });
   }
   state.userItems.clear();
+  state.nonOptimisticUserMessages.clear();
+  state.userMessageTextParts.clear();
   state.partTypes.clear();
   state.emittedText.clear();
   state.messageRoles.clear();

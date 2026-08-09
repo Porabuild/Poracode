@@ -97,6 +97,22 @@ function partUpdatedTextEvent(messageID: string, partID: string, text: string): 
   };
 }
 
+function partRemovedEvent(messageID: string, partID: string): Event {
+  return {
+    id: "evt-" + Math.random().toString(36).slice(2),
+    type: "message.part.removed",
+    properties: { sessionID: "ses_test", messageID, partID },
+  };
+}
+
+function messageRemovedEvent(messageID: string): Event {
+  return {
+    id: "evt-" + Math.random().toString(36).slice(2),
+    type: "message.removed",
+    properties: { sessionID: "ses_test", messageID },
+  };
+}
+
 describe("sdkCanonicalMapping — text streaming", () => {
   it("opens an assistant item on the first delta and emits content.delta", () => {
     const state = createOpenCodeMapperState("thread-1");
@@ -1270,6 +1286,54 @@ describe("sdkCanonicalMapping — user message dedup", () => {
 
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: "item.started", itemType: "user_message" });
+  });
+
+  it("fills a non-optimistic user row from the provider text part", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const start = mapOpenCodeEvent(userMessageUpdatedEvent("msg_user_1"), state);
+    const itemId = start[0]?.type === "item.started" ? start[0].itemId : undefined;
+
+    const events = mapOpenCodeEvent(
+      partUpdatedTextEvent("msg_user_1", "prt_user_1", "Inspect the renderer."),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId,
+        payload: { content: [{ kind: "text", text: "Inspect the renderer." }] },
+      },
+    ]);
+  });
+
+  it("removes deleted text from a non-optimistic user row", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const start = mapOpenCodeEvent(userMessageUpdatedEvent("msg_user_1"), state);
+    const itemId = start[0]?.type === "item.started" ? start[0].itemId : undefined;
+    mapOpenCodeEvent(partUpdatedTextEvent("msg_user_1", "prt_user_1", "First"), state);
+    mapOpenCodeEvent(partUpdatedTextEvent("msg_user_1", "prt_user_2", "Second"), state);
+
+    expect(mapOpenCodeEvent(partRemovedEvent("msg_user_1", "prt_user_1"), state)).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId,
+        payload: { content: [{ kind: "text", text: "Second" }] },
+      },
+    ]);
+  });
+
+  it("releases non-optimistic user state when its message is removed", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    mapOpenCodeEvent(userMessageUpdatedEvent("msg_user_1"), state);
+    mapOpenCodeEvent(partUpdatedTextEvent("msg_user_1", "prt_user_1", "Inspect."), state);
+
+    mapOpenCodeEvent(messageRemovedEvent("msg_user_1"), state);
+
+    expect(state.nonOptimisticUserMessages.has("msg_user_1")).toBe(false);
+    expect(state.userMessageTextParts.has("msg_user_1")).toBe(false);
   });
 
   it("skips text parts that belong to a known user message", () => {
