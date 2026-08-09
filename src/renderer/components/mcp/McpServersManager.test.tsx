@@ -1,14 +1,15 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  BuiltInMcpServerId,
-  DiscoverExternalMcpServersPayload,
-  DiscoverExternalMcpServersResult,
-  McpProbePayload,
-  McpProbeResult,
-  McpServer,
-  McpOauthBeginPayload,
-  McpOauthBeginResult,
+import {
+  BUILT_IN_MCP_SERVER_TOOL_COUNTS,
+  type BuiltInMcpServerId,
+  type DiscoverExternalMcpServersPayload,
+  type DiscoverExternalMcpServersResult,
+  type McpProbePayload,
+  type McpProbeResult,
+  type McpServer,
+  type McpOauthBeginPayload,
+  type McpOauthBeginResult,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { PoracodeBridge } from "@/shared/ipc";
@@ -171,7 +172,11 @@ describe("McpServersManager", () => {
 
     const row = document.querySelector('[data-built-in-mcp-server="app-controls"]');
     expect(row).not.toBeNull();
-    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "57 tools" }));
+    fireEvent.click(
+      within(row as HTMLElement).getByRole("button", {
+        name: `${BUILT_IN_MCP_SERVER_TOOL_COUNTS["app-controls"]} tools`,
+      }),
+    );
 
     const dialog = screen.getByRole("dialog", { name: "App Controls" });
     expect(within(dialog).getByText("list_schedules")).toBeInTheDocument();
