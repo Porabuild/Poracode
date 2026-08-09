@@ -15,6 +15,33 @@ describe("ContextMenu", () => {
     expect(screen.getByRole("button", { name: "Row" })).toBe(container.firstElementChild);
   });
 
+  it("dispatches an item's trailing action without dispatching the row", async () => {
+    const onAction = vi.fn<(key: string) => void>();
+    render(
+      <ContextMenu
+        items={[
+          {
+            id: "run",
+            label: "Run",
+            endAction: { id: "stop", label: "Stop Run", icon: <span /> },
+          },
+        ]}
+        onAction={onAction}
+      >
+        <button type="button">Row</button>
+      </ContextMenu>,
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Row" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop Run" }));
+
+    expect(onAction).toHaveBeenCalledWith("stop");
+    expect(onAction).not.toHaveBeenCalledWith("run");
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("menuitem", { name: "Run" })).not.toBeInTheDocument();
+    });
+  });
+
   describe("stacked ContextMenuSurface", () => {
     // Mirrors the real structure: the thread-row ContextMenu and the filter
     // subtree (overflow state + stacked surface) are siblings, so toggling

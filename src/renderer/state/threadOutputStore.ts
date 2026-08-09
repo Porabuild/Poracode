@@ -3,7 +3,7 @@ import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 
 /**
  * Renderer-side append-only PTY scrollback for agent (terminal-presentation)
- * threads.
+ * threads and action-owned terminal tabs.
  *
  * The supervisor keeps a raw byte transcript (`outputTranscript`) for every
  * live session, but agent thread panes are unmounted when the user switches
@@ -13,12 +13,12 @@ import { TranscriptBuffer } from "@/shared/transcriptBuffer";
  * (Claude no-flicker, Command Code) only ever write their current frame, so
  * replaying raw bytes gives the latest frame but no scrollback.
  *
- * This store keeps a bounded append-only copy of each thread's PTY bytes —
- * the same effect the dev-terminal panel gets by keeping its tabs mounted.
+ * This store keeps a bounded append-only copy of each thread's PTY bytes.
  * The global supervisor-event handler feeds `thread-output` here regardless of
  * which pane is visible, so hidden threads accumulate their scrollback, and
+ * action launch routing does the same for local and remote action terminals.
  * `XTermSurface` hydrates from it on (re)mount instead of relying solely on
- * the supervisor transcript.
+ * a live supervisor session.
  */
 interface ThreadOutputState {
   /** threadId -> raw PTY bytes, oldest to newest, capped at MAX_BYTES. */

@@ -19,6 +19,9 @@ const bridgeMock = vi.hoisted(() => ({
 const setWorktreeStatusMock = vi.hoisted(() =>
   vi.fn<(worktreePath: string, status: GitStatusResult) => void>(),
 );
+const setStatusMock = vi.hoisted(() =>
+  vi.fn<(projectId: string, status: GitStatusResult) => void>(),
+);
 
 const toastMock = vi.hoisted(() => ({
   danger: vi.fn<(message: string, options?: Record<string, unknown>) => void>(),
@@ -40,7 +43,7 @@ vi.mock("@/renderer/diagnostics/sentry", () => ({
 
 vi.mock("@/renderer/state/gitStore", () => ({
   useGitStore: {
-    getState: () => ({ setWorktreeStatus: setWorktreeStatusMock }),
+    getState: () => ({ setStatus: setStatusMock, setWorktreeStatus: setWorktreeStatusMock }),
   },
 }));
 
@@ -164,6 +167,18 @@ describe("gitCommandRunner", () => {
       projectLocation,
       remote: "origin",
     });
+  });
+
+  it("refreshes the project status after pulling the merged base", async () => {
+    const refreshedStatus = { ...cleanMainStatus, headSha: "updated" };
+    bridgeMock.getGitStatus
+      .mockResolvedValueOnce({ ...cleanMainStatus, behind: 1 })
+      .mockResolvedValueOnce(refreshedStatus);
+    bridgeMock.gitPull.mockResolvedValueOnce(undefined);
+
+    await pullMergedPrBaseIfPossible(projectLocation, "main", "project-1");
+
+    expect(setStatusMock).toHaveBeenCalledWith("project-1", refreshedStatus);
   });
 
   it.each<[string, Partial<GitStatusResult>]>([

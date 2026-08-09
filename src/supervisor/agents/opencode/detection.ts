@@ -203,12 +203,14 @@ export function parseOpenCodeVerboseModels(stdout: string): OpenCodeProbedModel[
 async function probeOpenCodeModels(
   location: ProjectLocation,
   executablePath: string,
+  signal?: AbortSignal,
 ): Promise<OpenCodeProbedModel[] | undefined> {
   const result = await readAgentCommandOutput(location, executablePath, ["models", "--verbose"], {
     // Verbose mode prints a JSON object per model — slower than the bare
     // `models` listing but still bounded by OpenCode's local cache.
     timeoutMs: 15_000,
     posixCwd: getAgentProbeCwd(location),
+    ...(signal ? { signal } : {}),
   });
   if (!result.ok || !result.stdout) return undefined;
   const parsed = parseOpenCodeVerboseModels(result.stdout);
@@ -371,7 +373,10 @@ async function probeOpenCodeStatusViaCli(
     ctx.location,
     ctx.executablePath,
     ["providers", "list"],
-    { posixCwd: getAgentProbeCwd(ctx.location) },
+    {
+      posixCwd: getAgentProbeCwd(ctx.location),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    },
   );
   const text = `${result.stdout}\n${result.stderr}`.trim();
   const parsedProviders = parseOpenCodeProvidersList(text);
@@ -420,7 +425,12 @@ interface OpenCodeDetectionProbeResult {
 
 type OpenCodeDetectionProbeContext = Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0];
 
-const pendingOpenCodeDetectionProbes = new Map<string, Promise<OpenCodeDetectionProbeResult>>();
+interface PendingOpenCodeDetectionProbe {
+  signal: AbortSignal | undefined;
+  promise: Promise<OpenCodeDetectionProbeResult>;
+}
+
+const pendingOpenCodeDetectionProbes = new Map<string, PendingOpenCodeDetectionProbe>();
 
 function openCodeDetectionProbeKey(ctx: OpenCodeDetectionProbeContext): string {
   return JSON.stringify([ctx.location, ctx.executablePath, ctx.version, ctx.probeEnv]);
@@ -436,14 +446,17 @@ async function runOpenCodeDetectionProbe(
     return status ? { status } : {};
   }
 
-  const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location).catch((cause) => {
-    console.warn(
-      `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
-        cause instanceof Error ? cause.message : String(cause)
-      }`,
-    );
-    return undefined;
-  });
+  const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location, ctx.signal).catch(
+    (cause) => {
+      console.warn(
+        `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+      );
+      return undefined;
+    },
+  );
+  ctx.signal?.throwIfAborted();
   if (sdkInventory) {
     return {
       capabilities: buildCapabilityPartialFromSdkInventory(sdkInventory),
@@ -454,7 +467,7 @@ async function runOpenCodeDetectionProbe(
   // OpenCode's CLI and server share a SQLite database. Keep the two fallback
   // commands serial so startup never races `models --verbose` against
   // `providers list` and surfaces a spurious "database is locked" failure.
-  const probedModels = await probeOpenCodeModels(ctx.location, ctx.executablePath);
+  const probedModels = await probeOpenCodeModels(ctx.location, ctx.executablePath, ctx.signal);
   const status = await probeOpenCodeStatusViaCli(ctx);
   return {
     ...(probedModels ? { capabilities: buildCapabilityPartialFromProbedModels(probedModels) } : {}),
@@ -467,12 +480,12 @@ function probeOpenCodeDetection(
 ): Promise<OpenCodeDetectionProbeResult> {
   const key = openCodeDetectionProbeKey(ctx);
   const existing = pendingOpenCodeDetectionProbes.get(key);
-  if (existing) return existing;
+  if (existing && existing.signal === ctx.signal) return existing.promise;
 
   const pending = runOpenCodeDetectionProbe(ctx);
-  pendingOpenCodeDetectionProbes.set(key, pending);
+  pendingOpenCodeDetectionProbes.set(key, { signal: ctx.signal, promise: pending });
   const clearPending = () => {
-    if (pendingOpenCodeDetectionProbes.get(key) === pending) {
+    if (pendingOpenCodeDetectionProbes.get(key)?.promise === pending) {
       pendingOpenCodeDetectionProbes.delete(key);
     }
   };

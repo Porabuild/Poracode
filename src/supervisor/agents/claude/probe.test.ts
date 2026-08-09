@@ -19,6 +19,10 @@ const mockChildProcess = vi.hoisted(() => ({
     vi.fn<(command: string, args: string[], options: Record<string, unknown>) => SpawnedProcess>(),
 }));
 
+const mockProcessTree = vi.hoisted(() => ({
+  terminateChildProcessTree: vi.fn<(child: unknown) => void>(),
+}));
+
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: mockSdk.query,
 }));
@@ -30,6 +34,8 @@ vi.mock("node:child_process", async () => {
     spawn: mockChildProcess.spawn,
   };
 });
+
+vi.mock("@/shared/processTree", () => mockProcessTree);
 
 import {
   claudeCapabilitiesFromCliVersion,
@@ -101,6 +107,7 @@ beforeEach(() => {
   mockSdk.query.mockReset();
   mockChildProcess.spawn.mockReset();
   mockChildProcess.spawn.mockImplementation(() => makeSpawnedProcess());
+  mockProcessTree.terminateChildProcessTree.mockReset();
 });
 
 afterEach(() => {
@@ -283,6 +290,57 @@ describe("Claude SDK probe process handling", () => {
     });
 
     expect(() => child.stdin.emit("error", ebadfError())).toThrow("write EBADF");
+  });
+
+  it("tree-kills the SDK probe child when its abort signal fires", () => {
+    const abort = new AbortController();
+    const child = makeSpawnedProcess();
+    mockChildProcess.spawn.mockReturnValueOnce(child);
+
+    spawnClaudeProbeProcess({
+      command: "claude",
+      args: ["--sdk-mcp-server"],
+      cwd: "/tmp",
+      env: {},
+      signal: abort.signal,
+    });
+    abort.abort();
+
+    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledExactlyOnceWith(child, {
+      ownedProcessGroup: process.platform !== "win32",
+    });
+    expect(mockChildProcess.spawn.mock.calls[0]?.[2]).not.toHaveProperty("signal");
+    expect(mockChildProcess.spawn.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({ detached: process.platform !== "win32" }),
+    );
+  });
+
+  it("tree-kills the SDK probe process group when the direct child closes", () => {
+    const abort = new AbortController();
+    let closeListener: (() => void) | undefined;
+    const child = {
+      ...makeSpawnedProcess(),
+      once(event: string, listener: () => void) {
+        if (event === "close") closeListener = listener;
+        return this;
+      },
+    } as unknown as SpawnedProcess;
+    mockChildProcess.spawn.mockReturnValueOnce(child);
+
+    spawnClaudeProbeProcess({
+      command: "claude",
+      args: ["--sdk-mcp-server"],
+      cwd: "/tmp",
+      env: {},
+      signal: abort.signal,
+    });
+    closeListener?.();
+
+    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledExactlyOnceWith(child, {
+      ownedProcessGroup: process.platform !== "win32",
+    });
+    abort.abort();
+    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledTimes(1);
   });
 
   it("wraps native Windows SDK .cmd shims instead of spawning them directly", () => {

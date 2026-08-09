@@ -376,7 +376,6 @@ export function GitReviewPanel(props: {
         <div className="min-h-0 flex-1 overflow-hidden">
           <GitReviewSidebar
             project={effectiveProject}
-            mergeSyncLocation={project.location}
             gitStatus={gitStatus}
             selectedFile={selectedFile}
             selectedStaged={selectedStaged}

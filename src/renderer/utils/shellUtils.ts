@@ -24,6 +24,7 @@ interface StartShellPayload {
  * command just written into it). The surface still resizes the live PTY.
  */
 const eagerlyStartedShells = new Set<string>();
+const eagerStartTokens = new Map<string, symbol>();
 
 export function wasShellStartedEagerly(shellId: string): boolean {
   return eagerlyStartedShells.has(shellId);
@@ -31,16 +32,33 @@ export function wasShellStartedEagerly(shellId: string): boolean {
 
 export function clearEagerShellStart(shellId: string): void {
   eagerlyStartedShells.delete(shellId);
+  eagerStartTokens.delete(shellId);
   disposeRoutedShellSession(shellId);
 }
 
-export function startShellWithToast(payload: StartShellPayload, label: string): void {
+export function startShellWithToast(payload: StartShellPayload, label: string): Promise<boolean> {
+  const startToken = Symbol(payload.shellId);
   eagerlyStartedShells.add(payload.shellId);
-  void readBridge()
+  eagerStartTokens.set(payload.shellId, startToken);
+  return readBridge()
     .startShell(payload)
-    .catch((error) =>
-      toast.danger(error instanceof Error ? error.message : i18n._(msg`Unable to start ${label}.`)),
-    );
+    .then(() => {
+      if (eagerStartTokens.get(payload.shellId) === startToken) {
+        eagerStartTokens.delete(payload.shellId);
+      }
+      return true;
+    })
+    .catch((error) => {
+      if (eagerStartTokens.get(payload.shellId) === startToken) {
+        eagerlyStartedShells.delete(payload.shellId);
+        eagerStartTokens.delete(payload.shellId);
+        disposeRoutedShellSession(payload.shellId);
+        toast.danger(
+          error instanceof Error ? error.message : i18n._(msg`Unable to start ${label}.`),
+        );
+      }
+      return false;
+    });
 }
 
 export function normalizeShellScript(script: string): string {
@@ -128,6 +146,7 @@ export function writeScriptToShell(
   shellId: string,
   script: string,
   remoteServerId?: string,
+  onExit?: (exitCode: number | null) => void,
 ): () => void {
   const command = normalizeShellScript(script);
   if (!command) return () => undefined;
@@ -135,6 +154,7 @@ export function writeScriptToShell(
     shellId,
     data: `${command}\r`,
     ...(remoteServerId ? { remoteServerId } : {}),
+    ...(onExit ? { onExited: onExit } : {}),
     onWriteError: (error) => {
       console.warn(
         `[shellUtils] Unable to write command to shell ${shellId}:`,
@@ -187,6 +207,7 @@ export function writeScriptToShellThenExitOnSuccess(
   onExit: (exitCode: number | null) => void,
   onCommandComplete?: (exitCode: number) => void,
   remoteServerId?: string,
+  outputHandlers?: { onOutput: (output: string) => void; onReset: () => void },
 ): () => void {
   const command = normalizeShellScript(script);
   // Nothing meaningful to run — leave the (caller-guarded) shell untouched.
@@ -214,12 +235,14 @@ export function writeScriptToShellThenExitOnSuccess(
       // A fresh PTY spawned; re-send on its first output so the command runs
       // in the survivor rather than a PTY that is about to be replaced.
       outputBuffer = "";
+      outputHandlers?.onReset();
     },
     onOutput: (output) => {
+      outputHandlers?.onOutput(output);
       if (!completionToken) return;
       outputBuffer = `${outputBuffer}${output}`.slice(-1024);
       const marker = shellCompletionMarker(completionToken);
-      const markerStart = outputBuffer.indexOf(marker);
+      const markerStart = outputBuffer.lastIndexOf(marker);
       if (markerStart < 0) return;
       const match = /^(\d+)/u.exec(outputBuffer.slice(markerStart + marker.length));
       if (match) reportCommandComplete(Number(match[1]));
@@ -282,6 +305,7 @@ export async function closeThreads(threadIds: readonly string[]): Promise<void> 
   const uniqueThreadIds = [...new Set(threadIds.filter(Boolean))];
   for (const threadId of uniqueThreadIds) {
     eagerlyStartedShells.delete(threadId);
+    eagerStartTokens.delete(threadId);
     disposeRoutedShellSession(threadId);
   }
   await Promise.allSettled(

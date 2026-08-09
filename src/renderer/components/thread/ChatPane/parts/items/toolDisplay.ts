@@ -126,6 +126,8 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
       title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim(), {
         preferFallback: payload.title !== undefined,
         isCrossagent: payload.isCrossagent === true,
+        isResume: payload.isSubAgentResume === true,
+        ...(payload.subAgentType ? { subAgentType: payload.subAgentType } : {}),
       }),
       Icon: Bot,
     };
@@ -333,13 +335,28 @@ function formatGrepDisplay(args: Record<string, unknown> | undefined): ToolDispl
 function formatAgentTitle(
   args: Record<string, unknown> | undefined,
   fallbackDescription?: string,
-  options?: { preferFallback?: boolean; isCrossagent?: boolean },
+  options?: {
+    preferFallback?: boolean;
+    isCrossagent?: boolean;
+    isResume?: boolean;
+    subAgentType?: string;
+  },
 ): string {
   const argsDescription = readStr(args, "description");
   const description = options?.preferFallback
     ? (fallbackDescription ?? argsDescription)
     : (argsDescription ?? fallbackDescription);
-  const subagent = readSubAgentType(args);
+  const subagent = readSubAgentType(args) ?? options?.subAgentType;
+  // A resume continues an agent that already has a row above it. Labelling it
+  // "Agent" too would read as a second, unrelated agent.
+  if (options?.isResume) {
+    if (description) {
+      return subagent
+        ? i18n._(msg`Agent Resume (${subagent}): ${description}`)
+        : i18n._(msg`Agent Resume: ${description}`);
+    }
+    return subagent ? i18n._(msg`Agent Resume: ${subagent}`) : i18n._(msg`Agent Resume`);
+  }
   if (options?.isCrossagent) {
     if (description) {
       return subagent

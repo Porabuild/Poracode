@@ -1,5 +1,6 @@
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import {
+  Description,
   Label,
   ListBox,
   ListLayout,
@@ -18,6 +19,8 @@ import { ResponsiveMenuSurface, useResponsiveMenu } from "./ResponsiveMenuSurfac
 export interface SelectOption {
   id: string;
   label: string;
+  icon?: ReactNode;
+  detail?: string;
 }
 
 export interface SelectProps extends Omit<
@@ -37,6 +40,7 @@ export function Select(props: SelectProps) {
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const selectedValue = value && options.some((option) => option.id === value) ? value : null;
+  const selectedOption = options.find((option) => option.id === selectedValue);
   const isVirtualized = options.length > LARGE_DROPDOWN_VIRTUALIZATION_THRESHOLD;
 
   // Mobile PWA: a HeroUI select-listbox popover anchored to a small trigger is
@@ -44,7 +48,6 @@ export function Select(props: SelectProps) {
   // drawer of finger-sized rows instead. `mobile === isRemoteSession()`, so the
   // desktop HeroSelect below never runs on the phone and is left untouched.
   if (mobile) {
-    const selectedOption = options.find((option) => option.id === selectedValue);
     const placeholder = typeof rest.placeholder === "string" ? rest.placeholder : t`Select…`;
     // Settings pass the field name via `aria-label` (the visible label lives on
     // the surrounding SettingRow), so fall back to it for the trigger + heading.
@@ -65,9 +68,15 @@ export function Select(props: SelectProps) {
               if (!rest.isDisabled) setIsOpen(true);
             }}
           >
-            <span className={`flex-1 truncate ${selectedOption ? "" : "text-muted"}`}>
+            {selectedOption?.icon}
+            <span className={`min-w-0 flex-1 truncate ${selectedOption ? "" : "text-muted"}`}>
               {selectedOption?.label ?? placeholder}
             </span>
+            {selectedOption?.detail ? (
+              <span className="min-w-0 shrink truncate text-xs text-muted/60">
+                {selectedOption.detail}
+              </span>
+            ) : null}
             <ChevronDown className="size-4 shrink-0 text-muted" />
           </button>
         }
@@ -86,7 +95,13 @@ export function Select(props: SelectProps) {
                   onChange(option.id);
                 }}
               >
-                <span className="flex-1 truncate">{option.label}</span>
+                {option.icon}
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                {option.detail ? (
+                  <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">
+                    {option.detail}
+                  </span>
+                ) : null}
                 {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
               </button>
             );
@@ -104,7 +119,19 @@ export function Select(props: SelectProps) {
         // reserves room for the checkmark so it overlaps long labels. The
         // `pe-7` utility (utilities layer) restores it.
         <ListBox.Item key={option.id} id={option.id} textValue={option.label} className="pe-7">
-          {option.label}
+          {option.icon || option.detail ? (
+            <>
+              {option.icon}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <Label className="truncate">{option.label}</Label>
+                {option.detail ? (
+                  <Description className="truncate">{option.detail}</Description>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            option.label
+          )}
           <ListBox.ItemIndicator />
         </ListBox.Item>
       ))}
@@ -119,7 +146,23 @@ export function Select(props: SelectProps) {
     >
       {label ? <Label>{label}</Label> : null}
       <HeroSelect.Trigger>
-        <HeroSelect.Value />
+        <HeroSelect.Value>
+          {({ defaultChildren, isPlaceholder }) =>
+            !isPlaceholder && selectedOption?.icon ? (
+              <span className="flex min-w-0 items-center gap-2">
+                {selectedOption.icon}
+                <span className="min-w-0 truncate">{selectedOption.label}</span>
+                {selectedOption.detail ? (
+                  <span className="min-w-0 shrink truncate text-xs text-muted/60">
+                    {selectedOption.detail}
+                  </span>
+                ) : null}
+              </span>
+            ) : (
+              defaultChildren
+            )
+          }
+        </HeroSelect.Value>
         <HeroSelect.Indicator />
       </HeroSelect.Trigger>
       <HeroSelect.Popover {...popoverProps}>

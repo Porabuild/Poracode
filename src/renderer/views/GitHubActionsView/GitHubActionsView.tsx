@@ -32,7 +32,6 @@ export function GitHubActionsView(props: {
     loadingWorkflows,
     openGitHubActions,
     pendingRunId,
-    projectOptions,
     runs,
     selectedProject,
     selectedRun,
@@ -102,7 +101,7 @@ export function GitHubActionsView(props: {
 
   const sidebar = (
     <GitHubActionsSidebar
-      projects={projectOptions}
+      projects={activeProjects}
       selectedProjectId={selectedProject?.id ?? null}
       workflows={workflows}
       selectedWorkflowId={selectedWorkflowId}

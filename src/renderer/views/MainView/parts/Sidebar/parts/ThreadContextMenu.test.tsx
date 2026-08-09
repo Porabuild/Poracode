@@ -1,8 +1,10 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { ThreadContextMenu } from "./ThreadContextMenu";
 
 vi.mock("@/renderer/bridge", () => ({
@@ -55,6 +57,11 @@ function renderMenu(
 }
 
 describe("ThreadContextMenu project actions", () => {
+  beforeEach(() => {
+    resetDevTerminalStore();
+    usePanelStore.setState({ githubActionsContext: null });
+  });
+
   it("offers project Git and Run submenus on flat main-branch rows", async () => {
     await renderMenu(thread(), project, { showProjectActions: true });
 
@@ -89,11 +96,34 @@ describe("ThreadContextMenu project actions", () => {
     expect(screen.getByRole("menuitem", { name: "Run" })).toBeInTheDocument();
   });
 
+  it("opens GitHub Actions from a worktree Git submenu", async () => {
+    await renderMenu(thread({ worktreePath: "C:\\repo\\wt" }), project);
+
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Git" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "GitHub Actions" }));
+
+    expect(usePanelStore.getState().githubActionsContext).toEqual({ projectId: project.id });
+  });
+
   it("omits the Run submenu when the project defines no scripts", async () => {
     const scriptless = { ...project, scripts: undefined } as unknown as Project;
     await renderMenu(thread(), scriptless, { showProjectActions: true });
 
     expect(screen.getByRole("menuitem", { name: "Git" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Run" })).not.toBeInTheDocument();
+  });
+
+  it("shows a running indicator for the action-owned terminal", async () => {
+    const terminal = useDevTerminalStore.getState();
+    const tab = terminal.addTab(project.id, "Build", undefined, "build");
+    terminal.markShellRunning(tab.id);
+    await renderMenu(thread(), project, { showProjectActions: true });
+
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Run" }));
+    const action = await screen.findByRole("menuitem", { name: "Build" });
+
+    expect(action.querySelector(".animate-spin")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Stop Build" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Stop Build" })).not.toBeInTheDocument();
   });
 });

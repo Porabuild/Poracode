@@ -1,20 +1,31 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { dynamicActivate } from "@/renderer/i18n/i18n";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { BottomTerminalLayout } from "./BottomTerminalLayout";
 
 vi.mock("./TerminalSurfaces", () => ({
   TerminalSurfaces: () => <div data-testid="terminal-surfaces" />,
 }));
 
-function renderLayout() {
+const actionTab = {
+  id: "shell:action",
+  projectId: "project-1",
+  runActionId: "dev",
+  title: "Dev",
+  createdAt: "2026-08-08T00:00:00.000Z",
+};
+
+function renderLayout(options: { showActionTab?: boolean } = {}) {
+  const projectTabs = options.showActionTab ? [actionTab] : [];
   return render(
     <BottomTerminalLayout
-      tabs={[]}
-      projectTabs={[]}
+      tabs={projectTabs}
+      projectTabs={projectTabs}
       activeScopeLabel="Poracode / feature"
-      selectedTabId="__add__"
-      activeTab={undefined}
+      selectedTabId={options.showActionTab ? actionTab.id : "__add__"}
+      activeTab={options.showActionTab ? actionTab : undefined}
       focusRequestId={0}
       markTabActive={vi.fn<() => void>()}
       updateTabTitle={vi.fn<() => void>()}
@@ -32,6 +43,7 @@ function renderLayout() {
 describe("BottomTerminalLayout", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetDevTerminalStore();
   });
 
   it("shows the project and worktree scope in the header", () => {
@@ -63,5 +75,25 @@ describe("BottomTerminalLayout", () => {
 
     expect(sidebar).toHaveStyle({ width: "210px" });
     expect(localStorage.getItem("poracode-bottom-terminal-sidebar-width")).toBe("210");
+  });
+
+  it("announces whether an action-owned tab is idle or running", () => {
+    renderLayout({ showActionTab: true });
+
+    expect(screen.getByRole("tab", { name: "Dev, Idle" })).toBeInTheDocument();
+
+    act(() => useDevTerminalStore.getState().markShellRunning(actionTab.id));
+
+    expect(screen.getByRole("tab", { name: "Dev, Running" })).toBeInTheDocument();
+  });
+
+  it("localizes the complete accessible action-tab status", async () => {
+    await act(() => dynamicActivate("de"));
+    const view = renderLayout({ showActionTab: true });
+
+    expect(screen.getByRole("tab", { name: "Dev, Leerlauf" })).toBeInTheDocument();
+
+    view.unmount();
+    await act(() => dynamicActivate("en"));
   });
 });

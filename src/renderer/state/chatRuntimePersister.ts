@@ -12,7 +12,7 @@ import {
 
 const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
-const MAX_CACHED_THREAD_TRANSCRIPTS = 40;
+const MAX_CACHED_THREAD_TRANSCRIPTS = 10;
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
 const olderRuntimePageCursorByThread = new Map<string, number | null>();

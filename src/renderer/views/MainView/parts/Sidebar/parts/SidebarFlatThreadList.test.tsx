@@ -50,9 +50,15 @@ vi.mock("./SidebarThreadRow", () => ({
 // Filter interaction is covered by SidebarProjectFilter.test.tsx; here a stub
 // exposes the effective (normalized) filter the list passes down.
 vi.mock("./SidebarProjectFilter", () => ({
-  SidebarProjectFilter: (props: { value: ReadonlySet<string> | null }) => (
+  SidebarProjectFilter: (props: {
+    projects: readonly Project[];
+    filterableProjectIds: ReadonlySet<string>;
+    value: ReadonlySet<string> | null;
+  }) => (
     <div data-testid="project-filter">
       {props.value === null ? "all" : [...props.value].join(",")}
+      {` projects:${props.projects.map((project) => project.id).join(",")}`}
+      {` filterable:${[...props.filterableProjectIds].join(",")}`}
     </div>
   ),
 }));
@@ -298,6 +304,21 @@ describe("SidebarFlatThreadList", () => {
 
     expect(screen.queryByTestId("project-filter")).not.toBeInTheDocument();
     expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
+  });
+
+  it("keeps the only disabled project in the filter so it can be re-enabled", () => {
+    useSharedSettings.setState({ homeScopeEnabled: false } as never);
+    useAppStore.setState({
+      projects: [{ ...localProject, disabled: true }],
+      threads: [makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z")],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByTestId("project-filter")).toHaveTextContent("projects:local-1");
+    expect(screen.getByTestId("project-filter")).toHaveTextContent("filterable:");
+    expect(screen.queryByText(/thread:p1/)).not.toBeInTheDocument();
+    expect(screen.queryByText("new-thread:local-1")).not.toBeInTheDocument();
   });
 
   it("docks the new-thread control into the filter head row when several projects are visible", () => {

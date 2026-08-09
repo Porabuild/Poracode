@@ -130,6 +130,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "update_schedule",
     "run_schedule",
     "delete_schedule",
+    "get_current_thread",
     "list_threads",
     "get_thread",
     "read_thread",

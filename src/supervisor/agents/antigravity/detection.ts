@@ -51,9 +51,11 @@ const configDirAuthProbe: AuthProbe = async (ctx) => {
   // reports "unknown" (→ "Login required") on a distro that is actually signed
   // in. A direct `test -d` is cache-independent and reliable (mirrors grok).
   if (ctx.location.kind === "wsl") {
-    const [result] = await batchWslCommandsAsync(ctx.location.distro, [
-      `test -d ~/${ANTIGRAVITY_CONFIG_SUBPATH} && echo yes || echo no`,
-    ]);
+    const [result] = await batchWslCommandsAsync(
+      ctx.location.distro,
+      [`test -d ~/${ANTIGRAVITY_CONFIG_SUBPATH} && echo yes || echo no`],
+      ctx.signal,
+    );
     return result?.ok && result.stdout.trim() === "yes" ? "authenticated" : "unknown";
   }
   return antigravityConfigDirExists(ctx.location) ? "authenticated" : "unknown";

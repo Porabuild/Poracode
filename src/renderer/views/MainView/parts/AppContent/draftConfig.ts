@@ -12,7 +12,7 @@ export function buildProjectDraftConfig(input: {
     model: config.model,
     ...(config.effort !== undefined ? { effort: config.effort } : {}),
     ...(config.contextSize ? { contextSize: config.contextSize } : {}),
-    ...(config.fast === true ? { fast: true } : {}),
+    ...(config.fast !== undefined ? { fast: config.fast } : {}),
     ...(config.thinking === true ? { thinking: true } : {}),
     ...(config.mode ? { mode: config.mode } : {}),
     // Preserve explicit empty strings — "" means "use provider defaults"

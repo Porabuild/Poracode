@@ -1,4 +1,4 @@
-import { PanelRightClose, Plus, Trash2 } from "lucide-react";
+import { Loader2, PanelRightClose, Play, Plus, Trash2 } from "lucide-react";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { TerminalSize } from "@/shared/contracts";
@@ -46,6 +46,7 @@ export function RightTerminalLayout(props: {
     onTerminalResize,
     watchTerminal,
   } = props;
+  const runningTabs = useDevTerminalStore((state) => state.runningTabs);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]" style={fadeStyle}>
@@ -77,11 +78,30 @@ export function RightTerminalLayout(props: {
                   key={tab.id}
                   id={tab.id}
                   className="group w-[120px] gap-0 pl-3 pr-1 text-xs"
+                  {...(tab.runActionId
+                    ? {
+                        "aria-label": runningTabs[tab.id]
+                          ? t`${tab.title}, Running`
+                          : t`${tab.title}, Idle`,
+                      }
+                    : {})}
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-1">
                     <span className="truncate" title={tab.title}>
                       {tab.title}
                     </span>
+                    {tab.runActionId ? (
+                      <>
+                        {runningTabs[tab.id] ? (
+                          <Loader2
+                            className="size-3 shrink-0 animate-spin text-accent"
+                            aria-hidden
+                          />
+                        ) : (
+                          <Play className="size-3 shrink-0 text-accent" aria-hidden />
+                        )}
+                      </>
+                    ) : null}
                   </span>
                   <button
                     className="ml-auto flex size-4 shrink-0 items-center justify-center rounded opacity-0 transition hover:text-danger group-hover:opacity-100"

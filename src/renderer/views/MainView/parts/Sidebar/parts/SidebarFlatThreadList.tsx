@@ -81,16 +81,21 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   // machine reports `error`, not `offline`), so only online servers' threads
   // mix into the list.
   const includedIds = new Set(workspaceProjectIds);
-  const visibleProjects = projects.filter((project) => {
+  const workspaceProjects = projects.filter((project) => {
     // Home is a synthetic row persisted with `disabled: true` by design — the
     // home-scope setting alone decides whether it shows (mirrors the grouped
     // sidebar's dedicated Home section).
     if (isHomeProject(project)) return homeScopeEnabled;
-    if (!includedIds.has(project.id) || project.disabled) return false;
+    return includedIds.has(project.id);
+  });
+  const visibleProjects = workspaceProjects.filter((project) => {
+    if (isHomeProject(project)) return true;
+    if (project.disabled) return false;
     if (!project.remoteServerId) return true;
     return remoteServerFor(project).status === "online";
   });
   const projectsById = new Map(visibleProjects.map((project) => [project.id, project]));
+  const filterableProjectIds = new Set(projectsById.keys());
 
   // The persisted filter can name projects that are gone or currently hidden
   // (workspace switch, home scope off, dead remote server); only ids
@@ -159,13 +164,14 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {visibleProjects.length > 1 ? (
+      {visibleProjects.length > 1 || workspaceProjects.length > visibleProjects.length ? (
         // Filter and new-thread share one head row; the new-thread control
         // collapses to an icon button (tooltip) when the row is narrow.
         <div className="poracode-flat-list-head flex shrink-0 items-center gap-1 pb-0.5">
           <div className="min-w-0 flex-1">
             <SidebarProjectFilter
-              projects={visibleProjects}
+              projects={workspaceProjects}
+              filterableProjectIds={filterableProjectIds}
               threadCounts={threadCounts}
               value={activeProjectFilter}
               onChange={setFlatListProjectFilter}

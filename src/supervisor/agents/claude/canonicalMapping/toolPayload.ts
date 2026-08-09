@@ -1,7 +1,7 @@
 import { readDiffSummary, readFileChangePath } from "../../fileChangeSummary";
 import type { ToolItemState } from "../sdkCanonicalMappingState";
 import { extractPlanSteps, summarizeToolRequest } from "./helpers";
-import { inferFileChangeKind, inferToolKind, isSubAgentToolName } from "./toolClassification";
+import { inferFileChangeKind, inferToolKind, isSubAgentParentTool } from "./toolClassification";
 
 export function toolPayload(
   tool: ToolItemState,
@@ -57,13 +57,17 @@ export function toolPayload(
   const kind = inferToolKind(tool.toolName);
   return {
     name: tool.toolName,
+    ...(tool.subAgentTitle ? { title: tool.subAgentTitle } : {}),
     ...(kind ? { kind } : {}),
     args: tool.input,
     result,
     ...(images && images.length > 0 ? { images } : {}),
     status,
     ...(tool.progress ? { progress: tool.progress } : {}),
-    ...(isSubAgentToolName(tool.toolName) ? { isSubAgent: true } : {}),
+    ...(isSubAgentParentTool(tool) ? { isSubAgent: true } : {}),
+    // Only a promoted row is a resume; a native Agent/Task/Workflow launch is not.
+    ...(tool.subAgentParent === true ? { isSubAgentResume: true } : {}),
+    ...(tool.subAgentType ? { subAgentType: tool.subAgentType } : {}),
     ...(tool.workflow ? { workflow: tool.workflow } : {}),
   };
 }

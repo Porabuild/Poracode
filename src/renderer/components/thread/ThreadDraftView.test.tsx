@@ -10,8 +10,9 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
-const { composerSpy } = vi.hoisted(() => ({
+const { composerSpy, launchExperimentMock } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
+  launchExperimentMock: vi.fn<(input: unknown) => Promise<string | null>>(),
 }));
 
 vi.mock("./ThreadComposer", () => ({
@@ -32,6 +33,10 @@ vi.mock("./ThreadComposer", () => ({
       </div>
     );
   },
+}));
+
+vi.mock("@/renderer/actions/experimentActions", () => ({
+  launchExperiment: launchExperimentMock,
 }));
 
 import "@/renderer/components/providers/bootstrap";
@@ -409,6 +414,8 @@ const singleEffortMultiContextCursorStatus: AgentStatus = {
 describe("ThreadDraftView", () => {
   beforeEach(() => {
     composerSpy.mockClear();
+    launchExperimentMock.mockReset();
+    launchExperimentMock.mockResolvedValue("experiment-1");
     delete (window as unknown as { poracode?: unknown }).poracode;
     useAgentStatusesStore.setState({
       agentStatuses: [],
@@ -522,6 +529,139 @@ describe("ThreadDraftView", () => {
     expect(container.querySelector(".quick-composer-control-surface")).toBeInTheDocument();
     expect(container.querySelector("[data-draft-controls]")).toBeInTheDocument();
     expect(container.querySelector("[data-draft-worktree-row]")).toBeInTheDocument();
+  });
+
+  it("defaults a new worktree to the tracking branch when the local branch is behind", () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "origin/main",
+        worktreeIsNewBranch: true,
+      }),
+    );
+  });
+
+  it("keeps the uncommitted-changes worktree option after selecting a tracking branch", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [
+            { path: "src/file.ts", status: "M", staged: false, insertions: 1, deletions: 0 },
+          ],
+          totalInsertions: 1,
+          totalDeletions: 0,
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Run in a separate worktree/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "main",
+        worktreeIsNewBranch: true,
+        worktreeTransferUncommitted: true,
+      }),
+    );
+  });
+
+  it("defaults experiment worktrees to the tracking branch when the local branch is behind", async () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    const initialComposer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
+    };
+    act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    for (let index = 0; index < 2; index += 1) {
+      const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+      const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+      if (!targets) throw new Error("Expected experiment targets");
+      act(targets.props.onAdd as () => void);
+    }
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    await waitFor(() =>
+      expect(launchExperimentMock).toHaveBeenCalledWith(
+        expect.objectContaining({ baseBranch: "origin/main" }),
+      ),
+    );
+  });
+
+  it("reserves the worktree control row for Home drafts", () => {
+    const { container } = render(
+      <ThreadDraftView project={homeProject} agentStatuses={[codexStatus]} onStart={() => {}} />,
+    );
+
+    const worktreeRow = container.querySelector("[data-draft-worktree-row]");
+    expect(worktreeRow).toBeEmptyDOMElement();
+    expect(worktreeRow).toHaveClass("min-h-[1.625rem]");
+    expect(screen.queryByRole("button", { name: "Worktree mode" })).not.toBeInTheDocument();
   });
 
   it("restores the selection replaced by a targeted worktree when the inline composer collapses", async () => {

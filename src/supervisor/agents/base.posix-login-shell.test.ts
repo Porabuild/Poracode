@@ -1,9 +1,20 @@
 import { homedir } from "node:os";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 
 const execFileAsyncMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ stdout: string; stderr?: string }>>(),
+);
+const spawnMock = vi.hoisted(() =>
+  vi.fn<
+    (
+      command: string,
+      args: string[],
+      options: Record<string, unknown>,
+    ) => import("node:child_process").ChildProcess
+  >(),
 );
 
 vi.mock("node:child_process", async () => {
@@ -11,6 +22,7 @@ vi.mock("node:child_process", async () => {
   const { promisify } = require("node:util") as typeof import("node:util");
   return {
     ...actual,
+    spawn: spawnMock,
     execFile: Object.assign(vi.fn(), {
       [promisify.custom]: execFileAsyncMock,
     }),
@@ -40,6 +52,7 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
 
   beforeEach(() => {
     vi.clearAllMocks();
+    spawnMock.mockReset();
     clearExecutablePathCache();
     process.env.SHELL = "/bin/zsh";
   });
@@ -213,9 +226,21 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
   });
 
   it("runs CLI auth probes via direct spawn", async () => {
-    execFileAsyncMock.mockResolvedValueOnce({
-      stdout: "Authenticated\n",
-      stderr: "",
+    spawnMock.mockImplementationOnce(() => {
+      const stdout = new PassThrough();
+      const stderr = new PassThrough();
+      const child = Object.assign(new EventEmitter(), {
+        stdout,
+        stderr,
+        pid: undefined,
+        killed: false,
+      }) as unknown as import("node:child_process").ChildProcess;
+      queueMicrotask(() => {
+        stdout.end("Authenticated\n");
+        stderr.end();
+        child.emit("close", 0);
+      });
+      return child;
     });
 
     const probe = cliSubcommandAuthProbe(["auth", "status"]);
@@ -227,12 +252,14 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
       }),
     ).resolves.toBe("authenticated");
 
-    expect(execFileAsyncMock).toHaveBeenCalledWith(
+    expect(spawnMock).toHaveBeenCalledWith(
       "/Users/demo/.nvm/versions/node/v24/bin/claude",
       ["auth", "status"],
       expect.objectContaining({
         cwd: "/Users/demo/project",
-        timeout: 30_000,
+        detached: true,
+        shell: false,
+        stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       }),
     );

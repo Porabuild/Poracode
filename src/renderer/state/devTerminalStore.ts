@@ -4,6 +4,8 @@ export interface DevTerminalTab {
   id: string;
   projectId: string;
   worktreePath?: string;
+  /** Project action whose process owns this tab, when launched from the Run menu. */
+  runActionId?: string;
   title: string;
   createdAt: string;
   /** When set, a second shell is shown side-by-side within this tab. */
@@ -35,6 +37,8 @@ interface DevTerminalState {
    * output, cleared after a short idle debounce. Ephemeral — not persisted.
    */
   streamingTabs: Record<string, true>;
+  /** Run-action commands currently executing. Ephemeral — not persisted. */
+  runningTabs: Record<string, true>;
 }
 
 interface DevTerminalActions {
@@ -44,7 +48,12 @@ interface DevTerminalActions {
   setActiveProject: (projectId: string) => void;
   /** Re-scope an open panel without opening it or spawning a shell. */
   setPanelScope: (projectId: string, worktreePath?: string) => void;
-  addTab: (projectId: string, projectName: string, worktreePath?: string) => DevTerminalTab;
+  addTab: (
+    projectId: string,
+    projectName: string,
+    worktreePath?: string,
+    runActionId?: string,
+  ) => DevTerminalTab;
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   /**
@@ -64,6 +73,8 @@ interface DevTerminalActions {
   clearTabActivity: (tabId: string) => void;
   /** Note PTY output for a shell, flagging it as streaming until output idles. */
   noteShellOutput: (shellId: string) => void;
+  markShellRunning: (shellId: string) => void;
+  markShellExited: (shellId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
 }
 
@@ -92,6 +103,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
   focusRequestId: 0,
   tabActivity: {},
   streamingTabs: {},
+  runningTabs: {},
 
   openPanel: (projectId) =>
     set((state) => ({
@@ -146,11 +158,12 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       };
     }),
 
-  addTab: (projectId, projectName, worktreePath?) => {
+  addTab: (projectId, projectName, worktreePath?, runActionId?) => {
     const tab: DevTerminalTab = {
       id: `shell:${crypto.randomUUID()}`,
       projectId,
       ...(worktreePath ? { worktreePath } : {}),
+      ...(runActionId ? { runActionId } : {}),
       title: projectName,
       createdAt: new Date().toISOString(),
     };
@@ -173,8 +186,11 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       const streamingTabs = { ...state.streamingTabs };
       delete streamingTabs[tabId];
       if (removed?.splitId) delete streamingTabs[removed.splitId];
+      const runningTabs = { ...state.runningTabs };
+      delete runningTabs[tabId];
+      if (removed?.splitId) delete runningTabs[removed.splitId];
       clearStreaming(removed?.splitId ? [tabId, removed.splitId] : [tabId]);
-      return { tabs, activeTabId, tabActivity, streamingTabs };
+      return { tabs, activeTabId, tabActivity, streamingTabs, runningTabs };
     }),
 
   setActiveTab: (tabId) => {
@@ -221,16 +237,19 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       }
       const tabActivity = { ...state.tabActivity };
       const streamingTabs = { ...state.streamingTabs };
+      const runningTabs = { ...state.runningTabs };
       for (const id of removed) {
         delete tabActivity[id];
         delete streamingTabs[id];
+        delete runningTabs[id];
       }
       for (const id of splitIds) {
         delete tabActivity[id];
         delete streamingTabs[id];
+        delete runningTabs[id];
       }
       clearStreaming([...removed, ...splitIds]);
-      return { tabs, activeTabId, tabActivity, streamingTabs };
+      return { tabs, activeTabId, tabActivity, streamingTabs, runningTabs };
     });
     return [...removed, ...splitIds];
   },
@@ -250,16 +269,19 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       }
       const tabActivity = { ...state.tabActivity };
       const streamingTabs = { ...state.streamingTabs };
+      const runningTabs = { ...state.runningTabs };
       for (const id of removed) {
         delete tabActivity[id];
         delete streamingTabs[id];
+        delete runningTabs[id];
       }
       for (const id of splitIds) {
         delete tabActivity[id];
         delete streamingTabs[id];
+        delete runningTabs[id];
       }
       clearStreaming([...removed, ...splitIds]);
-      return { tabs, activeTabId, tabActivity, streamingTabs };
+      return { tabs, activeTabId, tabActivity, streamingTabs, runningTabs };
     });
     return [...removed, ...splitIds];
   },
@@ -286,8 +308,10 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       delete tabActivity[splitId];
       const streamingTabs = { ...state.streamingTabs };
       delete streamingTabs[splitId];
+      const runningTabs = { ...state.runningTabs };
+      delete runningTabs[splitId];
       clearStreaming([splitId]);
-      return { tabs, tabActivity, streamingTabs };
+      return { tabs, tabActivity, streamingTabs, runningTabs };
     });
     return splitId;
   },
@@ -324,6 +348,19 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     if (get().streamingTabs[shellId]) return;
     set((state) => ({ streamingTabs: { ...state.streamingTabs, [shellId]: true } }));
   },
+
+  markShellRunning: (shellId) =>
+    set((state) =>
+      state.runningTabs[shellId] ? {} : { runningTabs: { ...state.runningTabs, [shellId]: true } },
+    ),
+
+  markShellExited: (shellId) =>
+    set((state) => {
+      if (!state.runningTabs[shellId]) return {};
+      const runningTabs = { ...state.runningTabs };
+      delete runningTabs[shellId];
+      return { runningTabs };
+    }),
 
   updateTabTitle: (tabId, rawTitle) => {
     // Shell titles are often full paths (e.g. "C:\Windows\System32\cmd.exe").
@@ -365,5 +402,6 @@ export function resetDevTerminalStore(): void {
     focusRequestId: 0,
     tabActivity: {},
     streamingTabs: {},
+    runningTabs: {},
   });
 }
