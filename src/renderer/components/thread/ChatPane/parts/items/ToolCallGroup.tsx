@@ -183,7 +183,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                       ) : null}
                       <span className="flex shrink-0 items-center gap-1">
                         <section.Icon className="size-3" />
-                        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+                        <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
                           <AnimatedNumber value={section.count} />{" "}
                           {section.category === "mcp" ? (
                             <Plural value={section.count} one="MCP" other="MCPs" />
@@ -305,7 +305,7 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
     <>
       <span className="flex shrink-0 items-center gap-1">
         <Pencil className="size-3" />
-        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+        <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
           <AnimatedNumber value={summary.count} />{" "}
           <Plural value={summary.count} one="edit" other="edits" />:
         </code>
