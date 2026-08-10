@@ -558,6 +558,16 @@ describe("subagent tool registration", () => {
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).not.toContain("delivered back automatically");
   });
 
+  it("requires an explicit user ask in the thread before delegating", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("in this thread");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("rest of the thread");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "never spawn subagents on your own initiative",
+    );
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
+  });
+
   it("returns an isError result (not a throw) for removed full-thread tools", async () => {
     const { ctx } = makeToolContext();
     const result = await dispatchTool("create_thread", { prompt: "x" }, ctx);
