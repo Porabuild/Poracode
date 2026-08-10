@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FlaskConical,
+  Info,
   Monitor,
   Paperclip,
   Plus,
@@ -10,7 +11,7 @@ import {
   Settings2,
 } from "lucide-react";
 import type { Selection } from "@heroui/react";
-import { Dropdown, Label, Separator } from "@heroui/react";
+import { Dropdown, Label, Separator, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common/Button";
@@ -82,6 +83,27 @@ function MenuSwitch(props: { checked: boolean; readOnly?: boolean }) {
 const readOnlyRowClassName =
   "flex min-h-7 cursor-default items-center gap-2 rounded px-2 py-0.5 text-xs text-foreground";
 
+/**
+ * Compact info affordance for a menu row: the explanation lives in a tooltip
+ * so long descriptions do not stretch the menu. The press is swallowed so
+ * hitting the icon does not toggle the surrounding row.
+ */
+function InfoHint(props: { text: string }) {
+  return (
+    <Tooltip delay={300}>
+      <Tooltip.Trigger
+        aria-label={props.text}
+        className="shrink-0 cursor-help text-muted/70 hover:text-foreground"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <Info className="size-3.5" aria-hidden />
+      </Tooltip.Trigger>
+      <Tooltip.Content className="max-w-60">{props.text}</Tooltip.Content>
+    </Tooltip>
+  );
+}
+
 export function ComposerAddMenu(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
   /** User-configured servers (global + workspace) listed after the built-ins. */
@@ -124,9 +146,10 @@ export function ComposerAddMenu(props: {
   // Read-only mode keeps the MCP entry visible even with nothing enabled so
   // the user gets an explicit "none for this run" answer instead of a missing row.
   const hasMcpMenu = hasMcpRows || readOnly;
-  const computerUseSubtitle = isRemoteSession()
+  const computerUseHint = isRemoteSession()
     ? t`Controls the paired desktop while the agent clicks or types`
     : t`Takes over the desktop while the agent clicks or types`;
+  const experimentHint = t`Run one prompt with multiple agents, then compare their work.`;
 
   // Counts every enabled row the submenu shows, Computer Use included — it is
   // not a registry entry but it renders as one of the switches, so leaving it
@@ -219,14 +242,10 @@ export function ComposerAddMenu(props: {
           onClick={() => experiment.onToggle(!experiment.enabled)}
         >
           <FlaskConical className="size-4 text-muted" />
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-            <span className="truncate">
-              <Trans>Experiment</Trans>
-            </span>
-            <span className="text-[11px] leading-snug text-muted">
-              <Trans>Run one prompt with multiple agents, then compare their work.</Trans>
-            </span>
+          <span className="flex-1 truncate">
+            <Trans>Experiment</Trans>
           </span>
+          <InfoHint text={experimentHint} />
           <MenuSwitch checked={experiment.enabled} />
         </button>
       ) : null}
@@ -318,12 +337,10 @@ export function ComposerAddMenu(props: {
       {showComputerUse && readOnly ? (
         <div className="m-sheet-action" data-static="true" aria-disabled="true">
           <Monitor className="size-4 shrink-0 text-muted" />
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-            <span className="truncate">
-              <Trans>Computer Use</Trans>
-            </span>
-            <span className="text-[11px] leading-snug text-muted">{computerUseSubtitle}</span>
+          <span className="flex-1 truncate">
+            <Trans>Computer Use</Trans>
           </span>
+          <InfoHint text={computerUseHint} />
           <MenuSwitch checked={computerUse.enabled} readOnly />
         </div>
       ) : null}
@@ -335,12 +352,10 @@ export function ComposerAddMenu(props: {
           onClick={() => computerUse.onToggle(!computerUse.enabled)}
         >
           <Monitor className="size-4 shrink-0 text-muted" />
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-            <span className="truncate">
-              <Trans>Computer Use</Trans>
-            </span>
-            <span className="text-[11px] leading-snug text-muted">{computerUseSubtitle}</span>
+          <span className="flex-1 truncate">
+            <Trans>Computer Use</Trans>
           </span>
+          <InfoHint text={computerUseHint} />
           <MenuSwitch checked={computerUse.enabled} />
         </button>
       ) : null}
@@ -398,14 +413,10 @@ export function ComposerAddMenu(props: {
               isDisabled={experiment.disabled}
             >
               <FlaskConical className="size-4 text-muted" />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <Label className="truncate">
-                  <Trans>Experiment</Trans>
-                </Label>
-                <span className="text-[11px] leading-snug text-muted">
-                  <Trans>Run one prompt with multiple agents, then compare their work.</Trans>
-                </span>
-              </div>
+              <Label className="flex-1 truncate">
+                <Trans>Experiment</Trans>
+              </Label>
+              <InfoHint text={experimentHint} />
               <MenuSwitch checked={experiment.enabled} />
             </Dropdown.Item>
           ) : null}
@@ -460,15 +471,11 @@ export function ComposerAddMenu(props: {
                       ))}
                       {showComputerUse ? (
                         <div role="listitem" className={readOnlyRowClassName}>
-                          <Monitor className="size-4 shrink-0 self-start text-muted" />
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="truncate">
-                              <Trans>Computer Use</Trans>
-                            </span>
-                            <span className="text-[11px] leading-snug text-muted">
-                              {computerUseSubtitle}
-                            </span>
-                          </div>
+                          <Monitor className="size-4 shrink-0 text-muted" />
+                          <span className="min-w-0 flex-1 truncate">
+                            <Trans>Computer Use</Trans>
+                          </span>
+                          <InfoHint text={computerUseHint} />
                           <MenuSwitch checked={computerUse.enabled} readOnly />
                         </div>
                       ) : null}
@@ -512,15 +519,11 @@ export function ComposerAddMenu(props: {
                       ))}
                       {showComputerUse ? (
                         <Dropdown.Item id={COMPUTER_USE_KEY} textValue={t`Computer Use`}>
-                          <Monitor className="size-4 shrink-0 self-start text-muted" />
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <Label className="truncate">
-                              <Trans>Computer Use</Trans>
-                            </Label>
-                            <span className="text-[11px] leading-snug text-muted">
-                              {computerUseSubtitle}
-                            </span>
-                          </div>
+                          <Monitor className="size-4 shrink-0 text-muted" />
+                          <Label className="flex-1 truncate">
+                            <Trans>Computer Use</Trans>
+                          </Label>
+                          <InfoHint text={computerUseHint} />
                           <MenuSwitch checked={computerUse.enabled} />
                         </Dropdown.Item>
                       ) : null}
