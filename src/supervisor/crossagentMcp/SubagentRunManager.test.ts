@@ -32,6 +32,8 @@ class FakeHandle implements StructuredSessionHandle {
   startTurns: Array<{ prompt: string; config: ThreadConfig }> = [];
   resolvedRequests: Array<{ requestId: string | number; response: unknown }> = [];
 
+  constructor(private readonly interruptError?: string) {}
+
   setListener(listener: StructuredSessionListener): void {
     this.listener = listener;
   }
@@ -40,6 +42,7 @@ class FakeHandle implements StructuredSessionHandle {
   }
   async interruptTurn(): Promise<void> {
     this.interrupted = true;
+    if (this.interruptError) this.listener?.onError(this.interruptError);
   }
   async resolveServerRequest(requestId: string | number, response: unknown): Promise<void> {
     this.resolvedRequests.push({ requestId, response });
@@ -78,10 +81,14 @@ interface Harness {
 }
 
 function makeHarness(options?: {
+  providerLabel?: string;
   models?: Array<{ id: string; label: string }>;
+  subProviders?: Array<{ id: string; label: string }>;
+  modelSubProvider?: Record<string, string>;
   statusCapabilities?: AgentCapability | null;
   createFailures?: number;
   deferCreate?: boolean;
+  interruptError?: string;
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
@@ -95,9 +102,11 @@ function makeHarness(options?: {
 
   const adapter = {
     kind: "codex",
-    label: "Codex",
+    label: options?.providerLabel ?? "Codex",
     capabilities: {
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
+      ...(options?.subProviders ? { subProviders: options.subProviders } : {}),
+      ...(options?.modelSubProvider ? { modelSubProvider: options.modelSubProvider } : {}),
       efforts: ["low", "high"],
       fastModels: ["gpt-5.5"],
       approvalPolicies: [
@@ -119,7 +128,7 @@ function makeHarness(options?: {
         createFailures -= 1;
         throw new Error("session launch failed");
       }
-      const handle = new FakeHandle();
+      const handle = new FakeHandle(options?.interruptError);
       handles.push(handle);
       return handle;
     },
@@ -240,6 +249,25 @@ describe("SubagentRunManager", () => {
     const event = started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined;
     expect(event?.payload).toMatchObject({
       name: "builder — Codex · GPT-5.5 · High · Fast",
+    });
+  });
+
+  it("includes the selected model's sub-provider in the sub-agent name", () => {
+    const h = makeHarness({
+      providerLabel: "OpenCode",
+      models: [{ id: "opencode-go/qwen3.8-max", label: "Qwen3.8 Max" }],
+      subProviders: [{ id: "opencode-go", label: "OpenCode Go" }],
+    });
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "do work",
+      model: "opencode-go/qwen3.8-max",
+      effort: "high",
+    });
+    const started = h.appended.find((a) => a.event.type === "item.started");
+    const event = started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined;
+    expect(event?.payload).toMatchObject({
+      name: "OpenCode · OpenCode Go · Qwen3.8 Max · High",
     });
   });
 
@@ -456,6 +484,27 @@ describe("SubagentRunManager", () => {
     expect(h.handles[0]!.interrupted).toBe(true);
     expect(h.handles[0]!.disposed).toBe(true);
     expect(h.manager.getStatus(runId).status).toBe("cancelled");
+  });
+
+  it("keeps explicit cancellation terminal when provider teardown reports Aborted", async () => {
+    const h = makeHarness({ interruptError: "Aborted" });
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    await h.manager.cancel(runId);
+
+    expect(h.manager.getStatus(runId)).toMatchObject({ status: "cancelled", output: "" });
+    const completion = h.appended
+      .map(({ event }) => event)
+      .find(
+        (event): event is Extract<RuntimeEvent, { type: "item.completed" }> =>
+          event.type === "item.completed" && event.itemId === `sub:${runId}`,
+      );
+    expect(completion?.payload).toMatchObject({
+      status: "error",
+      crossagentStatus: "cancelled",
+    });
+    expect(completion?.payload).not.toHaveProperty("result");
   });
 
   it("cancelAllForThread cancels live children and evicts records", async () => {

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { Surface } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, X } from "lucide-react";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
@@ -21,6 +22,7 @@ import { ChatScrollControls, type ChatScrollControlsHandle } from "../../ChatScr
 import { ChatTurnElapsedFooter, type TurnTiming } from "../../ChatTurnElapsed";
 import { MessageList } from "../MessageList";
 import { buildSubAgentProgressParts } from "./subAgentProgressMeta";
+import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
 import { WorkflowOverlayBody } from "./WorkflowOverlayBody";
 import { parseWorkflowInfo, type WorkflowInfo } from "./workflowDisplay";
@@ -138,6 +140,12 @@ export function SubAgentContent({
       }
     : null;
   const turn = resolveSubAgentTurnTiming(item, payload, isRunning);
+  const crossagentStatus =
+    isCrossagent && !isRunning
+      ? payload?.crossagentStatus === "running"
+        ? null
+        : (payload?.crossagentStatus ?? (payload?.status === "success" ? "completed" : "failed"))
+      : null;
 
   const renderWorkflow = !!(workflow && workflow.manifestPath);
   return (
@@ -164,6 +172,7 @@ export function SubAgentContent({
           entries={childEntries}
           stickToBottom={isRunning}
           turn={turn}
+          crossagentStatus={crossagentStatus}
           workflow={workflow}
           workflowProgress={workflowProgress}
         />
@@ -330,6 +339,7 @@ function ChildList({
   entries,
   stickToBottom,
   turn,
+  crossagentStatus,
   workflow,
   workflowProgress,
 }: {
@@ -338,6 +348,7 @@ function ChildList({
   entries: readonly ChatTimelineEntry[];
   stickToBottom: boolean;
   turn: TurnTiming | null;
+  crossagentStatus: "completed" | "failed" | "cancelled" | null;
   workflow: WorkflowInfo | null;
   workflowProgress: WorkflowOverlayProgress | null;
 }) {
@@ -374,7 +385,14 @@ function ChildList({
             <WorkflowOverlayHeader workflow={workflow} progress={workflowProgress} />
           ) : null
         }
-        footer={turn ? <ChatTurnElapsedFooter turn={turn} /> : null}
+        footer={
+          crossagentStatus || turn ? (
+            <>
+              {crossagentStatus ? <CrossagentStatusFooter status={crossagentStatus} /> : null}
+              {turn ? <ChatTurnElapsedFooter turn={turn} /> : null}
+            </>
+          ) : null
+        }
         emptyContent={
           workflow ? (
             <WorkflowEmptyState progress={workflowProgress} />
@@ -403,6 +421,24 @@ function ChildList({
         virtualScrollToBottomRef={virtualScrollToBottomRef}
         onInitialScrollSettled={() => undefined}
       />
+    </div>
+  );
+}
+
+function CrossagentStatusFooter({ status }: { status: "completed" | "failed" | "cancelled" }) {
+  const { t } = useLingui();
+  const label =
+    status === "completed" ? t`Completed` : status === "cancelled" ? t`Cancelled` : t`Failed`;
+  return (
+    <div className="mx-auto w-full max-w-[920px]">
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <span
+          className="text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted"
+          aria-live="polite"
+        >
+          {label}
+        </span>
+      </Surface>
     </div>
   );
 }

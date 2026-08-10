@@ -3,6 +3,24 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ContextMenu, ContextMenuSurface } from "./ContextMenu";
 
+vi.hoisted(() => {
+  class TestPointerEvent extends MouseEvent {
+    pointerId: number;
+    pointerType: string;
+
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 1;
+      this.pointerType = init.pointerType ?? "mouse";
+    }
+  }
+
+  Object.defineProperty(globalThis, "PointerEvent", {
+    configurable: true,
+    value: TestPointerEvent,
+  });
+});
+
 describe("ContextMenu", () => {
   it("does not wrap its child in an extra DOM element", () => {
     const { container } = render(
@@ -35,6 +53,8 @@ describe("ContextMenu", () => {
     fireEvent.contextMenu(screen.getByRole("button", { name: "Row" }));
     const stopButton = await screen.findByRole("button", { name: "Stop Run" });
     expect(stopButton).toHaveClass("[--button-bg-hover:var(--row-hover)]");
+    fireEvent.pointerDown(stopButton, { pointerId: 1, pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(stopButton, { pointerId: 1, pointerType: "mouse", button: 0 });
     fireEvent.click(stopButton);
 
     expect(onAction).toHaveBeenCalledWith("stop");

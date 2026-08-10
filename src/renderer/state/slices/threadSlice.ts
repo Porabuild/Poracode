@@ -301,7 +301,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   renameThread: (threadId, title) =>
     set((state) => ({
       threads: state.threads.map((thread) =>
-        thread.id === threadId ? { ...thread, title, updatedAt: new Date().toISOString() } : thread,
+        thread.id === threadId ? { ...thread, title } : thread,
       ),
     })),
   setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>

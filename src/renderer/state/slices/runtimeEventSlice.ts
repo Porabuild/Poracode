@@ -512,6 +512,10 @@ function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
   const nextPayload: ToolCallPayload = {
     ...payload,
     status: "error",
+    ...(payload.isCrossagent &&
+    (payload.crossagentStatus === undefined || payload.crossagentStatus === "running")
+      ? { crossagentStatus: "failed" as const }
+      : {}),
     ...(payload.result === undefined
       ? { result: { error: i18n._(STALE_SUB_AGENT_ERROR_MESSAGE) } }
       : {}),

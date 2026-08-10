@@ -1139,6 +1139,43 @@ describe("ChatPane", () => {
     expect(screen.queryByRole("button", { name: "Subagent Result" })).not.toBeInTheDocument();
   });
 
+  it("shows an intentionally cancelled Crossagent without an error indicator", async () => {
+    const thread = makeThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "crossagent-cancelled",
+      itemType: "tool_call",
+      payload: {
+        name: "cancel probe",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: "crossagent-cancelled",
+      payload: {
+        name: "cancel probe",
+        status: "error",
+        isCrossagent: true,
+        crossagentStatus: "cancelled",
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const row = await screen.findByRole("button", {
+      name: "Open Crossagent: Crossagent: cancel probe",
+    });
+    expect(row).toHaveTextContent("cancelled");
+    expect(row).toHaveAccessibleDescription("cancelled");
+    expect(screen.queryByLabelText("error")).not.toBeInTheDocument();
+  });
+
   it("separates the collapsed Agent label from its step count", async () => {
     const thread = makeThread();
     useAppStore.getState().applyRuntimeEvent(thread.id, {

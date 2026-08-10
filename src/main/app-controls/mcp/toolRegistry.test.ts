@@ -702,7 +702,7 @@ describe("Poracode app control tools — threads", () => {
 
   it("update_thread persists the DB row even when a renderer is connected", async () => {
     const threads = [makeThread({ id: "a" })];
-    const { ctx, updateThreadRow } = context({ threads, rendererConnected: true });
+    const { ctx, updateThreadRow, updatedRows } = context({ threads, rendererConnected: true });
     const result = (await dispatchTool("update_thread", { threadId: "a", rename: "New" }, ctx)) as {
       applied: string[];
       note?: string;
@@ -710,6 +710,10 @@ describe("Poracode app control tools — threads", () => {
     expect(result.applied).toEqual(["rename"]);
     expect(result.note).toBeUndefined();
     expect(updateThreadRow).toHaveBeenCalledWith("a", expect.any(Function));
+    expect(updatedRows.at(-1)).toMatchObject({
+      title: "New",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
   });
 
   it("open_thread notes when no UI is connected instead of reporting success", async () => {

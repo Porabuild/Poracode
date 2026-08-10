@@ -1962,10 +1962,12 @@ msgstr "Cancel removing project"
 msgid "Cancel workflow"
 msgstr "Cancel workflow"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "cancelled"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2759,6 +2761,7 @@ msgstr "Complete the prompts in this terminal. Closes when finished."
 msgid "completed"
 msgstr "completed"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "Completed"
@@ -4573,6 +4576,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "failed"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
