@@ -39,9 +39,13 @@ describe("parseKimiUsage", () => {
     expect(session.resetsAt).toBe(Date.parse(SESSION_RESET));
   });
 
-  it("maps the membership level to the subscription plan name with its credit multiplier", () => {
-    const snap = parseKimiUsage(JSON.parse(USAGES_BODY), FAKE_NOW_MS);
-    expect(snap.plan).toBe("Allegretto 5x");
+  it("maps paid membership levels to the current subscription credit multipliers", () => {
+    const body = JSON.parse(USAGES_BODY);
+    expect(parseKimiUsage(body, FAKE_NOW_MS).plan).toBe("Allegretto 2x");
+    body.user.membership.level = "LEVEL_ADVANCED";
+    expect(parseKimiUsage(body, FAKE_NOW_MS).plan).toBe("Allegro 5x");
+    body.user.membership.level = "LEVEL_STANDARD";
+    expect(parseKimiUsage(body, FAKE_NOW_MS).plan).toBe("Vivace 10x");
   });
 
   it("humanizes unknown membership levels and omits plan when absent", () => {
