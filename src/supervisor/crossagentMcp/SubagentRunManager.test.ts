@@ -81,7 +81,10 @@ interface Harness {
 }
 
 function makeHarness(options?: {
+  providerLabel?: string;
   models?: Array<{ id: string; label: string }>;
+  subProviders?: Array<{ id: string; label: string }>;
+  modelSubProvider?: Record<string, string>;
   statusCapabilities?: AgentCapability | null;
   createFailures?: number;
   deferCreate?: boolean;
@@ -99,9 +102,11 @@ function makeHarness(options?: {
 
   const adapter = {
     kind: "codex",
-    label: "Codex",
+    label: options?.providerLabel ?? "Codex",
     capabilities: {
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
+      ...(options?.subProviders ? { subProviders: options.subProviders } : {}),
+      ...(options?.modelSubProvider ? { modelSubProvider: options.modelSubProvider } : {}),
       efforts: ["low", "high"],
       fastModels: ["gpt-5.5"],
       approvalPolicies: [
@@ -244,6 +249,25 @@ describe("SubagentRunManager", () => {
     const event = started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined;
     expect(event?.payload).toMatchObject({
       name: "builder — Codex · GPT-5.5 · High · Fast",
+    });
+  });
+
+  it("includes the selected model's sub-provider in the sub-agent name", () => {
+    const h = makeHarness({
+      providerLabel: "OpenCode",
+      models: [{ id: "opencode-go/qwen3.8-max", label: "Qwen3.8 Max" }],
+      subProviders: [{ id: "opencode-go", label: "OpenCode Go" }],
+    });
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "do work",
+      model: "opencode-go/qwen3.8-max",
+      effort: "high",
+    });
+    const started = h.appended.find((a) => a.event.type === "item.started");
+    const event = started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined;
+    expect(event?.payload).toMatchObject({
+      name: "OpenCode · OpenCode Go · Qwen3.8 Max · High",
     });
   });
 
