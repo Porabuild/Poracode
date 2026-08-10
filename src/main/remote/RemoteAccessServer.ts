@@ -16,6 +16,7 @@ import {
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
+import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import type {
   McpLaunchSnapshot,
   Project,
@@ -34,7 +35,7 @@ import { buildPairingUrl } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RemoteAuthStore, type AuthenticatedRemoteSession } from "./auth";
 import type { RemoteAccessIdentity } from "./identity";
 import type { PortProxy } from "./portForward/portProxy";
-import type { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import type { RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "./RemotePortForwardGateway";
 import { normalizeHostForUrl, RemoteServerSecurity } from "./server/security";
 import type {
@@ -131,9 +132,11 @@ export interface RemoteAccessServerOptions {
   readonly authStore?: RemoteAuthStore;
   /**
    * Whether this server owns supervisor-event persistence. Headless servers do;
-   * desktop servers opt out because desktop main persists before broadcasting.
+   * desktop servers opt out because the desktop backend host persists first.
    */
   readonly ownsSupervisorPersistence?: boolean;
+  /** Aggregate live-stream demand from all authenticated WebSocket clients. */
+  readonly onEventInterestsChanged?: (interests: LiveEventInterests) => void;
   /**
    * Notified when an event could not be shrunk enough to ride the live stream
    * and clients were told to resync instead. Diagnostics only — the transport
@@ -153,7 +156,7 @@ export interface RemoteAccessServerOptions {
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
   resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
-  readonly browser?: RemoteBrowserGateway;
+  readonly browser?: RemoteBrowserGatewayLike;
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
    * that don't support it (returns 503). */
   readonly portForward?: RemotePortForwardGateway;
@@ -352,7 +355,32 @@ export class RemoteAccessServer {
       publishThreadsChanged: (threadIds) => this.publishThreadsChanged(threadIds),
       send: (ws, message) => this.send(ws, message),
       sendRaw: (ws, data) => this.sendRaw(ws, data),
+      notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
     };
+  }
+
+  private notifyEventInterestsChanged(): void {
+    const terminalThreadIds = new Set<string>();
+    for (const watched of this.terminalWatches.values()) {
+      for (const threadId of watched) terminalThreadIds.add(threadId);
+    }
+
+    const runtimeThreadIds = new Set<string>();
+    let allRuntimeEvents = false;
+    for (const [client, session] of this.clients) {
+      if (!session.scopes.includes("session:read")) continue;
+      const interests = this.itemInterests.get(client);
+      if (!interests) {
+        allRuntimeEvents = true;
+        continue;
+      }
+      for (const threadId of interests) runtimeThreadIds.add(threadId);
+    }
+    this.options.onEventInterestsChanged?.({
+      terminalThreadIds: [...terminalThreadIds].sort(),
+      runtimeThreadIds: [...runtimeThreadIds].sort(),
+      allRuntimeEvents,
+    });
   }
 
   async start(): Promise<RemoteAccessServerInfo> {
@@ -428,6 +456,9 @@ export class RemoteAccessServer {
     this.clients.clear();
     this.clientLiveness.clear();
     this.terminalWatches.clear();
+    this.gitStateInterests.clear();
+    this.itemInterests.clear();
+    this.notifyEventInterestsChanged();
     this.wss.close();
     // Drop idle keep-alive connections so close() doesn't wait on them, but let
     // any in-flight request complete (up to the grace timeout).
@@ -643,7 +674,7 @@ export class RemoteAccessServer {
     return value as NonNullable<RemoteAccessServerOptions[K]>;
   }
 
-  private requireBrowserGateway(): RemoteBrowserGateway {
+  private requireBrowserGateway(): RemoteBrowserGatewayLike {
     return this.requireOption(
       "browser",
       "browser_unavailable",
@@ -736,6 +767,9 @@ export class RemoteAccessServer {
     this.clients.delete(ws);
     this.clientLiveness.delete(ws);
     this.terminalWatches.delete(ws);
+    this.gitStateInterests.delete(ws);
+    this.itemInterests.delete(ws);
+    this.notifyEventInterestsChanged();
     try {
       ws.terminate();
     } catch {

@@ -660,7 +660,7 @@ export async function handleHttp(
     }
     if (req.method === "GET" && url.pathname === "/api/browser/state") {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, { state: ctx.requireBrowserGateway().state() });
+      writeJson(res, 200, { state: await ctx.requireBrowserGateway().state() });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/browser/command") {

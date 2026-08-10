@@ -147,9 +147,11 @@ export const IPC_EVENT_CHANNELS = {
   threadOpenRequested: createChannel("threadOpenRequested"),
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
+  backendRendererStreamChanged: createChannel("backendRendererStreamChanged"),
 } as const;
 
 export const IPC_WINDOW_CHANNELS = {
+  backendRendererStreamInfo: createChannel("backendRendererStreamInfo"),
   quickComposerSubmit: createChannel("quickComposerWindowSubmit"),
   quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
   quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),

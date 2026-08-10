@@ -1,4 +1,7 @@
-import type { RuntimeEvent } from "@/shared/contracts";
+import {
+  filterRuntimeEventsForLiveInterest,
+  isBulkRuntimeContentEvent,
+} from "@/shared/liveEventInterests";
 import type { RemoteBroadcastEvent } from "./context";
 
 /**
@@ -26,25 +29,6 @@ import type { RemoteBroadcastEvent } from "./context";
  *    `events` array (which the client's dispatch treats as a no-op).
  */
 
-/** Runtime event kinds that carry bulk transcript content. */
-function isScopedContentEvent(event: RuntimeEvent): boolean {
-  switch (event.type) {
-    case "item.started":
-    case "item.updated":
-    case "item.completed":
-    case "content.delta":
-      return true;
-    default:
-      return false;
-  }
-}
-
-function filterEvents(events: readonly RuntimeEvent[], wanted: boolean): readonly RuntimeEvent[] {
-  if (wanted) return events;
-  const kept = events.filter((event) => !isScopedContentEvent(event));
-  return kept.length === events.length ? events : kept;
-}
-
 /**
  * Narrows `event` to what this connection asked for. `interests` of `null` means
  * the client never declared any (older clients), so everything passes through.
@@ -57,19 +41,25 @@ export function filterEventForItemInterests(
   if (!interests) return event;
   switch (event.type) {
     case "thread-runtime-event": {
-      if (!isScopedContentEvent(event.event) || interests.has(event.threadId)) return event;
+      if (!isBulkRuntimeContentEvent(event.event) || interests.has(event.threadId)) return event;
       // Collapse to the plural form so the delivered frame stays a valid,
       // content-free event and the replay count still lines up.
       return { type: "thread-runtime-events", threadId: event.threadId, events: [] };
     }
     case "thread-runtime-events": {
-      const events = filterEvents(event.events, interests.has(event.threadId));
+      const events = filterRuntimeEventsForLiveInterest(
+        event.events,
+        interests.has(event.threadId),
+      );
       return events === event.events ? event : { ...event, events: [...events] };
     }
     case "thread-runtime-events-multi": {
       let changed = false;
       const batches = event.batches.map((batch) => {
-        const events = filterEvents(batch.events, interests.has(batch.threadId));
+        const events = filterRuntimeEventsForLiveInterest(
+          batch.events,
+          interests.has(batch.threadId),
+        );
         if (events === batch.events) return batch;
         changed = true;
         return { ...batch, events: [...events] };

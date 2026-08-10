@@ -5,7 +5,13 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
-import { dbGetThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import {
+  dbGetState,
+  dbGetThread,
+  dbSetState,
+  dbUpsertProject,
+  dbUpsertThread,
+} from "./projectsThreads";
 import { dbApplyThreadRuntimeEvents, dbGetThreadRuntimeItems } from "./runtimeItems";
 import { dbSyncAll } from "./sync";
 
@@ -91,6 +97,28 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetThreadRuntimeItems("thread-remote").map((item) => item.type)).toEqual([
       "user_message",
     ]);
+  });
+
+  it("keeps the ownership marker across database connection lifetimes", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    persistLaunchUserMessage("thread-remote");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+    dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
+
+    expect(dbGetThread("thread-remote")).not.toBeNull();
+    expect(dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
+  });
+
+  it("validates an already-migrated desktop database without taking migration ownership", () => {
+    const databasePath = join(dir, "state.sqlite");
+    dbSetState("schema_version", "31");
+
+    closeDatabase();
+    initDatabase(databasePath, { schemaMode: "validate" });
+
+    expect(dbGetState("schema_version")).toBe("31");
   });
 
   it("still deletes a thread the renderer dropped after it had mirrored it", () => {

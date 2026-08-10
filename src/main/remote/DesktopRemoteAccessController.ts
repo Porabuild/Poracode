@@ -1,4 +1,3 @@
-import { nativeImage } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
@@ -32,7 +31,7 @@ import {
   resolveRemoteAccessPort,
 } from "./config";
 import { readOrCreateRemoteAccessIdentity } from "./identity";
-import { setImagePreviewGenerator } from "./server/imagePreview";
+import { setImagePreviewGenerator, type ImagePreviewGenerator } from "./server/imagePreview";
 import { getRemoteAccessPairingInfo } from "./pairingInfo";
 import { createPortForwarding, type PortForwarding } from "./portForward/portForwarding";
 import {
@@ -46,7 +45,7 @@ import {
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
 } from "./RemoteAccessServer";
-import { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import { RemoteBrowserGateway, type RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import {
   buildTailscaleHttpsUrl,
   disableTailscaleServe,
@@ -73,15 +72,20 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly devServerUrl?: string;
   readonly callSupervisor: RemoteAccessServerOptions["callSupervisor"];
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
-  readonly getBrowserPanelManager: () => BrowserPanelManager | null;
+  readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
+  readonly browser?: RemoteBrowserGatewayLike;
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
   readonly notifyProjectStateChanged: (projects: readonly Project[]) => void;
+  readonly notifyEventInterestsChanged: NonNullable<
+    RemoteAccessServerOptions["onEventInterestsChanged"]
+  >;
   readonly reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void;
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
   readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;
+  readonly imagePreviewGenerator?: ImagePreviewGenerator;
 }
 
 export interface DesktopRemoteAccessController {
@@ -351,30 +355,13 @@ export function createDesktopRemoteAccessController(
       });
       attempt.coordinator = coordinator;
       pushCoordinator = coordinator;
-      // Blurred placeholders for referenced images. `nativeImage` is Electron-only,
-      // which is why this is injected rather than imported by the projector: the
-      // headless server has no resizer and simply ships references without a
-      // preview. Kept to ~24px so the inline cost stays a few hundred bytes.
-      setImagePreviewGenerator(({ data }) => {
-        const image = nativeImage.createFromBuffer(data);
-        if (image.isEmpty()) return null;
-        const { width, height } = image.getSize();
-        if (width <= 0 || height <= 0) return null;
-        const preview = image.resize({
-          width: 24,
-          height: Math.max(1, Math.round((24 * height) / width)),
-          quality: "good",
-        });
-        // JPEG at low quality is the smallest useful encoding for a blurred
-        // stand-in; transparency is irrelevant once it is blurred behind the card.
-        const url = preview.toJPEG(40).toString("base64");
-        return url.length > 0 ? `data:image/jpeg;base64,${url}` : null;
-      });
+      setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
       const server = new RemoteAccessServer({
         appVersion: options.appVersion,
         identity,
         isDev: Boolean(options.devServerUrl),
         ownsSupervisorPersistence: false,
+        onEventInterestsChanged: options.notifyEventInterestsChanged,
         onOversizedEventDropped: ({ type, bytes }) => {
           console.warn(
             `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,
@@ -399,7 +386,11 @@ export function createDesktopRemoteAccessController(
           const settings = readSharedSettingsFile(options.paths.settingsPath);
           return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId)?.mcpServers ?? []);
         },
-        browser: new RemoteBrowserGateway(options.getBrowserPanelManager),
+        ...(options.browser
+          ? { browser: options.browser }
+          : options.getBrowserPanelManager
+            ? { browser: new RemoteBrowserGateway(options.getBrowserPanelManager) }
+            : {}),
         portForward: portForwarding.gateway,
         portProxy: portForwarding.proxy,
         gitSummaries: () => remoteGitSummaries,
@@ -527,6 +518,11 @@ export function createDesktopRemoteAccessController(
     remoteAccessServer = null;
     pushCoordinator = null;
     portForwarding = null;
+    options.notifyEventInterestsChanged({
+      terminalThreadIds: [],
+      runtimeThreadIds: [],
+      allRuntimeEvents: false,
+    });
     if (attempt?.tailscaleServeUrl) {
       void teardownAttemptTailscaleServe(attempt);
     } else {
@@ -720,6 +716,11 @@ export function createDesktopRemoteAccessController(
       remoteAccessServer = null;
       pushCoordinator = null;
       portForwarding = null;
+      options.notifyEventInterestsChanged({
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        allRuntimeEvents: false,
+      });
       // Preserve the historical before-quit ordering: start closing the HTTP
       // server, then immediately tear down forwarding, without disabling Serve.
       const serverDisposal = server

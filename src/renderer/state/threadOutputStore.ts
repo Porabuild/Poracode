@@ -14,11 +14,10 @@ import { TranscriptBuffer } from "@/shared/transcriptBuffer";
  * replaying raw bytes gives the latest frame but no scrollback.
  *
  * This store keeps a bounded append-only copy of each thread's PTY bytes.
- * The global supervisor-event handler feeds `thread-output` here regardless of
- * which pane is visible, so hidden threads accumulate their scrollback, and
- * action launch routing does the same for local and remote action terminals.
- * `XTermSurface` hydrates from it on (re)mount instead of relying solely on
- * a live supervisor session.
+ * The global supervisor-event handler feeds subscribed `thread-output` here,
+ * and action launch routing does the same for local and remote action
+ * terminals. Hidden local threads no longer cross the UI-process boundary;
+ * `XTermSurface` falls back to the supervisor transcript when it remounts.
  */
 interface ThreadOutputState {
   /** threadId -> raw PTY bytes, oldest to newest, capped at MAX_BYTES. */

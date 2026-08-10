@@ -1,4 +1,4 @@
-import { dbGetState, dbSetState } from "../db";
+import type { ShellStateStore } from "../backend/BackendStateStore";
 import { stripScheme } from "@/shared/url";
 
 const HISTORY_KEY = "browser-history-v1";
@@ -23,11 +23,13 @@ export class BrowserHistoryStore {
   private loaded = false;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
+  constructor(private readonly state: ShellStateStore) {}
+
   private load(): void {
     if (this.loaded) return;
     this.loaded = true;
     try {
-      const raw = dbGetState(HISTORY_KEY);
+      const raw = this.state.get(HISTORY_KEY);
       if (!raw) return;
       const arr = JSON.parse(raw) as BrowserHistoryEntry[];
       if (!Array.isArray(arr)) return;
@@ -110,7 +112,7 @@ export class BrowserHistoryStore {
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
       try {
-        dbSetState(HISTORY_KEY, JSON.stringify([...this.entries.values()]));
+        this.state.set(HISTORY_KEY, JSON.stringify([...this.entries.values()]));
       } catch {}
     }, PERSIST_DEBOUNCE_MS);
   }

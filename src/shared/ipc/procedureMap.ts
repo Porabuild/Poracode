@@ -91,6 +91,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getKeybindings",
   "setKeybindings",
   "setGlobalShortcutsSuspended",
+  "setRendererEventInterests",
   "getRemoteAccessPairing",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",

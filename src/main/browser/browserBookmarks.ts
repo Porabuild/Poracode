@@ -1,4 +1,4 @@
-import { dbGetState, dbSetState } from "../db";
+import type { ShellStateStore } from "../backend/BackendStateStore";
 
 const BOOKMARKS_KEY = "browser-bookmarks-v1";
 const BAR_VISIBLE_KEY = "browser-bookmark-bar-visible-v1";
@@ -19,11 +19,13 @@ export class BrowserBookmarkStore {
   private barVisible = false;
   private loaded = false;
 
+  constructor(private readonly state: ShellStateStore) {}
+
   private load(): void {
     if (this.loaded) return;
     this.loaded = true;
     try {
-      const raw = dbGetState(BOOKMARKS_KEY);
+      const raw = this.state.get(BOOKMARKS_KEY);
       if (raw) {
         const arr = JSON.parse(raw) as BrowserBookmark[];
         if (Array.isArray(arr)) {
@@ -35,7 +37,7 @@ export class BrowserBookmarkStore {
       }
     } catch {}
     try {
-      this.barVisible = dbGetState(BAR_VISIBLE_KEY) === "1";
+      this.barVisible = this.state.get(BAR_VISIBLE_KEY) === "1";
     } catch {}
   }
 
@@ -78,13 +80,13 @@ export class BrowserBookmarkStore {
     if (this.barVisible === visible) return;
     this.barVisible = visible;
     try {
-      dbSetState(BAR_VISIBLE_KEY, visible ? "1" : "0");
+      this.state.set(BAR_VISIBLE_KEY, visible ? "1" : "0");
     } catch {}
   }
 
   private persist(): void {
     try {
-      dbSetState(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
+      this.state.set(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
     } catch {}
   }
 }

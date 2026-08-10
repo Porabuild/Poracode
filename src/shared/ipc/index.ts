@@ -41,6 +41,7 @@ export {
   type ProjectStateChangedEvent,
   type ThreadOpenRequestedEvent,
   type SupervisorEvent,
+  type SupervisorFlowControl,
   type SupervisorReply,
   type SupervisorRequest,
   type UpdateStatus,

@@ -26,4 +26,5 @@ export function createDeviceScheduleService(
 
 export { ScheduleService, type ScheduleStore } from "./ScheduleService";
 export { ScheduleRunCoordinator, type ScheduleRunCoordinatorDeps } from "./ScheduleRunCoordinator";
-export { ensureHomeProjectRow, homeScopeLocation } from "./homeProject";
+export { ensureHomeProjectRow } from "./homeProject";
+export { homeScopeLocation } from "@/shared/homeScopeLocation";

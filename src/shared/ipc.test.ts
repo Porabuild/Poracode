@@ -67,12 +67,6 @@ describe("ipcProcedureMap", () => {
     const handlers = createLocalIpcHandlers({
       getMainWindow: () => null as never,
       getBrowserPanelManager: () => null,
-      getRemoteAccessServer: () => null,
-      setRemoteAccessEnabled: vi.fn<(enabled: boolean) => Promise<never>>(),
-      getRemoteAccessTailscaleStatus: vi.fn<() => Promise<never>>(),
-      setRemoteAccessTailscaleHttps: vi.fn<(enabled: boolean) => Promise<never>>(),
-      startTailscale: vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
-      setRemoteAccessAdvertisedUrl: vi.fn<(url: string) => Promise<never>>(),
       sshConnectionManager: {
         discoverHosts: vi.fn<() => never[]>(() => []),
         connect: vi.fn<() => Promise<never>>(),
@@ -92,6 +86,7 @@ describe("ipcProcedureMap", () => {
           statusCachePath: "C:\\tmp\\status-cache.json",
         }) as never,
       updatePowerSaveBlocker: vi.fn<() => void>(),
+      setRendererEventInterests: vi.fn<() => Promise<void>>(async () => {}),
       autoUpdater: {
         initialize: vi.fn<() => void>(),
         checkForUpdate: vi.fn<() => Promise<void>>(),
@@ -101,8 +96,8 @@ describe("ipcProcedureMap", () => {
       extractBrowserToWindow: vi.fn<() => void>(),
       injectBrowserToMain: vi.fn<() => void>(),
       requestRelaunch: vi.fn<() => void>(),
-      scheduleService: {} as never,
-      prWatchService: {} as never,
+      backendServices: { callService: vi.fn<() => Promise<never>>() } as never,
+      database: { callDatabase: vi.fn<() => Promise<never>>() } as never,
     });
 
     expect(Object.keys(handlers).sort()).toEqual([...MAIN_LOCAL_PROCEDURE_NAMES].sort());

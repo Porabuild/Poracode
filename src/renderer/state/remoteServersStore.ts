@@ -125,6 +125,70 @@ interface RemoteServerEventSocketEntry {
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
 const remoteServerSnapshotSeqByDesktopId = new Map<string, number>();
+const remoteServerThreadItemInterests = new Map<string, readonly string[]>();
+
+function sameRemoteServerThreadItemInterests(
+  left: readonly string[] | undefined,
+  right: readonly string[],
+): boolean {
+  return (
+    left?.length === right.length && left.every((threadId, index) => threadId === right[index])
+  );
+}
+
+function setRemoteServerThreadItemInterests(
+  desktopId: string,
+  threadIds: readonly string[],
+  forceSend = false,
+): void {
+  const existing = remoteServerThreadItemInterests.get(desktopId);
+  remoteServerThreadItemInterests.set(desktopId, threadIds);
+  if (!forceSend && sameRemoteServerThreadItemInterests(existing, threadIds)) return;
+  const socket = remoteServerEventSockets.get(desktopId)?.socket;
+  if (!socket?.send) return;
+  try {
+    socket.send(JSON.stringify({ type: "thread-item-interests", threadIds }));
+  } catch {
+    // A connecting socket receives the latest interests from activateSocket.
+  }
+}
+
+function setExclusiveRemoteServerThreadItemInterest(desktopId: string, threadId: string): void {
+  const remoteDesktopIds = new Set([
+    ...remoteServerEventSockets.keys(),
+    ...remoteServerThreadItemInterests.keys(),
+  ]);
+  for (const remoteDesktopId of remoteDesktopIds) {
+    if (remoteDesktopId !== desktopId) setRemoteServerThreadItemInterests(remoteDesktopId, []);
+  }
+  setRemoteServerThreadItemInterests(desktopId, [threadId]);
+}
+
+function setHydratingRemoteServerThreadItemInterest(
+  desktopId: string,
+  threadId: string,
+  previousOpenThread: OpenRemoteThread | null,
+): void {
+  if (previousOpenThread) {
+    setRemoteServerThreadItemInterests(previousOpenThread.desktopId, [previousOpenThread.threadId]);
+  }
+  setRemoteServerThreadItemInterests(
+    desktopId,
+    previousOpenThread?.desktopId === desktopId
+      ? [...new Set([previousOpenThread.threadId, threadId])]
+      : [threadId],
+  );
+}
+
+function clearRemoteServerThreadItemInterests(): void {
+  const remoteDesktopIds = new Set([
+    ...remoteServerEventSockets.keys(),
+    ...remoteServerThreadItemInterests.keys(),
+  ]);
+  for (const desktopId of remoteDesktopIds) {
+    setRemoteServerThreadItemInterests(desktopId, []);
+  }
+}
 /** Maps a thread-history snapshot to the openThread slice (terminal fields only when present). */
 function buildOpenThread(
   desktopId: string,
@@ -534,7 +598,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             const ticket = await client.websocketTicket();
             if (!isCurrent()) return;
             const lastSeenSeq = remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0;
-            const socket = get().socketFactory(client.websocketUrl(ticket, lastSeenSeq));
+            const openThread = get().openThread;
+            const threadItemInterests =
+              remoteServerThreadItemInterests.get(server.desktopId) ??
+              (openThread?.desktopId === server.desktopId ? [openThread.threadId] : []);
+            const socket = get().socketFactory(
+              client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+            );
             if (!isCurrent()) {
               try {
                 socket.close();
@@ -552,6 +622,19 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               clearRemoteServerEventSocketConnectTimeout(entry);
               entry.reconnectPolicy.reset();
               activateRemoteTerminalFeed(server.desktopId, socket);
+              const currentThreadItemInterests =
+                remoteServerThreadItemInterests.get(server.desktopId) ?? threadItemInterests;
+              if (
+                sameRemoteServerThreadItemInterests(currentThreadItemInterests, threadItemInterests)
+              ) {
+                remoteServerThreadItemInterests.set(server.desktopId, currentThreadItemInterests);
+              } else {
+                setRemoteServerThreadItemInterests(
+                  server.desktopId,
+                  currentThreadItemInterests,
+                  true,
+                );
+              }
               startHealthProbe(socket);
               setSocketStatus("online");
             };
@@ -945,6 +1028,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         openRemoteThread: async (desktopId, threadId) => {
           const requestSeq = openRemoteThreadRequestSeq + 1;
           openRemoteThreadRequestSeq = requestSeq;
+          const previousOpenThread = get().openThread;
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
           if (!server) {
             // Never reject: sidebar rows call this via `void openRemoteThread(...)`
@@ -957,6 +1041,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             );
             return false;
           }
+          setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
           // Hydrate the thread's history into the shared, threadId-keyed runtime
           // store so the desktop ChatPane renders it (coexists with local threads).
           // A failed history fetch (server asleep/unreachable) must not reject.
@@ -965,6 +1050,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             snapshot = await withClient(desktopId, (client) => client.threadHistory(threadId));
           } catch (error) {
             if (requestSeq !== openRemoteThreadRequestSeq) return false;
+            clearRemoteServerThreadItemInterests();
+            if (previousOpenThread) {
+              setExclusiveRemoteServerThreadItemInterest(
+                previousOpenThread.desktopId,
+                previousOpenThread.threadId,
+              );
+            }
             toast.danger(friendlyError(error) || i18n._(msg`Failed to open remote thread.`));
             return false;
           }
@@ -986,6 +1078,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           applyThreadSnapshot(projectedSnapshot);
           const openThread = buildOpenThread(desktopId, snapshot);
           set({ openThread });
+          setExclusiveRemoteServerThreadItemInterest(desktopId, threadId);
           useAppStore.getState().openThread(openThread.thread.id);
           remoteServerSnapshotSeqByDesktopId.set(
             desktopId,
@@ -999,6 +1092,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
         closeRemoteThread: () => {
           openRemoteThreadRequestSeq += 1;
+          clearRemoteServerThreadItemInterests();
           if (get().openThread) set({ openThread: null });
         },
 
@@ -1053,6 +1147,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (get().openThread?.desktopId === desktopId) {
             get().closeRemoteThread();
           }
+          remoteServerThreadItemInterests.delete(desktopId);
           set((state) => {
             const { [desktopId]: _removed, ...runtime } = state.runtime;
             const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
@@ -1181,6 +1276,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               openThread?.desktopId === desktopId &&
               !threads.some((thread) => thread.id === openThread.threadId)
             ) {
+              openRemoteThreadRequestSeq += 1;
+              setRemoteServerThreadItemInterests(desktopId, []);
               set({ openThread: null });
             }
           } catch (error) {
@@ -1423,6 +1520,7 @@ export function __resetRemoteServersStoreForTest(): void {
     clearRemoteServerRefreshTimer(desktopId);
   }
   remoteServerSnapshotSeqByDesktopId.clear();
+  remoteServerThreadItemInterests.clear();
   remoteServerRefreshSeqByDesktopId.clear();
   remoteServerAgentStatusRefreshes.clear();
   clearRemoteGitState();

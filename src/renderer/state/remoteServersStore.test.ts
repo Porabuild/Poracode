@@ -174,10 +174,12 @@ function remoteThreadSnapshot(threadId: string): RemoteThreadHistorySnapshot {
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((next) => {
+  let reject: (reason?: unknown) => void = () => {};
+  const promise = new Promise<T>((next, fail) => {
     resolve = next;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function makeSocket(overrides: Partial<RemoteSocketLike> = {}): RemoteSocketLike {
@@ -1062,7 +1064,9 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore.getState().connectAll();
 
     expect(socketFactory).toHaveBeenCalledTimes(1);
-    expect(websocketUrl).toHaveBeenNthCalledWith(1, "ticket-1", 2);
+    expect(websocketUrl).toHaveBeenNthCalledWith(1, "ticket-1", 2, {
+      threadItemInterests: [],
+    });
 
     sockets[0]?.onmessage?.({
       data: JSON.stringify({ type: "event", seq: 7, event: { type: "noop" } }),
@@ -1072,7 +1076,9 @@ describe("useRemoteServersStore", () => {
     await Promise.resolve();
 
     expect(socketFactory).toHaveBeenCalledTimes(2);
-    expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7);
+    expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7, {
+      threadItemInterests: [],
+    });
   });
 
   it("stops reconnecting when the event stream reports an expired session", async () => {
@@ -1199,7 +1205,8 @@ describe("useRemoteServersStore", () => {
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
     await vi.advanceTimersByTimeAsync(25_000);
 
-    const ping = JSON.parse(String(send.mock.calls[0]?.[0])) as { id: string };
+    const pingCall = send.mock.calls.find(([data]) => String(data).includes('"type":"ping"'));
+    const ping = JSON.parse(String(pingCall?.[0])) as { id: string };
     socket.onmessage?.({
       data: JSON.stringify({ type: "pong", id: ping.id, receivedAt: Date.now() }),
     });
@@ -1434,9 +1441,10 @@ describe("useRemoteServersStore", () => {
 
   it("opens a remote thread: hydrates history and streams socket events", async () => {
     const sockets: RemoteSocketLike[] = [];
+    const send = vi.fn<(data: string) => void>();
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
-      const socket = makeSocket();
+      const socket = makeSocket({ send });
       sockets.push(socket);
       return socket;
     });
@@ -1451,6 +1459,9 @@ describe("useRemoteServersStore", () => {
     expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(1);
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
     expect(sockets[0]?.close).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(
+      JSON.stringify({ type: "thread-item-interests", threadIds: ["rt-1"] }),
+    );
 
     // A thread-scoped live event frame for the OPEN thread is forwarded.
     const threadStateEvent = { type: "thread-state", threadId: "rt-1", status: "idle" };
@@ -1464,7 +1475,77 @@ describe("useRemoteServersStore", () => {
 
     useRemoteServersStore.getState().closeRemoteThread();
     expect(sockets[0]?.close).not.toHaveBeenCalled();
+    expect(send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: "thread-item-interests", threadIds: [] }),
+    );
     expect(useRemoteServersStore.getState().openThread).toBeNull();
+  });
+
+  it("keeps the visible remote thread subscribed while a replacement hydrates", async () => {
+    const send = vi.fn<(data: string) => void>();
+    const socket = makeSocket({ send });
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (threadId) => {
+      if (threadId === "rt-2") throw new Error("history failed");
+      return remoteThreadSnapshot(threadId);
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
+    await pairIsolated(() => socket);
+    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    send.mockClear();
+
+    await expect(useRemoteServersStore.getState().openRemoteThread("d1", "rt-2")).resolves.toBe(
+      false,
+    );
+
+    expect(send).toHaveBeenCalledWith(
+      JSON.stringify({ type: "thread-item-interests", threadIds: ["rt-1", "rt-2"] }),
+    );
+    expect(send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: "thread-item-interests", threadIds: ["rt-1"] }),
+    );
+    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
+  });
+
+  it("does not restore a removed thread after a pending replacement fails", async () => {
+    const pendingHistory = deferred<RemoteThreadHistorySnapshot>();
+    const send = vi.fn<(data: string) => void>();
+    const socket = makeSocket({ send });
+    const snapshot = vi
+      .fn<RemoteDesktopClient["snapshot"]>()
+      .mockResolvedValueOnce({
+        snapshotSeq: 1,
+        projects: [proj],
+        threads: [{ ...remoteThread, id: "rt-1" }],
+        runtimeSummariesByThread: {},
+        updatedAt: "pair",
+      })
+      .mockResolvedValueOnce({
+        snapshotSeq: 2,
+        projects: [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "refresh",
+      });
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>((threadId) =>
+      threadId === "rt-2"
+        ? pendingHistory.promise
+        : Promise.resolve(remoteThreadSnapshot(threadId)),
+    );
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ snapshot, threadHistory })));
+    await pairIsolated(() => socket);
+    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+
+    const replacement = useRemoteServersStore.getState().openRemoteThread("d1", "rt-2");
+    await useRemoteServersStore.getState().refreshServer("d1");
+    pendingHistory.reject(new Error("history failed"));
+
+    await expect(replacement).resolves.toBe(false);
+    expect(useRemoteServersStore.getState().openThread).toBeNull();
+    expect(send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: "thread-item-interests", threadIds: [] }),
+    );
   });
 
   it("streams a remote terminal through the open-thread connection", async () => {
@@ -1810,10 +1891,14 @@ describe("useRemoteServersStore", () => {
     await vi.advanceTimersByTimeAsync(0);
     sockets.length = 0;
     socketFactory.mockClear();
+    websocketUrl.mockClear();
     ticketSeq = 0;
 
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
     expect(socketFactory).toHaveBeenCalledTimes(1);
+    expect(websocketUrl).toHaveBeenNthCalledWith(1, "ticket-1", 1, {
+      threadItemInterests: ["rt-1"],
+    });
     expect(socketFactory).toHaveBeenNthCalledWith(
       1,
       "ws://192.168.1.9:38987/ws?ticket=ticket-1&last=1",
@@ -1831,6 +1916,9 @@ describe("useRemoteServersStore", () => {
     await Promise.resolve();
 
     expect(socketFactory).toHaveBeenCalledTimes(2);
+    expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7, {
+      threadItemInterests: ["rt-1"],
+    });
     expect(socketFactory).toHaveBeenNthCalledWith(
       2,
       "ws://192.168.1.9:38987/ws?ticket=ticket-2&last=7",

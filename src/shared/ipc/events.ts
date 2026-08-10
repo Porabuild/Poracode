@@ -29,6 +29,12 @@ export type SupervisorRequest = {
   };
 }[SupervisorProcedureName];
 
+/** Trusted parent-to-supervisor flow control; kept outside the procedure RPC map. */
+export interface SupervisorFlowControl {
+  control: "set-output-backpressure";
+  paused: boolean;
+}
+
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
   | { replyTo: string; ok: false; error: string };
@@ -77,6 +83,7 @@ export type SupervisorEvent =
         | { kind: "judging" };
     }
   | { type: "thread-reset"; threadId: string }
+  | { type: "thread-scrollback-resync"; threadId: string }
   | { type: "thread-output"; threadId: string; data: string; outputLength: number }
   | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }
   | { type: "thread-runtime-events"; threadId: string; events: RuntimeEvent[] }

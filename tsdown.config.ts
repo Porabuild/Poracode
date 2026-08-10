@@ -87,6 +87,7 @@ const deps = {
     "electron",
     "node-pty",
     "better-sqlite3",
+    "sharp",
     "@anthropic-ai/claude-agent-sdk",
     "@cursor/sdk",
     "@opencode-ai/sdk",
@@ -117,6 +118,18 @@ export default defineConfig([
   {
     entry: { main: "src/main/main.ts" },
     clean: true,
+    ...shared,
+  },
+  {
+    // Desktop-local backend host: owns supervisor event durability and the
+    // agent process tree outside Electron's latency-sensitive main process.
+    entry: { backendHost: "src/backend/index.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
+    entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
+    clean: false,
     ...shared,
   },
   {

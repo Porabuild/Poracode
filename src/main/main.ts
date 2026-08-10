@@ -1,4 +1,4 @@
-import { existsSync, watch } from "node:fs";
+import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -13,22 +13,7 @@ import {
 } from "electron";
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { resolveThemeMode } from "@/shared/themeMode";
-import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
-import {
-  closeDatabase,
-  dbDeleteThread,
-  dbGetProject,
-  dbGetProjectNotes,
-  dbGetProjects,
-  dbGetThread,
-  dbGetThreads,
-  dbInsertScheduleRun,
-  dbInterruptScheduleRuns,
-  dbUpdateScheduleRun,
-  dbUpsertThread,
-  initDatabase,
-  onProjectThreadDataChanged,
-} from "./db";
+import type { Project, Thread } from "@/shared/contracts";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
@@ -53,7 +38,6 @@ import {
   ComputerUseMcpIngress,
   type ComputerUseMcpIngressInfo,
 } from "./computer-use";
-import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
 import { createMainWindow } from "./window/createMainWindow";
@@ -80,14 +64,12 @@ import {
   IPC_WINDOW_CHANNELS,
   isAgentStatusSupervisorEvent,
   quickComposerSubmissionSchema,
-  type PrWatchStatusEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
-  type UpdateStatus,
 } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
+import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
-import { remoteProjectCommandResultSchema } from "@/shared/remote";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import {
@@ -96,26 +78,19 @@ import {
 } from "./diagnostics/processGone";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
-import { createDesktopRemoteAccessController, type DesktopRemoteAccessController } from "./remote";
-import { readOrCreateRemoteAccessIdentity } from "./remote/identity";
-import { createGitStateExecutor, GitStateService } from "./gitState";
 import { SshConnectionManager } from "./ssh/SshConnectionManager";
 import {
-  createDeviceScheduleService,
-  ensureHomeProjectRow,
-  ScheduleRunCoordinator,
-} from "./schedules";
-import {
-  AppControlsMcpIngress,
-  buildSharedAppControlsIngressDeps,
-  createAppControlsSupervisorCaller,
-} from "./app-controls";
-import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacyDataMigration";
+  legacyProductNameFor,
+  resolveLegacyElectronUserDataDir,
+} from "@/shared/legacyProductPaths";
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
-import { persistSupervisorEvent } from "./remote/server/runtimePersistence";
-import { createDevicePrWatchService, type PrWatchService } from "./prWatch";
 import { shouldUseMockKeychain } from "./mockKeychain";
+import { BackendHostClient } from "./backend/BackendHostClient";
+import { BackendStateStore } from "./backend/BackendStateStore";
+import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
+import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
+import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolvePoracodeChannel();
@@ -172,16 +147,24 @@ const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 let poracodePaths: PoracodePaths | null = null;
 if (hasSingleInstanceLock) {
   const electronUserDataDir = app.getPath("userData");
-  poracodePaths = preparePoracodeDataRoot(
-    baseDirOverride ?? (isDev ? join(homedir(), ".poracode-dev") : resolvePoracodeBaseDir(channel)),
-    {
+  const baseDir =
+    baseDirOverride ?? (isDev ? join(homedir(), ".poracode-dev") : resolvePoracodeBaseDir(channel));
+  try {
+    const result = migrateLegacyDataOutOfProcess({
+      baseDir,
       channel,
       electronUserDataDir,
       legacyElectronUserDataDir,
       ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
       allowCustomDataRoot: app.isPackaged,
-    },
-  );
+    });
+    if (result.status === "migrated") {
+      console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
+    }
+  } catch (error) {
+    console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
+  }
+  poracodePaths = preparePoracodeDataRoot(baseDir);
 }
 
 const sentryEnabled = initializeMainSentry({ appVersion: app.getVersion(), isDev, channel });
@@ -218,15 +201,23 @@ let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
 let computerUseMcpIngress: ComputerUseMcpIngress | null = null;
-let appControlsMcpIngress: AppControlsMcpIngress | null = null;
 let computerUseDesktopOverlay: ComputerUseDesktopOverlay | null = null;
 let chromeBridgeServer: ChromeBridgeServer | null = null;
 let chromeMcpIngress: ChromeMcpIngress | null = null;
 let browserExtractWindow: BrowserWindow | null = null;
+let backendHostClient: BackendHostClient | null = null;
+let backendStateStore: BackendStateStore | null = null;
+let backendRendererStreamInfo: BackendRendererStreamInfo | null = null;
+let clearRendererEventInterests: (() => void) | null = null;
 // Retained module-scope so the native Tray icon stays reachable from GC.
 let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
+
+function requireBackendStateStore(): BackendStateStore {
+  if (!backendStateStore) throw new Error("Backend state projection is not initialized.");
+  return backendStateStore;
+}
 
 function captureRendererProcessGone(
   details: RenderProcessGoneDetails,
@@ -438,6 +429,7 @@ function commonAppWindowOptions() {
     posthogHost,
     posthogKey,
     sentryEnabled,
+    ...(backendRendererStreamInfo ? { rendererStream: backendRendererStreamInfo } : {}),
     browserUserAgent,
     openDevTools: process.env.PORACODE_DISABLE_DEVTOOLS !== "1",
     ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
@@ -503,6 +495,7 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
   const windowChrome = resolveWindowChromeOptions();
   const window = createMainWindow({
     ...commonAppWindowOptions(),
+    state: requireBackendStateStore(),
     windowChromeHeight: WINDOW_CHROME_HEIGHT,
     appearance: windowChrome.appearance,
     sidebarTranslucency: windowChrome.sidebarTranslucency,
@@ -510,15 +503,20 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
     onClosed: () => {
       if (mainWindow === window) mainWindow = null;
       mainRendererReady = false;
+      clearRendererEventInterests?.();
     },
     onClose: handleMainWindowClose,
     onRendererProcessGone: (details, intent) => {
       mainRendererReady = false;
+      clearRendererEventInterests?.();
       captureRendererProcessGone(details, "renderer", intent);
     },
   });
   window.webContents.on("did-start-loading", () => {
-    if (mainWindow === window) mainRendererReady = false;
+    if (mainWindow === window) {
+      mainRendererReady = false;
+      clearRendererEventInterests?.();
+    }
   });
   return window;
 }
@@ -539,6 +537,7 @@ function revealBrowserInMainWindow(): void {
 function createBrowserExtractWindow(): BrowserWindow {
   const windowChrome = resolveWindowChromeOptions();
   const window = createMainWindow({
+    state: requireBackendStateStore(),
     title: `${getAppName(channel, isDev)} Browser`,
     windowKind: "browserExtract",
     boundsStateKey: "browser-extract-window-bounds",
@@ -702,13 +701,13 @@ if (!hasSingleInstanceLock) {
         });
       }
 
-      initDatabase(paths.dbPath);
       const secretStorageKey = readOrCreateSafeStorageSecretKey(paths.baseDir);
       // Configure the same key in main so it can seal captured secrets (e.g. usage
       // login cookies); the supervisor configures it from the env var it receives.
       configureSecretStorageKey(secretStorageKey);
 
       const supervisorPath = join(__dirname, "supervisor.cjs");
+      const backendHostPath = join(__dirname, "backendHost.cjs");
       const wslHelpersDir = app.isPackaged
         ? join(process.resourcesPath, "wsl-helpers")
         : join(__dirname, "..", "..", "resources", "wsl-helpers");
@@ -725,21 +724,81 @@ if (!hasSingleInstanceLock) {
         cacheDir: join(paths.baseDir, "ssh-runtime-bundles"),
       });
 
-      // Assigned after the browser services are composed and before the
-      // supervisor starts emitting events.
-      let remoteAccessController: DesktopRemoteAccessController | null = null;
-      // Assigned right after the supervisor client below; the `onEvent` tap only
-      // fires once the supervisor is started, by which point it is set.
-      let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
-      let prWatchService: PrWatchService | null = null;
-      let gitStateService: GitStateService | null = null;
-      const supervisorClient = new SupervisorClient({
-        appVersion: app.getVersion(),
-        isDev,
-        supervisorPath,
-        wslHelpersDir,
-        bundledSkillsDir,
-        secretStorageKey,
+      let rendererEventInterests: LiveEventInterests = {
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        allRuntimeEvents: false,
+      };
+      let trayProjects: Project[] = [];
+      let trayThreads: Thread[] = [];
+      let autoUpdaterController!: ReturnType<typeof createAutoUpdaterController>;
+      let remoteBrowserGateway: RemoteBrowserGateway | null = null;
+      let stopRemoteBrowserWatch: (() => void) | null = null;
+      let supervisorClient: BackendHostClient;
+      const dispatchBackendSupervisorEvent = (
+        event: SupervisorEvent,
+        rendererDeliveredDirect = false,
+      ): void => {
+        if (event.type === "crossagent-selection-used") {
+          try {
+            recordCrossagentSelectionPreference(event);
+          } catch (error) {
+            captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+          }
+          return;
+        }
+        if (event.type === "crossagent-routing-override-changed") {
+          let errorMessage: string | undefined;
+          try {
+            updateCrossagentRoutingOverride(event);
+          } catch (error) {
+            errorMessage =
+              error instanceof Error ? error.message : "Unable to save the routing preference";
+            captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+          }
+          void supervisorClient
+            .call("confirmCrossagentRoutingOverride", {
+              requestId: event.requestId,
+              ok: errorMessage === undefined,
+              ...(errorMessage ? { error: errorMessage } : {}),
+            })
+            .catch((error) => {
+              captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+            });
+          return;
+        }
+        handleSupervisorEventForSleep(event);
+        if (!rendererDeliveredDirect) {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+          forwardAgentStatusEventToQuickComposer(event);
+        }
+      };
+      const handleBackendReset = (): void => {
+        workingThreads.clear();
+        updatePowerSaveBlocker();
+      };
+      const backendHost = new BackendHostClient({
+        backendHostPath,
+        initialize: {
+          baseDir: paths.baseDir,
+          dbPath: paths.dbPath,
+          desktop: {
+            channel,
+            settingsPath: paths.settingsPath,
+            ...(process.env.VITE_DEV_SERVER_URL
+              ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
+              : {}),
+          },
+          supervisor: {
+            appVersion: app.getVersion(),
+            isDev,
+            supervisorPath,
+            wslHelpersDir,
+            bundledSkillsDir,
+            secretStorageKey,
+            preferUiResponsiveness: true,
+          },
+        },
         resolveExtraEnv: () => {
           const env: Record<string, string> = {};
           const browserInfo = browserMcpIngress?.getInfo();
@@ -757,11 +816,6 @@ if (!hasSingleInstanceLock) {
             env.PORACODE_COMPUTER_USE_MCP_URL = computerUseInfo.url;
             env.PORACODE_COMPUTER_USE_MCP_TOKEN = computerUseInfo.token;
           }
-          const appControlsInfo = appControlsMcpIngress?.getInfo();
-          if (appControlsInfo) {
-            env.PORACODE_APP_CONTROLS_MCP_URL = appControlsInfo.url;
-            env.PORACODE_APP_CONTROLS_MCP_TOKEN = appControlsInfo.token;
-          }
           return env;
         },
         assignPid: async (pid) => {
@@ -770,220 +824,147 @@ if (!hasSingleInstanceLock) {
         reportError: (error, tags) => {
           captureMainException(error, tags);
         },
-        onEvent: (event) => {
-          if (event.type === "crossagent-selection-used") {
-            try {
-              recordCrossagentSelectionPreference(event);
-            } catch (error) {
-              captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
-            }
-            return;
-          }
-          if (event.type === "crossagent-routing-override-changed") {
-            let errorMessage: string | undefined;
-            try {
-              updateCrossagentRoutingOverride(event);
-            } catch (error) {
-              errorMessage =
-                error instanceof Error ? error.message : "Unable to save the routing preference";
-              captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
-            }
-            void supervisorClient
-              .call("confirmCrossagentRoutingOverride", {
-                requestId: event.requestId,
-                ok: errorMessage === undefined,
-                ...(errorMessage ? { error: errorMessage } : {}),
-              })
-              .catch((error) => {
-                captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+        onEvent: dispatchBackendSupervisorEvent,
+        onReset: handleBackendReset,
+        handleNativeRequest: (request) => {
+          switch (request.operation) {
+            case "dispatch-thread-command":
+              if (!mainWindow) return false;
+              mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, request.payload);
+              return true;
+            case "open-thread":
+              openThreadFromTray(request.payload.threadId);
+              return true;
+            case "notify-user":
+              return showOsNotification(request.payload, () => mainWindow);
+            case "check-for-update":
+              return autoUpdaterController.checkForUpdate();
+            case "install-update":
+              autoUpdaterController.installUpdate();
+              return null;
+            case "browser-state":
+              return (
+                remoteBrowserGateway?.state() ?? Promise.reject(new Error("Browser unavailable."))
+              );
+            case "browser-command":
+              return (
+                remoteBrowserGateway?.command(request.payload) ??
+                Promise.reject(new Error("Browser unavailable."))
+              );
+            case "browser-input":
+              return (
+                remoteBrowserGateway?.dispatchInput(request.payload) ??
+                Promise.reject(new Error("Browser unavailable."))
+              );
+            case "browser-watch-start":
+              if (!remoteBrowserGateway) throw new Error("Browser unavailable.");
+              stopRemoteBrowserWatch ??= remoteBrowserGateway.watch({
+                onFrame: (frame) => backendHost.publishBrowserEvent({ type: "frame", ...frame }),
+                onState: (state) => backendHost.publishBrowserEvent({ type: "state", state }),
+                onStatus: (status) => backendHost.publishBrowserEvent({ type: "status", status }),
               });
-            return;
+              return null;
+            case "browser-watch-stop":
+              stopRemoteBrowserWatch?.();
+              stopRemoteBrowserWatch = null;
+              return null;
+            case "browser-refresh":
+              remoteBrowserGateway?.refresh();
+              return null;
           }
-          persistSupervisorEvent(event);
-          handleSupervisorEventForSleep(event);
-          appControlsMcpIngress?.observeSupervisorEvent(event);
-          scheduleRunCoordinator?.observeSupervisorEvent(event);
-          prWatchService?.observeSupervisorEvent(event);
-          gitStateService?.observeSupervisorEvent(event);
-          remoteAccessController?.handleSupervisorEvent(event);
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
-          forwardAgentStatusEventToQuickComposer(event);
         },
-        onReset: () => {
-          workingThreads.clear();
-          updatePowerSaveBlocker();
+        onNativeEvent: (event) => {
+          switch (event.type) {
+            case "database-projection-changed":
+              void Promise.all([
+                backendHost.callDatabase("dbGetProjects", {}),
+                backendHost.callDatabase("dbGetThreads", {}),
+              ]).then(([projects, threads]) => {
+                trayProjects = projects;
+                trayThreads = threads;
+                tray?.refreshMenu();
+              });
+              return;
+            case "shared-settings-changed":
+              updatePowerSaveBlocker();
+              handleSharedSettingsChanged(event.settings);
+              mainWindow?.webContents.send(
+                IPC_EVENT_CHANNELS.sharedSettingsChanged,
+                event.settings,
+              );
+              return;
+            case "remote-access-pairing-changed":
+              mainWindow?.webContents.send(
+                IPC_EVENT_CHANNELS.remoteAccessPairingChanged,
+                event.info,
+              );
+              return;
+            case "projects-changed":
+              mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, {
+                projects: event.projects,
+              });
+              return;
+            case "pr-watch-status":
+              mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchStatus, event.event);
+              return;
+            case "pr-watch-merged":
+              mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchMerged, event.event);
+              return;
+            case "git-state-changed":
+              mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, event.patch);
+          }
+        },
+        onRendererStreamInfo: (info) => {
+          backendRendererStreamInfo = info;
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.backendRendererStreamChanged, info);
+          quickComposerWindow?.webContents.send(
+            IPC_EVENT_CHANNELS.backendRendererStreamChanged,
+            info,
+          );
         },
       });
-      const scheduleCoordinator = new ScheduleRunCoordinator({
-        startThread: (payload) => supervisorClient.call("startThread", payload),
-        getAgentStatuses: (wslDistros) => supervisorClient.call("getAgentStatuses", { wslDistros }),
-        sendThreadCommand: (command) => {
-          if (!mainWindow) return false;
-          mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
-          return true;
-        },
-        ensureHomeProject: ensureHomeProjectRow,
-        getProject: dbGetProject,
-        getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
-        upsertThread: dbUpsertThread,
-        deleteThread: dbDeleteThread,
-        threadExists: (threadId) => dbGetThread(threadId) != null,
-        insertRun: dbInsertScheduleRun,
-        updateRun: dbUpdateScheduleRun,
-      });
-      scheduleRunCoordinator = scheduleCoordinator;
-      const scheduleService = createDeviceScheduleService({
-        runTask: (task) => scheduleCoordinator.runScheduleAsThread(task),
-        onStartupInterrupted: (scheduleId) =>
-          dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
-      });
-      const emitRemoteThreadCommand = (command: RemoteThreadCommand): boolean => {
-        if (!mainWindow) return false;
-        mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
-        return true;
+      const syncBackendEventInterests = (): Promise<void> =>
+        backendHost.setEventInterests(rendererEventInterests);
+      const reportEventInterestSyncError = (error: unknown): void => {
+        captureMainException(error, { "poracode.feature_area": "live-event-routing" });
       };
-      const publishProjectsChanged = (): void => {
-        const projects = dbGetProjects();
-        remoteAccessController?.getServer()?.publishSupervisorEvent({
-          type: "remote-projects-changed",
-          projects: remoteProjectCommandResultSchema.parse({ projects }).projects,
-        });
-        mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
+      clearRendererEventInterests = () => {
+        if (
+          rendererEventInterests.terminalThreadIds.length === 0 &&
+          rendererEventInterests.runtimeThreadIds.length === 0
+        ) {
+          return;
+        }
+        rendererEventInterests = {
+          terminalThreadIds: [],
+          runtimeThreadIds: [],
+          allRuntimeEvents: false,
+        };
+        void syncBackendEventInterests().catch(reportEventInterestSyncError);
       };
-      const sharedAppControlsDeps = buildSharedAppControlsIngressDeps({
-        call: (name, payload) => supervisorClient.call(name, payload),
-        sendThreadCommand: emitRemoteThreadCommand,
-        getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
-        publishProjectsChanged,
-      });
-      prWatchService = createDevicePrWatchService({
-        getProject: dbGetProject,
-        getPrForBranch: (project, branch) =>
-          supervisorClient.call("ghGetPrForBranch", {
-            projectLocation: project.location,
-            branch,
-          }),
-        getPrDetails: (project, prNumber) =>
-          supervisorClient
-            .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
-            .then((result) => result.details),
-        getPrReviewThreads: (project, prNumber) =>
-          supervisorClient
-            .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-            .then((result) => result.threads),
-        getMergeMethod: () =>
-          readSharedSettingsFile(requirePoracodePaths().settingsPath).prMergeMethod,
-        mergePr: (project, prNumber, method) =>
-          supervisorClient.call("ghMergePr", {
-            projectLocation: project.location,
-            prNumber,
-            method,
-            admin: false,
-          }),
-        onPrMerged: (mergedWatch) =>
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchMerged, {
-            projectId: mergedWatch.projectId,
-            prNumber: mergedWatch.prNumber,
-            ...(mergedWatch.worktreePath ? { worktreePath: mergedWatch.worktreePath } : {}),
-          }),
-        onPrObserved: (observedWatch, pr, details) => {
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchStatus, {
-            projectId: observedWatch.projectId,
-            prNumber: observedWatch.prNumber,
-            headBranch: observedWatch.headBranch,
-            ...(observedWatch.worktreePath ? { worktreePath: observedWatch.worktreePath } : {}),
-            pr,
-            ...(details ? { details } : {}),
-          } satisfies PrWatchStatusEvent);
-          // Paired remote clients read PR state from the git-state snapshot, not
-          // this IPC channel, so hand the same observation to the service that
-          // publishes their patches.
-          gitStateService?.applyObservedPullRequest(observedWatch, pr, details);
-        },
-        createThread: sharedAppControlsDeps.createThread,
-        isThreadActive: (threadId) => {
-          const status = dbGetThread(threadId)?.status;
-          return status !== undefined && isThreadTurnActive(status);
-        },
-        worktreeExists: existsSync,
-      });
-      gitStateService = new GitStateService({
-        hostId: readOrCreateRemoteAccessIdentity(paths.baseDir).desktopId,
-        executor: createGitStateExecutor((name, payload) => supervisorClient.call(name, payload)),
-        getProject: dbGetProject,
-        onPatch: (patch) => {
-          remoteAccessController?.getServer()?.publishSupervisorEvent({
-            type: "remote-git-state",
-            patch,
-          });
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, patch);
-        },
-      });
-      // Latest updater status, captured from the auto-updater's status stream so
-      // the app-controls `check_for_update` tool can report the most recent
-      // result (the check itself is fire-and-forget and event-driven).
-      let lastUpdateStatus: UpdateStatus | null = null;
-      appControlsMcpIngress = new AppControlsMcpIngress({
-        scheduleService,
-        getThread: dbGetThread,
-        getThreads: dbGetThreads,
-        getProjects: dbGetProjects,
-        getProject: dbGetProject,
-        getProjectNotes: dbGetProjectNotes,
-        ...sharedAppControlsDeps,
-        settings: {
-          read: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
-          write: (next) => {
-            writeSharedSettingsFile(requirePoracodePaths().settingsPath, next);
-            updatePowerSaveBlocker();
-            handleSharedSettingsChanged(next);
-            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
-          },
-        },
-        getAppInfo: () => ({
-          version: app.getVersion(),
-          platform: process.platform,
-          hasRendererWindow: mainWindow !== null && !mainWindow.isDestroyed(),
-        }),
-        supervisor: createAppControlsSupervisorCaller((name, payload) =>
-          supervisorClient.call(name, payload),
-        ),
-        emitRemoteThreadCommand,
-        // The desktop always has (or ensures) a main window to open into.
-        openThreadInUi: (threadId) => {
-          openThreadFromTray(threadId);
-          return true;
-        },
-        notifyUser: ({ title, body, threadId }) => {
-          const delivered = showOsNotification({ title, body, threadId }, () => mainWindow);
-          return delivered
-            ? { delivered: true }
-            : {
-                delivered: false,
-                note: "The operating system did not show the notification (notifications may be unsupported or disabled).",
-              };
-        },
-        checkForUpdate: async () => {
-          await autoUpdaterController.checkForUpdate();
-          const status = lastUpdateStatus;
-          const availableVersion =
-            status && (status.type === "update-available" || status.type === "downloaded")
-              ? status.version
-              : undefined;
-          return {
-            supported: true,
-            currentVersion: app.getVersion(),
-            ...(status ? { status: status.type } : {}),
-            ...(availableVersion ? { availableVersion } : {}),
-            note: "A background update check was triggered; its result surfaces in the app's update UI. status/availableVersion reflect the most recent known check, which may predate this call.",
-          };
-        },
-      });
-
-      const autoUpdaterController = createAutoUpdaterController(
+      backendHostClient = backendHost;
+      supervisorClient = backendHost;
+      const shellState = new BackendStateStore(backendHost);
+      backendRendererStreamInfo = await backendHost.getRendererStreamInfo();
+      await shellState.preload([
+        "window-bounds",
+        "browser-extract-window-bounds",
+        "browser-panel-tabs-v1",
+        "browser-history-v1",
+        "browser-bookmarks-v1",
+        "browser-bookmark-bar-visible-v1",
+      ]);
+      backendStateStore = shellState;
+      ipcMain.handle(
+        IPC_WINDOW_CHANNELS.backendRendererStreamInfo,
+        () => backendRendererStreamInfo,
+      );
+      autoUpdaterController = createAutoUpdaterController(
         (status) => {
-          lastUpdateStatus = status;
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.updateStatus, status);
+          void backendHost.callService("updateStatusChanged", {
+            status: status as import("@/shared/remote").RemoteHostUpdateStatus,
+          });
         },
         channel,
         isDev,
@@ -993,10 +974,11 @@ if (!hasSingleInstanceLock) {
         },
       );
 
-      browserPanelManager = new BrowserPanelManager(paths, browserUserAgent, {
+      browserPanelManager = new BrowserPanelManager(paths, browserUserAgent, shellState, {
         isExtracted: () => browserExtractWindow !== null && !browserExtractWindow.isDestroyed(),
         focusExtractedWindow: focusBrowserExtractWindow,
       });
+      remoteBrowserGateway = new RemoteBrowserGateway(() => browserPanelManager);
       browserMcpIngress = new BrowserMcpIngress();
       browserMcpIngress.setManagerAccessor(() => browserPanelManager);
       // External-Chrome control: a localhost WS bridge the companion extension
@@ -1014,10 +996,6 @@ if (!hasSingleInstanceLock) {
       });
       const chromeMcpReady = chromeMcpIngress.start().catch((err) => {
         console.error("[poracode] chrome MCP ingress failed to start:", err);
-        return null;
-      });
-      const appControlsMcpReady = appControlsMcpIngress.start().catch((err) => {
-        console.error("[poracode] app controls MCP ingress failed to start:", err);
         return null;
       });
       chromeBridgeServer.start().catch((err) => {
@@ -1053,43 +1031,6 @@ if (!hasSingleInstanceLock) {
         });
       }
 
-      const controller = createDesktopRemoteAccessController({
-        appVersion: app.getVersion(),
-        channel,
-        paths,
-        ...(process.env.VITE_DEV_SERVER_URL
-          ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
-          : {}),
-        callSupervisor: (name, payload) => supervisorClient.call(name, payload),
-        dispatchThreadCommand: (command) => {
-          if (!mainWindow) return false;
-          mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
-          return true;
-        },
-        getBrowserPanelManager: () => browserPanelManager,
-        notifySharedSettingsChanged: (settings) => {
-          updatePowerSaveBlocker();
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, settings);
-        },
-        notifyRemoteAccessPairingChanged: (info) => {
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.remoteAccessPairingChanged, info);
-        },
-        notifyProjectStateChanged: (projects) => {
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
-        },
-        reportError: captureMainException,
-        scheduleService,
-        prWatchService,
-        gitStateService,
-        updates: {
-          currentVersion: () => app.getVersion(),
-          status: () => lastUpdateStatus,
-          check: () => autoUpdaterController.checkForUpdate(),
-          install: () => autoUpdaterController.installUpdate(),
-        },
-      });
-      remoteAccessController = controller;
-
       quickComposerShortcutManager = new QuickComposerShortcutManager(
         globalShortcut,
         process.platform,
@@ -1113,12 +1054,6 @@ if (!hasSingleInstanceLock) {
         localHandlers: createLocalIpcHandlers({
           getMainWindow: () => mainWindow,
           getBrowserPanelManager: () => browserPanelManager,
-          getRemoteAccessServer: controller.getServer,
-          setRemoteAccessEnabled: controller.setEnabled,
-          getRemoteAccessTailscaleStatus: controller.getTailscaleStatus,
-          setRemoteAccessTailscaleHttps: controller.setTailscaleHttps,
-          startTailscale: controller.startTailscale,
-          setRemoteAccessAdvertisedUrl: controller.setAdvertisedUrl,
           sshConnectionManager,
           requirePoracodePaths,
           legacyElectronUserDataDir,
@@ -1128,7 +1063,14 @@ if (!hasSingleInstanceLock) {
           onSharedSettingsChanged: handleSharedSettingsChanged,
           onKeybindingsChanged: (file) => quickComposerShortcutManager?.apply(file),
           setGlobalShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
-          onRemoteGitSummaries: controller.updateGitSummaries,
+          setRendererEventInterests: async (interests) => {
+            rendererEventInterests = {
+              terminalThreadIds: interests.terminalThreadIds,
+              runtimeThreadIds: interests.runtimeThreadIds,
+              allRuntimeEvents: false,
+            };
+            await syncBackendEventInterests();
+          },
           extractBrowserToWindow,
           injectBrowserToMain,
           requestRelaunch: () => {
@@ -1136,8 +1078,8 @@ if (!hasSingleInstanceLock) {
             app.relaunch();
             app.quit();
           },
-          scheduleService,
-          prWatchService,
+          database: backendHost,
+          backendServices: backendHost,
         }),
         callSupervisor: (name, payload) => supervisorClient.call(name, payload),
       });
@@ -1186,8 +1128,8 @@ if (!hasSingleInstanceLock) {
       tray = createTray({
         channel,
         appName: getAppName(channel, isDev),
-        getProjects: dbGetProjects,
-        getThreads: dbGetThreads,
+        getProjects: () => trayProjects,
+        getThreads: () => trayThreads,
         onOpenThread: openThreadFromTray,
         onShow: () => showAndFocusWindow(ensureMainWindow()),
         onQuickComposer: toggleQuickComposerWindow,
@@ -1197,7 +1139,11 @@ if (!hasSingleInstanceLock) {
         },
       });
       tray.setQuickComposerShortcut(quickComposerShortcutManager.active[0] ?? null);
-      onProjectThreadDataChanged(() => tray?.refreshMenu());
+      [trayProjects, trayThreads] = await Promise.all([
+        backendHost.callDatabase("dbGetProjects", {}),
+        backendHost.callDatabase("dbGetThreads", {}),
+      ]);
+      tray.refreshMenu();
 
       await jobObjectReady;
 
@@ -1209,28 +1155,19 @@ if (!hasSingleInstanceLock) {
         );
       }
 
-      await Promise.all([
-        mcpInfoReady,
-        chromeMcpReady,
-        computerUseMcpInfoReady,
-        appControlsMcpReady,
-      ]);
-      supervisorClient.start(paths.baseDir);
-      scheduleService.start();
-      prWatchService.start();
-      gitStateService.start();
-      // The remote controller performs one bounded warm-up when enabled.
-      // Recurring Git refreshes remain demand-driven by connected clients.
+      await Promise.all([mcpInfoReady, chromeMcpReady, computerUseMcpInfoReady]);
+      await backendHost.startSupervisor();
 
       updatePowerSaveBlocker();
-      void controller.startIfEnabled();
 
       initialMainWindow.once("ready-to-show", () => {
         setTimeout(() => {
           const attachmentPaths = requirePoracodePaths();
-          cleanupOrphanedAttachments(
-            attachmentPaths.attachmentsDir,
-            dbGetThreads().map((thread) => thread.id),
+          void backendHost.callDatabase("dbGetThreads", {}).then((threads) =>
+            cleanupOrphanedAttachments(
+              attachmentPaths.attachmentsDir,
+              threads.map((thread) => thread.id),
+            ),
           );
         }, 0);
       });
@@ -1247,7 +1184,9 @@ if (!hasSingleInstanceLock) {
           }
           debounce = setTimeout(() => {
             console.log("[poracode] supervisor changed, restarting…");
-            supervisorClient.start(requirePoracodePaths().baseDir);
+            void backendHost.restartSupervisor().catch((error) => {
+              captureMainException(error, { "poracode.feature_area": "backend-host" });
+            });
           }, 200);
         });
       }
@@ -1260,42 +1199,53 @@ if (!hasSingleInstanceLock) {
         ensureMainWindow();
       });
 
-      app.on("before-quit", () => {
+      let quitCleanupStarted = false;
+      app.on("before-quit", (event) => {
         isQuitting = true;
+        if (quitCleanupStarted) return;
+        quitCleanupStarted = true;
+        event.preventDefault();
         quickComposerShortcutManager?.dispose();
         quickComposerShortcutManager = null;
         if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
         quickComposerDismissTimer = null;
         pendingQuickComposerSubmissions.length = 0;
-        scheduleService.dispose();
-        prWatchService.dispose();
-        gitStateService.dispose();
-        supervisorClient.dispose();
-        windowsJobObjectManager?.dispose();
-        windowsJobObjectManager = null;
         browserMcpIngress?.dispose();
         browserMcpIngress = null;
         computerUseMcpIngress?.dispose();
         computerUseMcpIngress = null;
-        appControlsMcpIngress?.dispose();
-        appControlsMcpIngress = null;
         computerUseDesktopOverlay?.dispose();
         computerUseDesktopOverlay = null;
         chromeMcpIngress?.dispose();
         chromeMcpIngress = null;
         chromeBridgeServer?.dispose();
         chromeBridgeServer = null;
-        void controller.dispose();
-        void sshConnectionManager.dispose();
+        const sshDispose = sshConnectionManager.dispose().catch((error) => {
+          captureMainException(error, { "poracode.feature_area": "ssh" });
+        });
         browserExtractWindow?.close();
         browserExtractWindow = null;
         quickComposerWindow?.close();
         quickComposerWindow = null;
         browserPanelManager?.dispose();
         browserPanelManager = null;
+        stopRemoteBrowserWatch?.();
+        stopRemoteBrowserWatch = null;
+        remoteBrowserGateway?.dispose();
+        remoteBrowserGateway = null;
         sleepInhibitor.dispose();
         tray?.destroy();
         tray = null;
+        void Promise.all([sshDispose])
+          .then(() => backendHost.disposeAsync())
+          .catch((error) => {
+            captureMainException(error, { "poracode.feature_area": "backend-host" });
+          })
+          .finally(() => {
+            windowsJobObjectManager?.dispose();
+            windowsJobObjectManager = null;
+            app.quit();
+          });
       });
     })
     .catch((error: unknown) => {
@@ -1306,7 +1256,11 @@ if (!hasSingleInstanceLock) {
 }
 
 app.on("will-quit", () => {
-  closeDatabase();
+  ipcMain.removeHandler(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
+  backendHostClient?.dispose();
+  backendHostClient = null;
+  backendStateStore = null;
+  backendRendererStreamInfo = null;
 });
 
 app.on("window-all-closed", () => {

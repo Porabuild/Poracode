@@ -825,6 +825,10 @@ export class SupervisorRuntime {
     }
   }
 
+  setIpcBackpressured(paused: boolean): void {
+    this.threadSessionManager.setPtyOutputPaused(paused);
+  }
+
   dispose(): void {
     void this.disposeAsync();
   }

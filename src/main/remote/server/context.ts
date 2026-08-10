@@ -13,7 +13,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStateInterest } from "@/shared/gitState";
 import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
 import type { PortProxy } from "../portForward/portProxy";
-import type { RemoteBrowserGateway } from "../RemoteBrowserGateway";
+import type { RemoteBrowserGatewayLike } from "../RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerSecurity } from "./security";
@@ -67,7 +67,7 @@ export interface RemoteServerContext {
   requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
   requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]>;
   requirePrWatchesGateway(): NonNullable<RemoteAccessServerOptions["prWatches"]>;
-  requireBrowserGateway(): RemoteBrowserGateway;
+  requireBrowserGateway(): RemoteBrowserGatewayLike;
   requirePortForwardGateway(): RemotePortForwardGateway;
   requirePortProxy(): PortProxy;
   requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]>;
@@ -75,4 +75,5 @@ export interface RemoteServerContext {
   publishThreadsChanged(threadIds: readonly string[]): void;
   send(ws: WebSocket, message: RemoteWebSocketServerMessage): void;
   sendRaw(ws: WebSocket, data: string): boolean;
+  notifyEventInterestsChanged(): void;
 }

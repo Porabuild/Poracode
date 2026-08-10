@@ -236,6 +236,8 @@ function createController(
       vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>(),
     notifyProjectStateChanged:
       vi.fn<DesktopRemoteAccessControllerOptions["notifyProjectStateChanged"]>(),
+    notifyEventInterestsChanged:
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyEventInterestsChanged"]>(),
     reportError,
     scheduleService: {} as never,
     prWatchService: {} as never,

@@ -3,7 +3,6 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../db.schema";
-import { resetMainCreatedThreads } from "./mainCreatedThreads";
 import {
   assertRequiredDatabaseSchema,
   repairSafeSchemaDrift,
@@ -86,7 +85,10 @@ function openDatabase(dbPath: string): InstanceType<typeof Database> {
   }
 }
 
-export function initDatabase(dbPath: string) {
+export function initDatabase(
+  dbPath: string,
+  options: { schemaMode?: "migrate" | "validate" } = {},
+) {
   console.log(`[db] opening ${dbPath}`);
   const sqlite = openDatabase(dbPath);
   sqlite.pragma("journal_mode = WAL");
@@ -94,8 +96,18 @@ export function initDatabase(dbPath: string) {
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
 
+  // Desktop main migrates before it starts BackendHost. Both processes then
+  // keep WAL connections open, so read-then-write transactions must use
+  // BEGIN IMMEDIATE to reserve the single writer before taking a snapshot.
+
   _sqlite = sqlite;
   _db = drizzle({ client: sqlite, schema });
+
+  if (options.schemaMode === "validate") {
+    assertRequiredDatabaseSchema(sqlite);
+    console.log("[db] validated");
+    return _db;
+  }
 
   // Create tables if they don't exist.
   sqlite.exec(`
@@ -167,6 +179,9 @@ export function initDatabase(dbPath: string) {
     CREATE TABLE IF NOT EXISTS thread_context_usage (
       thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
       usage TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS main_created_threads (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS project_notes (
       project_id TEXT PRIMARY KEY,
@@ -317,5 +332,4 @@ export function closeDatabase() {
   }
   _sqlite = undefined;
   _db = undefined;
-  resetMainCreatedThreads();
 }

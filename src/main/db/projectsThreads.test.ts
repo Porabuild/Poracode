@@ -218,7 +218,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("31");
+    expect(dbGetState("schema_version")).toBe("32");
   });
 
   it("repairs safe schema drift even when the database claims the latest version", () => {
@@ -264,7 +264,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("31");
+    expect(dbGetState("schema_version")).toBe("32");
     expect(dbGetProject("legacy-project")).toMatchObject({
       id: "legacy-project",
       name: "Legacy project",
@@ -302,7 +302,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     initDatabase(join(dir, "state.sqlite"));
 
-    expect(dbGetState("schema_version")).toBe("31");
+    expect(dbGetState("schema_version")).toBe("32");
     expect(dbGetThread("legacy-empty-model")?.config).toEqual({
       model: "auto",
       effort: "high",

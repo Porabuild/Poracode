@@ -319,7 +319,11 @@ export interface AppControlsToolContext {
    * Show an OS notification to the user. Desktop-only: the headless host has no
    * display, so it reports non-delivery instead of silently succeeding.
    */
-  notifyUser(input: { title: string; body: string; threadId: string }): AppControlsNotifyResult;
+  notifyUser(input: {
+    title: string;
+    body: string;
+    threadId: string;
+  }): AppControlsNotifyResult | Promise<AppControlsNotifyResult>;
   /**
    * Trigger the desktop app's update check (read-only). Headless / dev report a
    * clear not-supported result rather than pretending to check.

@@ -6,6 +6,7 @@ import {
 import type { RemoteWebSocketServerMessage } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
+import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
 
 /**
  * Renderer instance of the shared terminal feed, used by remote thread views.
@@ -49,12 +50,17 @@ export function watchRoutedTerminal(
   desktopId: string | undefined = remoteTerminalOwner(id),
 ): () => void {
   if (desktopId) return watchRemoteTerminal(desktopId, id, listener);
-  return readBridge().onSupervisorEvent((event) => {
+  const interest = retainRendererEventInterest("terminal", id);
+  const unsubscribe = readBridge().onSupervisorEvent((event) => {
     if (!("threadId" in event) || event.threadId !== id) return;
     if (event.type === "thread-output") listener.onOutput(event.data);
     else if (event.type === "thread-reset") listener.onReset();
     else if (event.type === "thread-exited") listener.onExited(event.exitCode);
   });
+  return () => {
+    unsubscribe();
+    interest.release();
+  };
 }
 
 export function handleRemoteTerminalServerMessage(

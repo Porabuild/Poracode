@@ -1,27 +1,15 @@
-import { existsSync } from "node:fs";
 import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
-import {
-  closeDatabase,
-  dbDeleteThread,
-  dbGetProject,
-  dbGetProjectNotes,
-  dbGetProjects,
-  dbGetThread,
-  dbGetThreads,
-  dbInsertScheduleRun,
-  dbInterruptScheduleRuns,
-  dbMarkLiveThreadsInactive,
-  dbUpdateScheduleRun,
-  dbUpsertThread,
-  initDatabase,
-} from "@/main/db";
+import { dbGetProject, dbGetProjects, dbGetThreads } from "@/main/db";
+import { BackendHostCore } from "@/backend/BackendHostCore";
+import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
+import { migrateLegacyDataOnLaunch } from "@/main/legacyDataMigration";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   patchSharedSettingsFile,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "@/main/sharedSettingsFile";
-import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
 import { createPersistentRemoteAuthStore } from "@/main/remote/auth";
 import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
 import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
@@ -39,22 +27,10 @@ import {
   resolveRemoteAccessPort,
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
-import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import { pickRemoteSettings, remoteProjectCommandResultSchema } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
-import {
-  createDeviceScheduleService,
-  ensureHomeProjectRow,
-  ScheduleRunCoordinator,
-} from "@/main/schedules";
-import {
-  AppControlsMcpIngress,
-  buildSharedAppControlsIngressDeps,
-  createAppControlsSupervisorCaller,
-} from "@/main/app-controls";
-import { createDevicePrWatchService, type PrWatchService } from "@/main/prWatch";
-import { createGitStateExecutor, GitStateService } from "@/main/gitState";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 /**
@@ -148,14 +124,50 @@ export async function createHeadlessRemoteHost(
     host,
     ...(options.port !== undefined ? { port: options.port } : {}),
   });
-  const paths = preparePoracodeDataRoot(options.baseDir);
-  initDatabase(paths.dbPath);
-  // No agent session survived the restart; without a renderer to run
-  // markThreadsInactiveOnLaunch, stale live statuses would be re-served to
-  // every client snapshot until the next supervisor event for that thread.
-  dbMarkLiveThreadsInactive();
+  const targetPaths = resolvePoracodePaths(options.baseDir);
+  migrateLegacyDataOnLaunch({ baseDir: targetPaths.baseDir });
+  const paths = preparePoracodeDataRoot(targetPaths.baseDir);
   configureSecretStorageKey(options.secretStorageKey);
   const getSharedSettings = () => readSharedSettingsFile(paths.settingsPath);
+
+  // These are assigned after the core is constructed and before its supervisor
+  // starts, so the event callback always sees the completed composition.
+  let serverRef: RemoteAccessServer | null = null;
+  let durableServices: BackendDurableServices | null = null;
+  let pushCoordinator: PushCoordinator | null = null;
+
+  const backendHost = new BackendHostCore({
+    baseDir: paths.baseDir,
+    dbPath: paths.dbPath,
+    // No agent session survived the restart; without a renderer to run
+    // markThreadsInactiveOnLaunch, stale live statuses would be re-served to
+    // every client snapshot until the next supervisor event for that thread.
+    markLiveThreadsInactiveOnOpen: true,
+    supervisor: {
+      appVersion: options.appVersion,
+      isDev,
+      supervisorPath: options.supervisorPath,
+      wslHelpersDir: options.wslHelpersDir,
+      ...(options.bundledSkillsDir ? { bundledSkillsDir: options.bundledSkillsDir } : {}),
+      secretStorageKey: options.secretStorageKey,
+      resolveExtraEnv: () => {
+        return durableServices?.getSupervisorExtraEnv() ?? {};
+      },
+      ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
+    },
+    onEvent: (event) => {
+      options.onSupervisorEvent?.(event);
+      durableServices?.observeSupervisorEvent(event);
+      serverRef?.publishSupervisorEvent(event);
+      pushCoordinator?.handleSupervisorEvent(event);
+    },
+    onReset: () => {
+      // Supervisor restarted/exited: in-flight requests are already rejected by
+      // the client. Connected remote clients self-heal on their next request or
+      // WebSocket reconnect (the replay window covers transient drops).
+    },
+  });
+  const supervisorClient = backendHost.supervisorClient;
 
   const identity = readOrCreateRemoteAccessIdentity(paths.baseDir);
   const authStore = createPersistentRemoteAuthStore(paths.baseDir);
@@ -163,7 +175,7 @@ export async function createHeadlessRemoteHost(
   const pushGatewayOptions = {
     ...(options.reportError ? { onError: (error: unknown) => options.reportError?.(error) } : {}),
   };
-  const pushCoordinator = new PushCoordinator({
+  pushCoordinator = new PushCoordinator({
     store: pushStore,
     sendPush: createPushGateway(pushGatewayOptions),
     getThreads: () => dbGetThreads(),
@@ -178,156 +190,22 @@ export async function createHeadlessRemoteHost(
     getAttributes: () => ({ desktopId: identity.desktopId, desktopName: identity.label }),
   });
 
-  // The supervisor's onEvent fires only after start() forks it, by which point
-  // `serverRef` is assigned; the null-guard covers construction order only.
-  let serverRef: RemoteAccessServer | null = null;
-  let appControlsMcpIngress: AppControlsMcpIngress | null = null;
-  let prWatchService: PrWatchService | null = null;
-  let gitStateService: GitStateService | null = null;
-  // Assigned right after the supervisor client below; the `onEvent` tap only
-  // fires once the supervisor is started, by which point it is set.
-  let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
-  const supervisorClient = new SupervisorClient({
-    appVersion: options.appVersion,
-    isDev,
-    supervisorPath: options.supervisorPath,
-    wslHelpersDir: options.wslHelpersDir,
-    ...(options.bundledSkillsDir ? { bundledSkillsDir: options.bundledSkillsDir } : {}),
-    secretStorageKey: options.secretStorageKey,
-    resolveExtraEnv: () => {
-      const info = appControlsMcpIngress?.getInfo();
-      return info
-        ? {
-            PORACODE_APP_CONTROLS_MCP_URL: info.url,
-            PORACODE_APP_CONTROLS_MCP_TOKEN: info.token,
-          }
-        : {};
-    },
-    ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
-    onEvent: (event) => {
-      options.onSupervisorEvent?.(event);
-      appControlsMcpIngress?.observeSupervisorEvent(event);
-      prWatchService?.observeSupervisorEvent(event);
-      gitStateService?.observeSupervisorEvent(event);
-      scheduleRunCoordinator?.observeSupervisorEvent(event);
-      serverRef?.publishSupervisorEvent(event);
-      pushCoordinator.handleSupervisorEvent(event);
-    },
-    onReset: () => {
-      // Supervisor restarted/exited: in-flight requests are already rejected by
-      // the client. Connected remote clients self-heal on their next request or
-      // WebSocket reconnect (the replay window covers transient drops).
-    },
-  });
-  const scheduleCoordinator = new ScheduleRunCoordinator({
-    startThread: (payload) => supervisorClient.call("startThread", payload),
-    getAgentStatuses: (wslDistros) => supervisorClient.call("getAgentStatuses", { wslDistros }),
-    // Headless has no desktop renderer to mirror to; the DB thread row (written
-    // below) is the source of truth and connected remote clients pick it up.
-    sendThreadCommand: () => false,
-    ensureHomeProject: ensureHomeProjectRow,
-    getProject: dbGetProject,
-    getSharedSettings,
-    upsertThread: dbUpsertThread,
-    deleteThread: dbDeleteThread,
-    threadExists: (threadId) => dbGetThread(threadId) != null,
-    insertRun: dbInsertScheduleRun,
-    updateRun: dbUpdateScheduleRun,
-  });
-  scheduleRunCoordinator = scheduleCoordinator;
-  const scheduleService = createDeviceScheduleService({
-    runTask: (task) => scheduleCoordinator.runScheduleAsThread(task),
-    onStartupInterrupted: (scheduleId) =>
-      dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
-  });
   const publishHeadlessProjectsChanged = (): void => {
     serverRef?.publishSupervisorEvent({
       type: "remote-projects-changed",
       projects: remoteProjectCommandResultSchema.parse({ projects: dbGetProjects() }).projects,
     });
   };
-  const sharedAppControlsDeps = buildSharedAppControlsIngressDeps({
-    call: (name, payload) => supervisorClient.call(name, payload),
-    // Headless has no desktop renderer to mirror to; the DB thread row is the
-    // source of truth and connected remote clients pick it up.
-    sendThreadCommand: () => false,
-    getSharedSettings,
-    publishProjectsChanged: publishHeadlessProjectsChanged,
-  });
-  prWatchService = createDevicePrWatchService({
-    getProject: dbGetProject,
-    getPrForBranch: (project, branch) =>
-      supervisorClient.call("ghGetPrForBranch", {
-        projectLocation: project.location,
-        branch,
-      }),
-    getPrDetails: (project, prNumber) =>
-      supervisorClient
-        .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
-        .then((result) => result.details),
-    getPrReviewThreads: (project, prNumber) =>
-      supervisorClient
-        .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-        .then((result) => result.threads),
-    getMergeMethod: () => getSharedSettings().prMergeMethod,
-    mergePr: (project, prNumber, method) =>
-      supervisorClient.call("ghMergePr", {
-        projectLocation: project.location,
-        prNumber,
-        method,
-        admin: false,
-      }),
-    // Headless has no renderer; connected remote clients read PR state from the
-    // git-state snapshot, so the watch loop's observations go straight there.
-    onPrObserved: (observedWatch, pr, details) =>
-      gitStateService?.applyObservedPullRequest(observedWatch, pr, details),
-    createThread: sharedAppControlsDeps.createThread,
-    isThreadActive: (threadId) => {
-      const status = dbGetThread(threadId)?.status;
-      return status !== undefined && isThreadTurnActive(status);
-    },
-    worktreeExists: existsSync,
-  });
-  gitStateService = new GitStateService({
+  durableServices = new BackendDurableServices({
+    appVersion: options.appVersion,
     hostId: identity.desktopId,
-    executor: createGitStateExecutor((name, payload) => supervisorClient.call(name, payload)),
-    getProject: dbGetProject,
-    onPatch: (patch) => {
-      serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
-    },
-  });
-  appControlsMcpIngress = new AppControlsMcpIngress({
-    scheduleService,
-    getThread: dbGetThread,
-    getThreads: () => dbGetThreads(),
-    getProjects: () => dbGetProjects(),
-    getProject: dbGetProject,
-    getProjectNotes: dbGetProjectNotes,
-    ...sharedAppControlsDeps,
-    settings: {
-      read: () => readSharedSettingsFile(paths.settingsPath),
-      // Headless has no desktop renderer to notify; connected remote clients
-      // re-read settings on their next request. The DB/settings file is the
-      // source of truth.
-      write: (next) => writeSharedSettingsFile(paths.settingsPath, next),
-    },
-    getAppInfo: () => ({
-      version: options.appVersion,
-      platform: process.platform,
-      hasRendererWindow: false,
-    }),
-    supervisor: createAppControlsSupervisorCaller((name, payload) =>
-      supervisorClient.call(name, payload),
-    ),
-    // No renderer headless: metadata mutations and UI focus route through the
-    // desktop store, which isn't present here. `emitRemoteThreadCommand` reports
-    // `false` so the tool falls back to writing the DB row directly (the
-    // headless source of truth); `openThreadInUi` reports `false` (nothing to
-    // focus). Connected remote clients pick up the DB change on their next poll.
-    emitRemoteThreadCommand: () => false,
+    supervisor: supervisorClient,
+    getSharedSettings,
+    writeSharedSettings: (next) => writeSharedSettingsFile(paths.settingsPath, next),
+    sendThreadCommand: () => false,
+    publishProjectsChanged: publishHeadlessProjectsChanged,
+    hasRendererWindow: false,
     openThreadInUi: () => false,
-    // The headless host has no display and no auto-updater, so both report an
-    // honest not-available result instead of silently succeeding.
     notifyUser: () => ({
       delivered: false,
       note: "No Poracode desktop app is connected, so no OS notification could be shown.",
@@ -337,7 +215,13 @@ export async function createHeadlessRemoteHost(
       currentVersion: options.appVersion,
       note: "Update checks are not available on the headless server; update the host from the desktop app.",
     }),
+    onGitPatch: (patch) => {
+      serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
+    },
   });
+  const scheduleService = durableServices.scheduleService;
+  const prWatchService = durableServices.prWatchService;
+  const gitStateService = durableServices.gitStateService;
 
   // In dev, advertise loopback by default so the iOS simulator's WebView can
   // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
@@ -357,6 +241,7 @@ export async function createHeadlessRemoteHost(
   const server = new RemoteAccessServer({
     appVersion: options.appVersion,
     hostMode: "helper",
+    ownsSupervisorPersistence: false,
     identity,
     isDev,
     authStore,
@@ -400,16 +285,14 @@ export async function createHeadlessRemoteHost(
     server,
     async start() {
       if (!started) {
-        await appControlsMcpIngress?.start();
-        supervisorClient.start(paths.baseDir);
-        scheduleService.start();
-        prWatchService?.start();
-        gitStateService?.start();
+        await durableServices?.startIngress();
+        backendHost.startSupervisor();
+        durableServices?.startBackgroundServices();
         const gitWarmupInterests = buildRemoteGitTargetInterests(dbGetThreads(), {
           includeRecentFallback: true,
         });
         if (gitWarmupInterests.length > 0) {
-          void gitStateService?.refreshInterests(gitWarmupInterests, { fetchRemote: true });
+          void gitStateService.refreshInterests(gitWarmupInterests, { fetchRemote: true });
         }
         started = true;
       }
@@ -441,16 +324,10 @@ export async function createHeadlessRemoteHost(
       // under it (the gateway's own `disposed` guard makes this airtight
       // regardless of ordering, but disposing after keeps the two aligned).
       await server.dispose();
-      scheduleService.dispose();
-      prWatchService?.dispose();
-      prWatchService = null;
-      gitStateService?.dispose();
-      gitStateService = null;
-      appControlsMcpIngress?.dispose();
-      appControlsMcpIngress = null;
+      durableServices?.dispose();
+      durableServices = null;
       portForwarding.dispose();
-      supervisorClient.dispose();
-      closeDatabase();
+      backendHost.dispose();
     },
   };
 }

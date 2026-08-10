@@ -22,6 +22,15 @@ const { hydrateFileCheckpoints, finalizeFileCheckpoint } = vi.hoisted(() => ({
   hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   finalizeFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
+const { retainRendererEventInterest } = vi.hoisted(() => {
+  const release = vi.fn<() => void>();
+  return {
+    retainRendererEventInterest: vi.fn<() => { ready: Promise<void>; release: () => void }>(() => ({
+      ready: Promise.resolve(),
+      release,
+    })),
+  };
+});
 const { legendScrollToEnd, legendScrollToIndex } = vi.hoisted(() => ({
   legendScrollToEnd: vi.fn<(options?: { animated?: boolean }) => void>(),
   legendScrollToIndex: vi.fn<(options: { index: number; viewPosition?: number }) => void>(),
@@ -38,6 +47,8 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   hydrateFileCheckpoints,
   finalizeFileCheckpoint,
 }));
+
+vi.mock("@/renderer/state/rendererEventInterests", () => ({ retainRendererEventInterest }));
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");

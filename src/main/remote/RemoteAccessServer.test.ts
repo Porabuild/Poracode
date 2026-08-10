@@ -1357,6 +1357,68 @@ describe("RemoteAccessServer", () => {
     await closed;
   });
 
+  it("publishes aggregate terminal and runtime interests for connected clients", async () => {
+    const onEventInterestsChanged =
+      vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      onEventInterestsChanged,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "terminal:read"]);
+    const ticket = await issueWebSocketTicket(info, token);
+    const url = new URL("/ws", info.wsBaseUrl);
+    url.searchParams.set("ticket", ticket);
+    url.searchParams.set("threadItemInterests", JSON.stringify(["chat-1"]));
+    const ws = new WebSocket(url);
+    const next = createWsReader(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+    await next();
+
+    await vi.waitFor(() =>
+      expect(onEventInterestsChanged).toHaveBeenLastCalledWith({
+        terminalThreadIds: [],
+        runtimeThreadIds: ["chat-1"],
+        allRuntimeEvents: false,
+      }),
+    );
+
+    ws.send(JSON.stringify({ type: "terminal-watch", id: "terminal-1" }));
+    await vi.waitFor(() =>
+      expect(onEventInterestsChanged).toHaveBeenLastCalledWith({
+        terminalThreadIds: ["terminal-1"],
+        runtimeThreadIds: ["chat-1"],
+        allRuntimeEvents: false,
+      }),
+    );
+
+    ws.send(JSON.stringify({ type: "thread-item-interests", threadIds: ["chat-2"] }));
+    await vi.waitFor(() =>
+      expect(onEventInterestsChanged).toHaveBeenLastCalledWith({
+        terminalThreadIds: ["terminal-1"],
+        runtimeThreadIds: ["chat-2"],
+        allRuntimeEvents: false,
+      }),
+    );
+
+    ws.close();
+    await vi.waitFor(() =>
+      expect(onEventInterestsChanged).toHaveBeenLastCalledWith({
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        allRuntimeEvents: false,
+      }),
+    );
+  });
+
   it("scopes transcript content per connection without breaking approvals or replay", async () => {
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",

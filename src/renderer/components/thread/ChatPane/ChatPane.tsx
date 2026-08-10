@@ -15,6 +15,7 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
+import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
 import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
@@ -236,8 +237,18 @@ export function ChatPane(props: ChatPaneProps) {
 
   useEffect(() => {
     retainThreadRuntimeItems(threadId);
-    if (!isRemoteThread) void hydrateThreadRuntimeItems(threadId);
-    return () => releaseThreadRuntimeItems(threadId);
+    if (isRemoteThread) return () => releaseThreadRuntimeItems(threadId);
+
+    let active = true;
+    const interest = retainRendererEventInterest("runtime", threadId);
+    void interest.ready.then(() => {
+      if (active) void hydrateThreadRuntimeItems(threadId);
+    });
+    return () => {
+      active = false;
+      interest.release();
+      releaseThreadRuntimeItems(threadId);
+    };
   }, [isRemoteThread, threadId]);
 
   useEffect(() => {

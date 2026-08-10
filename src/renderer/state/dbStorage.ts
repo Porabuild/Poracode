@@ -28,7 +28,6 @@ function hasBridge(): boolean {
 const APP_STORE_NAME = "poracode-app-v2";
 const CURRENT_STORAGE_PREFIX = "poracode";
 const LEGACY_STORAGE_PREFIX = "lightcode";
-const lastStorageValues = new Map<string, StorageValue<unknown>>();
 const lastStorageJson = new Map<string, string>();
 
 function legacyStorageName(name: string): string | null {
@@ -50,47 +49,152 @@ async function readPersistedState(name: string): Promise<string | null> {
   return legacy;
 }
 
-const dbStorageBackend = {
-  async getItem(name: string): Promise<StorageValue<unknown> | null> {
-    if (!hasBridge()) return parseStorageValue(localStorage.getItem(name));
-    if (name === APP_STORE_NAME) {
-      return loadAppStore();
-    }
-    return parseStorageValue(await readPersistedState(name));
-  },
-
-  async setItem(name: string, value: StorageValue<unknown>): Promise<void> {
-    const json = shouldSkipWrite(name, value);
-    if (json === null) return;
-    if (!hasBridge()) {
-      localStorage.setItem(name, json || JSON.stringify(value));
-      return;
-    }
-    if (name === APP_STORE_NAME) {
-      if (isQuickComposerWindow()) return;
-      return saveAppStore(value);
-    }
-    readBridge()
-      .dbSetState(name, json)
-      .catch((error) => reportPersistError(`state "${name}"`, error));
-  },
-
-  async removeItem(name: string): Promise<void> {
-    lastStorageValues.delete(name);
-    lastStorageJson.delete(name);
-    if (!hasBridge()) {
-      localStorage.removeItem(name);
-      return;
-    }
-    readBridge()
-      .dbSetState(name, "")
-      .catch((error) => reportPersistError(`removal of state "${name}"`, error));
-  },
-};
-
 /** Creates a Zustand-compatible storage adapter backed by SQLite via IPC. */
 export function createDbStorage<S>(): PersistStorage<S> {
-  return dbStorageBackend as PersistStorage<S>;
+  const appStoreWrites = new AppStoreWriteQueue();
+
+  return {
+    async getItem(name: string): Promise<StorageValue<S> | null> {
+      if (!hasBridge()) return parseStorageValue(localStorage.getItem(name)) as StorageValue<S>;
+      if (name === APP_STORE_NAME) {
+        const value = await loadAppStore();
+        if (value) appStoreWrites.remember(value);
+        return value as StorageValue<S> | null;
+      }
+      return parseStorageValue(await readPersistedState(name)) as StorageValue<S> | null;
+    },
+
+    async setItem(name: string, value: StorageValue<S>): Promise<void> {
+      if (name === APP_STORE_NAME) {
+        if (!hasBridge()) {
+          if (appStoreWrites.isDuplicate(value)) return;
+          appStoreWrites.remember(value);
+          localStorage.setItem(name, JSON.stringify(value));
+          return;
+        }
+        if (isQuickComposerWindow()) return;
+        return appStoreWrites.write(value);
+      }
+
+      const json = shouldSkipWrite(name, value);
+      if (json === null) return;
+      if (!hasBridge()) {
+        localStorage.setItem(name, json);
+        return;
+      }
+      readBridge()
+        .dbSetState(name, json)
+        .catch((error) => reportPersistError(`state "${name}"`, error));
+    },
+
+    async removeItem(name: string): Promise<void> {
+      lastStorageJson.delete(name);
+      if (!hasBridge()) {
+        if (name === APP_STORE_NAME) {
+          appStoreWrites.forget();
+        }
+        return localStorage.removeItem(name);
+      }
+      if (name === APP_STORE_NAME) {
+        return appStoreWrites.remove(removeAppStore);
+      }
+      readBridge()
+        .dbSetState(name, "")
+        .catch((error) => reportPersistError(`removal of state "${name}"`, error));
+    },
+  };
+}
+
+interface PendingAppStoreWrite {
+  kind: "write";
+  value: StorageValue<unknown>;
+  waiters: Array<() => void>;
+}
+
+interface PendingAppStoreRemoval {
+  kind: "remove";
+  remove: () => Promise<void>;
+  waiters: Array<() => void>;
+}
+
+type AppStoreOperation = PendingAppStoreWrite | PendingAppStoreRemoval;
+
+class AppStoreWriteQueue {
+  private lastPersisted: StorageValue<unknown> | undefined;
+  private readonly operations: AppStoreOperation[] = [];
+  private draining = false;
+
+  isDuplicate(value: StorageValue<unknown>): boolean {
+    return !this.draining && isSameAppStoreValue(this.lastPersisted, value);
+  }
+
+  remember(value: StorageValue<unknown>): void {
+    this.lastPersisted = value;
+  }
+
+  forget(): void {
+    this.lastPersisted = undefined;
+  }
+
+  write(value: StorageValue<unknown>): Promise<void> {
+    const pending = this.operations.at(-1);
+    if (pending?.kind === "write") {
+      pending.value = value;
+      return new Promise<void>((resolve) => {
+        pending.waiters.push(resolve);
+      });
+    }
+    if (this.isDuplicate(value)) return Promise.resolve();
+    return this.enqueue({ kind: "write", value, waiters: [] });
+  }
+
+  remove(remove: () => Promise<void>): Promise<void> {
+    const pending = this.operations.at(-1);
+    if (pending?.kind === "write") {
+      this.operations.pop();
+      for (const resolve of pending.waiters) resolve();
+    }
+    return this.enqueue({ kind: "remove", remove, waiters: [] });
+  }
+
+  private enqueue(operation: AppStoreOperation): Promise<void> {
+    const result = new Promise<void>((resolve) => {
+      operation.waiters.push(resolve);
+      this.operations.push(operation);
+    });
+    if (!this.draining) {
+      this.draining = true;
+      queueMicrotask(() => void this.drain());
+    }
+    return result;
+  }
+
+  private async drain(): Promise<void> {
+    while (this.operations.length > 0) {
+      const operation = this.operations.shift()!;
+      if (operation.kind === "write") {
+        if (!isSameAppStoreValue(this.lastPersisted, operation.value)) {
+          try {
+            await saveAppStore(operation.value);
+            this.lastPersisted = operation.value;
+          } catch {
+            this.lastPersisted = undefined;
+            // The next identical queued write becomes the retry.
+          }
+        }
+      } else {
+        try {
+          await operation.remove();
+          this.lastPersisted = undefined;
+        } catch {
+          this.lastPersisted = undefined;
+          // removeAppStore reports the failing boundary.
+        }
+      }
+      for (const resolve of operation.waiters) resolve();
+    }
+    this.draining = false;
+  }
 }
 
 /** Load projects + threads + view from SQLite and assemble into Zustand persist format. */
@@ -124,41 +228,81 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
     }
   }
 
-  return rememberStorageValue(APP_STORE_NAME, {
+  return {
     state: { projects, threads, view, groupLayouts },
     version: 4,
-  });
+  };
 }
 
 /** Parse the Zustand persist payload and write to SQLite. */
 async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
+  let state:
+    | {
+        projects?: Project[];
+        threads?: Thread[];
+        view?: AppView;
+        groupLayouts?: Record<string, unknown>;
+      }
+    | undefined;
+  let viewJson: string;
+  let groupLayoutsJson: string | undefined;
   try {
-    const state = value.state as
-      | {
-          projects?: Project[];
-          threads?: Thread[];
-          view?: AppView;
-          groupLayouts?: Record<string, unknown>;
-        }
-      | undefined;
+    state = value.state as typeof state;
     if (!state || typeof state !== "object") return;
-
-    readBridge()
-      .dbSyncAll(
-        state.projects ?? [],
-        state.threads ?? [],
-        JSON.stringify(state.view ?? { kind: "home" }),
-      )
-      .catch((error) => reportPersistError("projects/threads/view", error));
-    if (state.groupLayouts) {
-      readBridge()
-        .dbSetState("groupLayouts", JSON.stringify(state.groupLayouts))
-        .catch((error) => reportPersistError("group layouts", error));
-    }
+    viewJson = JSON.stringify(state.view ?? { kind: "home" });
+    groupLayoutsJson = state.groupLayouts ? JSON.stringify(state.groupLayouts) : undefined;
   } catch (error) {
-    // Synchronous failure (e.g. JSON.stringify on a circular structure).
     reportPersistError("app store", error);
+    throw error;
   }
+
+  const writes: Promise<void>[] = [
+    readBridge()
+      .dbSyncAll(state.projects ?? [], state.threads ?? [], viewJson)
+      .catch((error) => {
+        reportPersistError("projects/threads/view", error);
+        throw error;
+      }),
+  ];
+  if (groupLayoutsJson !== undefined) {
+    writes.push(
+      readBridge()
+        .dbSetState("groupLayouts", groupLayoutsJson)
+        .catch((error) => {
+          reportPersistError("group layouts", error);
+          throw error;
+        }),
+    );
+  }
+  const results = await Promise.allSettled(writes);
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
+}
+
+async function removeAppStore(): Promise<void> {
+  const writes = [
+    readBridge()
+      .dbSyncAll([], [], JSON.stringify({ kind: "home" }))
+      .catch((error) => {
+        reportPersistError("removal of projects/threads/view", error);
+        throw error;
+      }),
+    readBridge()
+      .dbSetState("groupLayouts", "")
+      .catch((error) => {
+        reportPersistError("removal of group layouts", error);
+        throw error;
+      }),
+    readBridge()
+      .dbSetState(APP_STORE_NAME, "")
+      .catch((error) => {
+        reportPersistError("removal of app store", error);
+        throw error;
+      }),
+  ];
+  const results = await Promise.allSettled(writes);
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
 }
 
 function parseStorageValue(raw: string | null): StorageValue<unknown> | null {
@@ -170,26 +314,10 @@ function parseStorageValue(raw: string | null): StorageValue<unknown> | null {
   }
 }
 
-function rememberStorageValue(name: string, value: StorageValue<unknown>): StorageValue<unknown> {
-  lastStorageValues.set(name, value);
-  return value;
-}
-
 function shouldSkipWrite(name: string, value: StorageValue<unknown>): string | null {
-  if (name === APP_STORE_NAME && isSameAppStoreValue(lastStorageValues.get(name), value)) {
-    return null;
-  }
-
-  if (name === APP_STORE_NAME) {
-    lastStorageValues.set(name, value);
-    lastStorageJson.delete(name);
-    return "";
-  }
-
   const json = JSON.stringify(value);
   if (lastStorageJson.get(name) === json) return null;
   lastStorageJson.set(name, json);
-  lastStorageValues.set(name, value);
   return json;
 }
 

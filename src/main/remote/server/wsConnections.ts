@@ -158,6 +158,7 @@ function handleConnection(
   if (initialItemInterests && session.scopes.includes("session:read")) {
     ctx.itemInterests.set(ws, initialItemInterests);
   }
+  ctx.notifyEventInterestsChanged();
   const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
@@ -189,6 +190,7 @@ function handleConnection(
     ctx.terminalWatches.delete(ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
+    ctx.notifyEventInterestsChanged();
   });
   ws.on("pong", () => {
     ctx.clientLiveness.set(ws, true);
@@ -248,13 +250,16 @@ function handleConnection(
       if (message.type === "terminal-watch") {
         if (!session.scopes.includes("terminal:read")) return;
         ctx.terminalWatches.get(ws)?.add(message.id);
+        ctx.notifyEventInterestsChanged();
       }
       if (message.type === "terminal-unwatch") {
         ctx.terminalWatches.get(ws)?.delete(message.id);
+        ctx.notifyEventInterestsChanged();
       }
       if (message.type === "thread-item-interests") {
         if (!session.scopes.includes("session:read")) return;
         ctx.itemInterests.set(ws, new Set(message.threadIds));
+        ctx.notifyEventInterestsChanged();
       }
       if (message.type === "git-state-interests") {
         if (!session.scopes.includes("session:read")) return;

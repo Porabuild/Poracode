@@ -3,10 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
+const setPriorityMock = vi.hoisted(() => vi.fn<(pid: number, priority: number) => void>());
 
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
   return { ...actual, fork: forkMock };
+});
+
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>();
+  return { ...actual, setPriority: setPriorityMock };
 });
 
 vi.mock("@/shared/processTree", () => ({
@@ -68,6 +74,45 @@ function captureSentId(child: FakeChild): () => string {
 describe("SupervisorClient.call", () => {
   beforeEach(() => {
     forkMock.mockReset();
+    setPriorityMock.mockReset();
+  });
+
+  it("lowers the desktop supervisor priority before agents are started", () => {
+    const child = makeFakeChild();
+    child.pid = 42;
+    forkMock.mockReturnValue(child);
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: true,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      preferUiResponsiveness: true,
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+
+    client.start("/base");
+
+    expect(setPriorityMock).toHaveBeenCalledExactlyOnceWith(42, expect.any(Number));
+  });
+
+  it("forwards downstream output backpressure to the supervisor", () => {
+    const { client, child } = makeClient();
+
+    client.setOutputBackpressured(true);
+    client.setOutputBackpressured(false);
+
+    expect(child.send).toHaveBeenNthCalledWith(
+      1,
+      { control: "set-output-backpressure", paused: true },
+      expect.any(Function),
+    );
+    expect(child.send).toHaveBeenNthCalledWith(
+      2,
+      { control: "set-output-backpressure", paused: false },
+      expect.any(Function),
+    );
   });
 
   afterEach(() => {

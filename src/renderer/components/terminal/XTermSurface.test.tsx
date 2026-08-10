@@ -9,6 +9,9 @@ const { state } = vi.hoisted(() => ({
     terminalOptions: null as null | Record<string, unknown>,
     eventListeners: [] as Array<(e: SupervisorEvent) => void>,
     isMac: false,
+    interestContinuous: false,
+    interestRelease: vi.fn<() => void>(),
+    interestReady: Promise.resolve(),
     bridge: {
       readTerminalScrollback: vi.fn<() => Promise<string>>().mockResolvedValue(""),
       writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -124,6 +127,13 @@ state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent
 
 vi.mock("../../bridge", () => ({ readBridge: () => state.bridge, isMac: () => state.isMac }));
 vi.mock("../ui/provider", () => ({ useResolvedAppearance: () => "dark" }));
+vi.mock("@/renderer/state/rendererEventInterests", () => ({
+  retainRendererEventInterest: () => ({
+    ready: state.interestReady,
+    continuous: state.interestContinuous,
+    release: state.interestRelease,
+  }),
+}));
 
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { XTermSurface } from "./XTermSurface";
@@ -176,6 +186,8 @@ describe("XTermSurface", () => {
     state.terminalOptions = null;
     state.eventListeners = [];
     state.isMac = false;
+    state.interestContinuous = false;
+    state.interestReady = Promise.resolve();
     vi.clearAllMocks();
     useThreadOutputStore.setState({ buffers: {} });
     state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
@@ -234,6 +246,7 @@ describe("XTermSurface", () => {
   });
 
   it("hydrates from the renderer accumulator when present and skips the bridge replay", async () => {
+    state.interestContinuous = true;
     useThreadOutputStore.getState().appendOutput("test-1", "accumulated history\nframe2");
 
     render(<XTermSurface terminalId="test-1" />);
@@ -243,6 +256,18 @@ describe("XTermSurface", () => {
     // The accumulator is the source of truth; the stale bridge transcript must
     // not be replayed on top of it.
     expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+  });
+
+  it("uses supervisor scrollback after an interest gap instead of stale accumulated output", async () => {
+    useThreadOutputStore.getState().appendOutput("test-1", "stale visible frame");
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("authoritative hidden output");
+
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+
+    expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
+    expect(terminal().write).toHaveBeenCalledWith("authoritative hidden output");
+    expect(terminal().write).not.toHaveBeenCalledWith("stale visible frame");
   });
 
   it("nudges the live agent to repaint after restoring scrollback on reopen", async () => {
@@ -356,6 +381,24 @@ describe("XTermSurface", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
+  it("rehydrates authoritative scrollback after a live-stream replay gap", async () => {
+    state.interestContinuous = true;
+    useThreadOutputStore.getState().appendOutput("test-1", "incomplete frame");
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("authoritative full frame");
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+    state.bridge.readTerminalScrollback.mockClear();
+    terminal().write.mockClear();
+
+    act(() => {
+      emitEvent({ type: "thread-scrollback-resync", threadId: "test-1" });
+    });
+    await flushFrame();
+
+    expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
+    expect(terminal().write).toHaveBeenCalledWith("authoritative full frame");
+  });
+
   it("does not rehydrate stale scrollback after a thread-reset", async () => {
     let resolveScrollback: (value: string) => void = () => {};
     state.bridge.readTerminalScrollback.mockReturnValueOnce(
@@ -365,6 +408,10 @@ describe("XTermSurface", () => {
     );
 
     render(<XTermSurface terminalId="test-1" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     act(() => {
       emitEvent({ type: "thread-reset", threadId: "test-1" });
@@ -380,6 +427,25 @@ describe("XTermSurface", () => {
     expect(state.bridge.readTerminalScrollback).toHaveBeenCalledTimes(1);
     expect(terminal().reset).toHaveBeenCalled();
     expect(terminal().write).not.toHaveBeenCalled();
+  });
+
+  it("skips scrollback hydration when a reset arrives before interest acknowledgement", async () => {
+    let acknowledgeInterest: () => void = () => {};
+    state.interestReady = new Promise<void>((resolve) => {
+      acknowledgeInterest = resolve;
+    });
+    render(<XTermSurface terminalId="test-1" />);
+
+    act(() => {
+      emitEvent({ type: "thread-reset", threadId: "test-1" });
+      acknowledgeInterest();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+    expect(terminal().reset).toHaveBeenCalled();
   });
 
   it("calls onExited on thread-exited", async () => {

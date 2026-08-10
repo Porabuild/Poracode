@@ -75,6 +75,7 @@ describe("createMainWindow", () => {
       "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 
     createMainWindow({
+      state: { get: dbGetState, set: dbSetState },
       title: "Poracode",
       isDev: false,
       channel: "stable",
@@ -121,6 +122,7 @@ describe("createMainWindow", () => {
         ) => void
       >();
     createMainWindow({
+      state: { get: dbGetState, set: dbSetState },
       title: "Poracode",
       isDev: false,
       channel: "stable",

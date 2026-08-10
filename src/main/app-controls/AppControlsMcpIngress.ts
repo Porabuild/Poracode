@@ -43,7 +43,11 @@ export interface AppControlsMcpIngressDeps {
   emitRemoteThreadCommand(command: RemoteThreadCommand): boolean;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
   openThreadInUi(threadId: string): boolean;
-  notifyUser(input: { title: string; body: string; threadId: string }): AppControlsNotifyResult;
+  notifyUser(input: {
+    title: string;
+    body: string;
+    threadId: string;
+  }): AppControlsNotifyResult | Promise<AppControlsNotifyResult>;
   checkForUpdate(): Promise<AppControlsUpdateCheck>;
 }
 

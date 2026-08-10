@@ -18,80 +18,84 @@ import { projectMutableRow } from "./rowMappers";
 export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJson: string): void {
   const sqlite = getSqlite();
 
-  sqlite.transaction(() => {
-    const existingProjectIds = new Set(
-      (sqlite.prepare("SELECT id FROM projects").all() as Array<{ id: string }>).map((r) => r.id),
-    );
-    const incomingProjectIds = new Set(projectsData.map((p) => p.id));
-    const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
-    const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
-    const upsertProject = prepareProjectSyncStatement(sqlite);
+  sqlite
+    .transaction(() => {
+      const existingProjectIds = new Set(
+        (sqlite.prepare("SELECT id FROM projects").all() as Array<{ id: string }>).map((r) => r.id),
+      );
+      const incomingProjectIds = new Set(projectsData.map((p) => p.id));
+      const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
+      const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
+      const upsertProject = prepareProjectSyncStatement(sqlite);
 
-    for (const pid of existingProjectIds) {
-      if (!incomingProjectIds.has(pid)) {
-        deleteProject.run(pid);
-        deleteProjectNotes.run(pid);
+      for (const pid of existingProjectIds) {
+        if (!incomingProjectIds.has(pid)) {
+          deleteProject.run(pid);
+          deleteProjectNotes.run(pid);
+        }
       }
-    }
-    for (let i = 0; i < projectsData.length; i++) {
-      runProjectSync(upsertProject, projectsData[i]!, i);
-    }
+      for (let i = 0; i < projectsData.length; i++) {
+        runProjectSync(upsertProject, projectsData[i]!, i);
+      }
 
-    const existingThreadIds = new Set(
-      (sqlite.prepare("SELECT id FROM threads").all() as Array<{ id: string }>).map((r) => r.id),
-    );
-    const incomingThreadIds = new Set(threadsData.map((t) => t.id));
-    const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
-    const upsertThread = prepareThreadSyncStatement(sqlite);
+      const existingThreadIds = new Set(
+        (sqlite.prepare("SELECT id FROM threads").all() as Array<{ id: string }>).map((r) => r.id),
+      );
+      const incomingThreadIds = new Set(threadsData.map((t) => t.id));
+      const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
+      const upsertThread = prepareThreadSyncStatement(sqlite);
 
-    for (const tid of existingThreadIds) {
-      if (incomingThreadIds.has(tid)) continue;
-      // A thread main just created (remote `start`, schedule, orchestrator) is
-      // absent from this snapshot only because the renderer has not applied the
-      // forwarded command yet. Deleting it would cascade away the launch turn's
-      // runtime items — most visibly the initial `user_message`.
-      if (isMainCreatedThreadUnmirrored(tid)) continue;
-      deleteThread.run(tid);
-    }
-    for (let i = 0; i < threadsData.length; i++) {
-      runThreadSync(upsertThread, threadsData[i]!, i);
-    }
-    // Anything in this snapshot is renderer-owned from here on, so a later
-    // snapshot that drops it is a real deletion.
-    acknowledgeMirroredThreadIds(incomingThreadIds);
+      for (const tid of existingThreadIds) {
+        if (incomingThreadIds.has(tid)) continue;
+        // A thread main just created (remote `start`, schedule, orchestrator) is
+        // absent from this snapshot only because the renderer has not applied the
+        // forwarded command yet. Deleting it would cascade away the launch turn's
+        // runtime items — most visibly the initial `user_message`.
+        if (isMainCreatedThreadUnmirrored(tid)) continue;
+        deleteThread.run(tid);
+      }
+      for (let i = 0; i < threadsData.length; i++) {
+        runThreadSync(upsertThread, threadsData[i]!, i);
+      }
+      // Anything in this snapshot is renderer-owned from here on, so a later
+      // snapshot that drops it is a real deletion.
+      acknowledgeMirroredThreadIds(incomingThreadIds);
 
-    sqlite
-      .prepare(
-        "INSERT INTO app_state (key, value) VALUES ('view', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-      )
-      .run(viewJson);
-  })();
+      sqlite
+        .prepare(
+          "INSERT INTO app_state (key, value) VALUES ('view', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .run(viewJson);
+    })
+    .immediate();
   notifyProjectThreadDataChanged();
 }
 
 export function dbPersistExperimentState(payload: DbPersistExperimentStatePayload): void {
   const sqlite = getSqlite();
-  sqlite.transaction(() => {
-    const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
-    for (const threadId of payload.deletedThreadIds) deleteThread.run(threadId);
+  sqlite
+    .transaction(() => {
+      const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
+      for (const threadId of payload.deletedThreadIds) deleteThread.run(threadId);
 
-    const upsertThread = prepareThreadSyncStatement(sqlite);
-    for (const { thread, sortOrder } of payload.upsertThreads) {
-      runThreadSync(upsertThread, thread, sortOrder);
-    }
+      const upsertThread = prepareThreadSyncStatement(sqlite);
+      for (const { thread, sortOrder } of payload.upsertThreads) {
+        runThreadSync(upsertThread, thread, sortOrder);
+      }
 
-    sqlite
-      .prepare(
-        "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-      )
-      .run(
-        EXPERIMENT_STORE_KEY,
-        JSON.stringify({
-          state: { experiments: payload.experiments },
-          version: EXPERIMENT_STORE_VERSION,
-        }),
-      );
-  })();
+      sqlite
+        .prepare(
+          "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .run(
+          EXPERIMENT_STORE_KEY,
+          JSON.stringify({
+            state: { experiments: payload.experiments },
+            version: EXPERIMENT_STORE_VERSION,
+          }),
+        );
+    })
+    .immediate();
 }
 
 type SqliteStatement = ReturnType<InstanceType<typeof Database>["prepare"]>;

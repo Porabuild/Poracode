@@ -367,6 +367,16 @@ export const DATABASE_MIGRATIONS = [
     name: "project worktree location",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "worktree_location", "TEXT"),
   },
+  {
+    version: 32,
+    name: "main-created thread ownership",
+    migrate: (sqlite) =>
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS main_created_threads (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE
+        );
+      `),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -515,6 +525,7 @@ const REQUIRED_COLUMNS = {
     "streams",
     "parent_item_id",
   ],
+  main_created_threads: ["thread_id"],
   scheduled_tasks: [
     "id",
     "name",

@@ -187,13 +187,13 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     return;
   }
 
-  // Feed every agent thread's PTY bytes into the renderer-side scrollback
-  // accumulator. It runs regardless of which pane is mounted, so a hidden
-  // thread keeps its history (the xterm buffer dies with the unmounted pane).
+  // Feed subscribed agent PTY bytes into the renderer-side scrollback
+  // accumulator. Hidden threads stay behind the backend interest filter and
+  // restore from the supervisor transcript when their pane mounts again.
   // `thread-reset` (a fresh spawn) clears the thread's accumulated bytes.
   if (event.type === "thread-output") {
     useThreadOutputStore.getState().appendOutput(event.threadId, event.data);
-  } else if (event.type === "thread-reset") {
+  } else if (event.type === "thread-reset" || event.type === "thread-scrollback-resync") {
     useThreadOutputStore.getState().clearOutput(event.threadId);
   }
 

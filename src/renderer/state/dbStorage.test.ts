@@ -64,6 +64,165 @@ describe("createDbStorage", () => {
     expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
   });
 
+  it("does not echo the hydrated app snapshot back to SQLite", async () => {
+    bridge.dbGetProjects.mockResolvedValue([]);
+    bridge.dbGetThreads.mockResolvedValue([]);
+    bridge.dbGetState.mockImplementation(async (key) =>
+      key === "view" ? '{"kind":"home"}' : null,
+    );
+    const storage = createDbStorage();
+    const hydrated = await storage.getItem("poracode-app-v2");
+
+    await storage.setItem("poracode-app-v2", hydrated as never);
+
+    expect(bridge.dbSyncAll).not.toHaveBeenCalled();
+  });
+
+  it("coalesces a synchronous app-state burst to the latest snapshot", async () => {
+    const storage = createDbStorage();
+    const writes = Array.from({ length: 1_000 }, (_, index) =>
+      storage.setItem("poracode-app-v2", {
+        state: {
+          projects: [],
+          threads: [{ id: String(index) }],
+          view: { kind: "home" },
+          groupLayouts: {},
+        },
+        version: 4,
+      } as never),
+    );
+
+    await Promise.all(writes);
+
+    expect(bridge.dbSyncAll).toHaveBeenCalledExactlyOnceWith(
+      [],
+      [{ id: "999" }],
+      '{"kind":"home"}',
+    );
+  });
+
+  it("keeps only the latest snapshot queued behind an in-flight write", async () => {
+    let releaseFirstWrite: (() => void) | undefined;
+    bridge.dbSyncAll.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstWrite = resolve;
+        }),
+    );
+    const storage = createDbStorage();
+    const first = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "first" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+    await flushMicrotasks();
+
+    const second = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "second" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+    const final = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "final" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+    releaseFirstWrite?.();
+    await Promise.all([first, second, final]);
+
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
+    expect(bridge.dbSyncAll).toHaveBeenLastCalledWith([], [{ id: "final" }], '{"kind":"home"}');
+  });
+
+  it("allows an identical snapshot to retry after persistence fails", async () => {
+    bridge.dbSyncAll.mockRejectedValueOnce(new Error("db locked"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const storage = createDbStorage();
+    const snapshot = {
+      state: { projects: [], threads: [], view: { kind: "home" }, groupLayouts: {} },
+      version: 4,
+    } as const;
+
+    await storage.setItem("poracode-app-v2", snapshot as never);
+    await storage.setItem("poracode-app-v2", snapshot as never);
+
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
+    vi.restoreAllMocks();
+  });
+
+  it("retries an identical snapshot queued while the first write is failing", async () => {
+    let rejectFirstWrite: ((error: Error) => void) | undefined;
+    bridge.dbSyncAll.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectFirstWrite = reject;
+        }),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const storage = createDbStorage();
+    const snapshot = {
+      state: { projects: [], threads: [], view: { kind: "home" }, groupLayouts: {} },
+      version: 4,
+    } as const;
+    const first = storage.setItem("poracode-app-v2", snapshot as never);
+    await flushMicrotasks();
+
+    const retry = storage.setItem("poracode-app-v2", snapshot as never);
+    rejectFirstWrite?.(new Error("db locked"));
+    await Promise.all([first, retry]);
+
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
+    vi.restoreAllMocks();
+  });
+
+  it("orders app-store removal after an in-flight write and before a later snapshot", async () => {
+    let releaseFirstWrite: (() => void) | undefined;
+    bridge.dbSyncAll.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstWrite = resolve;
+        }),
+    );
+    const storage = createDbStorage();
+    const first = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "first" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+    await flushMicrotasks();
+
+    const removal = storage.removeItem("poracode-app-v2");
+    const later = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "later" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+    releaseFirstWrite?.();
+    await Promise.all([first, removal, later]);
+
+    expect(bridge.dbSyncAll).toHaveBeenNthCalledWith(1, [], [{ id: "first" }], '{"kind":"home"}');
+    expect(bridge.dbSyncAll).toHaveBeenNthCalledWith(2, [], [], '{"kind":"home"}');
+    expect(bridge.dbSyncAll).toHaveBeenNthCalledWith(3, [], [{ id: "later" }], '{"kind":"home"}');
+    expect(bridge.dbSetState).toHaveBeenCalledWith("groupLayouts", "");
+    expect(bridge.dbSetState).toHaveBeenCalledWith("poracode-app-v2", "");
+  });
+
+  it("keeps bridge-less localStorage operations synchronous and ordered", async () => {
+    window.poracode = undefined as unknown as typeof window.poracode;
+    const storage = createDbStorage();
+    const first = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "first" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+    const removal = storage.removeItem("poracode-app-v2");
+    const later = storage.setItem("poracode-app-v2", {
+      state: { projects: [], threads: [{ id: "later" }], view: { kind: "home" } },
+      version: 4,
+    } as never);
+
+    await Promise.all([first, removal, later]);
+
+    expect(JSON.parse(localStorage.getItem("poracode-app-v2") ?? "null")).toEqual({
+      state: { projects: [], threads: [{ id: "later" }], view: { kind: "home" } },
+      version: 4,
+    });
+  });
+
   it("still deduplicates generic persisted stores by serialized value", async () => {
     const storage = createDbStorage<{ collapsed: boolean }>();
 

@@ -33,7 +33,7 @@ export function dbClaimRemoteCommand(commandId: string, route: string): RemoteCo
       .run(commandId, route, now, now);
     return { state: "claimed" };
   });
-  return claim();
+  return claim.immediate();
 }
 
 export function dbCompleteRemoteCommand(commandId: string, response: unknown): void {

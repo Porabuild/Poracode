@@ -8,6 +8,7 @@ const bridge = vi.hoisted(() => ({
   onSupervisorEvent: vi.fn<(handler: (event: SupervisorEvent) => void) => () => void>(),
   openExternal: vi.fn<(url: string) => Promise<void>>(),
   openExternalNative: vi.fn<(url: string) => Promise<void>>(),
+  setRendererEventInterests: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 const supervisorHandlers = vi.hoisted(() => [] as Array<(event: SupervisorEvent) => void>);

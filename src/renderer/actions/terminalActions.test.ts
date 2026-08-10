@@ -7,6 +7,7 @@ const bridge = vi.hoisted(() => ({
   startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   writeTerminal: vi.fn<(payload: { threadId: string; data: string }) => Promise<void>>(),
   closeThread: vi.fn<(payload: { threadId: string }) => Promise<void>>(),
+  setRendererEventInterests: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 const supervisorHandlers: Array<(event: SupervisorEvent) => void> = [];

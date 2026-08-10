@@ -1,4 +1,4 @@
-import type { SupervisorReply, SupervisorRequest } from "@/shared/ipc";
+import type { SupervisorFlowControl, SupervisorReply, SupervisorRequest } from "@/shared/ipc";
 import {
   captureSupervisorException,
   flushSupervisorSentry,
@@ -10,6 +10,7 @@ import { handleSupervisorIpcFailure } from "./ipcFailure";
 import { createSupervisorIpcHandlers } from "./ipcHandlers";
 import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
+import { SupervisorIpcSender } from "./supervisorIpcSender";
 
 const isDev = process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -20,14 +21,39 @@ initializeSupervisorSentry({
 configureSecretStorageKey(process.env.PORACODE_SECRET_STORAGE_KEY);
 delete process.env.PORACODE_SECRET_STORAGE_KEY;
 
-const runtime = new SupervisorRuntime((event) => {
-  process.send?.(event);
+let runtimeForBackpressure: SupervisorRuntime | undefined;
+let localIpcBackpressured = false;
+let downstreamIpcBackpressured = false;
+const applyIpcBackpressure = (): void => {
+  runtimeForBackpressure?.setIpcBackpressured(localIpcBackpressured || downstreamIpcBackpressured);
+};
+const ipcSender = new SupervisorIpcSender({
+  send: (message, callback) => {
+    if (!process.connected || !process.send) {
+      callback(new Error("Supervisor IPC channel is disconnected."));
+      return true;
+    }
+    return process.send(message, callback);
+  },
+  onError: (error) => {
+    if (process.connected) console.error("[supervisor] IPC send failed:", error);
+  },
+  onFatalError: () => {
+    void shutdownSupervisor(1);
+  },
+  onBackpressureChange: (paused) => {
+    localIpcBackpressured = paused;
+    applyIpcBackpressure();
+  },
 });
+const runtime = new SupervisorRuntime((event) => ipcSender.emit(event));
+runtimeForBackpressure = runtime;
 
 const handlers = createSupervisorIpcHandlers(runtime);
 
 let isShuttingDown = false;
 const SUPERVISOR_SHUTDOWN_TIMEOUT_MS = 5_000;
+const SUPERVISOR_IPC_FLUSH_TIMEOUT_MS = 1_000;
 const DEV_SHUTDOWN_REPEAT_FORCE_EXIT_MS = 250;
 
 async function shutdownSupervisor(exitCode = 0): Promise<void> {
@@ -47,6 +73,10 @@ async function shutdownSupervisor(exitCode = 0): Promise<void> {
       new Promise<void>((resolve) => setTimeout(resolve, SUPERVISOR_SHUTDOWN_TIMEOUT_MS)),
     ]);
   } finally {
+    if (process.connected) {
+      const drained = await ipcSender.flushAndWait(SUPERVISOR_IPC_FLUSH_TIMEOUT_MS);
+      if (!drained) console.error("[supervisor] IPC queue did not drain before shutdown.");
+    }
     process.exit(exitCode);
   }
 }
@@ -56,7 +86,12 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
   return handler(request.payload as never);
 }
 
-process.on("message", (message: SupervisorRequest) => {
+process.on("message", (message: SupervisorRequest | SupervisorFlowControl) => {
+  if ("control" in message) {
+    downstreamIpcBackpressured = message.paused;
+    applyIpcBackpressure();
+    return;
+  }
   void handleRequest(message)
     .then(
       (data): SupervisorReply => ({
@@ -68,7 +103,7 @@ process.on("message", (message: SupervisorRequest) => {
     .catch((error: unknown): SupervisorReply => {
       return handleSupervisorIpcFailure(error, message.type, message.id);
     })
-    .then((reply) => process.send?.(reply));
+    .then((reply) => ipcSender.reply(reply));
 });
 
 process.on("disconnect", () => {

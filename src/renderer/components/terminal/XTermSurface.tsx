@@ -23,6 +23,7 @@ import {
 import type { TerminalSize } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
+import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -256,6 +257,9 @@ export const XTermSurface = forwardRef<
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
+    let resetBeforeInitialHydration = false;
+    let initialHydrationStarted = false;
+    const eventInterest = outputSource ? null : retainRendererEventInterest("terminal", terminalId);
     // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
     // resize RPC, mirroring VS Code's TerminalResizeDebouncer. A full-height
     // repaint-in-place TUI (Claude no-flicker, codex) re-emits its whole frame
@@ -306,7 +310,7 @@ export const XTermSurface = forwardRef<
       });
     };
 
-    const hydrateScrollback = () => {
+    const hydrateScrollback = (requireAuthoritativeScrollback = false) => {
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
       bufferedOutputDuringHydration = "";
@@ -343,7 +347,15 @@ export const XTermSurface = forwardRef<
           restoredScrollback = true;
         }
       };
-      if (localScrollback.length > 0) {
+      // The local accumulator is authoritative only while an interest lease
+      // remained active through a short pane hand-off. Once the backend has
+      // unsubscribed this thread, hidden output can create a gap; rehydrate
+      // that case from the supervisor transcript instead.
+      if (
+        !requireAuthoritativeScrollback &&
+        eventInterest?.continuous &&
+        localScrollback.length > 0
+      ) {
         applyScrollback(localScrollback);
         hydratingScrollback = false;
         forceAgentRepaint();
@@ -377,6 +389,7 @@ export const XTermSurface = forwardRef<
         });
     };
     const resetForNewPty = () => {
+      if (!initialHydrationStarted) resetBeforeInitialHydration = true;
       scrollbackHydrationToken++;
       hydratingScrollback = false;
       bufferedOutputDuringHydration = "";
@@ -808,6 +821,8 @@ export const XTermSurface = forwardRef<
       : readBridge().onSupervisorEvent((event) => {
           if (event.type === "thread-reset" && event.threadId === terminalId) {
             handleReset();
+          } else if (event.type === "thread-scrollback-resync" && event.threadId === terminalId) {
+            hydrateScrollback(true);
           } else if (event.type === "thread-output" && event.threadId === terminalId) {
             handleOutput(event.data);
           } else if (event.type === "thread-exited" && event.threadId === terminalId) {
@@ -820,8 +835,15 @@ export const XTermSurface = forwardRef<
     // (async) scrollback replay writes — otherwise the raw transcript is written
     // at xterm's 80-col default and then reflowed, garbling a restored
     // full-height TUI frame. No-op when the pane has no layout yet (e.g. tests).
-    doFit();
-    hydrateScrollback();
+    const initializeViewport = () => {
+      if (!isActive) return;
+      doFit();
+      initialHydrationStarted = true;
+      if (resetBeforeInitialHydration) return;
+      hydrateScrollback();
+    };
+    if (eventInterest) void eventInterest.ready.then(initializeViewport);
+    else initializeViewport();
 
     // Double-rAF backstop in case layout hadn't settled at mount.
     requestAnimationFrame(() => {
@@ -852,6 +874,7 @@ export const XTermSurface = forwardRef<
       mount.removeEventListener("focusin", onTerminalFocusIn);
       clearActiveTerminalFind(findController);
       unsubscribe();
+      eventInterest?.release();
       resizeObserver.disconnect();
       terminal.dispose();
       terminalRef.current = null;

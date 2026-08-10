@@ -1,8 +1,9 @@
-import { dbGetState, dbSetState } from "../db";
+import type { ShellStateStore } from "../backend/BackendStateStore";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
+import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { installSessionPermissions } from "../browser/permissions";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
 import {
@@ -21,9 +22,9 @@ interface WindowBounds {
   isMaximized: boolean;
 }
 
-function getSavedWindowBounds(stateKey: string): WindowBounds | null {
+function getSavedWindowBounds(state: ShellStateStore, stateKey: string): WindowBounds | null {
   try {
-    const raw = dbGetState(stateKey);
+    const raw = state.get(stateKey);
     if (!raw) {
       return null;
     }
@@ -48,13 +49,14 @@ function getSavedWindowBounds(stateKey: string): WindowBounds | null {
   }
 }
 
-function saveWindowBounds(window: BrowserWindow, stateKey: string): void {
+function saveWindowBounds(window: BrowserWindow, state: ShellStateStore, stateKey: string): void {
   const isMaximized = window.isMaximized();
   const { x, y, width, height } = window.getNormalBounds();
-  dbSetState(stateKey, JSON.stringify({ x, y, width, height, isMaximized }));
+  state.set(stateKey, JSON.stringify({ x, y, width, height, isMaximized }));
 }
 
 export interface CreateMainWindowOptions {
+  state: ShellStateStore;
   title: string;
   windowKind?: PoracodeWindowKind;
   boundsStateKey?: string | null;
@@ -72,6 +74,7 @@ export interface CreateMainWindowOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  rendererStream?: BackendRendererStreamInfo;
   windowChromeHeight: number;
   browserUserAgent: string;
   /** Saved appearance, so the native window opens matching the theme. */
@@ -92,7 +95,7 @@ export interface CreateMainWindowOptions {
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
   const boundsStateKey =
     options.boundsStateKey === undefined ? "window-bounds" : options.boundsStateKey;
-  const saved = boundsStateKey ? getSavedWindowBounds(boundsStateKey) : null;
+  const saved = boundsStateKey ? getSavedWindowBounds(options.state, boundsStateKey) : null;
   const supportsTitleBarOverlay = process.platform === "win32" || process.platform === "linux";
   const isDark = options.appearance === "dark";
   // Base bg/symbol per appearance, matching styles.css and the runtime
@@ -155,6 +158,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
+        ...(options.rendererStream ? { rendererStream: options.rendererStream } : {}),
       }),
     },
   });
@@ -207,7 +211,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       clearTimeout(boundsTimer);
     }
     if (boundsStateKey) {
-      boundsTimer = setTimeout(() => saveWindowBounds(window, boundsStateKey), 500);
+      boundsTimer = setTimeout(() => saveWindowBounds(window, options.state, boundsStateKey), 500);
     }
   };
   window.on("resize", debouncedSave);
@@ -219,7 +223,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       clearTimeout(boundsTimer);
     }
     if (boundsStateKey) {
-      saveWindowBounds(window, boundsStateKey);
+      saveWindowBounds(window, options.state, boundsStateKey);
     }
     options.onClose?.(event);
     noteRendererWindowClose(window, event);

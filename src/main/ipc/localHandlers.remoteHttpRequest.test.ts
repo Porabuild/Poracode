@@ -1,24 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { BackendDatabaseCaller, BackendServiceCaller } from "@/shared/backendHostProtocol";
+import type { Thread } from "@/shared/contracts";
 import { createLocalIpcHandlers } from "./localHandlers";
 
 type FetchMock = (url: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-function makeHandlers() {
+function makeHandlers(database?: BackendDatabaseCaller) {
   return createLocalIpcHandlers({
     getMainWindow: () => null,
     getBrowserPanelManager: () => null,
-    getRemoteAccessServer: () => null,
-    setRemoteAccessEnabled: vi.fn<(enabled: boolean) => Promise<{ status: "disabled" }>>(
-      async () => ({ status: "disabled" }),
-    ),
-    getRemoteAccessTailscaleStatus: vi.fn<() => Promise<never>>(),
-    setRemoteAccessTailscaleHttps: vi.fn<(enabled: boolean) => Promise<{ status: "disabled" }>>(
-      async () => ({ status: "disabled" }),
-    ),
-    startTailscale: vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
-    setRemoteAccessAdvertisedUrl: vi.fn<(url: string) => Promise<{ status: "disabled" }>>(
-      async () => ({ status: "disabled" }),
-    ),
     sshConnectionManager: {
       discoverHosts: vi.fn<() => never[]>(() => []),
       connect: vi.fn<() => Promise<never>>(),
@@ -38,6 +28,7 @@ function makeHandlers() {
         statusCachePath: "/tmp/poracode/status-cache.json",
       }) as never,
     updatePowerSaveBlocker: vi.fn<() => void>(),
+    setRendererEventInterests: vi.fn<() => Promise<void>>(async () => {}),
     autoUpdater: {
       initialize: vi.fn<() => void>(),
       checkForUpdate: vi.fn<() => Promise<void>>(async () => {}),
@@ -47,8 +38,12 @@ function makeHandlers() {
     extractBrowserToWindow: vi.fn<() => void>(),
     injectBrowserToMain: vi.fn<() => void>(),
     requestRelaunch: vi.fn<() => void>(),
-    scheduleService: {} as never,
-    prWatchService: {} as never,
+    backendServices: {
+      callService: vi.fn<BackendServiceCaller["callService"]>(),
+    } as BackendServiceCaller,
+    database:
+      database ??
+      ({ callDatabase: vi.fn<BackendDatabaseCaller["callDatabase"]>() } as BackendDatabaseCaller),
   });
 }
 
@@ -150,5 +145,29 @@ describe("local remoteHttpRequest handler", () => {
     await expect(result).resolves.toMatchObject({
       message: "Remote request timed out after 60000ms.",
     });
+  });
+
+  it("routes a thread write only through the backend database owner", async () => {
+    const callDatabase = vi.fn<() => Promise<void>>(async () => {});
+    const database = { callDatabase } as unknown as BackendDatabaseCaller;
+    const thread: Thread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "terminal",
+      createdAt: "2026-08-09T00:00:00.000Z",
+      updatedAt: "2026-08-09T00:00:00.000Z",
+    };
+
+    await makeHandlers(database).dbUpsertThread(thread);
+    expect(callDatabase).toHaveBeenCalledExactlyOnceWith("dbUpsertThread", thread);
   });
 });

@@ -2,6 +2,7 @@ import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
+import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 
 interface AppNavigationGuardOptions {
   isDev: boolean;
@@ -168,6 +169,7 @@ interface RendererArgumentsOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  rendererStream?: BackendRendererStreamInfo;
 }
 
 /** Preload `additionalArguments` that seed the renderer's bootstrap config. */
@@ -183,5 +185,8 @@ export function buildRendererAdditionalArguments(options: RendererArgumentsOptio
     `--lc-posthog-host=${encodeURIComponent(options.posthogHost)}`,
     `--lc-posthog-key=${encodeURIComponent(options.posthogKey)}`,
     `--lc-sentry-enabled=${options.sentryEnabled ? "1" : "0"}`,
+    ...(options.rendererStream
+      ? [`--lc-backend-live-version=${options.rendererStream.version}`]
+      : []),
   ];
 }

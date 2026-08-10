@@ -38,6 +38,15 @@ export interface RemoteBrowserWatcherSink {
   onStatus(status: RemoteBrowserMirrorStatus): void;
 }
 
+export interface RemoteBrowserGatewayLike {
+  state(): RemoteBrowserState | Promise<RemoteBrowserState>;
+  command(command: RemoteBrowserCommand): Promise<RemoteBrowserState>;
+  dispatchInput(input: RemoteBrowserInput): Promise<void>;
+  watch(sink: RemoteBrowserWatcherSink): () => void;
+  refresh(): void;
+  dispose(): void;
+}
+
 interface MirrorSession {
   readonly tabId: string;
   stop(): void;
@@ -92,7 +101,7 @@ function toRemoteState(state: BrowserState): RemoteBrowserState {
   };
 }
 
-export class RemoteBrowserGateway {
+export class RemoteBrowserGateway implements RemoteBrowserGatewayLike {
   private readonly sinks = new Set<RemoteBrowserWatcherSink>();
   private unsubscribeManager: (() => void) | null = null;
   private mirror: MirrorSession | null = null;

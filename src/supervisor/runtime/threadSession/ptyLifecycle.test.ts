@@ -10,6 +10,13 @@ function runtimeWithResize(resize: IPty["resize"]): SessionRuntime {
   } as SessionRuntime;
 }
 
+function runtimeWithFlowControl(pause: IPty["pause"], resume: IPty["resume"]): SessionRuntime {
+  return {
+    pty: { pause, resume } as IPty,
+    ptyExited: false,
+  } as SessionRuntime;
+}
+
 describe("PtyLifecycle.resize", () => {
   it.each(["Cannot resize a pty that has already exited", "ioctl(2) failed, ENOTTY"])(
     "treats the node-pty exit race as an expected outcome: %s",
@@ -43,5 +50,37 @@ describe("PtyLifecycle.resize", () => {
 
     expect(() => lifecycle.resize(session, 120, 40)).toThrow("native resize invariant failed");
     expect(session.ptyExited).toBe(false);
+  });
+});
+
+describe("PtyLifecycle output flow control", () => {
+  it("pauses and resumes every tracked live PTY", () => {
+    const first = runtimeWithFlowControl(vi.fn(), vi.fn());
+    const second = runtimeWithFlowControl(vi.fn(), vi.fn());
+    const lifecycle = new PtyLifecycle();
+    lifecycle.track(first);
+    lifecycle.track(second);
+
+    lifecycle.setOutputPaused(true);
+    lifecycle.setOutputPaused(true);
+    lifecycle.setOutputPaused(false);
+
+    expect(first.pty?.pause).toHaveBeenCalledOnce();
+    expect(first.pty?.resume).toHaveBeenCalledOnce();
+    expect(second.pty?.pause).toHaveBeenCalledOnce();
+    expect(second.pty?.resume).toHaveBeenCalledOnce();
+  });
+
+  it("immediately pauses a PTY tracked while output is backpressured", () => {
+    const lifecycle = new PtyLifecycle();
+    const session = runtimeWithFlowControl(vi.fn(), vi.fn());
+
+    lifecycle.setOutputPaused(true);
+    lifecycle.track(session);
+
+    expect(session.pty?.pause).toHaveBeenCalledOnce();
+    lifecycle.resolveExit(session);
+    lifecycle.setOutputPaused(false);
+    expect(session.pty?.resume).not.toHaveBeenCalled();
   });
 });

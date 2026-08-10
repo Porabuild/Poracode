@@ -1,12 +1,14 @@
 import { fork, type ChildProcess } from "node:child_process";
 import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
+import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
   SupervisorEvent,
+  SupervisorFlowControl,
   SupervisorProcedureName,
   SupervisorReply,
   SupervisorRequest,
@@ -61,6 +63,8 @@ export interface SupervisorClientOptions {
    */
   bundledSkillsDir?: string;
   secretStorageKey: string;
+  /** Lower the supervisor and inherited agent processes below the desktop UI's priority. */
+  preferUiResponsiveness?: boolean;
   /**
    * Optional resolver invoked at every supervisor spawn, returning extra env
    * vars to merge into the child env. Used by the in-app browser MCP wiring
@@ -142,6 +146,17 @@ export class SupervisorClient {
 
     this.child = child;
     if (typeof child.pid === "number") {
+      if (this.options.preferUiResponsiveness) {
+        try {
+          setPriority(child.pid, osConstants.priority.PRIORITY_BELOW_NORMAL);
+        } catch (error) {
+          console.warn(
+            "[poracode] failed to lower supervisor process priority:",
+            error instanceof Error ? error.message : String(error),
+          );
+          this.options.reportError?.(error, { "poracode.feature_area": "process-lifecycle" });
+        }
+      }
       void this.options.assignPid?.(child.pid).catch((error) => {
         console.error(
           "[poracode] failed to assign supervisor to Windows Job Object:",
@@ -198,6 +213,24 @@ export class SupervisorClient {
     this.child = null;
     this.reset(error);
     terminateChildProcessTree(child);
+  }
+
+  setOutputBackpressured(paused: boolean): void {
+    const child = this.child;
+    if (!child?.connected) return;
+    const message: SupervisorFlowControl = {
+      control: "set-output-backpressure",
+      paused,
+    };
+    try {
+      child.send(message, (error) => {
+        if (error) {
+          this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
+        }
+      });
+    } catch (error) {
+      this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
+    }
   }
 
   dispose(): void {

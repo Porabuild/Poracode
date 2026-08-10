@@ -234,6 +234,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1(supports-color@10.2.2)
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@26.1.2)
       shiki:
         specifier: ^4.3.0
         version: 4.3.0
@@ -394,9 +397,6 @@ importers:
       react-devtools:
         specifier: ^7.0.1
         version: 7.0.1(supports-color@10.2.2)
-      sharp:
-        specifier: 0.35.3
-        version: 0.35.3(@types/node@26.1.2)
       tsdown:
         specifier: ^0.22.14
         version: 0.22.14(typescript@7.0.2)
