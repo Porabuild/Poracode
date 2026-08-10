@@ -116,6 +116,7 @@ function renderDropdownItem(
           aria-label={item.endAction.label}
           className="ml-auto size-5 min-w-0 text-muted hover:text-foreground [--button-bg-hover:var(--row-hover)]"
           {...(item.endAction.isDisabled ? { isDisabled: true } : {})}
+          onPressStart={(event) => event.continuePropagation()}
           onPress={() => {
             close();
             onAction(item.endAction!.id);
