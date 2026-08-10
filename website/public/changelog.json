@@ -1,6 +1,75 @@
 {
   "releases": [
     {
+      "version": "1.6.2",
+      "date": "2026-08-10",
+      "title": "Merged PR sync, stoppable actions & clearer subagents",
+      "summary": "Poracode now pulls a merged pull request's base branch into your checkout and lets you stop any running project action from a context menu. Subagent work is easier to follow, and starting a worktree thread no longer leaves you staring at a blank chat.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Worktrees",
+          "text": "Worktree threads launch more responsively: your message appears instantly with a live \"Creating worktree…\" indicator while Poracode sets everything up."
+        },
+        {
+          "kind": "added",
+          "label": "Pull requests",
+          "text": "After you merge a pull request, Poracode pulls the merged base branch into your checkout once per project, and sync badges now appear on experiment groups, thread groups, and thread rows until the pull completes."
+        },
+        {
+          "kind": "added",
+          "text": "Stop any running project action straight from the thread, worktree, or project context menu, and running actions are tracked even after their terminal tab closes."
+        },
+        {
+          "kind": "added",
+          "label": "MCP",
+          "text": "The Poracode MCP server gains a get_current_thread tool, and you can @-mention Terminal in the composer to hand the agent a terminal when app controls are enabled."
+        },
+        {
+          "kind": "added",
+          "label": "Subagents",
+          "text": "Resumed Claude subagents get their own labeled Agent Resume row, and cancelled Crossagents runs show a clear cancelled state instead of looking stuck."
+        },
+        {
+          "kind": "improved",
+          "label": "Crossagents",
+          "text": "Subagent runs are named with the model's sub-provider so similar selections are easy to tell apart, the learned selections list scrolls when it grows long, and the provider filter explains that unchecked providers only opt out of automatic routing."
+        },
+        {
+          "kind": "improved",
+          "label": "Projects",
+          "text": "Project pickers now mark local and remote projects with distinct icons, and you can open GitHub Actions from a worktree group's context menu."
+        },
+        {
+          "kind": "improved",
+          "label": "Sidebar",
+          "text": "Collapsed worktree groups tint their icon when a thread inside is working or has finished, so you can read a group's state without expanding it."
+        },
+        {
+          "kind": "improved",
+          "label": "Composer",
+          "text": "The add menu is tidier: Computer Use and Experiment keep single-line rows with their descriptions moved into info tooltips."
+        },
+        {
+          "kind": "fixed",
+          "text": "Renaming a thread no longer bumps it to the top of the list, completed turns stay closed when trailing plan or goal updates arrive, and the turn timer stops ticking as soon as the turn ends."
+        },
+        {
+          "kind": "fixed",
+          "label": "Sidebar",
+          "text": "Disabled, hidden, and offline-server projects reappear in a dedicated section of the project filter so you can re-enable them, and Remove Project is disabled for servers you can't reach."
+        },
+        {
+          "kind": "fixed",
+          "text": "Cancelling agent detection now stops probes and cleanup promptly across every provider, and hung WSL processes are killed on timeout instead of lingering."
+        },
+        {
+          "kind": "fixed",
+          "text": "Kimi subscription tiers show the correct credit multipliers, an explicit Fast mode off now carries over to your next draft, and one-shot responses that leak raw tool-call markers are rejected instead of shown as text."
+        }
+      ]
+    },
+    {
       "version": "1.6.1",
       "date": "2026-08-07",
       "title": "Flat thread list, worktree moves & workspace switching",

@@ -66,11 +66,14 @@ const MODEL_PROVIDER_SUFFIX_RE = /\((openai|qwen-oauth)\)$/u;
 const QWEN_MODEL_LABELS: Readonly<Record<string, string>> = {
   "coder-model": "Coder Model",
   "qwen3.8-max": "Qwen3.8 Max",
+  "qwen3.7-max": "Qwen3.7 Max",
+  "qwen3.7-plus": "Qwen3.7 Plus",
+  "qwen3.6-flash": "Qwen3.6 Flash",
   "glm-5.2": "GLM 5.2",
   "deepseek-v4-pro": "DeepSeek V4 Pro",
+  "deepseek-v4-flash-0731": "DeepSeek V4 Flash 0731",
   "qwen3.5-plus": "Qwen3.5 Plus",
   "qwen3.6-plus": "Qwen3.6 Plus",
-  "qwen3.7-plus": "Qwen3.7 Plus",
   "glm-5": "GLM 5",
   "kimi-k2.5": "Kimi K2.5",
   "MiniMax-M2.5": "MiniMax M2.5",
@@ -82,6 +85,7 @@ const QWEN_MODEL_LABELS: Readonly<Record<string, string>> = {
 
 const QWEN_SUBPROVIDER_LABELS: Readonly<Record<string, string>> = {
   "ModelStudio Coding Plan for Global/Intl": "Alibaba Token Plan",
+  "Token Plan Personal": "Alibaba Token Plan",
 };
 
 function subProviderId(label: string): string {
@@ -151,6 +155,9 @@ export function buildQwenProbeCapabilities(
   ];
   const subProviderByModelId = new Map<string, { id: string; label: string }>();
   const modelSubProvider: Record<string, string> = {};
+  const tokenPlanSubProvider = { id: "alibaba-token-plan", label: "Alibaba Token Plan" };
+  subProviderByModelId.set(QWEN_DEFAULT_MODEL_ID, tokenPlanSubProvider);
+  modelSubProvider[QWEN_DEFAULT_MODEL_ID] = tokenPlanSubProvider.id;
   for (const { model, subProvider } of normalizedModels) {
     if (!subProvider) continue;
     subProviderByModelId.set(model.id, subProvider);
