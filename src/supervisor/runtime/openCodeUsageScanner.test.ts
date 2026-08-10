@@ -3,14 +3,12 @@ import type { HostPort } from "@poracode/agents-usage";
 import type { OpenCodeWebSession } from "./openCodeWebSession";
 
 /**
- * The Go-DB read and the web-session fetch are unit-tested in their own modules
- * (`openCodeGoDb.test.ts`, `openCodeWebSession.test.ts`, `openCodeZenBalance.test.ts`);
- * here we mock both to test the orchestrator's status fall-through deterministically,
- * without touching disk or the network.
+ * The web-session fetch is unit-tested in `openCodeWebSession.test.ts`;
+ * here we mock it (and the Go-auth probe) to test the orchestrator's status
+ * fall-through deterministically, without touching disk or the network.
  */
 const goDb = vi.hoisted(() => ({
   hasOpenCodeGoAuth: vi.fn<() => boolean>(),
-  readOpenCodeGoRows: vi.fn<() => Promise<{ createdMs: number; cost: number }[] | undefined>>(),
 }));
 const web = vi.hoisted(() => ({
   fetchOpenCodeWeb: vi.fn<() => Promise<OpenCodeWebSession>>(),
@@ -27,12 +25,11 @@ const host = {} as HostPort;
 beforeEach(() => {
   vi.clearAllMocks();
   goDb.hasOpenCodeGoAuth.mockReturnValue(false);
-  goDb.readOpenCodeGoRows.mockResolvedValue(undefined);
   web.fetchOpenCodeWeb.mockResolvedValue({ live: false });
 });
 
 describe("scanOpenCodeUsage", () => {
-  it("is auth-missing with no local auth/rows and no live web session", async () => {
+  it("is auth-missing with no local auth and no live web session", async () => {
     const snap = await scanOpenCodeUsage(NOW, host);
     expect(snap.status).toBe("auth-missing");
     expect(snap.windows).toEqual([]);
@@ -72,14 +69,25 @@ describe("scanOpenCodeUsage", () => {
     expect(snap.credits).toEqual({ balance: 9, currency: "USD", label: "Zen balance" });
   });
 
-  it("falls back to local Go auth (no web) as ok/Go", async () => {
+  it("reports ok/Go with empty meters when only the local Go key is present", async () => {
+    // Local CLI key proves the user is on Go, but device spend must not be shown
+    // as plan quota — that path undercounts vs the console.
     goDb.hasOpenCodeGoAuth.mockReturnValue(true);
     const snap = await scanOpenCodeUsage(NOW, host);
     expect(snap.status).toBe("ok");
     expect(snap.plan).toBe("Go");
+    expect(snap.windows).toEqual([]);
   });
 
-  it("is auth-missing when no host is provided and there is no local Go data", async () => {
+  it("never invents plan meters from local spend when web windows are missing", async () => {
+    goDb.hasOpenCodeGoAuth.mockReturnValue(true);
+    web.fetchOpenCodeWeb.mockResolvedValue({ live: false });
+    const snap = await scanOpenCodeUsage(NOW, host);
+    expect(snap.windows).toEqual([]);
+    expect(snap.plan).toBe("Go");
+  });
+
+  it("is auth-missing when no host is provided and there is no local Go key", async () => {
     const snap = await scanOpenCodeUsage(NOW);
     expect(snap.status).toBe("auth-missing");
     expect(web.fetchOpenCodeWeb).not.toHaveBeenCalled();

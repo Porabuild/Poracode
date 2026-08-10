@@ -49,7 +49,8 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     label: "Command Code",
     mechanism: "oauth-endpoint",
     needsLogin: false,
-    windowIds: ["monthly"],
+    // Monthly credit pool plus rolling 5h / weekly USD caps from windowLimits.
+    windowIds: ["session-5h", "weekly", "monthly"],
   },
   factory: {
     id: "factory",
@@ -97,7 +98,9 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
  * `antigravity` probes its local language server (cli-jsonrpc), and `opencode`
- * reads a local SQLite store plus the opencode.ai web session (local-log).
+ * needs the supervisor for the opencode.ai cookie session plus a local
+ * `auth.json` probe (Go plan badge). Go quota meters are web-only — never
+ * derived from local `opencode.db` spend.
  */
 export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[] = [
   {
@@ -110,7 +113,8 @@ export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[
   {
     id: "opencode",
     label: "OpenCode",
-    mechanism: "local-log",
+    // Cookie login for live Go/Zen meters; local auth.json only gates the plan badge.
+    mechanism: "cookie",
     needsLogin: true,
     windowIds: ["session-5h", "weekly", "monthly"],
   },

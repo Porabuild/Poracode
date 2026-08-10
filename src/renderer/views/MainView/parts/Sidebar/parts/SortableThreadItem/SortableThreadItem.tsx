@@ -85,7 +85,7 @@ export function SortableThreadItem(props: {
     showWorktreeFilesButton,
     isExperimentCandidate,
     // Stacked rows are flat cross-project list rows: no project header carries
-    // the main branch's git state, so a main-branch thread shows it inline.
+    // files/terminal/git chrome, so a main-branch thread shows them inline.
     showProjectBadge: stacked,
     projectName: project.name,
   };

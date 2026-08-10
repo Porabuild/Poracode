@@ -31,9 +31,19 @@
           "text": "Resumed Claude subagents get their own labeled Agent Resume row, and cancelled Crossagents runs show a clear cancelled state instead of looking stuck."
         },
         {
+          "kind": "added",
+          "label": "Command Code",
+          "text": "Usage now shows Command Code's rolling 5-hour and weekly dollar limits alongside monthly credits, with reset countdowns, matching Studio and the CLI."
+        },
+        {
           "kind": "improved",
           "label": "Crossagents",
           "text": "Subagent runs are named with the model's sub-provider so similar selections are easy to tell apart, the learned selections list scrolls when it grows long, and the provider filter explains that unchecked providers only opt out of automatic routing."
+        },
+        {
+          "kind": "improved",
+          "label": "Usage",
+          "text": "Dollar-denominated usage windows lead with the percent on the bar, and spend amounts sit next to the reset countdown as smaller muted text."
         },
         {
           "kind": "improved",
@@ -66,6 +76,26 @@
         {
           "kind": "fixed",
           "text": "Kimi subscription tiers show the correct credit multipliers, an explicit Fast mode off now carries over to your next draft, and one-shot responses that leak raw tool-call markers are rejected instead of shown as text."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode",
+          "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, so the meters match the console instead of undercounting headroom."
+        },
+        {
+          "kind": "fixed",
+          "label": "Sidebar",
+          "text": "In the flat thread list, main-branch rows now show Files and Terminal controls the same way worktree rows do."
+        },
+        {
+          "kind": "fixed",
+          "label": "Crossagents",
+          "text": "Crossagents only spawn subagents after you explicitly ask in that thread — for example with an @Crossagents mention — and that ask covers later turns in the same thread."
+        },
+        {
+          "kind": "fixed",
+          "label": "Qwen",
+          "text": "Current Alibaba Token Plan models, including Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Flash, and DeepSeek V4 Flash 0731, are detected and labeled correctly."
         }
       ]
     },
