@@ -165,7 +165,7 @@ export const gitTools: ToolDomain = {
     {
       name: "git_sync",
       description:
-        "Exchange commits with a remote: fetch, pull (merge), pull_rebase, or push. push is consequential — it publishes local commits to the remote; explain it to the user first. Pass remote/branch/setUpstream as needed (remote defaults to origin).",
+        "Exchange commits with a remote: fetch, pull (merge), pull_rebase, or push. push is consequential — it publishes local commits to the remote. When the user explicitly asked in this thread to push or publish the named fix, that request is authorization; call push after the normal checks without asking for another confirmation. If they only asked to inspect or fix work, do not push. Pass remote/branch/setUpstream as needed (remote defaults to origin).",
       inputSchema: {
         type: "object",
         additionalProperties: false,
