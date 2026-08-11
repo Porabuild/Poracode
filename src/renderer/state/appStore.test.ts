@@ -262,6 +262,31 @@ describe("appStore runtime config sync", () => {
     expect(stored?.doneAt).toBe("2026-05-10T12:00:00.000Z");
   });
 
+  it("preserves updatedAt when renaming a thread", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+    });
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((entry) =>
+        entry.id === thread.id ? { ...entry, updatedAt: "2026-04-01T00:00:00.000Z" } : entry,
+      ),
+    }));
+
+    useAppStore.getState().renameThread(thread.id, "Renamed");
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      title: "Renamed",
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    });
+  });
+
   it("accepts a real runtime config change after the pending edit is submitted", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",

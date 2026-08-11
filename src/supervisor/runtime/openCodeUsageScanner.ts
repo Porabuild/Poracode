@@ -1,45 +1,58 @@
-import { aggregateOpenCodeUsage, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
-import { hasOpenCodeGoAuth, readOpenCodeGoRows } from "./openCodeGoDb";
+import { type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
+import { hasOpenCodeGoAuth } from "./openCodeGoDb";
 import { fetchOpenCodeWeb, type OpenCodeWebSession } from "./openCodeWebSession";
 
 /**
- * Builds the OpenCode usage snapshot. OpenCode spend lives in the CLI's local
- * `opencode.db` SQLite store (see `openCodeGoDb.ts`); the account dashboard
- * additionally exposes the Go (Lite) subscription windows and the Zen
- * pay-as-you-go balance when an opencode.ai cookie is captured (see
- * `openCodeWebSession.ts` / `openCodeZenBalance.ts`). Read-only and fail-safe.
+ * Builds the OpenCode usage snapshot.
+ *
+ * Go plan quota meters (rolling / weekly / monthly) come **only** from the
+ * opencode.ai web session (`lite.subscription.get` / dashboard). Local
+ * `opencode.db` cost aggregation is intentionally not used for those meters:
+ * it is device-local, undercounts multi-client spend, and uses different
+ * window boundaries than the server — so falling back to it presents
+ * confidently wrong headroom (e.g. 25% local vs 100% on the console).
+ *
+ * Local `auth.json` is still used as a "has a Go key" signal for the plan
+ * badge when the web session is missing; meters stay empty until a cookie
+ * session supplies real windows. Zen balance is web-only.
  */
 
 /** Build the OpenCode usage snapshot from Go subscription usage and optional Zen balance. */
 export async function scanOpenCodeUsage(nowMs: number, host?: HostPort): Promise<UsageSnapshot> {
   const hasGoAuth = hasOpenCodeGoAuth();
-  // The local SQLite read and the opencode.ai web fetch are independent, so run
-  // them concurrently rather than waiting out the SQLite read first.
-  const [rows, web] = await Promise.all([
-    readOpenCodeGoRows().then((r) => r ?? []),
-    host
-      ? fetchOpenCodeWeb(host, nowMs).catch((): OpenCodeWebSession => ({ live: false }))
-      : Promise.resolve<OpenCodeWebSession>({ live: false }),
-  ]);
+  const web = host
+    ? await fetchOpenCodeWeb(host, nowMs).catch((): OpenCodeWebSession => ({ live: false }))
+    : ({ live: false } satisfies OpenCodeWebSession);
+
   const zenBalance = web.balance;
   const credits =
     zenBalance !== undefined
       ? { credits: { balance: zenBalance, currency: "USD", label: "Zen balance" } as const }
       : {};
 
-  // Prefer the authoritative web view of the Go subscription (the rolling/weekly/
-  // monthly quota the dashboard shows); fall back to local CLI spend aggregation
-  // when the web windows aren't available but local usage exists.
-  const goWindows = web.goWindows ?? (rows.length > 0 ? aggregateOpenCodeUsage(rows, nowMs) : []);
-  const hasGo = (web.goWindows?.length ?? 0) > 0 || hasGoAuth || rows.length > 0;
+  // Authoritative Go plan windows only — never invent them from local spend.
+  const goWindows = web.goWindows ?? [];
 
-  // Go subscription (web or local): show its windows alongside any Zen balance.
-  if (hasGo) {
+  if (goWindows.length > 0) {
     return {
       providerId: "opencode",
       status: "ok",
       plan: "Go",
       windows: goWindows,
+      ...credits,
+      fetchedAt: nowMs,
+    };
+  }
+
+  // CLI has a Go API key but no server windows (no cookie, expired session, or
+  // parse miss). Report plan "Go" with empty meters so we never show undercounted
+  // local % as if it were the console quota.
+  if (hasGoAuth) {
+    return {
+      providerId: "opencode",
+      status: "ok",
+      plan: "Go",
+      windows: [],
       ...credits,
       fetchedAt: nowMs,
     };

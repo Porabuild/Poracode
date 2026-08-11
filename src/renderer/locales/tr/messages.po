@@ -2004,10 +2004,12 @@ msgstr "Projeyi kaldırmayı iptal et"
 msgid "Cancel workflow"
 msgstr "İş akışını iptal et"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "iptal edildi"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2827,6 +2829,7 @@ msgstr "Bu terminaldeki istemleri tamamlayın. Bittiğinde kapanır."
 msgid "completed"
 msgstr "tamamlandı"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "Tamamlandı"
@@ -4676,6 +4679,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "başarısız oldu"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx

@@ -4,6 +4,7 @@ import { Eye, EyeOff, LogOut } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderUsageCircle } from "@/renderer/components/providers/ProviderUsageCircle";
+import { refreshAndMergeProviderUsage } from "@/renderer/components/providers/refreshProviderUsageSnapshot";
 import { usageStatusText } from "@/renderer/components/providers/usageFormat";
 import { useUsageProviderLogin } from "@/renderer/components/providers/useUsageProviderLogin";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
@@ -260,6 +261,10 @@ export function UsageProviderRow(props: { id: string; label: string }) {
             startTransition(() => {
               setUsageSetting("disabledProviders", next);
             });
+            // Re-enabling tracking should fetch immediately rather than waiting
+            // for the next auto-refresh tick (default 5 min). Disabling only
+            // opts out of future polls — no live fetch needed.
+            if (selected) void refreshAndMergeProviderUsage(id);
           }}
         />
       </span>

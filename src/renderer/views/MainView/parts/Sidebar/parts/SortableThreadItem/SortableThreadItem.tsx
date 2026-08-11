@@ -73,6 +73,7 @@ export function SortableThreadItem(props: {
   const statusTone = getStatusTone(thread, { hasBackgroundActivity });
 
   const stacked = projectTag != null;
+  const isEditing = editingThreadId === thread.id;
   const titleNode = thread.done ? (
     <span className="opacity-50 line-through">{thread.title}</span>
   ) : (
@@ -84,10 +85,22 @@ export function SortableThreadItem(props: {
     showWorktreeFilesButton,
     isExperimentCandidate,
     // Stacked rows are flat cross-project list rows: no project header carries
-    // the main branch's git state, so a main-branch thread shows it inline.
+    // files/terminal/git chrome, so a main-branch thread shows them inline.
     showProjectBadge: stacked,
     projectName: project.name,
   };
+  const titleContent = isEditing ? (
+    <InlineRenameInput
+      initialValue={thread.title}
+      onCommit={(newTitle) => {
+        renameThread(thread.id, newTitle);
+        props.setEditingThreadId(null);
+      }}
+      onCancel={() => props.setEditingThreadId(null)}
+    />
+  ) : (
+    titleNode
+  );
 
   return (
     <div ref={ref} className="relative w-full pb-0.5">
@@ -105,16 +118,7 @@ export function SortableThreadItem(props: {
             <ThreadProviderIcon thread={thread} tone={statusTone} className="size-3.5 shrink-0" />
           }
           label={
-            editingThreadId === thread.id ? (
-              <InlineRenameInput
-                initialValue={thread.title}
-                onCommit={(newTitle) => {
-                  renameThread(thread.id, newTitle);
-                  props.setEditingThreadId(null);
-                }}
-                onCancel={() => props.setEditingThreadId(null)}
-              />
-            ) : stacked ? (
+            stacked ? (
               // Two-line flat-list row: each line owns its right-side cluster,
               // so the bottom badges never reserve width from the title line.
               // Line heights match the text (16px title, 14px meta).
@@ -123,7 +127,7 @@ export function SortableThreadItem(props: {
               // span, so anything flush with its right edge gets cut.
               <span className="flex flex-col gap-0.5 pr-0.5">
                 <span className="flex h-[18px] items-center gap-1.5">
-                  <span className="min-w-0 flex-1 truncate">{titleNode}</span>
+                  <span className="min-w-0 flex-1 truncate">{titleContent}</span>
                   {hasDraft && <DraftIndicator />}
                   {/* No padding here: the time slot carries the 2px inset that
                       matches the git badge's own p-0.5, so both rows' icon
@@ -139,6 +143,8 @@ export function SortableThreadItem(props: {
                   </span>
                 </span>
               </span>
+            ) : isEditing ? (
+              titleContent
             ) : (
               <span className="flex items-center gap-1.5">
                 <span className="min-w-0 truncate">{titleNode}</span>
@@ -147,11 +153,7 @@ export function SortableThreadItem(props: {
             )
           }
           tooltip={
-            editingThreadId === thread.id
-              ? undefined
-              : stacked
-                ? `${thread.title} — ${project.name}`
-                : thread.title
+            isEditing ? undefined : stacked ? `${thread.title} — ${project.name}` : thread.title
           }
           isActive={isCurrentThread}
           onPress={() => openThread(thread.id)}

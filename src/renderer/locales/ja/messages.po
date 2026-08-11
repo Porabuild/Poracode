@@ -2003,10 +2003,12 @@ msgstr "プロジェクトの削除をキャンセル"
 msgid "Cancel workflow"
 msgstr "ワークフローをキャンセル"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "キャンセルされました"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2826,6 +2828,7 @@ msgstr "このターミナルでプロンプトを完了します。終了した
 msgid "completed"
 msgstr "完了しました"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "完了"
@@ -4675,6 +4678,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "失敗しました"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx

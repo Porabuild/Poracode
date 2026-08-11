@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import {
   useHasStoredSession,
   useUsageLoginStateStore,
 } from "@/renderer/state/usageLoginStateStore";
+import { refreshAndMergeProviderUsage } from "./refreshProviderUsageSnapshot";
 import { supportsApiKeyLogin, supportsBrowserLogin } from "./usageProviders";
 
 /**
@@ -37,12 +38,6 @@ export function useUsageProviderLogin(id: string) {
   const canApiKeySignIn = canSignIn && isApiKeyLogin;
   const canSignOut = supportsLogin && hasStoredSession;
 
-  const mergeFreshSnapshot = async () => {
-    const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
-    const fresh = usage.snapshots.find((s) => s.providerId === id);
-    if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
-  };
-
   const handleSignIn = async () => {
     setSigningIn(true);
     // Open the browser-overlay drawer (not maximized) so the login tab renders
@@ -50,34 +45,29 @@ export function useUsageProviderLogin(id: string) {
     usePanelStore.getState().setBrowserOverlayMaximized(false);
     usePanelStore.getState().setBrowserOverlayOpen(true);
 
-    // Release the moment the user closes the overlay — don't depend on main's
-    // cancel round-trip resolving, so the button can never hang in "Signing in…".
-    let unsubscribe = () => {};
-    const overlayClosed = new Promise<"closed">((resolve) => {
-      unsubscribe = usePanelStore.subscribe((state, prev) => {
-        if (prev.browserOverlayOpen && !state.browserOverlayOpen) resolve("closed");
-      });
-    });
-
-    try {
-      const outcome = await Promise.race([
-        readBridge().startUsageLogin({ providerId: id }),
-        overlayClosed,
-      ]);
-      if (outcome === "closed") {
-        // Best-effort: tell main to stop the in-flight capture.
+    // Successful capture closes the login tab, which dismisses the overlay when
+    // it was the last tab. Treat overlay close as a cancel *signal* only — never
+    // as the login outcome — so "Use Session" can still finish sealing the secret
+    // and refresh usage afterward. Cancel is a no-op once capture has settled.
+    const unsubscribe = usePanelStore.subscribe((state, prev) => {
+      if (prev.browserOverlayOpen && !state.browserOverlayOpen) {
         void readBridge()
           .cancelUsageLogin({ providerId: id })
           .catch(() => {});
-        return;
       }
-      // Dismiss the overlay once the login completes.
+    });
+
+    try {
+      const outcome = await readBridge().startUsageLogin({ providerId: id });
+      // Dismiss the overlay once the login completes (no-op if tab cleanup already
+      // closed it). Unsubscribe first so this dismiss doesn't re-fire cancel.
+      unsubscribe();
       usePanelStore.getState().setBrowserOverlayOpen(false);
       if (!outcome.ok) return;
       // Mark the session stored so the UI reads as signed in immediately,
       // independent of whether the usage fetch below yields displayable data.
       useUsageLoginStateStore.getState().setStored(id, true);
-      await mergeFreshSnapshot();
+      await refreshAndMergeProviderUsage(id);
     } finally {
       unsubscribe();
       setSigningIn(false);
@@ -93,7 +83,7 @@ export function useUsageProviderLogin(id: string) {
       if (!outcome.ok) return;
       setApiKey("");
       useUsageLoginStateStore.getState().setStored(id, true);
-      await mergeFreshSnapshot();
+      await refreshAndMergeProviderUsage(id);
     } finally {
       setSigningIn(false);
     }
@@ -105,7 +95,7 @@ export function useUsageProviderLogin(id: string) {
     try {
       await readBridge().clearUsageLogin({ providerId: id });
       useUsageLoginStateStore.getState().setStored(id, false);
-      await mergeFreshSnapshot();
+      await refreshAndMergeProviderUsage(id);
     } finally {
       setSigningOut(false);
     }

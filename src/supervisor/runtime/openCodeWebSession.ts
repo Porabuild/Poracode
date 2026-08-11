@@ -1,4 +1,5 @@
 import {
+  fetchOpenCodeSubscriptionText,
   fetchOpenCodeWorkspaceId,
   type HostPort,
   openCodeRequestCookie,
@@ -45,10 +46,23 @@ async function fetchOpenCodePage(
   }
 }
 
-function matchNumber(text: string, pattern: RegExp): number | undefined {
-  const value = text.match(pattern)?.[1];
-  if (value === undefined) return undefined;
-  const parsed = Number(value);
+/**
+ * Match a numeric field inside a Go window object. Handles both plain
+ * `rollingUsage:{usagePercent:42}` and SolidStart seroval hydration
+ * `rollingUsage:$R[28]={status:"ok",resetInSec:1,usagePercent:42}`.
+ * Falls back to a looser "key then field before next closing brace" scan for
+ * older SSR shapes.
+ */
+function matchWindowNumber(text: string, key: string, field: string): number | undefined {
+  const objectRe = new RegExp(`${key}\\s*:\\s*(?:\\$R\\[[^\\]]+\\]\\s*=\\s*)?\\{([^}]*)\\}`, "i");
+  const objectBody = text.match(objectRe)?.[1];
+  const fieldRe = new RegExp(`${field}["']?\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`, "i");
+  const fromObject = objectBody?.match(fieldRe)?.[1];
+  const raw =
+    fromObject ??
+    text.match(new RegExp(`${key}[^}]*?${field}["']?\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`, "i"))?.[1];
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
@@ -59,25 +73,20 @@ const OPENCODE_GO_WINDOW_SPECS = [
 ] as const;
 
 /**
- * Parse the Go (Lite) subscription windows from the server-rendered
- * `/workspace/{id}/go` body. opencode.ai renders `queryLiteSubscription`
- * ("lite.subscription.get") as `rollingUsage`/`weeklyUsage`/`monthlyUsage`, each
- * `{ usagePercent, resetInSec }` — see the console's `LiteUsageItem`. Returns []
- * when the account has no Lite subscription (the keys are absent), and requires
- * the two core windows so a stray match can't fabricate a partial set.
+ * Parse the Go (Lite) subscription windows from a `lite.subscription.get`
+ * payload (server-function response or SSR/hydration embedded in the
+ * `/workspace/{id}/go` page). Keys are `rollingUsage`/`weeklyUsage`/`monthlyUsage`,
+ * each `{ usagePercent, resetInSec }` — including SolidStart seroval
+ * `key:$R[n]={...}` forms. Returns [] when the account has no Lite subscription
+ * (the keys are absent), and requires the two core windows so a stray match
+ * can't fabricate a partial set.
  */
 export function parseOpenCodeGoWindows(text: string, nowMs: number): UsageWindow[] {
   const windows: UsageWindow[] = [];
   for (const spec of OPENCODE_GO_WINDOW_SPECS) {
-    const percent = matchNumber(
-      text,
-      new RegExp(`${spec.key}[^}]*?usagePercent["']?\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`, "i"),
-    );
+    const percent = matchWindowNumber(text, spec.key, "usagePercent");
     if (percent === undefined) continue;
-    const resetInSec = matchNumber(
-      text,
-      new RegExp(`${spec.key}[^}]*?resetInSec["']?\\s*:\\s*([0-9]+)`, "i"),
-    );
+    const resetInSec = matchWindowNumber(text, spec.key, "resetInSec");
     windows.push({
       id: spec.id,
       label: spec.label,
@@ -106,15 +115,22 @@ export async function fetchOpenCodeWeb(host: HostPort, nowMs: number): Promise<O
   if (!workspaceId) return { live: false };
 
   const base = `https://opencode.ai/workspace/${workspaceId}`;
-  const [home, go] = await Promise.all([
+  // Subscription server-fn is the authoritative Go window source; HTML pages are
+  // still needed for Zen balance (and as a fallback when the server-fn shape
+  // drifts). Run all three in parallel.
+  const [home, go, subscriptionBody] = await Promise.all([
     fetchOpenCodePage(host, cookie, base),
     fetchOpenCodePage(host, cookie, `${base}/go`),
+    fetchOpenCodeSubscriptionText(host.http, cookie, workspaceId).catch(() => undefined),
   ]);
 
   const balance =
     (home?.status === 200 ? parseZenBalance(home.body) : undefined) ??
     (go?.status === 200 ? parseZenBalance(go.body) : undefined);
-  const goWindows = go?.status === 200 ? parseOpenCodeGoWindows(go.body, nowMs) : [];
+  const goWindowsFromSub =
+    subscriptionBody !== undefined ? parseOpenCodeGoWindows(subscriptionBody, nowMs) : [];
+  const goWindowsFromPage = go?.status === 200 ? parseOpenCodeGoWindows(go.body, nowMs) : [];
+  const goWindows = goWindowsFromSub.length > 0 ? goWindowsFromSub : goWindowsFromPage;
 
   if (balance === undefined) {
     // Dev-only, value-masked: pins down where the balance lives when it fails to

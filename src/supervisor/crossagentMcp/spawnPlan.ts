@@ -92,8 +92,19 @@ function resolveAttempt(
 
   const modelLabel =
     capabilities.models.find((candidate) => candidate.id === model)?.label ?? model;
+  const subProviderLabel = capabilities.subProviders?.find((candidate) => {
+    const mappedId = capabilities.modelSubProvider?.[model];
+    return (
+      candidate.id === mappedId ||
+      model.startsWith(`${candidate.id}/`) ||
+      model.startsWith(`${candidate.id}:`)
+    );
+  })?.label;
   const selectionLabel = [
     adapter.label,
+    ...(subProviderLabel && subProviderLabel.toLowerCase() !== adapter.label.toLowerCase()
+      ? [subProviderLabel]
+      : []),
     modelLabel,
     ...(selection.effort ? [formatReasoningLabel(selection.effort)] : []),
     ...(selection.fast === true ? ["Fast"] : []),

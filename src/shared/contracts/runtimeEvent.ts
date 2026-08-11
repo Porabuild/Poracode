@@ -282,6 +282,7 @@ export const toolCallPayloadSchema = z.object({
    */
   subAgentType: z.string().min(1).optional(),
   isCrossagent: z.boolean().optional(),
+  crossagentStatus: z.enum(["running", "completed", "failed", "cancelled"]).optional(),
   workflow: toolCallWorkflowSchema.optional(),
 });
 export type ToolCallPayload = z.infer<typeof toolCallPayloadSchema>;

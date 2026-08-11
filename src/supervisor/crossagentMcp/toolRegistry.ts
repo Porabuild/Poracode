@@ -55,6 +55,7 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
+  "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
   "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
   "Classify every task with 1-5 concise lowercase tags and pass the same tags to list_agents and spawn_agent. Prefer this vocabulary when applicable: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data. Crossagents learns tag-to-selection affinity from user-explicit selection choices without an extra model call.",
   "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
@@ -172,7 +173,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {

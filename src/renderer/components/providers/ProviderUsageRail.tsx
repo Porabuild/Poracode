@@ -121,7 +121,7 @@ function UsageTooltipBody(props: {
                   <span className="font-medium text-foreground">
                     {reset || secondary ? (
                       <span className="mr-1 text-[10px] font-normal text-muted">
-                        {[secondary, reset].filter(Boolean).join(" · ")} ·
+                        {[reset, secondary].filter(Boolean).join(" · ")} ·
                       </span>
                     ) : null}
                     {formatWindowValue(w)}

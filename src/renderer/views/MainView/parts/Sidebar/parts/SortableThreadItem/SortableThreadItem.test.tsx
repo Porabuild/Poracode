@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
+import { openFilesPanel } from "@/renderer/actions/panelActions";
+import { openTerminal } from "@/renderer/actions/terminalActions";
 import { SortableThreadItem } from "./SortableThreadItem";
 
 type MockContextMenuItem = {
@@ -18,6 +20,8 @@ const {
   getStatusToneMock,
   useThreadHasBackgroundActivityMock,
   useThreadHasDraftMock,
+  openFilesPanelMock,
+  openTerminalMock,
 } = vi.hoisted(() => ({
   sortableRefMock: vi.fn<(element: HTMLElement | null) => void>(),
   sortableOptionsMock: vi.fn<(options: unknown) => void>(),
@@ -26,6 +30,12 @@ const {
     vi.fn<(thread: Thread, opts?: { hasBackgroundActivity?: boolean }) => string>(),
   useThreadHasBackgroundActivityMock: vi.fn<(threadId: string) => boolean>(),
   useThreadHasDraftMock: vi.fn<(threadId: string) => boolean>(),
+  openFilesPanelMock: vi.fn<(projectId: string, worktreePath?: string) => void>(),
+  openTerminalMock: vi.fn<(projectId: string) => void>(),
+}));
+
+vi.mock("@dnd-kit/react", () => ({
+  useDraggable: () => undefined,
 }));
 
 vi.mock("@dnd-kit/react/sortable", () => ({
@@ -84,7 +94,11 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useThreadHasBackgroundActivity: (threadId: string) =>
     useThreadHasBackgroundActivityMock(threadId),
   useThreadHasDraft: (threadId: string) => useThreadHasDraftMock(threadId),
+  useIsProjectFilesPanelActive: () => false,
   useIsProjectGitPanelActive: () => false,
+  useIsProjectTerminalActive: () => false,
+  useIsProjectTerminalBusy: () => false,
+  useIsProjectTerminalOpen: () => false,
   useIsWorktreeFilesPanelActive: () => false,
   useIsWorktreeGitPanelActive: () => false,
   useIsWorktreeTerminalActive: () => false,
@@ -108,6 +122,7 @@ vi.mock("@/renderer/actions/gitActions", () => ({
 
 vi.mock("@/renderer/actions/panelActions", () => ({
   openGitReview: vi.fn<() => void>(),
+  openFilesPanel: openFilesPanelMock,
 }));
 
 vi.mock("@/renderer/actions/threadActions", () => ({
@@ -123,6 +138,8 @@ vi.mock("@/renderer/actions/threadActions", () => ({
 
 vi.mock("@/renderer/actions/terminalActions", () => ({
   runProjectAction: vi.fn<() => void>(),
+  openTerminal: openTerminalMock,
+  openWorktreeTerminal: vi.fn<() => void>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -168,6 +185,8 @@ describe("SortableThreadItem", () => {
     sortableRefMock.mockClear();
     sortableOptionsMock.mockClear();
     contextMenuItemsMock.mockClear();
+    openFilesPanelMock.mockClear();
+    openTerminalMock.mockClear();
     getStatusToneMock.mockReset();
     getStatusToneMock.mockReturnValue("default");
     useThreadHasBackgroundActivityMock.mockReset();
@@ -317,7 +336,7 @@ describe("SortableThreadItem", () => {
     });
   });
 
-  it("shows project sync and git badges on a flat-list main-branch thread row", () => {
+  it("shows project files, terminal, sync, and git controls on a flat-list main-branch thread row", () => {
     render(
       <SortableThreadItem
         thread={makeThread()}
@@ -333,9 +352,39 @@ describe("SortableThreadItem", () => {
 
     expect(screen.getByTestId("sync-badge")).toHaveTextContent("project-1:project");
     expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Files for Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Terminal for Project" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Files for Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Terminal for Project" }));
+
+    expect(openFilesPanel).toHaveBeenCalledWith("project-1");
+    expect(openTerminal).toHaveBeenCalledWith("project-1");
   });
 
-  it("omits the project git badge in grouped lists, where the project header carries it", () => {
+  it("keeps the flat-list row metadata while renaming only its title", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId="thread-1"
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Rename thread" })).toHaveValue("Thread 1");
+    expect(screen.getByText("Project")).toBeInTheDocument();
+    expect(screen.getByTestId("sync-badge")).toHaveTextContent("project-1:project");
+    expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Files for Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Terminal for Project" })).toBeInTheDocument();
+  });
+
+  it("omits project-scoped row chrome in grouped lists, where the project header carries it", () => {
     render(
       <SortableThreadItem
         thread={makeThread()}
@@ -352,5 +401,7 @@ describe("SortableThreadItem", () => {
       screen.queryByRole("button", { name: "Git status for Project" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Files for Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Terminal for Project" })).not.toBeInTheDocument();
   });
 });

@@ -117,15 +117,31 @@ describe("buildQwenProbeCapabilities", () => {
         { id: "coder-model(qwen-oauth)", label: "coder-model" },
         {
           id: "qwen3.8-max(openai)",
-          label: "[ModelStudio Coding Plan for Global/Intl] qwen3.8-max",
+          label: "[Token Plan Personal] qwen3.8-max",
+        },
+        {
+          id: "qwen3.7-max(openai)",
+          label: "[Token Plan Personal] qwen3.7-max",
+        },
+        {
+          id: "qwen3.7-plus(openai)",
+          label: "[Token Plan Personal] qwen3.7-plus",
+        },
+        {
+          id: "qwen3.6-flash(openai)",
+          label: "[Token Plan Personal] qwen3.6-flash",
         },
         {
           id: "glm-5.2(openai)",
-          label: "[ModelStudio Coding Plan for Global/Intl] glm-5.2",
+          label: "[Token Plan Personal] glm-5.2",
         },
         {
           id: "deepseek-v4-pro(openai)",
-          label: "[ModelStudio Coding Plan for Global/Intl] deepseek-v4-pro",
+          label: "[Token Plan Personal] deepseek-v4-pro",
+        },
+        {
+          id: "deepseek-v4-flash-0731(openai)",
+          label: "[Token Plan Personal] deepseek-v4-flash-0731",
         },
       ],
       modelMetadata: {
@@ -136,8 +152,12 @@ describe("buildQwenProbeCapabilities", () => {
     expect(capabilities.models).toEqual([
       { id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max" },
       { id: "coder-model", label: "Coder Model" },
+      { id: "qwen3.7-max", label: "Qwen3.7 Max" },
+      { id: "qwen3.7-plus", label: "Qwen3.7 Plus" },
+      { id: "qwen3.6-flash", label: "Qwen3.6 Flash" },
       { id: "glm-5.2", label: "GLM 5.2" },
       { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+      { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
     ]);
     expect(capabilities.subProviders).toEqual([
       {
@@ -149,8 +169,12 @@ describe("buildQwenProbeCapabilities", () => {
     expect(capabilities.modelSubProvider).toEqual({
       [QWEN_DEFAULT_MODEL_ID]: "alibaba-token-plan",
       "coder-model": "qwen-oauth",
+      "qwen3.7-max": "alibaba-token-plan",
+      "qwen3.7-plus": "alibaba-token-plan",
+      "qwen3.6-flash": "alibaba-token-plan",
       "glm-5.2": "alibaba-token-plan",
       "deepseek-v4-pro": "alibaba-token-plan",
+      "deepseek-v4-flash-0731": "alibaba-token-plan",
     });
     expect(capabilities.modelContextSizes).toEqual({
       [QWEN_DEFAULT_MODEL_ID]: ["1M"],

@@ -28,6 +28,13 @@ import type { UsageSnapshot } from "@poracode/agents-usage";
 export const providerUsagePayloadSchema = z.object({
   /** Restrict collection to these provider ids; omitted = all known providers. */
   providerIds: z.array(z.string()).optional(),
+  /**
+   * When true, drain any in-flight refresh for the same id-set first, then start
+   * a new collection. Use after credential changes (login / API key / sign-out)
+   * so a concurrent background poll that started with the previous secret cannot
+   * be coalesced and returned as the "fresh" result.
+   */
+  force: z.boolean().optional(),
 });
 export type ProviderUsagePayload = z.infer<typeof providerUsagePayloadSchema>;
 

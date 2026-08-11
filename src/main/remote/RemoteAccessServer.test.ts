@@ -3141,7 +3141,10 @@ describe("RemoteAccessServer", () => {
     });
     expect(renameResponse.status).toBe(200);
     expect(dispatched).toEqual([{ kind: "rename", threadId: "thread-1", title: "New title" }]);
-    expect(db.threads()[0]?.title).toBe("New title");
+    expect(db.threads()[0]).toMatchObject({
+      title: "New title",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     await expect(readWs()).resolves.toMatchObject({
       type: "event",
       event: { type: "remote-threads-changed", threadIds: ["thread-1"] },

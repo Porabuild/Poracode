@@ -8,10 +8,14 @@ import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge
 import { SyncBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/SyncBadge";
 import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
-import { openWorktreeTerminal } from "@/renderer/actions/terminalActions";
+import { openTerminal, openWorktreeTerminal } from "@/renderer/actions/terminalActions";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import {
+  useIsProjectFilesPanelActive,
   useIsProjectGitPanelActive,
+  useIsProjectTerminalActive,
+  useIsProjectTerminalBusy,
+  useIsProjectTerminalOpen,
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
@@ -27,12 +31,12 @@ interface ThreadItemSuffixProps {
   showWorktreeFilesButton: boolean;
   isExperimentCandidate: boolean;
   /**
-   * Flat cross-project lists have no project header to carry the project's git
-   * state, so a main-branch thread row shows the project-level badge itself
-   * (mirrors the PWA row). Off in grouped lists, where the header has it.
+   * Flat cross-project lists have no project header to carry project-scoped
+   * chrome (files, terminal, git/sync badges), so a main-branch thread row
+   * shows them inline. Off in grouped lists, where the header has them.
    */
   showProjectBadge?: boolean;
-  /** Project display name for the project-level badge's accessibility label. */
+  /** Project display name for project-scoped controls' accessibility labels. */
   projectName: string;
 }
 
@@ -54,49 +58,79 @@ function ProjectGitBadge(props: { projectId: string; projectName: string; thread
   );
 }
 
-function ThreadItemWorktreeActions(props: ThreadItemSuffixProps) {
-  const { thread, showWorktreeBadge, showWorktreeFilesButton } = props;
+function ThreadItemPanelActions(props: ThreadItemSuffixProps) {
+  const { thread, showWorktreeBadge, showWorktreeFilesButton, showProjectBadge, projectName } =
+    props;
   const { t } = useLingui();
   const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
-  const isFilesActive = useIsWorktreeFilesPanelActive(worktreePath);
-  const isTerminalActive = useIsWorktreeTerminalActive(worktreePath);
-  const isTerminalOpen = useIsWorktreeTerminalOpen(worktreePath);
-  const isTerminalBusy = useIsWorktreeTerminalBusy(worktreePath);
+  // Flat main-branch rows mirror the project header's files/terminal launchers
+  // because there is no project header in the cross-project list.
+  const showProjectPanelButtons = !thread.worktreePath && !!showProjectBadge;
+
+  const isWorktreeFilesActive = useIsWorktreeFilesPanelActive(worktreePath);
+  const isWorktreeTerminalActive = useIsWorktreeTerminalActive(worktreePath);
+  const isWorktreeTerminalOpen = useIsWorktreeTerminalOpen(worktreePath);
+  const isWorktreeTerminalBusy = useIsWorktreeTerminalBusy(worktreePath);
+  const isProjectFilesActive = useIsProjectFilesPanelActive(thread.projectId);
+  const isProjectTerminalActive = useIsProjectTerminalActive(thread.projectId);
+  const isProjectTerminalOpen = useIsProjectTerminalOpen(thread.projectId);
+  const isProjectTerminalBusy = useIsProjectTerminalBusy(thread.projectId);
+
+  const showFiles = (worktreePath && showWorktreeFilesButton) || showProjectPanelButtons;
+  const showTerminal = !!worktreePath || showProjectPanelButtons;
+  const isFilesActive = worktreePath ? isWorktreeFilesActive : isProjectFilesActive;
+  const isTerminalActive = worktreePath ? isWorktreeTerminalActive : isProjectTerminalActive;
+  const isTerminalOpen = worktreePath ? isWorktreeTerminalOpen : isProjectTerminalOpen;
+  const isTerminalBusy = worktreePath ? isWorktreeTerminalBusy : isProjectTerminalBusy;
   const isTerminalVisible = isTerminalActive || isTerminalOpen;
+  const filesLabel = worktreePath
+    ? t`Files for ${thread.worktreeBranch ?? thread.title}`
+    : t`Files for ${projectName}`;
+  const terminalLabel = worktreePath
+    ? t`Terminal for ${thread.worktreeBranch}`
+    : t`Terminal for ${projectName}`;
 
   return (
     <>
       {thread.starred ? (
         <Star className="size-3 shrink-0 fill-current" aria-label={t`Pinned`} />
       ) : null}
-      {worktreePath && showWorktreeFilesButton ? (
+      {showFiles ? (
         <SidebarPanelDragButton
           panel="files"
           projectId={thread.projectId}
-          worktreePath={worktreePath}
-          ariaLabel={t`Files for ${thread.worktreeBranch ?? thread.title}`}
+          {...(worktreePath ? { worktreePath } : {})}
+          ariaLabel={filesLabel}
           className={`flex ${buttonHeightClass} shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
             isFilesActive
               ? `${buttonVisibleClass} text-accent`
               : `text-muted/60 ${hiddenPanelButtonClass}`
           }`}
-          onPress={() => openFilesPanel(thread.projectId, worktreePath)}
+          onPress={() =>
+            worktreePath
+              ? openFilesPanel(thread.projectId, worktreePath)
+              : openFilesPanel(thread.projectId)
+          }
         >
           <FolderOpen className={iconSizeClass} />
         </SidebarPanelDragButton>
       ) : null}
-      {worktreePath ? (
+      {showTerminal ? (
         <SidebarPanelDragButton
           panel="terminal"
           projectId={thread.projectId}
-          worktreePath={worktreePath}
-          ariaLabel={t`Terminal for ${thread.worktreeBranch}`}
+          {...(worktreePath ? { worktreePath } : {})}
+          ariaLabel={terminalLabel}
           className={`flex ${buttonHeightClass} shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
             isTerminalVisible
               ? `${buttonVisibleClass} ${isTerminalActive ? "text-accent" : "text-foreground"}`
               : `text-muted/60 ${hiddenPanelButtonClass}`
           }`}
-          onPress={() => openWorktreeTerminal(thread.projectId, worktreePath)}
+          onPress={() =>
+            worktreePath
+              ? openWorktreeTerminal(thread.projectId, worktreePath)
+              : openTerminal(thread.projectId)
+          }
         >
           <AnimatedTerminalIcon className={iconSizeClass} isBusy={isTerminalBusy} />
         </SidebarPanelDragButton>
@@ -241,7 +275,7 @@ function ThreadItemRemovalTime(
 export function ThreadItemTopSuffix(props: ThreadItemSuffixProps) {
   return (
     <>
-      <ThreadItemWorktreeActions {...props} />
+      <ThreadItemPanelActions {...props} />
       <ThreadItemRemovalTime
         thread={props.thread}
         isExperimentCandidate={props.isExperimentCandidate}
@@ -258,7 +292,7 @@ export function ThreadItemBottomSuffix(props: ThreadItemSuffixProps) {
 export function ThreadItemSuffix(props: ThreadItemSuffixProps) {
   return (
     <>
-      <ThreadItemWorktreeActions {...props} />
+      <ThreadItemPanelActions {...props} />
       <ThreadItemStatusBadges {...props} />
       <ThreadItemRemovalTime
         thread={props.thread}

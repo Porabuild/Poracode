@@ -27,6 +27,10 @@ export interface OpenCodeMapperState {
   assistantItems: Map<string, string>;
   /** Map UserMessage.id → canonical user item id. */
   userItems: Map<string, string>;
+  /** User messages created without a renderer-owned optimistic row. */
+  nonOptimisticUserMessages: Set<string>;
+  /** Text parts accumulated for a non-optimistic user message. */
+  userMessageTextParts: Map<string, Map<string, string>>;
   /** Map reasoning Part.id → canonical reasoning item id + parent messageID. */
   reasoningItems: Map<string, { itemId: string; messageID: string }>;
   /** Map tool Part.id → { itemId, itemType }. */
@@ -97,6 +101,8 @@ export function createOpenCodeMapperState(threadId: string): OpenCodeMapperState
     threadId,
     assistantItems: new Map(),
     userItems: new Map(),
+    nonOptimisticUserMessages: new Set(),
+    userMessageTextParts: new Map(),
     reasoningItems: new Map(),
     toolItems: new Map(),
     partTypes: new Map(),
