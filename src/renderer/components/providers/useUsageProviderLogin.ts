@@ -7,7 +7,11 @@ import {
   useUsageLoginStateStore,
 } from "@/renderer/state/usageLoginStateStore";
 import { refreshAndMergeProviderUsage } from "./refreshProviderUsageSnapshot";
-import { supportsApiKeyLogin, supportsBrowserLogin } from "./usageProviders";
+import {
+  needsBrowserSessionForUsage,
+  supportsApiKeyLogin,
+  supportsBrowserLogin,
+} from "./usageProviders";
 
 /**
  * Sign-in / sign-out flow for a usage provider, shared by the usage panel card
@@ -32,8 +36,19 @@ export function useUsageProviderLogin(id: string) {
   // by another path (e.g. Copilot's OAuth/CLI token) has no stored cookie session
   // yet is signed in — offering "Sign in" there is wrong.
   const sessionRejected = snapshot?.status === "auth-missing";
+  // OpenCode can report a local Go plan before its browser session is captured,
+  // but the usage meters are only available through that web session. Keep the
+  // sign-in action visible for the empty-meter state, including a cached snapshot
+  // from before the browser session was captured.
+  const needsUsageSession =
+    !hasStoredSession &&
+    needsBrowserSessionForUsage(id) &&
+    snapshot?.status === "ok" &&
+    snapshot.windows.length === 0;
   const canSignIn =
-    supportsLogin && snapshot?.status !== "ok" && (!hasStoredSession || sessionRejected);
+    supportsLogin &&
+    (snapshot?.status !== "ok" || needsUsageSession) &&
+    (!hasStoredSession || sessionRejected);
   const canBrowserSignIn = canSignIn && isBrowserLogin;
   const canApiKeySignIn = canSignIn && isApiKeyLogin;
   const canSignOut = supportsLogin && hasStoredSession;

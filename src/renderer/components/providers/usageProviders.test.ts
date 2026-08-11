@@ -4,6 +4,7 @@ import type { AgentInstanceConfigMap } from "@/shared/contracts";
 import {
   hasRailUsage,
   isClaudeUsageProvider,
+  needsBrowserSessionForUsage,
   pickUsageRings,
   resolveDisplayedProviders,
   supportsApiKeyLogin,
@@ -47,6 +48,11 @@ describe("usageProviders", () => {
     expect(supportsApiKeyLogin("qwen")).toBe(true);
     expect(supportsApiKeyLogin("grok")).toBe(false);
     expect(supportsBrowserLogin("qwen")).toBe(true);
+  });
+
+  it("identifies providers whose empty local snapshot still needs browser usage auth", () => {
+    expect(needsBrowserSessionForUsage("opencode")).toBe(true);
+    expect(needsBrowserSessionForUsage("grok")).toBe(false);
   });
 
   it("adds Claude profile providers after the base Claude provider", () => {

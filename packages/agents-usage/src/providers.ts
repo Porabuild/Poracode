@@ -116,6 +116,7 @@ export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[
     // Cookie login for live Go/Zen meters; local auth.json only gates the plan badge.
     mechanism: "cookie",
     needsLogin: true,
+    needsBrowserSessionForUsage: true,
     windowIds: ["session-5h", "weekly", "monthly"],
   },
 ];
