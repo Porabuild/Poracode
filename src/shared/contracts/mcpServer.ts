@@ -149,6 +149,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "wait_for_thread",
     "update_thread",
     "open_thread",
+    "list_terminals",
     "read_terminal",
     "steer_thread",
     "stage_thread_input",
