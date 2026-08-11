@@ -45,6 +45,16 @@ function okSnapshot(providerId: string): UsageSnapshot {
   } as UsageSnapshot;
 }
 
+function localGoSnapshot(): UsageSnapshot {
+  return {
+    providerId: "opencode",
+    status: "ok",
+    plan: "Go",
+    windows: [],
+    fetchedAt: 2,
+  } as UsageSnapshot;
+}
+
 describe("useUsageProviderLogin", () => {
   beforeEach(() => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
@@ -65,6 +75,48 @@ describe("useUsageProviderLogin", () => {
 
     expect(result.current.supportsLogin).toBe(true);
     expect(result.current.canSignIn).toBe(true);
+  });
+
+  it("offers OpenCode browser login when local Go auth has no web meters", () => {
+    useProviderUsageStore.getState().mergeSnapshot(localGoSnapshot());
+
+    const { result } = renderHook(() => useUsageProviderLogin("opencode"));
+
+    expect(result.current.canBrowserSignIn).toBe(true);
+    expect(result.current.canSignOut).toBe(false);
+  });
+
+  it("keeps OpenCode sign-out available after a browser session is stored", () => {
+    useProviderUsageStore.getState().mergeSnapshot(localGoSnapshot());
+    useUsageLoginStateStore.getState().setStored("opencode", true);
+
+    const { result } = renderHook(() => useUsageProviderLogin("opencode"));
+
+    expect(result.current.canBrowserSignIn).toBe(false);
+    expect(result.current.canSignOut).toBe(true);
+  });
+
+  it("clears the stored OpenCode session and refreshes after sign-out", async () => {
+    bridgeMock.clearUsageLogin.mockResolvedValue({ ok: true });
+    bridgeMock.refreshProviderUsage.mockResolvedValue({
+      snapshots: [authMissingSnapshot("opencode")],
+      fromCache: false,
+    });
+    useProviderUsageStore.getState().mergeSnapshot(localGoSnapshot());
+    useUsageLoginStateStore.getState().setStored("opencode", true);
+
+    const { result } = renderHook(() => useUsageProviderLogin("opencode"));
+
+    await act(async () => {
+      await result.current.handleSignOut();
+    });
+
+    expect(bridgeMock.clearUsageLogin).toHaveBeenCalledWith({ providerId: "opencode" });
+    expect(useUsageLoginStateStore.getState().stored.opencode).toBe(false);
+    expect(bridgeMock.refreshProviderUsage).toHaveBeenCalledWith({
+      providerIds: ["opencode"],
+      force: true,
+    });
   });
 
   it("offers browser-session and API-key paths for Alibaba Token Plan", () => {

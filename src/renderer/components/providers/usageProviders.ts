@@ -190,6 +190,11 @@ export function supportsApiKeyLogin(providerId: string): boolean {
   );
 }
 
+/** True when the provider's plan badge can be known locally but its meters need browser auth. */
+export function needsBrowserSessionForUsage(providerId: string): boolean {
+  return USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId))?.needsBrowserSessionForUsage === true;
+}
+
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */
 export function usesSharedWindowReset(providerId: string): boolean {
   return rendererMeta(providerId)?.sharedWindowReset === true;
