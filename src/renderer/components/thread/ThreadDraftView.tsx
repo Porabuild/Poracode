@@ -43,6 +43,7 @@ import {
   resolvePreferredAgentKind,
   resolveProviderDraftConfig,
   resolveSavedProviderDraftConfig,
+  supportsUsableFastMode,
   resolveThinkingValue,
 } from "./threadDraftViewHelpers";
 import { friendlyError } from "@/shared/messages";
@@ -1075,7 +1076,10 @@ export function ThreadDraftView(props: {
               model,
               ...(effort ? { effort } : {}),
               ...(contextSize ? { contextSize } : {}),
-              ...(fast ? { fast } : {}),
+              ...(selectedAgentForConfig &&
+              supportsUsableFastMode(selectedAgentForConfig.capabilities, model)
+                ? { fast }
+                : {}),
               ...(thinking ? { thinking } : {}),
               ...(mode ? { mode } : {}),
               ...(approvalPolicy ? { approvalPolicy } : {}),
