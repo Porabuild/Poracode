@@ -1,4 +1,9 @@
-export { MentionInput, type MentionInputHandle, type McpMentionItem } from "./MentionInput";
+export {
+  MentionInput,
+  type MentionInputHandle,
+  type McpMentionItem,
+  type PluginMentionItem,
+} from "./MentionInput";
 export { AttachmentBar, ComputerUseChip, McpChip } from "./AttachmentBar";
 export { ComposerAddMenu, type ComposerMcpMenuItem } from "./ComposerAddMenu";
 export { getComputerUseScope } from "./computerUseScope";

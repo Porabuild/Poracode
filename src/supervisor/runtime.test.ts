@@ -174,6 +174,13 @@ function createRuntimeSession(overrides: Record<string, unknown> = {}) {
     config: {
       model: "gpt-5.4",
     },
+    runtimeLaunchConfig: {
+      model: "gpt-5.4",
+    },
+    mcpLaunchSnapshot: {
+      mcpServers: [],
+      disabledBuiltInMcpServerIds: [],
+    },
     status: "idle",
     attention: "none",
     canResumeWithConfig: true,
@@ -405,6 +412,10 @@ describe("SupervisorRuntime thread input", () => {
           launchPrompt: string;
           structuredSession: Record<string, unknown>;
           presentationMode: "gui";
+          mcpLaunchSnapshot: {
+            mcpServers: [];
+            disabledBuiltInMcpServerIds: [];
+          };
         }) => { status: string };
       }
     ).spawnThread({
@@ -446,6 +457,10 @@ describe("SupervisorRuntime thread input", () => {
         interruptTurn,
       },
       presentationMode: "gui",
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+      },
     });
 
     (
@@ -558,6 +573,10 @@ describe("SupervisorRuntime thread input", () => {
         startTurn: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
       presentationMode: "gui",
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+      },
     });
 
     const session = (
@@ -653,6 +672,10 @@ describe("SupervisorRuntime thread input", () => {
         interruptTurn,
       },
       presentationMode: "gui",
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+      },
     });
 
     (
@@ -733,6 +756,10 @@ describe("SupervisorRuntime thread input", () => {
         interruptTurn,
       },
       presentationMode: "gui",
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+      },
     });
 
     // The turn already failed before the user types their steer.
@@ -1411,6 +1438,10 @@ describe("SupervisorRuntime thread input", () => {
           command: { command: string; args: string[] };
           structuredSession: Record<string, unknown>;
           pendingLaunchPrompt: string;
+          mcpLaunchSnapshot: {
+            mcpServers: [];
+            disabledBuiltInMcpServerIds: [];
+          };
         }) => unknown;
       }
     ).spawnThread({
@@ -1464,6 +1495,10 @@ describe("SupervisorRuntime thread input", () => {
         startTurn,
       },
       pendingLaunchPrompt: "hi",
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+      },
     });
 
     pty.emitData(
@@ -1982,15 +2017,14 @@ describe("SupervisorRuntime thread input", () => {
         rows: 42,
       },
     });
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(emitted).toContainEqual(
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: "thread-gui-pre-session-stop",
-        status: "working",
-      }),
+    await vi.waitFor(() =>
+      expect(emitted).toContainEqual(
+        expect.objectContaining({
+          type: "thread-state",
+          threadId: "thread-gui-pre-session-stop",
+          status: "working",
+        }),
+      ),
     );
 
     emitted.length = 0;

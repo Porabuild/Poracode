@@ -50,6 +50,30 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
     effectiveLaunchConfig(baseConfig, ["browser"]);
     expect(baseConfig.browserMcp).toBe(true);
   });
+
+  it("enables MCPs bundled by installed plugins while global disables still win", () => {
+    const config = {
+      ...baseConfig,
+      browserMcp: false,
+      crossagentMcp: false,
+      computerUse: false,
+      chromeMcp: false,
+    };
+
+    expect(
+      effectiveLaunchConfig(
+        config,
+        ["chrome"],
+        ["browser", "crossagents", "computer-use", "chrome"],
+      ),
+    ).toEqual({
+      ...config,
+      browserMcp: true,
+      crossagentMcp: true,
+      computerUse: true,
+      chromeMcp: false,
+    });
+  });
 });
 
 describe("applyAgentSettingsMcpFlags", () => {

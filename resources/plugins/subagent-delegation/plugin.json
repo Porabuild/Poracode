@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "subagent-delegation",
+  "version": "1.1.0",
+  "description": "Delegate focused work to other installed agents and coordinate the results.",
+  "author": {
+    "name": "Poracode",
+    "url": "https://poracode.com"
+  },
+  "homepage": "https://poracode.com",
+  "license": "Apache-2.0",
+  "keywords": ["subagents", "delegation", "orchestration"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "Subagent Delegation",
+      "category": "productivity",
+      "featured": true,
+      "examplePrompt": "Delegate independent parts of this task to the best available agents, then validate and consolidate their results",
+      "coreSkill": "subagent-delegation",
+      "builtInMcpServerIds": ["crossagents"],
+      "skills": {
+        "subagent-delegation": {
+          "name": "Subagent Delegation",
+          "description": "Choose, brief, and coordinate subagents for parallel work."
+        }
+      }
+    }
+  }
+}

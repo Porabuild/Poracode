@@ -7,7 +7,11 @@ type ToggleSwitchBaseProps = Omit<
 >;
 
 export type ToggleSwitchProps = ToggleSwitchBaseProps &
-  ({ "aria-label": string; children?: never } | { "aria-label"?: string; children: ReactNode });
+  (
+    | { "aria-label": string; "aria-labelledby"?: never; children?: never }
+    | { "aria-label"?: never; "aria-labelledby": string; children?: never }
+    | { "aria-label"?: string; "aria-labelledby"?: string; children: ReactNode }
+  );
 
 /**
  * App switch with the interactive HeroUI anatomy included.

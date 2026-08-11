@@ -6,6 +6,7 @@ import {
   liveInputModeSchema,
   threadModeSchema,
   threadPresentationModeSchema,
+  type ThreadPresentationMode,
 } from "./common";
 
 const agentToggleSettingDefSchema = z.object({
@@ -41,6 +42,8 @@ export const agentSlashCommandSchema = z.object({
   skillInvocation: z.string().min(1).optional(),
   skillProvider: z.string().min(1).optional(),
   skillScope: z.enum(["global", "project"]).optional(),
+  pluginId: z.string().min(1).optional(),
+  pluginName: z.string().min(1).optional(),
 });
 export type AgentSlashCommand = z.infer<typeof agentSlashCommandSchema>;
 
@@ -219,6 +222,16 @@ export const composerMcpScopesSchema = z.object({
   gui: composerMcpScopeSchema.optional(),
 });
 export type ComposerMcpScopes = z.infer<typeof composerMcpScopesSchema>;
+
+export function resolveComposerMcpScope(
+  scopes: ComposerMcpScopes | undefined,
+  presentationMode: ThreadPresentationMode,
+): ComposerMcpScope {
+  if (presentationMode === "gui") {
+    return scopes?.gui ?? "launch";
+  }
+  return scopes?.terminal ?? "none";
+}
 
 export const agentCapabilitySchema = z.object({
   /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
@@ -690,7 +703,9 @@ export function areAgentSlashCommandsEqual(
       leftCommand.skillPath !== rightCommand.skillPath ||
       leftCommand.skillInvocation !== rightCommand.skillInvocation ||
       leftCommand.skillProvider !== rightCommand.skillProvider ||
-      leftCommand.skillScope !== rightCommand.skillScope
+      leftCommand.skillScope !== rightCommand.skillScope ||
+      leftCommand.pluginId !== rightCommand.pluginId ||
+      leftCommand.pluginName !== rightCommand.pluginName
     ) {
       return false;
     }

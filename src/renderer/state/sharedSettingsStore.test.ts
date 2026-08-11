@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { useSharedSettings } from "./sharedSettingsStore";
 
 describe("sharedSettingsStore", () => {
   beforeEach(() => {
     localStorage.clear();
+    seedBuiltInPlugins();
     useSharedSettings.setState({
       themeMode: "dark",
       staleThreadUnloadMinutes: 20,
@@ -28,6 +30,8 @@ describe("sharedSettingsStore", () => {
       providerOrder: [],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       lastUsedProjectDirs: {},
+      enabledMcpServers: {},
+      installedPlugins: {},
     });
   });
 
@@ -140,6 +144,34 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/b");
 
     expect(useSharedSettings.getState().lastUsedProjectDirs.native).toBe("/Users/me/b");
+  });
+
+  it("persists plugin lifecycle and contribution mutations", () => {
+    const persistedPlugins = () =>
+      JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null").installedPlugins;
+
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
+    expect(persistedPlugins()).toEqual({
+      "browser-tools": {
+        version: "1.1.0",
+        enabled: true,
+        disabledSkillIds: [],
+        disabledMcpServerNames: [],
+      },
+    });
+
+    useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false);
+    useSharedSettings.getState().setPluginSkillEnabled("browser-tools", "browser-control", false);
+    expect(persistedPlugins()["browser-tools"]).toEqual({
+      version: "1.1.0",
+      enabled: false,
+      disabledSkillIds: ["browser-control"],
+      disabledMcpServerNames: [],
+    });
+
+    useSharedSettings.getState().uninstallPlugin(pluginFixture("browser-tools"));
+    expect(useSharedSettings.getState().installedPlugins).toEqual({});
+    expect(persistedPlugins()).toEqual({});
   });
 
   describe("toggleFavoriteModelAnyMode", () => {

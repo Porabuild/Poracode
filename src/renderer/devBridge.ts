@@ -14,6 +14,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePlugins } from "./state/pluginsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 
@@ -34,6 +35,7 @@ export function installDevBridge(): void {
       panel: usePanelStore,
       sidebarUi: useSidebarUiStore,
       sharedSettings: useSharedSettings,
+      plugins: usePlugins,
     },
     /** Open Settings; pass a section id (e.g. "about", "usage", "appearance") to deep-link. */
     openSettings: (section?: string) => {

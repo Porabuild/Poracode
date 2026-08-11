@@ -550,6 +550,15 @@ describe("subagent tool registration", () => {
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    expect(byName.get("list_agents")!.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+    expect(byName.get("spawn_agent")!.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    });
   });
 
   it("documents background runs as an explicit join that never injects a message", () => {

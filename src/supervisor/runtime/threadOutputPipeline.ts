@@ -158,6 +158,7 @@ export class ThreadOutputPipeline {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,

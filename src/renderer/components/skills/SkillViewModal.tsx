@@ -13,6 +13,7 @@ function skillMarkdownBody(content: string): string {
 
 export function SkillViewModal(props: {
   skill: SkillEntry;
+  displayName: string;
   projectLocation?: ProjectLocation;
   wslDistro?: string;
   onClose: () => void;
@@ -69,7 +70,7 @@ export function SkillViewModal(props: {
         <Modal.Dialog className="sm:max-w-3xl">
           <Modal.CloseTrigger />
           <Modal.Header>
-            <Modal.Heading>{props.skill.name}</Modal.Heading>
+            <Modal.Heading>{props.displayName}</Modal.Heading>
             <p className="mt-1 truncate font-mono text-xs text-muted">
               {props.skill.skillFilePath}
             </p>

@@ -4,6 +4,7 @@ import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
 import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { handleThreadStateNotification } from "@/renderer/notifications";
 import {
@@ -525,7 +526,9 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
   switch (event.type) {
     case "thread-state": {
       const oldThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
-      useAppStore.getState().updateThreadRuntime(event.threadId, event);
+      useAppStore
+        .getState()
+        .updateThreadRuntime(event.threadId, normalizeRuntimeSnapshotLaunchConfig(event));
       if (event.status === "inactive" || event.status === "error") {
         useAppStore.getState().reconcileStaleSubAgents(event.threadId);
       }

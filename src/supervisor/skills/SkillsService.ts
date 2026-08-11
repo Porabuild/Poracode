@@ -15,7 +15,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, win32 } from "node:path";
 import type {
   AgentKind,
   DeleteSkillPayload,
@@ -38,6 +38,8 @@ import type {
   SkillScanIssue,
   SkillScanResult,
   SkillScope,
+  InstalledPlugins,
+  LoadedPlugin,
 } from "@/shared/contracts";
 import {
   deleteSkillPayloadSchema,
@@ -51,8 +53,9 @@ import {
   skillScanResultSchema,
 } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
 import { parseWslUncPath, toWslUncPath } from "@/shared/wsl";
-import type { AgentAdapter, AgentSkillRootSpec } from "../agents/base";
+import type { AgentAdapter, AgentNativePlugin, AgentSkillRootSpec } from "../agents/base";
 import {
   batchWslCommandsAsync,
   quotePosixShellArg,
@@ -65,14 +68,22 @@ import {
   isPathUnderAny,
   selectSkillSegmentsForInjection,
 } from "./skillPromptInjection";
+import { PLUGIN_SKILLS_DIR } from "@/supervisor/plugins";
+import {
+  pluginSkillProviderId,
+  PluginSkillPolicy,
+  type PluginSkillPolicyContext,
+  type PluginSkillRoot,
+} from "./pluginSkillPolicy";
 
 const SKILL_FILE = "SKILL.md";
 const MANIFEST_FILE = ".poracode-skill.json";
 /** Root id/label for read-only skills shipped with the app (resources/skills). */
-const BUNDLED_PROVIDER_ID = "poracode-built-in";
+export const BUNDLED_PROVIDER_ID = "poracode-built-in";
 const BUNDLED_PROVIDER_LABEL = "Poracode built-ins";
 const PORACODE_PROVIDER_GROUP_ID = "poracode";
 const PORACODE_PROVIDER_GROUP_LABEL = "Poracode";
+
 const PORACODE_PROVIDER_GROUP_ORDER = -1;
 const DISABLED_SUFFIX = ".poracode-disabled";
 const MAX_SKILL_FILE_BYTES = 1024 * 1024;
@@ -149,9 +160,18 @@ export interface SkillsServiceOptions {
     distro: string,
     paths: readonly string[],
   ) => Promise<readonly (string | undefined)[]>;
+  resolveHostPathForWsl?: (distro: string, hostPath: string) => Promise<string | undefined>;
+  resolveWslWindowsPaths?: (
+    distro: string,
+    paths: readonly string[],
+  ) => Promise<readonly (string | undefined)[]>;
   wslFsPath?: (distro: string, linuxPath: string) => string;
   resolveAgentVersion?: (kind: AgentKind, wslDistro?: string) => string | undefined;
   fetch?: typeof fetch;
+  readInstalledPlugins?: () => InstalledPlugins;
+  /** Agent Plugins packages discovered by the supervisor's plugin registry. */
+  readPlugins?: () => readonly LoadedPlugin[];
+  hostPlatform?: NodeJS.Platform;
 }
 
 async function resolveWslEnvironment(
@@ -477,6 +497,8 @@ export class SkillsService {
   private readonly wslFsPath: (distro: string, linuxPath: string) => string;
   private readonly resolveAgentVersion: (kind: AgentKind, wslDistro?: string) => string | undefined;
   private readonly fetchImpl: typeof fetch;
+  private readonly pluginSkillPolicy: PluginSkillPolicy;
+  private readonly readPlugins: () => readonly LoadedPlugin[];
   private readonly marketplaceCache = new Map<
     string,
     { expiresAt: number; result: SkillMarketplaceResult }
@@ -493,6 +515,19 @@ export class SkillsService {
     this.wslFsPath = options.wslFsPath ?? toWslUncPath;
     this.resolveAgentVersion = options.resolveAgentVersion ?? (() => undefined);
     this.fetchImpl = options.fetch ?? fetch;
+    this.readPlugins = options.readPlugins ?? (() => []);
+    this.pluginSkillPolicy = new PluginSkillPolicy({
+      readPluginRoots: () => this.pluginSkillRoots(),
+      readInstalledPlugins: options.readInstalledPlugins ?? (() => ({})),
+      hostPlatform: options.hostPlatform ?? process.platform,
+      resolveWslRealPaths: this.resolveWslRealPaths,
+      ...(options.resolveHostPathForWsl
+        ? { resolveHostPathForWsl: options.resolveHostPathForWsl }
+        : {}),
+      ...(options.resolveWslWindowsPaths
+        ? { resolveWslWindowsPaths: options.resolveWslWindowsPaths }
+        : {}),
+    });
   }
 
   async listMarketplace(input: ListSkillMarketplacePayload): Promise<SkillMarketplaceResult> {
@@ -742,10 +777,17 @@ export class SkillsService {
       ),
       this.scanProviderBuiltIns(roots, builtInIssues),
     ]);
-    for (const result of rootScans) {
-      skills.push(...result.skills);
-      issues.push(...result.issues);
-    }
+    skills.push(
+      ...this.pluginSkillPolicy.resolveScanEntries(
+        rootScans.flatMap((result) => result.skills),
+        {
+          ...(payload.projectLocation ? { projectLocation: payload.projectLocation } : {}),
+          ...(activeAdapter ? { capabilities: activeAdapter.capabilities } : {}),
+          ...(payload.presentationMode ? { presentationMode: payload.presentationMode } : {}),
+        },
+      ),
+    );
+    for (const result of rootScans) issues.push(...result.issues);
     skills.push(...builtInSkills);
     issues.push(...builtInIssues);
 
@@ -876,7 +918,7 @@ export class SkillsService {
         if (!skill.enabled || !skill.valid || disabledNames.has(skill.name.toLowerCase())) {
           return false;
         }
-        if (skill.origin === "managed") return true;
+        if (skill.origin === "managed" || skill.origin === "plugin") return true;
         if (skill.origin === "built-in") {
           // App-bundled skills reach every provider through prompt injection
           // or path hints. Provider-native built-ins stay with their adapter.
@@ -904,7 +946,7 @@ export class SkillsService {
         // all other provider-declared ordering stays intact. App-bundled
         // defaults remain the final fallback.
         const originWeight = (skill: SkillEntry) =>
-          skill.providerId === BUNDLED_PROVIDER_ID
+          skill.providerId === BUNDLED_PROVIDER_ID || skill.origin === "plugin"
             ? 3
             : skill.origin !== "managed"
               ? 0
@@ -1095,6 +1137,29 @@ export class SkillsService {
   }
 
   /**
+   * Enforce plugin installation policy at the supervisor boundary. Renderer
+   * discovery is advisory: a stale or crafted bundled-plugin segment must not
+   * reach a provider after the plugin or contribution has been disabled.
+   */
+  async filterPluginSkillSegments(
+    segments: PromptSegment[],
+    context: Omit<PluginSkillPolicyContext, "capabilities"> & {
+      agentKind?: AgentKind;
+      nativePlugins?: readonly AgentNativePlugin[];
+    } = {},
+  ): Promise<PromptSegment[]> {
+    const adapter = context.agentKind ? this.adapters.get(context.agentKind) : undefined;
+    const filtered = await this.pluginSkillPolicy.filterSegments(segments, {
+      ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
+      ...(adapter ? { capabilities: adapter.capabilities } : {}),
+      ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
+    });
+    const nativePlugins = context.nativePlugins;
+    if (!nativePlugins?.length) return filtered;
+    return filtered.map((segment) => this.rewriteNativePluginSegment(segment, nativePlugins));
+  }
+
+  /**
    * Inline SKILL.md instructions for skill segments the active provider cannot
    * load natively — its `skillSupport.roots` don't cover the skill's folder
    * (canonical `.agents/skills`, app-bundled skills, another provider's
@@ -1107,12 +1172,15 @@ export class SkillsService {
     agentKind: string;
     projectLocation?: ProjectLocation;
     segments: readonly PromptSegment[];
+    nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<string | undefined> {
     if (!input.segments.some((segment) => segment.kind === "skill")) return undefined;
     const adapter = this.adapters.get(input.agentKind);
     const environment = await this.resolveEnvironment(input.projectLocation);
     const nativeRootPaths = this.nativeSkillRootPaths(adapter, environment);
-    const pending = selectSkillSegmentsForInjection(input.segments, nativeRootPaths);
+    const pending = selectSkillSegmentsForInjection(input.segments, nativeRootPaths).filter(
+      (segment) => !this.nativePluginReplacement(segment, input.nativePlugins),
+    );
     if (pending.length === 0) return undefined;
     const sources = [];
     for (const segment of pending) {
@@ -1152,6 +1220,7 @@ export class SkillsService {
     agentKind: string;
     projectLocation?: ProjectLocation;
     segments: PromptSegment[];
+    nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<PromptSegment[]> {
     const segments = input.segments;
     if (!segments.some((segment) => segment.kind === "skill")) return segments;
@@ -1178,6 +1247,7 @@ export class SkillsService {
     let changed = false;
     const rewritten = segments.map<PromptSegment>((segment) => {
       if (segment.kind !== "skill") return segment;
+      if (this.nativePluginReplacement(segment, input.nativePlugins)) return segment;
       if (isPathUnderAny(segment.path, nativeRootPaths)) return segment;
       const managedDisplay = managedDisplayFor(segment.scope);
       // Managed skills this adapter projects into its own folders resolve
@@ -1224,6 +1294,47 @@ export class SkillsService {
       nativeRootPaths.push(root.displayPath);
     }
     return nativeRootPaths;
+  }
+
+  private nativePluginReplacement(
+    segment: Extract<PromptSegment, { kind: "skill" }>,
+    nativePlugins: readonly AgentNativePlugin[] | undefined,
+  ): { plugin: AgentNativePlugin; skillName: string } | undefined {
+    if (!segment.pluginId || !nativePlugins?.length) return undefined;
+    const plugin = this.readPlugins().find((candidate) => candidate.name === segment.pluginId);
+    if (!plugin) return undefined;
+    const policy = plugin.poracode.skills[segment.name];
+    const requestedPluginName = policy?.nativePluginName;
+    const native = requestedPluginName
+      ? nativePlugins.find((candidate) => candidate.name === requestedPluginName)
+      : nativePlugins.find((candidate) => pluginNativeNames(plugin).includes(candidate.name));
+    const isCoreSkill = getPluginCoreSkill(plugin)?.folder === segment.name;
+    const skillName =
+      policy?.nativeSkill ?? (isCoreSkill ? plugin.poracode.nativeCoreSkill : undefined);
+    return native && skillName ? { plugin: native, skillName } : undefined;
+  }
+
+  private rewriteNativePluginSegment(
+    segment: PromptSegment,
+    nativePlugins: readonly AgentNativePlugin[],
+  ): PromptSegment {
+    if (segment.kind !== "skill") return segment;
+    const replacement = this.nativePluginReplacement(segment, nativePlugins);
+    if (!replacement) return segment;
+    const path = (replacement.plugin.root.includes("\\") ? win32 : posix).join(
+      replacement.plugin.root,
+      "skills",
+      replacement.skillName,
+      "SKILL.md",
+    );
+    const invocation = segment.invocation.startsWith("$")
+      ? `$${replacement.skillName}`
+      : segment.invocation.startsWith("/skill:")
+        ? `/skill:${replacement.skillName}`
+        : segment.invocation.startsWith("/")
+          ? `/${replacement.skillName}`
+          : `Use the ${replacement.skillName} skill.`;
+    return { ...segment, name: replacement.skillName, path, invocation };
   }
 
   private async prepareImport(input: ImportSkillPayload): Promise<PreparedSkillImport> {
@@ -1488,6 +1599,7 @@ export class SkillsService {
     }
     const bundledRoot = this.bundledRoot();
     if (bundledRoot) roots.push(bundledRoot);
+    roots.push(...this.pluginLocatedRoots());
     const seen = new Set(roots.map((root) => normalizePath(root.fsPath)));
 
     for (const adapter of selectedAdapters ?? this.adapters.values()) {
@@ -1598,6 +1710,38 @@ export class SkillsService {
       origin: "built-in",
       mutable: false,
     };
+  }
+
+  /**
+   * One scan root per loaded Agent Plugins package that ships skills. Each root
+   * is that package's own `skills/` directory, so containment and attribution
+   * follow the package boundary rather than a shared folder.
+   */
+  private pluginSkillRoots(): PluginSkillRoot[] {
+    return this.readPlugins().flatMap((plugin) =>
+      plugin.skills.length > 0
+        ? [{ plugin, skillsRoot: join(plugin.root, PLUGIN_SKILLS_DIR) }]
+        : [],
+    );
+  }
+
+  private pluginLocatedRoots(): LocatedRoot[] {
+    return this.pluginSkillRoots().map(({ plugin, skillsRoot }) => {
+      const label = plugin.poracode.title ?? plugin.name;
+      return {
+        providerId: pluginSkillProviderId(plugin.name),
+        providerLabel: label,
+        providerGroupId: pluginSkillProviderId(plugin.name),
+        providerGroupLabel: label,
+        providerGroupOrder: -2,
+        scope: "global",
+        scopeLabel: "Global",
+        fsPath: skillsRoot,
+        displayPath: skillsRoot.replace(/\\/gu, "/"),
+        origin: "plugin",
+        mutable: false,
+      };
+    });
   }
 
   private locateRoot(

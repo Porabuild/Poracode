@@ -1,6 +1,7 @@
 import type {
   AgentKind,
   AgentCapability,
+  McpToolAnnotations,
   ProjectLocation,
   RuntimeEvent,
   ThreadConfig,
@@ -252,4 +253,5 @@ export interface ToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: McpToolAnnotations;
 }

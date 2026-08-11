@@ -170,6 +170,8 @@ export function skillSegmentFromSlashCommand(
     invocation: command.skillInvocation,
     provider: command.skillProvider,
     scope: command.skillScope,
+    ...(command.pluginId ? { pluginId: command.pluginId } : {}),
+    ...(command.pluginName ? { pluginName: command.pluginName } : {}),
   };
 }
 
@@ -191,7 +193,13 @@ export function buildPromptContentBlocks(
     }
 
     if (segment.kind === "skill") {
-      content.push({ kind: "skill", name: segment.name, invocation: segment.invocation });
+      content.push({
+        kind: "skill",
+        name: segment.name,
+        invocation: segment.invocation,
+        ...(segment.pluginId ? { pluginId: segment.pluginId } : {}),
+        ...(segment.pluginName ? { pluginName: segment.pluginName } : {}),
+      });
       continue;
     }
 

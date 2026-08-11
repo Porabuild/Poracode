@@ -45,11 +45,17 @@ describe("ChromeMcpIngress", () => {
 
     const list = await postMcp(info, { jsonrpc: "2.0", id: 2, method: "tools/list" });
     const listBody = (await list.json()) as {
-      result: { tools: Array<{ name: string }> };
+      result: { tools: Array<{ name: string; annotations?: Record<string, boolean> }> };
     };
     expect(listBody.result.tools.map((tool) => tool.name)).toContain("chrome_status");
     expect(listBody.result.tools.map((tool) => tool.name)).toContain("enable");
     expect(listBody.result.tools.map((tool) => tool.name)).toContain("disable");
+    expect(
+      listBody.result.tools.find((tool) => tool.name === "chrome_snapshot")?.annotations,
+    ).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(
+      listBody.result.tools.find((tool) => tool.name === "chrome_click")?.annotations,
+    ).toMatchObject({ readOnlyHint: false, destructiveHint: true, openWorldHint: true });
   });
 
   it("routes Chrome tool calls and formats their result", async () => {
