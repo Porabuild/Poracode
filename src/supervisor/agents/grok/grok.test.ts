@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import { createKnownSessionRef } from "../base";
+import { GROK_AUTOMATION_RULES } from "./argv";
 import { grokDetectionSpec } from "./detection";
 import { createGrokAdapter } from "./index";
 
@@ -170,9 +171,10 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     const adapter = createGrokAdapter();
     const result = adapter.buildLaunchArgv(location, config, "", undefined, {});
     expect(result.args[0]).toBe("--no-auto-update");
-    expect(result.args[1]).toBe("-s");
-    expect(result.args[2]).toMatch(UUID_RE);
-    expect(result.sessionRef?.providerSessionId).toBe(result.args[2]);
+    expect(result.args.slice(1, 3)).toEqual(["--rules", GROK_AUTOMATION_RULES]);
+    expect(result.args[3]).toBe("-s");
+    expect(result.args[4]).toMatch(UUID_RE);
+    expect(result.sessionRef?.providerSessionId).toBe(result.args[4]);
   });
 
   it("resumes a known id with -r when the session dir has materialized", () => {
@@ -187,7 +189,13 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       createKnownSessionRef(SESSION_ID),
       {},
     );
-    expect(result.args.slice(0, 3)).toEqual(["--no-auto-update", "-r", SESSION_ID]);
+    expect(result.args.slice(0, 5)).toEqual([
+      "--no-auto-update",
+      "--rules",
+      GROK_AUTOMATION_RULES,
+      "-r",
+      SESSION_ID,
+    ]);
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
   });
 
@@ -200,7 +208,13 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       createKnownSessionRef(SESSION_ID),
       {},
     );
-    expect(result.args.slice(0, 3)).toEqual(["--no-auto-update", "-s", SESSION_ID]);
+    expect(result.args.slice(0, 5)).toEqual([
+      "--no-auto-update",
+      "--rules",
+      GROK_AUTOMATION_RULES,
+      "-s",
+      SESSION_ID,
+    ]);
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
   });
 
@@ -218,13 +232,25 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       createKnownSessionRef(SESSION_ID),
       {},
     );
-    expect(result.args.slice(0, 3)).toEqual(["--no-auto-update", "-r", SESSION_ID]);
+    expect(result.args.slice(0, 5)).toEqual([
+      "--no-auto-update",
+      "--rules",
+      GROK_AUTOMATION_RULES,
+      "-r",
+      SESSION_ID,
+    ]);
   });
 
   it("buildResumeArgv applies the same materialization fallback", () => {
     const adapter = createGrokAdapter();
     const fresh = adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID));
-    expect(fresh.args.slice(0, 3)).toEqual(["--no-auto-update", "-s", SESSION_ID]);
+    expect(fresh.args.slice(0, 5)).toEqual([
+      "--no-auto-update",
+      "--rules",
+      GROK_AUTOMATION_RULES,
+      "-s",
+      SESSION_ID,
+    ]);
 
     mkdirSync(join(grokHome, "sessions", encodeURIComponent(projectDir), SESSION_ID), {
       recursive: true,
@@ -235,7 +261,13 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       "",
       createKnownSessionRef(SESSION_ID),
     );
-    expect(materialized.args.slice(0, 3)).toEqual(["--no-auto-update", "-r", SESSION_ID]);
+    expect(materialized.args.slice(0, 5)).toEqual([
+      "--no-auto-update",
+      "--rules",
+      GROK_AUTOMATION_RULES,
+      "-r",
+      SESSION_ID,
+    ]);
   });
 
   it("does not project custom MCP servers into Grok's global config", () => {
