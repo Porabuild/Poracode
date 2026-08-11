@@ -201,7 +201,10 @@ describe("ThreadSlashCommands", () => {
     useAppStore.getState().clearDraftContent(draftProject.id);
     useAppStore.setState({ draftContentDiscardRequests: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
-    useSharedSettings.setState({ collapseTerminalComposer: false });
+    useSharedSettings.setState({
+      collapseTerminalComposer: false,
+      disabledBuiltInMcpServers: {},
+    });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       value: scrollIntoView,
@@ -233,6 +236,37 @@ describe("ThreadSlashCommands", () => {
     expect(screen.getByText("Commands")).toBeInTheDocument();
     expect(screen.getByText("/review")).toBeInTheDocument();
     expect(screen.queryByText("/help")).not.toBeInTheDocument();
+  });
+
+  it("renders localized skill copy while filtering by its stable invocation id", async () => {
+    await renderThread(
+      makeThread({
+        slashCommands: [
+          {
+            id: "browser-control",
+            label:
+              "Control del navegador — Navega, inspecciona y prueba páginas con el MCP del navegador integrado.",
+            description: "Navega, inspecciona y prueba páginas con el MCP del navegador integrado.",
+            section: "skills",
+            skillName: "browser-control",
+            skillPath: "/plugins/browser-tools/browser-control/SKILL.md",
+            skillInvocation: "$browser-control",
+            skillProvider: "Herramientas del navegador",
+            skillScope: "global",
+          },
+        ],
+      }),
+      makeAgentStatus(),
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "/browser");
+
+    expect(screen.getByText("/browser-control")).toBeInTheDocument();
+    expect(
+      screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Herramientas del navegador/iu)).toBeInTheDocument();
   });
 
   it("supports keyboard navigation, scrolling, and insertion", async () => {
@@ -950,6 +984,25 @@ describe("ThreadSlashCommands", () => {
     expect(onStart).not.toHaveBeenCalled();
     expect(screen.queryByText("Commands")).not.toBeInTheDocument();
     expect(editor.textContent).toBe("/review ");
+  });
+
+  it("hides @Terminal in drafts when the provider owns MCP configuration", async () => {
+    const baseCapabilities = makeAgentStatus().capabilities;
+    await renderDraftComposer(
+      makeAgentStatus({
+        capabilities: {
+          ...baseCapabilities,
+          mcpConfigSource: "agentSettings",
+        },
+      }),
+      vi.fn(),
+      "gui",
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "@ter");
+
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
   it("saves draft composer content on ordinary unmount", () => {

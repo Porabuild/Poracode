@@ -5,6 +5,7 @@ import {
   RemoteClientError,
   RemoteDesktopClient,
 } from "./client";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
 
 describe("remote error classification", () => {
   it("separates transport failures from reachable application errors", () => {
@@ -406,6 +407,46 @@ describe("RemoteDesktopClient", () => {
     expect(commandId).toBe("user-message-1");
   });
 
+  it("forwards a preallocated thread and optimistic message id when starting remotely", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.startNewThread({
+        threadId: "thread-preallocated",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "build remotely",
+        presentationMode: "gui",
+        userMessageItemId: "user-optimistic",
+      }),
+    ).resolves.toEqual({ threadId: "thread-preallocated" });
+
+    expect(requestBody).toEqual({
+      kind: "start",
+      projectId: "project-1",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "build remotely",
+      presentationMode: "gui",
+      userMessageItemId: "user-optimistic",
+    });
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-preallocated/command");
+  });
+
   it("forwards goal controls to the paired desktop", async () => {
     let requestUrl = "";
     let requestBody: unknown;
@@ -544,9 +585,9 @@ describe("RemoteDesktopClient", () => {
       { status: 200, headers: { "content-type": "application/json" } },
     );
 
-  it("surfaces a protocol-version mismatch as a readable, branchable error", async () => {
+  it("rejects a released v1 host that cannot preserve optimistic user-message ids", async () => {
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
-      descriptorResponse(999, ["session:read"]),
+      descriptorResponse(1, ["session:read"]),
     );
 
     await expect(client.environment()).rejects.toMatchObject({
@@ -570,7 +611,7 @@ describe("RemoteDesktopClient", () => {
           },
         );
       }
-      return descriptorResponse(1, ["session:read"]);
+      return descriptorResponse(PORACODE_REMOTE_PROTOCOL_VERSION, ["session:read"]);
     });
 
     await expect(client.environment()).resolves.toMatchObject({ desktopId: "desktop-1" });
@@ -582,7 +623,11 @@ describe("RemoteDesktopClient", () => {
 
   it("drops server-advertised scopes this build does not know instead of failing to parse", async () => {
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
-      descriptorResponse(1, ["session:read", "session:operate", "future:capability"]),
+      descriptorResponse(PORACODE_REMOTE_PROTOCOL_VERSION, [
+        "session:read",
+        "session:operate",
+        "future:capability",
+      ]),
     );
 
     const descriptor = await client.environment();

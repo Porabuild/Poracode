@@ -54,14 +54,12 @@ export function hasDisplayableCredits(
 }
 
 /**
- * Right-hand value label for a usage window: money for dollar-denominated
- * windows (e.g. "Extra usage"), otherwise a percentage.
+ * Primary right-hand value for a usage window: utilization percent. Request
+ * windows also fold the count into the primary string. Dollar amounts live in
+ * {@link formatWindowSecondaryValue} so surfaces can render them as smaller
+ * muted text next to the percent.
  */
 export function formatWindowValue(w: UsageWindow): string {
-  if (w.unit === "usd" && w.used !== undefined) {
-    const used = formatMoney(w.used, w.currency);
-    return w.limit !== undefined ? `${used} / ${formatMoney(w.limit, w.currency)}` : used;
-  }
   const pct = `${Math.round(w.usedPercent)}%`;
   if (w.unit === "requests" && w.used !== undefined) {
     const requests =
@@ -73,12 +71,18 @@ export function formatWindowValue(w: UsageWindow): string {
   return pct;
 }
 
+/**
+ * Optional secondary label: spend / credit amounts shown muted beside the
+ * percent (USD windows and percent windows that also report currency amounts).
+ */
 export function formatWindowSecondaryValue(w: UsageWindow): string | undefined {
-  if (w.unit === "usd") return undefined;
-  if (!w.currency || w.used === undefined) return undefined;
-  return w.limit !== undefined
-    ? `${formatMoney(w.used, w.currency)} / ${formatMoney(w.limit, w.currency)}`
-    : formatMoney(w.used, w.currency);
+  if (w.used === undefined) return undefined;
+  if (w.unit === "usd" || w.currency) {
+    const used = formatMoney(w.used, w.currency);
+    if (!used) return undefined;
+    return w.limit !== undefined ? `${used} / ${formatMoney(w.limit, w.currency)}` : used;
+  }
+  return undefined;
 }
 
 /**

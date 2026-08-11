@@ -5,6 +5,8 @@ import {
   compactRuntimeItemsForHydration,
   hydrateThreadRuntimeItems,
   loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
   seedOlderThreadRuntimeItemsCursor,
 } from "./chatRuntimePersister";
 
@@ -284,5 +286,35 @@ describe("paged runtime hydration", () => {
       limit: 500,
       targetTimelineEntryCount: 40,
     });
+  });
+
+  it("rehydrates a transcript after the inactive cache evicts it", async () => {
+    const threadIds = Array.from({ length: 11 }, (_, index) => `cached-thread-${index}`);
+    bridge.dbGetThreadRuntimeItemsPage.mockImplementation(async ({ threadId }) => ({
+      items: [makeItem({ id: `${threadId}-item`, type: "assistant_message" })],
+      nextCursor: null,
+    }));
+
+    for (const threadId of threadIds) {
+      await hydrateThreadRuntimeItems(threadId);
+      retainThreadRuntimeItems(threadId);
+      releaseThreadRuntimeItems(threadId);
+    }
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadIds[0]!]).toBeUndefined();
+    for (const threadId of threadIds.slice(1)) {
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBeDefined();
+    }
+
+    bridge.dbGetThreadRuntimeItemsPage.mockClear();
+    await hydrateThreadRuntimeItems(threadIds[0]!);
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledWith({
+      threadId: threadIds[0],
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadIds[0]!]).toEqual([
+      `${threadIds[0]}-item`,
+    ]);
   });
 });

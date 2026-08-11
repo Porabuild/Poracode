@@ -96,7 +96,7 @@ export function UsageWindowBars(props: {
               <span className="tabular-nums text-foreground">
                 {reset || secondary ? (
                   <span className="text-[11px] text-muted">
-                    {[secondary, reset].filter(Boolean).join(" · ")} ·{" "}
+                    {[reset, secondary].filter(Boolean).join(" · ")} ·{" "}
                   </span>
                 ) : null}
                 {formatWindowValue(w)}

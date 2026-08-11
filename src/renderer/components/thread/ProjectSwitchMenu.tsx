@@ -1,8 +1,7 @@
 import { startTransition, useState } from "react";
-import { Check, ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
+import { Check, ChevronDown, House } from "lucide-react";
 import { Description, Dropdown, Header, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { makeDraftPaneId } from "@/shared/paneId";
 import { switchWorkspaceForProject } from "@/renderer/actions/workspaceActions";
@@ -12,58 +11,11 @@ import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
-import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import {
-  ProjectRemoteServerIcon,
+  ProjectSelectorIcon,
   useProjectRemoteServerLookup,
-  type ProjectRemoteServerInfo,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { useProjectSwitchGroups, type ProjectSwitchEntry } from "./projectSwitchGroups";
-
-function LocationIcon(props: {
-  kind: Project["location"]["kind"];
-  className?: string | undefined;
-}) {
-  if (props.kind === "wsl") {
-    return (
-      <span className={`${props.className ?? "size-3.5"} relative shrink-0 text-muted`}>
-        <TuxIcon className="absolute left-1/2 top-1/2 h-3.5 w-6 -translate-x-1/2 -translate-y-1/2" />
-      </span>
-    );
-  }
-  const className = `${props.className ?? "size-4"} shrink-0 text-muted`;
-  if (props.kind === "windows") {
-    return <Monitor className={className} />;
-  }
-  return <FolderOpen className={className} />;
-}
-
-/**
- * Leading glyph for a project row. A mirrored project is marked by the machine
- * hosting it rather than by its path kind — which machine it lives on is what
- * distinguishes it from the same-named project on this one.
- */
-function ProjectIcon(props: {
-  project: Project;
-  remote: ProjectRemoteServerInfo;
-  className?: string | undefined;
-}) {
-  if (isHomeProject(props.project)) {
-    return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
-  }
-  if (props.remote.isRemote) {
-    // The compact glyph with the small status light — same treatment as the
-    // flat list's row tags, a step below the location/Home glyphs beside it.
-    return (
-      <ProjectRemoteServerIcon
-        info={props.remote}
-        className={`${props.className ?? "size-3.5"} text-muted`}
-        dotClassName="size-1"
-      />
-    );
-  }
-  return <LocationIcon kind={props.project.location.kind} className={props.className} />;
-}
 
 export function ProjectSwitchMenu(props: {
   currentProjectId: string;
@@ -97,7 +49,7 @@ export function ProjectSwitchMenu(props: {
   const triggerIcon = isHomeCurrent ? (
     <House className="size-3.5 shrink-0 text-muted" />
   ) : current ? (
-    <ProjectIcon project={current} remote={currentRemote} className="size-3.5" />
+    <ProjectSelectorIcon project={current} remote={currentRemote} className="size-3.5" />
   ) : null;
   // The machine trails the name, so the project stays the thing you read first.
   const triggerMachine = currentRemote.serverName ? (
@@ -146,7 +98,7 @@ export function ProjectSwitchMenu(props: {
             handleSelect(project.id);
           }}
         >
-          <ProjectIcon project={project} remote={remote} />
+          <ProjectSelectorIcon project={project} remote={remote} />
           <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
           {remote.serverName ? (
             <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">
@@ -171,7 +123,7 @@ export function ProjectSwitchMenu(props: {
       const description = [remote.serverName, otherWorkspaceName].filter(Boolean).join(" · ");
       return (
         <Dropdown.Item key={project.id} id={project.id} textValue={itemLabel}>
-          <ProjectIcon project={project} remote={remote} />
+          <ProjectSelectorIcon project={project} remote={remote} />
           <Label>{itemLabel}</Label>
           {description ? <Description>{description}</Description> : null}
         </Dropdown.Item>

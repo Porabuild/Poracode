@@ -18,7 +18,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -143,12 +143,41 @@ export function isGitPanelEclipsed(
   );
 }
 
-export function useIsProjectTerminalActive(projectId: string): boolean {
+/**
+ * Whether a panel tab is painted right now — as the right panel's active
+ * layer, as the split section stacked with it, or in a bottom dock slot.
+ * Docking never touches `rightPanelTab`, so the active-layer rules below are
+ * not enough on their own (mirrors `UnifiedRightPanel`'s `isTabOnScreen`).
+ * Bottom docks only render while the terminal owns the bottom edge.
+ */
+function isPanelTabOnScreen(
+  panel: ReturnType<typeof usePanelStore.getState>,
+  terminalPosition: "right" | "bottom",
+  tab: RightPanelTab,
+): boolean {
+  if (panel.rightPanelSplit?.tab === tab) return true;
+  if (
+    terminalPosition === "bottom" &&
+    (panel.bottomPanelDocks.left === tab || panel.bottomPanelDocks.right === tab)
+  ) {
+    return true;
+  }
+  if (tab === "terminal") return !isTerminalEclipsedOnRight(terminalPosition, panel.rightPanelTab);
+  if (tab === "git") return !isGitPanelEclipsed(terminalPosition, panel.rightPanelTab);
+  return panel.rightPanelTab === tab;
+}
+
+/** Primitive subscription so a sidebar row re-renders only when its own tab's visibility flips. */
+function usePanelTabOnScreen(tab: RightPanelTab): boolean {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
-  const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
+  return usePanelStore((s) => isPanelTabOnScreen(s, terminalPosition, tab));
+}
+
+export function useIsProjectTerminalActive(projectId: string): boolean {
+  const onScreen = usePanelTabOnScreen("terminal");
   return useDevTerminalStore((s) => {
     if (!s.isOpen || s.activeProjectId !== projectId || s.activeWorktreePath) return false;
-    return !isTerminalEclipsedOnRight(terminalPosition, rightPanelTab);
+    return onScreen;
   });
 }
 
@@ -159,11 +188,10 @@ export function useIsProjectTerminalOpen(projectId: string): boolean {
 }
 
 export function useIsWorktreeTerminalActive(worktreePath: string | null | undefined): boolean {
-  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
-  const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
+  const onScreen = usePanelTabOnScreen("terminal");
   return useDevTerminalStore((s) => {
     if (!worktreePath || !s.isOpen || s.activeWorktreePath !== worktreePath) return false;
-    return !isTerminalEclipsedOnRight(terminalPosition, rightPanelTab);
+    return onScreen;
   });
 }
 
@@ -196,38 +224,57 @@ export function useIsWorktreeTerminalBusy(worktreePath: string | null | undefine
   });
 }
 
+export function useRunningProjectActionIds(
+  projectId: string,
+  worktreePath?: string,
+): readonly string[] {
+  return useDevTerminalStore(
+    useShallow((state) =>
+      state.tabs
+        .filter(
+          (tab) =>
+            tab.projectId === projectId &&
+            (tab.worktreePath ?? undefined) === worktreePath &&
+            tab.runActionId &&
+            state.runningTabs[tab.id],
+        )
+        .map((tab) => tab.runActionId!),
+    ),
+  );
+}
+
 export function useIsProjectGitPanelActive(projectId: string): boolean {
-  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const onScreen = usePanelTabOnScreen("git");
   return usePanelStore((s) => {
     const ctx = s.gitReviewContext;
-    if (!ctx || !s.gitReviewAsPanel) return false;
-    if (isGitPanelEclipsed(terminalPosition, s.rightPanelTab)) return false;
+    if (!ctx || !s.gitReviewAsPanel || !onScreen) return false;
     return ctx.projectId === projectId && !ctx.worktreePath;
   });
 }
 
 export function useIsWorktreeGitPanelActive(worktreePath: string | null | undefined): boolean {
-  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const onScreen = usePanelTabOnScreen("git");
   return usePanelStore((s) => {
     if (!worktreePath) return false;
     const ctx = s.gitReviewContext;
-    if (!ctx || !s.gitReviewAsPanel) return false;
-    if (isGitPanelEclipsed(terminalPosition, s.rightPanelTab)) return false;
+    if (!ctx || !s.gitReviewAsPanel || !onScreen) return false;
     return ctx.worktreePath === worktreePath;
   });
 }
 
 export function useIsProjectFilesPanelActive(projectId: string): boolean {
+  const onScreen = usePanelTabOnScreen("files");
   return usePanelStore((s) => {
-    if (s.rightPanelTab !== "files") return false;
+    if (!onScreen) return false;
     const ctx = s.filesPanelContext;
     return ctx?.projectId === projectId && !ctx.worktreePath;
   });
 }
 
 export function useIsWorktreeFilesPanelActive(worktreePath: string | null | undefined): boolean {
+  const onScreen = usePanelTabOnScreen("files");
   return usePanelStore((s) => {
-    if (!worktreePath || s.rightPanelTab !== "files") return false;
+    if (!worktreePath || !onScreen) return false;
     return s.filesPanelContext?.worktreePath === worktreePath;
   });
 }
@@ -367,11 +414,13 @@ export function useActiveGroupName(): string | undefined {
 export function useThreadPendingLaunch(threadId: string): {
   prompt: string | undefined;
   segments: PromptSegment[] | undefined;
+  userMessageItemId: string | undefined;
 } {
   return useAppStore(
     useShallow((s) => ({
       prompt: s.pendingThreadLaunches[threadId],
       segments: s.pendingLaunchSegments[threadId],
+      userMessageItemId: s.pendingLaunchUserMessageItemIds[threadId],
     })),
   );
 }

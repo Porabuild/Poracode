@@ -546,6 +546,10 @@ extraResources:
     to: skills
     filter:
       - "**/*"
+  - from: resources/plugins
+    to: plugins
+    filter:
+      - "**/*"
   - from: build/icon${runtimeIconSuffix}.png
     to: app-icon.png
   - from: build/tray-icon${iconSuffix}.ico

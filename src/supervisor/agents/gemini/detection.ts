@@ -60,9 +60,11 @@ const configDirAuthProbe: AuthProbe = async (ctx) => {
   if (ctx.location.kind !== "wsl") {
     return existsSync(join(homedir(), ".gemini")) ? "authenticated" : "unknown";
   }
-  const [result] = await batchWslCommandsAsync(ctx.location.distro, [
-    "test -d ~/.gemini && echo yes",
-  ]);
+  const [result] = await batchWslCommandsAsync(
+    ctx.location.distro,
+    ["test -d ~/.gemini && echo yes"],
+    ctx.signal,
+  );
   return result?.ok && result.stdout.trim() === "yes" ? "authenticated" : "unknown";
 };
 
@@ -92,6 +94,7 @@ async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["st
         "test -d ~/.gemini && echo yes",
         'cat ~/.gemini/google_accounts.json 2>/dev/null || printf ""',
       ],
+      ctx.signal,
     );
     const apiKeySet = !!(apiKeyResult?.ok && apiKeyResult.stdout.trim().length > 0);
     const configDirPresent = !!(configDirResult?.ok && configDirResult.stdout.trim() === "yes");
@@ -152,6 +155,7 @@ export const geminiDetectionSpec: DetectionSpec = {
     const probeCwd = ctx.location.kind === "wsl" ? "/tmp" : getAgentProbeCwd(ctx.location);
     const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, probeCwd, {
       timeoutMs: 15_000,
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
       label:
         ctx.location.kind === "wsl"
           ? `gemini:wsl:${ctx.location.distro}`

@@ -345,7 +345,7 @@ export function formatChromeToolResult(raw: unknown): McpToolResult {
   return { content: [{ type: "text", text }], ...(isError ? { isError: true } : {}) };
 }
 
-export const CHROME_TOOLS: ToolSpec[] = [
+const RAW_CHROME_TOOLS: ToolSpec[] = [
   {
     name: "chrome_status",
     description:
@@ -555,5 +555,40 @@ export const CHROME_TOOLS: ToolSpec[] = [
     },
   },
 ];
+
+const READ_ONLY_CHROME_TOOL_NAMES = new Set([
+  "chrome_status",
+  "chrome_list_tabs",
+  "chrome_get_url",
+  "chrome_get_title",
+  "chrome_snapshot",
+  "chrome_find",
+  "chrome_get",
+  "chrome_is",
+  "chrome_wait",
+  "chrome_screenshot",
+  "chrome_cookies",
+]);
+const SESSION_CHROME_TOOL_NAMES = new Set(["enable", "disable"]);
+const DESTRUCTIVE_CHROME_TOOL_NAMES = new Set([
+  "chrome_click",
+  "chrome_fill",
+  "chrome_type",
+  "chrome_press",
+  "chrome_eval",
+]);
+
+export const CHROME_TOOLS: ToolSpec[] = RAW_CHROME_TOOLS.map((tool) => ({
+  ...tool,
+  annotations: READ_ONLY_CHROME_TOOL_NAMES.has(tool.name)
+    ? { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }
+    : SESSION_CHROME_TOOL_NAMES.has(tool.name)
+      ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+      : {
+          readOnlyHint: false,
+          destructiveHint: DESTRUCTIVE_CHROME_TOOL_NAMES.has(tool.name),
+          openWorldHint: true,
+        },
+}));
 
 export const CHROME_TOOL_NAMES = new Set(CHROME_TOOLS.map((t) => t.name));

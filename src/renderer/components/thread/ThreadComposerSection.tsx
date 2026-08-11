@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { toast } from "@heroui/react";
-import { ChevronDown, Monitor } from "lucide-react";
+import { ChevronDown, Monitor, TerminalSquare } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -71,7 +71,10 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
-import { useSkillSlashCommands } from "@/renderer/components/skills/useSkills";
+import {
+  usePluginMentionItems,
+  useSkillSlashCommands,
+} from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
 
 type ThreadComposerSectionProps = {
@@ -162,6 +165,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     goalDockState,
     errorDockStates,
   } = props;
+  const awaitingWorktree = useAppStore(
+    (state) =>
+      state.provisioningWorktreeThreadIds[thread.id] === true && thread.status === "launching",
+  );
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
@@ -237,6 +244,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
   const usesTerminalPresentation = presentationMode === "terminal";
+  const appControlsEnabled =
+    useSharedSettings((s) => s.disabledBuiltInMcpServers["app-controls"]) !== true;
   // Composer MCP servers are bound at session-create time for the active
   // thread, so the "+" menu shows this run's bindings read-only: the enabled
   // built-ins (from thread config), the custom servers recorded at launch,
@@ -267,6 +276,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         enabled: true,
       }));
   const mcpMentions: McpMentionItem[] = [
+    ...(appControlsEnabled && !providerOwnsMcp
+      ? [
+          {
+            id: "app-controls",
+            name: t`Terminal`,
+            searchAliases: ["Terminal"],
+            icon: TerminalSquare,
+            detail: t`Terminal`,
+            enabled: true,
+          },
+        ]
+      : []),
     ...composerMcpServers
       .filter((descriptor) => thread.config?.[descriptor.configKey] === true)
       .map((descriptor) => ({
@@ -288,7 +309,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
-  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind);
+  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
+  const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     effectiveAgentStatus?.capabilities.slashCommands,
@@ -651,11 +673,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
         <div className="relative">
-          <ThreadChangesBubble
-            projectId={thread.projectId}
-            {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-            {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
-          />
+          {awaitingWorktree ? null : (
+            <ThreadChangesBubble
+              projectId={thread.projectId}
+              {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+              {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
+            />
+          )}
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
             style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
@@ -779,6 +803,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         : {})}
                       projectId={thread.projectId}
                       mcpMentions={mcpMentions}
+                      pluginMentions={pluginMentions}
                       onTextChange={(hasText) => {
                         setHasContent(hasText);
                         latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];

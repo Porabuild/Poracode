@@ -3,17 +3,19 @@ import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host
 import type { UsageSnapshot, UsageWindow } from "../types";
 
 /**
- * Command Code v1.4.1 reads the CLI API key from
+ * Command Code reads the CLI API key from
  * `COMMAND_CODE_API_KEY`/`~/.commandcode/auth.json` and calls its authenticated
- * `/alpha/*` API directly. The usage flow mirrors the CLI:
+ * `/alpha/*` API directly. The usage flow mirrors the CLI (`/usage` overlay):
  *
  *   GET /alpha/whoami
  *   GET /alpha/billing/credits
  *   GET /alpha/billing/subscriptions
  *   GET /alpha/usage/summary?since=<currentPeriodStart>
  *
- * Organization accounts include `orgId` on the three billing requests. Usage
- * is a monthly USD credit pool, normalized into the shared snapshot shape.
+ * Organization accounts include `orgId` on the three billing requests. Usage is
+ * a monthly USD credit pool plus rolling 5-hour and weekly USD caps from
+ * `credits.windowLimits` (30% / 60% of the plan's monthly credits on most
+ * plans), normalized into the shared snapshot shape.
  */
 
 const COMMANDCODE_BASE = "https://api.commandcode.ai";
@@ -38,12 +40,36 @@ interface CommandCodeWhoamiBody {
   } | null;
 }
 
+/** Rolling 5h / weekly USD caps from GET /alpha/billing/credits (CLI ≥1.15). */
+interface CommandCodeWindowLimit {
+  used?: number | string;
+  cap?: number | string;
+  /** Epoch ms (or seconds) when the rolling window resets. */
+  resetAt?: number | string;
+}
+
+interface CommandCodeWindowLimits {
+  limited?: boolean;
+  fiveHour?: CommandCodeWindowLimit | null;
+  weekly?: CommandCodeWindowLimit | null;
+}
+
+interface CommandCodeCreditsFields {
+  monthlyCredits?: number | string;
+  purchasedCredits?: number | string;
+  freeCredits?: number | string;
+  /** Some responses nest windowLimits under the credits object. */
+  windowLimits?: CommandCodeWindowLimits;
+}
+
 interface CommandCodeCreditsBody {
-  credits?: {
-    monthlyCredits?: number | string;
-    purchasedCredits?: number | string;
-    freeCredits?: number | string;
-  };
+  credits?: CommandCodeCreditsFields;
+  /**
+   * Present on current APIs: plan has rolling rate limits. Sibling of the
+   * nested `credits` object — same shape the CLI's `projectUsageView` reads
+   * (`usageData.credits.windowLimits` where `credits` is the full HTTP body).
+   */
+  windowLimits?: CommandCodeWindowLimits;
 }
 
 interface CommandCodeUsageSummaryBody {
@@ -59,9 +85,12 @@ interface CommandCodeSubscriptionsBody {
   };
 }
 
+/** Plan table aligned with command-code CLI (`$n` / `Fn` maps). */
 const COMMANDCODE_PLANS: Record<string, { label: string; monthlyCredits: number }> = {
   "individual-go": { label: "Go", monthlyCredits: 10 },
+  "individual-goat": { label: "GOAT", monthlyCredits: 70 },
   "individual-pro": { label: "Pro", monthlyCredits: 30 },
+  "individual-pro-v1": { label: "Pro", monthlyCredits: 80 },
   "individual-provider": { label: "Provider", monthlyCredits: 15 },
   "individual-max": { label: "Max", monthlyCredits: 150 },
   "individual-ultra": { label: "Ultra", monthlyCredits: 300 },
@@ -78,7 +107,7 @@ function commandCodePlan(
   return id ? COMMANDCODE_PLANS[id] : undefined;
 }
 
-/** Map a Command Code plan id to the label used by its v1.4.1 CLI. */
+/** Map a Command Code plan id to the CLI display name. */
 export function formatCommandCodePlanLabel(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed) return undefined;
@@ -99,9 +128,42 @@ function nonNegative(value: number | string | undefined): number {
 }
 
 /**
- * Pure: project the v1 billing responses into the monthly credit bar. For an
- * active known plan, use the plan allocation as the pool floor exactly as the
- * CLI does; otherwise reconstruct the pool from remaining + reported spend.
+ * Map a Command Code rolling window (`fiveHour` / `weekly`) into a shared
+ * UsageWindow. Caps are USD slices of the monthly credit pool; the CLI shows
+ * them as "5-hour" / "Weekly" meters next to the monthly bar.
+ */
+function commandCodeRollingWindow(
+  id: "session-5h" | "weekly",
+  label: string,
+  limit: CommandCodeWindowLimit | null | undefined,
+): UsageWindow | undefined {
+  if (!limit || typeof limit !== "object") return undefined;
+  const used = numeric(limit.used);
+  const cap = numeric(limit.cap);
+  if (used === undefined && cap === undefined) return undefined;
+  const usedValue = Math.max(0, used ?? 0);
+  const capValue = cap !== undefined && cap > 0 ? cap : undefined;
+  const usedPercent =
+    capValue !== undefined ? Math.min(100, (usedValue / capValue) * 100) : usedValue > 0 ? 100 : 0;
+  const resetsAt = toEpochMs(limit.resetAt);
+  return {
+    id,
+    label,
+    usedPercent,
+    unit: "usd",
+    currency: "USD",
+    used: Number(usedValue.toFixed(4)),
+    ...(capValue !== undefined ? { limit: Number(capValue.toFixed(4)) } : {}),
+    ...(resetsAt !== undefined ? { resetsAt } : {}),
+  };
+}
+
+/**
+ * Pure: project the billing responses into monthly credits plus rolling 5h /
+ * weekly USD caps. For an active known plan, use the plan allocation as the
+ * monthly pool floor exactly as the CLI does; otherwise reconstruct the pool
+ * from remaining + reported spend. Rolling windows come from
+ * `credits.windowLimits` when the API returns them.
  */
 export function parseCommandCodeUsage(
   creditsBody: unknown,
@@ -110,7 +172,11 @@ export function parseCommandCodeUsage(
   nowMs: number,
   whoamiBody?: unknown,
 ): UsageSnapshot {
-  const credits = ((creditsBody ?? {}) as CommandCodeCreditsBody).credits;
+  const body = (creditsBody ?? {}) as CommandCodeCreditsBody;
+  // windowLimits is a sibling of the nested `credits` object on the HTTP body
+  // (CLI: `usageData.credits?.windowLimits`). Tolerate a nested copy too.
+  const credits = body.credits;
+  const windowLimits = body.windowLimits ?? credits?.windowLimits;
   const summary = (summaryBody ?? {}) as CommandCodeUsageSummaryBody;
   const subscription = ((subscriptionsBody ?? {}) as CommandCodeSubscriptionsBody).data;
   const whoami = (whoamiBody ?? {}) as CommandCodeWhoamiBody;
@@ -143,6 +209,14 @@ export function parseCommandCodeUsage(
     ...(resetsAt !== undefined ? { resetsAt } : {}),
   };
 
+  // Match CLI / Studio order: 5-hour, weekly, then monthly pool.
+  const windows: UsageWindow[] = [];
+  const fiveHour = commandCodeRollingWindow("session-5h", "5-hour limit", windowLimits?.fiveHour);
+  const weekly = commandCodeRollingWindow("weekly", "Weekly limit", windowLimits?.weekly);
+  if (fiveHour) windows.push(fiveHour);
+  if (weekly) windows.push(weekly);
+  windows.push(monthlyWindow);
+
   const plan = formatCommandCodePlanLabel(subscription?.planId);
   const authenticatedAs =
     whoami.user?.email?.trim() ||
@@ -152,7 +226,7 @@ export function parseCommandCodeUsage(
   return {
     providerId: COMMANDCODE_PROVIDER_ID,
     status: "ok",
-    windows: [monthlyWindow],
+    windows,
     fetchedAt: nowMs,
     ...(plan ? { plan } : {}),
     ...(authenticatedAs ? { authenticatedAs } : {}),
@@ -214,7 +288,7 @@ function responseFailure(responses: HttpResponse[], now: number): UsageSnapshot 
   return failed ? commandCodeSnapshot("error", now, `HTTP ${failed.status}`) : undefined;
 }
 
-/** Collect usage with the same API-key and `/alpha/*` flow as Command Code v1.4.1. */
+/** Collect usage with the same API-key and `/alpha/*` flow as the Command Code CLI. */
 export async function collectCommandCode(
   host: HostPort,
   _opts?: CollectOptions,

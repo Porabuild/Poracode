@@ -57,6 +57,44 @@ export type RightPanelTab =
   | "plan"
   | "subagent";
 
+/** Tabs that can be dragged into a dock zone. Thread-transient tabs (plan, subagent) and ports stay fixed. */
+export const DOCKABLE_PANEL_TABS: ReadonlySet<RightPanelTab> = new Set([
+  "git",
+  "files",
+  "terminal",
+  "browser",
+  "usage",
+  "notes",
+]);
+
+/** A second panel section stacked above or below the active right-panel tab. */
+export interface RightPanelSplit {
+  tab: RightPanelTab;
+  /** Which half of the right panel the split tab occupies. */
+  placement: "top" | "bottom";
+}
+
+export type BottomDockPlacement = "left" | "right";
+
+/**
+ * Panels docked in the bottom row, one per side. The terminal (when open) sits
+ * between them, so the row reads `left | terminal | right`; with the terminal
+ * closed the docks own the row on their own.
+ */
+export interface BottomPanelDocks {
+  left: RightPanelTab | null;
+  right: RightPanelTab | null;
+}
+
+export const EMPTY_BOTTOM_PANEL_DOCKS: BottomPanelDocks = { left: null, right: null };
+
+export type PanelDockZone = "right-panel" | "bottom-panel";
+
+/** Resolved drop location for a dragged panel-tab icon. */
+export type PanelDockTarget =
+  | { zone: "right-panel"; placement: "top" | "bottom" }
+  | { zone: "bottom-panel"; placement: BottomDockPlacement };
+
 interface PanelState {
   gitReviewContext: GitReviewContext | null;
   gitReviewAsPanel: boolean;
@@ -67,6 +105,13 @@ interface PanelState {
   subAgentPanelContext: SubAgentPanelContext | null;
   subAgentPanelOpen: boolean;
   rightPanelTab: RightPanelTab;
+  /**
+   * Session-scoped like `rightPanelTab`: a second tab rendered stacked with the
+   * active one in the right panel, or null when the panel is unsplit.
+   */
+  rightPanelSplit: RightPanelSplit | null;
+  /** Panels rendered in the bottom row. Only meaningful with terminalPosition "bottom". */
+  bottomPanelDocks: BottomPanelDocks;
   /**
    * When true, the open right-panel tools re-scope to whichever thread is
    * focused instead of staying on the project/worktree they were opened from.
@@ -102,6 +147,12 @@ interface PanelState {
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
   setSubAgentPanelContext: (ctx: SubAgentPanelContext | null) => void;
   setRightPanelTab: (tab: RightPanelTab) => void;
+  setRightPanelSplit: (split: RightPanelSplit | null) => void;
+  /** Put a tab in one bottom slot (or clear it); a tab never occupies two slots. */
+  setBottomPanelDock: (placement: BottomDockPlacement, tab: RightPanelTab | null) => void;
+  /** Remove a tab from whichever bottom slot holds it. */
+  clearBottomPanelDockTab: (tab: RightPanelTab) => void;
+  clearBottomPanelDocks: () => void;
   toggleRightPanelFollowsThread: () => void;
   setThreadToolRailOffset: (offset: number) => void;
   setBrowserPanelOpen: (v: boolean) => void;
@@ -198,6 +249,27 @@ function sanitizeThreadListLayout(value: unknown): ThreadListLayout {
   return value === "grouped" || value === "flat" ? value : "grouped";
 }
 
+/**
+ * A dock placement may only hold a tab whose content is still open. When a
+ * panel closes itself (its close button, a removed worktree, a project going
+ * away) the slot has to be released too — otherwise an empty section keeps its
+ * header, and the bottom row it lives in, on screen with nothing inside.
+ */
+function releaseClosedTab(state: PanelState, tab: RightPanelTab): Partial<PanelState> {
+  const { left, right } = state.bottomPanelDocks;
+  return {
+    ...(left === tab || right === tab
+      ? {
+          bottomPanelDocks: {
+            left: left === tab ? null : left,
+            right: right === tab ? null : right,
+          },
+        }
+      : {}),
+    ...(state.rightPanelSplit?.tab === tab ? { rightPanelSplit: null } : {}),
+  };
+}
+
 /** Default rail offset: below the pane header, near the top of the conversation. */
 const DEFAULT_THREAD_TOOL_RAIL_OFFSET = 56;
 
@@ -218,6 +290,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
   subAgentPanelContext: null,
   subAgentPanelOpen: false,
   rightPanelTab: "git",
+  rightPanelSplit: null,
+  bottomPanelDocks: EMPTY_BOTTOM_PANEL_DOCKS,
   rightPanelFollowsThread: initialPersisted?.rightPanelFollowsThread ?? false,
   threadToolRailOffset: sanitizeRailOffset(
     initialPersisted?.threadToolRailOffset ?? DEFAULT_THREAD_TOOL_RAIL_OFFSET,
@@ -251,7 +325,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
     ) {
       return;
     }
-    set({ gitReviewContext: ctx });
+    set((state) => ({
+      gitReviewContext: ctx,
+      ...(ctx === null ? releaseClosedTab(state, "git") : {}),
+    }));
   },
   setGitReviewAsPanel: (v) =>
     set((state) => (state.gitReviewAsPanel === v ? {} : { gitReviewAsPanel: v })),
@@ -302,7 +379,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ) {
         return {};
       }
-      return { filesPanelContext: ctx };
+      return {
+        filesPanelContext: ctx,
+        ...(ctx === null ? releaseClosedTab(state, "files") : {}),
+      };
     }),
   setSubAgentPanelContext: (ctx) =>
     set((state) => {
@@ -329,6 +409,57 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(reopenSubAgent ? { subAgentPanelOpen: true } : {}),
       };
     }),
+  setRightPanelSplit: (split) =>
+    set((state) => {
+      const prev = state.rightPanelSplit;
+      if (
+        (prev === null && split === null) ||
+        (prev !== null &&
+          split !== null &&
+          prev.tab === split.tab &&
+          prev.placement === split.placement)
+      ) {
+        return {};
+      }
+      return { rightPanelSplit: split };
+    }),
+  setBottomPanelDock: (placement, tab) =>
+    set((state) => {
+      const other = placement === "left" ? "right" : "left";
+      // A tab lives in exactly one place: dropping it in the opposite slot moves
+      // it rather than rendering the same surface twice.
+      const otherTab =
+        tab !== null && state.bottomPanelDocks[other] === tab
+          ? null
+          : state.bottomPanelDocks[other];
+      if (state.bottomPanelDocks[placement] === tab && state.bottomPanelDocks[other] === otherTab) {
+        return {};
+      }
+      return {
+        bottomPanelDocks: {
+          ...EMPTY_BOTTOM_PANEL_DOCKS,
+          [placement]: tab,
+          [other]: otherTab,
+        },
+      };
+    }),
+  clearBottomPanelDockTab: (tab) =>
+    set((state) => {
+      const { left, right } = state.bottomPanelDocks;
+      if (left !== tab && right !== tab) return {};
+      return {
+        bottomPanelDocks: {
+          left: left === tab ? null : left,
+          right: right === tab ? null : right,
+        },
+      };
+    }),
+  clearBottomPanelDocks: () =>
+    set((state) =>
+      state.bottomPanelDocks.left === null && state.bottomPanelDocks.right === null
+        ? {}
+        : { bottomPanelDocks: EMPTY_BOTTOM_PANEL_DOCKS },
+    ),
   toggleRightPanelFollowsThread: () =>
     set((state) => ({ rightPanelFollowsThread: !state.rightPanelFollowsThread })),
   setThreadToolRailOffset: (offset) =>
@@ -344,7 +475,11 @@ export const usePanelStore = create<PanelState>()((set) => ({
   // would make the fullscreen page vanish. Callers that genuinely want to
   // dismiss both (e.g. the last tab closing) close the overlay explicitly.
   setBrowserPanelOpen: (v) =>
-    set((state) => (state.browserPanelOpen === v ? {} : { browserPanelOpen: v })),
+    set((state) =>
+      state.browserPanelOpen === v
+        ? {}
+        : { browserPanelOpen: v, ...(v ? {} : releaseClosedTab(state, "browser")) },
+    ),
   // NOTE: overlay state is intentionally independent of the right-panel
   // browser in both directions. Opening the overlay does NOT enable the
   // right-panel browser tab, and closing the overlay leaves the right panel in
@@ -374,7 +509,11 @@ export const usePanelStore = create<PanelState>()((set) => ({
         : { browserPanelOpen: true, rightPanelTab: "browser" as const },
     ),
   setUsagePanelOpen: (v) =>
-    set((state) => (state.usagePanelOpen === v ? {} : { usagePanelOpen: v })),
+    set((state) =>
+      state.usagePanelOpen === v
+        ? {}
+        : { usagePanelOpen: v, ...(v ? {} : releaseClosedTab(state, "usage")) },
+    ),
   openUsagePanel: () =>
     set((state) =>
       state.usagePanelOpen && state.rightPanelTab === "usage"
@@ -382,7 +521,11 @@ export const usePanelStore = create<PanelState>()((set) => ({
         : { usagePanelOpen: true, rightPanelTab: "usage" as const },
     ),
   setNotesPanelOpen: (v) =>
-    set((state) => (state.notesPanelOpen === v ? {} : { notesPanelOpen: v })),
+    set((state) =>
+      state.notesPanelOpen === v
+        ? {}
+        : { notesPanelOpen: v, ...(v ? {} : releaseClosedTab(state, "notes")) },
+    ),
   openNotesPanel: () =>
     set((state) =>
       state.notesPanelOpen && state.rightPanelTab === "notes"
@@ -427,24 +570,30 @@ export const usePanelStore = create<PanelState>()((set) => ({
       // that fires when the window shrinks — must not tear down a standalone
       // browser overlay or the temporary subagent target. The latter has its own
       // explicit close control in the panel header.
-      if (
-        state.gitReviewContext === null &&
-        state.filesPanelContext === null &&
-        !state.subAgentPanelOpen &&
-        !state.browserPanelOpen &&
-        !state.usagePanelOpen &&
-        !state.notesPanelOpen
-      ) {
-        return {};
-      }
-      return {
-        gitReviewContext: null,
-        filesPanelContext: null,
+      //
+      // Bottom-docked tabs are likewise a separate surface: hiding the right
+      // panel must leave them (and the open flag that feeds their content)
+      // alone, otherwise a docked Usage/Git would blank out beside the terminal.
+      const { left, right } = state.bottomPanelDocks;
+      const isDocked = (tab: RightPanelTab) => left === tab || right === tab;
+      const next = {
+        ...(isDocked("git") ? {} : { gitReviewContext: null }),
+        ...(isDocked("files") ? {} : { filesPanelContext: null }),
+        ...(isDocked("browser") ? {} : { browserPanelOpen: false }),
+        ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
+        ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
         subAgentPanelOpen: false,
-        browserPanelOpen: false,
-        usagePanelOpen: false,
-        notesPanelOpen: false,
+        rightPanelSplit: null,
       };
+      const alreadyClosed =
+        (next.gitReviewContext === undefined || state.gitReviewContext === null) &&
+        (next.filesPanelContext === undefined || state.filesPanelContext === null) &&
+        !state.subAgentPanelOpen &&
+        (next.browserPanelOpen === undefined || !state.browserPanelOpen) &&
+        (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
+        (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&
+        state.rightPanelSplit === null;
+      return alreadyClosed ? {} : next;
     });
   },
 }));

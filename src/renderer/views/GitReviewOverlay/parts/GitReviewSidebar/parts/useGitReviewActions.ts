@@ -50,7 +50,6 @@ import {
 
 export interface UseGitReviewActionsArgs {
   project: Project;
-  mergeSyncLocation?: ProjectLocation | undefined;
   gitStatus: GitStatusResult | null | undefined;
   worktreeBranch: string | undefined;
   worktreePath: string | undefined;
@@ -81,7 +80,6 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const { t } = useLingui();
   const {
     project,
-    mergeSyncLocation,
     gitStatus,
     worktreeBranch,
     worktreePath,
@@ -203,7 +201,6 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const writeActions = usePrWriteActions({
     projectLocation: project.location,
     localSyncLocation: getWorktreeLocation(),
-    ...(mergeSyncLocation ? { mergeSyncLocation } : {}),
     prKey: effectivePrKey,
     branch: effectiveBranch,
     projectId: project.id,

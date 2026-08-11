@@ -137,7 +137,6 @@ export async function applyRemoteThreadCommand(
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
         title: command.title,
-        updatedAt: new Date().toISOString(),
       }));
       return false;
     case "acknowledge":
@@ -263,6 +262,7 @@ async function startRemoteThread(
       ...(command.segments ? { segments: command.segments } : {}),
       initialSize: DEFAULT_TERMINAL_SIZE,
       ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
+      ...(command.userMessageItemId ? { userMessageItemId: command.userMessageItemId } : {}),
       ...mcpSnapshot,
     });
   } catch (error) {

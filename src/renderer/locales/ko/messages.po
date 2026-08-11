@@ -94,8 +94,10 @@ msgstr "{0, plural, one {#개 프로젝트} other {#개 프로젝트}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# 공급자 준비됨} other {# 공급자 준비됨}}"
 
+#. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "{0, plural, one {# skill} other {# skills}}"
@@ -345,6 +347,18 @@ msgstr "{0} 사용됨"
 #~ msgid "{0} workflows"
 #~ msgstr "{0}개 워크플로"
 
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Idle"
+msgstr "{0}, 유휴"
+
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Running"
+msgstr "{0}, 실행 중"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -560,6 +574,10 @@ msgstr "{resultCount, plural, one {# 결과} other {# 결과}}"
 msgid "{seconds}s ago"
 msgstr "{seconds}초 전"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "{serverCount, plural, one {# server} other {# servers}}"
+msgstr "{serverCount, plural, one {서버 #개} other {서버 #개}}"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel}의 {serverName}: {disabledLabel}"
@@ -690,6 +708,18 @@ msgstr "후보가 더 이상 실험 브랜치에 있지 않습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합니다"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server could not be started and was skipped."
+msgstr "서버를 시작할 수 없어 건너뛰었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server has a name Poracode cannot use."
+msgstr "Poracode가 사용할 수 없는 이름의 서버가 있습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server is not configured correctly and was skipped."
+msgstr "올바르게 구성되지 않은 서버를 건너뛰었습니다."
 
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
@@ -1048,6 +1078,22 @@ msgstr "에이전트를 찾을 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agent Registry"
 msgstr "에이전트 레지스트리"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume"
+msgstr "에이전트 재개"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume ({subagent}): {description}"
+msgstr "에이전트 재개 ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {description}"
+msgstr "에이전트 재개: {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {subagent}"
+msgstr "에이전트 재개: {subagent}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -1462,6 +1508,10 @@ msgstr "인증 설정은 가져올 수 없습니다"
 msgid "Authentication unavailable"
 msgstr "인증을 사용할 수 없음"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Author"
+msgstr "작성자"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Authored"
 msgstr "내가 작성"
@@ -1530,6 +1580,10 @@ msgstr "자동 새로고침 간격(분), 0이면 끄기"
 msgid "Auto-review"
 msgstr "자동 검토"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "자동 선택"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
@@ -1539,6 +1593,10 @@ msgstr "터미널 패널 자동 표시"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "명령을 실행하거나 작업 트리를 생성할 때 터미널 패널을 자동으로 표시합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Automation"
+msgstr "자동화"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Autopilot"
@@ -1591,6 +1649,10 @@ msgstr "파일로 돌아가기"
 #: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
 msgstr "개요로 돌아가기"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Back to plugins"
+msgstr "플러그인으로 돌아가기"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1760,14 +1822,19 @@ msgstr "상위 폴더 찾아보기"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세요."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browse, inspect, and test websites in Poracode's isolated in-app browser."
+msgstr "Poracode의 격리된 내장 브라우저에서 웹사이트를 탐색하고 검사하고 테스트합니다."
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -1777,6 +1844,10 @@ msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세�
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "브라우저"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browser Control"
+msgstr "브라우저 제어"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
@@ -1816,6 +1887,10 @@ msgstr "브라우저로 로그인"
 msgid "Browser tabs"
 msgstr "브라우저 탭"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browser Tools"
+msgstr "브라우저 도구"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
 msgstr "예산 한도 도달"
@@ -1849,6 +1924,10 @@ msgstr "기본 제공 서버는 Poracode에서 관리합니다. 전역으로 비
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "기본 제공 단축키 — 변경할 수 없습니다"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+msgstr "지원되는 모든 에이전트에서 작동하는 스킬과 MCP 서버 번들입니다. Poracode는 Agent Plugins 사양으로 만든 패키지를 모두 로드합니다."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -1953,10 +2032,12 @@ msgstr "프로젝트 제거 취소"
 msgid "Cancel workflow"
 msgstr "워크플로 취소"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "취소됨"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -1975,6 +2056,10 @@ msgstr "브랜치 이름 없이 기본 작업 트리 경로를 생성할 수 없
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋하거나 숨기세요."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Category"
+msgstr "카테고리"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
@@ -2223,15 +2308,28 @@ msgstr "사이드바 바닥글에 표시할 바로가기를 선택하세요."
 msgid "Choose worktree base folder"
 msgstr "작업 트리 기본 폴더 선택"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Choose, brief, and coordinate subagents for parallel work."
+msgstr "서브에이전트를 선택하고 지시하고 병렬 작업을 조율합니다."
+
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Chrome Control"
+msgstr "Chrome 제어"
+
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "이 스레드에 대해 Chrome MCP가 활성화되었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Chrome Tools"
+msgstr "Chrome 도구"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2515,6 +2613,7 @@ msgstr "스캐너 닫기"
 msgid "Close search"
 msgstr "검색 닫기"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
 msgstr "분할 닫기"
@@ -2721,6 +2820,15 @@ msgstr "커밋, PR, 리뷰 작성기"
 msgid "Commits"
 msgstr "커밋"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Communication"
+msgstr "커뮤니케이션"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Community"
+msgstr "커뮤니티"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "컨텍스트 압축"
@@ -2770,6 +2878,7 @@ msgstr "이 터미널의 프롬프트를 완료하세요. 완료되면 닫힙니
 msgid "completed"
 msgstr "완료"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
@@ -2788,6 +2897,7 @@ msgstr "작성기 컨트롤"
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2845,6 +2955,7 @@ msgid "Conflicts with a managed skill"
 msgstr "관리 스킬과 충돌함"
 
 #: src/mobile/setupEmptyState.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2888,12 +2999,17 @@ msgstr "OpenCode가 사용할 수 있는 AI 공급자를 여기에서 연결하�
 #~ msgstr "다른 Poracode 데스크톱이나 헤드리스 서버에 연결하면 여기에서 해당 프로젝트를 탐색하고 관리할 수 있습니다. 해당 기기의 설정 → 원격 액세스에서 엔드포인트와 페어링 토큰을 확인하세요."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connected"
 msgstr "연결됨"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "데스크톱 브라우저에 연결 중…"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Connecting..."
+msgstr "연결 중..."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
@@ -2998,6 +3114,10 @@ msgstr "데스크톱 주소에서 계속"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "외부 Chrome 브라우저를 제어합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps and complete visual workflows."
+msgstr "데스크톱 앱을 제어하고 시각적 워크플로를 완료합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3166,10 +3286,12 @@ msgid "Could not sign in to {serverName}: {message}"
 msgstr "{serverName}에 로그인할 수 없습니다: {message}"
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
+#: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {serverName}."
 msgstr "{serverName}에 로그인할 수 없습니다."
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
+#: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "{serverName}에서 로그아웃할 수 없습니다."
 
@@ -3205,6 +3327,10 @@ msgstr "{0}을(를) 설치할 수 없습니다."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "저장소를 나열할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Couldn't load plugins."
+msgstr "플러그인을 불러오지 못했습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
@@ -3344,6 +3470,11 @@ msgstr "에이전트로 만들기"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\"에 작업 트리를 만들었지만 변경 사항이 충돌하여 git stash에 남아 있습니다. 작업 트리에서 해결하세요."
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+msgid "Creating worktree…"
+msgstr "작업 트리 생성 중…"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "자격 증명이 구성되었습니다."
@@ -3372,8 +3503,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Crossagent를 찾을 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Crossagent 제공자 및 모델"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Crossagent 제공자 및 모델"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3402,11 +3533,16 @@ msgstr "Crossagent: {subagent}"
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Crossagents 자동 선택"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -3599,6 +3735,10 @@ msgstr "기본 PR 자동화"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "기본 스레드 제거"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Delegate focused work to other installed agents and coordinate the results."
+msgstr "설치된 다른 에이전트에 작업을 위임하고 결과를 조율합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Delegate work to other AI agents."
@@ -3838,6 +3978,10 @@ msgstr "데브"
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "데스크톱의 localhost에서 대기 중인 개발 서버입니다."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Developer tools"
+msgstr "개발자 도구"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "개발 전용 재정의. PORACODE DEV 빌드에서만 볼 수 있습니다."
@@ -4009,6 +4153,14 @@ msgstr "표시 이름(선택 사항)"
 msgid "Display name in the sidebar."
 msgstr "사이드바에 이름을 표시합니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock left"
+msgstr "왼쪽에 고정"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock right"
+msgstr "오른쪽에 고정"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "문서"
@@ -4115,6 +4267,10 @@ msgstr "드라이브"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "첨부하려면 여기에 드롭하세요."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+#~ msgid "Drop left or right to dock at the bottom"
+#~ msgstr "왼쪽 또는 오른쪽에 놓아 아래에 고정"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4266,6 +4422,10 @@ msgstr "시스템 설정에서 마이크 액세스를 활성화한 후 다시 �
 msgid "Enable notifications"
 msgstr "알림 활성화"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Enable plugin"
+msgstr "플러그인 사용"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "프로젝트 활성화"
@@ -4273,6 +4433,10 @@ msgstr "프로젝트 활성화"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "설정에서 공급자 활성화"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Enable this plugin's skills and servers for new threads."
+msgstr "새 스레드에서 이 플러그인의 스킬과 서버를 사용합니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -4591,6 +4755,7 @@ msgstr "과거 위임에서 기록된 명시적 선택으로, 위의 라우팅 �
 msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "외부"
@@ -4622,6 +4787,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "실패"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -4712,6 +4878,10 @@ msgstr "즐겨찾기"
 msgid "Favorites"
 msgstr "즐겨찾기"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Featured"
+msgstr "추천"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "가져오기"
@@ -4751,7 +4921,7 @@ msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
 msgstr "파일"
@@ -4764,6 +4934,10 @@ msgstr "파일"
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Files for {0}"
 msgstr "{0}에 대한 파일"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "{projectName}에 대한 파일"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5119,7 +5293,7 @@ msgstr "작업 가져오기"
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
@@ -5157,10 +5331,15 @@ msgstr "{0}의 Git 상태"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "GitHub"
+msgstr "GitHub"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
@@ -5418,6 +5597,10 @@ msgstr "홈 폴더"
 msgid "Home scope"
 msgstr "홈 범위"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Homepage"
+msgstr "홈페이지"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "호스트가 최신 상태입니다."
@@ -5459,6 +5642,10 @@ msgstr "보호된 브라우저 데이터가 건너뛰어질 수 있음을 이해
 msgid "ID: {0}"
 msgstr "ID:{0}"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Identifier"
+msgstr "식별자"
+
 #: src/mobile/settingsSections.ts
 msgid "Identity and usage stats"
 msgstr "신원 정보 및 사용량 통계"
@@ -5477,6 +5664,10 @@ msgstr "ID 파일 경로"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "유휴"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Ignored an unrecognized field in plugin.json."
+msgstr "plugin.json의 알 수 없는 필드를 무시했습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5624,6 +5815,10 @@ msgstr "비활성"
 msgid "Include in sync"
 msgstr "동기화에 포함"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Information"
+msgstr "정보"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Inherit global"
 msgstr "전역 설정 상속"
@@ -5674,6 +5869,8 @@ msgstr "표준 런타임 항목 검사"
 msgid "install"
 msgstr "설치"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -5721,6 +5918,10 @@ msgstr "{environment}에 ACP + SDK 설치"
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "설치 후 다시 시작"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Install bundles of skills and MCP servers built for the Agent Plugins specification."
+msgstr "Agent Plugins 사양으로 만든 스킬과 MCP 서버 번들을 설치합니다."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
@@ -5801,6 +6002,7 @@ msgstr "v{updateVersion} 설치"
 msgid "Install v{version}"
 msgstr "v{version} 설치"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -6033,6 +6235,7 @@ msgstr "에이전트가 <0>eval</0>을 호출하여 삽입된 페이지 내에�
 
 #. About page label: software license row
 #. Link to the license file
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "라이센스"
@@ -6124,6 +6327,10 @@ msgstr "메모 로드 중…"
 #~ msgid "Loading PDF…"
 #~ msgstr "PDF 불러오는 중…"
 
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Loading plugins…"
+msgstr "플러그인 불러오는 중…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PR 로드 중…"
@@ -6207,6 +6414,7 @@ msgstr "로컬 암호 보호"
 msgid "localhost:{0} on desktop"
 msgstr "데스크톱의 localhost:{0}"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -6288,6 +6496,10 @@ msgstr "선정되지 않은 작업 트리와 브랜치는 제거됩니다. 세�
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "사이드바를 반투명하게 만듭니다 — Windows 11에서는 시스템 블러 효과, 그 외 환경에서는 반투명 색조를 사용합니다."
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Manage"
+msgstr "관리"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "다른 제공자에서 가져온 스킬을 포함하여 전역 및 프로젝트 에이전트 스킬을 관리합니다."
@@ -6337,6 +6549,15 @@ msgstr "지원되는 에이전트를 시작할 때 Poracode에서 추가하는 M
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
 #~ msgstr "관리됨"
+
+#. placeholder {0}: props.managedByPlugin
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Managed by {0}"
+msgstr "{0}에서 관리"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by {pluginName}"
+msgstr "{pluginName}에서 관리"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
@@ -6435,6 +6656,10 @@ msgstr "최대화"
 msgid "Maximize browser"
 msgstr "브라우저 최대화"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "MCP"
+msgstr "MCP"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
@@ -6493,6 +6718,7 @@ msgid "MCP server URL"
 msgstr "MCP 서버 URL"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
@@ -6517,6 +6743,14 @@ msgstr "MCP 도구 호출"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP transport type"
 msgstr "MCP 전송 유형"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "mcp.json could not be read, so this plugin's servers were skipped."
+msgstr "mcp.json을 읽을 수 없어 이 플러그인의 서버를 건너뛰었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "mcp.json targets an Agent Plugins version this build does not support."
+msgstr "mcp.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전을 지정합니다."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -6845,6 +7079,10 @@ msgstr "브라우저를 창으로 이동"
 msgid "Move changes to a new worktree"
 msgstr "변경 사항을 새 작업 트리로 이동"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
+msgid "Move panel"
+msgstr "패널 이동"
+
 #: src/mobile/ThreadTitleRow.tsx
 msgid "Move to clean worktree"
 msgstr "클린 작업 트리로 이동"
@@ -6935,6 +7173,10 @@ msgstr "네이티브 공급자"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native support"
 msgstr "네이티브 지원"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
+msgstr "내장 브라우저 MCP로 페이지를 탐색하고 검사하고 테스트합니다."
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7432,6 +7674,10 @@ msgstr "패턴이 없습니다."
 msgid "No phases yet."
 msgstr "아직 단계가 없습니다."
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No plugins match your search."
+msgstr "검색과 일치하는 플러그인이 없습니다."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "No projects"
 msgstr "프로젝트 없음"
@@ -7637,7 +7883,7 @@ msgid "Not synced"
 msgstr "동기화되지 않음"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
@@ -7753,10 +7999,10 @@ msgstr "포커스가 없을 때만"
 msgid "Open"
 msgstr "열기"
 
-#. placeholder {0}: thread.title
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-#~ msgid "Open {0}"
-#~ msgstr "{0} 열기"
+#. placeholder {0}: entry.name
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Open {0}"
+msgstr "{0} 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -8040,6 +8286,10 @@ msgstr "후보의 풀 리퀘스트 #{0}을(를) 열었습니다."
 msgid "OpenSSH private key"
 msgstr "OpenSSH 개인 키"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Operate desktop apps through Poracode's desktop-control tools."
+msgstr "Poracode의 데스크톱 제어 도구로 데스크톱 앱을 조작합니다."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "선택 사항"
@@ -8078,6 +8328,10 @@ msgstr "다른 작업 영역"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "결과"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Outlook"
+msgstr "Outlook"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -8403,7 +8657,7 @@ msgid "Pixel 8"
 msgstr "Pixel 8"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8425,7 +8679,34 @@ msgid "Play notification sound"
 msgstr "알림 소리 재생"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
+msgstr "플러그인"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Plugin folder"
+msgstr "플러그인 폴더"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json could not be read as JSON."
+msgstr "plugin.json을 JSON으로 읽을 수 없습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json is missing."
+msgstr "plugin.json이 없습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json is not valid for the Agent Plugins specification."
+msgstr "plugin.json이 Agent Plugins 사양에 맞지 않습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json targets an Agent Plugins version this build does not support."
+msgstr "plugin.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전을 지정합니다."
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Plugins"
 msgstr "플러그인"
 
 #: src/mobile/QrScanner.tsx
@@ -8444,6 +8725,10 @@ msgstr "Poracode에 맞게 조정된 인기 있는 편집기 테마입니다. �
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode와 에이전트는 원격 머신에서 실행됩니다. SSH는 원격 환경을 시작하고 로컬 터널을 보호하는 데만 사용됩니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Poracode could not create this plugin's data folder."
+msgstr "Poracode가 이 플러그인의 데이터 폴더를 만들지 못했습니다."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
@@ -8519,7 +8804,7 @@ msgstr "포트 포워딩이 활성화되지 않았습니다"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 msgid "Ports"
 msgstr "포트"
 
@@ -8643,6 +8928,10 @@ msgstr "개인정보 처리방침"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
 msgstr "개인 키"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Productivity"
+msgstr "생산성"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8793,8 +9082,8 @@ msgid "Providers"
 msgstr "공급자"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "제공자 및 모델"
+#~ msgid "Providers & models"
+#~ msgstr "제공자 및 모델"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -9438,6 +9727,7 @@ msgstr "문제 신고"
 msgid "repository"
 msgstr "저장소"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "저장소"
@@ -9525,7 +9815,9 @@ msgstr "실행 세부 정보 크기 조절"
 msgid "Resize sidebar"
 msgstr "사이드바 크기 조정"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/TerminalSurfaces.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomPanelDockContainer.tsx
 msgid "Resize split"
 msgstr "분할 크기 조정"
 
@@ -9605,6 +9897,7 @@ msgstr "목표 재개"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Retry"
 msgstr "다시 시도"
@@ -9637,6 +9930,10 @@ msgstr "관리자 권한으로 다시 시도"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Return to app"
 msgstr "앱으로 돌아가기"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Reusable guidance delivered across supported agents."
+msgstr "지원되는 모든 에이전트에 전달되는 재사용 가능한 지침입니다."
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -10137,6 +10434,14 @@ msgstr "주소 검색 또는 입력"
 msgid "Search passwords"
 msgstr "암호 검색"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins"
+msgstr "플러그인 검색"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins, skills, and servers..."
+msgstr "플러그인, 스킬, 서버 검색..."
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
 msgstr "풀 리퀘스트 검색"
@@ -10336,6 +10641,26 @@ msgstr "선택 항목을 터미널로 보냈습니다."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Code 계정을 설정 디렉터리별로 분리하거나, 프로필을 외부 제공자(z.ai 등)로 지정합니다. 프로필을 열어 환경 변수, 모델, 추론 강도를 구성하세요."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} could not be started and was skipped."
+msgstr "서버 {target}을(를) 시작할 수 없어 건너뛰었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} has a name Poracode cannot use."
+msgstr "서버 {target}의 이름은 Poracode가 사용할 수 없습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} is not configured correctly and was skipped."
+msgstr "서버 {target}이(가) 올바르게 구성되지 않아 건너뛰었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} runs on this computer and is unavailable for WSL projects."
+msgstr "서버 {target}은(는) 이 컴퓨터에서 실행되며 WSL 프로젝트에서는 사용할 수 없습니다."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
+msgstr "이 플러그인이 mcp.json에 선언한 서버입니다. Poracode가 지원되는 모든 에이전트에 전달합니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
@@ -10648,6 +10973,10 @@ msgstr "{env} 로그아웃 중입니다. 감지된 에이전트는 완료되면 
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Skill"
+msgstr "스킬"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
@@ -10681,6 +11010,7 @@ msgstr "SKILL.md가 없습니다."
 msgid "SKILL.md is too large."
 msgstr "SKILL.md가 너무 큽니다."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -10717,6 +11047,14 @@ msgstr "Skills.sh"
 msgid "Skipped"
 msgstr "건너뜀"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Skipped {target} because it points outside the plugin folder."
+msgstr "{target}이(가) 플러그인 폴더 밖을 가리켜 건너뛰었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Skipped a file because it points outside the plugin folder."
+msgstr "플러그인 폴더 밖을 가리키는 파일을 건너뛰었습니다."
+
 #. placeholder {0}: skippedProviderNames.join(", ")
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Skipped by Crossagents: {0}"
@@ -10749,6 +11087,10 @@ msgstr "일부 검사가 실패했거나 보류 중입니다."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Some Chromium browsers protect cookies and passwords with App-Bound Encryption. Poracode does not bypass that protection. Data the operating system does not make available will be skipped."
 msgstr "일부 Chromium 브라우저는 App-Bound Encryption으로 쿠키와 암호를 보호합니다. Poracode는 이 보호를 우회하지 않습니다. 운영 체제에서 제공하지 않는 데이터는 건너뜁니다."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Some contributions could not be loaded"
+msgstr "일부 기여를 불러오지 못했습니다"
 
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -11046,6 +11388,13 @@ msgstr "stdio(로컬 명령)"
 msgid "Stop"
 msgstr "중지"
 
+#. placeholder {0}: action.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+msgid "Stop {0}"
+msgstr "{0} 중지"
+
 #: src/mobile/views/PortsView.tsx
 msgid "Stop forwarding"
 msgstr "전달 중지"
@@ -11097,10 +11446,14 @@ msgid "Structured runtime"
 msgstr "구조화 런타임"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "하위 에이전트"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Subagent Delegation"
+msgstr "하위 에이전트 위임"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
@@ -11375,7 +11728,9 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -11392,6 +11747,10 @@ msgstr "터미널"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0}용 터미널"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "{projectName}용 터미널"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -11562,6 +11921,10 @@ msgstr "서버 구성이 잘못되었습니다."
 msgid "The server returned an invalid MCP response."
 msgstr "서버가 잘못된 MCP 응답을 반환했습니다."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
+msgstr "이 플러그인이 실행하는 서버는 연결 대상 서비스가 아니라 제3자가 유지 관리합니다. 활성화하기 전에 소스를 확인하세요."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "스킬 설명이 없습니다."
@@ -11728,6 +12091,22 @@ msgstr "이렇게 하면 원격에서 \"{0}\" 분기가 영구적으로 삭제�
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "이렇게 하면 \"{0}\" 분기가 영구적으로 삭제됩니다."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin describes a skill it does not actually ship."
+msgstr "이 플러그인은 실제로 제공하지 않는 스킬을 설명합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's folder could not be read."
+msgstr "이 플러그인의 폴더를 읽을 수 없습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's Poracode settings were ignored because they are not valid."
+msgstr "이 플러그인의 Poracode 설정이 유효하지 않아 무시되었습니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's skills could not be read."
+msgstr "이 플러그인의 스킬을 읽을 수 없습니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "이 프로젝트"
@@ -11768,6 +12147,10 @@ msgstr "이렇게 하면 \"{0}\"의 작업 트리가 제거된 다음 분기가 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
 msgstr "Poracode에서 이 서버를 확인하려면 먼저 인증해야 합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This server runs on this computer and is unavailable for WSL projects."
+msgstr "이 서버는 이 컴퓨터에서 실행되며 WSL 프로젝트에서는 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -12019,6 +12402,14 @@ msgstr "반투명 사이드바"
 msgid "Trending now"
 msgstr "현재 인기"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage Microsoft Outlook mail and manage your calendar."
+msgstr "Microsoft Outlook 메일을 분류하고 일정을 관리합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage PRs, issues, CI, and publish flows."
+msgstr "PR, 이슈, CI, 배포 흐름을 처리합니다."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Triggers:"
 msgstr "트리거:"
@@ -12030,6 +12421,10 @@ msgstr "신뢰하고 연결"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Try a different search or project filter."
 msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Try now"
+msgstr "지금 사용해보기"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12375,6 +12770,11 @@ msgstr "미지정"
 msgid "Unavailable"
 msgstr "사용할 수 없음"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Unavailable on this device"
+msgstr "이 기기에서 사용할 수 없음"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "사용할 수 없는 프로젝트"
@@ -12400,8 +12800,12 @@ msgstr "선택 해제됨"
 #~ msgstr "선택 해제된 모델은 Crossagents에서만 건너뜁니다."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "선택 해제된 제공자와 모델은 Crossagents에서만 건너뜁니다."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "선택 해제한 공급자와 모델은 Crossagents 자동 라우팅에서 제외되지만 수동으로 시작하는 에이전트 스레드에서는 계속 사용할 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "선택 해제된 제공자와 모델은 Crossagents에서만 건너뜁니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12417,6 +12821,7 @@ msgstr "모두 그룹 해제"
 msgid "Unified view"
 msgstr "통합 보기"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Uninstall"
 msgstr "제거"
@@ -12644,7 +13049,7 @@ msgstr "URL을 입력해야 합니다."
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -12670,6 +13075,10 @@ msgstr "+를 사용해 직접 페어링하거나 SSH를 통해 원격 컴퓨터�
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"
 msgstr "기존 폴더 사용"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Use Chrome safely when a task needs an existing browser session."
+msgstr "기존 브라우저 세션이 필요한 작업에서는 Chrome을 안전하게 사용합니다."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
@@ -12769,6 +13178,7 @@ msgid "Verify SSH host key"
 msgstr "SSH 호스트 키 확인"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Version"
 msgstr "버전"
@@ -12785,8 +13195,12 @@ msgstr "보기"
 
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "View {0}"
-msgstr "{0} 보기"
+#~ msgid "View {0}"
+#~ msgstr "{0} 보기"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {displayName}"
+msgstr "{displayName} 보기"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
@@ -12963,9 +13377,8 @@ msgstr "WSL 셸 환경 준비 중…"
 msgid "We have a winner!"
 msgstr "우승자가 결정되었습니다!"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "웹 검색"
 
@@ -13114,6 +13527,10 @@ msgstr "작업"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "현재 체크아웃에서 작업"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Work with the pages and signed-in sessions already open in Chrome."
+msgstr "Chrome에 이미 열려 있는 페이지와 로그인 세션으로 작업합니다."
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx

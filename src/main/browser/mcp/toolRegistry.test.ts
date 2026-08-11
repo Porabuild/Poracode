@@ -239,6 +239,18 @@ describe("browser MCP tool registry", () => {
     expect(formatted.content[0]?.text?.length).toBeLessThan(20_000);
   });
 
+  it("advertises passive and state-changing tool annotations", () => {
+    expect(TOOLS.find((tool) => tool.name === "snapshot")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+    expect(TOOLS.find((tool) => tool.name === "click")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    });
+  });
+
   it("recognizes agent-browser-style aliases", () => {
     expect(isKnownToolName("goto")).toBe(true);
     expect(isKnownToolName("key")).toBe(true);

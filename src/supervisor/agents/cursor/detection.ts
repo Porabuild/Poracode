@@ -95,11 +95,13 @@ export function buildCursorProbeSpec(
 async function readCursorProbeOutputAsync(
   executablePath: string,
   args: string[],
+  signal?: AbortSignal,
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   const spec = buildCursorProbeSpec(executablePath, args);
   return readCommandOutputAsync(spec.command, spec.args, {
     ...(spec.cwd ? { cwd: spec.cwd } : {}),
     ...(spec.env ? { env: spec.env } : {}),
+    ...(signal ? { signal } : {}),
   });
 }
 
@@ -124,6 +126,7 @@ async function probeCursorLogoutSupport(
       timeoutMs: 5_000,
       wslLinuxCwd: "/tmp",
       posixCwd: probeCwd,
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
     },
   );
   return parseCursorLogoutHelpOutput(`${result.stdout}\n${result.stderr}`);
@@ -405,6 +408,7 @@ async function probeCursorAcpCapabilities(
   const result = await probeAcpCapabilities(spec.command, spec.args, probeCwd, {
     ...(processCwd ? { processCwd } : {}),
     timeoutMs: 15_000,
+    ...(ctx.signal ? { signal: ctx.signal } : {}),
     label:
       ctx.location.kind === "wsl"
         ? `cursor-acp:wsl:${ctx.location.distro}`
@@ -632,9 +636,11 @@ async function probeCursorStatus(ctx: Parameters<NonNullable<DetectionSpec["stat
   const [whoamiResult, aboutResult] = await Promise.all([
     readCursorAgentCommandOutput(ctx.location, ctx.executablePath, ["whoami"], {
       posixCwd: probeCwd,
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
     }),
     readCursorAgentCommandOutput(ctx.location, ctx.executablePath, ["about"], {
       posixCwd: probeCwd,
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
     }),
   ]);
 
@@ -667,7 +673,12 @@ export const cursorDetectionSpec: DetectionSpec = {
       ctx.location,
       ctx.executablePath,
       ["--version"],
-      ctx.probeEnv ? { env: ctx.probeEnv } : undefined,
+      ctx.probeEnv || ctx.signal
+        ? {
+            ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+            ...(ctx.signal ? { signal: ctx.signal } : {}),
+          }
+        : undefined,
     );
     const text = stripAnsi(result.stdout || result.stderr).trim();
     return extractSemverFromVersionOutput(text);
@@ -677,10 +688,14 @@ export const cursorDetectionSpec: DetectionSpec = {
     if (!ctx.executablePath) return undefined;
     const cliResultPromise =
       ctx.location.kind === "wsl"
-        ? readWslLoginShellCommandOutputAsync(ctx.location.distro, "/tmp", ctx.executablePath, [
-            "--list-models",
-          ])
-        : readCursorProbeOutputAsync(ctx.executablePath, ["--list-models"]);
+        ? readWslLoginShellCommandOutputAsync(
+            ctx.location.distro,
+            "/tmp",
+            ctx.executablePath,
+            ["--list-models"],
+            ctx.signal ? { signal: ctx.signal } : undefined,
+          )
+        : readCursorProbeOutputAsync(ctx.executablePath, ["--list-models"], ctx.signal);
     const [cliResult, acpProbeResult, logoutSupported] = await Promise.all([
       cliResultPromise,
       probeCursorAcpCapabilities(ctx).catch((error) => {

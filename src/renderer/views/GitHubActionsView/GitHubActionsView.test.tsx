@@ -20,6 +20,7 @@ import type {
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 
 const bridge = vi.hoisted(() => ({
@@ -153,6 +154,7 @@ describe("GitHubActionsView", () => {
     bridge.ghCancelWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.ghDeleteWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
     useAppStore.setState({ projects: [project] });
     useSidebarUiStore.setState({ pinnedGitHubWorkflows: {} });
     useGitStore.setState({
@@ -200,10 +202,42 @@ describe("GitHubActionsView", () => {
   it("selects the first active project by default", async () => {
     render(<GitHubActionsView onClose={() => {}} />);
 
-    expect(await screen.findByRole("button", { name: "Project" })).toHaveTextContent(project.name);
+    const trigger = await screen.findByRole("button", { name: "Project" });
+    expect(trigger).toHaveTextContent(project.name);
+    expect(trigger).toHaveClass("text-sm");
+    expect(trigger).not.toHaveClass("font-mono");
+    expect(trigger.querySelector(".lucide-monitor")).not.toBeNull();
     expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
       projectLocation: project.location,
     });
+  });
+
+  it("shows project icons and the hosting machine in the trigger and menu", async () => {
+    const mirrored: Project = {
+      ...project,
+      id: "remote:desktop-1:project:project-1",
+      remoteServerId: "desktop-1",
+      remoteId: project.id,
+      location: { ...project.location, remoteServerId: "desktop-1" },
+    };
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({ projects: [project, mirrored] });
+
+    render(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
+
+    const trigger = await screen.findByRole("button", { name: "Project" });
+    expect(trigger).toHaveTextContent("PoracodeMacBook 16");
+    expect(trigger.querySelector(".lucide-server")).not.toBeNull();
+    expect(trigger.parentElement).not.toHaveClass("px-2");
+
+    fireEvent.click(trigger);
+    const remoteRow = await screen.findByRole("menuitemradio", { name: /MacBook 16/ });
+    expect(remoteRow).toHaveTextContent("MacBook 16");
+    expect(remoteRow.querySelector(".lucide-server")).not.toBeNull();
+    expect(document.querySelector('[class~="min-w-[--trigger-width]"]')).toBeInTheDocument();
   });
 
   it("selects the first pinned workflow by default", async () => {

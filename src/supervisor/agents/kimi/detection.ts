@@ -160,6 +160,7 @@ export function buildKimiProbeCapabilities(
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
   const spec = buildKimiCommand(location, ["acp"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
@@ -178,6 +179,7 @@ async function probeCapabilities(
   const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
     ...(processCwd ? { processCwd } : {}),
     timeoutMs: 20_000,
+    ...(signal ? { signal } : {}),
     label: location.kind === "wsl" ? `kimi:wsl:${location.distro}` : `kimi:${location.kind}`,
   });
   return buildKimiProbeCapabilities(probe, await credentialStatePromise);
@@ -316,6 +318,6 @@ export const kimiDetectionSpec: DetectionSpec = {
   },
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };

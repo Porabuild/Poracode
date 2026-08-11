@@ -7,6 +7,7 @@ import type {
   SkillScanResult,
 } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { SkillsManager } from "./SkillsManager";
 
 const {
@@ -109,6 +110,7 @@ function renderManager(
 
 describe("SkillsManager", () => {
   beforeEach(() => {
+    seedBuiltInPlugins();
     vi.clearAllMocks();
     bridge.listWslDistros.mockReturnValue(new Promise(() => undefined));
     ensureHomeScopeProjectMock.mockResolvedValue({ id: "home" });
@@ -233,6 +235,58 @@ describe("SkillsManager", () => {
     expect(
       screen.getByRole("switch", { name: "Disable review" }).parentElement,
     ).not.toHaveTextContent("Enabled");
+  });
+
+  it("identifies plugin-managed skills without exposing lifecycle controls", async () => {
+    useSkillsMock.mockReturnValue({
+      scan: scan([
+        skill({
+          id: "global:plugin:browser-control:on",
+          name: "browser-control",
+          description: "Navigate, inspect, and test pages",
+          folderName: "browser-control",
+          absolutePath: "C:\\Users\\me\\.poracode\\plugins\\browser-tools\\browser-control",
+          skillFilePath:
+            "C:\\Users\\me\\.poracode\\plugins\\browser-tools\\browser-control\\SKILL.md",
+          rootPath: "C:\\Users\\me\\.poracode\\plugins\\browser-tools",
+          providerId: "plugin:browser-tools",
+          providerLabel: "Browser Tools",
+          providerGroupId: "plugin:browser-tools",
+          pluginId: "browser-tools",
+          pluginName: "Browser Tools",
+          origin: "plugin",
+          mutable: false,
+          enabled: false,
+        }),
+      ]),
+      loading: false,
+      error: undefined,
+      reload,
+    });
+
+    renderManager();
+
+    expect(screen.getByRole("heading", { name: "Browser Tools" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View Browser Control" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Navigate, inspect, and test pages with the in-app Browser MCP."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Plugin")).toBeInTheDocument();
+    expect(screen.getByText("Managed by Browser Tools")).toBeInTheDocument();
+    expect(screen.getByText("Disabled", { selector: "span" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete browser-control" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /browser-control/iu })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search skills" }), {
+      target: { value: "in-app Browser MCP" },
+    });
+    expect(screen.getByRole("button", { name: "View Browser Control" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View Browser Control" }));
+    expect(screen.getByRole("heading", { name: "Browser Control" })).toBeInTheDocument();
+    await waitFor(() => expect(bridge.readExternalFile).toHaveBeenCalled());
   });
 
   it("does not label linked skills as already imported", () => {

@@ -252,7 +252,35 @@ describe("ChatPane", () => {
       runtimeCompletedTurnsByThread: {},
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
+      provisioningWorktreeThreadIds: {},
     }));
+  });
+
+  it("shows the submitted prompt while its worktree is being created", async () => {
+    const thread = {
+      ...makeThread(),
+      status: "launching",
+      worktreeBranch: "poracode/feature",
+    } as Thread;
+    useAppStore.setState({
+      threads: [thread],
+      provisioningWorktreeThreadIds: { [thread.id]: true },
+    });
+    seedUserMessage(thread.id, "Build the feature");
+
+    const { rerender } = renderChatPane(thread);
+
+    expect(await screen.findByText("Build the feature")).toBeInTheDocument();
+    expect(screen.getByText("Creating worktree…")).toBeInTheDocument();
+
+    useAppStore.setState({ provisioningWorktreeThreadIds: {} });
+    rerender(
+      <AppProvider>
+        <ChatPane {...chatPaneProps({ ...thread, status: "working" })} />
+      </AppProvider>,
+    );
+
+    expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
   it("loads the next persisted page when LegendList reaches the start", async () => {
@@ -1100,6 +1128,43 @@ describe("ChatPane", () => {
     expect(screen.queryByRole("button", { name: "Subagent Result" })).not.toBeInTheDocument();
   });
 
+  it("shows an intentionally cancelled Crossagent without an error indicator", async () => {
+    const thread = makeThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "crossagent-cancelled",
+      itemType: "tool_call",
+      payload: {
+        name: "cancel probe",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: "crossagent-cancelled",
+      payload: {
+        name: "cancel probe",
+        status: "error",
+        isCrossagent: true,
+        crossagentStatus: "cancelled",
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const row = await screen.findByRole("button", {
+      name: "Open Crossagent: Crossagent: cancel probe",
+    });
+    expect(row).toHaveTextContent("cancelled");
+    expect(row).toHaveAccessibleDescription("cancelled");
+    expect(screen.queryByLabelText("error")).not.toBeInTheDocument();
+  });
+
   it("separates the collapsed Agent label from its step count", async () => {
     const thread = makeThread();
     useAppStore.getState().applyRuntimeEvent(thread.id, {
@@ -1667,6 +1732,36 @@ describe("ChatPane", () => {
 
     const label = screen.getByText("Worked for 1m 15s");
     expect(label.closest(".surface")).not.toBeNull();
+  });
+
+  it("renders a completed turn whose stored anchor is an unrendered goal item", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+    };
+    seedAssistantMessage(thread.id, "Inspect output");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: "goal-1",
+      },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
   });
 
   it("keeps a completed turn anchored before an optimistic follow-up prompt", async () => {

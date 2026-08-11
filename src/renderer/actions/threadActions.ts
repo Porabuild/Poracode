@@ -607,6 +607,10 @@ export function acknowledgeThread(threadId: string): void {
 function deleteThreadOnly(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (store.provisioningWorktreeThreadIds[threadId] === true) {
+    store.deleteThread(threadId);
+    return;
+  }
   if (
     thread &&
     dispatchRemoteThreadMutation(

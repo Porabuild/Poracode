@@ -1,4 +1,5 @@
 import type { BrowserPanelManager } from "../../BrowserPanelManager";
+import type { McpToolAnnotations } from "@/shared/contracts";
 
 export interface ToolContext {
   manager: BrowserPanelManager;
@@ -14,6 +15,7 @@ export interface ToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: McpToolAnnotations;
 }
 
 export interface McpContent {

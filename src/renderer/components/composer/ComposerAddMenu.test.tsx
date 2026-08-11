@@ -240,7 +240,7 @@ describe("ComposerAddMenu", () => {
     expect(screen.getByText("Enabled servers stay on for new threads")).toBeInTheDocument();
   });
 
-  it("shows a foreground-takeover subtitle for Computer Use inside the submenu", () => {
+  it("shows a foreground-takeover hint for Computer Use inside the submenu", () => {
     render(
       <ComposerAddMenu
         mcpServers={[]}
@@ -258,8 +258,11 @@ describe("ComposerAddMenu", () => {
     openMcpSubmenu();
 
     expect(screen.getByText("Computer Use")).toBeInTheDocument();
+    // The explanation moved behind an info-icon tooltip to keep the row compact.
     expect(
-      screen.getByText("Takes over the desktop while the agent clicks or types"),
+      screen.getByRole("button", {
+        name: "Takes over the desktop while the agent clicks or types",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -338,7 +341,7 @@ describe("ComposerAddMenu", () => {
     expect(screen.getByText("No MCP servers are enabled for this run")).toBeInTheDocument();
   });
 
-  it("shows a paired-desktop subtitle for Computer Use in a remote session", () => {
+  it("shows a paired-desktop hint for Computer Use in a remote session", () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     render(
       <ComposerAddMenu
@@ -360,7 +363,9 @@ describe("ComposerAddMenu", () => {
     });
 
     expect(
-      screen.getByText("Controls the paired desktop while the agent clicks or types"),
+      screen.getByRole("button", {
+        name: "Controls the paired desktop while the agent clicks or types",
+      }),
     ).toBeInTheDocument();
   });
 });

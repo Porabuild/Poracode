@@ -97,6 +97,7 @@ export function McpServersManager(props: {
   onBuiltInDisabledChange?: (id: BuiltInMcpServerId, disabled: boolean) => void;
   onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   builtInSettings?: Partial<Record<BuiltInMcpServerId, BuiltInSettings>>;
+  managedBuiltIns?: Partial<Record<BuiltInMcpServerId, string>>;
 }) {
   const { t } = useLingui();
   const [query, setQuery] = useState("");
@@ -231,7 +232,14 @@ export function McpServersManager(props: {
     },
   ];
   const visibleBuiltIns = builtIns.filter((server) =>
-    [server.name, server.label, server.description, server.settingsLabel, server.tools.join(" ")]
+    [
+      server.name,
+      server.label,
+      server.description,
+      server.settingsLabel,
+      props.managedBuiltIns?.[server.id],
+      server.tools.join(" "),
+    ]
       .join(" ")
       .toLowerCase()
       .includes(normalizedQuery),
@@ -565,6 +573,9 @@ export function McpServersManager(props: {
                   key={server.id}
                   server={server}
                   disabled={props.disabledBuiltIns?.[server.id] === true}
+                  {...(props.managedBuiltIns?.[server.id]
+                    ? { managedByPlugin: props.managedBuiltIns[server.id] }
+                    : {})}
                   onToggle={(enabled) => props.onBuiltInDisabledChange?.(server.id, !enabled)}
                   onViewTools={() =>
                     setToolList({
@@ -844,6 +855,7 @@ function BuiltInServerRow(props: {
   onToggle: (enabled: boolean) => void;
   onViewTools: () => void;
   onSettings?: () => void;
+  managedByPlugin?: string;
 }) {
   const { t } = useLingui();
   const enabled = !props.disabled;
@@ -863,7 +875,11 @@ function BuiltInServerRow(props: {
               {props.server.label}
             </span>
             <Badge>{props.server.name}</Badge>
-            <Badge>{t`Built-in`}</Badge>
+            {props.managedByPlugin ? (
+              <Badge>{t`Managed by ${props.managedByPlugin}`}</Badge>
+            ) : (
+              <Badge>{t`Built-in`}</Badge>
+            )}
           </div>
           <p className="truncate text-xs text-muted">{props.server.description}</p>
           <div className="mt-1 text-xs text-muted">

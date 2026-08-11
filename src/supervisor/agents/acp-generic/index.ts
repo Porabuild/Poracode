@@ -236,6 +236,7 @@ async function probeGenericCapabilities(
     ...(command.env ? { env: command.env } : {}),
     label,
     ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    ...(ctx?.signal ? { signal: ctx.signal } : {}),
   });
 }
 

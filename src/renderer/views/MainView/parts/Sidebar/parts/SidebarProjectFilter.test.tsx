@@ -8,9 +8,16 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 
+const responsiveMenuState = vi.hoisted(() => ({ mobile: false }));
+
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
-  isRemoteSession: () => false,
+  isRemoteSession: () => responsiveMenuState.mobile,
+}));
+
+vi.mock("@/renderer/components/common/ResponsiveMenuSurface", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/components/common/ResponsiveMenuSurface")>()),
+  useResponsiveMenu: () => ({ mobile: responsiveMenuState.mobile }),
 }));
 
 function project(id: string, name: string): Project {
@@ -38,6 +45,7 @@ function renderFilter(
   render(
     <SidebarProjectFilter
       projects={list}
+      filterableProjectIds={new Set(list.map((candidate) => candidate.id))}
       threadCounts={threadCounts}
       value={value}
       onChange={onChange}
@@ -52,6 +60,10 @@ function openMenu() {
 }
 
 describe("SidebarProjectFilter", () => {
+  beforeEach(() => {
+    responsiveMenuState.mobile = false;
+  });
+
   it("names the hosting machine on mirrored rows and on a lone selection", async () => {
     const mirrored = {
       ...project("r", "Alpha"),
@@ -78,9 +90,9 @@ describe("SidebarProjectFilter", () => {
 
   it("labels the trigger with the current selection", () => {
     renderFilter(null);
-    expect(screen.getByRole("button", { name: "Filter by project" })).toHaveTextContent(
-      "All projects",
-    );
+    const trigger = screen.getByRole("button", { name: "Filter by project" });
+    expect(trigger).toHaveTextContent("All projects");
+    expect(trigger).toHaveClass("h-8");
   });
 
   it("labels the trigger with the project name when one project is selected", () => {
@@ -163,6 +175,7 @@ describe("SidebarProjectFilter", () => {
     beforeEach(() => {
       usePanelStore.setState({ settingsOpen: false, projectSettingsId: null });
       useAppStore.setState({ projects: [...projects], threads: [] });
+      useRemoteServersStore.setState({ servers: [], runtime: {} });
     });
 
     it("stacks the project context menu on top of the open filter menu", async () => {
@@ -178,6 +191,86 @@ describe("SidebarProjectFilter", () => {
       expect(screen.getByRole("menuitemcheckbox", { name: "All projects" })).toBeInTheDocument();
       expect(screen.getByRole("menuitemcheckbox", { name: /Beta/ })).toBeInTheDocument();
       expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("keeps a disabled project available for re-enabling", async () => {
+      const disabledProject = { ...projects[1]!, disabled: true };
+      useAppStore.setState({ projects: [projects[0]!, disabledProject], threads: [] });
+      render(
+        <SidebarProjectFilter
+          projects={[projects[0]!, disabledProject]}
+          filterableProjectIds={new Set(["a"])}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+      await openMenu();
+
+      fireEvent.click(screen.getByRole("button", { name: "Project actions for Beta" }));
+
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Enable Project" }));
+
+      expect(
+        useAppStore.getState().projects.find((candidate) => candidate.id === "b")?.disabled,
+      ).toBe(undefined);
+    });
+
+    it("keeps a disabled project available for re-enabling on mobile", async () => {
+      responsiveMenuState.mobile = true;
+      const disabledProject = { ...projects[1]!, disabled: true };
+      useAppStore.setState({ projects: [projects[0]!, disabledProject], threads: [] });
+      render(
+        <SidebarProjectFilter
+          projects={[projects[0]!, disabledProject]}
+          filterableProjectIds={new Set(["a"])}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Enable Project" }));
+
+      expect(
+        useAppStore.getState().projects.find((candidate) => candidate.id === "b")?.disabled,
+      ).toBe(undefined);
+    });
+
+    it("keeps host actions disabled for an unreachable remote project", async () => {
+      const mirrored = {
+        ...projects[1]!,
+        remoteServerId: "desktop-1",
+        remoteId: "remote-b",
+      } as Project;
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      } as never);
+      useAppStore.setState({ projects: [mirrored], threads: [] });
+      render(
+        <SidebarProjectFilter
+          projects={[mirrored]}
+          filterableProjectIds={new Set()}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+      await openMenu();
+
+      fireEvent.click(screen.getByRole("button", { name: "Project actions for Beta" }));
+
+      expect(await screen.findByRole("menuitem", { name: "Remove Project" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByRole("menuitem", { name: "Disable Project" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
     });
 
     it("closes both menus once an action is picked", async () => {

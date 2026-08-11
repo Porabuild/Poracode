@@ -150,6 +150,16 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
           ([threadId]) => !projectThreadIds.has(threadId),
         ),
       );
+      const nextPendingLaunchUserMessageItemIds = Object.fromEntries(
+        Object.entries(state.pendingLaunchUserMessageItemIds).filter(
+          ([threadId]) => !projectThreadIds.has(threadId),
+        ),
+      );
+      const nextProvisioningWorktreeThreadIds = Object.fromEntries(
+        Object.entries(state.provisioningWorktreeThreadIds).filter(
+          ([threadId]) => !projectThreadIds.has(threadId),
+        ),
+      ) as Record<string, true>;
 
       const { [projectId]: _draft, ...nextDraftContents } = state.draftContents;
       const nextThreadDraftContents = Object.fromEntries(
@@ -179,6 +189,8 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
         threads: nextThreads,
         pendingThreadLaunches: nextPendingThreadLaunches,
         pendingLaunchSegments: nextPendingLaunchSegments,
+        pendingLaunchUserMessageItemIds: nextPendingLaunchUserMessageItemIds,
+        provisioningWorktreeThreadIds: nextProvisioningWorktreeThreadIds,
         draftContents: nextDraftContents,
         threadDraftContents: nextThreadDraftContents,
         view: nextView,

@@ -1,15 +1,114 @@
 {
   "releases": [
     {
+      "version": "1.6.2",
+      "date": "2026-08-10",
+      "title": "Merged PR sync, stoppable actions & clearer subagents",
+      "summary": "Poracode now pulls a merged pull request's base branch into your checkout and lets you stop any running project action from a context menu. Subagent work is easier to follow, and starting a worktree thread no longer leaves you staring at a blank chat.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Worktrees",
+          "text": "Worktree threads launch more responsively: your message appears instantly with a live \"Creating worktree…\" indicator while Poracode sets everything up."
+        },
+        {
+          "kind": "added",
+          "label": "Pull requests",
+          "text": "After you merge a pull request, Poracode pulls the merged base branch into your checkout once per project, and sync badges now appear on experiment groups, thread groups, and thread rows until the pull completes."
+        },
+        {
+          "kind": "added",
+          "text": "Stop any running project action straight from the thread, worktree, or project context menu, and running actions are tracked even after their terminal tab closes."
+        },
+        {
+          "kind": "added",
+          "label": "MCP",
+          "text": "The Poracode MCP server gains a get_current_thread tool, and you can @-mention Terminal in the composer to hand the agent a terminal when app controls are enabled."
+        },
+        {
+          "kind": "added",
+          "label": "Subagents",
+          "text": "Resumed Claude subagents get their own labeled Agent Resume row, and cancelled Crossagents runs show a clear cancelled state instead of looking stuck."
+        },
+        {
+          "kind": "added",
+          "label": "Command Code",
+          "text": "Usage now shows Command Code's rolling 5-hour and weekly dollar limits alongside monthly credits, with reset countdowns, matching Studio and the CLI."
+        },
+        {
+          "kind": "improved",
+          "label": "Crossagents",
+          "text": "Subagent runs are named with the model's sub-provider so similar selections are easy to tell apart, the learned selections list scrolls when it grows long, and the provider filter explains that unchecked providers only opt out of automatic routing."
+        },
+        {
+          "kind": "improved",
+          "label": "Usage",
+          "text": "Dollar-denominated usage windows lead with the percent on the bar, and spend amounts sit next to the reset countdown as smaller muted text."
+        },
+        {
+          "kind": "improved",
+          "label": "Projects",
+          "text": "Project pickers now mark local and remote projects with distinct icons, and you can open GitHub Actions from a worktree group's context menu."
+        },
+        {
+          "kind": "improved",
+          "label": "Sidebar",
+          "text": "Collapsed worktree groups tint their icon when a thread inside is working or has finished, so you can read a group's state without expanding it."
+        },
+        {
+          "kind": "improved",
+          "label": "Composer",
+          "text": "The add menu is tidier: Computer Use and Experiment keep single-line rows with their descriptions moved into info tooltips."
+        },
+        {
+          "kind": "fixed",
+          "text": "Renaming a thread no longer bumps it to the top of the list, completed turns stay closed when trailing plan or goal updates arrive, and the turn timer stops ticking as soon as the turn ends."
+        },
+        {
+          "kind": "fixed",
+          "label": "Sidebar",
+          "text": "Disabled, hidden, and offline-server projects reappear in a dedicated section of the project filter so you can re-enable them, and Remove Project is disabled for servers you can't reach."
+        },
+        {
+          "kind": "fixed",
+          "text": "Cancelling agent detection now stops probes and cleanup promptly across every provider, and hung WSL processes are killed on timeout instead of lingering."
+        },
+        {
+          "kind": "fixed",
+          "text": "Kimi subscription tiers show the correct credit multipliers, an explicit Fast mode off now carries over to your next draft, and one-shot responses that leak raw tool-call markers are rejected instead of shown as text."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode",
+          "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, so the meters match the console instead of undercounting headroom."
+        },
+        {
+          "kind": "fixed",
+          "label": "Sidebar",
+          "text": "In the flat thread list, main-branch rows now show Files and Terminal controls the same way worktree rows do."
+        },
+        {
+          "kind": "fixed",
+          "label": "Crossagents",
+          "text": "Crossagents only spawn subagents after you explicitly ask in that thread — for example with an @Crossagents mention — and that ask covers later turns in the same thread."
+        },
+        {
+          "kind": "fixed",
+          "label": "Qwen",
+          "text": "Current Alibaba Token Plan models, including Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Flash, and DeepSeek V4 Flash 0731, are detected and labeled correctly."
+        }
+      ]
+    },
+    {
       "version": "1.6.1",
-      "date": "2026-08-05",
+      "date": "2026-08-07",
       "title": "Flat thread list, worktree moves & workspace switching",
-      "summary": "The sidebar can now show every project's threads in one flat, filterable list, and you can move an existing thread into a worktree straight from its context menu. Kimi Code sessions, Factory Droid subagents, and Windows agent launches are all more dependable.",
+      "summary": "The sidebar can now show every project's threads in one flat, filterable list, and you can move an existing thread into a worktree straight from its context menu. Remote-paired projects, Kimi Code sessions, Factory Droid subagents, and Windows agent launches are all more dependable.",
       "changes": [
         {
           "kind": "added",
           "label": "Sidebar",
-          "text": "Switch the thread list to a flat layout that shows every project's threads together, tagged by project and with Git status on each row, plus sort modes and per-project filters."
+          "text": "Switch the thread list to a flat layout that shows every project's threads together, tagged by project and with Git status on each row, plus per-project filters."
         },
         {
           "kind": "added",
@@ -29,12 +128,12 @@
         {
           "kind": "added",
           "label": "Cursor",
-          "text": "Cursor SDK chat gains the standard composer slash commands for model, effort, fast mode, plan mode, and agent selection — the same set Codex already uses."
+          "text": "Cursor SDK chat gains the standard composer slash commands for model, effort, fast mode, plan mode, and agent selection."
         },
         {
           "kind": "added",
           "label": "Plans",
-          "text": "When an ACP agent proposes a plan, the full plan shows in the approval request so you can read it before you accept."
+          "text": "When an ACP agent proposes a plan, the full plan shows in the approval request so you can read it before you accept, and plan mode stays in sync when the agent switches modes on its own."
         },
         {
           "kind": "improved",
@@ -44,17 +143,22 @@
         {
           "kind": "improved",
           "label": "Kimi",
-          "text": "Kimi Code handles workspace trust, signing out, thinking levels, question dialogs, and background tasks much more reliably."
+          "text": "Kimi Code handles workspace trust, signing out, thinking levels, question dialogs, and background tasks much more reliably, and a resumed thread now waits on 0.34's cache-expiry dialog instead of answering it by accident."
         },
         {
           "kind": "improved",
           "label": "Factory",
-          "text": "Factory Droid subagent transcripts now stream into the parent thread, and built-in HTTP MCP servers reach Droid sessions."
+          "text": "Factory Droid subagent transcripts now stream dependably into the parent thread, and built-in HTTP MCP servers reach Droid sessions."
         },
         {
           "kind": "improved",
-          "label": "Security",
-          "text": "ACP agents can no longer write through the filesystem bridge outside the project, except into an agent's own config folder such as Kimi's ~/.kimi-code."
+          "label": "Remote",
+          "text": "Mirrored projects are labeled with their server across the sidebar and project switcher, their threads launch on the host machine and reopen dependably, and you can move a remote thread into a worktree from the desktop or your phone."
+        },
+        {
+          "kind": "improved",
+          "label": "Settings",
+          "text": "A single Prevent sleep policy in General settings replaces the old scattered toggles — keep the machine awake while agents are working, while remote access is enabled, or always."
         },
         {
           "kind": "improved",
@@ -67,6 +171,10 @@
           "text": "Your saved Qwen model selections move from the retired Qwen 3.8 Max Preview to the released Qwen 3.8 Max."
         },
         {
+          "kind": "improved",
+          "text": "Idle Files and Terminal buttons on sidebar rows now tuck away until you hover, and workflow actions in the GitHub Actions view stand out better on hover."
+        },
+        {
           "kind": "fixed",
           "label": "Windows",
           "text": "Agent commands containing quotes, newlines, or shell metacharacters now launch correctly through WSL and PowerShell instead of failing to parse."
@@ -77,7 +185,16 @@
         },
         {
           "kind": "fixed",
+          "label": "Remote",
+          "text": "Pasted images now show a preview and reach the agent on remote threads, and threads created on the host no longer disappear during sync."
+        },
+        {
+          "kind": "fixed",
           "text": "Provider usage keeps reporting after a browser sign-in rotates its cookies, duplicated question headers are gone, and the model visibility list no longer overflows the window."
+        },
+        {
+          "kind": "fixed",
+          "text": "Closing the last browser tab no longer leaves the right panel stuck on a blank browser view, the side panel border no longer shifts the layout when it closes, and project settings open without a brief empty flash."
         }
       ]
     },

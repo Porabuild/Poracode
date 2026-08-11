@@ -1,6 +1,6 @@
 import React, { type MouseEventHandler, type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Dropdown, Label, Separator } from "@heroui/react";
+import { Button, Dropdown, Label, Separator } from "@heroui/react";
 
 // Context menus can stack (e.g. the flat-list filter stacks a project menu
 // over its own), so dismissal tracks a stack of closers: a new surface pushes
@@ -29,6 +29,12 @@ export interface ContextMenuItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  endAction?: {
+    id: string;
+    label: string;
+    icon: ReactNode;
+    isDisabled?: boolean;
+  };
   variant?: "default" | "danger" | "warning";
   isDisabled?: boolean;
   disabledReason?: string;
@@ -79,11 +85,16 @@ function splitSections(entries: ContextMenuEntry[]): (ContextMenuItem | ContextM
   return sections.filter((s) => s.length > 0);
 }
 
-function renderDropdownItem(item: ContextMenuItem) {
+function renderDropdownItem(
+  item: ContextMenuItem,
+  close: () => void,
+  onAction: (key: string) => void,
+) {
   return (
     <Dropdown.Item
       key={item.id}
       id={item.id}
+      aria-label={item.label}
       textValue={item.label}
       variant={item.variant === "danger" ? "danger" : undefined}
     >
@@ -94,9 +105,26 @@ function renderDropdownItem(item: ContextMenuItem) {
           {item.icon}
         </span>
       )}
-      <Label className={item.variant === "warning" ? "text-warning" : undefined}>
+      <Label className={`flex-1 ${item.variant === "warning" ? "text-warning" : ""}`}>
         {item.label}
       </Label>
+      {item.endAction ? (
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label={item.endAction.label}
+          className="ml-auto size-5 min-w-0 text-muted hover:text-foreground [--button-bg-hover:var(--row-hover)]"
+          {...(item.endAction.isDisabled ? { isDisabled: true } : {})}
+          onPressStart={(event) => event.continuePropagation()}
+          onPress={() => {
+            close();
+            onAction(item.endAction!.id);
+          }}
+        >
+          {item.endAction.icon}
+        </Button>
+      ) : null}
     </Dropdown.Item>
   );
 }
@@ -121,13 +149,13 @@ function renderEntry(
               onAction(String(key));
             }}
           >
-            {entry.items.map((item) => renderDropdownItem(item))}
+            {entry.items.map((item) => renderDropdownItem(item, close, onAction))}
           </Dropdown.Menu>
         </Dropdown.Popover>
       </Dropdown.SubmenuTrigger>
     );
   }
-  return renderDropdownItem(entry);
+  return renderDropdownItem(entry, close, onAction);
 }
 
 /**

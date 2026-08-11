@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { toast } from "@heroui/react";
-import { Download, Monitor, Webhook, X } from "lucide-react";
+import { Download, Monitor, TerminalSquare, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
@@ -71,7 +71,10 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
-import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkills";
+import {
+  usePluginMentionItems,
+  useSkillSlashCommandState,
+} from "@/renderer/components/skills/useSkills";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
@@ -374,6 +377,12 @@ export function ThreadDraftComposerArea(props: {
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     props.project.location,
     props.selectedAgent.kind,
+    props.presentationMode,
+  );
+  const pluginMentions = usePluginMentionItems(
+    props.project.location,
+    props.selectedAgent.kind,
+    props.presentationMode,
   );
   const slashLookupContext = {
     agentKind: props.selectedAgent.kind,
@@ -420,10 +429,10 @@ export function ThreadDraftComposerArea(props: {
   // which workspace entries override global ones, so the menu can't drift from
   // what actually launches. Providers whose MCP set lives on their settings
   // page show no rows here at all.
-  const hideCustomMcpRows = providerOwnsMcpConfig(props.selectedAgent.capabilities);
+  const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
   const projectCustomMcpServers = props.project.mcpServers ?? [];
   const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
-  const mergedCustomMcpServers = hideCustomMcpRows
+  const mergedCustomMcpServers = providerOwnsMcp
     ? []
     : mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
   const customMcpServers: ComposerCustomMcpItem[] = mergedCustomMcpServers.map((server) => {
@@ -456,11 +465,26 @@ export function ThreadDraftComposerArea(props: {
   const projectStatus = useGitStore((s) => s.statuses[props.project.id]);
   const hasUncommittedChanges =
     !!projectStatus && projectStatus.staged.length + projectStatus.unstaged.length > 0;
-  const worktreeBase = branchSelection?.baseBranch ?? branchSelection?.branch ?? props.gitBranch;
+  const trackingWorktreeBase =
+    projectStatus &&
+    props.gitBranch &&
+    projectStatus.branch === props.gitBranch &&
+    projectStatus.behind > 0 &&
+    projectStatus.ahead === 0 &&
+    projectStatus.tracking
+      ? projectStatus.tracking
+      : undefined;
+  const defaultWorktreeBase = trackingWorktreeBase ?? props.gitBranch;
+  const selectedWorktreeBase = branchSelection?.baseBranch ?? branchSelection?.branch;
+  const worktreeBase = selectedWorktreeBase ?? defaultWorktreeBase;
   // The worktree dropdown's "+ changes" choice is offered whenever the current
   // (dirty) checkout would be the worktree's fork point — independent of whether
   // worktree mode is already on, since selecting it also turns worktree mode on.
-  const canBringChanges = hasUncommittedChanges && worktreeBase === props.gitBranch;
+  const canBringChanges =
+    hasUncommittedChanges &&
+    (selectedWorktreeBase === undefined ||
+      selectedWorktreeBase === props.gitBranch ||
+      selectedWorktreeBase === trackingWorktreeBase);
   // Transferring is only meaningful once worktree mode is actually on.
   const canTransferUncommitted = props.worktreeMode && canBringChanges;
   const shouldTransferUncommitted =
@@ -474,7 +498,7 @@ export function ThreadDraftComposerArea(props: {
       : "new";
 
   function selectNewWorktree(overrides?: Partial<BranchSelection>) {
-    const base = worktreeBase ?? props.gitBranch ?? "";
+    const base = overrides?.baseBranch ?? worktreeBase ?? props.gitBranch ?? "";
     setBranchSelection({ branch: base, baseBranch: base, isWorktree: true, ...overrides });
   }
 
@@ -488,7 +512,11 @@ export function ThreadDraftComposerArea(props: {
     // Keep an existing worktree selection (e.g. a worktreePath from "New thread
     // in worktree") intact rather than rebuilding it into a brand-new branch.
     if (branchSelection?.worktreePath) return;
-    selectNewWorktree({ transferUncommitted: mode === "new-with-changes" });
+    const baseBranch = mode === "new-with-changes" ? props.gitBranch : defaultWorktreeBase;
+    selectNewWorktree({
+      ...(baseBranch ? { baseBranch } : {}),
+      transferUncommitted: mode === "new-with-changes",
+    });
   }
 
   const computerUseScope =
@@ -511,6 +539,18 @@ export function ThreadDraftComposerArea(props: {
   // draft; already-effective servers remain available and insert a textual
   // mention that directs the agent to use them for this turn.
   const mcpMentions: McpMentionItem[] = [
+    ...(disabledBuiltInMcpServers["app-controls"] !== true && !providerOwnsMcp
+      ? [
+          {
+            id: "app-controls",
+            name: t`Terminal`,
+            searchAliases: ["Terminal"],
+            icon: TerminalSquare,
+            detail: t`Terminal`,
+            enabled: true,
+          },
+        ]
+      : []),
     ...availableComposerMcpServers
       .filter(
         (descriptor) =>
@@ -668,8 +708,8 @@ export function ThreadDraftComposerArea(props: {
             }
           : {
               worktreeBranch: generateWorktreeBranch(),
-              ...(branchSelection?.baseBranch
-                ? { worktreeBaseBranch: branchSelection.baseBranch }
+              ...((branchSelection?.baseBranch ?? trackingWorktreeBase)
+                ? { worktreeBaseBranch: branchSelection?.baseBranch ?? trackingWorktreeBase }
                 : {}),
               worktreeIsNewBranch: true,
               ...(shouldTransferUncommitted ? { worktreeTransferUncommitted: true } : {}),
@@ -728,7 +768,7 @@ export function ThreadDraftComposerArea(props: {
 
   async function runExperiment(allSegments: PromptSegment[], fallbackPrompt = "") {
     const input = resolveExperimentInput(allSegments, fallbackPrompt);
-    const baseBranch = experimentBaseBranch ?? props.gitBranch;
+    const baseBranch = experimentBaseBranch ?? defaultWorktreeBase;
     if (!input || !baseBranch || experimentCandidates.length < 2 || isSubmitting) return;
     setIsSubmitting(true);
     const experimentId = await launchExperiment({
@@ -1026,6 +1066,7 @@ export function ThreadDraftComposerArea(props: {
               latestSegmentsRef.current = segments;
             }}
             mcpMentions={mcpMentions}
+            pluginMentions={pluginMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
               void attachments
@@ -1112,7 +1153,7 @@ export function ThreadDraftComposerArea(props: {
                         setExperimentBaseBranch(
                           branchSelection?.baseBranch ??
                             branchSelection?.branch ??
-                            props.gitBranch ??
+                            defaultWorktreeBase ??
                             null,
                         );
                       } else {
@@ -1147,14 +1188,18 @@ export function ThreadDraftComposerArea(props: {
             currentBranch={props.gitBranch}
             value={
               experimentMode
-                ? (experimentBaseBranch ?? props.gitBranch)
-                : (branchSelection?.branch ?? props.gitBranch)
+                ? (experimentBaseBranch ?? defaultWorktreeBase ?? props.gitBranch)
+                : worktreeSelected
+                  ? (worktreeBase ?? props.gitBranch)
+                  : (branchSelection?.branch ?? props.gitBranch)
             }
             isWorktree={experimentMode ? true : branchSelection?.isWorktree}
             baseBranch={
               experimentMode
-                ? (experimentBaseBranch ?? props.gitBranch)
-                : branchSelection?.baseBranch
+                ? (experimentBaseBranch ?? defaultWorktreeBase ?? props.gitBranch)
+                : worktreeSelected
+                  ? worktreeBase
+                  : branchSelection?.baseBranch
             }
             worktreeMode={experimentMode || props.worktreeMode}
             {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
@@ -1175,7 +1220,9 @@ export function ThreadDraftComposerArea(props: {
               : {})}
           />
         </div>
-      ) : null}
+      ) : props.compact ? null : (
+        <div aria-hidden data-draft-worktree-row="" className="mt-1.5 min-h-[1.625rem] px-1" />
+      )}
     </>
   );
 }

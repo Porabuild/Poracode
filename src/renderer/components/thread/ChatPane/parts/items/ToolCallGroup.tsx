@@ -68,6 +68,7 @@ import {
   type ToolGroupRowSegment,
 } from "./toolCallCategorization";
 import { deriveToolDisplay } from "./toolDisplay";
+import { deriveWebSearchDisplay } from "./webSearchDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
 
 interface ToolCallGroupProps {
@@ -182,7 +183,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                       ) : null}
                       <span className="flex shrink-0 items-center gap-1">
                         <section.Icon className="size-3" />
-                        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+                        <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
                           <AnimatedNumber value={section.count} />{" "}
                           {section.category === "mcp" ? (
                             <Plural value={section.count} one="MCP" other="MCPs" />
@@ -304,7 +305,7 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
     <>
       <span className="flex shrink-0 items-center gap-1">
         <Pencil className="size-3" />
-        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+        <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
           <AnimatedNumber value={summary.count} />{" "}
           <Plural value={summary.count} one="edit" other="edits" />:
         </code>
@@ -754,31 +755,30 @@ function getWebSearchRow(
 ): InlineRow | null {
   const payload = getRuntimeItemPayload<WebSearchPayload>(item, "web_search");
   if (!payload) return null;
-  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"), t);
+  const display = deriveWebSearchDisplay(payload, t);
   const sections: ToolCallSection[] =
-    isExpanded && hasAuxFields(payload)
+    isExpanded && display.hasDetails
       ? [
           { label: "query", part: extractAcpArgsPart(payload) },
           { label: "results", part: extractAcpResultPart(payload) },
         ]
       : [];
   const isRunning = item.state !== "completed";
-  const resultCount = payload.resultCount ?? deriveResultCount(payload);
+  // Keep the `resultCount` binding: it is the Lingui placeholder name baked
+  // into the `{resultCount, plural, …}` msgid across all catalogs.
+  const resultCount = display.resultCount;
   const rightLabel: ReactNode = isRunning ? undefined : resultCount != null ? (
     <Plural value={resultCount} one="# result" other="# results" />
   ) : undefined;
   return {
     Icon: Globe,
-    title,
+    title: display.title,
+    ...(display.parts ? { titleParts: display.parts } : {}),
     rightLabel,
     rightLabelClassName: "text-[color:var(--muted)]",
-    hasDetails: hasAuxFields(payload),
+    hasDetails: display.hasDetails,
     sections,
   };
-}
-
-function formatWebSearchName(name: string | undefined, t: TranslateFn): string {
-  return name === "WebSearch" || !name ? t(msg`Web search`) : name;
 }
 
 function hasAuxFields(payload: unknown): boolean {
@@ -804,13 +804,4 @@ function readPayloadString(payload: unknown, key: string): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const v = (payload as Record<string, unknown>)[key];
   return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
-function deriveResultCount(payload: unknown): number | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const result = (payload as Record<string, unknown>).result;
-  if (!result || typeof result !== "object") return undefined;
-  const contents = (result as Record<string, unknown>).contents;
-  if (Array.isArray(contents)) return contents.length;
-  return undefined;
 }

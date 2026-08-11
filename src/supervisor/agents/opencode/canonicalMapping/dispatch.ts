@@ -48,7 +48,22 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
     // prompt text. OpenCode echoes the same text back as a TextPart on the
     // user message — emitting it as assistant text would mirror the prompt
     // into a phantom assistant bubble.
-    if (state.messageRoles.get(part.messageID) === "user") return;
+    if (state.messageRoles.get(part.messageID) === "user") {
+      const itemId = state.userItems.get(part.messageID);
+      if (!itemId || !state.nonOptimisticUserMessages.has(part.messageID)) return;
+      const textParts = state.userMessageTextParts.get(part.messageID) ?? new Map<string, string>();
+      textParts.set(part.id, part.text);
+      state.userMessageTextParts.set(part.messageID, textParts);
+      events.push({
+        type: "item.updated",
+        threadId: state.threadId,
+        itemId,
+        payload: {
+          content: [...textParts.values()].map((text) => ({ kind: "text" as const, text })),
+        },
+      });
+      return;
+    }
     state.partTypes.set(part.id, "text");
     const itemId = ensureAssistantItemForMessage(state, part.messageID, events);
     emitTextDelta(state, part.id, itemId, part.text, "assistant_text", events);
@@ -167,7 +182,22 @@ function mapCanonicalEvent(
       return events;
     }
     case "message.part.removed": {
-      const { partID } = event.properties;
+      const { messageID, partID } = event.properties;
+      const userTextParts = state.userMessageTextParts.get(messageID);
+      if (userTextParts?.delete(partID)) {
+        if (userTextParts.size === 0) state.userMessageTextParts.delete(messageID);
+        const itemId = state.userItems.get(messageID);
+        if (itemId && state.nonOptimisticUserMessages.has(messageID)) {
+          events.push({
+            type: "item.updated",
+            threadId: state.threadId,
+            itemId,
+            payload: {
+              content: [...userTextParts.values()].map((text) => ({ kind: "text" as const, text })),
+            },
+          });
+        }
+      }
       const tool = state.toolItems.get(partID);
       if (tool) {
         events.push({
@@ -196,6 +226,7 @@ function mapCanonicalEvent(
         // item.started would either create a phantom item (different id) or
         // be no-op'd by the per-id dedupe. Skip the emit either way.
         if (!optimistic) {
+          state.nonOptimisticUserMessages.add(info.id);
           events.push({
             type: "item.started",
             threadId: state.threadId,
@@ -257,6 +288,8 @@ function mapCanonicalEvent(
         events.push({ type: "item.completed", threadId: state.threadId, itemId: u });
         state.userItems.delete(messageID);
       }
+      state.nonOptimisticUserMessages.delete(messageID);
+      state.userMessageTextParts.delete(messageID);
       return events;
     }
     case "permission.asked": {

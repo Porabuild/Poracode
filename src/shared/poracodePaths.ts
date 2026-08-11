@@ -15,6 +15,15 @@ export interface PoracodePaths {
   statusCachePath: string;
   agentPluginsDir: string;
   /**
+   * Writable root for Agent Plugins packages the user installs. Each immediate
+   * child directory containing a `plugin.json` is loaded as one package.
+   *
+   * @see https://agent-plugins.org/client-implementers/loading-and-discovery
+   */
+  pluginsDir: string;
+  /** Parent of the per-plugin `PLUGIN_DATA` directories handed to MCP servers. */
+  pluginDataDir: string;
+  /**
    * Cache directory for ACP registry agent icons. Icons are downloaded once
    * at install/backfill time, served from disk via the `poracode-local://`
    * protocol so the renderer paints them synchronously on app start instead
@@ -45,6 +54,8 @@ export function resolvePoracodePaths(baseDir: string = resolvePoracodeBaseDir())
     cacheDir,
     statusCachePath: join(cacheDir, "agent-status-cache.json"),
     agentPluginsDir: join(baseDir, "agent-plugins"),
+    pluginsDir: join(baseDir, "plugins"),
+    pluginDataDir: join(baseDir, "plugin-data"),
     acpIconsDir: join(cacheDir, "acp-icons"),
   };
 }

@@ -7,10 +7,12 @@ import {
   FileDiff,
   FlaskConical,
   GitFork,
+  Loader2,
   Pencil,
   Play,
   Plus,
   RefreshCw,
+  Square,
   Star,
   Trash2,
   Workflow,
@@ -22,7 +24,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { ContextMenu } from "@/renderer/components/common/ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useWorktreeGitItems } from "@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions";
@@ -31,6 +33,7 @@ import {
   useCurrentThreadIdsCount,
   useIsCurrentThread,
   useProjectAgentStatuses,
+  useRunningProjectActionIds,
 } from "@/renderer/hooks/uiSelectors";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
@@ -51,7 +54,7 @@ import {
   continueInProvider,
   openNewThreadInWorktree,
 } from "@/renderer/actions/threadActions";
-import { runProjectAction } from "@/renderer/actions/terminalActions";
+import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 
 /**
@@ -94,6 +97,29 @@ export function ThreadContextMenu(props: {
   // Home has no project menu even in the grouped layout (its sidebar section
   // is a plain header), so flat Home threads don't get project actions either.
   const showProjectActions = props.showProjectActions === true && !isHomeProject(project);
+  const runningActionIds = useRunningProjectActionIds(project.id, thread.worktreePath);
+  const runActionItems: ContextMenuItem[] = [];
+  for (const action of project.scripts?.actions ?? []) {
+    const isRunning = runningActionIds.includes(action.id);
+    runActionItems.push({
+      id: `action:${action.id}`,
+      label: action.name,
+      icon: isRunning ? (
+        <Loader2 className="size-3.5 animate-spin text-accent" aria-hidden />
+      ) : (
+        resolveActionIcon(action.icon)
+      ),
+      ...(isRunning
+        ? {
+            endAction: {
+              id: `stop-action:${action.id}`,
+              label: t`Stop ${action.name}`,
+              icon: <Square className="size-3 fill-current" aria-hidden />,
+            },
+          }
+        : {}),
+    });
+  }
 
   return (
     <ContextMenu
@@ -171,11 +197,7 @@ export function ThreadContextMenu(props: {
                 id: "run-action",
                 label: t`Run`,
                 icon: <Play className="size-3.5" />,
-                items: project.scripts.actions.map((action) => ({
-                  id: `action:${action.id}`,
-                  label: action.name,
-                  icon: resolveActionIcon(action.icon),
-                })),
+                items: runActionItems,
               },
             ]
           : []),
@@ -359,6 +381,9 @@ export function ThreadContextMenu(props: {
           deleteThread(thread.id, thread.worktreePath, thread.projectId);
         if (key.startsWith("action:")) {
           runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
+        }
+        if (key.startsWith("stop-action:")) {
+          stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
         }
       }}
     >

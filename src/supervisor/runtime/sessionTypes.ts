@@ -13,7 +13,12 @@ import type {
   McpLaunchSnapshot,
 } from "@/shared/contracts";
 import type { TranscriptBuffer } from "@/shared/transcriptBuffer";
-import type { AgentAdapter, StructuredSessionHandle, TerminalStatusHint } from "../agents/base";
+import type {
+  AgentAdapter,
+  AgentNativePlugin,
+  StructuredSessionHandle,
+  TerminalStatusHint,
+} from "../agents/base";
 
 export interface QueuedStructuredTurn {
   prompt: string;
@@ -48,8 +53,12 @@ export interface SessionRuntime {
   pty?: IPty;
   projectLocation: ProjectLocation;
   config: ThreadConfig;
+  /** Effective provider launch config with globally disabled MCP cleared. */
+  launchConfig?: ThreadConfig;
   /** MCP launch snapshot reused by restart and recovery paths. */
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  /** Provider-native plugin packages that replace matching Poracode contributions. */
+  nativePlugins?: readonly AgentNativePlugin[];
   sessionRef?: SessionRef;
   slashCommands?: AgentSlashCommand[];
   status: ThreadStatus;

@@ -369,11 +369,6 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     selectedRunDetails?.id === selectedRunId
       ? selectedRunDetails
       : (runs.find((run) => run.id === selectedRunId) ?? null);
-  const projectOptions = activeProjects.map((project) => ({
-    id: project.id,
-    label: project.name,
-  }));
-
   function selectWorkflow(workflowId: number) {
     userPickedWorkflowRef.current = true;
     if (workflowId === selectedWorkflowId) {
@@ -517,7 +512,6 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     loadingWorkflows,
     openGitHubActions,
     pendingRunId,
-    projectOptions,
     runs,
     selectedProject,
     selectedRun,

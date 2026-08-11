@@ -995,6 +995,18 @@ function seedCompletedItem(
   itemType: "assistant_message" | "user_message",
 ) {
   seedStartedItem(threadId, itemId, itemType);
+  if (itemType === "assistant_message") {
+    // A completed assistant message with no content is filtered out of the
+    // timeline, so give it text — otherwise the fixture models a row chat
+    // would never render.
+    useAppStore.getState().applyRuntimeEvent(threadId, {
+      type: "content.delta",
+      threadId,
+      itemId,
+      stream: "assistant_text",
+      delta: "answer",
+    });
+  }
   useAppStore.getState().applyRuntimeEvent(threadId, {
     type: "item.completed",
     threadId,

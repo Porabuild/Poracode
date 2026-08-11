@@ -40,6 +40,8 @@ export interface CommandSpec {
 export interface AgentEnvContext {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
+  /** Cancels short-lived install, version, status, and capability probes. */
+  signal?: AbortSignal;
   /**
    * Provider-global settings for this adapter. Detection receives the same
    * snapshot launch receives, allowing a provider with multiple structured
@@ -258,6 +260,7 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  signal?: AbortSignal;
   agentSettings?: Record<string, boolean | string>;
   /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
   probeEnv?: Record<string, string> | undefined;
@@ -617,6 +620,17 @@ export interface AgentCliHookPluginSupport {
   ): Promise<{ args?: string[]; env?: Record<string, string> } | undefined>;
 }
 
+export interface AgentNativePlugin {
+  name: string;
+  /** Absolute package root reported by the provider. */
+  root: string;
+}
+
+export interface AgentNativePluginSupport {
+  /** Enabled Agent Plugins already loaded by the provider in this environment. */
+  listNativePlugins(ctx: AgentEnvContext): Promise<readonly AgentNativePlugin[]>;
+}
+
 export interface AgentSkillRootSpec {
   readonly id: string;
   readonly label: string;
@@ -663,7 +677,8 @@ export interface AgentAdapter
     AgentOneShotRunner,
     AgentUpdater,
     Partial<AgentAcpAuth>,
-    Partial<AgentCliHookPluginSupport> {
+    Partial<AgentCliHookPluginSupport>,
+    Partial<AgentNativePluginSupport> {
   readonly skillSupport?: AgentSkillSupport;
 }
 

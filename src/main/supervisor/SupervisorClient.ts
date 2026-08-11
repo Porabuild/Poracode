@@ -3,6 +3,7 @@ import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import type { StartThreadPayload } from "@/shared/contracts";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -60,6 +61,12 @@ export interface SupervisorClientOptions {
    * `PORACODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
    */
   bundledSkillsDir?: string;
+  /**
+   * Directory containing the Agent Plugins packages shipped with the app.
+   * Forwarded as `PORACODE_BUNDLED_PLUGINS_DIR` so the plugin registry can
+   * discover them.
+   */
+  bundledPluginsDir?: string;
   secretStorageKey: string;
   /**
    * Optional resolver invoked at every supervisor spawn, returning extra env
@@ -67,6 +74,8 @@ export interface SupervisorClientOptions {
    * to inject `PORACODE_BROWSER_MCP_*` per-launch.
    */
   resolveExtraEnv?: () => Record<string, string>;
+  /** Apply main-process launch invariants before any start reaches the supervisor. */
+  prepareStartThread?(payload: StartThreadPayload): StartThreadPayload;
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   onEvent(event: SupervisorEvent): void;
@@ -133,6 +142,9 @@ export class SupervisorClient {
         PORACODE_WSL_WATCHER_DIR: this.options.wslHelpersDir,
         ...(this.options.bundledSkillsDir
           ? { PORACODE_BUNDLED_SKILLS_DIR: this.options.bundledSkillsDir }
+          : {}),
+        ...(this.options.bundledPluginsDir
+          ? { PORACODE_BUNDLED_PLUGINS_DIR: this.options.bundledPluginsDir }
           : {}),
         ...extraEnv,
       },
@@ -217,10 +229,14 @@ export class SupervisorClient {
     }
 
     const id = randomUUID();
+    const requestPayload =
+      type === "startThread" && this.options.prepareStartThread
+        ? this.options.prepareStartThread(payload as StartThreadPayload)
+        : payload;
     const request: SupervisorRequest = {
       id,
       type,
-      payload,
+      payload: requestPayload,
     } as SupervisorRequest;
 
     return new Promise<IpcProcedureResult<Name>>((resolve, reject) => {

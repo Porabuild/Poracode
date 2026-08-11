@@ -224,6 +224,70 @@ describe("UsageService", () => {
     expect(result.snapshots).toHaveLength(0);
   });
 
+  it("force refresh drains an in-flight collection then recollects with new credentials", async () => {
+    let secret: string | undefined;
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let collectCalls = 0;
+    const localCollectors: LocalUsageCollector[] = [
+      {
+        id: "opencode",
+        collect: async (nowMs) => {
+          collectCalls += 1;
+          // First collection started before the key was stored; hold it open so
+          // a concurrent force refresh must wait rather than join its result.
+          if (collectCalls === 1) {
+            await firstGate;
+            // Snapshot the credential at the start of the first collect so a
+            // mid-flight key paste is not retroactively applied.
+            return {
+              providerId: "opencode",
+              status: "auth-missing",
+              windows: [],
+              fetchedAt: nowMs,
+            };
+          }
+          return secret
+            ? {
+                providerId: "opencode",
+                status: "ok",
+                plan: "Go",
+                windows: [{ id: "weekly", label: "Weekly", usedPercent: 10, resetsAt: nowMs + 1 }],
+                fetchedAt: nowMs,
+              }
+            : {
+                providerId: "opencode",
+                status: "auth-missing",
+                windows: [],
+                fetchedAt: nowMs,
+              };
+        },
+      },
+    ];
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      host: makeHost({}),
+      providerIds: ["opencode"],
+      localCollectors,
+    });
+
+    const stale = service.refreshProviderUsage({ providerIds: ["opencode"] });
+    // Let the stale collection reach the credential gate.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    secret = "sk-live";
+    const forced = service.refreshProviderUsage({ providerIds: ["opencode"], force: true });
+    releaseFirst?.();
+
+    const staleResult = await stale;
+    const forcedResult = await forced;
+    expect(staleResult.snapshots[0]?.status).toBe("auth-missing");
+    expect(forcedResult.snapshots[0]?.status).toBe("ok");
+    expect(collectCalls).toBe(2);
+  });
+
   it("auto-refreshes each provider on its own per-provider cadence", async () => {
     let now = NOW;
     const settingsPath = tempCachePath();

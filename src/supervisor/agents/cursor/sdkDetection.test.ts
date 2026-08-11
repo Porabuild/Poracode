@@ -223,6 +223,32 @@ describe("probeCursorSdkRuntime", () => {
       diagnosticMessage: "catalog network unavailable",
     });
   });
+
+  it("terminates a pending worker probe when detection is cancelled", async () => {
+    const abort = new AbortController();
+    let rejectProbe: ((error: Error) => void) | undefined;
+    const handle = {
+      probe: vi.fn<() => Promise<never>>(
+        () =>
+          new Promise<never>((_resolve, reject) => {
+            rejectProbe = reject;
+          }),
+      ),
+      terminate: vi.fn<() => void>(() => rejectProbe?.(new Error("worker terminated"))),
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    };
+    const pending = probeCursorSdkRuntime(
+      { envKind: "wsl", wslDistro: "Ubuntu", signal: abort.signal },
+      { spawnWorker: async () => handle },
+    );
+    await vi.waitFor(() => expect(handle.probe).toHaveBeenCalledOnce());
+
+    abort.abort();
+    await pending;
+
+    expect(handle.terminate).toHaveBeenCalledOnce();
+    expect(handle.dispose).toHaveBeenCalledOnce();
+  });
 });
 
 const cliStatus: AgentStatus = {

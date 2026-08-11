@@ -447,6 +447,55 @@ describe("SubAgentContent", () => {
     );
   });
 
+  it("shows an explicit terminal status for a cancelled Crossagent", async () => {
+    const threadId = "thread-1";
+    const runningParent = makeSubAgentItem("parent-1");
+    const parentItem: RuntimeChatItem = {
+      ...runningParent,
+      state: "completed",
+      payload: {
+        ...(runningParent.payload as ToolCallPayload),
+        status: "error",
+        isCrossagent: true,
+        crossagentStatus: "cancelled",
+      },
+    };
+
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+
+    expect(await screen.findByText("Cancelled")).toBeInTheDocument();
+  });
+
+  it("derives the terminal status for persisted Crossagents without the new status field", async () => {
+    const threadId = "thread-1";
+    const runningParent = makeSubAgentItem("parent-1");
+    const parentItem: RuntimeChatItem = {
+      ...runningParent,
+      state: "completed",
+      payload: {
+        ...(runningParent.payload as ToolCallPayload),
+        status: "success",
+        isCrossagent: true,
+      },
+    };
+
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+
+    expect(await screen.findByText("Completed")).toBeInTheDocument();
+  });
+
   it("hands an open target to its host and consumes the transient store signal", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");

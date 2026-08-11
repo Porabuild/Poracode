@@ -443,7 +443,7 @@ export async function probeAntigravityRuntime(
     try {
       return {
         ok: true,
-        output: await spawnAgentPty(spec, "", 10_000),
+        output: await spawnAgentPty(spec, "", 10_000, ctx.signal),
       };
     } catch {
       return { ok: false, output: "" };

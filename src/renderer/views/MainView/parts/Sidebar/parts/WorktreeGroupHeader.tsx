@@ -3,9 +3,20 @@ import { useLingui } from "@lingui/react/macro";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
+import type { StatusTone } from "@/renderer/components/providers/statusTone";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
+
+type WorktreeGroupStatusTone = Extract<StatusTone, "finished" | "working">;
+
+export function getWorktreeGroupStatusTone(
+  childTones: readonly StatusTone[],
+): WorktreeGroupStatusTone | undefined {
+  if (childTones.includes("finished")) return "finished";
+  if (childTones.includes("working")) return "working";
+  return undefined;
+}
 
 export function WorktreeGroupHeader(props: {
   ref?: React.Ref<HTMLDivElement>;
@@ -26,6 +37,7 @@ export function WorktreeGroupHeader(props: {
   isDragging?: boolean;
   isDraggingAnything?: boolean;
   isDone?: boolean;
+  collapsedStatusTone?: WorktreeGroupStatusTone;
   updatedAt: string;
   onContextMenu?: React.MouseEventHandler | undefined;
   /** Trailing project label for cross-project (flat) lists. */
@@ -140,7 +152,9 @@ export function WorktreeGroupHeader(props: {
       {...(props.ref != null ? { ref: props.ref } : {})}
       onContextMenu={props.onContextMenu}
       icon={
-        props.isDone ? (
+        !props.isCollapsed ? (
+          <GitFork className="size-3 shrink-0 text-foreground transition-colors" />
+        ) : props.isDone ? (
           <span className="relative size-3.5 shrink-0 text-muted">
             <GitFork className="size-3.5 opacity-40" />
             <Check
@@ -151,7 +165,11 @@ export function WorktreeGroupHeader(props: {
         ) : (
           <GitFork
             className={`size-3 shrink-0 transition-colors ${
-              props.isCollapsed ? "text-muted/60" : "text-foreground"
+              props.collapsedStatusTone === "finished"
+                ? "text-[oklch(0.82_0.12_260)]"
+                : props.collapsedStatusTone === "working"
+                  ? "text-success"
+                  : "text-muted/60"
             }`}
           />
         )

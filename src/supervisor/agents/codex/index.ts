@@ -31,6 +31,7 @@ import {
   readBundledCodexPluginVersion,
   uninstallCodexPlugin,
 } from "./plugin/install";
+import { listNativeCodexPlugins } from "./nativePlugins";
 import {
   describeCodexLocation,
   isInteractiveCodexRollout,
@@ -134,6 +135,7 @@ export function createCodexAdapter(): AgentAdapter {
         project: ["agents"],
       },
     },
+    listNativePlugins: listNativeCodexPlugins,
     ...(codexDetectionSpec.update ? { update: codexDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;

@@ -2787,6 +2787,7 @@ describe("RemoteAccessServer", () => {
         config: { model: "gpt-5" },
         prompt: "",
         presentationMode: "terminal",
+        userMessageItemId: "user-optimistic",
       }),
     });
 
@@ -2809,6 +2810,7 @@ describe("RemoteAccessServer", () => {
         prompt: "",
         initialSize: { cols: 120, rows: 30 },
         presentationMode: "terminal",
+        userMessageItemId: "user-optimistic",
         ...mcpSnapshot,
       }),
     );
@@ -2818,6 +2820,7 @@ describe("RemoteAccessServer", () => {
         threadId: "thread-remote",
         projectId: "project-1",
         launchRuntime: false,
+        userMessageItemId: "user-optimistic",
       }),
     ]);
   });
@@ -3138,7 +3141,10 @@ describe("RemoteAccessServer", () => {
     });
     expect(renameResponse.status).toBe(200);
     expect(dispatched).toEqual([{ kind: "rename", threadId: "thread-1", title: "New title" }]);
-    expect(db.threads()[0]?.title).toBe("New title");
+    expect(db.threads()[0]).toMatchObject({
+      title: "New title",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     await expect(readWs()).resolves.toMatchObject({
       type: "event",
       event: { type: "remote-threads-changed", threadIds: ["thread-1"] },

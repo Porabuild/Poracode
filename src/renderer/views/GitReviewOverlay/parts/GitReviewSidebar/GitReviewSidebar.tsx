@@ -12,13 +12,7 @@ import {
 } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type {
-  GitBranchInfo,
-  GitStatusResult,
-  PrCreateMode,
-  Project,
-  ProjectLocation,
-} from "@/shared/contracts";
+import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
@@ -65,7 +59,6 @@ const EMPTY_BRANCHES: readonly GitBranchInfo[] = [];
 
 export function GitReviewSidebar(props: {
   project: Project;
-  mergeSyncLocation?: ProjectLocation | undefined;
   gitStatus: GitStatusResult | undefined;
   selectedFile: string | null;
   selectedStaged: boolean;
@@ -91,7 +84,6 @@ export function GitReviewSidebar(props: {
 }) {
   const {
     project,
-    mergeSyncLocation,
     gitStatus,
     selectedFile,
     selectedStaged,
@@ -203,7 +195,6 @@ export function GitReviewSidebar(props: {
     handleGeneratePrSummary,
   } = useGitReviewActions({
     project,
-    mergeSyncLocation,
     gitStatus,
     worktreeBranch,
     worktreePath,

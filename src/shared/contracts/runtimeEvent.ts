@@ -61,7 +61,13 @@ export type RuntimeContentStreamKind = z.infer<typeof runtimeContentStreamKindSc
 
 export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string() }),
-  z.object({ kind: z.literal("skill"), name: z.string(), invocation: z.string() }),
+  z.object({
+    kind: z.literal("skill"),
+    name: z.string(),
+    invocation: z.string(),
+    pluginId: z.string().min(1).optional(),
+    pluginName: z.string().min(1).optional(),
+  }),
   z.object({ kind: z.literal("mcp"), name: z.string() }),
   z.object({
     kind: z.literal("diff_comment"),
@@ -262,7 +268,21 @@ export const toolCallPayloadSchema = z.object({
   status: toolCallStatusSchema,
   progress: toolCallProgressSchema.optional(),
   isSubAgent: z.boolean().optional(),
+  /**
+   * This agent row CONTINUES an earlier run instead of launching a new agent —
+   * e.g. Claude Code's `SendMessage` resuming a completed sub-agent from its
+   * transcript. Without it a resume is indistinguishable from a fresh launch in
+   * the transcript. Absent on rows persisted before resumes were recognized;
+   * those keep rendering as plain agent rows, which is what they were.
+   */
+  isSubAgentResume: z.boolean().optional(),
+  /**
+   * Provider-reported sub-agent type for rows whose own tool args don't carry
+   * one (a resume names the agent, not its type).
+   */
+  subAgentType: z.string().min(1).optional(),
   isCrossagent: z.boolean().optional(),
+  crossagentStatus: z.enum(["running", "completed", "failed", "cancelled"]).optional(),
   workflow: toolCallWorkflowSchema.optional(),
 });
 export type ToolCallPayload = z.infer<typeof toolCallPayloadSchema>;

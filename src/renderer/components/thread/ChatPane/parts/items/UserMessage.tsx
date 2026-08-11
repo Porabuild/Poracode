@@ -29,6 +29,7 @@ import { CheckpointRevertButton, type CheckpointRevertRequest } from "../Checkpo
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { CopyTextButton } from "./CopyTextButton";
 import { InlineFilePathChip } from "./InlineFilePathChip";
+import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { extractSelectorPayloads } from "./SelectorBadge";
 import {
@@ -322,7 +323,8 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
   return content
     .map((block) => {
       if (block.kind === "text") return block.text;
-      if (block.kind === "skill") return block.invocation;
+      if (block.kind === "skill")
+        return block.pluginName ? `@${block.pluginName}` : block.invocation;
       if (block.kind === "diff_comment") return formatDiffCommentPrompt(block);
       if (block.kind === "mcp") return `@${block.name}`;
       if (block.kind === "file" && block.source !== "attachment") return block.path;
@@ -360,9 +362,16 @@ function renderUserMessageInlineContent(
       nodes.push(
         <UserMessageSlashChip
           key={`skill-${index}-${block.name}`}
-          icon={<Sparkles aria-hidden="true" />}
-          label={block.name}
+          icon={
+            block.pluginId ? (
+              <PluginIcon pluginId={block.pluginId} />
+            ) : (
+              <Sparkles aria-hidden="true" />
+            )
+          }
+          label={block.pluginName ?? block.name}
           skillName={block.name}
+          {...(block.pluginId ? { pluginId: block.pluginId } : {})}
         />,
       );
       return;
@@ -430,12 +439,14 @@ function UserMessageSlashChip({
   skillName,
   title,
   mcpName,
+  pluginId,
 }: {
   icon: ReactNode;
   label: string;
   skillName?: string;
   title?: string;
   mcpName?: string;
+  pluginId?: string;
 }) {
   return (
     <span
@@ -443,6 +454,7 @@ function UserMessageSlashChip({
       title={title}
       {...(skillName ? { "data-skill-name": skillName } : {})}
       {...(mcpName ? { "data-mcp-name": mcpName } : {})}
+      {...(pluginId ? { "data-plugin-id": pluginId } : {})}
     >
       <span className="poracode-slash-chip__slash">{icon}</span>
       <span className="poracode-slash-chip__name">{label}</span>

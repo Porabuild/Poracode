@@ -22,6 +22,7 @@ import {
   resolveEnabledMcpServers,
 } from "@/shared/contracts";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { AgentNativePlugin } from "@/supervisor/agents/base";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
   type BrowserMcpHttpConfig,
@@ -98,24 +99,30 @@ export interface SpawnThreadInput {
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  launchConfig?: ThreadConfig;
+  nativePlugins?: readonly AgentNativePlugin[];
 }
 
 /**
- * Per-launch config with the built-in MCP opt-in flags cleared for globally
- * hard-disabled servers. Together with the `resolve*ForLaunch` gates (which
- * withhold the http configs), this makes the spawn pipeline the single place
- * that enforces built-in MCP disables — providers receive this config and
- * never consult the disabled list themselves. The original config, with the
- * user's per-thread flags intact, stays on the `SessionRuntime` and in
- * thread-state events so re-enabling a server globally restores the thread's
- * choices.
+ * Per-launch config with plugin-bundled built-in MCPs enabled and globally
+ * hard-disabled servers cleared. Together with the `resolve*ForLaunch` gates,
+ * this keeps both policies at one provider boundary. The original per-thread
+ * config stays on `SessionRuntime`; plugin contributions stay in its launch
+ * snapshot for restart and recovery.
  */
 export function effectiveLaunchConfig(
   config: ThreadConfig,
   disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+  pluginBuiltInMcpServerIds: readonly BuiltInMcpServerId[] = [],
 ): ThreadConfig {
-  if (disabledBuiltInMcpServerIds.length === 0) return config;
+  if (disabledBuiltInMcpServerIds.length === 0 && pluginBuiltInMcpServerIds.length === 0) {
+    return config;
+  }
   const next = { ...config };
+  if (pluginBuiltInMcpServerIds.includes("browser")) next.browserMcp = true;
+  if (pluginBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = true;
+  if (pluginBuiltInMcpServerIds.includes("computer-use")) next.computerUse = true;
+  if (pluginBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = true;
   if (disabledBuiltInMcpServerIds.includes("browser")) next.browserMcp = false;
   if (disabledBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = false;
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
@@ -265,6 +272,11 @@ export class SpawnPipeline {
     const requestedPresentation = payload.presentationMode ?? adapter.capabilities.presentationMode;
     const usesTerminalPresentation = requestedPresentation === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
+    const pluginContributions = (await ctx.options.resolvePluginLaunchContributions?.(
+      payload.projectLocation,
+      payload.agentKind,
+    )) ?? { mcpServers: [], builtInMcpServerIds: [], nativePlugins: [] };
+    const nativePlugins = pluginContributions.nativePlugins;
     const wslSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
@@ -275,14 +287,24 @@ export class SpawnPipeline {
     // Terminal skills fallback: skill segments the CLI can't resolve natively
     // become short path-hint text before the prompt is typed into the PTY.
     // Structured turns keep the raw segments (they use inline injection).
+    const policySegments = wslSegments?.some((segment) => segment.kind === "skill")
+      ? ((await ctx.options.filterPluginSkillSegments?.({
+          agentKind: payload.agentKind,
+          projectLocation: payload.projectLocation,
+          presentationMode: requestedPresentation,
+          nativePlugins,
+          segments: wslSegments,
+        })) ?? wslSegments)
+      : wslSegments;
     const effectiveSegments =
-      !useStructuredFlow && wslSegments?.some((segment) => segment.kind === "skill")
+      !useStructuredFlow && policySegments?.some((segment) => segment.kind === "skill")
         ? ((await ctx.options.rewriteTerminalSkillSegments?.({
             agentKind: payload.agentKind,
             projectLocation: payload.projectLocation,
-            segments: wslSegments,
-          })) ?? wslSegments)
-        : wslSegments;
+            nativePlugins,
+            segments: policySegments,
+          })) ?? policySegments)
+        : policySegments;
     const initialPrompt =
       effectiveSegments && effectiveSegments.length > 0
         ? (adapter.formatPromptSegments?.(effectiveSegments) ??
@@ -295,6 +317,7 @@ export class SpawnPipeline {
         ? await ctx.options.buildSkillTurnInjection?.({
             agentKind: payload.agentKind,
             projectLocation: payload.projectLocation,
+            nativePlugins,
             segments: effectiveSegments,
           })
         : undefined;
@@ -320,8 +343,13 @@ export class SpawnPipeline {
             payload.userMessageItemId,
           )
         : undefined;
+    const optimisticLaunchConfig = effectiveLaunchConfig(
+      payload.config,
+      payload.disabledBuiltInMcpServerIds ?? [],
+      pluginContributions.builtInMcpServerIds,
+    );
     if (optimisticUserMessageItemId) {
-      this.emitOptimisticWorkingState(payload.threadId, payload.config);
+      this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
     }
 
     // Prime the user's interactive-shell env (fnm / nvm / asdf / mise cd-hooks
@@ -339,7 +367,16 @@ export class SpawnPipeline {
       threadId: payload.threadId,
       title: initialPrompt.split("\n", 1)[0]?.trim() ?? "",
     };
-    let mcpServers = resolveEnabledMcpServers(payload.mcpServers ?? []);
+    // Every provider translator keys its output record by `server.name`, so a
+    // plugin server sharing a name with a user-configured one would silently
+    // replace it — dropping the user's headers and tokens. The user's own
+    // servers win; the colliding plugin server is skipped.
+    const userMcpServers = payload.mcpServers ?? [];
+    const userMcpServerNames = new Set(userMcpServers.map((server) => server.name));
+    const pluginMcpServers = pluginContributions.mcpServers.filter(
+      (server) => !userMcpServerNames.has(server.name),
+    );
+    let mcpServers = resolveEnabledMcpServers([...userMcpServers, ...pluginMcpServers]);
     if (this.ctx.options.applyMcpServerAuthorization) {
       mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
     }
@@ -353,10 +390,12 @@ export class SpawnPipeline {
       mcpServers,
       disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
       disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
+      pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
     };
     const launchConfig = effectiveLaunchConfig(
       payload.config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: payload.projectLocation,
@@ -442,6 +481,8 @@ export class SpawnPipeline {
         suppressInitialStructuredIdle:
           optimisticUserMessageItemId !== undefined && !startInterrupted,
         mcpLaunchSnapshot,
+        launchConfig,
+        nativePlugins,
       });
       if (
         !startInterrupted &&
@@ -586,6 +627,8 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       mcpLaunchSnapshot,
+      launchConfig,
+      nativePlugins,
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
       presentationMode: requestedPresentation,
       ...(deferToTerminal && !useStructuredFlow
@@ -646,6 +689,7 @@ export class SpawnPipeline {
     const launchConfig = effectiveLaunchConfig(
       config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -713,6 +757,8 @@ export class SpawnPipeline {
         structuredSession,
         sessionRef: session.sessionRef,
         mcpLaunchSnapshot,
+        launchConfig,
+        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
       if (prompt.trim().length > 0 && structuredSession.startTurn) {
@@ -811,12 +857,16 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: session.sessionRef,
       mcpLaunchSnapshot,
+      launchConfig,
+      ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
     });
   }
 
   spawnThread(input: SpawnThreadInput): SessionRuntime {
     const ctx = this.ctx;
+    const mcpLaunchSnapshot =
+      input.mcpLaunchSnapshot ?? ({ mcpServers: [], disabledBuiltInMcpServerIds: [] } as const);
     // `thread-reset` is only consumed by the terminal panel (renderer scrollback
     // reset) and the renderer-side runtime-event/server-request slice clear.
     // GUI threads have no terminal scrollback, and clearing the slice would
@@ -901,7 +951,15 @@ export class SpawnPipeline {
       ...(pty && command?.cleanup ? { launchCleanup: command.cleanup } : {}),
       projectLocation: input.projectLocation,
       config: input.config,
-      mcpLaunchSnapshot: input.mcpLaunchSnapshot,
+      mcpLaunchSnapshot,
+      ...(input.nativePlugins ? { nativePlugins: input.nativePlugins } : {}),
+      launchConfig:
+        input.launchConfig ??
+        effectiveLaunchConfig(
+          input.config,
+          mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+          mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+        ),
       terminalSize: input.initialSize,
       launchPrompt: input.launchPrompt,
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
@@ -974,6 +1032,11 @@ export class SpawnPipeline {
         this.ctx.resolveAgentSettings(adapter),
         mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
         crossagentRoutingAvailable,
+      );
+      config = effectiveLaunchConfig(
+        config,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
       );
       identity = undefined;
       if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
@@ -1215,13 +1278,18 @@ export class SpawnPipeline {
     return true;
   }
 
-  private emitOptimisticWorkingState(threadId: string, config: ThreadConfig): void {
+  private emitOptimisticWorkingState(
+    threadId: string,
+    config: ThreadConfig,
+    launchConfig: ThreadConfig,
+  ): void {
     this.ctx.options.emit({
       type: "thread-state",
       threadId,
       status: "working",
       attention: "working",
       config,
+      launchConfig,
       canResumeWithConfig: false,
       threadStatusSource: "server",
     });

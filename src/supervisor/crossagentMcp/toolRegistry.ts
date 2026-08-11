@@ -55,17 +55,17 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
-  "Call list_agents first for the compact provider roster, learned rank, and preferred selection, then call get_agent with a provider id when you need its full models, reasoning options, Fast availability, and permissions preset.",
+  "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
+  "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
   "Classify every task with 1-5 concise lowercase tags and pass the same tags to list_agents and spawn_agent. Prefer this vocabulary when applicable: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data. Crossagents learns tag-to-selection affinity from user-explicit selection choices without an extra model call.",
   "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
   "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
-  "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread, best for search, summarization, bulk edits, and one-off checks.",
+  "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
   "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent once for every background result the task requires. Use a bounded timeout and do not repeatedly poll a stalled run; cancel it or continue without it.",
   "Pass tasks=[...] to the same spawn_agent call to launch up to four independent agents in parallel.",
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
   "Give each subagent a self-contained prompt — it does not share your conversation context.",
-  "Routing: prefer fast/cheap agents+models for search, bulk edits, and summarization; reserve the strongest agents for implementation and review.",
   "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
 ].join(" ");
 
@@ -147,7 +147,7 @@ const SUBAGENT_REQUEST_PROPERTIES = {
   },
 } as const;
 
-const BASE_TOOLS: ToolSpec[] = [
+const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
@@ -173,7 +173,7 @@ const BASE_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -285,6 +285,29 @@ const BASE_TOOLS: ToolSpec[] = [
     },
   },
 ];
+
+const READ_ONLY_TOOL_NAMES = new Set([
+  "list_agents",
+  "get_agent",
+  "list_routing_preferences",
+  "wait_for_agent",
+  "get_status",
+  "list_runs",
+]);
+const ROUTING_WRITE_TOOL_NAMES = new Set(["set_routing_preference", "remove_routing_preference"]);
+
+const BASE_TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
+  ...tool,
+  annotations: READ_ONLY_TOOL_NAMES.has(tool.name)
+    ? { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    : ROUTING_WRITE_TOOL_NAMES.has(tool.name)
+      ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+      : {
+          readOnlyHint: false,
+          destructiveHint: tool.name === "spawn_agent" || tool.name === "cancel",
+          openWorldHint: tool.name === "spawn_agent",
+        },
+}));
 
 /** Catalog: the ephemeral subagent-run lane. Full-thread orchestration lives
  *  in the always-on `poracode` (app-controls) MCP server's thread tools. */

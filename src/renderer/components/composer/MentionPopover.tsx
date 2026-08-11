@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
-import type { FileEntry } from "@/shared/contracts";
+import type { AgentSlashCommand, FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
+import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 
 /**
  * A composer MCP server (Browser, Crossagents, Computer Use, …) surfaced as an
@@ -19,7 +20,15 @@ export type McpMentionEntry = {
   enabled: boolean;
 };
 
-export type MentionEntry = FileEntry | McpMentionEntry;
+export type PluginMentionEntry = {
+  type: "plugin";
+  path: string;
+  name: string;
+  detail: string;
+  command: AgentSlashCommand;
+};
+
+export type MentionEntry = FileEntry | McpMentionEntry | PluginMentionEntry;
 
 function getParentDir(path: string): string {
   const lastSlash = path.lastIndexOf("/");
@@ -70,8 +79,9 @@ export function MentionPopover(props: {
         {results.map((entry, index) => {
           const isActive = index === activeIndex;
           const isMcp = entry.type === "mcp";
+          const isPlugin = entry.type === "plugin";
           const McpIcon = isMcp ? entry.icon : null;
-          const dir = isMcp ? "" : getParentDir(entry.path);
+          const dir = isMcp || isPlugin ? "" : getParentDir(entry.path);
           return (
             <div
               key={`${entry.type}:${entry.path}`}
@@ -88,7 +98,9 @@ export function MentionPopover(props: {
                 onSelect(entry);
               }}
             >
-              {McpIcon ? (
+              {isPlugin ? (
+                <PluginIcon pluginId={entry.path} className="poracode-mention-popover__icon" />
+              ) : McpIcon ? (
                 <McpIcon className="poracode-mention-popover__icon text-muted" aria-hidden="true" />
               ) : (
                 <img
@@ -99,7 +111,7 @@ export function MentionPopover(props: {
                 />
               )}
               <span className="poracode-mention-popover__label truncate">{entry.name}</span>
-              {isMcp ? (
+              {isMcp || isPlugin ? (
                 <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
                   {entry.detail}
                 </span>

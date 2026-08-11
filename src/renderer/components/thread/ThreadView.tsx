@@ -73,6 +73,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.projectName === next.projectName &&
     prev.pendingLaunchPrompt === next.pendingLaunchPrompt &&
     prev.pendingLaunchSegments === next.pendingLaunchSegments &&
+    prev.pendingLaunchUserMessageItemId === next.pendingLaunchUserMessageItemId &&
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.paneAlign === next.paneAlign &&
@@ -101,6 +102,7 @@ export type ThreadViewProps = {
   projectName?: string;
   pendingLaunchPrompt?: string;
   pendingLaunchSegments?: PromptSegment[];
+  pendingLaunchUserMessageItemId?: string;
   isWsl?: boolean;
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
@@ -157,6 +159,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     projectName,
     pendingLaunchPrompt,
     pendingLaunchSegments,
+    pendingLaunchUserMessageItemId,
     isWsl,
     showCloseButton,
     paneAlign = "center",
@@ -196,6 +199,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const usesTerminalPresentation =
     (thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal") ===
     "terminal";
+  const awaitingWorktree = useAppStore(
+    (state) =>
+      state.provisioningWorktreeThreadIds[thread.id] === true && thread.status === "launching",
+  );
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
 
   useLayoutEffect(() => {
@@ -235,6 +242,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         projectLocation,
         prompt: pendingLaunchPrompt,
         ...(pendingLaunchSegments ? { segments: pendingLaunchSegments } : {}),
+        ...(pendingLaunchUserMessageItemId
+          ? { userMessageItemId: pendingLaunchUserMessageItemId }
+          : {}),
         initialSize: launchTerminalSize,
       });
     })().catch((error) => {
@@ -247,6 +257,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onLaunchFailed,
     pendingLaunchPrompt,
     pendingLaunchSegments,
+    pendingLaunchUserMessageItemId,
     projectLocation,
     launchTerminalSize,
     thread,
@@ -379,11 +390,13 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <CircleCheck className="size-3.5" />
                   </button>
                 ) : null}
-                <ThreadToolRail
-                  projectId={thread.projectId}
-                  paneCount={paneCount}
-                  {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-                />
+                {awaitingWorktree ? null : (
+                  <ThreadToolRail
+                    projectId={thread.projectId}
+                    paneCount={paneCount}
+                    {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                  />
+                )}
                 {showCloseButton ? (
                   <button
                     type="button"

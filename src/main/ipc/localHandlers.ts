@@ -1,3 +1,4 @@
+import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
@@ -363,6 +364,13 @@ export function createLocalIpcHandlers(
     },
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
+    },
+    openPluginsFolder: async () => {
+      // Created on demand so the folder is always there to drop a package into,
+      // even on a fresh install that has never loaded a user plugin.
+      const pluginsDir = options.requirePoracodePaths().pluginsDir;
+      await mkdir(pluginsDir, { recursive: true });
+      await shell.openPath(pluginsDir);
     },
     publishRemoteGitSummaries: (payload) => {
       options.onRemoteGitSummaries?.(payload.summaries);

@@ -13,7 +13,7 @@ vi.mock("@/shared/processTree", () => ({
   terminateChildProcessTree: vi.fn<() => void>(),
 }));
 
-import { SupervisorClient } from "./SupervisorClient";
+import { SupervisorClient, type SupervisorClientOptions } from "./SupervisorClient";
 
 type SendCallback = (error?: Error | null) => void;
 
@@ -36,7 +36,7 @@ function makeFakeChild(): FakeChild {
   return child;
 }
 
-function makeClient() {
+function makeClient(options: Pick<SupervisorClientOptions, "prepareStartThread"> = {}) {
   const child = makeFakeChild();
   forkMock.mockReturnValue(child);
   const client = new SupervisorClient({
@@ -47,6 +47,7 @@ function makeClient() {
     secretStorageKey: "key",
     onEvent: vi.fn<(event: SupervisorEvent) => void>(),
     onReset: vi.fn<() => void>(),
+    ...options,
   });
   client.start("/base");
   return { client, child };
@@ -107,6 +108,35 @@ describe("SupervisorClient.call", () => {
     await vi.waitFor(() => expect(child.send).toHaveBeenCalled());
     child.emit("message", { replyTo: getId(), ok: true, data: "result-value" });
     await expect(promise).resolves.toBe("result-value");
+  });
+
+  it("applies main-process start invariants before sending the request", async () => {
+    const { client, child } = makeClient({
+      prepareStartThread: (payload) => ({
+        ...payload,
+        invariantDisabledBuiltInMcpServerIds: ["crossagents"],
+      }),
+    });
+    let request: { id: string; payload: unknown } | undefined;
+    child.send.mockImplementation((message, callback) => {
+      request = message as { id: string; payload: unknown };
+      callback?.();
+      return true;
+    });
+    const promise = client.call("startThread", {
+      threadId: "child-thread",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "test" },
+      prompt: "Inspect this.",
+      initialSize: { cols: 120, rows: 40 },
+    });
+    await vi.waitFor(() => expect(request).toBeDefined());
+    expect(request?.payload).toMatchObject({
+      invariantDisabledBuiltInMcpServerIds: ["crossagents"],
+    });
+    child.emit("message", { replyTo: request!.id, ok: true, data: { threadId: "child-thread" } });
+    await expect(promise).resolves.toEqual({ threadId: "child-thread" });
   });
 
   it("rejects when the reply reports failure", async () => {

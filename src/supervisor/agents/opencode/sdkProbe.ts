@@ -24,6 +24,8 @@
 import type { ProjectLocation } from "@/shared/contracts";
 import { acquireOpenCodeServer } from "./sdkClient";
 
+const OPENCODE_INVENTORY_PROBE_TIMEOUT_MS = 15_000;
+
 /** Per-model entry returned by the SDK provider list, normalised. */
 export interface OpenCodeSdkModel {
   id: string;
@@ -155,13 +157,25 @@ function normalizeAgentsResponse(raw: unknown): OpenCodeSdkAgent[] {
  */
 export async function probeOpenCodeInventoryViaSdk(
   location: ProjectLocation,
+  signal?: AbortSignal,
 ): Promise<OpenCodeSdkInventory | undefined> {
+  signal?.throwIfAborted();
   const acquired = await acquireOpenCodeServer({ projectLocation: location });
 
   try {
+    signal?.throwIfAborted();
     const client = acquired.client;
 
-    const [providerListResult, agentsResult] = await Promise.all([
+    let abortProbe: (() => void) | undefined;
+    let timeout: NodeJS.Timeout | undefined;
+    const abortPromise = signal
+      ? new Promise<never>((_, reject) => {
+          abortProbe = () => reject(signal.reason ?? new Error("OpenCode inventory probe aborted"));
+          signal.addEventListener("abort", abortProbe, { once: true });
+          if (signal.aborted) abortProbe();
+        })
+      : undefined;
+    const inventoryPromise = Promise.all([
       client.provider.list().catch((err: unknown) => {
         throw new Error(
           `provider.list failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -179,6 +193,20 @@ export async function probeOpenCodeInventoryViaSdk(
         return { data: [] };
       }),
     ]);
+    const [providerListResult, agentsResult] = await Promise.race([
+      inventoryPromise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("OpenCode inventory probe timed out")),
+          OPENCODE_INVENTORY_PROBE_TIMEOUT_MS,
+        );
+        if (typeof timeout.unref === "function") timeout.unref();
+      }),
+      ...(abortPromise ? [abortPromise] : []),
+    ]).finally(() => {
+      if (timeout) clearTimeout(timeout);
+      if (abortProbe) signal?.removeEventListener("abort", abortProbe);
+    });
 
     const providerPayload = (providerListResult as { data?: unknown }).data;
     const agentsPayload = (agentsResult as { data?: unknown }).data;
@@ -186,6 +214,6 @@ export async function probeOpenCodeInventoryViaSdk(
     const agents = normalizeAgentsResponse(agentsPayload);
     return { providers, connected, agents };
   } finally {
-    await acquired.dispose();
+    await acquired.dispose({ closeServerIfIdle: true });
   }
 }

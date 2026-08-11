@@ -226,6 +226,7 @@ describe("ThreadSessionManager terminal restart", () => {
     expect(restarted!.launchPrompt).toBe("resume work");
     expect(restarted!.sessionRef).toEqual({ providerSessionId: "ses_existing" });
     expect(restarted!.presentationMode).toBe("terminal");
+    expect(restarted!.launchConfig).toEqual(CONFIG);
     expect(restarted!.structuredSession).toBeUndefined();
   });
 

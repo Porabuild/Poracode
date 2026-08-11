@@ -23,6 +23,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const mcpOAuth = runtime.mcpOAuthService;
   const externalMcpDiscovery = runtime.externalMcpDiscoveryService;
   const skills = runtime.skillsService;
+  const pluginRegistry = runtime.pluginRegistry;
+  const listPlugins = () => ({
+    plugins: pluginRegistry.listPlugins(),
+    userPluginsDir: pluginRegistry.ensureUserPluginsDir(),
+  });
   return defineSupervisorIpcHandlers({
     confirmCrossagentRoutingOverride: (payload) =>
       runtime.confirmCrossagentRoutingOverride(payload),
@@ -315,5 +320,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     importSkills: (payload) => skills.import(payload),
     listSkillMarketplace: (payload) => skills.listMarketplace(payload),
     installMarketplaceSkill: (payload) => skills.installMarketplace(payload),
+    listPlugins: () => listPlugins(),
+    refreshPlugins: () => {
+      pluginRegistry.refresh();
+      return listPlugins();
+    },
   });
 }

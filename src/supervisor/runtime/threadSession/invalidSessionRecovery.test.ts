@@ -188,6 +188,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     const spawnInput = harness.spawnThread.mock.calls[0]![0];
     expect(spawnInput).not.toHaveProperty("sessionRef");
     expect(spawnInput.mcpLaunchSnapshot).toBe(harness.session.mcpLaunchSnapshot);
+    expect(spawnInput.launchConfig).toEqual(CONFIG);
     expect(spawnInput).toMatchObject({
       threadId: THREAD_ID,
       launchPrompt: "",

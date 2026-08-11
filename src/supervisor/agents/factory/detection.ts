@@ -86,6 +86,7 @@ export function buildFactoryProbeCapabilities(probe: AcpProbeResult): Capabiliti
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult | undefined> {
   const command = buildFactoryCommand(location, executablePath);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
@@ -97,6 +98,7 @@ async function probeCapabilities(
       ...(processCwd ? { processCwd } : {}),
       ...(command.env ? { env: command.env } : {}),
       timeoutMs: 30_000,
+      ...(signal ? { signal } : {}),
       label:
         location.kind === "wsl" ? `factory:wsl:${location.distro}` : `factory:${location.kind}`,
     },
@@ -117,6 +119,6 @@ export const factoryDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["FACTORY_API_KEY"])],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };

@@ -5,6 +5,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { GitStatusResult, Project } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { resetGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { SyncBadge } from "./SyncBadge";
 
 const bridgeMock = vi.hoisted(() => ({
@@ -65,6 +66,7 @@ describe("SyncBadge", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGitReviewActionStore();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     useAppStore.setState({ projects: [project] });
     useGitStore.setState({
@@ -91,5 +93,37 @@ describe("SyncBadge", () => {
     await waitFor(() => {
       expect(toastMock.danger).toHaveBeenCalledWith("remote rejected");
     });
+  });
+
+  it("shares in-flight state across duplicate project badges", async () => {
+    let releasePull!: () => void;
+    bridgeMock.gitPull.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (releasePull = resolve)),
+    );
+    bridgeMock.getGitStatus.mockResolvedValue(makeStatus({ behind: 0 }));
+
+    render(
+      <>
+        <SyncBadge projectId={project.id} />
+        <SyncBadge projectId={project.id} />
+      </>,
+    );
+
+    const badges = screen.getAllByRole("button", { name: "Pull ↓1" });
+    fireEvent.click(badges[0]!);
+    await waitFor(() => {
+      for (const badge of badges) {
+        expect(badge).toHaveAttribute("aria-busy", "true");
+        expect(badge).toHaveAttribute("aria-disabled", "true");
+      }
+    });
+    fireEvent.click(badges[1]!);
+    expect(bridgeMock.gitPull).toHaveBeenCalledOnce();
+
+    releasePull();
+    await waitFor(() => expect(bridgeMock.getGitStatus).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Pull ↓1" })).not.toBeInTheDocument(),
+    );
   });
 });

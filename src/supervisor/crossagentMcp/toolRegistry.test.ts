@@ -550,12 +550,31 @@ describe("subagent tool registration", () => {
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    expect(byName.get("list_agents")!.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+    expect(byName.get("spawn_agent")!.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    });
   });
 
   it("documents background runs as an explicit join that never injects a message", () => {
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("never injects a new message");
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("call wait_for_agent once");
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).not.toContain("delivered back automatically");
+  });
+
+  it("requires an explicit user ask in the thread before delegating", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("in this thread");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("rest of the thread");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "never spawn subagents on your own initiative",
+    );
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
   });
 
   it("returns an isError result (not a throw) for removed full-thread tools", async () => {

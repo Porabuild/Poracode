@@ -1,16 +1,18 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  BuiltInMcpServerId,
-  DiscoverExternalMcpServersPayload,
-  DiscoverExternalMcpServersResult,
-  McpProbePayload,
-  McpProbeResult,
-  McpServer,
-  McpOauthBeginPayload,
-  McpOauthBeginResult,
+import {
+  BUILT_IN_MCP_SERVER_TOOL_COUNTS,
+  type BuiltInMcpServerId,
+  type DiscoverExternalMcpServersPayload,
+  type DiscoverExternalMcpServersResult,
+  type McpProbePayload,
+  type McpProbeResult,
+  type McpServer,
+  type McpOauthBeginPayload,
+  type McpOauthBeginResult,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { McpServersManager, type McpImportProjectTarget } from "./McpServersManager";
 
@@ -57,6 +59,7 @@ function managerElement(options: {
   additionalProjects?: McpImportProjectTarget[];
   disabledBuiltIns?: Record<string, boolean>;
   disabledBuiltInTools?: Record<string, string[]>;
+  managedBuiltIns?: Partial<Record<BuiltInMcpServerId, string>>;
   onBuiltInDisabledChange?: (id: string, disabled: boolean) => void;
   onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   includeCrossagentsSettings?: boolean;
@@ -71,6 +74,7 @@ function managerElement(options: {
     additionalProjects = [],
     disabledBuiltIns,
     disabledBuiltInTools,
+    managedBuiltIns,
     onBuiltInDisabledChange,
     onBuiltInToolEnabledChange,
     includeCrossagentsSettings,
@@ -109,6 +113,7 @@ function managerElement(options: {
       defaultScope={defaultScope}
       {...(disabledBuiltIns ? { disabledBuiltIns } : {})}
       {...(disabledBuiltInTools ? { disabledBuiltInTools } : {})}
+      {...(managedBuiltIns ? { managedBuiltIns } : {})}
       {...(onBuiltInDisabledChange ? { onBuiltInDisabledChange } : {})}
       {...(onBuiltInToolEnabledChange ? { onBuiltInToolEnabledChange } : {})}
       {...(includeCrossagentsSettings
@@ -139,6 +144,7 @@ describe("McpServersManager", () => {
     bridge.openExternalNative.mockClear();
     bridge.waitMcpServerOauth.mockClear();
     bridge.clearMcpServerOauth.mockClear();
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
 
   it("renders immutable built-ins separately from editable configured servers", () => {
@@ -158,6 +164,33 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "46 tools" })).toBeInTheDocument();
   });
 
+  it("identifies plugin-managed built-ins without exposing edit or delete controls", () => {
+    render(
+      managerElement({
+        disabledBuiltIns: {},
+        managedBuiltIns: { browser: "Browser Tools" },
+        onBuiltInDisabledChange: () => undefined,
+      }),
+    );
+
+    const row = document.querySelector('[data-built-in-mcp-server="browser"]');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText("Managed by Browser Tools")).toBeInTheDocument();
+    expect(within(row as HTMLElement).queryByText("Built-in")).not.toBeInTheDocument();
+    expect(
+      within(row as HTMLElement).queryByRole("button", { name: "Edit Browser" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row as HTMLElement).queryByRole("button", { name: "Delete Browser" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search MCP servers" }), {
+      target: { value: "Browser Tools" },
+    });
+    expect(document.querySelector('[data-built-in-mcp-server="browser"]')).not.toBeNull();
+    expect(document.querySelector('[data-built-in-mcp-server="chrome"]')).toBeNull();
+  });
+
   it("shows the built-in tool list from its tool count", () => {
     const onBuiltInToolEnabledChange =
       vi.fn<(id: BuiltInMcpServerId, tool: string, enabled: boolean) => void>();
@@ -171,7 +204,11 @@ describe("McpServersManager", () => {
 
     const row = document.querySelector('[data-built-in-mcp-server="app-controls"]');
     expect(row).not.toBeNull();
-    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "57 tools" }));
+    fireEvent.click(
+      within(row as HTMLElement).getByRole("button", {
+        name: `${BUILT_IN_MCP_SERVER_TOOL_COUNTS["app-controls"]} tools`,
+      }),
+    );
 
     const dialog = screen.getByRole("dialog", { name: "App Controls" });
     expect(within(dialog).getByText("list_schedules")).toBeInTheDocument();
@@ -453,6 +490,34 @@ describe("McpServersManager", () => {
     expect(
       screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Full configuration" }).value,
     ).toContain('"cwd": "C:\\\\repo"');
+  });
+
+  it("identifies a remote project by its host in the scope trigger and menu", async () => {
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "d1", label: "Poracode on MacBook 16" }],
+      runtime: { d1: { status: "online", projects: [], threads: [] } },
+    } as never);
+    render(
+      managerElement({
+        workspaceServers: [],
+        defaultScope: "workspace",
+        projectLocation: {
+          kind: "posix",
+          path: "/remote/project",
+          remoteServerId: "d1",
+        },
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add MCP server" }));
+    const scope = screen.getByLabelText("Scope");
+    expect(scope).toHaveTextContent("Demo projectMacBook 16");
+    expect(scope.querySelector(".lucide-server")).not.toBeNull();
+
+    fireEvent.click(scope);
+    const option = await screen.findByRole("menuitemradio", { name: /Demo project.*MacBook 16/u });
+    expect(option.querySelector(".lucide-server")).not.toBeNull();
+    expect(option).not.toHaveTextContent("/remote/project");
   });
 
   it("dismisses the modal with Escape", () => {

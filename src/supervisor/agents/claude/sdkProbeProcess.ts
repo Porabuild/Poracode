@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { SpawnOptions, SpawnedProcess } from "@anthropic-ai/claude-agent-sdk";
+import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildAgentCommand, definedEnv } from "../base";
 
 function isEpipeError(error: Error): boolean {
@@ -33,19 +34,28 @@ export function spawnClaudeProbeProcess(options: SpawnOptions): SpawnedProcess {
     env = spec.env;
     cwd = spec.cwd;
   }
+  const ownedProcessGroup = process.platform !== "win32";
 
   const child = spawn(command, args, {
     ...(env ? { env } : {}),
-    signal: options.signal,
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
+    detached: ownedProcessGroup,
     ...(cwd ? { cwd } : {}),
-  }) as unknown as SpawnedProcess;
+  });
 
   child.stdin.on("error", (error: Error) => {
     if (isEpipeError(error)) return;
     throw error;
   });
 
-  return child;
+  const abort = () => terminateChildProcessTree(child, { ownedProcessGroup });
+  options.signal.addEventListener("abort", abort, { once: true });
+  child.once("close", () => {
+    options.signal.removeEventListener("abort", abort);
+    terminateChildProcessTree(child, { ownedProcessGroup });
+  });
+  if (options.signal.aborted) abort();
+
+  return child as unknown as SpawnedProcess;
 }

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parsePrimedEnvDump } from "./processRuntime";
+import { terminateProcessTree } from "@/shared/processTree";
+import { parsePrimedEnvDump, readCommandOutputAsync } from "./processRuntime";
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 describe("parsePrimedEnvDump", () => {
   it("parses simple NAME=value lines", () => {
@@ -26,4 +36,50 @@ describe("parsePrimedEnvDump", () => {
   it("returns an empty record for an all-empty dump", () => {
     expect(parsePrimedEnvDump(["", ""])).toEqual({});
   });
+});
+
+describe("readCommandOutputAsync", () => {
+  it("kills a successful POSIX command's remaining process group", async () => {
+    if (process.platform === "win32") return;
+
+    const script = [
+      'const { spawn } = require("node:child_process");',
+      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+      "child.unref();",
+      "process.stdout.write(String(child.pid));",
+    ].join("\n");
+    const result = await readCommandOutputAsync(process.execPath, ["-e", script]);
+    const descendantPid = Number(result.stdout);
+
+    try {
+      expect(result.ok).toBe(true);
+      expect(Number.isInteger(descendantPid)).toBe(true);
+      await expect.poll(() => isProcessRunning(descendantPid), { timeout: 3_000 }).toBe(false);
+    } finally {
+      terminateProcessTree(descendantPid);
+    }
+  }, 10_000);
+
+  it("kills a timed-out Windows command's descendant process", async () => {
+    if (process.platform !== "win32") return;
+
+    const script = [
+      'const { spawn } = require("node:child_process");',
+      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", windowsHide: true });',
+      "process.stdout.write(String(child.pid));",
+      "setInterval(() => {}, 1000);",
+    ].join("\n");
+    const result = await readCommandOutputAsync(process.execPath, ["-e", script], {
+      timeout: 500,
+    });
+    const descendantPid = Number(result.stdout);
+
+    try {
+      expect(result.ok).toBe(false);
+      expect(Number.isInteger(descendantPid)).toBe(true);
+      await expect.poll(() => isProcessRunning(descendantPid), { timeout: 3_000 }).toBe(false);
+    } finally {
+      terminateProcessTree(descendantPid);
+    }
+  }, 10_000);
 });

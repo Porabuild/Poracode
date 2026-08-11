@@ -3,6 +3,14 @@ import { agentKindSchema, projectLocationSchema } from "./common";
 
 export const DEFAULT_MCP_SERVER_TIMEOUT_MS = 30_000;
 
+/** Standard MCP hints that help providers select and authorize tools safely. */
+export interface McpToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 /** Stable ids for the MCP servers provided by Poracode itself. */
 export const BUILT_IN_MCP_SERVER_IDS = [
   "browser",
@@ -130,6 +138,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "update_schedule",
     "run_schedule",
     "delete_schedule",
+    "get_current_thread",
     "list_threads",
     "get_thread",
     "read_thread",
@@ -486,6 +495,8 @@ export interface McpLaunchSnapshot {
   mcpServers: McpServer[];
   disabledBuiltInMcpServerIds: BuiltInMcpServerId[];
   disabledBuiltInMcpTools?: BuiltInMcpDisabledTools;
+  /** Built-in MCPs contributed by enabled Agent Plugins for this launch. */
+  pluginBuiltInMcpServerIds?: BuiltInMcpServerId[];
 }
 
 export function emptyMcpLaunchSnapshot(): McpLaunchSnapshot {

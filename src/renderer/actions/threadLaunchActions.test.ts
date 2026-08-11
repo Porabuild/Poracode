@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 const mocks = vi.hoisted(() => {
   const appState = {
@@ -7,8 +16,23 @@ const mocks = vi.hoisted(() => {
     view: { kind: "home" as const },
     projects: [] as Project[],
     threads: [] as Thread[],
+    provisioningWorktreeThreadIds: {} as Record<string, true>,
     createThread: vi.fn<(input: unknown) => Thread>(),
-    queueThreadLaunch: vi.fn<(threadId: string, prompt: string, segments?: unknown[]) => void>(),
+    queueThreadLaunch:
+      vi.fn<
+        (threadId: string, prompt: string, segments?: unknown[], userMessageItemId?: string) => void
+      >(),
+    setThreadWorktree:
+      vi.fn<
+        (
+          threadId: string,
+          worktreePath: string,
+          worktreeBranch?: string,
+          options?: { preserveProvisioning?: boolean },
+        ) => void
+      >(),
+    applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
+    updateThreadRuntime: vi.fn<(threadId: string, input: unknown) => void>(),
     setThreadMcpLaunchCustomServerNames:
       vi.fn<(threadId: string, names: readonly string[]) => void>(),
   };
@@ -22,7 +46,13 @@ const mocks = vi.hoisted(() => {
       transport?: { kind: "direct" } | { kind: "ssh" };
     }>,
     runtime: {} as Record<string, { status: string }>,
-    launchRemoteThread: vi.fn<(input: unknown) => Promise<void>>(),
+    launchRemoteThread:
+      vi.fn<
+        (
+          input: unknown,
+          options?: { isPendingLaunchOwned?: () => boolean },
+        ) => Promise<RemoteThreadLaunchResult>
+      >(),
     withClient:
       vi.fn<
         (
@@ -49,6 +79,8 @@ const mocks = vi.hoisted(() => {
     primeWorktreeGitState: vi.fn<(project: Project, path: string) => Promise<void>>(),
     runWorktreeSetupScript:
       vi.fn<(project: Project, path: string, script: string) => Promise<void>>(),
+    performWorktreeRemoval:
+      vi.fn<(project: Project, path: string, branch?: string) => Promise<boolean>>(),
     refreshGitProject: vi.fn<(project: unknown, reason: string, scope: string) => Promise<void>>(),
     generateTitleAsync: vi.fn<(...args: unknown[]) => void>(),
   };
@@ -114,6 +146,10 @@ vi.mock("./worktreeLaunchActions", () => ({
   runWorktreeSetupScript: mocks.runWorktreeSetupScript,
 }));
 
+vi.mock("./worktreeActions", () => ({
+  performWorktreeRemoval: mocks.performWorktreeRemoval,
+}));
+
 import { performInitialThreadLaunch, startThreadFromDraft } from "./threadLaunchActions";
 
 const localProject: Project = {
@@ -143,17 +179,33 @@ describe("startThreadFromDraft host transport", () => {
     mocks.appState.view = { kind: "home" };
     mocks.appState.projects = [];
     mocks.appState.threads = [];
-    mocks.appState.createThread.mockReturnValue({
-      id: "local-thread",
-      projectId: localProject.id,
-    } as Thread);
+    mocks.appState.provisioningWorktreeThreadIds = {};
+    mocks.appState.createThread.mockImplementation((input) => {
+      const values = input as Partial<Thread> & {
+        threadId?: string;
+        worktreeProvisioning?: boolean;
+      };
+      const thread = {
+        id: values.threadId ?? "local-thread",
+        projectId: values.projectId ?? localProject.id,
+        archived: false,
+        ...(values.presentationMode ? { presentationMode: values.presentationMode } : {}),
+        ...(values.remoteServerId ? { remoteServerId: values.remoteServerId } : {}),
+        ...(values.remoteId ? { remoteId: values.remoteId } : {}),
+      } as Thread;
+      mocks.appState.threads = [thread];
+      if (values.worktreeProvisioning) {
+        mocks.appState.provisioningWorktreeThreadIds[thread.id] = true;
+      }
+      return thread;
+    });
     mocks.createWorktree.mockResolvedValue({
       path: "C:\\shared-worktrees\\feature",
       changesTransferred: true,
     });
     mocks.remoteState.servers = [];
     mocks.remoteState.runtime = { d1: { status: "online" } };
-    mocks.remoteState.launchRemoteThread.mockResolvedValue(undefined);
+    mocks.remoteState.launchRemoteThread.mockResolvedValue("started");
     mocks.remoteState.withClient.mockImplementation((desktopId, invoke) =>
       invoke(mocks.remoteClient),
     );
@@ -161,16 +213,63 @@ describe("startThreadFromDraft host transport", () => {
     mocks.bridge.startThread.mockResolvedValue({ threadId: "local-thread" });
     mocks.primeWorktreeGitState.mockResolvedValue(undefined);
     mocks.runWorktreeSetupScript.mockResolvedValue(undefined);
+    mocks.performWorktreeRemoval.mockResolvedValue(true);
   });
 
-  it("uses the shared transport flow for a local worktree launch", async () => {
-    await startThreadFromDraft(localProject, {
-      agentKind: "codex",
-      config: { model: "gpt-5.6" },
-      prompt: "build it",
-      worktreeBranch: "feature",
-      worktreeIsNewBranch: true,
+  it("opens a local thread before its new worktree finishes provisioning", async () => {
+    let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
+    mocks.createWorktree.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWorktree = resolve;
+      }),
+    );
+
+    const launch = startThreadFromDraft(
+      localProject,
+      {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build it",
+        presentationMode: "gui",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      },
+      { replacePaneId: "draft:local-project" },
+    );
+
+    expect(mocks.appState.createThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: localProject.id,
+        worktreeBranch: "feature",
+        worktreeProvisioning: true,
+        replacePaneId: "draft:local-project",
+      }),
+    );
+    expect(mocks.appState.createThread.mock.calls[0]?.[0]).not.toHaveProperty("worktreePath");
+    expect(mocks.appState.setThreadWorktree).not.toHaveBeenCalled();
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenCalledTimes(2);
+    const optimisticStartCall = mocks.appState.applyRuntimeEvent.mock.calls[0];
+    if (!optimisticStartCall) throw new Error("Expected an optimistic user message event");
+    const optimisticItemId = (optimisticStartCall[1] as { itemId?: string }).itemId;
+    expect(optimisticItemId).toEqual(expect.stringMatching(/^user-/));
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenNthCalledWith(
+      1,
+      "local-thread",
+      expect.objectContaining({
+        type: "item.started",
+        itemId: optimisticItemId,
+        itemType: "user_message",
+        payload: { content: [{ kind: "text", text: "build it" }] },
+      }),
+    );
+    expect(mocks.appState.updateThreadRuntime).not.toHaveBeenCalled();
+
+    resolveWorktree({
+      path: "C:\\shared-worktrees\\feature",
+      changesTransferred: true,
     });
+    await launch;
 
     expect(mocks.createWorktree).toHaveBeenCalledWith(localProject, {
       branch: "feature",
@@ -178,11 +277,16 @@ describe("startThreadFromDraft host transport", () => {
       keepChangesInSource: false,
       transferUncommitted: false,
     });
-    expect(mocks.appState.createThread).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: localProject.id,
-        worktreePath: "C:\\shared-worktrees\\feature",
-      }),
+    expect(mocks.appState.setThreadWorktree).toHaveBeenCalledWith(
+      "local-thread",
+      "C:\\shared-worktrees\\feature",
+      "feature",
+    );
+    expect(mocks.appState.queueThreadLaunch).toHaveBeenCalledWith(
+      "local-thread",
+      "build it",
+      undefined,
+      optimisticItemId,
     );
     expect(mocks.primeWorktreeGitState).toHaveBeenCalledWith(
       localProject,
@@ -193,6 +297,95 @@ describe("startThreadFromDraft host transport", () => {
       "C:\\shared-worktrees\\feature",
       "pnpm install",
     );
+  });
+
+  it("shows a provisioning failure on the thread opened for a new local worktree", async () => {
+    mocks.createWorktree.mockRejectedValue(new Error("Branch already exists"));
+
+    await expect(
+      startThreadFromDraft(localProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build it",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      }),
+    ).rejects.toThrow("Branch already exists");
+
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenCalledWith("local-thread", {
+      type: "error",
+      threadId: "local-thread",
+      message: "Branch already exists",
+    });
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith("local-thread", {
+      status: "error",
+      attention: "error",
+      errorMessage: "Branch already exists",
+      canResumeWithConfig: false,
+    });
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+  });
+
+  it("removes a new worktree if its optimistic thread was deleted while provisioning", async () => {
+    let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
+    mocks.createWorktree.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWorktree = resolve;
+      }),
+    );
+
+    const launch = startThreadFromDraft(localProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+    mocks.appState.threads = [];
+
+    resolveWorktree({ path: "C:\\shared-worktrees\\feature" });
+    await launch;
+
+    expect(mocks.performWorktreeRemoval).toHaveBeenCalledWith(
+      localProject,
+      "C:\\shared-worktrees\\feature",
+      "feature",
+    );
+    expect(mocks.appState.setThreadWorktree).not.toHaveBeenCalled();
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
+  });
+
+  it("keeps an archived optimistic thread stopped after worktree provisioning", async () => {
+    mocks.appState.createThread.mockImplementation(() => {
+      const thread = {
+        id: "local-thread",
+        projectId: localProject.id,
+        archived: true,
+      } as Thread;
+      mocks.appState.threads = [thread];
+      return thread;
+    });
+
+    await startThreadFromDraft(localProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+
+    expect(mocks.appState.setThreadWorktree).toHaveBeenCalledWith(
+      "local-thread",
+      "C:\\shared-worktrees\\feature",
+      "feature",
+    );
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith("local-thread", {
+      status: "inactive",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
   });
 
   it("launches a helper thread through the same flow and runs setup from the client", async () => {
@@ -216,22 +409,178 @@ describe("startThreadFromDraft host transport", () => {
       keepChangesInSource: false,
       transferUncommitted: false,
     });
-    expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledWith({
-      desktopId: "d1",
-      projectId: "p1",
-      agentKind: "codex",
-      config: { model: "gpt-5.6" },
-      prompt: "build it",
-      presentationMode: "terminal",
-      worktreePath: "/srv/worktrees/feature",
-      worktreeBranch: "feature",
-      isNewWorktree: true,
-    });
+    expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledWith(
+      {
+        threadId: expect.any(String),
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build it",
+        presentationMode: "terminal",
+        worktreePath: "/srv/worktrees/feature",
+        worktreeBranch: "feature",
+        isNewWorktree: true,
+      },
+      { isPendingLaunchOwned: expect.any(Function) },
+    );
     expect(mocks.runWorktreeSetupScript).toHaveBeenCalledWith(
       remoteProject,
       "/srv/worktrees/feature",
       "pnpm install",
     );
+  });
+
+  it("shows the same optimistic GUI launch while a remote worktree is provisioning", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
+    mocks.createWorktree.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWorktree = resolve;
+      }),
+    );
+
+    const launch = startThreadFromDraft(remoteProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build remotely",
+      presentationMode: "gui",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+
+    const createInput = mocks.appState.createThread.mock.calls[0]?.[0] as
+      | (Partial<Thread> & { threadId?: string; worktreeProvisioning?: boolean })
+      | undefined;
+    expect(createInput).toMatchObject({
+      projectId: remoteProject.id,
+      remoteServerId: "d1",
+      worktreeBranch: "feature",
+      worktreeProvisioning: true,
+      presentationMode: "gui",
+    });
+    expect(createInput?.remoteId).toEqual(expect.any(String));
+    expect(createInput?.threadId).toBe(`remote:d1:thread:${createInput?.remoteId}`);
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenCalledWith(
+      createInput?.threadId,
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "user_message",
+        payload: { content: [{ kind: "text", text: "build remotely" }] },
+      }),
+    );
+    expect(mocks.remoteState.launchRemoteThread).not.toHaveBeenCalled();
+
+    const optimisticItemId = (
+      mocks.appState.applyRuntimeEvent.mock.calls[0]?.[1] as { itemId?: string } | undefined
+    )?.itemId;
+    resolveWorktree({ path: "/srv/worktrees/feature", changesTransferred: true });
+    await launch;
+
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith(createInput?.threadId, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledWith(
+      {
+        threadId: createInput?.remoteId,
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build remotely",
+        presentationMode: "gui",
+        worktreePath: "/srv/worktrees/feature",
+        worktreeBranch: "feature",
+        isNewWorktree: true,
+        userMessageItemId: optimisticItemId,
+      },
+      { isPendingLaunchOwned: expect.any(Function) },
+    );
+    expect(mocks.appState.setThreadWorktree).toHaveBeenNthCalledWith(
+      1,
+      createInput?.threadId,
+      "/srv/worktrees/feature",
+      "feature",
+      { preserveProvisioning: true },
+    );
+    expect(mocks.appState.setThreadWorktree).toHaveBeenLastCalledWith(
+      createInput?.threadId,
+      "/srv/worktrees/feature",
+      "feature",
+    );
+  });
+
+  it("removes the host thread and worktree when the provisional remote row is deleted mid-start", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    const remoteStart = deferred<RemoteThreadLaunchResult>();
+    mocks.remoteState.launchRemoteThread.mockReturnValue(remoteStart.promise);
+    mocks.createWorktree.mockResolvedValue({ path: "/srv/worktrees/feature" });
+
+    const launch = startThreadFromDraft(remoteProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build remotely",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+    await vi.waitFor(() => expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledOnce());
+    mocks.appState.threads = [];
+    remoteStart.resolve("cancelled");
+    await launch;
+
+    expect(mocks.performWorktreeRemoval).toHaveBeenCalledWith(
+      remoteProject,
+      "/srv/worktrees/feature",
+      "feature",
+    );
+  });
+
+  it("retains the worktree when cancellation cannot remove the host thread", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    mocks.createWorktree.mockResolvedValue({ path: "/srv/worktrees/feature" });
+    mocks.remoteState.launchRemoteThread.mockResolvedValue("cancellation-failed");
+
+    await startThreadFromDraft(remoteProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build remotely",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+
+    expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
+    expect(mocks.primeWorktreeGitState).not.toHaveBeenCalled();
+  });
+
+  it("retains remote worktree context when host startup fails", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    mocks.createWorktree.mockResolvedValue({ path: "/srv/worktrees/feature" });
+    mocks.remoteState.launchRemoteThread.mockRejectedValue(new Error("Host refused launch"));
+
+    await expect(
+      startThreadFromDraft(remoteProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build remotely",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      }),
+    ).rejects.toThrow("Host refused launch");
+
+    expect(mocks.appState.setThreadWorktree).toHaveBeenCalledWith(
+      expect.any(String),
+      "/srv/worktrees/feature",
+      "feature",
+      { preserveProvisioning: true },
+    );
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenLastCalledWith(expect.any(String), {
+      status: "error",
+      attention: "error",
+      errorMessage: "Host refused launch",
+      canResumeWithConfig: false,
+    });
   });
 
   it("refuses to launch on a remote project whose server is offline", async () => {
@@ -343,5 +692,34 @@ describe("performInitialThreadLaunch host transport", () => {
       }),
     );
     expect(mocks.remoteState.withClient).not.toHaveBeenCalled();
+  });
+
+  it("reuses an optimistic user message created before provider launch", async () => {
+    const thread = {
+      ...localThread,
+      presentationMode: "gui",
+    } as Thread;
+
+    await performInitialThreadLaunch({
+      thread,
+      projectLocation: localProject.location,
+      prompt: "build it",
+      userMessageItemId: "user-provisioning",
+      initialSize,
+    });
+
+    expect(mocks.appState.applyRuntimeEvent).not.toHaveBeenCalled();
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith("local-thread", {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: undefined,
+    });
+    expect(mocks.bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "local-thread",
+        prompt: "build it",
+        userMessageItemId: "user-provisioning",
+      }),
+    );
   });
 });

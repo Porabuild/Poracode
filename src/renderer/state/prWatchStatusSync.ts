@@ -4,6 +4,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "./appStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "./gitSelectors";
 import { useGitStore } from "./gitStore";
+import { syncMergedPrBase } from "./prMergeBaseSync";
 
 /**
  * Keeps the git store's PR snapshot in step with the PR-watch loop.
@@ -37,6 +38,7 @@ function collectPrKeys(event: PrWatchStatusEvent): Set<string> {
 }
 
 function applyPrWatchStatus(event: PrWatchStatusEvent): void {
+  if (event.pr.state === "merged") void syncMergedPrBase(event.projectId, event.pr);
   const gitStore = useGitStore.getState();
   const updates: Record<string, PrData> = {};
   for (const key of collectPrKeys(event)) {

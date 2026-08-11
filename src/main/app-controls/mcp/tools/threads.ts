@@ -13,7 +13,7 @@ import {
   DEFAULT_TERMINAL_SIZE,
   resolveMcpLaunchSnapshot,
 } from "@/shared/contracts";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { dbGetThreadRuntimeItemsPage } from "../../../db";
 import {
   assertNotSelf,
@@ -51,8 +51,10 @@ const ROLLBACK_MAX_TURNS = 20;
 const listArgsSchema = z.object({
   projectId: z.string().min(1).optional(),
   status: z.string().min(1).optional(),
+  currentWorktree: z.boolean().optional(),
 });
 const threadIdArgsSchema = z.object({ threadId: z.string().min(1) });
+const optionalThreadIdArgsSchema = z.object({ threadId: z.string().min(1).optional() });
 const readArgsSchema = z.object({
   threadId: z.string().min(1),
   limit: z.number().int().min(1).max(READ_MAX_LIMIT).optional(),
@@ -104,15 +106,26 @@ const updateArgsSchema = z.object({
 export const threadTools: ToolDomain = {
   specs: [
     {
+      name: "get_current_thread",
+      description:
+        "Identify the Poracode thread making this MCP call. Returns its threadId, project, presentation mode, status, and worktreePath/branch when it uses a separate worktree; an absent worktreePath means the project's main checkout. Call this before work that depends on 'this thread' or 'this worktree'; do not ask the user to provide an id. Takes no arguments.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {},
+      },
+    },
+    {
       name: "list_threads",
       description:
-        "List all app threads (across projects) with their live status, attention, project, agent, model, and worktree. Optionally filter by projectId or status.",
+        "List app threads with their live status, attention, project, agent, model, presentation mode, and worktree. Set currentWorktree=true to return only threads in the calling agent's exact project and worktree; this also matches main-checkout threads whose worktreePath is absent. Optionally filter by projectId or status.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
         properties: {
           projectId: projectIdProp,
           status: { type: "string" },
+          currentWorktree: { type: "boolean" },
         },
       },
     },
@@ -232,8 +245,8 @@ export const threadTools: ToolDomain = {
     {
       name: "read_terminal",
       description:
-        "Read the PTY scrollback of a terminal-presentation thread (the raw terminal output the user sees). Returns a note when the thread has no live terminal session (e.g. a structured/GUI thread, or its session isn't running). Only the last 50000 characters are returned; the response flags truncation.",
-      inputSchema: threadIdJsonSchema(),
+        "Read a terminal-presentation thread's raw, user-visible PTY scrollback. Omit threadId for the calling agent's own thread, or pass a sibling thread id returned by list_threads. Structured/GUI threads and stopped sessions may have no terminal scrollback. Returns at most the trailing 50000 characters and flags truncation; output may contain ANSI control sequences, so extract the relevant evidence instead of repeating the full transcript.",
+      inputSchema: optionalThreadIdJsonSchema(),
     },
     {
       name: "steer_thread",
@@ -280,13 +293,34 @@ export const threadTools: ToolDomain = {
     },
   ],
   handlers: {
+    get_current_thread: async (_args, ctx) => {
+      const threadId = ctx.identity.threadId;
+      if (!threadId) {
+        return {
+          threadId: null,
+          note: "This MCP request is not associated with a Poracode thread.",
+        };
+      }
+      const thread = requireThread(ctx, threadId);
+      const project = ctx.getProject(thread.projectId) ?? undefined;
+      const snapshots = await snapshotMap(ctx);
+      return threadView(thread, project, snapshots.get(threadId));
+    },
     list_threads: async (args, ctx) => {
-      const { projectId, status } = listArgsSchema.parse(args);
+      const { projectId, status, currentWorktree } = listArgsSchema.parse(args);
+      const caller = currentWorktree ? currentThread(ctx) : undefined;
       const projectsById = new Map(ctx.getProjects().map((project) => [project.id, project]));
+      const callerProject = caller ? projectsById.get(caller.projectId) : undefined;
       const snapshots = await snapshotMap(ctx);
       const threads = ctx
         .getThreads()
         .filter((thread) => (projectId ? thread.projectId === projectId : true))
+        .filter((thread) =>
+          caller
+            ? thread.projectId === caller.projectId &&
+              sameWorktreePath(thread.worktreePath, caller.worktreePath, callerProject)
+            : true,
+        )
         .map((thread) =>
           threadView(thread, projectsById.get(thread.projectId), snapshots.get(thread.id)),
         )
@@ -439,7 +473,7 @@ export const threadTools: ToolDomain = {
       // Ordered so `applied` preserves rename→group→done→starred→archived.
       applyField(parsed.rename, "rename", (title) => ({
         command: { kind: "rename", threadId, title },
-        mutate: (thread) => ({ ...thread, title, updatedAt: stamp() }),
+        mutate: (thread) => ({ ...thread, title }),
       }));
       applyField(parsed.group, "group", (group) => ({
         command: { kind: "set-group", threadId, groupId: group, groupName: group },
@@ -494,7 +528,8 @@ export const threadTools: ToolDomain = {
       };
     },
     read_terminal: async (args, ctx) => {
-      const { threadId } = threadIdArgsSchema.parse(args);
+      const parsed = optionalThreadIdArgsSchema.parse(args);
+      const threadId = parsed.threadId ?? currentThread(ctx).id;
       requireThread(ctx, threadId);
       const scrollback = await ctx.supervisor.readTerminalScrollback({ threadId });
       if (!scrollback) {
@@ -680,4 +715,33 @@ function threadIdJsonSchema(): Record<string, unknown> {
     required: ["threadId"],
     properties: { threadId: threadIdProp },
   };
+}
+
+function optionalThreadIdJsonSchema(): Record<string, unknown> {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: { threadId: threadIdProp },
+  };
+}
+
+function sameWorktreePath(
+  left: string | undefined,
+  right: string | undefined,
+  project: Project | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  const caseInsensitive = project?.location.kind === "windows";
+  return (
+    normalizeWorktreePathForComparison(left, caseInsensitive) ===
+    normalizeWorktreePathForComparison(right, caseInsensitive)
+  );
+}
+
+function currentThread(ctx: AppControlsToolContext): Thread {
+  const threadId = ctx.identity.threadId;
+  if (!threadId) {
+    throw new Error("This MCP request is not associated with a Poracode thread.");
+  }
+  return requireThread(ctx, threadId);
 }

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "outlook",
+  "version": "1.1.0",
+  "description": "Triage Microsoft Outlook mail and manage your calendar.",
+  "author": {
+    "name": "Softeria",
+    "url": "https://github.com/softeria"
+  },
+  "homepage": "https://github.com/softeria/ms-365-mcp-server",
+  "repository": "https://github.com/softeria/ms-365-mcp-server",
+  "license": "MIT",
+  "keywords": ["outlook", "email", "calendar", "microsoft 365"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "Outlook",
+      "category": "communication",
+      "featured": true,
+      "projectKinds": ["windows", "posix"],
+      "communityMaintained": true,
+      "coreSkill": "outlook-email",
+      "nativePluginNames": ["outlook-email", "outlook-calendar"],
+      "nativeCoreSkill": "outlook-email",
+      "examplePrompt": "Triage my inbox, summarize the important threads, and show what's on my calendar today",
+      "skills": {
+        "outlook-email": {
+          "name": "Outlook Email",
+          "description": "Triage inboxes, summarize threads, and draft replies.",
+          "nativePluginName": "outlook-email",
+          "nativeSkill": "outlook-email"
+        },
+        "outlook-calendar": {
+          "name": "Outlook Calendar",
+          "description": "Read your schedule, find times, and manage events.",
+          "nativePluginName": "outlook-calendar",
+          "nativeSkill": "outlook-calendar"
+        }
+      }
+    }
+  }
+}

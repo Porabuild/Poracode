@@ -157,6 +157,8 @@ export interface UsageProviderDescriptor {
   mechanism: UsageMechanism;
   /** True when a token/cookie may need to be captured via a login flow. */
   needsLogin: boolean;
+  /** True when a local credential can exist but usage meters still need a browser session. */
+  needsBrowserSessionForUsage?: boolean;
   /** A cookie-backed provider also accepts a pasted API key. */
   apiKeyFallback?: boolean;
   windowIds: UsageWindowId[];

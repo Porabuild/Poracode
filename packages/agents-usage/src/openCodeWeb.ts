@@ -15,6 +15,12 @@ import type { HttpClient } from "./host";
 
 const OPENCODE_WORKSPACES_SERVER_ID =
   "def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f";
+/**
+ * SolidStart server-function id for `lite.subscription.get` (Go plan windows).
+ * Shared with CodexBar / community scrapers; reverse-engineered from the console.
+ */
+const OPENCODE_SUBSCRIPTION_SERVER_ID =
+  "7abeebee372f304e050aaaf92be863f4a86490e382f8c79db68fd94040d691b4";
 export const OPENCODE_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
   "(KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
@@ -78,10 +84,10 @@ export function workspaceIdsFromText(text: string): string[] {
   return ids;
 }
 
-function serverHeaders(cookie: string): Record<string, string> {
+function serverHeaders(cookie: string, serverId: string): Record<string, string> {
   return {
     Cookie: cookie,
-    "X-Server-Id": OPENCODE_WORKSPACES_SERVER_ID,
+    "X-Server-Id": serverId,
     "X-Server-Instance": `server-fn:${globalThis.crypto.randomUUID()}`,
     "User-Agent": OPENCODE_USER_AGENT,
     Origin: "https://opencode.ai",
@@ -112,13 +118,84 @@ export async function fetchOpenCodeWorkspaceId(
     const res = await http.request({
       method: req.method,
       url: req.url,
-      headers: { ...serverHeaders(cookie), ...(req.headers ?? {}) },
+      headers: {
+        ...serverHeaders(cookie, OPENCODE_WORKSPACES_SERVER_ID),
+        ...(req.headers ?? {}),
+      },
       ...(req.body !== undefined ? { body: req.body } : {}),
       timeoutMs: 5000,
     });
     if (res.status !== 200 || looksSignedOut(res.body)) continue;
     const id = workspaceIdsFromText(res.body)[0];
     if (id) return id;
+  }
+  return undefined;
+}
+
+/**
+ * True when the body looks like a Go subscription payload (seroval or JSON)
+ * rather than a signed-out/error page. Used to stop trying alternate server-fn
+ * body shapes once one succeeds.
+ */
+export function looksLikeOpenCodeSubscription(text: string): boolean {
+  if (!text || looksSignedOut(text)) return false;
+  return /rollingUsage/i.test(text) && /usagePercent/i.test(text);
+}
+
+/**
+ * Fetch the Go (Lite) subscription payload via the `lite.subscription.get`
+ * server function. Prefer this over scraping `/workspace/{id}/go` HTML — the
+ * console often hydrates windows client-side, so the page body can omit
+ * `rollingUsage` even for a live Go account. Returns the raw response body, or
+ * undefined when every attempt fails / looks signed out.
+ */
+export async function fetchOpenCodeSubscriptionText(
+  http: HttpClient,
+  cookie: string,
+  workspaceId: string,
+): Promise<string | undefined> {
+  const getUrl =
+    `https://opencode.ai/_server?id=${encodeURIComponent(OPENCODE_SUBSCRIPTION_SERVER_ID)}` +
+    `&input=${encodeURIComponent(JSON.stringify(workspaceId))}`;
+  // SolidStart server functions have accepted a few arg encodings over time;
+  // try the shapes community tools (CodexBar / VS Code scrapers) have observed.
+  const attempts: Array<{
+    method: "GET" | "POST";
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }> = [
+    {
+      method: "POST",
+      url: "https://opencode.ai/_server",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([workspaceId]),
+    },
+    {
+      method: "POST",
+      url: "https://opencode.ai/_server",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([[workspaceId]]),
+    },
+    { method: "GET", url: getUrl },
+  ];
+  for (const req of attempts) {
+    try {
+      const res = await http.request({
+        method: req.method,
+        url: req.url,
+        headers: {
+          ...serverHeaders(cookie, OPENCODE_SUBSCRIPTION_SERVER_ID),
+          ...(req.headers ?? {}),
+        },
+        ...(req.body !== undefined ? { body: req.body } : {}),
+        timeoutMs: 5000,
+      });
+      if (res.status !== 200 || looksSignedOut(res.body)) continue;
+      if (looksLikeOpenCodeSubscription(res.body)) return res.body;
+    } catch {
+      // try the next encoding
+    }
   }
   return undefined;
 }

@@ -1610,7 +1610,14 @@ describe("GitService.getStatus Windows path normalization", () => {
         };
       }
       if (args[0] === "remote") return { stdout: "" };
-      if (args[0] === "diff") return { stdout: "" };
+      // numstat backs each porcelain row — a row absent here is pruned as a
+      // stat-only phantom, so both sides must echo the backslash paths.
+      if (args[0] === "diff" && args[1] === "--cached") {
+        return { stdout: "3\t1\tsrc\\staged.ts" };
+      }
+      if (args[0] === "diff") {
+        return { stdout: "2\t1\tdocs\\{renamed-old.md => renamed-new.md}" };
+      }
       return { stdout: "" };
     });
 

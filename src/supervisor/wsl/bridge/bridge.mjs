@@ -51,7 +51,7 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.10.0";
+const BRIDGE_VERSION = "2.13.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -733,19 +733,65 @@ function runGitExec(command) {
   return runProcessExec("git", command);
 }
 
+function collectDescendantPids(pid, seen = new Set()) {
+  if (!Number.isInteger(pid) || pid <= 0 || seen.has(pid)) return [];
+  seen.add(pid);
+  let childPids;
+  try {
+    childPids = readFileSync(`/proc/${pid}/task/${pid}/children`, "utf8")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(Number)
+      .filter((childPid) => Number.isInteger(childPid) && childPid > 0);
+  } catch {
+    return [];
+  }
+  return childPids.flatMap((childPid) => [...collectDescendantPids(childPid, seen), childPid]);
+}
+
+function terminateProcessTree(child) {
+  if (!Number.isInteger(child.pid) || child.pid <= 0) return;
+  for (const pid of collectDescendantPids(child.pid)) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // The process may already have exited.
+    }
+  }
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // The process may already have exited.
+    }
+  }
+}
+
 function runProcessExec(binary, command) {
   return new Promise((resolve) => {
-    execFile(
-      binary,
-      command.args,
+    let timedOut = false;
+    let timer;
+    const setsidBinary = existsSync("/usr/bin/setsid")
+      ? "/usr/bin/setsid"
+      : existsSync("/bin/setsid")
+        ? "/bin/setsid"
+        : undefined;
+    const child = execFile(
+      setsidBinary ?? binary,
+      setsidBinary ? [binary, ...command.args] : command.args,
       {
         cwd: command.cwd,
+        detached: setsidBinary === undefined,
         env: buildGitEnv(command),
         encoding: "utf8",
         maxBuffer: 50 * 1024 * 1024,
-        timeout: command.timeoutMs,
       },
       (err, stdout, stderr) => {
+        clearTimeout(timer);
+        terminateProcessTree(child);
         if (!err) {
           resolve({ ok: true, stdout: stdout ?? "", stderr: stderr ?? "", exitCode: 0 });
           return;
@@ -758,10 +804,15 @@ function runProcessExec(binary, command) {
           exitCode: code,
           ...(typeof err.signal === "string" ? { signal: err.signal } : {}),
           error: String(err.message ?? err),
-          ...(err.killed ? { timedOut: true } : {}),
+          ...(timedOut ? { timedOut: true } : {}),
         });
       },
     );
+    timer = setTimeout(() => {
+      timedOut = true;
+      terminateProcessTree(child);
+    }, command.timeoutMs);
+    timer.unref();
   });
 }
 
