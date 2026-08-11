@@ -1,8 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { IPty } from "node-pty";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import type { SessionRuntime } from "./runtime/sessionTypes";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
@@ -1124,6 +1126,34 @@ describe("SupervisorRuntime thread input", () => {
     const scrollback = runtime.threadSessionManager.readTerminalScrollback(session.threadId);
     expect(scrollback).toHaveLength(100_000);
     expect(scrollback.startsWith("b")).toBe(true);
+  });
+
+  it("lists and reads running workspace terminal panes", () => {
+    const runtime = makeRuntime(() => undefined);
+    const outputTranscript = new TranscriptBuffer(200_000);
+    outputTranscript.append("workspace output");
+    const shell = {
+      instanceId: "shell-instance-1",
+      shellId: "shell:workspace",
+      pty: createMockPty() as unknown as IPty,
+      projectLocation: { kind: "windows" as const, path: "C:\\repo\\worktree" },
+      worktreePath: "C:\\repo\\worktree",
+      outputLength: 16,
+      outputTranscript,
+    };
+    runtime.threadSessionManager.shellSessions.set(shell.shellId, shell);
+
+    expect(runtime.threadSessionManager.getTerminalShellSnapshots()).toEqual([
+      {
+        terminalId: shell.shellId,
+        projectLocation: shell.projectLocation,
+        worktreePath: shell.worktreePath,
+        outputLength: shell.outputLength,
+      },
+    ]);
+    expect(runtime.threadSessionManager.readTerminalScrollback(shell.shellId)).toBe(
+      "workspace output",
+    );
   });
 
   it("buffers dev PTY log writes instead of writing each chunk synchronously", async () => {

@@ -22,6 +22,7 @@ import {
   type StartThreadPayload,
   type StartThreadResult,
   type TerminalSize,
+  type TerminalShellSnapshot,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
   type WriteTerminalPayload,
@@ -29,6 +30,7 @@ import {
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
 } from "@/shared/contracts";
+import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
   type AgentAdapter,
   createKnownSessionRef,
@@ -230,6 +232,15 @@ export class ThreadSessionManager {
         session,
         this.options.readDisableCliHookPlugin(),
       ),
+    }));
+  }
+
+  getTerminalShellSnapshots(): TerminalShellSnapshot[] {
+    return [...this.shellSessions.values()].map((session) => ({
+      terminalId: session.shellId,
+      projectLocation: session.projectLocation,
+      ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
+      outputLength: session.outputLength,
     }));
   }
 
@@ -988,7 +999,9 @@ export class ThreadSessionManager {
       instanceId: randomUUID(),
       shellId: payload.shellId,
       pty,
+      projectLocation: payload.projectLocation,
       outputLength: 0,
+      outputTranscript: new TranscriptBuffer(200_000),
       ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
     };
 
@@ -999,6 +1012,7 @@ export class ThreadSessionManager {
         return;
       }
       session.outputLength += data.length;
+      session.outputTranscript.append(data);
       if (this.options.isDev) {
         this.logWriter.append(this.resolveLogPath(payload.shellId.replace(/:/g, "_")), data);
       }
@@ -1040,7 +1054,9 @@ export class ThreadSessionManager {
   }
 
   readTerminalScrollback(threadId: string): string {
-    return this.outputPipeline.readTerminalScrollback(this.sessions.get(threadId));
+    return this.outputPipeline.readTerminalScrollback(
+      this.sessions.get(threadId) ?? this.shellSessions.get(threadId),
+    );
   }
 
   readTerminalSize(threadId: string): TerminalSize | null {

@@ -24,6 +24,7 @@ export function createAppControlsSupervisorCaller(
 ): AppControlsSupervisorCaller {
   return {
     getThreadSnapshots: () => call("getThreadSnapshots", {}),
+    getTerminalShellSnapshots: () => call("getTerminalShellSnapshots", {}),
     startThread: (payload) => call("startThread", payload),
     sendThreadInput: (payload) => call("sendThreadInput", payload),
     interruptThread: (payload) => call("interruptThread", payload),

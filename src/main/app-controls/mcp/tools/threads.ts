@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   AgentKind,
   Project,
+  ProjectLocation,
   RemoteThreadCommand,
   StartThreadPayload,
   Thread,
@@ -54,7 +55,7 @@ const listArgsSchema = z.object({
   currentWorktree: z.boolean().optional(),
 });
 const threadIdArgsSchema = z.object({ threadId: z.string().min(1) });
-const optionalThreadIdArgsSchema = z.object({ threadId: z.string().min(1).optional() });
+const terminalIdArgsSchema = z.object({ terminalId: z.string().min(1) });
 const readArgsSchema = z.object({
   threadId: z.string().min(1),
   limit: z.number().int().min(1).max(READ_MAX_LIMIT).optional(),
@@ -243,10 +244,25 @@ export const threadTools: ToolDomain = {
       inputSchema: threadIdJsonSchema(),
     },
     {
+      name: "list_terminals",
+      description:
+        "List live integrated Terminal-panel panes attached to the calling agent's exact project and worktree. This resolves caller scope automatically and returns panes oldest to newest. Each entry has a terminalId accepted by read_terminal and outputLength, the number of characters emitted by that live shell. These are user workspace shells, not agent TUI sessions, chat transcripts, or thread ids. Takes no arguments.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {},
+      },
+    },
+    {
       name: "read_terminal",
       description:
-        "Read a terminal-presentation thread's raw, user-visible PTY scrollback. Omit threadId for the calling agent's own thread, or pass a sibling thread id returned by list_threads. Structured/GUI threads and stopped sessions may have no terminal scrollback. Returns at most the trailing 50000 characters and flags truncation; output may contain ANSI control sequences, so extract the relevant evidence instead of repeating the full transcript.",
-      inputSchema: optionalThreadIdJsonSchema(),
+        "Read raw user-visible scrollback from one live integrated Terminal-panel pane in the calling agent's exact project and worktree. terminalId must come from list_terminals; never pass an agent threadId or use this for agent TUI/chat output. An empty result means the pane is running but has not emitted output. Returns at most the trailing 50000 characters and flags truncation. Output may contain ANSI control sequences or repainting terminal UI, so extract the relevant evidence instead of repeating the full transcript.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["terminalId"],
+        properties: { terminalId: { type: "string", minLength: 1 } },
+      },
     },
     {
       name: "steer_thread",
@@ -527,21 +543,30 @@ export const threadTools: ToolDomain = {
         note: "No Poracode UI is connected, so the thread could not be opened.",
       };
     },
+    list_terminals: async (_args, ctx) => {
+      const terminals = await currentWorktreeTerminals(ctx);
+      return { count: terminals.length, terminals };
+    },
     read_terminal: async (args, ctx) => {
-      const parsed = optionalThreadIdArgsSchema.parse(args);
-      const threadId = parsed.threadId ?? currentThread(ctx).id;
-      requireThread(ctx, threadId);
-      const scrollback = await ctx.supervisor.readTerminalScrollback({ threadId });
+      const { terminalId } = terminalIdArgsSchema.parse(args);
+      const terminals = await currentWorktreeTerminals(ctx);
+      if (!terminals.some((terminal) => terminal.terminalId === terminalId)) {
+        throw new Error(
+          `Terminal ${terminalId} is not a running terminal attached to this worktree. Call list_terminals to get a valid terminalId.`,
+        );
+      }
+      const scrollback = await ctx.supervisor.readTerminalScrollback({ threadId: terminalId });
       if (!scrollback) {
         return {
-          threadId,
-          note: "This thread has no live terminal session (it is a structured/GUI thread, or its terminal session is not running), so there is no scrollback to read.",
+          terminalId,
+          length: 0,
+          note: "This terminal is running but has not produced any output yet.",
         };
       }
       const truncated = scrollback.length > TERMINAL_SCROLLBACK_MAX_CHARS;
       const text = truncated ? scrollback.slice(-TERMINAL_SCROLLBACK_MAX_CHARS) : scrollback;
       return {
-        threadId,
+        terminalId,
         length: text.length,
         ...(truncated
           ? {
@@ -717,14 +742,6 @@ function threadIdJsonSchema(): Record<string, unknown> {
   };
 }
 
-function optionalThreadIdJsonSchema(): Record<string, unknown> {
-  return {
-    type: "object",
-    additionalProperties: false,
-    properties: { threadId: threadIdProp },
-  };
-}
-
 function sameWorktreePath(
   left: string | undefined,
   right: string | undefined,
@@ -736,6 +753,48 @@ function sameWorktreePath(
     normalizeWorktreePathForComparison(left, caseInsensitive) ===
     normalizeWorktreePathForComparison(right, caseInsensitive)
   );
+}
+
+async function currentWorktreeTerminals(ctx: AppControlsToolContext) {
+  const caller = currentThread(ctx);
+  const project = ctx.getProject(caller.projectId);
+  if (!project) {
+    throw new Error(`Project ${caller.projectId} was not found.`);
+  }
+  const location = caller.worktreePath
+    ? buildWorktreeLocation(project.location, caller.worktreePath)
+    : project.location;
+  const snapshots = await ctx.supervisor.getTerminalShellSnapshots();
+  return snapshots.filter(
+    (snapshot) =>
+      snapshot.terminalId.startsWith("shell:") &&
+      sameWorktreePath(snapshot.worktreePath, caller.worktreePath, project) &&
+      sameProjectLocation(snapshot.projectLocation, location),
+  );
+}
+
+function sameProjectLocation(left: ProjectLocation, right: ProjectLocation): boolean {
+  if (left.kind !== right.kind || left.remoteServerId !== right.remoteServerId) return false;
+  if (left.kind === "wsl" && right.kind === "wsl") {
+    return (
+      left.distro.toLowerCase() === right.distro.toLowerCase() &&
+      normalizeWorktreePathForComparison(left.linuxPath, false) ===
+        normalizeWorktreePathForComparison(right.linuxPath, false)
+    );
+  }
+  if (left.kind === "windows" && right.kind === "windows") {
+    return (
+      normalizeWorktreePathForComparison(left.path, true) ===
+      normalizeWorktreePathForComparison(right.path, true)
+    );
+  }
+  if (left.kind === "posix" && right.kind === "posix") {
+    return (
+      normalizeWorktreePathForComparison(left.path, false) ===
+      normalizeWorktreePathForComparison(right.path, false)
+    );
+  }
+  return false;
 }
 
 function currentThread(ctx: AppControlsToolContext): Thread {

@@ -19,6 +19,7 @@ import type {
   SendThreadInputPayload,
   StartThreadPayload,
   StartThreadResult,
+  TerminalShellSnapshot,
   Thread,
   ThreadRuntimeSnapshot,
 } from "@/shared/contracts";
@@ -80,6 +81,7 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
       getThreadSnapshots: vi.fn<() => Promise<ThreadRuntimeSnapshot[]>>(async () => [
         { threadId: "thread-1", status: "working", attention: "none", canResumeWithConfig: false },
       ]),
+      getTerminalShellSnapshots: vi.fn<() => Promise<TerminalShellSnapshot[]>>(async () => []),
       startThread: vi.fn<(payload: StartThreadPayload) => Promise<StartThreadResult>>(
         async (payload) => ({ threadId: payload.threadId ?? "resumed" }),
       ),

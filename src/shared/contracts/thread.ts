@@ -83,6 +83,13 @@ export interface ThreadRuntimeSnapshot {
   slashCommands?: z.infer<typeof agentSlashCommandSchema>[];
 }
 
+export interface TerminalShellSnapshot {
+  terminalId: string;
+  projectLocation: z.infer<typeof projectLocationSchema>;
+  worktreePath?: string;
+  outputLength: number;
+}
+
 export const terminalSizeSchema = z.object({
   cols: z.number().int().min(20).max(400),
   rows: z.number().int().min(5).max(200),

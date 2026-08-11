@@ -169,7 +169,9 @@ export interface ShellSessionRuntime {
   instanceId: string;
   shellId: string;
   pty: IPty;
+  projectLocation: ProjectLocation;
   outputLength: number;
+  outputTranscript: TranscriptBuffer;
   worktreePath?: string;
   ptyExited?: boolean;
   ignoreExit?: boolean;
