@@ -6,6 +6,7 @@ import { type PaneLayout, type PaneLayoutAxis } from "@/shared/paneLayout";
 import { useIsInsertSplitHighlighted, useIsRootInsertHighlighted } from "@/renderer/dnd";
 import { i18n } from "@/renderer/i18n/i18n";
 import { beginPanelResize, endPanelResize } from "@/renderer/state/panelResizeSignal";
+import { paneInsertZoneId } from "./paneInsertZone";
 import {
   MIN_PANE_PERCENT,
   readStoredSizes,
@@ -106,7 +107,7 @@ export function computeLayout(
               height: DIVIDER_SIZE,
             };
         dividers.push({
-          zoneId: `pane-insert:${node.axis}:${path.join("-")}:${i + 1}`,
+          zoneId: paneInsertZoneId({ axis: node.axis, path, index: i + 1 }),
           path,
           parentAxis: node.axis,
           insertIndex: i + 1,

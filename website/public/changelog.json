@@ -36,6 +36,11 @@
           "text": "Usage now shows Command Code's rolling 5-hour and weekly dollar limits alongside monthly credits, with reset countdowns, matching Studio and the CLI."
         },
         {
+          "kind": "added",
+          "label": "Panes",
+          "text": "The New thread menu lists your projects, and you can drag any of them straight onto a pane or the gap between two panes to start that project's draft exactly where you want it."
+        },
+        {
           "kind": "improved",
           "label": "Crossagents",
           "text": "Subagent runs are named with the model's sub-provider so similar selections are easy to tell apart, the learned selections list scrolls when it grows long, and the provider filter explains that unchecked providers only opt out of automatic routing."
@@ -59,6 +64,11 @@
           "kind": "improved",
           "label": "Composer",
           "text": "The add menu is tidier: Computer Use and Experiment keep single-line rows with their descriptions moved into info tooltips."
+        },
+        {
+          "kind": "fixed",
+          "label": "Panes",
+          "text": "Opening a pane now splits the space evenly instead of squeezing the newest one, existing panes keep their relative widths, and the insert line lights up as soon as you drag near the edge between two panes."
         },
         {
           "kind": "fixed",

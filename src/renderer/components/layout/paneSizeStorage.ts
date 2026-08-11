@@ -178,8 +178,10 @@ function projectSizes(previous: SplitStorageEntry, next: SplitStorageEntry): num
   }
 
   const usedPreviousIndexes = new Set<number>();
-  const equalNewSize = 100 / next.layout.children.length;
-  const nextSizes = next.childPaneIds.map((nextChildIds) => {
+  const nextCount = next.layout.children.length;
+  const equalNewSize = 100 / nextCount;
+  // `null` marks a child with no previous counterpart (a newly inserted pane).
+  const matchedSizes = next.childPaneIds.map((nextChildIds) => {
     let bestIndex = -1;
     let bestOverlap = 0;
     for (let i = 0; i < previous.childPaneIds.length; i++) {
@@ -190,13 +192,23 @@ function projectSizes(previous: SplitStorageEntry, next: SplitStorageEntry): num
         bestOverlap = overlap;
       }
     }
-    if (bestIndex === -1) return equalNewSize;
+    if (bestIndex === -1) return null;
     usedPreviousIndexes.add(bestIndex);
-    return previousSizes[bestIndex] ?? equalNewSize;
+    return previousSizes[bestIndex] ?? null;
   });
 
-  const total = nextSizes.reduce((sum, value) => sum + value, 0);
-  return total > 0 ? nextSizes.map((value) => (value / total) * 100) : equalSizes(nextSizes.length);
+  const insertedCount = matchedSizes.filter((value) => value === null).length;
+  const survivingTotal = matchedSizes.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+  if (survivingTotal <= 0) return equalSizes(nextCount);
+
+  // Newly inserted children take an equal share of the split; the surviving
+  // children shrink proportionally into what's left. Normalizing a mixed list
+  // instead would shrink the new pane along with the others, so it would always
+  // end up smaller than its siblings (2 panes at 50/50 + 1 new → 37.5/37.5/25).
+  const remainingTotal = 100 - insertedCount * equalNewSize;
+  if (remainingTotal <= 0) return equalSizes(nextCount);
+  const scale = remainingTotal / survivingTotal;
+  return matchedSizes.map((value) => (value === null ? equalNewSize : value * scale));
 }
 
 export function preservePaneSizeStorageForLayoutChange(

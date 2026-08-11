@@ -1,6 +1,7 @@
-import React, { type MouseEventHandler, type ReactNode, useEffect, useState } from "react";
+import React, { type MouseEventHandler, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, Dropdown, Label, Separator } from "@heroui/react";
+import { Button, Description, Dropdown, Label, Separator } from "@heroui/react";
+import { useDraggable } from "@dnd-kit/react";
 
 // Context menus can stack (e.g. the flat-list filter stacks a project menu
 // over its own), so dismissal tracks a stack of closers: a new surface pushes
@@ -25,10 +26,29 @@ function closeAllMenus(): void {
  */
 export const MENU_BACKDROP_ATTR = "data-poracode-menu-backdrop";
 
+/**
+ * Registers a menu row as a drag source in the app's drag-and-drop provider, so
+ * an entry can be dragged out of the menu onto a target elsewhere (e.g. a
+ * thread pane). `type` is matched against each drop zone's `accept` list and
+ * `data` is the payload the drop handler receives.
+ */
+export interface ContextMenuDragSource {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+}
+
 export interface ContextMenuItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  description?: string;
+  /**
+   * Makes the row draggable. The menu hides itself while the drag is in flight
+   * instead of closing: unmounting the dragged row would cancel the operation.
+   * It closes once the drag ends.
+   */
+  dragSource?: ContextMenuDragSource;
   endAction?: {
     id: string;
     label: string;
@@ -85,10 +105,65 @@ function splitSections(entries: ContextMenuEntry[]): (ContextMenuItem | ContextM
   return sections.filter((s) => s.length > 0);
 }
 
+/** Reports a row's drag state up to the surface, keyed by item id. */
+type ItemDragChangeHandler = (itemId: string, isDragging: boolean) => void;
+
 function renderDropdownItem(
   item: ContextMenuItem,
   close: () => void,
   onAction: (key: string) => void,
+  onItemDragChange?: ItemDragChangeHandler,
+) {
+  if (item.dragSource) {
+    return (
+      <DraggableDropdownItem
+        key={item.id}
+        item={item}
+        dragSource={item.dragSource}
+        close={close}
+        onAction={onAction}
+        {...(onItemDragChange ? { onItemDragChange } : {})}
+      />
+    );
+  }
+  return renderDropdownItemRow(item, close, onAction);
+}
+
+/**
+ * A draggable row. The draggable is registered on the menu item's own element,
+ * so dnd-kit's drag feedback moves the row the user grabbed — the item keeps its
+ * normal layout, unlike wrapping its content in an extra element.
+ */
+function DraggableDropdownItem(props: {
+  item: ContextMenuItem;
+  dragSource: ContextMenuDragSource;
+  close: () => void;
+  onAction: (key: string) => void;
+  onItemDragChange?: ItemDragChangeHandler;
+}) {
+  const { item, dragSource, onItemDragChange } = props;
+  const { isDragging, ref } = useDraggable({
+    id: dragSource.id,
+    type: dragSource.type,
+    data: dragSource.data,
+  });
+  const wasDraggingRef = useRef(false);
+  useEffect(() => {
+    // Report only real transitions: menus re-render on hover, and the surface
+    // closes itself on the dragging → idle edge.
+    if (wasDraggingRef.current === isDragging) return;
+    wasDraggingRef.current = isDragging;
+    onItemDragChange?.(item.id, isDragging);
+  }, [isDragging, item.id, onItemDragChange]);
+
+  return renderDropdownItemRow(props.item, props.close, props.onAction, ref);
+}
+
+function renderDropdownItemRow(
+  item: ContextMenuItem,
+  close: () => void,
+  onAction: (key: string) => void,
+  dragRef?: (element: Element | null) => void,
 ) {
   return (
     <Dropdown.Item
@@ -97,6 +172,7 @@ function renderDropdownItem(
       aria-label={item.label}
       textValue={item.label}
       variant={item.variant === "danger" ? "danger" : undefined}
+      {...(dragRef ? { ref: dragRef, className: "cursor-grab active:cursor-grabbing" } : {})}
     >
       {item.icon && (
         <span
@@ -105,9 +181,18 @@ function renderDropdownItem(
           {item.icon}
         </span>
       )}
-      <Label className={`flex-1 ${item.variant === "warning" ? "text-warning" : ""}`}>
-        {item.label}
-      </Label>
+      {item.description ? (
+        <>
+          <Label className={item.variant === "warning" ? "text-warning" : undefined}>
+            {item.label}
+          </Label>
+          <Description>{item.description}</Description>
+        </>
+      ) : (
+        <Label className={`flex-1 ${item.variant === "warning" ? "text-warning" : ""}`}>
+          {item.label}
+        </Label>
+      )}
       {item.endAction ? (
         <Button
           isIconOnly
@@ -133,6 +218,7 @@ function renderEntry(
   entry: ContextMenuItem | ContextMenuSubmenu,
   close: () => void,
   onAction: (key: string) => void,
+  onItemDragChange?: ItemDragChangeHandler,
 ) {
   if (isSubmenu(entry)) {
     return (
@@ -155,7 +241,7 @@ function renderEntry(
       </Dropdown.SubmenuTrigger>
     );
   }
-  return renderDropdownItem(entry, close, onAction);
+  return renderDropdownItem(entry, close, onAction, onItemDragChange);
 }
 
 /**
@@ -185,6 +271,27 @@ export function ContextMenuSurface(props: {
   withBackdrop?: boolean;
 }) {
   const { position, items, onAction, onClose } = props;
+  // A row being dragged out of the menu: the menu hides but stays mounted —
+  // unmounting the dragged element cancels the dnd-kit operation — and closes
+  // once the drag ends. dnd-kit promotes its drag feedback into the top layer,
+  // so the row the user grabbed keeps following the pointer while the surface
+  // around it is transparent.
+  const [isRowDragging, setIsRowDragging] = useState(false);
+  const draggingRowIdRef = useRef<string | null>(null);
+
+  function handleItemDragChange(itemId: string, isDragging: boolean) {
+    if (isDragging) {
+      draggingRowIdRef.current = itemId;
+      setIsRowDragging(true);
+      return;
+    }
+    if (draggingRowIdRef.current !== itemId) return;
+    draggingRowIdRef.current = null;
+    setIsRowDragging(false);
+    onClose();
+  }
+
+  const hiddenWhileDraggingClass = isRowDragging ? "pointer-events-none opacity-0" : "";
 
   useEffect(() => {
     if (!position) return;
@@ -229,7 +336,7 @@ export function ContextMenuSurface(props: {
             // can tell this apart from a press outside every menu.
             <div
               {...{ [MENU_BACKDROP_ATTR]: true }}
-              className="poracode-menu-backdrop fixed inset-0"
+              className={`poracode-menu-backdrop fixed inset-0 ${hiddenWhileDraggingClass}`}
               onPointerDown={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -254,6 +361,7 @@ export function ContextMenuSurface(props: {
             <Dropdown.Popover
               placement="bottom start"
               isNonModal
+              className={hiddenWhileDraggingClass}
               {...(props.shouldCloseOnInteractOutside
                 ? { shouldCloseOnInteractOutside: props.shouldCloseOnInteractOutside }
                 : {})}
@@ -272,13 +380,15 @@ export function ContextMenuSurface(props: {
                   const sections = splitSections(items);
                   if (sections.length <= 1) {
                     return (sections[0] ?? []).map((entry) =>
-                      renderEntry(entry, onClose, onAction),
+                      renderEntry(entry, onClose, onAction, handleItemDragChange),
                     );
                   }
                   return sections.flatMap((section, sIdx) => {
                     const sectionEl = (
                       <Dropdown.Section key={`section-${sIdx}`}>
-                        {section.map((entry) => renderEntry(entry, onClose, onAction))}
+                        {section.map((entry) =>
+                          renderEntry(entry, onClose, onAction, handleItemDragChange),
+                        )}
                       </Dropdown.Section>
                     );
                     return sIdx > 0 ? [<Separator key={`sep-${sIdx}`} />, sectionEl] : [sectionEl];

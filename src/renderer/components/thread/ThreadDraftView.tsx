@@ -1013,6 +1013,7 @@ export function ThreadDraftView(props: {
       ref={props.droppableRef}
       className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >
+      <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
       {props.compact && !props.quickComposer && (
         <ThreadDraftCompactHeader
           alignClass={alignClass}
@@ -1030,7 +1031,6 @@ export function ThreadDraftView(props: {
         data-draft-body=""
         className={`${compactComposer ? alignClass : "mx-auto"} relative flex ${bodySizeClass} flex-col ${bodyPaddingClass}`}
       >
-        <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
         {props.quickComposer ? null : props.compact ? (
           <ThreadDraftHero compact={props.compact} />
         ) : (
