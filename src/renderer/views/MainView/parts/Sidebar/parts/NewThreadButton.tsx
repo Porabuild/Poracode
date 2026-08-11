@@ -1,8 +1,8 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { Columns2, Plus } from "lucide-react";
 import { useDraggable } from "@dnd-kit/react";
 import { useLingui } from "@lingui/react/macro";
-import { ContextMenu } from "@/renderer/components/common/ContextMenu";
+import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import type { DragSourceData } from "@/renderer/dnd";
 import { DraftIndicator } from "./DraftIndicator";
@@ -15,6 +15,13 @@ export function NewThreadButton(props: {
   canOpenAsPanel: boolean;
   onPress: () => void;
   onOpenAsPanel: () => void;
+  projectOptions?: readonly {
+    id: string;
+    name: string;
+    icon?: ReactNode;
+    description?: string;
+  }[];
+  onSelectProject?: (projectId: string) => void;
   /**
    * Docked into the flat list's head row next to the project filter instead
    * of taking a full-width row. Renders both a labelled button and an
@@ -30,10 +37,29 @@ export function NewThreadButton(props: {
     id: `new-thread:${props.projectId}`,
     type: "new-thread",
     data: { type: "new-thread", projectId: props.projectId } satisfies DragSourceData,
+    handle: newThreadRef,
     element: newThreadRef,
   });
 
-  const contextMenuItems = [
+  const projectMenuItems: ContextMenuEntry[] =
+    props.projectOptions && props.onSelectProject
+      ? props.projectOptions.map((project) => ({
+          id: `new-thread-project:${project.id}`,
+          label: project.name,
+          ...(project.icon ? { icon: project.icon } : {}),
+          ...(project.description ? { description: project.description } : {}),
+          // Same payload as dragging the button itself, so a row can be dropped
+          // straight onto a pane target to open that project's draft there.
+          dragSource: {
+            id: `new-thread-menu:${project.id}`,
+            type: "new-thread",
+            data: { type: "new-thread", projectId: project.id } satisfies DragSourceData,
+          },
+        }))
+      : [];
+  const contextMenuItems: ContextMenuEntry[] = [
+    ...projectMenuItems,
+    ...(projectMenuItems.length > 0 ? [{ type: "separator" as const }] : []),
     {
       id: "open-as-panel",
       label: t({
@@ -45,6 +71,10 @@ export function NewThreadButton(props: {
     },
   ];
   const handleContextMenuAction = (key: string) => {
+    if (key.startsWith("new-thread-project:")) {
+      props.onSelectProject?.(key.slice("new-thread-project:".length));
+      return;
+    }
     if (key === "open-as-panel") props.onOpenAsPanel();
   };
 
@@ -58,7 +88,7 @@ export function NewThreadButton(props: {
         <div ref={newThreadRef} className="flex shrink-0 items-center">
           <button
             type="button"
-            className={`poracode-flat-new-thread-full flex h-8 shrink-0 cursor-default items-center gap-1.5 rounded-3xl px-2 text-xs outline-none transition-colors focus-visible:focus-ring ${stateClass}`}
+            className={`poracode-flat-new-thread-full flex h-8 shrink-0 cursor-grab items-center gap-1.5 rounded-3xl px-2 text-xs outline-none transition-colors active:cursor-grabbing focus-visible:focus-ring ${stateClass}`}
             onClick={props.onPress}
           >
             <Plus className="size-3.5" />
@@ -67,7 +97,7 @@ export function NewThreadButton(props: {
           </button>
           <SidebarButton
             iconOnly
-            className="poracode-flat-new-thread-icon"
+            className="poracode-flat-new-thread-icon cursor-grab active:cursor-grabbing"
             icon={<Plus className="size-4" />}
             label={t`New thread`}
             isActive={props.isActive}

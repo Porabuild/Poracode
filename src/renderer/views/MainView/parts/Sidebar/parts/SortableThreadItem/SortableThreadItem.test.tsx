@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -15,6 +15,7 @@ type MockContextMenuItem = {
 
 const {
   sortableRefMock,
+  sortableHandleRefMock,
   sortableOptionsMock,
   contextMenuItemsMock,
   getStatusToneMock,
@@ -24,6 +25,7 @@ const {
   openTerminalMock,
 } = vi.hoisted(() => ({
   sortableRefMock: vi.fn<(element: HTMLElement | null) => void>(),
+  sortableHandleRefMock: vi.fn<(element: HTMLElement | null) => void>(),
   sortableOptionsMock: vi.fn<(options: unknown) => void>(),
   contextMenuItemsMock: vi.fn<(items: MockContextMenuItem[]) => void>(),
   getStatusToneMock:
@@ -41,7 +43,7 @@ vi.mock("@dnd-kit/react", () => ({
 vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: (options: unknown) => {
     sortableOptionsMock(options);
-    return { ref: sortableRefMock };
+    return { ref: sortableRefMock, handleRef: sortableHandleRefMock };
   },
 }));
 
@@ -57,11 +59,13 @@ vi.mock("@/renderer/components/common/ContextMenu", () => ({
 }));
 
 vi.mock("@/renderer/components/common/SidebarButton", () => ({
-  SidebarButton: (props: { label: ReactNode; suffix?: ReactNode }) => (
-    <button type="button">
-      {props.label}
-      {props.suffix}
-    </button>
+  SidebarButton: forwardRef<HTMLDivElement, { label: ReactNode; suffix?: ReactNode }>(
+    (props, ref) => (
+      <div ref={ref} role="button">
+        {props.label}
+        {props.suffix}
+      </div>
+    ),
   ),
 }));
 
@@ -183,6 +187,7 @@ const project: Project = {
 describe("SortableThreadItem", () => {
   beforeEach(() => {
     sortableRefMock.mockClear();
+    sortableHandleRefMock.mockClear();
     sortableOptionsMock.mockClear();
     contextMenuItemsMock.mockClear();
     openFilesPanelMock.mockClear();
@@ -265,6 +270,25 @@ describe("SortableThreadItem", () => {
 
     expect(row).toBeInstanceOf(HTMLElement);
     expect(sortableRefMock).toHaveBeenCalledWith(row);
+  });
+
+  it("registers the nested sidebar row as the drag handle", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    const handle = sortableHandleRefMock.mock.calls.at(-1)?.[0];
+
+    expect(handle).toBeInstanceOf(HTMLDivElement);
+    expect(handle).toHaveTextContent("Thread 1");
   });
 
   it("keeps automatic-sort rows draggable into panes while disabling sidebar reordering", () => {
