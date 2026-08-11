@@ -207,6 +207,13 @@ export class UsageService {
     // endpoints. Keyed by the sorted ids so it holds for any subset, not just the
     // full default set.
     const key = [...ids].sort().join(",");
+    // After a credential change the caller passes force so we never reuse an
+    // in-flight collection that began with the previous secret (e.g. a
+    // background tick started before the user pasted an API key).
+    if (payload.force) {
+      const existing = this.refreshesInFlight.get(key);
+      if (existing) await existing.catch(() => undefined);
+    }
     return coalesceByKey(this.refreshesInFlight, key, () => this.runRefresh(ids));
   }
 

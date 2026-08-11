@@ -37,7 +37,10 @@ describe("refreshAndMergeProviderUsage", () => {
 
     await refreshAndMergeProviderUsage("claude");
 
-    expect(refreshProviderUsage).toHaveBeenCalledWith({ providerIds: ["claude"] });
+    expect(refreshProviderUsage).toHaveBeenCalledWith({
+      providerIds: ["claude"],
+      force: true,
+    });
     expect(useProviderUsageStore.getState().snapshots.claude?.plan).toBe("Pro");
   });
 

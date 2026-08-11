@@ -124,7 +124,10 @@ describe("useUsageProviderLogin", () => {
     });
 
     expect(useUsageLoginStateStore.getState().stored.opencode).toBe(true);
-    expect(bridgeMock.refreshProviderUsage).toHaveBeenCalledWith({ providerIds: ["opencode"] });
+    expect(bridgeMock.refreshProviderUsage).toHaveBeenCalledWith({
+      providerIds: ["opencode"],
+      force: true,
+    });
     expect(useProviderUsageStore.getState().snapshots.opencode?.status).toBe("ok");
     expect(result.current.signingIn).toBe(false);
   });
@@ -166,7 +169,10 @@ describe("useUsageProviderLogin", () => {
       apiKey: "sk-test",
     });
     expect(useUsageLoginStateStore.getState().stored.zai).toBe(true);
-    expect(bridgeMock.refreshProviderUsage).toHaveBeenCalledWith({ providerIds: ["zai"] });
+    expect(bridgeMock.refreshProviderUsage).toHaveBeenCalledWith({
+      providerIds: ["zai"],
+      force: true,
+    });
     expect(useProviderUsageStore.getState().snapshots.zai?.status).toBe("ok");
   });
 });
