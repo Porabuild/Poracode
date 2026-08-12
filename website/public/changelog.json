@@ -104,6 +104,11 @@
         },
         {
           "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Threads created in linked Git worktrees now keep agy's file tools bound to that exact worktree instead of falling back to the main checkout."
+        },
+        {
+          "kind": "fixed",
           "label": "OpenCode",
           "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, and sign-in remains available when CLI authentication has no meters, so empty local snapshots no longer strand you."
         },
