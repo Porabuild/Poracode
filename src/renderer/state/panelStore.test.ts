@@ -31,6 +31,10 @@ function resetFileEditorStore() {
   });
 }
 
+it("defaults the thread list to the flat layout", () => {
+  expect(initialPanelState.threadListLayout).toBe("flat");
+});
+
 describe("selectAnyObstructingOverlayOpen", () => {
   beforeEach(() => {
     resetPanelStore();
