@@ -60,6 +60,36 @@ describe("buildOneShotSpec isolateCwd", () => {
 });
 
 describe("spawnAgentPty", () => {
+  it("preserves cursor-positioned PTY rows when stripping ANSI", async () => {
+    let onData: ((data: string) => void) | undefined;
+    let onExit: ((event: { exitCode: number }) => void) | undefined;
+    spawnPtyMock.mockReturnValue({
+      pid: 4321,
+      kill: vi.fn<() => void>(),
+      write: vi.fn<() => void>(),
+      onData: vi.fn<(callback: (data: string) => void) => { dispose: () => void }>((callback) => {
+        onData = callback;
+        return { dispose: vi.fn<() => void>() };
+      }),
+      onExit: vi.fn<(callback: (event: { exitCode: number }) => void) => { dispose: () => void }>(
+        (callback) => {
+          onExit = callback;
+          return { dispose: vi.fn<() => void>() };
+        },
+      ),
+    });
+
+    const result = spawnAgentPty({ command: "agy", args: ["models"] }, "", 10_000);
+    onData?.(
+      "\u001b[H⠋ Fetching available models...\u001b[Hgemini-3.6-flash-high\r\ngemini-3.6-flash-medium\r\n",
+    );
+    onExit?.({ exitCode: 0 });
+
+    await expect(result).resolves.toBe(
+      "⠋ Fetching available models...\ngemini-3.6-flash-high\r\ngemini-3.6-flash-medium",
+    );
+  });
+
   it("terminates the process tree on Windows instead of invoking node-pty's console helper", async () => {
     vi.useFakeTimers();
     const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");

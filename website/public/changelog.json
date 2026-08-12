@@ -99,6 +99,11 @@
         },
         {
           "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Every reasoning level reported by agy now appears in the model picker, including High for Gemini 3.6 Flash."
+        },
+        {
+          "kind": "fixed",
           "label": "OpenCode",
           "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, and sign-in remains available when CLI authentication has no meters, so empty local snapshots no longer strand you."
         },

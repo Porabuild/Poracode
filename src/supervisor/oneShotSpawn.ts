@@ -1,7 +1,7 @@
 import { spawn as spawnChild } from "node:child_process";
 import { tmpdir } from "node:os";
 import { spawn as spawnPty } from "node-pty";
-import { stripAnsi } from "@/shared/ansi";
+import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateProcessTree } from "@/shared/processTree";
 import { buildAgentCommand, type CommandSpec } from "./agents/base";
@@ -178,7 +178,7 @@ export function spawnAgentPty(
       dataDisposable.dispose();
       exitDisposable.dispose();
 
-      const text = stripAnsi(output).trim();
+      const text = stripAnsiPreservingLayout(output).trim();
       if (signal?.aborted) {
         reject(new Error("Aborted"));
       } else if (timedOut) {
