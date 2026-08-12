@@ -142,14 +142,16 @@ describe("runProjectAction", () => {
     expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toBe("");
   });
 
-  it("stops an action without removing its terminal tab", async () => {
+  it("stops an action by removing and killing its terminal", async () => {
     runProjectAction(project.id, "dev");
     const tab = useDevTerminalStore.getState().tabs[0]!;
+    useThreadOutputStore.getState().appendOutput(tab.id, "running");
 
     stopProjectAction(project.id, "dev");
 
     expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
-    expect(useDevTerminalStore.getState().tabs).toContainEqual(tab);
+    expect(useDevTerminalStore.getState().tabs).not.toContainEqual(tab);
+    expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toBe("");
     await vi.waitFor(() => {
       expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: tab.id });
     });
