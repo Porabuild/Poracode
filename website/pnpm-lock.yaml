@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  postcss@<8.5.12: 8.5.12
+  sharp@<0.35.3: 0.35.3
+
+pnpmfileChecksum: sha256-cMVwtnrRwJb4xi1TroJLPLe/pzOePOx3qxj8TTiMh8c=
+
 importers:
 
   .:
