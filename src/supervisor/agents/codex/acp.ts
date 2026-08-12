@@ -29,6 +29,7 @@ import {
   createCodexMapperState,
   CodexUsageScopeTracker,
   mapCodexNotification,
+  readTurnId,
   type CodexMapperState,
 } from "./canonicalMapping";
 import {
@@ -56,6 +57,7 @@ import {
   readCodexInitCommands,
 } from "./probe";
 import { CodexSubAgentRouter } from "./subAgentRouting";
+import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
@@ -738,13 +740,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         serviceTier: config.fast === true ? "fast" : null,
       });
       this.activeTurnId = extractTurnField(result, "id");
-      if (this.pendingTurnInterrupt && this.activeTurnId) {
-        this.pendingTurnInterrupt = false;
-        await this.rpc.request("turn/interrupt", {
-          threadId,
-          turnId: this.activeTurnId,
-        });
-      }
+      await this.flushPendingTurnInterrupt(threadId);
     } catch (error) {
       this.pendingTurnInterrupt = false;
       if (this.isDisposed) return;
@@ -767,10 +763,33 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
-    await this.rpc.request("turn/interrupt", {
-      threadId,
-      turnId: this.activeTurnId,
-    });
+    await this.interruptActiveTurn(threadId, this.activeTurnId);
+  }
+
+  private flushPendingTurnInterrupt(threadId: string | undefined): Promise<void> {
+    if (!this.pendingTurnInterrupt || !this.activeTurnId || !threadId) {
+      return Promise.resolve();
+    }
+    const turnId = this.activeTurnId;
+    this.pendingTurnInterrupt = false;
+    return this.interruptActiveTurn(threadId, turnId);
+  }
+
+  private async interruptActiveTurn(
+    threadId: string,
+    turnId: string,
+    timeoutMs?: number,
+  ): Promise<void> {
+    try {
+      await this.rpc.request("turn/interrupt", { threadId, turnId }, timeoutMs);
+    } catch (error) {
+      const retryTurnId = nextCodexInterruptTurnId(turnId, error);
+      if (!retryTurnId) {
+        throw error;
+      }
+      this.activeTurnId = retryTurnId;
+      await this.rpc.request("turn/interrupt", { threadId, turnId: retryTurnId }, timeoutMs);
+    }
   }
 
   async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
@@ -895,16 +914,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.clearPendingSystemErrorFallback();
     if (this.remoteThreadId) {
       if (this.activeTurnId) {
-        await this.rpc
-          .request(
-            "turn/interrupt",
-            {
-              threadId: this.remoteThreadId,
-              turnId: this.activeTurnId,
-            },
-            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
-          )
-          .catch(() => undefined);
+        await this.interruptActiveTurn(
+          this.remoteThreadId,
+          this.activeTurnId,
+          CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+        ).catch(() => undefined);
       }
       // Re-check ownership *after* the interrupt round-trip: a force-stopped
       // session is replaced while this teardown drains, and the replacement
@@ -977,6 +991,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       this.remoteThreadId !== undefined &&
       notificationThreadId !== this.remoteThreadId
     ) {
+      return;
+    }
+    if (
+      (method === "turn/completed" || method === "turn/aborted") &&
+      isStaleCodexTurnCompletion(params, this.activeTurnId)
+    ) {
+      // A late completion for an earlier turn must not drop the live turn id
+      // or settle the session while Codex is still working. That is what
+      // strands Stop/Steer on "expected active turn id … but found …".
       return;
     }
 
@@ -1059,43 +1082,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
-    if (method === "turn/started" && params) {
-      if (suppressResumeReplay) {
-        return;
-      }
-      const incomingThreadId = "threadId" in params ? String(params.threadId) : this.remoteThreadId;
-      if (incomingThreadId && !this.isCurrentThreadNotification(incomingThreadId)) {
-        return;
-      }
-
-      this.activeTurnId =
-        extractTurnField(params, "id") ??
-        (typeof params.turnId === "string" ? params.turnId : this.activeTurnId);
-      this.currentThreadStatus = { type: "active", activeFlags: [] };
-      this.emitUpdate({
-        status: "working",
-        attention: "working",
-      });
-      return;
-    }
-
-    // `turn/aborted` is retained only for older app-server compatibility.
-    if (method === "turn/completed" || method === "turn/aborted") {
-      if (suppressResumeReplay) {
-        return;
-      }
-      const incomingThreadId = readNotificationThreadId(params, this.remoteThreadId);
-      if (!incomingThreadId) return;
-      if (!this.isCurrentThreadNotification(incomingThreadId)) {
-        return;
-      }
-
-      this.pendingTurnInterrupt = false;
-      this.activeTurnId = undefined;
-      this.currentThreadStatus = { type: "idle" };
-      if (!this.errorSticky) {
-        this.emitUpdate({ status: "idle", attention: "none" });
-      }
+    if (this.applyMainTurnLifecycle(method, params, suppressResumeReplay)) {
       return;
     }
 
@@ -1106,6 +1093,48 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     if (method === "thread/closed") {
       this.listener?.onClose();
     }
+  }
+
+  private applyMainTurnLifecycle(
+    method: string,
+    params: Record<string, unknown> | undefined,
+    suppressResumeReplay: boolean,
+  ): boolean {
+    if (method === "turn/started") {
+      if (!params || suppressResumeReplay) return true;
+      const incomingThreadId = "threadId" in params ? String(params.threadId) : this.remoteThreadId;
+      if (incomingThreadId && !this.isCurrentThreadNotification(incomingThreadId)) {
+        return true;
+      }
+      this.activeTurnId = readTurnId(params) ?? this.activeTurnId;
+      this.currentThreadStatus = { type: "active", activeFlags: [] };
+      this.emitUpdate({ status: "working", attention: "working" });
+      void this.flushPendingTurnInterrupt(incomingThreadId ?? this.remoteThreadId).catch(
+        (error) => {
+          if (!this.isDisposed) {
+            console.error("[codex] failed to interrupt newly started turn:", error);
+          }
+        },
+      );
+      return true;
+    }
+
+    // `turn/aborted` is retained only for older app-server compatibility.
+    if (method !== "turn/completed" && method !== "turn/aborted") {
+      return false;
+    }
+    if (suppressResumeReplay) return true;
+    const incomingThreadId = readNotificationThreadId(params, this.remoteThreadId);
+    if (!incomingThreadId || !this.isCurrentThreadNotification(incomingThreadId)) {
+      return true;
+    }
+    this.pendingTurnInterrupt = false;
+    this.activeTurnId = undefined;
+    this.currentThreadStatus = { type: "idle" };
+    if (!this.errorSticky) {
+      this.emitUpdate({ status: "idle", attention: "none" });
+    }
+    return true;
   }
 
   private async initialize(): Promise<void> {
