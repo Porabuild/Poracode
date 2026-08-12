@@ -4827,6 +4827,10 @@ msgstr "Tập tin"
 msgid "Files for {0}"
 msgstr "Tập tin cho {0}"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "Tập tin cho {projectName}"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
@@ -5864,7 +5868,7 @@ msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân ho�
 msgid "Interrupted"
 msgstr "Bị gián đoạn"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoàn thành."
 
@@ -11390,6 +11394,10 @@ msgstr "Terminal"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "Thiết bị đầu cuối cho {0}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "Thiết bị đầu cuối cho {projectName}"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

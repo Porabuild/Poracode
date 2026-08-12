@@ -686,6 +686,15 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   // process. Accept its lower cursor before the authoritative
                   // snapshots advance it again, or every reconnect will ask
                   // for an impossible pre-restart sequence forever.
+                  const previousSeq = remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0;
+                  if (message.seq < previousSeq) {
+                    const open = get().openThread;
+                    if (open?.desktopId === server.desktopId) {
+                      useAppStore
+                        .getState()
+                        .clearThreadRuntimeEvents(remoteThreadId(server.desktopId, open.threadId));
+                    }
+                  }
                   remoteServerSnapshotSeqByDesktopId.set(server.desktopId, message.seq);
                   get().scheduleServerRefresh(server.desktopId);
                   void resyncOpenThread();
@@ -957,6 +966,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             );
             return false;
           }
+          const viewThreadId = remoteThreadId(desktopId, threadId);
+          const currentOpen = get().openThread;
+          if (currentOpen?.desktopId !== desktopId || currentOpen.threadId !== threadId) {
+            // This store is only a projection of the remote transcript. Drop a
+            // prior visit before fetching so a shorter active-thread snapshot
+            // cannot leave stale Goal/Plan/Subagent/Crossagent rows behind.
+            // Live events received during the fetch repopulate the empty store
+            // and remain protected by applyThreadSnapshot's live-first merge.
+            useAppStore.getState().clearThreadRuntimeEvents(viewThreadId);
+          }
           // Hydrate the thread's history into the shared, threadId-keyed runtime
           // store so the desktop ChatPane renders it (coexists with local threads).
           // A failed history fetch (server asleep/unreachable) must not reject.
@@ -970,7 +989,6 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
           if (requestSeq !== openRemoteThreadRequestSeq) return false;
           const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
-          const viewThreadId = projectedSnapshot.thread.id;
           const firstSnapshotItemId = projectedSnapshot.runtimeItems[0]?.id;
           const existingRuntimeItemIds =
             useAppStore.getState().runtimeItemIdsByThread[viewThreadId] ?? [];

@@ -1467,6 +1467,36 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().openThread).toBeNull();
   });
 
+  it("drops a stale local runtime projection before opening remote history", async () => {
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    await pairIsolated(() => makeSocket());
+    const projectedThreadId = remoteThreadId("d1", "rt-1");
+    useAppStore.getState().applyRuntimeEvent(projectedThreadId, {
+      type: "item.started",
+      threadId: projectedThreadId,
+      itemId: "stale-crossagent",
+      itemType: "tool_call",
+      payload: {
+        name: "stale-crossagent",
+        status: "running",
+        isCrossagent: true,
+      },
+    });
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[projectedThreadId]).toEqual([
+      "stale-crossagent",
+    ]);
+
+    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[projectedThreadId]).toBeUndefined();
+    expect(sync.applyThreadSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thread: expect.objectContaining({ id: projectedThreadId }),
+      }),
+    );
+  });
+
   it("streams a remote terminal through the open-thread connection", async () => {
     const send = vi.fn<(data: string) => void>();
     const socket: RemoteSocketLike = {
@@ -1846,6 +1876,15 @@ describe("useRemoteServersStore", () => {
       threadId: remoteThreadId("d1", "rt-1"),
     });
 
+    const projectedThreadId = remoteThreadId("d1", "rt-1");
+    useAppStore.getState().applyRuntimeEvent(projectedThreadId, {
+      type: "item.started",
+      threadId: projectedThreadId,
+      itemId: "pre-restart-subagent",
+      itemType: "tool_call",
+      payload: { name: "Task", status: "running", isSubAgent: true },
+    });
+
     sockets[1]?.onmessage?.({
       data: JSON.stringify({
         type: "resync-required",
@@ -1853,6 +1892,7 @@ describe("useRemoteServersStore", () => {
         reason: "The remote server restarted.",
       }),
     });
+    expect(useAppStore.getState().runtimeItemIdsByThread[projectedThreadId]).toBeUndefined();
     sockets[1]?.onclose?.();
     await vi.advanceTimersByTimeAsync(1000);
     await Promise.resolve();

@@ -137,7 +137,12 @@ function createClient(): ClientMock {
   };
 }
 
-function createHarness(input: { readonly initialLastSeenSeq?: number } = {}): Harness {
+function createHarness(
+  input: {
+    readonly initialLastSeenSeq?: number;
+    readonly onEventStreamReset?: () => void;
+  } = {},
+): Harness {
   const client = createClient();
   let selectedThreadId: string | null = "selected";
   const createClientMock = vi.fn<() => ClientMock>(() => client);
@@ -153,6 +158,7 @@ function createHarness(input: { readonly initialLastSeenSeq?: number } = {}): Ha
     onConnectionChange,
     onMessageChange,
     onOpenChange,
+    ...(input.onEventStreamReset ? { onEventStreamReset: input.onEventStreamReset } : {}),
     getPairingExpiredMessage: () => "localized pairing fallback",
   });
   return {
@@ -355,7 +361,8 @@ describe("remoteSocketCoordinator", () => {
   });
 
   it("resets a stale cursor after a server restart and accepts the new event stream", async () => {
-    const harness = track(createHarness({ initialLastSeenSeq: 42 }));
+    const onEventStreamReset = vi.fn<() => void>();
+    const harness = track(createHarness({ initialLastSeenSeq: 42, onEventStreamReset }));
     const socket = await start(harness);
     socket.open();
 
@@ -365,6 +372,7 @@ describe("remoteSocketCoordinator", () => {
       reason: "Server event stream reset; request a fresh snapshot.",
     });
     expect(harness.coordinator.getLastSeenSeq()).toBe(0);
+    expect(onEventStreamReset).toHaveBeenCalledOnce();
 
     socket.message({
       type: "event",

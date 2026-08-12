@@ -4827,6 +4827,10 @@ msgstr "文件"
 msgid "Files for {0}"
 msgstr "{0}的文件"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "{projectName}的文件"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
@@ -5864,7 +5868,7 @@ msgstr "代理在选择要委派给哪个代理或模型时遵循的说明。"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "已中断：代理会话在完成之前结束。"
 
@@ -11389,6 +11393,10 @@ msgstr "终端"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0}的终端"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "{projectName}的终端"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

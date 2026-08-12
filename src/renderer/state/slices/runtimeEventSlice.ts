@@ -1,4 +1,3 @@
-import { msg } from "@lingui/core/macro";
 import type {
   CanonicalItemType,
   CanonicalRequestType,
@@ -11,16 +10,17 @@ import type {
   ToolCallPayload,
 } from "@/shared/contracts";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
-import { i18n } from "@/renderer/i18n/i18n";
+import { msg } from "@/shared/messages";
+import {
+  interruptDelegatedAgentToolPayload,
+  isDelegatedAgentTool,
+} from "@/shared/toolCallClassification";
 import type { SliceCreator } from "./shared";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
-
-const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -509,20 +509,9 @@ function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
     name: "Task",
     status: "error",
   };
-  const nextPayload: ToolCallPayload = {
-    ...payload,
-    status: "error",
-    ...(payload.isCrossagent &&
-    (payload.crossagentStatus === undefined || payload.crossagentStatus === "running")
-      ? { crossagentStatus: "failed" as const }
-      : {}),
-    ...(payload.result === undefined
-      ? { result: { error: i18n._(STALE_SUB_AGENT_ERROR_MESSAGE) } }
-      : {}),
-  };
   return {
     ...item,
     state: "completed",
-    payload: nextPayload,
+    payload: interruptDelegatedAgentToolPayload(payload, msg("runtime.delegatedAgentInterrupted")),
   };
 }

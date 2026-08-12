@@ -4827,6 +4827,10 @@ msgstr "Arquivos"
 msgid "Files for {0}"
 msgstr "Arquivos para {0}"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "Arquivos para {projectName}"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
@@ -5864,7 +5868,7 @@ msgstr "Instruções que os agentes seguem ao escolher para qual agente ou model
 msgid "Interrupted"
 msgstr "Interrompida"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Interrompida: a sessão do agente terminou antes da conclusão."
 
@@ -11390,6 +11394,10 @@ msgstr "Terminal"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "Terminal para {0}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "Terminal para {projectName}"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

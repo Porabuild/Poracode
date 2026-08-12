@@ -331,6 +331,10 @@ export function useRemoteDesktop() {
       onOpenChange: (open) => {
         socketOpenRef.current = open;
       },
+      onEventStreamReset: () => {
+        const threadId = selectedThreadIdRef.current;
+        if (threadId) useAppStore.getState().clearThreadRuntimeEvents(threadId);
+      },
       isHttpHealthy: () => Date.now() - lastRefreshOkAtRef.current < 45_000,
       getPairingExpiredMessage: () => i18n._(msg`Pairing expired — pair again to reconnect.`),
     });

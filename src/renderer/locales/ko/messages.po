@@ -4827,6 +4827,10 @@ msgstr "파일"
 msgid "Files for {0}"
 msgstr "{0}에 대한 파일"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "{projectName}에 대한 파일"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
@@ -5864,7 +5868,7 @@ msgstr "에이전트가 어떤 에이전트나 모델에 위임할지 선택할 
 msgid "Interrupted"
 msgstr "중단됨"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
 
@@ -11390,6 +11394,10 @@ msgstr "터미널"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0}용 터미널"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "{projectName}용 터미널"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

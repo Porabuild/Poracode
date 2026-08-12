@@ -4827,6 +4827,10 @@ msgstr "Файли"
 msgid "Files for {0}"
 msgstr "Файли для {0}"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "Файли для {projectName}"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
@@ -5864,7 +5868,7 @@ msgstr "Інструкції, яких дотримуються агенти, о
 msgid "Interrupted"
 msgstr "Перервано"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Перервано: сесія агента завершилася до завершення."
 
@@ -11390,6 +11394,10 @@ msgstr "Термінал"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "Термінал для {0}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "Термінал для {projectName}"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

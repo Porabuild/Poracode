@@ -5,6 +5,7 @@ import { getDb } from "./connection";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
+import { dbInterruptStaleDelegatedAgents } from "./runtimeItems";
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
@@ -176,8 +177,8 @@ export function dbSetThreadGroup(threadId: string, groupId: string, groupName: s
 }
 
 /**
- * No agent session survives a host restart, so any persisted live status
- * ("launching"/"working"/...) is stale by definition once the process boots.
+ * No agent session survives a host restart, so persisted live thread status
+ * and running delegated-agent rows are stale once the process boots.
  * DB-level counterpart of the renderer's `markThreadsInactiveOnLaunch`; the
  * headless server calls it at startup since it has no renderer to self-heal.
  */
@@ -187,6 +188,7 @@ export function dbMarkLiveThreadsInactive(): void {
     .set({ status: "inactive", attention: "none", activeTurnStartedAt: null })
     .where(notInArray(schema.threads.status, ["inactive", "error"]))
     .run();
+  dbInterruptStaleDelegatedAgents();
   notifyProjectThreadDataChanged();
 }
 

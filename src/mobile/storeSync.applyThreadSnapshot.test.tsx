@@ -197,6 +197,56 @@ describe("applyThreadSnapshot", () => {
     expect(assistantStreamText("msg-1")).toBe("newer live text");
   });
 
+  it("accepts terminal delegated-agent state without clobbering newer live text", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-1", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "newer live text",
+      },
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "subagent-old",
+        itemType: "tool_call",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [
+          makeItem({ id: "msg-1", assistantText: "older snapshot text" }),
+          {
+            id: "subagent-old",
+            type: "tool_call",
+            state: "completed",
+            payload: {
+              name: "Task",
+              status: "error",
+              isSubAgent: true,
+              result: { error: "Interrupted: agent session ended before completion." },
+            },
+            streams: {},
+          },
+        ],
+      }),
+    );
+
+    expect(assistantStreamText("msg-1")).toBe("newer live text");
+    expect(
+      useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]?.["subagent-old"],
+    ).toMatchObject({
+      state: "completed",
+      payload: { status: "error" },
+    });
+  });
+
   it("does not overwrite a newer live payload with an active recovery snapshot", () => {
     const store = useAppStore.getState();
     store.applyRuntimeEvents(THREAD_ID, [

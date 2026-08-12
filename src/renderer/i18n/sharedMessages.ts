@@ -175,6 +175,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
   "supervisor.proposedPlan": msg({ message: "Proposed plan" }),
+  "runtime.delegatedAgentInterrupted": msg({
+    message: "Interrupted: agent session ended before completion.",
+  }),
   "kimi.credentialsLocked": msg({
     message:
       "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",

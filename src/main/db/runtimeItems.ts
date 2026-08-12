@@ -2,8 +2,13 @@ import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
+import { msg } from "@/shared/messages";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
-import { isSubAgentTool } from "@/shared/toolCallClassification";
+import {
+  interruptDelegatedAgentToolPayload,
+  isDelegatedAgentTool,
+  isSubAgentTool,
+} from "@/shared/toolCallClassification";
 import { getSqlite } from "./connection";
 import { safeParse } from "./rowMappers";
 
@@ -188,6 +193,54 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
     )
     .all(threadId) as PersistedRuntimeItemRow[];
   return rows.map(mapRuntimeItemRow);
+}
+
+/**
+ * No delegated-agent process survives a host restart. Persist the same terminal
+ * state the renderer applies during hydration so remote snapshots cannot keep
+ * advertising pre-restart Subagents or Crossagents as live.
+ */
+export function dbInterruptStaleDelegatedAgents(): number {
+  const sqlite = getSqlite();
+  const candidates = sqlite
+    .prepare(
+      `SELECT thread_id, item_id, state, payload
+       FROM thread_runtime_items
+       WHERE type = 'tool_call'
+         AND (state != 'completed' OR payload LIKE '%"status"%running%')`,
+    )
+    .all() as Array<{
+    thread_id: string;
+    item_id: string;
+    state: string;
+    payload: string | null;
+  }>;
+  const update = sqlite.prepare(
+    `UPDATE thread_runtime_items
+     SET state = 'completed', payload = ?
+     WHERE thread_id = ? AND item_id = ?`,
+  );
+
+  return sqlite.transaction(() => {
+    let interrupted = 0;
+    for (const candidate of candidates) {
+      const parsed = candidate.payload ? safeParse(candidate.payload) : undefined;
+      const payload =
+        parsed && typeof parsed === "object" ? (parsed as ToolCallPayload) : undefined;
+      if (!payload || !isDelegatedAgentTool(payload)) continue;
+      if (candidate.state === "completed" && payload.status !== "running") continue;
+      const nextPayload = interruptDelegatedAgentToolPayload(
+        payload,
+        msg("runtime.delegatedAgentInterrupted"),
+      );
+      interrupted += update.run(
+        JSON.stringify(nextPayload),
+        candidate.thread_id,
+        candidate.item_id,
+      ).changes;
+    }
+    return interrupted;
+  })();
 }
 
 /**

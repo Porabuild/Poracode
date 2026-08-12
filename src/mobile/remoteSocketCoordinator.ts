@@ -38,6 +38,7 @@ export interface RemoteSocketCoordinatorOptions {
   readonly onConnectionChange: (state: SocketConnectionState) => void;
   readonly onMessageChange: (message: string) => void;
   readonly onOpenChange: (open: boolean) => void;
+  readonly onEventStreamReset?: () => void;
   /** Recent HTTP success lets scheduleReconnect keep the pill "online" while
    * only the event socket is down. Optional; defaults to always-unhealthy. */
   readonly isHttpHealthy?: () => boolean;
@@ -256,6 +257,7 @@ export function createRemoteSocketCoordinator(
               // The server's in-memory sequence can move backwards after a
               // desktop restart. Reset immediately so events from the new
               // stream are not discarded while the recovery snapshot loads.
+              if (parsed.seq < lastSeenSeq) options.onEventStreamReset?.();
               lastSeenSeq = parsed.seq;
               scheduleRefresh({ recovery: true, resetLastSeenSeq: true });
             }

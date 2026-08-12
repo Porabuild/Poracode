@@ -24,6 +24,7 @@ import {
   dbGetThreads,
   dbInsertScheduleRun,
   dbInterruptScheduleRuns,
+  dbMarkLiveThreadsInactive,
   dbUpdateScheduleRun,
   dbUpsertThread,
   initDatabase,
@@ -703,6 +704,7 @@ if (!hasSingleInstanceLock) {
       }
 
       initDatabase(paths.dbPath);
+      dbMarkLiveThreadsInactive();
       const secretStorageKey = readOrCreateSafeStorageSecretKey(paths.baseDir);
       // Configure the same key in main so it can seal captured secrets (e.g. usage
       // login cookies); the supervisor configures it from the env var it receives.

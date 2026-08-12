@@ -12,6 +12,7 @@ import {
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
+  dbInterruptStaleDelegatedAgents,
   dbReplaceThreadRuntimeItems,
   dbTruncateThreadRuntimeAfter,
 } from "./runtimeItems";
@@ -128,6 +129,87 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetThreadContextUsage("thread-1")).toEqual({
       usedTokens: 125,
       maxTokens: 1000,
+    });
+  });
+
+  it("durably interrupts delegated agents left running by the previous app process", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "subagent-running",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+        streams: {},
+      },
+      {
+        id: "crossagent-running",
+        type: "tool_call",
+        state: "completed",
+        payload: {
+          name: "Crossagent",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
+      },
+      {
+        id: "raw-crossagents-mcp",
+        type: "tool_call",
+        state: "started",
+        payload: {
+          name: "mcp__crossagents__spawn_agent",
+          status: "running",
+          isSubAgent: true,
+        },
+        streams: {},
+      },
+      {
+        id: "ordinary-tool",
+        type: "tool_call",
+        state: "started",
+        payload: { name: "Read", status: "running" },
+        streams: {},
+      },
+      {
+        id: "subagent-complete",
+        type: "tool_call",
+        state: "completed",
+        payload: { name: "Task", status: "success", isSubAgent: true },
+        streams: {},
+      },
+    ]);
+
+    expect(dbInterruptStaleDelegatedAgents()).toBe(2);
+    expect(dbInterruptStaleDelegatedAgents()).toBe(0);
+
+    const byId = new Map(dbGetThreadRuntimeItems("thread-1").map((item) => [item.id, item]));
+    expect(byId.get("subagent-running")).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        result: { error: "Interrupted: agent session ended before completion." },
+      },
+    });
+    expect(byId.get("crossagent-running")).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        crossagentStatus: "failed",
+        result: { error: "Interrupted: agent session ended before completion." },
+      },
+    });
+    expect(byId.get("raw-crossagents-mcp")).toMatchObject({
+      state: "started",
+      payload: { status: "running" },
+    });
+    expect(byId.get("ordinary-tool")).toMatchObject({
+      state: "started",
+      payload: { status: "running" },
+    });
+    expect(byId.get("subagent-complete")).toMatchObject({
+      state: "completed",
+      payload: { status: "success" },
     });
   });
 
