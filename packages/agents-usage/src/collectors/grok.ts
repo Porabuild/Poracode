@@ -10,11 +10,12 @@ import {
 /**
  * Grok (xAI). Two collection paths, tried in that order:
  *
- * 1. The CLI proxy's `/v1/billing` with the Grok CLI bearer token from
- *    `~/.grok/auth.json` — JSON, and the only path carrying real credit amounts
- *    (`used` / `monthlyLimit`). Rejected tokens are refreshed through the host
- *    (see {@link refreshGrokOAuthToken}) and retried, so an expired access token
- *    no longer silently demotes us to the cookie path.
+ * 1. The CLI proxy's `/v1/billing?format=credits` with the Grok CLI bearer token
+ *    from `~/.grok/auth.json` — JSON, carrying the aggregate credit percentage.
+ *    Older account shapes fall back to plain `/v1/billing` for `used` /
+ *    `monthlyLimit`. Rejected tokens are refreshed through the host (see
+ *    {@link refreshGrokOAuthToken}) and retried, so an expired access token no
+ *    longer silently demotes us to the cookie path.
  * 2. grok.com's private gRPC-web credits config with a captured browser session
  *    cookie — percent and period only, and served by an edge that has changed its
  *    accepted encoding under us more than once.
@@ -31,13 +32,11 @@ import {
 
 const GROK_PROXY_BASE = "https://cli-chat-proxy.grok.com/v1";
 /**
- * Plain `/billing`, deliberately not openusage's `?format=credits`. Verified
- * against the live proxy: the `credits` view returns the weekly on-demand cycle
- * (`onDemandCap`, `onDemandUsed`, `prepaidBalance`) and omits `monthlyLimit` /
- * `used` entirely, so reading it would render a confident 0%. The unparameterized
- * view is the one carrying the allowance this ring reports.
+ * Plain `/billing` is retained for older account shapes that still expose real
+ * `monthlyLimit` / `used` amounts there.
  */
 export const GROK_BILLING_ENDPOINT = `${GROK_PROXY_BASE}/billing`;
+export const GROK_CREDITS_ENDPOINT = `${GROK_BILLING_ENDPOINT}?format=credits`;
 export const GROK_SETTINGS_ENDPOINT = `${GROK_PROXY_BASE}/settings`;
 const GROK_TOKEN_AUTH_HEADER = "xai-grok-cli";
 
@@ -47,9 +46,14 @@ interface GrokVal {
 
 interface GrokBillingResponse {
   config?: {
+    creditUsagePercent?: number;
     monthlyLimit?: GrokVal;
     used?: GrokVal;
     onDemandCap?: GrokVal;
+    currentPeriod?: {
+      start?: string;
+      end?: string;
+    };
     billingPeriodStart?: string;
     billingPeriodEnd?: string;
   };
@@ -57,6 +61,10 @@ interface GrokBillingResponse {
 
 function num(v: GrokVal | undefined): number | undefined {
   return typeof v?.val === "number" && Number.isFinite(v.val) ? v.val : undefined;
+}
+
+function percent(v: number | undefined): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100 ? v : undefined;
 }
 
 function grokConfig(billingBody: unknown): NonNullable<GrokBillingResponse["config"]> {
@@ -86,9 +94,11 @@ function grokSnapshot(
  */
 function grokBillingHasData(billingBody: unknown): boolean {
   const config = grokConfig(billingBody);
-  // Deliberately not satisfied by a period alone: the proxy's on-demand view
-  // carries billing dates with no allowance, and would read as 0% used.
-  return num(config.monthlyLimit) !== undefined || num(config.used) !== undefined;
+  const limit = num(config.monthlyLimit);
+  // Plain `/billing` now returns a placeholder 0/0 allowance for unified-billing
+  // accounts. Only a positive legacy limit is usable; the credits view's direct
+  // percentage remains valid at exactly zero.
+  return percent(config.creditUsagePercent) !== undefined || (limit !== undefined && limit > 0);
 }
 
 /**
@@ -129,20 +139,21 @@ export function parseGrokUsage(
   const limit = num(config.monthlyLimit);
   const used = num(config.used);
   const usedPercent =
-    limit !== undefined && limit > 0 && used !== undefined
+    percent(config.creditUsagePercent) ??
+    (limit !== undefined && limit > 0 && used !== undefined
       ? Math.min(100, Math.max(0, (used / limit) * 100))
-      : 0;
-  const resetsAt = toEpochMs(config.billingPeriodEnd);
+      : 0);
+  const periodStart = toEpochMs(config.currentPeriod?.start ?? config.billingPeriodStart);
+  const resetsAt = toEpochMs(config.currentPeriod?.end ?? config.billingPeriodEnd);
 
   const window: UsageWindow = {
     id: "monthly",
     // The JSON path carries both cycle bounds, so the label is derived rather
     // than assumed — a weekly credit cycle reads as weekly.
-    label: grokWindowLabel(toEpochMs(config.billingPeriodStart), resetsAt, nowMs),
+    label: grokWindowLabel(periodStart, resetsAt, nowMs),
     usedPercent,
     unit: "credits",
-    ...(used !== undefined ? { used } : {}),
-    ...(limit !== undefined ? { limit } : {}),
+    ...(limit !== undefined && limit > 0 && used !== undefined ? { used, limit } : {}),
     ...(resetsAt !== undefined ? { resetsAt } : {}),
   };
 
@@ -289,7 +300,7 @@ async function collectGrokViaToken(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let res: HttpResponse;
     try {
-      res = await grokRequest(host, GROK_BILLING_ENDPOINT, token.accessToken);
+      res = await grokRequest(host, GROK_CREDITS_ENDPOINT, token.accessToken);
     } catch {
       return { detail: "network error" };
     }
@@ -315,7 +326,33 @@ async function collectGrokViaToken(
     } catch {
       return { detail: "invalid JSON response" };
     }
-    if (!grokBillingHasData(billing)) return { detail: "no credit fields in billing response" };
+    if (!grokBillingHasData(billing)) {
+      try {
+        res = await grokRequest(host, GROK_BILLING_ENDPOINT, token.accessToken);
+      } catch {
+        return { detail: "network error" };
+      }
+      if (res.status === 401 || res.status === 403) {
+        const next = await host.credentials.refreshOAuthToken?.("grok", token);
+        if (!next?.accessToken || next.accessToken === token.accessToken) {
+          return {
+            snapshot: grokSnapshot("auth-missing", nowMs, `token rejected (${res.status})`),
+          };
+        }
+        token = next;
+        continue;
+      }
+      if (res.status === 429) return { snapshot: grokSnapshot("rate-limited", nowMs) };
+      if (res.status < 200 || res.status >= 300) return { detail: `HTTP ${res.status}` };
+      try {
+        billing = JSON.parse(res.body);
+      } catch {
+        return { detail: "invalid JSON response" };
+      }
+      if (!grokBillingHasData(billing)) {
+        return { detail: "no credit fields in billing response" };
+      }
+    }
 
     // Plan name is best-effort; usage stands on its own without it.
     const settings = await fetchGrokSettings(host, token.accessToken);
