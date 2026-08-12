@@ -3,7 +3,7 @@ import type { ToolSpec } from "./types";
 export const BROWSER_MCP_INSTRUCTIONS =
   "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Before the first browsing action, call browser.enable once and keep it enabled across the whole uninterrupted browser session so agent presence stays consistent between calls. Always call browser.disable before pausing to ask for user input, waiting for an external event, or finishing, and enable again when you resume. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
 
-export const TOOLS: ToolSpec[] = [
+const RAW_TOOLS: ToolSpec[] = [
   {
     name: "api",
     description:
@@ -596,6 +596,57 @@ export const TOOLS: ToolSpec[] = [
     },
   },
 ];
+
+const READ_ONLY_TOOL_NAMES = new Set([
+  "api",
+  "list_tabs",
+  "get_url",
+  "get_title",
+  "screenshot",
+  "query",
+  "wait_for",
+  "snapshot",
+  "inspect",
+  "get",
+  "is",
+  "find",
+  "wait",
+  "wait_for_url",
+  "wait_for_text",
+  "wait_for_js",
+  "frames",
+]);
+const SESSION_TOOL_NAMES = new Set(["enable", "disable"]);
+const DESTRUCTIVE_TOOL_NAMES = new Set([
+  "close_tab",
+  "click",
+  "dblclick",
+  "type",
+  "fill",
+  "check",
+  "uncheck",
+  "select",
+  "eval",
+  "press",
+  "cookies",
+  "storage",
+  "dialog",
+  "addscript",
+  "addstyle",
+]);
+
+export const TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
+  ...tool,
+  annotations: READ_ONLY_TOOL_NAMES.has(tool.name)
+    ? { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }
+    : SESSION_TOOL_NAMES.has(tool.name)
+      ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+      : {
+          readOnlyHint: false,
+          destructiveHint: DESTRUCTIVE_TOOL_NAMES.has(tool.name),
+          openWorldHint: true,
+        },
+}));
 
 export const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
 

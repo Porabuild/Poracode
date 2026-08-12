@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { HttpClient, HttpRequest, HttpResponse } from "./host";
-import { isOpenCodeSessionLive, openCodeRequestCookie, workspaceIdsFromText } from "./openCodeWeb";
+import {
+  fetchOpenCodeSubscriptionText,
+  isOpenCodeSessionLive,
+  looksLikeOpenCodeSubscription,
+  openCodeRequestCookie,
+  workspaceIdsFromText,
+} from "./openCodeWeb";
 
 function stubHttp(responder: (req: HttpRequest) => HttpResponse): {
   http: HttpClient;
@@ -70,5 +76,57 @@ describe("isOpenCodeSessionLive", () => {
   it("propagates probe errors to the caller (treated as not-live upstream)", async () => {
     const http: HttpClient = { request: () => Promise.reject(new Error("network")) };
     await expect(isOpenCodeSessionLive(http, "auth=real")).rejects.toThrow("network");
+  });
+});
+
+describe("looksLikeOpenCodeSubscription", () => {
+  it("requires rollingUsage + usagePercent and rejects signed-out pages", () => {
+    expect(
+      looksLikeOpenCodeSubscription(
+        `rollingUsage:$R[1]={status:"ok",usagePercent:42},weeklyUsage:{usagePercent:1}`,
+      ),
+    ).toBe(true);
+    expect(looksLikeOpenCodeSubscription(`please <a href="/auth/authorize">login</a>`)).toBe(false);
+    expect(looksLikeOpenCodeSubscription(`{monthlyUsage:{usagePercent:1}}`)).toBe(false);
+  });
+});
+
+describe("fetchOpenCodeSubscriptionText", () => {
+  it("returns the first successful subscription payload body", async () => {
+    const payload =
+      `rollingUsage:$R[28]={status:"ok",resetInSec:1,usagePercent:100},` +
+      `weeklyUsage:$R[29]={status:"ok",resetInSec:2,usagePercent:79}`;
+    const { http, calls } = stubHttp((req) => {
+      // First POST encoding succeeds.
+      if (req.method === "POST" && req.body?.includes("wrk_test")) return ok(payload);
+      return ok("nope");
+    });
+    await expect(fetchOpenCodeSubscriptionText(http, "auth=tok", "wrk_test")).resolves.toBe(
+      payload,
+    );
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    expect(calls[0]?.headers?.Cookie).toBe("auth=tok");
+    expect(calls[0]?.headers?.["X-Server-Id"]).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("tries alternate encodings when the first body shape is rejected", async () => {
+    let posts = 0;
+    const payload = `rollingUsage:{usagePercent:1},weeklyUsage:{usagePercent:2}`;
+    const { http } = stubHttp((req) => {
+      if (req.method !== "POST") return ok("ignore");
+      posts += 1;
+      // First encoding fails (empty/error), second succeeds.
+      if (posts === 1) return ok('{"error":"bad args"}');
+      return ok(payload);
+    });
+    await expect(fetchOpenCodeSubscriptionText(http, "auth=tok", "wrk_x")).resolves.toBe(payload);
+    expect(posts).toBe(2);
+  });
+
+  it("returns undefined when every attempt is signed-out or empty", async () => {
+    const { http } = stubHttp(() => ok('actor of type "public"'));
+    await expect(
+      fetchOpenCodeSubscriptionText(http, "auth=stale", "wrk_x"),
+    ).resolves.toBeUndefined();
   });
 });

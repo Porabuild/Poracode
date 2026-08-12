@@ -347,6 +347,17 @@ function tomlKeySegment(value: string): string {
   return /^[A-Za-z0-9_-]+$/u.test(value) ? value : tomlString(value);
 }
 
+/**
+ * Codex app-server config overrides do not accept quoted/dotted MCP table
+ * segments even though the CLI TOML parser does. Keep the provider-visible
+ * namespace readable and add a stable suffix only when normalization is needed.
+ */
+export function codexMcpServerName(server: Pick<ResolvedMcpServer, "id" | "name">): string {
+  const normalized = server.name.replace(/[^A-Za-z0-9_-]/gu, "_").replace(/^_+|_+$/gu, "");
+  if (normalized === server.name) return normalized;
+  return `${normalized || "server"}_${envIdentityHash(server.name, server.id).slice(0, 8).toLowerCase()}`;
+}
+
 function tomlStringArray(values: readonly string[]): string {
   return `[${values.map(tomlString).join(", ")}]`;
 }
@@ -379,7 +390,7 @@ export function buildCodexMcp(servers: readonly ResolvedMcpServer[]): CodexMcp {
 
   for (const server of servers) {
     const transport = server.transport;
-    const key = `mcp_servers.${tomlKeySegment(server.name)}`;
+    const key = `mcp_servers.${tomlKeySegment(codexMcpServerName(server))}`;
     const serverConfig: Record<string, unknown> = {};
     if (transport.type === "stdio") {
       args.push("-c", `${key}.command=${tomlString(transport.command)}`);

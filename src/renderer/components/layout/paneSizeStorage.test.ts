@@ -106,6 +106,62 @@ describe("paneSizeStorage", () => {
       expect(readStoredSizes(key("vertical", ["left", "right", "new"]), 2)).toEqual([38, 62]);
     });
 
+    it("gives an inserted sibling an equal share and shrinks the others proportionally", () => {
+      const previous: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "a" },
+          { kind: "leaf", paneId: "b" },
+        ],
+      };
+      const next: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "a" },
+          { kind: "leaf", paneId: "new" },
+          { kind: "leaf", paneId: "b" },
+        ],
+      };
+
+      writeStoredSizes(key("vertical", ["a", "b"]), [50, 50]);
+      preservePaneSizeStorageForLayoutChange(previous, next);
+
+      const sizes = readStoredSizes(key("vertical", ["a", "new", "b"]), 3);
+      expect(sizes[0]).toBeCloseTo(100 / 3);
+      expect(sizes[1]).toBeCloseTo(100 / 3);
+      expect(sizes[2]).toBeCloseTo(100 / 3);
+    });
+
+    it("keeps the existing panes' relative proportions when a sibling is inserted", () => {
+      const previous: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "a" },
+          { kind: "leaf", paneId: "b" },
+        ],
+      };
+      const next: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "a" },
+          { kind: "leaf", paneId: "b" },
+          { kind: "leaf", paneId: "new" },
+        ],
+      };
+
+      writeStoredSizes(key("vertical", ["a", "b"]), [70, 30]);
+      preservePaneSizeStorageForLayoutChange(previous, next);
+
+      const sizes = readStoredSizes(key("vertical", ["a", "b", "new"]), 3);
+      expect(sizes[2]).toBeCloseTo(100 / 3);
+      // 70 : 30 preserved across the remaining two thirds.
+      expect(sizes[0]! / sizes[1]!).toBeCloseTo(70 / 30);
+    });
+
     it("keeps ancestor split sizes when a pane is removed inside one child", () => {
       const previous: PaneLayout = {
         kind: "split",

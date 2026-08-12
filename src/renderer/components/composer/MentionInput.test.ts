@@ -8,6 +8,7 @@ import {
   MentionInput,
   type McpMentionItem,
   type MentionInputHandle,
+  type PluginMentionItem,
 } from "./MentionInput";
 
 vi.mock("./MentionPopover", () => ({ MentionPopover: () => null }));
@@ -50,6 +51,35 @@ describe("buildMentionResults", () => {
     detail: "Computer Use",
     enabled: true,
   };
+  const github: PluginMentionItem = {
+    id: "github",
+    name: "GitHub",
+    detail: "Plugin",
+    command: {
+      id: "github",
+      label: "GitHub",
+      skillName: "github",
+      skillPath: "C:\\plugins\\github\\skills\\github\\SKILL.md",
+      skillInvocation: "$github",
+      skillProvider: "GitHub",
+      skillScope: "global",
+      pluginId: "github",
+      pluginName: "GitHub",
+    },
+  };
+
+  it("shows a plugin as one result before its underlying MCP and files", () => {
+    expect(buildMentionResults(fileResults, "git", [browser], [github])).toEqual([
+      {
+        type: "plugin",
+        path: "github",
+        name: "GitHub",
+        detail: "Plugin",
+        command: github.command,
+      },
+      ...fileResults,
+    ]);
+  });
 
   it("shows Browser when typing an empty @ mention", () => {
     expect(buildMentionResults(fileResults, "", [browser])).toEqual([
@@ -245,6 +275,57 @@ describe("MCP mention selection", () => {
 
     expect(editor).toBeEmptyDOMElement();
     expect(onMcpMentionSelect).toHaveBeenCalledWith("browser");
+  });
+});
+
+describe("plugin mention selection", () => {
+  it("inserts one plugin badge that preserves the core skill and plugin identity", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        pluginMentions: [
+          {
+            id: "github",
+            name: "GitHub",
+            detail: "Plugin",
+            command: {
+              id: "github",
+              label: "GitHub",
+              skillName: "github",
+              skillPath: "C:\\plugins\\github\\skills\\github\\SKILL.md",
+              skillInvocation: "$github",
+              skillProvider: "GitHub",
+              skillScope: "global",
+              pluginId: "github",
+              pluginName: "GitHub",
+            },
+          },
+        ],
+      }),
+    );
+
+    const editor = typeMention("git");
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.querySelector('[data-plugin-id="github"]')).toHaveTextContent("GitHub");
+    expect(ref.current?.serializeSegments()).toEqual([
+      {
+        kind: "skill",
+        name: "github",
+        path: "C:\\plugins\\github\\skills\\github\\SKILL.md",
+        invocation: "$github",
+        provider: "GitHub",
+        scope: "global",
+        pluginId: "github",
+        pluginName: "GitHub",
+      },
+      { kind: "text", content: " " },
+    ]);
   });
 });
 

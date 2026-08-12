@@ -35,6 +35,7 @@ import {
   setSessionFsBridgeClient,
   setWslProcessBridgeClient,
   type AgentAdapter,
+  type AgentNativePlugin,
 } from "./agents/base";
 import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
 import { FileIndexService } from "./fileIndex";
@@ -79,6 +80,8 @@ import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
+import { dropSkillSegmentsOnPolicyFailure } from "./skills/pluginSkillPolicy";
+import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
@@ -121,6 +124,8 @@ export class SupervisorRuntime {
   readonly mcpOAuthService: McpOAuthService;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
+  readonly pluginRegistry: PluginRegistry;
+  private readonly pluginDataDir: string;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
   private readonly routingOverridePersistence: RoutingOverridePersistence;
@@ -208,10 +213,17 @@ export class SupervisorRuntime {
       statusCachePath: paths.statusCachePath,
       emit,
     });
+    this.pluginRegistry = new PluginRegistry({
+      bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,
+      userPluginsDir: () => paths.pluginsDir,
+    });
+    this.pluginDataDir = paths.pluginDataDir;
     this.skillsService = new SkillsService({
       adapters: this.adapters,
       resolveAgentVersion: (kind, wslDistro) =>
         this.agentStatusService.getCachedVersion(kind, wslDistro),
+      readInstalledPlugins: () => this.sharedSettingsCache.readFresh().installedPlugins,
+      readPlugins: () => this.pluginRegistry.listPlugins(),
     });
 
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
@@ -416,11 +428,54 @@ export class SupervisorRuntime {
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
+      resolvePluginLaunchContributions: async (projectLocation, agentKind) => {
+        const adapter = this.adapters.get(agentKind);
+        const envContext =
+          projectLocation.kind === "wsl"
+            ? {
+                envKind: "wsl" as const,
+                wslDistro: projectLocation.distro,
+                baseDir: this.baseDir,
+              }
+            : {
+                envKind: projectLocation.kind,
+                baseDir: this.baseDir,
+              };
+        let nativePlugins: readonly AgentNativePlugin[] = [];
+        try {
+          nativePlugins = (await adapter?.listNativePlugins?.(envContext)) ?? [];
+        } catch (error) {
+          console.warn(`[plugins] failed to inspect native ${agentKind} plugins:`, error);
+        }
+        const result = resolvePluginMcpServers(
+          this.pluginRegistry.listPlugins(),
+          this.sharedSettingsCache.readFresh().installedPlugins,
+          {
+            pluginDataRoot: this.pluginDataDir,
+            hostPlatform: process.platform,
+            projectLocation,
+            nativePluginNames: new Set(nativePlugins.map((plugin) => plugin.name)),
+          },
+        );
+        return {
+          mcpServers: result.servers,
+          builtInMcpServerIds: result.builtInMcpServerIds,
+          nativePlugins: [...nativePlugins],
+        };
+      },
       prepareSkillsForLaunch: async (projectLocation, agentKind) => {
         try {
           await this.skillsService.prepareForLaunch(projectLocation, agentKind);
         } catch (error) {
           console.warn("[skills] failed to prepare provider skill projections:", error);
+        }
+      },
+      filterPluginSkillSegments: async (input) => {
+        try {
+          return await this.skillsService.filterPluginSkillSegments(input.segments, input);
+        } catch (error) {
+          console.warn("[skills] failed to apply plugin skill policy:", error);
+          return dropSkillSegmentsOnPolicyFailure(input.segments);
         }
       },
       buildSkillTurnInjection: async (input) => {

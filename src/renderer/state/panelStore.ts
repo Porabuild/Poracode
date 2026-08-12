@@ -249,7 +249,7 @@ function sanitizeThreadSortMode(value: unknown): ThreadSortMode {
 }
 
 function sanitizeThreadListLayout(value: unknown): ThreadListLayout {
-  return value === "grouped" || value === "flat" ? value : "grouped";
+  return value === "grouped" || value === "flat" ? value : "flat";
 }
 
 /**

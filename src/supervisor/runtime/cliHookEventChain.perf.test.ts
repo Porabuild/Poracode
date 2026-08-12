@@ -35,6 +35,7 @@ function makeSession(threadId: string): SessionRuntime {
     status: "idle",
     attention: "none",
     config: { model: "perf-stub" },
+    runtimeLaunchConfig: { model: "perf-stub" },
     canResumeWithConfig: false,
     terminalSize: { cols: 80, rows: 24 },
     launchPrompt: "",

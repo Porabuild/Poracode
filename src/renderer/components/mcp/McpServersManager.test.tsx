@@ -59,6 +59,7 @@ function managerElement(options: {
   additionalProjects?: McpImportProjectTarget[];
   disabledBuiltIns?: Record<string, boolean>;
   disabledBuiltInTools?: Record<string, string[]>;
+  managedBuiltIns?: Partial<Record<BuiltInMcpServerId, string>>;
   onBuiltInDisabledChange?: (id: string, disabled: boolean) => void;
   onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   includeCrossagentsSettings?: boolean;
@@ -73,6 +74,7 @@ function managerElement(options: {
     additionalProjects = [],
     disabledBuiltIns,
     disabledBuiltInTools,
+    managedBuiltIns,
     onBuiltInDisabledChange,
     onBuiltInToolEnabledChange,
     includeCrossagentsSettings,
@@ -111,6 +113,7 @@ function managerElement(options: {
       defaultScope={defaultScope}
       {...(disabledBuiltIns ? { disabledBuiltIns } : {})}
       {...(disabledBuiltInTools ? { disabledBuiltInTools } : {})}
+      {...(managedBuiltIns ? { managedBuiltIns } : {})}
       {...(onBuiltInDisabledChange ? { onBuiltInDisabledChange } : {})}
       {...(onBuiltInToolEnabledChange ? { onBuiltInToolEnabledChange } : {})}
       {...(includeCrossagentsSettings
@@ -159,6 +162,33 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "Delete memory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Browser" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "46 tools" })).toBeInTheDocument();
+  });
+
+  it("identifies plugin-managed built-ins without exposing edit or delete controls", () => {
+    render(
+      managerElement({
+        disabledBuiltIns: {},
+        managedBuiltIns: { browser: "Browser Tools" },
+        onBuiltInDisabledChange: () => undefined,
+      }),
+    );
+
+    const row = document.querySelector('[data-built-in-mcp-server="browser"]');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText("Managed by Browser Tools")).toBeInTheDocument();
+    expect(within(row as HTMLElement).queryByText("Built-in")).not.toBeInTheDocument();
+    expect(
+      within(row as HTMLElement).queryByRole("button", { name: "Edit Browser" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row as HTMLElement).queryByRole("button", { name: "Delete Browser" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search MCP servers" }), {
+      target: { value: "Browser Tools" },
+    });
+    expect(document.querySelector('[data-built-in-mcp-server="browser"]')).not.toBeNull();
+    expect(document.querySelector('[data-built-in-mcp-server="chrome"]')).toBeNull();
   });
 
   it("shows the built-in tool list from its tool count", () => {

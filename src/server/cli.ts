@@ -47,6 +47,13 @@ function resolveBundledSkillsDir(): string {
   return join(__dirname, "..", "..", "resources", "skills");
 }
 
+function resolveBundledPluginsDir(): string {
+  const explicit = process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim();
+  if (explicit) return explicit;
+  // Mirror the dev layout in main.ts: <dist/main>/../../resources/plugins.
+  return join(__dirname, "..", "..", "resources", "plugins");
+}
+
 const LOCK_FILE = "server.lock";
 
 /** Release handle returned by {@link acquireDataDirLock}; unlinks the lockfile. */
@@ -157,6 +164,7 @@ async function serve(): Promise<void> {
       supervisorPath: join(__dirname, "supervisor.cjs"),
       wslHelpersDir: resolveWslHelpersDir(),
       bundledSkillsDir: resolveBundledSkillsDir(),
+      bundledPluginsDir: resolveBundledPluginsDir(),
       secretStorageKey,
       ...(relayUrl ? { relayUrl } : {}),
       ...(relaySecret ? { relaySecret } : {}),

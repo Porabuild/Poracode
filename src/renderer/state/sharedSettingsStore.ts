@@ -29,9 +29,17 @@ import type {
   WorktreeStorageMode,
   BuiltInMcpServerId,
   McpServer,
+  LoadedPlugin,
   Workspace,
 } from "@/shared/contracts";
 import { nextWorkspaceIconId } from "@/shared/contracts";
+import {
+  installPlugin as addInstalledPlugin,
+  setInstalledPluginEnabled as updateInstalledPluginEnabled,
+  setPluginMcpServerEnabled as updatePluginMcpServerEnabled,
+  setPluginSkillEnabled as updatePluginSkillEnabled,
+  uninstallPlugin as removeInstalledPlugin,
+} from "@/shared/plugins/catalog";
 import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
 
 const STORAGE_KEY = "poracode-shared-settings";
@@ -118,6 +126,11 @@ interface SharedSettingsState extends SharedSettings {
   setMcpServers: (servers: McpServer[]) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
   setBuiltInMcpToolEnabled: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
+  installPlugin: (plugin: LoadedPlugin) => void;
+  uninstallPlugin: (plugin: LoadedPlugin) => void;
+  setPluginEnabled: (plugin: LoadedPlugin, enabled: boolean) => void;
+  setPluginSkillEnabled: (pluginName: string, folder: string, enabled: boolean) => void;
+  setPluginMcpServerEnabled: (pluginName: string, serverName: string, enabled: boolean) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -614,6 +627,50 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ disabledBuiltInMcpTools: next });
     persistSettings(selectSharedSettings(get()));
   },
+  installPlugin: (plugin) => {
+    const installedPlugins = addInstalledPlugin(get().installedPlugins, plugin);
+    if (installedPlugins === get().installedPlugins) return;
+    set({ installedPlugins });
+    persistSettings(selectSharedSettings(get()));
+  },
+  uninstallPlugin: (plugin) => {
+    const installedPlugins = removeInstalledPlugin(get().installedPlugins, plugin.name);
+    if (installedPlugins === get().installedPlugins) return;
+    set({ installedPlugins });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPluginEnabled: (plugin, enabled) => {
+    const installedPlugins = updateInstalledPluginEnabled(
+      get().installedPlugins,
+      plugin.name,
+      enabled,
+    );
+    if (installedPlugins === get().installedPlugins) return;
+    set({ installedPlugins });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPluginSkillEnabled: (pluginName, folder, enabled) => {
+    const installedPlugins = updatePluginSkillEnabled(
+      get().installedPlugins,
+      pluginName,
+      folder,
+      enabled,
+    );
+    if (installedPlugins === get().installedPlugins) return;
+    set({ installedPlugins });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPluginMcpServerEnabled: (pluginName, serverName, enabled) => {
+    const installedPlugins = updatePluginMcpServerEnabled(
+      get().installedPlugins,
+      pluginName,
+      serverName,
+      enabled,
+    );
+    if (installedPlugins === get().installedPlugins) return;
+    set({ installedPlugins });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBrowserSetting: (key, value) => {
     const current = get().browser;
     if (current[key] === value) return;
@@ -936,6 +993,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     enabledMcpServers: state.enabledMcpServers,
     mcpServers: state.mcpServers,
     disabledBuiltInMcpServers: state.disabledBuiltInMcpServers,
+    installedPlugins: state.installedPlugins,
     disabledBuiltInMcpTools: state.disabledBuiltInMcpTools,
     notificationsEnabled: state.notificationsEnabled,
     notificationSound: state.notificationSound,

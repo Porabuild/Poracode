@@ -50,9 +50,11 @@ function endpointWith(endpoint: string, params: Record<string, string | undefine
 }
 
 describe("formatCommandCodePlanLabel", () => {
-  it("maps the v1.4.1 plan ids to CLI display names", () => {
+  it("maps the CLI plan ids to display names", () => {
     expect(formatCommandCodePlanLabel("individual-go")).toBe("Go");
+    expect(formatCommandCodePlanLabel("individual-goat")).toBe("GOAT");
     expect(formatCommandCodePlanLabel("individual-provider")).toBe("Provider");
+    expect(formatCommandCodePlanLabel("individual-pro-v1")).toBe("Pro");
     expect(formatCommandCodePlanLabel("individual-ultra")).toBe("Ultra");
     expect(formatCommandCodePlanLabel("teams-pro")).toBe("Teams Pro");
     expect(formatCommandCodePlanLabel("individual_go_annual")).toBe("Go");
@@ -63,6 +65,10 @@ describe("formatCommandCodePlanLabel", () => {
     expect(formatCommandCodePlanLabel(undefined)).toBeUndefined();
   });
 });
+
+function monthlyWindow(snap: ReturnType<typeof parseCommandCodeUsage>) {
+  return snap.windows.find((window) => window.id === "monthly")!;
+}
 
 describe("parseCommandCodeUsage", () => {
   it("mirrors the CLI's active-plan credit-pool calculation", () => {
@@ -80,7 +86,7 @@ describe("parseCommandCodeUsage", () => {
       plan: "Go",
       authenticatedAs: "dev@example.com",
     });
-    const window = snap.windows[0]!;
+    const window = monthlyWindow(snap);
     expect(window.id).toBe("monthly");
     expect(window.unit).toBe("usd");
     expect(window.currency).toBe("USD");
@@ -93,6 +99,75 @@ describe("parseCommandCodeUsage", () => {
     expect(snap.tokens).toBeUndefined();
   });
 
+  it("maps credits.windowLimits into session-5h and weekly USD windows", () => {
+    // Studio-shaped Go plan: 5h cap $3 (30% of $10), weekly $6 (60%), used can
+    // exceed cap (display clamps to 100%).
+    const reset5h = FAKE_NOW_MS + 3 * 3_600_000 + 38 * 60_000;
+    const resetWeekly = FAKE_NOW_MS + 18 * 3_600_000 + 23 * 60_000;
+    const snap = parseCommandCodeUsage(
+      {
+        credits: {
+          monthlyCredits: 6.92,
+          purchasedCredits: 0,
+          freeCredits: 0,
+        },
+        windowLimits: {
+          limited: true,
+          fiveHour: { used: 3.08, cap: 3, resetAt: reset5h },
+          weekly: { used: 3.41, cap: 6, resetAt: resetWeekly },
+        },
+      },
+      { totalCost: 3.08 },
+      JSON.parse(SUBSCRIPTIONS_BODY),
+      FAKE_NOW_MS,
+    );
+
+    expect(snap.windows.map((window) => window.id)).toEqual(["session-5h", "weekly", "monthly"]);
+
+    const session = snap.windows.find((window) => window.id === "session-5h")!;
+    expect(session).toMatchObject({
+      label: "5-hour limit",
+      unit: "usd",
+      currency: "USD",
+      used: 3.08,
+      limit: 3,
+      usedPercent: 100,
+      resetsAt: reset5h,
+    });
+
+    const weekly = snap.windows.find((window) => window.id === "weekly")!;
+    expect(weekly).toMatchObject({
+      label: "Weekly limit",
+      unit: "usd",
+      currency: "USD",
+      used: 3.41,
+      limit: 6,
+      resetsAt: resetWeekly,
+    });
+    expect(weekly.usedPercent).toBeCloseTo((3.41 / 6) * 100);
+
+    expect(monthlyWindow(snap).limit).toBe(10);
+  });
+
+  it("accepts windowLimits nested under the credits object", () => {
+    const snap = parseCommandCodeUsage(
+      {
+        credits: {
+          monthlyCredits: 8,
+          windowLimits: {
+            fiveHour: { used: 0.5, cap: 3, resetAt: FAKE_NOW_MS + 60_000 },
+          },
+        },
+      },
+      { totalCost: 2 },
+      JSON.parse(SUBSCRIPTIONS_BODY),
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows.map((window) => window.id)).toEqual(["session-5h", "monthly"]);
+    expect(snap.windows[0]!.used).toBe(0.5);
+    expect(snap.windows[0]!.limit).toBe(3);
+  });
+
   it("reconstructs an unknown plan pool from remaining credits plus spend", () => {
     const snap = parseCommandCodeUsage(
       { credits: { monthlyCredits: 5, purchasedCredits: 1, freeCredits: 0.5 } },
@@ -101,13 +176,15 @@ describe("parseCommandCodeUsage", () => {
       FAKE_NOW_MS,
     );
     expect(snap.plan).toBeUndefined();
-    expect(snap.windows[0]!.used).toBe(2.5);
-    expect(snap.windows[0]!.limit).toBe(9);
+    expect(monthlyWindow(snap).used).toBe(2.5);
+    expect(monthlyWindow(snap).limit).toBe(9);
   });
 
   it("tolerates completely missing bodies without throwing", () => {
     const snap = parseCommandCodeUsage(undefined, undefined, undefined, FAKE_NOW_MS);
     expect(snap.status).toBe("ok");
+    expect(snap.windows).toHaveLength(1);
+    expect(snap.windows[0]!.id).toBe("monthly");
     expect(snap.windows[0]!.usedPercent).toBe(0);
     expect(snap.windows[0]!.used).toBeUndefined();
     expect(snap.windows[0]!.limit).toBeUndefined();
@@ -148,7 +225,7 @@ describe("collectCommandCode", () => {
     const snap = await collectCommandCode(host);
 
     expect(snap).toMatchObject({ status: "ok", plan: "Go", authenticatedAs: "dev" });
-    expect(snap.windows[0]!.limit).toBe(10);
+    expect(snap.windows.find((window) => window.id === "monthly")!.limit).toBe(10);
     expect(requests.map((request) => request.url)).toContain(summaryEndpoint);
     expect(requests.every((request) => request.authorization === "Bearer cc-api-key")).toBe(true);
   });

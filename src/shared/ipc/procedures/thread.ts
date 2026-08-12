@@ -57,6 +57,7 @@ import type {
   StartThreadPayload,
   StartThreadResult,
   TerminalSize,
+  TerminalShellSnapshot,
   ThreadRuntimeSnapshot,
   UpdateAcpRegistryAgentPayload,
   UpdateAgentBinaryPayload,
@@ -172,6 +173,10 @@ export const threadProcedures = {
   ),
   getThreadSnapshots: defineNoArgProcedure<ThreadRuntimeSnapshot[], "supervisor">(
     "getThreadSnapshots",
+    "supervisor",
+  ),
+  getTerminalShellSnapshots: defineNoArgProcedure<TerminalShellSnapshot[], "supervisor">(
+    "getTerminalShellSnapshots",
     "supervisor",
   ),
   startThread: definePayloadProcedure<StartThreadPayload, StartThreadResult, "supervisor">(

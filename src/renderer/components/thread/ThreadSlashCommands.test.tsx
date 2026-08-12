@@ -238,6 +238,37 @@ describe("ThreadSlashCommands", () => {
     expect(screen.queryByText("/help")).not.toBeInTheDocument();
   });
 
+  it("renders localized skill copy while filtering by its stable invocation id", async () => {
+    await renderThread(
+      makeThread({
+        slashCommands: [
+          {
+            id: "browser-control",
+            label:
+              "Control del navegador — Navega, inspecciona y prueba páginas con el MCP del navegador integrado.",
+            description: "Navega, inspecciona y prueba páginas con el MCP del navegador integrado.",
+            section: "skills",
+            skillName: "browser-control",
+            skillPath: "/plugins/browser-tools/browser-control/SKILL.md",
+            skillInvocation: "$browser-control",
+            skillProvider: "Herramientas del navegador",
+            skillScope: "global",
+          },
+        ],
+      }),
+      makeAgentStatus(),
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "/browser");
+
+    expect(screen.getByText("/browser-control")).toBeInTheDocument();
+    expect(
+      screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Herramientas del navegador/iu)).toBeInTheDocument();
+  });
+
   it("supports keyboard navigation, scrolling, and insertion", async () => {
     await renderThread(
       makeThread({

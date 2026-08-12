@@ -10,6 +10,7 @@ import {
 } from "@/renderer/state/experimentStore";
 import { recoverExperimentCandidateWorktrees } from "@/renderer/state/experimentHydration";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { bootstrapWorkspaces } from "@/renderer/state/workspaceStore";
 import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
@@ -145,6 +146,10 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
         );
         setInitialLoading(false);
       });
+
+      // Skill lists depend on the loaded plugin list, so it has to be there
+      // before the first thread renders.
+      void usePlugins.getState().load();
 
       try {
         const snapshots = await snapshotsPromise;

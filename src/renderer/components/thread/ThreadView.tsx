@@ -279,6 +279,37 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         data-poracode-thread-pane=""
         className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative h-full ${isDragging ? "opacity-50" : ""}`}
       >
+        {dropIndicator === "replace" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+          />
+        )}
+        {dropIndicator === "insert-left" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 bottom-0 left-0 z-20 w-0.5 rounded-full bg-accent"
+          />
+        )}
+        {dropIndicator === "insert-right" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 right-0 bottom-0 z-20 w-0.5 rounded-full bg-accent"
+          />
+        )}
+        {dropIndicator === "insert-top" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 right-0 left-0 z-20 h-0.5 rounded-full bg-accent"
+          />
+        )}
+        {dropIndicator === "insert-bottom" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-0 bottom-0 left-0 z-20 h-0.5 rounded-full bg-accent"
+          />
+        )}
+
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
         <div
           data-poracode-thread-header=""
@@ -433,37 +464,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         ) : null}
 
         <div className={contentShellClass}>
-          {dropIndicator === "replace" && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
-            />
-          )}
-          {dropIndicator === "insert-left" && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 bottom-0 left-0 z-20 w-0.5 rounded-full bg-accent"
-            />
-          )}
-          {dropIndicator === "insert-right" && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 right-0 bottom-0 z-20 w-0.5 rounded-full bg-accent"
-            />
-          )}
-          {dropIndicator === "insert-top" && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 right-0 left-0 z-20 h-0.5 rounded-full bg-accent"
-            />
-          )}
-          {dropIndicator === "insert-bottom" && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute right-0 bottom-0 left-0 z-20 h-0.5 rounded-full bg-accent"
-            />
-          )}
-
           <div className={contentBodyClass}>
             {usesTerminalPresentation ? (
               <TerminalThreadContent

@@ -1,4 +1,5 @@
 import type { ComputerUseDriver, ComputerUseScreenshot, ComputerUseWindowState } from "./types";
+import type { McpToolAnnotations } from "@/shared/contracts";
 import { readNumber, readString, readWindow } from "../drivers/common";
 
 export interface ToolContext {
@@ -11,6 +12,7 @@ export interface ToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: McpToolAnnotations;
 }
 
 const WINDOW_SCHEMA = {
@@ -30,7 +32,7 @@ const WINDOW_SCHEMA = {
 export const COMPUTER_USE_MCP_INSTRUCTIONS =
   "Use the computer_use MCP server to inspect and control native macOS or Windows apps on the host desktop (including when the user is driving from a paired phone/remote client — agents still run on that desktop). Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. Immediately before the first interactive action, call computer_use.enable once; it keeps the Computer Use overlay visible across the whole uninterrupted control session. Keep it enabled between related actions, including passive inspection calls. Always call computer_use.disable before you pause to ask for user input, wait for an external event, or finish; call enable again when you resume. Prefer ordinary Win32 desktop apps when you have a choice — some Store/WinUI apps recreate window handles during activation, so always prefer the `window` object returned by interactive tools (or re-call list_windows/get_window) before the next click/type. list/get/screenshot operations are passive and do not steal focus; click, drag, scroll, type_text, press_key, activate_window, and launch_app switch to interactive mode, bring the target app to the FOREGROUND, and take exclusive control of the real mouse/keyboard — nobody should use the host machine while interactive computer-use is running. Coordinates (x/y) are window-relative with the origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the most recent get_window_state screenshot for that window; if the window may have moved or resized, call get_window_state again before sending coordinates. If a tool reports that the window is no longer available (windows are re-identified after they move/resize), call computer_use.list_windows or computer_use.get_window to obtain a fresh window id and retry. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
 
-export const TOOLS: ToolSpec[] = [
+const RAW_TOOLS: ToolSpec[] = [
   {
     name: "api",
     description:
@@ -172,6 +174,24 @@ export const TOOLS: ToolSpec[] = [
     },
   },
 ];
+
+const READ_ONLY_TOOL_NAMES = new Set([
+  "api",
+  "list_apps",
+  "list_windows",
+  "get_window",
+  "get_window_state",
+]);
+const SESSION_TOOL_NAMES = new Set(["enable", "disable"]);
+
+export const TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
+  ...tool,
+  annotations: READ_ONLY_TOOL_NAMES.has(tool.name)
+    ? { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    : SESSION_TOOL_NAMES.has(tool.name)
+      ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+      : { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+}));
 
 export const TOOL_NAMES = new Set(TOOLS.map((tool) => tool.name));
 

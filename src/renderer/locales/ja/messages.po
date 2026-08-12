@@ -92,8 +92,10 @@ msgstr "{0, plural, one {#件のプロジェクト} other {#件のプロジェ�
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {#プロバイダーの準備ができています} other {#プロバイダーの準備ができています}}"
 
+#. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "{0, plural, one {# skill} other {# skills}}"
@@ -569,6 +571,10 @@ msgstr "{resultCount, plural, one {#結果} other {#結果}}"
 msgid "{seconds}s ago"
 msgstr "{seconds}秒前"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "{serverCount, plural, one {# server} other {# servers}}"
+msgstr "{serverCount, plural, one {# 個のサーバー} other {# 個のサーバー}}"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel} の {serverName}: {disabledLabel}"
@@ -695,6 +701,18 @@ msgstr "候補が実験ブランチ上にありません。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "固定されたワークツリーのソースには完全なコミットハッシュが必要です"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server could not be started and was skipped."
+msgstr "サーバーを起動できなかったためスキップしました。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server has a name Poracode cannot use."
+msgstr "Poracode が使用できない名前のサーバーがあります。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server is not configured correctly and was skipped."
+msgstr "正しく設定されていないサーバーをスキップしました。"
 
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
@@ -1469,6 +1487,10 @@ msgstr "認証設定はインポートできません"
 msgid "Authentication unavailable"
 msgstr "認証を利用できません"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Author"
+msgstr "作成者"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Authored"
 msgstr "自分が作成"
@@ -1551,6 +1573,10 @@ msgstr "端末パネルの自動表示"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "コマンドの実行時またはワークツリーの作成時に、端末パネルを自動的に表示します。"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Automation"
+msgstr "自動化"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "自動操縦"
@@ -1599,6 +1625,10 @@ msgstr "戻る"
 #: src/mobile/views/pr/PrSubPage.tsx
 #~ msgid "Back to overview"
 #~ msgstr "概要に戻る"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Back to plugins"
+msgstr "プラグインに戻る"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1759,11 +1789,16 @@ msgstr "親フォルダーを参照します"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付けます。"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browse, inspect, and test websites in Poracode's isolated in-app browser."
+msgstr "Poracode の隔離された組み込みブラウザーで Web サイトを閲覧・検査・テストします。"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -1775,6 +1810,10 @@ msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "ブラウザ"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browser Control"
+msgstr "ブラウザ操作"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
@@ -1814,6 +1853,10 @@ msgstr "ブラウザーでサインイン"
 #~ msgid "Browser tabs"
 #~ msgstr "ブラウザタブ"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browser Tools"
+msgstr "ブラウザツール"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
 msgstr "予算制限に達しました"
@@ -1847,6 +1890,10 @@ msgstr "組み込みサーバーはPoracodeによって管理されます。グ�
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "組み込みのショートカット — 変更できません"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+msgstr "サポートされているすべてのエージェントで動作するスキルとMCPサーバーのバンドルです。Poracode は Agent Plugins 仕様に基づくパッケージをすべて読み込みます。"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -1966,6 +2013,10 @@ msgstr "ブランチ名がないとデフォルトのワークツリー パス�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "ブランチを切り替えることはできません - 最初に変更をコミットまたはスタッシュしてください"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Category"
+msgstr "カテゴリ"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
@@ -2205,15 +2256,28 @@ msgstr "サイドバーのフッターに表示するショートカットを選
 msgid "Choose worktree base folder"
 msgstr "ワークツリーのベースフォルダーを選択"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Choose, brief, and coordinate subagents for parallel work."
+msgstr "サブエージェントを選び、指示を出し、並行作業を調整します。"
+
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Chrome Control"
+msgstr "Chrome 操作"
+
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "このスレッドに対して Chrome MCP が有効になっています"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Chrome Tools"
+msgstr "Chrome ツール"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2349,8 +2413,7 @@ msgstr "ブラウザを閉じる"
 msgid "Close changes"
 msgstr "変更点を閉じる"
 
-#: src/mobile/views/QuickCompose.tsx
-#: src/mobile/views/ThreadView.tsx
+#: src/mobile/views/QuickCompose.tsx src/mobile/views/ThreadView.tsx
 #~ msgid "Close composer"
 #~ msgstr "コンポーザーを閉じる"
 
@@ -2678,6 +2741,15 @@ msgstr "コミット、PR、レビューのコンポーザー"
 msgid "Commits"
 msgstr "コミット"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Communication"
+msgstr "コミュニケーション"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Community"
+msgstr "コミュニティ"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "コンテキストの圧縮"
@@ -2745,6 +2817,7 @@ msgstr "コンポーザーの操作"
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2801,6 +2874,7 @@ msgstr "競合"
 msgid "Conflicts with a managed skill"
 msgstr "管理対象スキルと競合しています"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -2855,12 +2929,17 @@ msgstr "デスクトップに接続"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connected"
 msgstr "接続済み"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "デスクトップのブラウザに接続しています…"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Connecting..."
+msgstr "接続中..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
@@ -2966,6 +3045,10 @@ msgstr "...で続行"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "外部の Chrome ブラウザを操作します。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps and complete visual workflows."
+msgstr "デスクトップアプリを操作し、視覚的なワークフローを完了します。"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3124,10 +3207,12 @@ msgid "Could not sign in to {serverName}: {message}"
 msgstr "{serverName} にサインインできませんでした: {message}"
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
+#: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {serverName}."
 msgstr "{serverName} にサインインできませんでした。"
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
+#: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "{serverName} からサインアウトできませんでした。"
 
@@ -3163,6 +3248,10 @@ msgstr "{0} をインストールできませんでした。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "リポジトリを一覧表示できませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Couldn't load plugins."
+msgstr "プラグインを読み込めませんでした。"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
@@ -3367,6 +3456,7 @@ msgstr "Crossagent：{subagent}"
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -3567,6 +3657,10 @@ msgstr "PR自動化のデフォルト"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "デフォルトのスレッドの削除"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Delegate focused work to other installed agents and coordinate the results."
+msgstr "他のインストール済みエージェントに作業を委任し、結果を調整します。"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Delegate work to other AI agents."
@@ -3788,6 +3882,10 @@ msgstr "開発"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "デスクトップの localhost で待ち受けている開発サーバー。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Developer tools"
+msgstr "開発者ツール"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
@@ -4186,6 +4284,10 @@ msgstr "システム設定でマイクへのアクセスを有効にしてから
 msgid "Enable notifications"
 msgstr "通知を有効にする"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Enable plugin"
+msgstr "プラグインを有効化"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "プロジェクトを有効にする"
@@ -4193,6 +4295,10 @@ msgstr "プロジェクトを有効にする"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "設定でプロバイダーを有効にする"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Enable this plugin's skills and servers for new threads."
+msgstr "このプラグインのスキルとサーバーを新しいスレッドで有効にします。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -4514,6 +4620,7 @@ msgstr "過去の委任から記録された明示的な選択です。上のル
 msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "外部"
@@ -4636,6 +4743,10 @@ msgstr "お気に入り"
 msgid "Favorites"
 msgstr "お気に入り"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Featured"
+msgstr "注目"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "フェッチ"
@@ -4685,6 +4796,10 @@ msgstr "ファイル"
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Files for {0}"
 msgstr "{0}のファイル"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "{projectName} のファイル"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5064,6 +5179,10 @@ msgstr "{0}の Git ステータス"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0}の Git ステータス: Git リポジトリではありません"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "GitHub"
+msgstr "GitHub"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -5322,6 +5441,10 @@ msgstr "ホームフォルダー"
 msgid "Home scope"
 msgstr "ホームスコープ"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Homepage"
+msgstr "ホームページ"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "ホストは最新です。"
@@ -5355,6 +5478,10 @@ msgstr "https://example.com/mcp"
 msgid "ID: {0}"
 msgstr "ID:{0}"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Identifier"
+msgstr "識別子"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Identity and usage stats"
 msgstr "アイデンティティと利用統計"
@@ -5372,6 +5499,10 @@ msgstr "秘密鍵ファイルのパス"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "アイドル状態"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Ignored an unrecognized field in plugin.json."
+msgstr "plugin.json の不明なフィールドを無視しました。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5484,6 +5615,10 @@ msgstr "非アクティブ"
 msgid "Include in sync"
 msgstr "同期に追加"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Information"
+msgstr "情報"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Inherit global"
 msgstr "グローバル設定を継承"
@@ -5534,6 +5669,8 @@ msgstr "正規のランタイム項目を検査する"
 msgid "install"
 msgstr "インストールする"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -5587,6 +5724,10 @@ msgstr "インストールして再起動"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Install app"
 msgstr "アプリをインストール"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Install bundles of skills and MCP servers built for the Agent Plugins specification."
+msgstr "Agent Plugins 仕様に基づいて作られたスキルとMCPサーバーのバンドルをインストールします。"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
@@ -5672,6 +5813,7 @@ msgstr "v{updateVersion} をインストール"
 msgid "Install v{version}"
 msgstr "v{version} をインストール"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -5875,6 +6017,7 @@ msgstr "エージェントが <0>eval</0> を呼び出して、埋め込みペ�
 
 #. About page label: software license row
 #. Link to the license file
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "ライセンス"
@@ -5969,6 +6112,10 @@ msgstr "メモを読み込んでいます…"
 #~ msgid "Loading PDF…"
 #~ msgstr "PDFを読み込み中…"
 
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Loading plugins…"
+msgstr "プラグインを読み込み中…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PRを読み込み中…"
@@ -6045,6 +6192,7 @@ msgstr "ローカルの変更は{branch}からプルする前に隠しておく�
 msgid "localhost:{0} on desktop"
 msgstr "デスクトップの localhost:{0}"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -6122,6 +6270,10 @@ msgstr "敗者のワークツリーとブランチは削除されます。セッ
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "サイドバーを半透明にします。Windows 11ではシステムのぼかし素材を、それ以外では半透明の色付けを使用します。"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Manage"
+msgstr "管理"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "他のプロバイダーからインポートしたスキルを含む、グローバルおよびプロジェクトのエージェントスキルを管理します。"
@@ -6167,6 +6319,15 @@ msgstr "対応エージェントの起動時にPoracodeが追加するMCPサー�
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
 #~ msgstr "管理対象"
+
+#. placeholder {0}: props.managedByPlugin
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Managed by {0}"
+msgstr "{0} が管理"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by {pluginName}"
+msgstr "{pluginName} が管理"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
@@ -6267,6 +6428,10 @@ msgstr "最大化する"
 msgid "Maximize browser"
 msgstr "ブラウザを最大化する"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "MCP"
+msgstr "MCP"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
@@ -6325,6 +6490,7 @@ msgid "MCP server URL"
 msgstr "MCPサーバーのURL"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
@@ -6349,6 +6515,14 @@ msgstr "MCP ツール呼び出し"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP transport type"
 msgstr "MCPトランスポートタイプ"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "mcp.json could not be read, so this plugin's servers were skipped."
+msgstr "mcp.json を読み取れなかったため、このプラグインのサーバーをスキップしました。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "mcp.json targets an Agent Plugins version this build does not support."
+msgstr "mcp.json はこのビルドが対応していない Agent Plugins バージョンを指定しています。"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -6763,6 +6937,10 @@ msgstr "ネイティブプロバイダー"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native support"
 msgstr "ネイティブサポート"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
+msgstr "組み込みブラウザー MCP でページを移動・検査・テストします。"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
@@ -7242,6 +7420,10 @@ msgstr "パターンはありません。"
 msgid "No phases yet."
 msgstr "まだフェーズはありません。"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No plugins match your search."
+msgstr "検索条件に一致するプラグインはありません。"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
@@ -7359,8 +7541,7 @@ msgstr "サポートされているエージェントが検出されませんで
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "タグなし — このエントリーはタグ親和性に影響しなくなります。"
 
-#: src/mobile/ThreadDetail.tsx
-#: src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
 #~ msgid "No thread selected"
 #~ msgstr "スレッドが選択されていません"
 
@@ -7562,10 +7743,10 @@ msgstr "焦点が合っていないときのみ"
 msgid "Open"
 msgstr "開く"
 
-#. placeholder {0}: thread.title
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-#~ msgid "Open {0}"
-#~ msgstr "{0} を開く"
+#. placeholder {0}: entry.name
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Open {0}"
+msgstr "{0} を開く"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -7843,6 +8024,10 @@ msgstr "候補のプルリクエスト #{0} を作成しました。"
 msgid "OpenSSH private key"
 msgstr "OpenSSH 秘密鍵"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Operate desktop apps through Poracode's desktop-control tools."
+msgstr "Poracode のデスクトップ制御ツールでデスクトップアプリを操作します。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "任意"
@@ -7881,6 +8066,10 @@ msgstr "他のワークスペース"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "結果"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Outlook"
+msgstr "Outlook"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -7942,8 +8131,7 @@ msgstr "「接続」からデスクトップをペアリングして、そのポ
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "このデスクトップとスマートフォン、タブレット、またはブラウザをペアリングします。"
 
-#: src/mobile/components.tsx
-#: src/mobile/remoteConnectionState.ts
+#: src/mobile/components.tsx src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "もう一度ペアリング"
 
@@ -8144,8 +8332,7 @@ msgstr "個人"
 msgid "Pi"
 msgstr "Pi"
 
-#: src/mobile/ThreadDetail.tsx
-#: src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
 #~ msgid "Pick a thread from the list to follow the agent from here."
 #~ msgstr "ここからエージェントを追うには、一覧からスレッドを選択してください。"
 
@@ -8209,7 +8396,34 @@ msgid "Play notification sound"
 msgstr "通知音を鳴らす"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
+msgstr "プラグイン"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Plugin folder"
+msgstr "プラグインフォルダ"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json could not be read as JSON."
+msgstr "plugin.json を JSON として読み取れませんでした。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json is missing."
+msgstr "plugin.json がありません。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json is not valid for the Agent Plugins specification."
+msgstr "plugin.json は Agent Plugins 仕様として正しくありません。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json targets an Agent Plugins version this build does not support."
+msgstr "plugin.json はこのビルドが対応していない Agent Plugins バージョンを指定しています。"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Plugins"
 msgstr "プラグイン"
 
 #: src/mobile/QrScanner.tsx
@@ -8228,6 +8442,10 @@ msgstr "人気のエディター テーマを Poracode に適合させました�
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode とエージェントはリモートマシン上で実行されます。SSH はリモート環境の起動とローカルトンネルの保護にのみ使用されます。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Poracode could not create this plugin's data folder."
+msgstr "Poracode はこのプラグインのデータフォルダを作成できませんでした。"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
@@ -8421,6 +8639,10 @@ msgstr "プライバシーポリシー"
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Private key"
 msgstr "秘密鍵"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Productivity"
+msgstr "生産性"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9209,6 +9431,7 @@ msgstr "問題を報告する"
 msgid "repository"
 msgstr "リポジトリ"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "リポジトリ"
@@ -9351,6 +9574,7 @@ msgstr "目標を再開"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Retry"
 msgstr "再試行"
@@ -9384,6 +9608,10 @@ msgstr "管理者で再試行してください"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Return to app"
 msgstr "アプリに戻る"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Reusable guidance delivered across supported agents."
+msgstr "サポートされているすべてのエージェントに届く再利用可能なガイダンス。"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -9865,6 +10093,14 @@ msgstr "モデルを検索..."
 msgid "Search or enter address"
 msgstr "アドレスを検索または入力"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins"
+msgstr "プラグインを検索"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins, skills, and servers..."
+msgstr "プラグイン・スキル・サーバーを検索..."
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
 msgstr "プルリクエストを検索"
@@ -10062,6 +10298,26 @@ msgstr "選択内容を端末に送信しました。"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Codeのアカウントを設定ディレクトリごとに分離するか、プロファイルを外部プロバイダー（z.aiなど）に向けます。プロファイルを開くと、その環境変数・モデル・推論レベルを設定できます。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} could not be started and was skipped."
+msgstr "サーバー {target} を起動できなかったためスキップしました。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} has a name Poracode cannot use."
+msgstr "サーバー {target} は Poracode が使用できない名前です。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} is not configured correctly and was skipped."
+msgstr "サーバー {target} は正しく設定されていないためスキップしました。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} runs on this computer and is unavailable for WSL projects."
+msgstr "サーバー {target} はこのコンピューターで動作するため、WSL プロジェクトでは利用できません。"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
+msgstr "このプラグインが mcp.json で宣言しているサーバーです。Poracode はサポートされているすべてのエージェントに渡します。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
@@ -10364,6 +10620,10 @@ msgstr "{env}からサインアウトします。検出されたエージェン�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "サインアウトしています。検出されたエージェントは終了時に更新されます。"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Skill"
+msgstr "スキル"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
@@ -10397,6 +10657,7 @@ msgstr "SKILL.md がありません。"
 msgid "SKILL.md is too large."
 msgstr "SKILL.md が大きすぎます。"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -10433,6 +10694,14 @@ msgstr "Skills.sh"
 msgid "Skipped"
 msgstr "スキップ済み"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Skipped {target} because it points outside the plugin folder."
+msgstr "{target} はプラグインフォルダの外を指しているためスキップしました。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Skipped a file because it points outside the plugin folder."
+msgstr "プラグインフォルダの外を指しているファイルをスキップしました。"
+
 #. placeholder {0}: skippedProviderNames.join(", ")
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Skipped by Crossagents: {0}"
@@ -10455,6 +10724,10 @@ msgstr "ソリューション {0}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "一部のチェックが失敗または保留中です。"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Some contributions could not be loaded"
+msgstr "一部のコントリビューションを読み込めませんでした"
 
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -10810,6 +11083,10 @@ msgstr "構造化ランタイム"
 msgid "Subagent"
 msgstr "サブエージェント"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Subagent Delegation"
+msgstr "サブエージェントへの委任"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
 msgstr "サブエージェントが見つかりません。"
@@ -11094,6 +11371,10 @@ msgstr "ターミナル"
 msgid "Terminal for {0}"
 msgstr "{0}用のターミナル"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "{projectName} のターミナル"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "ターミナル入力"
@@ -11262,6 +11543,10 @@ msgstr "サーバー構成が無効です。"
 msgid "The server returned an invalid MCP response."
 msgstr "サーバーから無効なMCPレスポンスが返されました。"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
+msgstr "このプラグインが起動するサーバーは、接続先のサービスではなく第三者によって保守されています。有効にする前にソースを確認してください。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "スキルの説明がありません。"
@@ -11426,6 +11711,22 @@ msgstr "これにより、ブランチ「{0}」がリモートから完全に削
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "これにより、ブランチ「{0}」が完全に削除されます。"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin describes a skill it does not actually ship."
+msgstr "このプラグインは実際には含まれていないスキルを記述しています。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's folder could not be read."
+msgstr "このプラグインのフォルダを読み取れませんでした。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's Poracode settings were ignored because they are not valid."
+msgstr "このプラグインの Poracode 設定は無効なため無視されました。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's skills could not be read."
+msgstr "このプラグインのスキルを読み取れませんでした。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "このプロジェクト"
@@ -11461,6 +11762,10 @@ msgstr "これにより、「{0}」のワークツリーが削除され、その
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
 msgstr "Poracode が確認するには、事前にこのサーバーでの認証が必要です。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This server runs on this computer and is unavailable for WSL projects."
+msgstr "このサーバーはこのコンピューターで動作するため、WSL プロジェクトでは利用できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -11710,6 +12015,14 @@ msgstr "半透明のサイドバー"
 msgid "Trending now"
 msgstr "現在のトレンド"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage Microsoft Outlook mail and manage your calendar."
+msgstr "Microsoft Outlook のメールを整理し、カレンダーを管理します。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage PRs, issues, CI, and publish flows."
+msgstr "PR、Issue、CI、公開フローを処理します。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Triggers:"
 msgstr "トリガー："
@@ -11721,6 +12034,10 @@ msgstr "信頼して接続"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
 #~ msgstr "別の検索語句またはプロジェクトフィルターを試してください。"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Try now"
+msgstr "試してみる"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11854,8 +12171,7 @@ msgstr "{0}ログインを開けません。"
 msgid "Unable to open file"
 msgstr "ファイルを開けません"
 
-#: src/mobile/routeComponents.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "そのデスクトップとペアリングできません。"
 
@@ -11963,8 +12279,7 @@ msgstr "Tailscale を起動できません。"
 msgid "Unable to start the remote thread."
 msgstr "リモートスレッドを開始できませんでした。"
 
-#: src/mobile/routeComponents.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
 #~ msgid "Unable to start the thread."
 #~ msgstr "スレッドを開始できません。"
@@ -12030,6 +12345,11 @@ msgstr "未割り当て"
 msgid "Unavailable"
 msgstr "利用不可"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Unavailable on this device"
+msgstr "このデバイスでは利用できません"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "利用できないプロジェクト"
@@ -12075,6 +12395,7 @@ msgstr "すべてのグループを解除"
 msgid "Unified view"
 msgstr "統合ビュー"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Uninstall"
 msgstr "アンインストール"
@@ -12319,6 +12640,10 @@ msgstr "「+」を使用して直接ペアリングするか、SSH 経由でリ�
 msgid "Use an existing folder"
 msgstr "既存のフォルダーを使用する"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Use Chrome safely when a task needs an existing browser session."
+msgstr "既存のブラウザーセッションが必要なタスクでは Chrome を安全に使用します。"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "構成を使用する"
@@ -12413,6 +12738,7 @@ msgid "Verify SSH host key"
 msgstr "SSH ホストキーを確認"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Version"
 msgstr "バージョン"
@@ -12429,8 +12755,12 @@ msgstr "表示"
 
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "View {0}"
-msgstr "{0} を表示"
+#~ msgid "View {0}"
+#~ msgstr "{0} を表示"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {displayName}"
+msgstr "{displayName} を表示"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
@@ -12739,6 +13069,10 @@ msgstr "作業"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "現在のチェックアウトでの作業"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Work with the pages and signed-in sessions already open in Chrome."
+msgstr "すでに Chrome で開いているページやサインイン済みセッションを操作します。"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx

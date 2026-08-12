@@ -52,7 +52,7 @@ export function SortableThreadItem(props: {
   const hasDraft = useThreadHasDraft(thread.id);
   const compactLayout = useCompactLayout();
 
-  const { ref } = useSortable({
+  const { ref, handleRef } = useSortable({
     id: `thread:${thread.id}`,
     index: props.threadIndex,
     type: "thread",
@@ -90,7 +90,7 @@ export function SortableThreadItem(props: {
     showWorktreeFilesButton,
     isExperimentCandidate,
     // Stacked rows are flat cross-project list rows: no project header carries
-    // the main branch's git state, so a main-branch thread shows it inline.
+    // files/terminal/git chrome, so a main-branch thread shows them inline.
     showProjectBadge: stacked,
     projectName: project.name,
   };
@@ -116,6 +116,7 @@ export function SortableThreadItem(props: {
         showProjectActions={stacked}
       >
         <SidebarButton
+          ref={handleRef}
           className="poracode-sidebar-thread-row"
           size="xs"
           density={stacked ? "compact" : "default"}

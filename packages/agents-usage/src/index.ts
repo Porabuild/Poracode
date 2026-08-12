@@ -28,8 +28,10 @@ export type { CostEstimate } from "./cost";
 export { aggregateOpenCodeUsage, OPENCODE_LIMITS } from "./openCode";
 export type { OpenCodeCostRow } from "./openCode";
 export {
+  fetchOpenCodeSubscriptionText,
   fetchOpenCodeWorkspaceId,
   isOpenCodeSessionLive,
+  looksLikeOpenCodeSubscription,
   looksSignedOut,
   openCodeRequestCookie,
   workspaceIdsFromText,

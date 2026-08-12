@@ -1,3 +1,5 @@
+import { statSync } from "node:fs";
+import { join } from "node:path";
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -35,6 +37,15 @@ export { detectAntigravityInvalidSessionRef } from "./session";
 
 export function shouldUseAntigravityPrintPty(version: string | undefined): boolean {
   return !version || compareVersions(version, "1.1.1") < 0;
+}
+
+function isLinkedGitWorktree(location: ProjectLocation): boolean {
+  const root = location.kind === "wsl" ? location.uncPath : location.path;
+  try {
+    return statSync(join(root, ".git")).isFile();
+  } catch {
+    return false;
+  }
 }
 
 export function createAntigravityAdapter(): AgentAdapter {
@@ -139,6 +150,9 @@ export function createAntigravityAdapter(): AgentAdapter {
         supportsSeparateModelEffort,
         defaultModel,
       );
+      // agy's default project loses linked-worktree scope when its Git watcher
+      // rejects worktreeConfig; an explicit project keeps file tools in this cwd.
+      if (isLinkedGitWorktree(location)) args.unshift("--new-project");
       return { binary: "agy", args };
     },
 
@@ -283,10 +297,11 @@ export function createAntigravityAdapter(): AgentAdapter {
     // so it can actually read/edit the repo. Since agy 1.1.3, headless mode
     // soft-denies tools requiring confirmation, so subagents need the explicit
     // bypass to perform their assigned project work.
-    buildSubagentOneShotCommand({ model, effort, prompt }) {
+    buildSubagentOneShotCommand({ model, effort, prompt, location }) {
       return {
         command: "agy",
         args: [
+          ...(isLinkedGitWorktree(location) ? ["--new-project"] : []),
           ...buildAntigravityModelArgs(model, effort, supportsSeparateModelEffort, defaultModel),
           "--dangerously-skip-permissions",
           "-p",

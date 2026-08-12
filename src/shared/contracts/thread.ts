@@ -74,11 +74,20 @@ export interface ThreadRuntimeSnapshot {
   status: z.infer<typeof threadStatusSchema>;
   attention: z.infer<typeof threadAttentionSchema>;
   config?: z.infer<typeof threadConfigSchema>;
+  /** Effective launch-time config after plugin and global MCP policy is applied. */
+  launchConfig?: z.infer<typeof threadConfigSchema>;
   sessionRef?: z.infer<typeof sessionRefSchema>;
   canResumeWithConfig: boolean;
   errorMessage?: string;
   threadStatusSource?: ThreadStatusSource;
   slashCommands?: z.infer<typeof agentSlashCommandSchema>[];
+}
+
+export interface TerminalShellSnapshot {
+  terminalId: string;
+  projectLocation: z.infer<typeof projectLocationSchema>;
+  worktreePath?: string;
+  outputLength: number;
 }
 
 export const terminalSizeSchema = z.object({
@@ -109,6 +118,8 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     invocation: z.string().min(1),
     provider: z.string().min(1),
     scope: z.enum(["global", "project"]),
+    pluginId: z.string().min(1).optional(),
+    pluginName: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
 ]);
@@ -129,6 +140,8 @@ export const startThreadPayloadSchema = z.object({
   mcpServers: mcpServerListSchema.optional(),
   /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
   disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+  /** Supervisor-owned restrictions that must survive every restart of this thread. */
+  invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
   disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
   /**
    * Renderer-allocated id for the user_message item the chat pane has already

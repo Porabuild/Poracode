@@ -133,6 +133,8 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
           invocation: el.dataset.skillInvocation,
           provider: el.dataset.skillProvider,
           scope: el.dataset.skillScope,
+          ...(el.dataset.pluginId ? { pluginId: el.dataset.pluginId } : {}),
+          ...(el.dataset.pluginName ? { pluginName: el.dataset.pluginName } : {}),
         });
         return;
       }

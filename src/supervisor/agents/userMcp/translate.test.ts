@@ -8,6 +8,7 @@ import {
   buildGeminiMcpServers,
   buildOpenCodeMcp,
   buildOpenCodeMcpLaunchConfig,
+  codexMcpServerName,
   codexMcpTokenEnvVar,
 } from "./translate";
 
@@ -107,8 +108,10 @@ describe("custom MCP translators", () => {
 
   it("builds safe Codex overrides and carries bearer tokens through env", () => {
     const built = buildCodexMcp(servers);
-    expect(built.args).toContain('mcp_servers."local.tools".command="node"');
-    expect(built.args).toContain('mcp_servers."local.tools".tool_timeout_sec=45');
+    const localName = codexMcpServerName(servers[0]!);
+    expect(localName).toMatch(/^local_tools_[a-f0-9]{8}$/u);
+    expect(built.args).toContain(`mcp_servers.${localName}.command="node"`);
+    expect(built.args).toContain(`mcp_servers.${localName}.tool_timeout_sec=45`);
     expect(built.args).toContain('mcp_servers.remote.url="https://example.test/mcp"');
     expect(built.args).toContain("mcp_servers.remote.tool_timeout_sec=13");
     const envName = codexMcpTokenEnvVar(servers[1]!);
@@ -118,6 +121,15 @@ describe("custom MCP translators", () => {
     expect(built.env).toMatchObject({ [envName]: "secret" });
     expect(Object.values(built.env)).toContain("yes");
     expect(built.args.some((arg) => arg.includes("env_http_headers"))).toBe(true);
+  });
+
+  it("keeps normalized Codex MCP names distinct", () => {
+    const first = { id: "one", name: "plugin.server" };
+    const second = { id: "two", name: "plugin_server" };
+
+    expect(codexMcpServerName(first)).toMatch(/^plugin_server_[a-f0-9]{8}$/u);
+    expect(codexMcpServerName(second)).toBe("plugin_server");
+    expect(codexMcpServerName(first)).not.toBe(codexMcpServerName(second));
   });
 
   it("projects generic approval policy metadata without inspecting the server name", () => {

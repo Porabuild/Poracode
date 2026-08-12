@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import {
   useHasStoredSession,
   useUsageLoginStateStore,
 } from "@/renderer/state/usageLoginStateStore";
-import { supportsApiKeyLogin, supportsBrowserLogin } from "./usageProviders";
+import { refreshAndMergeProviderUsage } from "./refreshProviderUsageSnapshot";
+import {
+  needsBrowserSessionForUsage,
+  supportsApiKeyLogin,
+  supportsBrowserLogin,
+} from "./usageProviders";
 
 /**
  * Sign-in / sign-out flow for a usage provider, shared by the usage panel card
@@ -31,17 +36,22 @@ export function useUsageProviderLogin(id: string) {
   // by another path (e.g. Copilot's OAuth/CLI token) has no stored cookie session
   // yet is signed in — offering "Sign in" there is wrong.
   const sessionRejected = snapshot?.status === "auth-missing";
+  // OpenCode can report a local Go plan before its browser session is captured,
+  // but the usage meters are only available through that web session. Keep the
+  // sign-in action visible for the empty-meter state, including a cached snapshot
+  // from before the browser session was captured.
+  const needsUsageSession =
+    !hasStoredSession &&
+    needsBrowserSessionForUsage(id) &&
+    snapshot?.status === "ok" &&
+    snapshot.windows.length === 0;
   const canSignIn =
-    supportsLogin && snapshot?.status !== "ok" && (!hasStoredSession || sessionRejected);
+    supportsLogin &&
+    (snapshot?.status !== "ok" || needsUsageSession) &&
+    (!hasStoredSession || sessionRejected);
   const canBrowserSignIn = canSignIn && isBrowserLogin;
   const canApiKeySignIn = canSignIn && isApiKeyLogin;
   const canSignOut = supportsLogin && hasStoredSession;
-
-  const mergeFreshSnapshot = async () => {
-    const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
-    const fresh = usage.snapshots.find((s) => s.providerId === id);
-    if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
-  };
 
   const handleSignIn = async () => {
     setSigningIn(true);
@@ -50,34 +60,29 @@ export function useUsageProviderLogin(id: string) {
     usePanelStore.getState().setBrowserOverlayMaximized(false);
     usePanelStore.getState().setBrowserOverlayOpen(true);
 
-    // Release the moment the user closes the overlay — don't depend on main's
-    // cancel round-trip resolving, so the button can never hang in "Signing in…".
-    let unsubscribe = () => {};
-    const overlayClosed = new Promise<"closed">((resolve) => {
-      unsubscribe = usePanelStore.subscribe((state, prev) => {
-        if (prev.browserOverlayOpen && !state.browserOverlayOpen) resolve("closed");
-      });
-    });
-
-    try {
-      const outcome = await Promise.race([
-        readBridge().startUsageLogin({ providerId: id }),
-        overlayClosed,
-      ]);
-      if (outcome === "closed") {
-        // Best-effort: tell main to stop the in-flight capture.
+    // Successful capture closes the login tab, which dismisses the overlay when
+    // it was the last tab. Treat overlay close as a cancel *signal* only — never
+    // as the login outcome — so "Use Session" can still finish sealing the secret
+    // and refresh usage afterward. Cancel is a no-op once capture has settled.
+    const unsubscribe = usePanelStore.subscribe((state, prev) => {
+      if (prev.browserOverlayOpen && !state.browserOverlayOpen) {
         void readBridge()
           .cancelUsageLogin({ providerId: id })
           .catch(() => {});
-        return;
       }
-      // Dismiss the overlay once the login completes.
+    });
+
+    try {
+      const outcome = await readBridge().startUsageLogin({ providerId: id });
+      // Dismiss the overlay once the login completes (no-op if tab cleanup already
+      // closed it). Unsubscribe first so this dismiss doesn't re-fire cancel.
+      unsubscribe();
       usePanelStore.getState().setBrowserOverlayOpen(false);
       if (!outcome.ok) return;
       // Mark the session stored so the UI reads as signed in immediately,
       // independent of whether the usage fetch below yields displayable data.
       useUsageLoginStateStore.getState().setStored(id, true);
-      await mergeFreshSnapshot();
+      await refreshAndMergeProviderUsage(id);
     } finally {
       unsubscribe();
       setSigningIn(false);
@@ -93,7 +98,7 @@ export function useUsageProviderLogin(id: string) {
       if (!outcome.ok) return;
       setApiKey("");
       useUsageLoginStateStore.getState().setStored(id, true);
-      await mergeFreshSnapshot();
+      await refreshAndMergeProviderUsage(id);
     } finally {
       setSigningIn(false);
     }
@@ -105,7 +110,7 @@ export function useUsageProviderLogin(id: string) {
     try {
       await readBridge().clearUsageLogin({ providerId: id });
       useUsageLoginStateStore.getState().setStored(id, false);
-      await mergeFreshSnapshot();
+      await refreshAndMergeProviderUsage(id);
     } finally {
       setSigningOut(false);
     }

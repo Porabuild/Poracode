@@ -3,6 +3,16 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ContextMenu, ContextMenuSurface } from "./ContextMenu";
 
+const dragState = { isDragging: false };
+const draggableInputs: unknown[] = [];
+
+vi.mock("@dnd-kit/react", () => ({
+  useDraggable: (input: unknown) => {
+    draggableInputs.push(input);
+    return { isDragging: dragState.isDragging, ref: () => {} };
+  },
+}));
+
 vi.hoisted(() => {
   class TestPointerEvent extends MouseEvent {
     pointerId: number;
@@ -61,6 +71,60 @@ describe("ContextMenu", () => {
     expect(onAction).not.toHaveBeenCalledWith("run");
     await vi.waitFor(() => {
       expect(screen.queryByRole("menuitem", { name: "Run" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("draggable rows", () => {
+    const dragSource = {
+      id: "new-thread-menu:p2",
+      type: "new-thread",
+      data: { type: "new-thread", projectId: "p2" },
+    };
+
+    function renderSurface(onClose: () => void, position: { x: number; y: number }) {
+      return (
+        <ContextMenuSurface
+          position={position}
+          items={[{ id: "p2", label: "Beta", dragSource }]}
+          onAction={vi.fn<(key: string) => void>()}
+          onClose={onClose}
+        />
+      );
+    }
+
+    it("registers the row as a drag source and marks it grabbable", async () => {
+      dragState.isDragging = false;
+      draggableInputs.length = 0;
+      render(renderSurface(vi.fn<() => void>(), { x: 0, y: 0 }));
+
+      const row = await screen.findByRole("menuitem", { name: "Beta" });
+      expect(row).toHaveClass("cursor-grab");
+      expect(draggableInputs).toContainEqual(dragSource);
+    });
+
+    it("hides the menu while a row is dragged and closes it on drop", async () => {
+      dragState.isDragging = false;
+      const onClose = vi.fn<() => void>();
+      const { rerender } = render(renderSurface(onClose, { x: 0, y: 0 }));
+      await screen.findByRole("menuitem", { name: "Beta" });
+
+      // The dragged row keeps following the pointer (dnd-kit puts its feedback
+      // in the top layer); the surface around it must not stay in the way.
+      dragState.isDragging = true;
+      rerender(renderSurface(onClose, { x: 0, y: 1 }));
+      const menu = screen.getByRole("menu");
+      await vi.waitFor(() => {
+        expect(menu.closest(".opacity-0")).not.toBeNull();
+      });
+      expect(onClose).not.toHaveBeenCalled();
+      // Still mounted: unmounting the dragged row would cancel the drag.
+      expect(screen.getByRole("menuitem", { name: "Beta" })).toBeInTheDocument();
+
+      dragState.isDragging = false;
+      rerender(renderSurface(onClose, { x: 0, y: 2 }));
+      await vi.waitFor(() => {
+        expect(onClose).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

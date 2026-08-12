@@ -21,6 +21,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Palette,
+  Puzzle,
   QrCode,
   RefreshCw,
   Search,
@@ -63,6 +64,7 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "agents",
   "skills",
   "mcpServers",
+  "plugins",
   "browser",
   "archived",
   "about",
@@ -266,6 +268,7 @@ export function SettingsSidebar(props: {
         },
         { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
         { id: "mcpServers", icon: <Cable className="size-4" />, label: t`MCP Servers` },
+        { id: "plugins", icon: <Puzzle className="size-4" />, label: t`Plugins` },
         {
           id: "usage",
           icon: <Gauge className="size-4" />,

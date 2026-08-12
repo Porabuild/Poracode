@@ -6,7 +6,11 @@ import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import { isThreadConfigEqual } from "@/shared/contracts";
 import type { TerminalStatusHint } from "../agents/base";
 import { BufferedLogWriter } from "./bufferedLogWriter";
-import type { SessionRuntime, ThreadOutputPipelineCallbacks } from "./sessionTypes";
+import type {
+  SessionRuntime,
+  ShellSessionRuntime,
+  ThreadOutputPipelineCallbacks,
+} from "./sessionTypes";
 import { writeSubmittedPrompt } from "./threadSessionManager";
 
 const STATUS_STABILIZATION_DELAY: Partial<Record<ThreadStatus, number>> = {
@@ -140,7 +144,7 @@ export class ThreadOutputPipeline {
     return session.adapter.detectTerminalStatus(session.lastStrippedPtyChunk);
   }
 
-  readTerminalScrollback(session: SessionRuntime | undefined): string {
+  readTerminalScrollback(session: SessionRuntime | ShellSessionRuntime | undefined): string {
     if (!session?.outputTranscript) {
       return "";
     }
@@ -158,6 +162,7 @@ export class ThreadOutputPipeline {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,

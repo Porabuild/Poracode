@@ -61,7 +61,13 @@ export type RuntimeContentStreamKind = z.infer<typeof runtimeContentStreamKindSc
 
 export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string() }),
-  z.object({ kind: z.literal("skill"), name: z.string(), invocation: z.string() }),
+  z.object({
+    kind: z.literal("skill"),
+    name: z.string(),
+    invocation: z.string(),
+    pluginId: z.string().min(1).optional(),
+    pluginName: z.string().min(1).optional(),
+  }),
   z.object({ kind: z.literal("mcp"), name: z.string() }),
   z.object({
     kind: z.literal("diff_comment"),

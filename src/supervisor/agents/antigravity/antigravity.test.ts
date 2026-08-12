@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -346,6 +346,33 @@ describe("createAntigravityAdapter", () => {
     });
     // A subagent child must NOT isolate the cwd — it works in the real repo.
     expect(cmd).not.toHaveProperty("isolateCwd");
+  });
+
+  it("binds linked-worktree launches and subagents to a dedicated agy project", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "poracode-antigravity-worktree-"));
+    writeFileSync(join(projectDir, ".git"), "gitdir: /repo/.git/worktrees/feature\n");
+    const location: ProjectLocation = { kind: "posix", path: projectDir };
+    const adapter = createAntigravityAdapter();
+    const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
+
+    try {
+      expect(adapter.buildLaunchArgv(location, config, "hi").args[0]).toBe("--new-project");
+      expect(
+        adapter.buildResumeArgv(location, config, "continue", {
+          providerSessionId: "conversation-id",
+          discoveredAt: "2026-08-12T00:00:00.000Z",
+        }).args,
+      ).not.toContain("--new-project");
+      expect(
+        adapter.buildSubagentOneShotCommand?.({
+          model: ANTIGRAVITY_DEFAULT_MODEL_ID,
+          prompt: "implement it",
+          location,
+        })?.args[0],
+      ).toBe("--new-project");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 });
 

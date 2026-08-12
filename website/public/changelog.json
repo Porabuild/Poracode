@@ -1,6 +1,145 @@
 {
   "releases": [
     {
+      "version": "1.6.2",
+      "date": "2026-08-11",
+      "title": "Agent Plugins, merged PR sync & stoppable actions",
+      "summary": "A big feature release: Poracode adds a standards-based Agent Plugins marketplace, syncs merged pull request branches automatically, and lets you stop running project actions from context menus. Worktree launches, pane placement, subagent status, usage reporting, and provider reliability all get substantial polish.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Agent Plugins",
+          "text": "Browse, install, and manage Agent Plugins in Settings, with bundled Browser Tools, Chrome Tools, Computer Use, GitHub, Outlook, and Subagent Delegation packages."
+        },
+        {
+          "kind": "added",
+          "label": "Agent Plugins",
+          "text": "Plugin skills and MCP servers work across supported agents, can be enabled individually or invoked from composer mentions, and carry through restarts, recovery, WSL, and remote sessions."
+        },
+        {
+          "kind": "added",
+          "label": "Worktrees",
+          "text": "Worktree threads launch more responsively: your message appears instantly with a live \"Creating worktree…\" indicator while Poracode sets everything up."
+        },
+        {
+          "kind": "added",
+          "label": "Pull requests",
+          "text": "After you merge a pull request, Poracode pulls the merged base branch into your checkout once per project, and sync badges now appear on experiment groups, thread groups, and thread rows until the pull completes."
+        },
+        {
+          "kind": "added",
+          "text": "Stop any running project action straight from the thread, worktree, or project context menu, and running actions are tracked even after their terminal tab closes."
+        },
+        {
+          "kind": "added",
+          "label": "MCP",
+          "text": "The Poracode MCP server can identify the current thread and list or read live terminal panes with worktree-scoped scrollback, and you can @-mention Terminal in the composer when app controls are enabled."
+        },
+        {
+          "kind": "added",
+          "label": "Subagents",
+          "text": "Resumed Claude subagents get their own labeled Agent Resume row, and cancelled Crossagents runs show a clear cancelled state instead of looking stuck."
+        },
+        {
+          "kind": "added",
+          "label": "Command Code",
+          "text": "Usage now shows Command Code's rolling 5-hour and weekly dollar limits alongside monthly credits, with reset countdowns, matching Studio and the CLI."
+        },
+        {
+          "kind": "added",
+          "label": "Panes",
+          "text": "The New thread menu lists your projects, and you can drag any of them straight onto a pane or the gap between two panes to start that project's draft exactly where you want it."
+        },
+        {
+          "kind": "improved",
+          "label": "Crossagents",
+          "text": "Subagent runs are named with the model's sub-provider so similar selections are easy to tell apart, the learned selections list scrolls when it grows long, and the provider filter explains that unchecked providers only opt out of automatic routing."
+        },
+        {
+          "kind": "improved",
+          "label": "Usage",
+          "text": "Dollar-denominated usage windows lead with the percent on the bar, and spend amounts sit next to the reset countdown as smaller muted text."
+        },
+        {
+          "kind": "improved",
+          "label": "Projects",
+          "text": "Project pickers now mark local and remote projects with distinct icons, and you can open GitHub Actions from a worktree group's context menu."
+        },
+        {
+          "kind": "improved",
+          "label": "Sidebar",
+          "text": "Collapsed worktree groups tint their icon when a thread inside is working or has finished, so you can read a group's state without expanding it."
+        },
+        {
+          "kind": "improved",
+          "label": "Composer",
+          "text": "The add menu is tidier: Computer Use and Experiment keep single-line rows with their descriptions moved into info tooltips."
+        },
+        {
+          "kind": "fixed",
+          "label": "Panes",
+          "text": "Opening a pane now splits the space evenly instead of squeezing the newest one, existing panes keep their relative widths, and the insert line lights up as soon as you drag near the edge between two panes."
+        },
+        {
+          "kind": "fixed",
+          "text": "Renaming a thread no longer bumps it to the top of the list, completed turns stay closed when trailing plan or goal updates arrive, and the turn timer stops ticking as soon as the turn ends."
+        },
+        {
+          "kind": "fixed",
+          "label": "Sidebar",
+          "text": "Disabled, hidden, and offline-server projects reappear in a dedicated section of the project filter so you can re-enable them, and Remove Project is disabled for servers you can't reach."
+        },
+        {
+          "kind": "fixed",
+          "text": "Cancelling agent detection now stops probes and cleanup promptly across every provider, and hung WSL processes are killed on timeout instead of lingering."
+        },
+        {
+          "kind": "fixed",
+          "text": "Kimi subscription tiers show the correct credit multipliers, an explicit Fast mode off now carries over to your next draft, and one-shot responses that leak raw tool-call markers are rejected instead of shown as text."
+        },
+        {
+          "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Every reasoning level reported by agy now appears in the model picker, including High for Gemini 3.6 Flash."
+        },
+        {
+          "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Threads created in linked Git worktrees now keep agy's file tools bound to that exact worktree instead of falling back to the main checkout."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode",
+          "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, and sign-in remains available when CLI authentication has no meters, so empty local snapshots no longer strand you."
+        },
+        {
+          "kind": "fixed",
+          "label": "Grok",
+          "text": "An explicit request to push now runs without a redundant confirmation, while force pushes, merges, and destructive actions remain guarded."
+        },
+        {
+          "kind": "fixed",
+          "label": "Windows",
+          "text": "Settings saves now retry brief file locks from antivirus, indexing, or another app instance instead of failing immediately."
+        },
+        {
+          "kind": "fixed",
+          "label": "Sidebar",
+          "text": "In the flat thread list, main-branch rows now show Files and Terminal controls the same way worktree rows do."
+        },
+        {
+          "kind": "fixed",
+          "label": "Crossagents",
+          "text": "Crossagents only spawn subagents after you explicitly ask in that thread — for example with an @Crossagents mention — and that ask covers later turns in the same thread."
+        },
+        {
+          "kind": "fixed",
+          "label": "Qwen",
+          "text": "Current Alibaba Token Plan models, including Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Flash, and DeepSeek V4 Flash 0731, are detected and labeled correctly."
+        }
+      ]
+    },
+    {
       "version": "1.6.1",
       "date": "2026-08-07",
       "title": "Flat thread list, worktree moves & workspace switching",

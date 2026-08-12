@@ -128,6 +128,7 @@ export interface BackendHostInitializePayload {
     supervisorPath: string;
     wslHelpersDir: string;
     bundledSkillsDir?: string;
+    bundledPluginsDir?: string;
     secretStorageKey: string;
     preferUiResponsiveness?: boolean;
   };

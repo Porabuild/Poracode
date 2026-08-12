@@ -22,6 +22,7 @@ import {
   type StartThreadPayload,
   type StartThreadResult,
   type TerminalSize,
+  type TerminalShellSnapshot,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
   type WriteTerminalPayload,
@@ -29,6 +30,7 @@ import {
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
 } from "@/shared/contracts";
+import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
   type AgentAdapter,
   createKnownSessionRef,
@@ -224,6 +226,7 @@ export class ThreadSessionManager {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
@@ -231,6 +234,15 @@ export class ThreadSessionManager {
         session,
         this.options.readDisableCliHookPlugin(),
       ),
+    }));
+  }
+
+  getTerminalShellSnapshots(): TerminalShellSnapshot[] {
+    return [...this.shellSessions.values()].map((session) => ({
+      terminalId: session.shellId,
+      projectLocation: session.projectLocation,
+      ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
+      outputLength: session.outputLength,
     }));
   }
 
@@ -300,7 +312,11 @@ export class ThreadSessionManager {
     if (!session) return undefined;
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
-    const effectiveConfig = effectiveLaunchConfig(session.config, disabledIds);
+    const effectiveConfig = effectiveLaunchConfig(
+      session.config,
+      disabledIds,
+      session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    );
     return {
       projectLocation: session.projectLocation,
       config: effectiveConfig,
@@ -322,6 +338,7 @@ export class ThreadSessionManager {
     const launchConfig = effectiveLaunchConfig(
       session.config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
     const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -358,6 +375,7 @@ export class ThreadSessionManager {
             const launchConfig = effectiveLaunchConfig(
               session.config,
               session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+              session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -498,13 +516,14 @@ export class ThreadSessionManager {
     }
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    const effectiveSegments = payload.segments
+    const wslSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
           preservePdfAttachments:
             usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
+    const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
     const effectiveConfig =
@@ -709,7 +728,8 @@ export class ThreadSessionManager {
           preserveImageAttachments: false,
         })
       : undefined;
-    const effectiveSegments = await this.localizeWorkspaceAttachments(session, wslSegments);
+    const policySegments = await this.filterPluginSkillSegments(session, wslSegments);
+    const effectiveSegments = await this.localizeWorkspaceAttachments(session, policySegments);
     const formatted = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
     // Collapse newlines so a raw PTY write cannot accidentally submit the line
     // (a bare \n reads as Enter to most shells/TUIs); the user submits manually.
@@ -730,6 +750,25 @@ export class ThreadSessionManager {
       : fallbackPrompt;
   }
 
+  /** Enforce current plugin skill policy before a segment reaches a provider. */
+  private async filterPluginSkillSegments(
+    session: SessionRuntime,
+    segments: PromptSegment[] | undefined,
+  ): Promise<PromptSegment[] | undefined> {
+    if (!segments?.some((segment) => segment.kind === "skill")) return segments;
+    return (
+      (await this.options.filterPluginSkillSegments?.({
+        agentKind: session.agentKind,
+        projectLocation: session.projectLocation,
+        ...(session.presentationMode
+          ? { presentationMode: session.presentationMode }
+          : { presentationMode: session.adapter.capabilities.presentationMode }),
+        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
+        segments,
+      })) ?? segments
+    );
+  }
+
   /** Portable-skills fallback for a structured turn (see managerOptions). */
   private async resolveSkillTurnInjection(
     session: SessionRuntime,
@@ -739,6 +778,7 @@ export class ThreadSessionManager {
     return this.options.buildSkillTurnInjection?.({
       agentKind: session.agentKind,
       projectLocation: session.projectLocation,
+      ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       segments,
     });
   }
@@ -755,6 +795,7 @@ export class ThreadSessionManager {
       (await this.options.rewriteTerminalSkillSegments?.({
         agentKind: session.agentKind,
         projectLocation: session.projectLocation,
+        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         segments,
       })) ?? segments
     );
@@ -824,7 +865,12 @@ export class ThreadSessionManager {
    */
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
-    await this.steerCoordinator.setPendingSteer(session, payload);
+    if (payload.segments === undefined) {
+      await this.steerCoordinator.setPendingSteer(session, payload);
+      return;
+    }
+    const segments = await this.filterPluginSkillSegments(session, payload.segments);
+    await this.steerCoordinator.setPendingSteer(session, { ...payload, segments });
   }
 
   /**
@@ -955,7 +1001,9 @@ export class ThreadSessionManager {
       instanceId: randomUUID(),
       shellId: payload.shellId,
       pty,
+      projectLocation: payload.projectLocation,
       outputLength: 0,
+      outputTranscript: new TranscriptBuffer(200_000),
       ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
     };
 
@@ -966,6 +1014,7 @@ export class ThreadSessionManager {
         return;
       }
       session.outputLength += data.length;
+      session.outputTranscript.append(data);
       if (this.options.isDev) {
         this.logWriter.append(this.resolveLogPath(payload.shellId.replace(/:/g, "_")), data);
       }
@@ -1007,7 +1056,9 @@ export class ThreadSessionManager {
   }
 
   readTerminalScrollback(threadId: string): string {
-    return this.outputPipeline.readTerminalScrollback(this.sessions.get(threadId));
+    return this.outputPipeline.readTerminalScrollback(
+      this.sessions.get(threadId) ?? this.shellSessions.get(threadId),
+    );
   }
 
   readTerminalSize(threadId: string): TerminalSize | null {

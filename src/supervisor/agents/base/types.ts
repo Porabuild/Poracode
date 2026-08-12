@@ -620,6 +620,17 @@ export interface AgentCliHookPluginSupport {
   ): Promise<{ args?: string[]; env?: Record<string, string> } | undefined>;
 }
 
+export interface AgentNativePlugin {
+  name: string;
+  /** Absolute package root reported by the provider. */
+  root: string;
+}
+
+export interface AgentNativePluginSupport {
+  /** Enabled Agent Plugins already loaded by the provider in this environment. */
+  listNativePlugins(ctx: AgentEnvContext): Promise<readonly AgentNativePlugin[]>;
+}
+
 export interface AgentSkillRootSpec {
   readonly id: string;
   readonly label: string;
@@ -666,7 +677,8 @@ export interface AgentAdapter
     AgentOneShotRunner,
     AgentUpdater,
     Partial<AgentAcpAuth>,
-    Partial<AgentCliHookPluginSupport> {
+    Partial<AgentCliHookPluginSupport>,
+    Partial<AgentNativePluginSupport> {
   readonly skillSupport?: AgentSkillSupport;
 }
 

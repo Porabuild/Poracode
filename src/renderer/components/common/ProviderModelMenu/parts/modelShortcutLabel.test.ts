@@ -222,6 +222,33 @@ describe("buildProviderModelItems shortcut labels", () => {
     expect(favorite?.type === "model" ? favorite.label : undefined).toBe("Composer 2.5 · Fast");
   });
 
+  it("hides explicit model visibility exclusions but preserves custom model refs", () => {
+    const items = buildProviderModelItems({
+      providers: [codexProvider, cursorProvider],
+      search: "",
+      favorites: [
+        { agentKind: "codex", modelId: "gpt-5.5" },
+        { agentKind: "codex", modelId: "hidden-model" },
+        { agentKind: "codex", modelId: "custom-model" },
+      ],
+      recents: [{ agentKind: "cursor", modelId: "custom-recent" }],
+      hiddenModels: { codex: ["hidden-model"] },
+    });
+
+    expect(items.some((item) => item.type === "model" && item.id === "fav:codex:gpt-5.5")).toBe(
+      true,
+    );
+    expect(items.some((item) => item.type === "model" && item.modelId === "hidden-model")).toBe(
+      false,
+    );
+    expect(items.some((item) => item.type === "model" && item.modelId === "custom-model")).toBe(
+      true,
+    );
+    expect(items.some((item) => item.type === "model" && item.modelId === "custom-recent")).toBe(
+      true,
+    );
+  });
+
   it("keeps Cursor CLI and Cursor ACP as separate provider sections", () => {
     const items = buildProviderModelItems({
       providers: [

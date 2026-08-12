@@ -54,6 +54,8 @@ export interface HeadlessRemoteHostOptions {
   readonly wslHelpersDir: string;
   /** Directory of app-bundled read-only skills; forwarded to the supervisor. */
   readonly bundledSkillsDir?: string;
+  /** Directory of app-bundled plugins; forwarded to the supervisor. */
+  readonly bundledPluginsDir?: string;
   /** base64 32-byte AES key shared with the supervisor for secret sealing. */
   readonly secretStorageKey: string;
   /** Data dir; defaults to the standard Poracode base dir for the channel. */
@@ -148,6 +150,7 @@ export async function createHeadlessRemoteHost(
       supervisorPath: options.supervisorPath,
       wslHelpersDir: options.wslHelpersDir,
       ...(options.bundledSkillsDir ? { bundledSkillsDir: options.bundledSkillsDir } : {}),
+      ...(options.bundledPluginsDir ? { bundledPluginsDir: options.bundledPluginsDir } : {}),
       secretStorageKey: options.secretStorageKey,
       resolveExtraEnv: () => {
         return durableServices?.getSupervisorExtraEnv() ?? {};

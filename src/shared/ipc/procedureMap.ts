@@ -6,6 +6,7 @@ import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { mcpProcedures } from "./procedures/mcp";
+import { pluginProcedures } from "./procedures/plugins";
 import { profileProcedures } from "./procedures/profile";
 import { prWatchProcedures } from "./procedures/prWatches";
 import { scheduleProcedures } from "./procedures/schedules";
@@ -36,6 +37,7 @@ export const groupedIpcProcedures = {
   schedules: scheduleProcedures,
   prWatches: prWatchProcedures,
   skills: skillProcedures,
+  plugins: pluginProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -57,6 +59,7 @@ export const ipcProcedureMap = {
   ...scheduleProcedures,
   ...prWatchProcedures,
   ...skillProcedures,
+  ...pluginProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;
@@ -187,6 +190,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "deleteSchedule",
   "runScheduleNow",
   "getScheduleRuns",
+  "openPluginsFolder",
   "getPrWatch",
   "checkPrWatch",
   "upsertPrWatch",

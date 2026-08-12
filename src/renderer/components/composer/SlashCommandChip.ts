@@ -10,6 +10,8 @@ export interface SlashCommandChipInput {
   skillInvocation?: string;
   skillProvider?: string;
   skillScope?: "global" | "project";
+  pluginId?: string;
+  pluginName?: string;
 }
 
 export function createSlashCommandChipElement(
@@ -32,6 +34,8 @@ export function createSlashCommandChipElement(
     chip.dataset.skillInvocation = command.skillInvocation;
     chip.dataset.skillProvider = command.skillProvider;
     chip.dataset.skillScope = command.skillScope;
+    if (command.pluginId) chip.dataset.pluginId = command.pluginId;
+    if (command.pluginName) chip.dataset.pluginName = command.pluginName;
   }
   chip.className = "poracode-slash-chip";
 
@@ -47,7 +51,7 @@ export function createSlashCommandChipElement(
 
   const name = document.createElement("span");
   name.className = "poracode-slash-chip__name";
-  name.textContent = command.skillName ?? command.id;
+  name.textContent = command.pluginName ?? command.skillName ?? command.id;
   chip.appendChild(name);
 
   return chip;

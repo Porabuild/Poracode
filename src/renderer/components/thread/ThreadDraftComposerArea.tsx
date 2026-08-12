@@ -71,7 +71,10 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
-import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkills";
+import {
+  usePluginMentionItems,
+  useSkillSlashCommandState,
+} from "@/renderer/components/skills/useSkills";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
@@ -376,6 +379,12 @@ export function ThreadDraftComposerArea(props: {
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     props.project.location,
     props.selectedAgent.kind,
+    props.presentationMode,
+  );
+  const pluginMentions = usePluginMentionItems(
+    props.project.location,
+    props.selectedAgent.kind,
+    props.presentationMode,
   );
   const slashLookupContext = {
     agentKind: props.selectedAgent.kind,
@@ -1059,6 +1068,7 @@ export function ThreadDraftComposerArea(props: {
               latestSegmentsRef.current = segments;
             }}
             mcpMentions={mcpMentions}
+            pluginMentions={pluginMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
               void attachments

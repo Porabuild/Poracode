@@ -960,6 +960,48 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("submits an explicit Fast-off selection in the launch config", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[cursorStatus]}
+        lastDraftConfig={{
+          agentKind: "cursor",
+          model: "composer-2",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+          worktreeMode: false,
+        }}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; currentModel?: string }>;
+      };
+      expect(
+        props.controls.some(
+          (control) => control.kind === "provider-model" && control.currentModel === "composer-2",
+        ),
+      ).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ fast: false }),
+      }),
+    );
+  });
+
   it("keeps a globally disabled built-in out of the composer and launch config", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useSharedSettings.setState({

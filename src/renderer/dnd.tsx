@@ -17,6 +17,7 @@ import { isSortable } from "@dnd-kit/react/sortable";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { PaneLayout, PaneLayoutAxis, PaneLayoutInsertTarget } from "@/shared/paneLayout";
 import { findPanePath } from "@/shared/paneLayout";
+import { paneInsertZoneId } from "./components/layout/paneInsertZone";
 import type { PanelDockTarget, PanelDockZone, RightPanelTab } from "./state/panelStore";
 import { useFileEditorStore } from "./state/fileEditorStore";
 import { useThread } from "./state/useThread";
@@ -328,7 +329,13 @@ function getNodeAtPath(layout: PaneLayout, path: number[]): PaneLayout | null {
   return current;
 }
 
-function resolveSiblingInsertTarget(
+/**
+ * The divider between a pane and its sibling, when a drag hovers the pane's
+ * inner edge. Dropping there inserts between the two panes instead of splitting
+ * the hovered one, so the indicator must be the divider's own zone — the ids are
+ * built through the shared helper for exactly that reason.
+ */
+export function resolveSiblingInsertTarget(
   layout: PaneLayout,
   paneId: string,
   zone: "left" | "right" | "top" | "bottom",
@@ -341,44 +348,19 @@ function resolveSiblingInsertTarget(
   if (parent?.kind !== "split") return null;
 
   const childIndex = panePath[panePath.length - 1]!;
-  if (zone === "left" && parent.axis === "vertical" && childIndex > 0) {
-    const index = childIndex;
-    return {
-      kind: "insert-split",
-      target: { path: parentPath, axis: "vertical", index },
-      zoneId: `split-divider:vertical:${parentPath.join("-")}:${index}`,
-    };
-  }
-  if (zone === "right" && parent.axis === "vertical" && childIndex < parent.children.length - 1) {
-    const index = childIndex + 1;
-    return {
-      kind: "insert-split",
-      target: { path: parentPath, axis: "vertical", index },
-      zoneId: `split-divider:vertical:${parentPath.join("-")}:${index}`,
-    };
-  }
-  if (zone === "top" && parent.axis === "horizontal" && childIndex > 0) {
-    const index = childIndex;
-    return {
-      kind: "insert-split",
-      target: { path: parentPath, axis: "horizontal", index },
-      zoneId: `split-divider:horizontal:${parentPath.join("-")}:${index}`,
-    };
-  }
-  if (
-    zone === "bottom" &&
-    parent.axis === "horizontal" &&
-    childIndex < parent.children.length - 1
-  ) {
-    const index = childIndex + 1;
-    return {
-      kind: "insert-split",
-      target: { path: parentPath, axis: "horizontal", index },
-      zoneId: `split-divider:horizontal:${parentPath.join("-")}:${index}`,
-    };
-  }
+  const axis: PaneLayoutAxis = zone === "left" || zone === "right" ? "vertical" : "horizontal";
+  if (parent.axis !== axis) return null;
 
-  return null;
+  const isBefore = zone === "left" || zone === "top";
+  if (isBefore && childIndex === 0) return null;
+  if (!isBefore && childIndex === parent.children.length - 1) return null;
+
+  const index = isBefore ? childIndex : childIndex + 1;
+  return {
+    kind: "insert-split",
+    target: { path: parentPath, axis, index },
+    zoneId: paneInsertZoneId({ axis, path: parentPath, index }),
+  };
 }
 
 /**

@@ -412,6 +412,7 @@ async function settingsScenario(client) {
     "agentsGeneral",
     "skills",
     "mcpServers",
+    "plugins",
     "browser",
     "usage",
     "archived",
@@ -421,6 +422,7 @@ async function settingsScenario(client) {
   let mcpListScreenshotPath;
   let mcpScreenshotPath;
   let mcpImportScreenshotPath;
+  let pluginsScreenshotPath;
   let skillsScreenshotPath;
   let skillsImportScreenshotPath;
   let skillsImportDestinationsScreenshotPath;
@@ -477,6 +479,9 @@ async function settingsScenario(client) {
           await mcpServersSectionDeepDive(client, mcpFixture));
       }
     }
+    if (section === "plugins") {
+      ({ pluginsScreenshotPath } = await pluginsSectionDeepDive(client));
+    }
   }
   const screenshotPath = join(outDir, "smoke-02-settings.png");
   await screenshot(client, screenshotPath);
@@ -489,12 +494,163 @@ async function settingsScenario(client) {
     ...(mcpListScreenshotPath ? { mcpListScreenshotPath } : {}),
     ...(mcpScreenshotPath ? { mcpScreenshotPath } : {}),
     ...(mcpImportScreenshotPath ? { mcpImportScreenshotPath } : {}),
+    ...(pluginsScreenshotPath ? { pluginsScreenshotPath } : {}),
     ...(skillsScreenshotPath ? { skillsScreenshotPath } : {}),
     ...(skillsImportScreenshotPath ? { skillsImportScreenshotPath } : {}),
     ...(skillsImportDestinationsScreenshotPath ? { skillsImportDestinationsScreenshotPath } : {}),
     ...(skillsMarketplaceScreenshotPath ? { skillsMarketplaceScreenshotPath } : {}),
     ...(skillsTargetsScreenshotPath ? { skillsTargetsScreenshotPath } : {}),
   };
+}
+
+async function pluginsSectionDeepDive(client) {
+  const pluginId = "browser-tools";
+  const marketplaceState = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const search = document.querySelector('[aria-label="Search plugins"]');
+          const action = document.querySelector("#plugin-browser-tools-action");
+          return {
+            visible: Boolean(search && !search.closest("[hidden]")),
+            pluginCount: document.querySelectorAll("[data-plugin-id]").length,
+            action: action?.textContent?.trim(),
+            initialInstalled: window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] !== undefined,
+          };
+        })()`,
+      ),
+    (state) => state.visible && state.pluginCount > 0 && Boolean(state.action),
+    "plugins marketplace",
+  );
+  assert(
+    marketplaceState.action === (marketplaceState.initialInstalled ? "Manage" : "Install"),
+    `Browser Tools marketplace action did not match install state: ${JSON.stringify(marketplaceState)}`,
+  );
+
+  let detailOpened = false;
+  try {
+    const opened = await evaluate(
+      client,
+      `(() => {
+        const action = document.querySelector("#plugin-browser-tools-action")?.closest("button");
+        if (!(action instanceof HTMLButtonElement)) return false;
+        action.click();
+        return true;
+      })()`,
+    );
+    assert(opened, "Browser Tools marketplace action was unavailable");
+    detailOpened = true;
+
+    const detailState = await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `(() => {
+            const buttonText = [...document.querySelectorAll("button")].map((button) => button.textContent?.trim());
+            const headings = [...document.querySelectorAll("h2")].map((heading) => heading.textContent?.trim());
+            const switchNames = [...document.querySelectorAll('[role="switch"]')].map((control) =>
+              (control.getAttribute("aria-labelledby") ?? "")
+                .split(/\\s+/u)
+                .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+                .filter(Boolean)
+                .join(" "),
+            );
+            return {
+              installed: window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] !== undefined,
+              back: buttonText.includes("Back to plugins"),
+              uninstall: buttonText.includes("Uninstall"),
+              mcpServers: headings.includes("MCP servers") && document.body.innerText.includes("Browser"),
+              skills: headings.includes("Skills") && document.body.innerText.includes("Browser Control"),
+              bundledMcpHasNoSeparateSwitch: !switchNames.includes("Browser MCP"),
+              skillSwitch: switchNames.includes("Browser Control Skill"),
+            };
+          })()`,
+        ),
+      (state) =>
+        state.installed &&
+        state.back &&
+        state.uninstall &&
+        state.mcpServers &&
+        state.skills &&
+        state.bundledMcpHasNoSeparateSwitch &&
+        state.skillSwitch,
+      "Browser Tools plugin detail",
+    );
+    assert(
+      detailState.mcpServers && detailState.skills,
+      "Browser Tools contributions did not render",
+    );
+    assert(
+      detailState.bundledMcpHasNoSeparateSwitch && detailState.skillSwitch,
+      "Browser Tools contribution controls did not match the combined plugin contract",
+    );
+
+    const pluginsScreenshotPath = join(outDir, "smoke-02-plugins.png");
+    await screenshot(client, pluginsScreenshotPath);
+
+    if (!marketplaceState.initialInstalled) {
+      const uninstalled = await evaluate(
+        client,
+        `(() => {
+          const button = [...document.querySelectorAll("button")].find(
+            (candidate) => candidate.textContent?.trim() === "Uninstall",
+          );
+          if (!(button instanceof HTMLButtonElement)) return false;
+          button.click();
+          return true;
+        })()`,
+      );
+      assert(uninstalled, "Browser Tools uninstall action was unavailable");
+      await waitForValue(
+        () =>
+          evaluate(
+            client,
+            `window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] === undefined`,
+          ),
+        Boolean,
+        "Browser Tools install-state restoration",
+      );
+    }
+
+    const restored = await evaluate(
+      client,
+      `window.__poracodeDev.stores.sharedSettings.getState().installedPlugins[${JSON.stringify(pluginId)}] !== undefined`,
+    );
+    assert(
+      restored === marketplaceState.initialInstalled,
+      "Browser Tools install state was not restored",
+    );
+    return { pluginsScreenshotPath };
+  } finally {
+    await evaluate(
+      client,
+      `(() => {
+        const store = window.__poracodeDev.stores.sharedSettings.getState();
+        const plugin = window.__poracodeDev.stores.plugins
+          .getState()
+          .plugins.find((candidate) => candidate.name === ${JSON.stringify(pluginId)});
+        if (!plugin) return;
+        const installed = store.installedPlugins[${JSON.stringify(pluginId)}] !== undefined;
+        if (${JSON.stringify(marketplaceState.initialInstalled)} && !installed) {
+          store.installPlugin(plugin);
+        } else if (!${JSON.stringify(marketplaceState.initialInstalled)} && installed) {
+          store.uninstallPlugin(plugin);
+        }
+      })()`,
+    );
+    if (detailOpened) {
+      await evaluate(
+        client,
+        `(() => {
+          const button = [...document.querySelectorAll("button")].find(
+            (candidate) => candidate.textContent?.trim() === "Back to plugins",
+          );
+          if (button instanceof HTMLButtonElement) button.click();
+        })()`,
+      );
+    }
+  }
 }
 
 async function skillsSectionDeepDive(client) {

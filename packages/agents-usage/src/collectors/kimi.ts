@@ -56,7 +56,7 @@ export interface KimiUsagesResponse {
  * Subscription tier names shown on kimi.com/membership, keyed by the
  * `user.membership.level` enum the usages endpoint returns. Paid tiers above
  * the base carry the Kimi Code credit multiplier from the pricing page
- * (Allegretto 5x / Allegro 15x / Vivace 30x), mirroring the Codex plan labels
+ * (Allegretto 2x / Allegro 5x / Vivace 10x), mirroring the Codex plan labels
  * ("ChatGPT Pro 20x"). Unknown levels fall back to a humanized form of the
  * enum ("LEVEL_SOMETHING" → "Something") so a new tier still shows a readable
  * name instead of nothing.
@@ -65,9 +65,9 @@ const KIMI_PLAN_BY_LEVEL: Record<string, string> = {
   LEVEL_FREE: "Adagio",
   LEVEL_TRIAL: "Andante",
   LEVEL_BASIC: "Moderato",
-  LEVEL_INTERMEDIATE: "Allegretto 5x",
-  LEVEL_ADVANCED: "Allegro 15x",
-  LEVEL_STANDARD: "Vivace 30x",
+  LEVEL_INTERMEDIATE: "Allegretto 2x",
+  LEVEL_ADVANCED: "Allegro 5x",
+  LEVEL_STANDARD: "Vivace 10x",
 };
 
 function formatKimiPlan(level: unknown): string | undefined {
