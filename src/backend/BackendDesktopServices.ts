@@ -88,8 +88,11 @@ export class BackendDesktopServices {
       if (!desktop) throw new Error("Desktop services are not configured.");
       return readSharedSettingsFile(desktop.settingsPath);
     };
+    const dispatchThreadCommand = async (command: RemoteThreadCommand): Promise<boolean> =>
+      (await options.requestNative({ operation: "dispatch-thread-command", payload: command })) ===
+      true;
     const sendThreadCommand = (command: RemoteThreadCommand): boolean => {
-      void options.requestNative({ operation: "dispatch-thread-command", payload: command });
+      void dispatchThreadCommand(command).catch(options.reportError);
       return true;
     };
     const publishProjectsChanged = (): void => {
@@ -106,6 +109,7 @@ export class BackendDesktopServices {
       hostId: readOrCreateRemoteAccessIdentity(initialize.baseDir).desktopId,
       supervisor,
       sendThreadCommand,
+      emitRemoteThreadCommand: dispatchThreadCommand,
       getSharedSettings,
       publishProjectsChanged,
       writeSharedSettings: (next) => {
@@ -172,7 +176,7 @@ export class BackendDesktopServices {
           paths: { baseDir: initialize.baseDir, settingsPath: desktop.settingsPath },
           ...(desktop.devServerUrl ? { devServerUrl: desktop.devServerUrl } : {}),
           callSupervisor: (name, payload) => supervisor.call(name, payload),
-          dispatchThreadCommand: sendThreadCommand,
+          dispatchThreadCommand,
           browser: this.browser,
           notifySharedSettingsChanged: (settings) =>
             options.emitNativeEvent({ type: "shared-settings-changed", settings }),

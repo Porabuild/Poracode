@@ -35,6 +35,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { gitMenuIcons } from "./gitMenuIcons";
 import type { WorktreeThreadGroup } from "./groupThreads";
 import { useWorktreeGitItems } from "./useWorktreeActions";
@@ -52,6 +53,7 @@ export function SidebarWorktreeGroup(props: {
 }) {
   const { group, project, sortDisabled = false } = props;
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const isGroupCollapsed = useIsWorktreeCollapsed(group.worktreePath);
   const toggleWorktreeCollapsed = useSidebarUiStore((s) => s.toggleWorktreeCollapsed);
   const worktreeGitItems = useWorktreeGitItems(project.id, group.worktreePath, gitMenuIcons);
@@ -102,7 +104,7 @@ export function SidebarWorktreeGroup(props: {
     id: `wt:${group.worktreePath}`,
     index: props.entryIndex,
     type: "worktree-group",
-    accept: sortDisabled ? [] : "worktree-group",
+    accept: compactLayout || sortDisabled ? [] : "worktree-group",
     group: props.sortableGroup,
     data: {
       type: "worktree-group",

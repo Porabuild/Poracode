@@ -1,8 +1,13 @@
-import { FolderPlus, Globe, Search } from "lucide-react";
+import { FolderPlus, Globe, Search, WifiOff } from "lucide-react";
 import { Button, Dropdown, Label, Separator, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import {
+  selectBrowserPanelAvailable,
+  selectBrowserBridgeServer,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
 import { toggleBrowserPanel } from "@/renderer/actions/panelActions";
 import {
   type ThreadSortMode,
@@ -14,14 +19,40 @@ import {
   sortModeLabel,
 } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 
 export function SidebarHeaderControls() {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const threadSortMode = usePanelStore((s) => s.threadSortMode);
   const threadListLayout = usePanelStore((s) => s.threadListLayout);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOnScreen = useIsPanelTabVisible("browser");
   const browserVisible = browserPanelOpen && browserOnScreen;
+  const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
+  const selectedBrowserServer = useRemoteServersStore(selectBrowserBridgeServer);
+
+  if (compactLayout) {
+    const connected = !isBrowserClientRuntime() || selectedBrowserServer !== undefined;
+    if (connected) return null;
+    return (
+      <div className="poracode-mobile-home-status ml-auto flex items-center">
+        <Button
+          isIconOnly
+          aria-label={t`Remote Environments`}
+          size="sm"
+          variant="ghost"
+          className="size-9 min-w-0 text-muted"
+          onPress={() => {
+            usePanelStore.getState().openSettingsSection("remoteServers");
+          }}
+        >
+          <WifiOff className="size-4" />
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="poracode-overlay-header__controls flex items-center gap-1.5">
@@ -104,23 +135,25 @@ export function SidebarHeaderControls() {
           </Dropdown.Menu>
         </Dropdown.Popover>
       </Dropdown>
-      <Tooltip delay={150}>
-        <Tooltip.Trigger>
-          <Button
-            isIconOnly
-            aria-label={browserVisible ? t`Hide browser` : t`Open browser`}
-            size="sm"
-            variant="ghost"
-            className="size-6 min-w-0 text-muted hover:text-foreground"
-            onPress={toggleBrowserPanel}
-          >
-            <Globe className="size-3.5" />
-          </Button>
-        </Tooltip.Trigger>
-        <Tooltip.Content placement="bottom">
-          <Trans>Browser</Trans>
-        </Tooltip.Content>
-      </Tooltip>
+      {browserPanelAvailable ? (
+        <Tooltip delay={150}>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              aria-label={browserVisible ? t`Hide browser` : t`Open browser`}
+              size="sm"
+              variant="ghost"
+              className="size-6 min-w-0 text-muted hover:text-foreground"
+              onPress={toggleBrowserPanel}
+            >
+              <Globe className="size-3.5" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content placement="bottom">
+            <Trans>Browser</Trans>
+          </Tooltip.Content>
+        </Tooltip>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { closeSync, openSync, unlinkSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
+import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
 import { installShutdown, reportFatalStartupError } from "./cliRuntime";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
@@ -176,6 +177,11 @@ async function serve(): Promise<void> {
   console.log("[poracode-server] listening at:    %s", info.httpBaseUrl);
   console.log("[poracode-server] websocket at:    %s", info.wsBaseUrl);
   console.log("[poracode-server] pair a device:   %s", info.pairingUrl);
+  const pairingParts = parsePairingUrlParts(info.pairingUrl);
+  if (pairingParts) {
+    console.log("[poracode-server] endpoint:        %s", normalizePairingEndpoint(info.pairingUrl));
+    console.log("[poracode-server] pair token:      %s", pairingParts.token);
+  }
   console.log("[poracode-server] (send SIGUSR2 to mint a fresh pairing link)");
 
   // Release the data-dir lock in the SAME path that disposes the server/DB so
@@ -217,7 +223,7 @@ async function printPairingJson(): Promise<void> {
   process.stdout.write(`${JSON.stringify(response)}\n`);
 }
 
-function runCli(): void {
+export function runCli(): void {
   let command: ServerCliCommand;
   try {
     command = parseServerCliCommand(process.argv.slice(2));

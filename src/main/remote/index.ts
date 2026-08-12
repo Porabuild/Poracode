@@ -8,4 +8,4 @@ export * from "./portForward/portForwarding";
 export * from "./portForward/portProxy";
 export * from "./push";
 export * from "./pairingInfo";
-export * from "./staticMobileApp";
+export * from "./staticClientApp";

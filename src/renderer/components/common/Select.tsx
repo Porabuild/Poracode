@@ -45,8 +45,8 @@ export function Select(props: SelectProps) {
 
   // Mobile PWA: a HeroUI select-listbox popover anchored to a small trigger is
   // cramped on a phone. Render an input-styled trigger that opens a bottom
-  // drawer of finger-sized rows instead. `mobile === isRemoteSession()`, so the
-  // desktop HeroSelect below never runs on the phone and is left untouched.
+  // drawer of finger-sized rows instead. The runtime surface, not its
+  // transport, decides which presentation is appropriate.
   if (mobile) {
     const placeholder = typeof rest.placeholder === "string" ? rest.placeholder : t`Select…`;
     // Settings pass the field name via `aria-label` (the visible label lives on

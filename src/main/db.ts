@@ -51,6 +51,12 @@ export {
 } from "./db/runtimeItems";
 export type { PersistedRuntimeItem, PersistedCompletedTurn } from "./db/runtimeItems";
 
+export {
+  dbGetThreadTerminalScrollback,
+  dbAppendThreadTerminalOutput,
+  dbClearThreadTerminalScrollback,
+} from "./db/terminalScrollback";
+
 export { dbAppendUsageEvents, dbGetAllUsageEvents } from "./db/usageEvents";
 export type { UsageEventRow } from "./db/usageEvents";
 

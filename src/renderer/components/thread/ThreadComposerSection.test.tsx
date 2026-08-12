@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
@@ -81,6 +81,7 @@ vi.mock("../../bridge", () => ({
 const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
 vi.mock("./ThreadComposer", () => ({
+  resolveComposerControlIcon: () => null,
   ThreadComposer: (props: {
     controls?: Array<{
       kind?: string;
@@ -208,6 +209,8 @@ function typeComposerText(editor: HTMLElement, text: string) {
 }
 
 describe("ThreadComposerSection", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
     useSharedSettings.setState({
       collapseTerminalComposer: false,
@@ -485,6 +488,66 @@ describe("ThreadComposerSection", () => {
     expect(screen.queryByRole("button", { name: "Collapse composer" })).not.toBeInTheDocument();
   });
 
+  it("starts the canonical GUI composer in the old PWA floating dock on compact layouts", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    renderComposer();
+
+    const input = screen.getByRole("textbox");
+    const section = input.closest(".poracode-thread-composer-section");
+    const dock = input.closest(".m-thread-compose-dock");
+    expect(section).toHaveAttribute("data-compact-collapsed");
+    expect(section?.querySelector("[inert]")).toBeNull();
+    expect(dock).not.toHaveAttribute("data-expanded");
+
+    fireEvent.focus(input);
+
+    expect(dock).toHaveAttribute("data-expanded");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse composer" }));
+    expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("collapses the compact floating dock after the canonical submit succeeds", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    const dock = input.closest(".m-thread-compose-dock");
+    typeComposerText(input, "Ship it");
+    fireEvent.focus(input);
+
+    expect(dock).toHaveAttribute("data-expanded");
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("Ship it", [{ kind: "text", content: "Ship it" }]);
+      expect(dock).not.toHaveAttribute("data-expanded");
+    });
+  });
+
   it("preserves an unsent draft when the composer unmounts and restores it on remount", async () => {
     const { unmount } = renderComposer();
 
@@ -680,7 +743,7 @@ describe("ThreadComposerSection", () => {
   it("defers an explicit focus request while the terminal composer is collapsed", async () => {
     useSharedSettings.setState({ collapseTerminalComposer: true });
     renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("textbox", { hidden: true });
     const outsideButton = document.createElement("button");
     document.body.appendChild(outsideButton);
     outsideButton.focus();

@@ -15,7 +15,7 @@ import {
 import { TextArea } from "@/renderer/components/common/TextArea";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
-import { isRemoteSession } from "@/renderer/bridge";
+import { isCompactClientSurface, readBridge } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
@@ -309,10 +309,10 @@ export function ThreadComposer(props: {
   }`;
 
   const returnFocusToInput = () => {
-    // On mobile (PWA) refocusing the composer after closing a menu/drawer would
+    // In compact layout refocusing the composer after closing a menu/drawer would
     // pop the on-screen keyboard back up over the chat — a jarring side effect
     // of tapping a toolbar control. Leave focus where the user left it there.
-    if (isRemoteSession()) return;
+    if (isCompactClientSurface()) return;
     const el = editorHostRef.current?.querySelector<HTMLElement>(
       'textarea, [contenteditable="true"], input:not([type="hidden"])',
     );
@@ -801,7 +801,7 @@ export function ThreadComposer(props: {
         return [];
       }
     }
-    return window.poracode.getDroppedFilePaths(Array.from(dataTransfer.files));
+    return readBridge().getDroppedFilePaths(Array.from(dataTransfer.files));
   };
 
   const handleAttachmentDragEnter = (event: DragEvent<HTMLDivElement>) => {

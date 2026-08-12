@@ -1,4 +1,13 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
+import { open } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -16,6 +25,67 @@ import {
   readCodexSessionIndex,
   type CodexRolloutMeta,
 } from "./sessionFiles";
+
+const CODEX_ROLLOUT_META_READ_CHUNK_BYTES = 16 * 1024;
+const CODEX_ROLLOUT_META_MAX_BYTES = 1024 * 1024;
+
+function readNativeRolloutFirstLine(path: string): string | undefined {
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, "r");
+    const chunks: Buffer[] = [];
+    let bytesReadTotal = 0;
+    while (bytesReadTotal < CODEX_ROLLOUT_META_MAX_BYTES) {
+      const buffer = Buffer.allocUnsafe(
+        Math.min(
+          CODEX_ROLLOUT_META_READ_CHUNK_BYTES,
+          CODEX_ROLLOUT_META_MAX_BYTES - bytesReadTotal,
+        ),
+      );
+      const bytesRead = readSync(fd, buffer, 0, buffer.length, bytesReadTotal);
+      if (bytesRead === 0) return Buffer.concat(chunks).toString("utf8");
+      const chunk = buffer.subarray(0, bytesRead);
+      const newline = chunk.indexOf(0x0a);
+      chunks.push(newline === -1 ? chunk : chunk.subarray(0, newline));
+      if (newline !== -1) return Buffer.concat(chunks).toString("utf8");
+      bytesReadTotal += bytesRead;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+async function readNativeRolloutFirstLineAsync(path: string): Promise<string | undefined> {
+  let file: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    file = await open(path, "r");
+    const chunks: Buffer[] = [];
+    let bytesReadTotal = 0;
+    while (bytesReadTotal < CODEX_ROLLOUT_META_MAX_BYTES) {
+      const buffer = Buffer.allocUnsafe(
+        Math.min(
+          CODEX_ROLLOUT_META_READ_CHUNK_BYTES,
+          CODEX_ROLLOUT_META_MAX_BYTES - bytesReadTotal,
+        ),
+      );
+      const { bytesRead } = await file.read(buffer, 0, buffer.length, bytesReadTotal);
+      if (bytesRead === 0) return Buffer.concat(chunks).toString("utf8");
+      const chunk = buffer.subarray(0, bytesRead);
+      const newline = chunk.indexOf(0x0a);
+      chunks.push(newline === -1 ? chunk : chunk.subarray(0, newline));
+      if (newline !== -1) return Buffer.concat(chunks).toString("utf8");
+      bytesReadTotal += bytesRead;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    await file?.close().catch(() => undefined);
+  }
+}
 
 function nativePrivateCodexHome(): string {
   return join(resolvePoracodePaths(process.env.PORACODE_DATA_DIR).agentPluginsDir, "codex", "home");
@@ -161,12 +231,7 @@ export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRo
       if (!id) {
         continue;
       }
-      let firstLine = "";
-      try {
-        firstLine = readFileSync(fullPath, "utf8").split(/\r?\n/g)[0] ?? "";
-      } catch {
-        // Ignore unreadable rollout files.
-      }
+      const firstLine = readNativeRolloutFirstLine(fullPath) ?? "";
       const parsed = parseCodexRolloutMeta(fullPath, firstLine, stat.mtimeMs);
       if (parsed && isInteractiveCodexRollout(parsed, location)) {
         rollouts.push(parsed);
@@ -187,12 +252,8 @@ export function readCodexRolloutMetaForLocation(
     return rollout;
   }
 
-  try {
-    const firstLine = readFileSync(rollout.path, "utf8").split(/\r?\n/g)[0] ?? "";
-    return parseCodexRolloutMeta(rollout.path, firstLine, rollout.updatedAt) ?? rollout;
-  } catch {
-    return rollout;
-  }
+  const firstLine = readNativeRolloutFirstLine(rollout.path) ?? "";
+  return parseCodexRolloutMeta(rollout.path, firstLine, rollout.updatedAt) ?? rollout;
 }
 
 export async function readCodexRolloutMetaForLocationAsync(
@@ -200,7 +261,8 @@ export async function readCodexRolloutMetaForLocationAsync(
   rollout: CodexRolloutMeta,
 ): Promise<CodexRolloutMeta | undefined> {
   if (location.kind !== "wsl") {
-    return readCodexRolloutMetaForLocation(location, rollout);
+    const firstLine = (await readNativeRolloutFirstLineAsync(rollout.path)) ?? "";
+    return parseCodexRolloutMeta(rollout.path, firstLine, rollout.updatedAt) ?? rollout;
   }
   const text = await readSessionFileText(location, rollout.path);
   if (!text) return rollout;
@@ -211,21 +273,27 @@ export async function readCodexRolloutMetaForLocationAsync(
 export async function readCodexRolloutsForLocationAsync(
   location: ProjectLocation,
 ): Promise<CodexRolloutMeta[]> {
-  if (location.kind !== "wsl") {
-    return readCodexRolloutsForLocation(location);
+  let roots: string[];
+  if (location.kind === "wsl") {
+    const home = await resolveWslHomeDirectoryAsync(location.distro);
+    const privateHome = codexPrivateHomeFrom(home);
+    roots = [
+      home ? `${home}/.codex/sessions` : undefined,
+      privateHome ? `${privateHome}/sessions` : undefined,
+    ].filter((root): root is string => Boolean(root));
+  } else {
+    roots = nativeCodexHomeCandidates().map((home) => join(home, "sessions"));
   }
-  const home = await resolveWslHomeDirectoryAsync(location.distro);
-  const privateHome = codexPrivateHomeFrom(home);
-  const roots = [
-    home ? `${home}/.codex/sessions` : undefined,
-    privateHome ? `${privateHome}/sessions` : undefined,
-  ].filter((r): r is string => Boolean(r));
 
   const accept = (name: string): boolean => name.startsWith("rollout-") && name.endsWith(".jsonl");
   const found = (
     await Promise.all(
       roots.map((root) =>
-        findSessionFiles(location, { root, acceptFile: accept, includeMtime: true }),
+        findSessionFiles(location, {
+          root,
+          acceptFile: accept,
+          includeMtime: true,
+        }),
       ),
     )
   ).flat();
@@ -237,7 +305,7 @@ export async function readCodexRolloutsForLocationAsync(
       const meta: CodexRolloutMeta = {
         id,
         path: f.path,
-        ...(typeof f.mtimeMs === "number" ? { updatedAt: Math.round(f.mtimeMs) } : {}),
+        ...(f.mtimeMs !== undefined ? { updatedAt: f.mtimeMs } : {}),
       };
       return [meta];
     }),

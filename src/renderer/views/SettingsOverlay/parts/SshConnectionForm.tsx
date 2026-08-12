@@ -6,8 +6,23 @@ import { readBridge } from "@/renderer/bridge";
 import { Input } from "@/renderer/components/common";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isNativeApp } from "@/renderer/pwa/install";
+import { NativeSshConnectionForm } from "./NativeSshConnectionForm";
 
 export function SshConnectionForm({
+  onConnected,
+  onCancel,
+}: {
+  readonly onConnected: () => void;
+  readonly onCancel: () => void;
+}) {
+  if (isNativeApp()) {
+    return <NativeSshConnectionForm onConnected={onConnected} onCancel={onCancel} />;
+  }
+  return <DesktopSshConnectionForm onConnected={onConnected} onCancel={onCancel} />;
+}
+
+function DesktopSshConnectionForm({
   onConnected,
   onCancel,
 }: {
@@ -64,15 +79,16 @@ export function SshConnectionForm({
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[var(--hairline)] p-3">
+    <div className="flex flex-col gap-2">
       <Input
+        className="!rounded-lg"
         value={label}
         aria-label={t`Display name`}
         placeholder={t`Display name (optional)`}
         onChange={(event) => setLabel(event.currentTarget.value)}
       />
       <Input
-        className="font-mono text-xs"
+        className="!rounded-lg font-mono text-xs"
         value={target}
         list="poracode-ssh-hosts"
         aria-label={t`SSH hostname`}
@@ -90,6 +106,7 @@ export function SshConnectionForm({
         ))}
       </datalist>
       <Input
+        className="!rounded-lg"
         value={port}
         aria-label={t`SSH port`}
         placeholder={t`SSH port (optional)`}
@@ -122,7 +139,7 @@ export function SshConnectionForm({
       {authMode === "identity" ? (
         <div className="flex gap-1.5">
           <Input
-            className="min-w-0 flex-1 font-mono text-xs"
+            className="!rounded-lg min-w-0 flex-1 font-mono text-xs"
             value={identityFile}
             aria-label={t`Identity file path`}
             placeholder={t`Identity file path`}
@@ -157,7 +174,11 @@ export function SshConnectionForm({
           <Trans>Cancel</Trans>
         </Button>
       </div>
-      {error ? <p className="text-xs whitespace-pre-wrap text-danger">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-xs whitespace-pre-wrap text-danger">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -597,6 +597,16 @@ describe("RemoteDesktopClient", () => {
     await expect(client.environment()).rejects.toThrow(/incompatible/i);
   });
 
+  it("rejects a v2 host that cannot synchronize host-owned worktree settings", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(2, ["session:read", "session:operate"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
   it("falls back to the legacy environment endpoint when the Poracode endpoint is unavailable", async () => {
     const requestedPaths: string[] = [];
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async (url) => {

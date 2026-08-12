@@ -377,6 +377,18 @@ export const DATABASE_MIGRATIONS = [
         );
       `),
   },
+  {
+    version: 33,
+    name: "terminal scrollback",
+    migrate: (sqlite) =>
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS thread_terminal_scrollback (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+          transcript TEXT NOT NULL,
+          output_length INTEGER NOT NULL
+        );
+      `),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -525,6 +537,7 @@ const REQUIRED_COLUMNS = {
     "streams",
     "parent_item_id",
   ],
+  thread_terminal_scrollback: ["thread_id", "transcript", "output_length"],
   main_created_threads: ["thread_id"],
   scheduled_tasks: [
     "id",

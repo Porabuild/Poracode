@@ -132,8 +132,8 @@ export function ProjectSwitchMenu(props: {
   }
 
   // Mobile PWA: present as a bottom drawer with finger-sized rows instead of the
-  // desktop HeroUI dropdown popover. `mobile === isRemoteSession()`, so the
-  // desktop branch below is never reached on the phone (and stays untouched).
+  // desktop HeroUI dropdown popover. The runtime surface, not its transport,
+  // decides which presentation is appropriate.
   if (mobile) {
     const triggerClass =
       variant === "hero"

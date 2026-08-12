@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
-import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
+import type { AgentStatus, GitStatusResult, Project, Thread } from "@/shared/contracts";
+import type {
+  IpcProcedureName,
+  IpcProcedurePayload,
+  IpcProcedureResult,
+  PoracodeBridge,
+} from "@/shared/ipc";
 import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/shared/remote";
@@ -24,6 +29,13 @@ import { watchRemoteTerminal } from "./remoteTerminalFeed";
 import { remoteProjectId, remoteThreadId } from "./remoteProjection";
 import { renameProject } from "../actions/projectActions";
 import { routeRemoteProcedure } from "../remoteProcedureRouter";
+import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import {
+  resetBrowserMirror,
+  startBrowserWatch,
+  stopBrowserWatch,
+} from "@/renderer/browser/browserMirror";
+import { useBrowserPanelStore } from "./browserPanelStore";
 
 async function invokeRemoteRoute<Name extends IpcProcedureName>(
   procedure: Name,
@@ -39,6 +51,13 @@ const bridge = vi.hoisted(() => ({
   remoteHttpRequest: vi.fn<() => Promise<unknown>>(),
 }));
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
+
+const browserBridge = vi.hoisted(() => ({
+  setClient: vi.fn<(client: RemoteDesktopClient | null) => void>(),
+}));
+vi.mock("@/renderer/browser/remoteBridge", () => ({
+  setRemoteBridgeClient: (client: RemoteDesktopClient | null) => browserBridge.setClient(client),
+}));
 
 // Hydration into the shared runtime store is covered by storeSync's own tests;
 // here we only assert the remote store calls it.
@@ -213,6 +232,7 @@ function makeClient(opts?: {
   closeShell?: RemoteDesktopClient["closeShell"];
   callRemoteProcedure?: RemoteDesktopClient["callRemoteProcedure"];
   checkHostUpdate?: RemoteDesktopClient["checkHostUpdate"];
+  settings?: RemoteDesktopClient["settings"];
 }): RemoteDesktopClient {
   return {
     exchangePairingCredential: async () => ({
@@ -272,6 +292,7 @@ function makeClient(opts?: {
     checkHostUpdate:
       opts?.checkHostUpdate ??
       (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
+    settings: opts?.settings ?? (async () => ({})),
   } as unknown as RemoteDesktopClient;
 }
 
@@ -293,7 +314,7 @@ async function pairIsolated(socketFactory: RemoteSocketFactory): Promise<void> {
 describe("useRemoteServersStore", () => {
   let uninstallWorkspaceSync: (() => void) | null = null;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
     // Pairing now opens a per-server event socket; fully reset process-local
     // connection state so sockets/timers/seq cursors don't bleed across tests.
@@ -317,17 +338,218 @@ describe("useRemoteServersStore", () => {
     sync.applyThreadSnapshot.mockClear();
     sync.dispatchRemoteSupervisorEvent.mockClear();
     toastDanger.mockClear();
+    browserBridge.setClient.mockClear();
     bridge.sshConnect.mockReset();
     bridge.sshDisconnect.mockClear();
     bridge.remoteHttpRequest.mockReset();
     // Mirrors the app-level wiring (app.tsx installs this at mount).
     uninstallWorkspaceSync = installRemoteProjectWorkspaceSync();
+    await vi.waitFor(() => {
+      const persistedServers = JSON.parse(localStorage.getItem("poracode-remote-servers")!).state
+        .servers;
+      if (persistedServers.length !== 0)
+        throw new Error("Remote server reset is not persisted yet");
+    });
   });
 
   afterEach(() => {
     uninstallWorkspaceSync?.();
     uninstallWorkspaceSync = null;
     vi.useRealTimers();
+    resetClientRuntimeForTest();
+    window.poracode = undefined as unknown as typeof window.poracode;
+  });
+
+  it("keeps one browser action client across refreshes of the same host", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const client = makeClient();
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://desktop-one.test/",
+          accessToken: "token-one",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        d1: { status: "online", projects: [proj], threads: [] },
+      },
+    });
+
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await useRemoteServersStore.getState().refreshServer("d1");
+
+    expect(browserBridge.setClient).toHaveBeenCalledTimes(1);
+    expect(browserBridge.setClient).toHaveBeenCalledWith(client);
+  });
+
+  it("routes the selected desktop event socket to the browser mirror", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    resetBrowserMirror();
+    const sent: string[] = [];
+    const socket = makeSocket({ send: (message) => sent.push(message) });
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    startBrowserWatch();
+
+    expect(sent.map((message) => JSON.parse(message))).toContainEqual({ type: "browser-watch" });
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "browser-state",
+        state: {
+          activeTabId: "tab-1",
+          tabs: [
+            {
+              tabId: "tab-1",
+              title: "Example",
+              url: "https://example.com/",
+              loading: false,
+              canGoBack: false,
+              canGoForward: false,
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(useBrowserPanelStore.getState().activeTabId).toBe("tab-1");
+    stopBrowserWatch();
+    resetBrowserMirror();
+  });
+
+  it("hydrates browser model settings from the selected host's agent statuses", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const remoteStatus = {
+      kind: "codex",
+      label: "Codex on desktop",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        models: [],
+        efforts: [],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal",
+        presentationMode: "terminal",
+        settingDefs: [],
+      },
+    } as AgentStatus;
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          agentStatuses: async () => ({
+            windows: [remoteStatus],
+            wsl: [],
+            updatedAt: "now",
+          }),
+        }),
+      ),
+    );
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([remoteStatus]);
+  });
+
+  it("switches browser actions to another online host when the active host fails", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const firstSnapshot = vi
+      .fn<RemoteDesktopClient["snapshot"]>()
+      .mockResolvedValueOnce({
+        snapshotSeq: 1,
+        projects: [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      })
+      .mockRejectedValueOnce(new Error("offline"));
+    const first = makeClient({ snapshot: firstSnapshot });
+    const second = makeClient({ snapshotProjects: [proj2] });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory((endpoint) => (endpoint.includes("desktop-one") ? first : second));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://desktop-one.test/",
+          accessToken: "token-one",
+          scopes: [],
+        },
+        {
+          desktopId: "d2",
+          label: "Server Two",
+          endpoint: "http://desktop-two.test/",
+          accessToken: "token-two",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        d1: { status: "online", projects: [proj], threads: [] },
+        d2: { status: "online", projects: [proj2], threads: [] },
+      },
+    });
+
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await useRemoteServersStore.getState().refreshServer("d1");
+
+    expect(browserBridge.setClient).toHaveBeenLastCalledWith(second);
+  });
+
+  it("keeps the active browser action client while its only host reconnects", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const snapshot = vi
+      .fn<RemoteDesktopClient["snapshot"]>()
+      .mockResolvedValueOnce({
+        snapshotSeq: 1,
+        projects: [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      })
+      .mockRejectedValueOnce(new Error("offline"));
+    const client = makeClient({ snapshot });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://desktop-one.test/",
+          accessToken: "token-one",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        d1: { status: "online", projects: [proj], threads: [] },
+      },
+    });
+
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await useRemoteServersStore.getState().refreshServer("d1");
+
+    expect(browserBridge.setClient).toHaveBeenCalledOnce();
+    expect(browserBridge.setClient).toHaveBeenLastCalledWith(client);
   });
 
   it("automatically checks for updates when a desktop host is paired", async () => {
@@ -643,9 +865,43 @@ describe("useRemoteServersStore", () => {
 
     expect(useRemoteServersStore.getState().servers[0]?.label).toBe("Mac Studio");
     expect(useRemoteServersStore.getState().servers[0]?.remoteLabel).toBe("Server One");
-    expect(
-      JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.servers[0].label,
-    ).toBe("Mac Studio");
+    await vi.waitFor(() => {
+      expect(
+        JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.servers[0].label,
+      ).toBe("Mac Studio");
+    });
+  });
+
+  it("hydrates persisted servers before the initial reconnect pass", async () => {
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => makeClient().snapshot());
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    const persist = useRemoteServersStore.persist;
+    const originalHasHydrated = persist.hasHydrated;
+    const originalRehydrate = persist.rehydrate;
+    persist.hasHydrated = vi.fn<() => boolean>(() => false);
+    persist.rehydrate = vi.fn<() => Promise<void>>(async () => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "d1",
+            label: "Server One",
+            endpoint: "http://192.168.1.9:38987/",
+            accessToken: "acc-token",
+            scopes: ["session:read", "projects:manage"],
+          },
+        ],
+      });
+    });
+
+    try {
+      await useRemoteServersStore.getState().connectAll();
+      expect(persist.rehydrate).toHaveBeenCalledOnce();
+      expect(snapshot).toHaveBeenCalledOnce();
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    } finally {
+      persist.hasHydrated = originalHasHydrated;
+      persist.rehydrate = originalRehydrate;
+    }
   });
 
   it("restores last-known remote projects when a persisted server is offline", async () => {
@@ -663,6 +919,11 @@ describe("useRemoteServersStore", () => {
       projectWorkspaceIds: { d1: { p1: "workspace-1" } },
       projectNameOverrides: { d1: { p1: "Pinned Remote App" } },
     });
+    await vi.waitFor(() => {
+      expect(
+        JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.lastKnownProjects.d1,
+      ).toEqual([proj]);
+    });
     const persisted = localStorage.getItem("poracode-remote-servers")!;
 
     __resetRemoteServersStoreForTest();
@@ -671,8 +932,19 @@ describe("useRemoteServersStore", () => {
       threads: state.threads.filter((thread) => thread.remoteServerId !== "d1"),
     }));
     useRemoteServersStore.setState({ servers: [], runtime: {}, lastKnownProjects: {} });
+    await vi.waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.servers).toEqual(
+        [],
+      );
+    });
     localStorage.setItem("poracode-remote-servers", persisted);
     await useRemoteServersStore.persist.rehydrate();
+    expect(useRemoteServersStore.getState().projectWorkspaceIds).toEqual({
+      d1: { p1: "workspace-1" },
+    });
+    expect(useRemoteServersStore.getState().projectNameOverrides).toEqual({
+      d1: { p1: "Pinned Remote App" },
+    });
     const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
       throw new Error("offline");
     });
@@ -731,12 +1003,14 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("local-workspace");
     expect(useRemoteServersStore.getState().projectNameOverrides.d1?.p1).toBe("Local Project");
     expect(projectCommand).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state).toEqual(
-      expect.objectContaining({
-        projectWorkspaceIds: { d1: { p1: "local-workspace" } },
-        projectNameOverrides: { d1: { p1: "Local Project" } },
-      }),
-    );
+    await vi.waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state).toEqual(
+        expect.objectContaining({
+          projectWorkspaceIds: { d1: { p1: "local-workspace" } },
+          projectNameOverrides: { d1: { p1: "Local Project" } },
+        }),
+      );
+    });
 
     __resetRemoteServersStoreForTest();
     useRemoteServersStore.setState({ runtime: {} });
@@ -1081,7 +1355,7 @@ describe("useRemoteServersStore", () => {
     });
   });
 
-  it("stops reconnecting when the event stream reports an expired session", async () => {
+  it("retries an expired event stream session at the slower authorization interval", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
@@ -1100,8 +1374,45 @@ describe("useRemoteServersStore", () => {
       status: "error",
       message: "Pairing expired — pair again to reconnect.",
     });
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(59_999);
     expect(socketFactory).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries an unauthorized websocket ticket at the slower authorization interval", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const websocketTicket = vi
+      .fn<RemoteDesktopClient["websocketTicket"]>()
+      .mockResolvedValueOnce("ticket-1")
+      .mockRejectedValueOnce(new RemoteClientError("Missing access token.", 401, "unauthorized"))
+      .mockResolvedValueOnce("ticket-3");
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ websocketTicket })));
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    sockets[0]?.onclose?.();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "error",
+      message: "Pairing expired — pair again to reconnect.",
+    });
+
+    await vi.advanceTimersByTimeAsync(59_499);
+    expect(websocketTicket).toHaveBeenCalledTimes(2);
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(501);
+    expect(websocketTicket).toHaveBeenCalledTimes(3);
+    expect(socketFactory).toHaveBeenCalledTimes(2);
   });
 
   it("marks a server offline when its event stream reconnect cannot reach it", async () => {

@@ -39,6 +39,7 @@ export interface BackendDurableServicesOptions {
   getSharedSettings(): SharedSettings;
   writeSharedSettings(settings: SharedSettings): void;
   sendThreadCommand(command: RemoteThreadCommand): boolean;
+  emitRemoteThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   publishProjectsChanged(): void;
   hasRendererWindow: boolean;
   openThreadInUi(threadId: string): boolean;
@@ -144,7 +145,7 @@ export class BackendDurableServices {
       supervisor: createAppControlsSupervisorCaller((name, payload) =>
         supervisor.call(name, payload),
       ),
-      emitRemoteThreadCommand: options.sendThreadCommand,
+      emitRemoteThreadCommand: options.emitRemoteThreadCommand ?? options.sendThreadCommand,
       openThreadInUi: options.openThreadInUi,
       notifyUser: options.notifyUser,
       checkForUpdate: options.checkForUpdate,

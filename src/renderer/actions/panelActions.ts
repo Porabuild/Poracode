@@ -14,7 +14,10 @@ import {
   type RightPanelTab,
 } from "@/renderer/state/panelStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  selectBrowserPanelAvailable,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useThreadTodoDockStore,
@@ -138,6 +141,16 @@ export function openNotesPanel(): void {
   panelStore.openNotesPanel();
 }
 
+/** Open the mobile remote-port forwarding panel, or close it when already active. */
+export function openPortsPanel(): void {
+  const panelStore = usePanelStore.getState();
+  if (panelStore.portsPanelOpen && panelStore.rightPanelTab === "ports") {
+    closeAllPanels();
+    return;
+  }
+  panelStore.openPortsPanel();
+}
+
 /**
  * Toggle the docked browser panel: reveal it (switching the right panel to the
  * browser tab) when it's hidden, or hide it when it's already the active right
@@ -145,6 +158,7 @@ export function openNotesPanel(): void {
  * keeping the two entry points in lockstep.
  */
 export function toggleBrowserPanel(): void {
+  if (!selectBrowserPanelAvailable(useRemoteServersStore.getState())) return;
   const panelStore = usePanelStore.getState();
   if (panelStore.browserPanelOpen && panelStore.rightPanelTab === "browser") {
     panelStore.setBrowserPanelOpen(false);

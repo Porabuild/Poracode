@@ -128,7 +128,7 @@ jobs:
       - name: Build web assets
         env:
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
-        run: pnpm run build:mobile
+        run: pnpm run build:web
       - name: Sync Capacitor
         env:
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
@@ -222,7 +222,7 @@ jobs:
       - name: Build web assets
         env:
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
-        run: pnpm run build:mobile
+        run: pnpm run build:web
       - name: Sync Capacitor
         env:
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}

@@ -123,6 +123,7 @@ interface PanelState {
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
+  portsPanelOpen: boolean;
   browserOverlayOpen: boolean;
   browserOverlayMaximized: boolean;
   browserOverlayDrawerWidth: number;
@@ -160,6 +161,8 @@ interface PanelState {
   openUsagePanel: () => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
+  setPortsPanelOpen: (v: boolean) => void;
+  openPortsPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
   setBrowserOverlayMaximized: (v: boolean) => void;
   setBrowserOverlayDrawerWidth: (v: number) => void;
@@ -299,6 +302,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
+  portsPanelOpen: false,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
   browserOverlayDrawerWidth: clampDrawerWidth(
@@ -532,6 +536,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ? {}
         : { notesPanelOpen: true, rightPanelTab: "notes" as const },
     ),
+  setPortsPanelOpen: (v) =>
+    set((state) => (state.portsPanelOpen === v ? {} : { portsPanelOpen: v })),
+  openPortsPanel: () =>
+    set((state) =>
+      state.portsPanelOpen && state.rightPanelTab === "ports"
+        ? {}
+        : { portsPanelOpen: true, rightPanelTab: "ports" as const },
+    ),
   setThreadSortMode: (mode) =>
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
   setThreadListLayout: (layout) =>
@@ -582,6 +594,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("browser") ? {} : { browserPanelOpen: false }),
         ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
+        portsPanelOpen: false,
         subAgentPanelOpen: false,
         rightPanelSplit: null,
       };
@@ -592,6 +605,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         (next.browserPanelOpen === undefined || !state.browserPanelOpen) &&
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
         (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&
+        !state.portsPanelOpen &&
         state.rightPanelSplit === null;
       return alreadyClosed ? {} : next;
     });

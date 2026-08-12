@@ -17,15 +17,16 @@ import {
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
  * stores the desktop renderer uses, so reused components (ChatPane,
  * ThreadComposerSection, ThreadDraftView, sidebar selectors) work unchanged.
- * This module is the shared core of the mobile PWA's store sync
- * (`src/mobile/storeSync.ts`) and the desktop-as-client remote-servers store
- * (`src/renderer/state/remoteServersStore.ts`); both hydrate the shared,
- * threadId-keyed runtime store from remote snapshots and live event streams.
+ * This module is the canonical remote-store sync used by the browser bridge
+ * and Electron's remote-servers store. Both hydrate the shared, threadId-keyed
+ * runtime store from remote snapshots and live event streams.
  *
  * Mobile-only side effects (Live Activity push, terminal feed fan-out, mobile
  * git-summaries store) are NOT triggered here — callers attach them via the
@@ -58,6 +59,7 @@ export function applyThreadSnapshot(
   snapshot: RemoteThreadSnapshot,
   options: { readonly fromServer: boolean } = { fromServer: true },
 ): void {
+  if (isBrowserClientRuntime()) void cacheBrowserThreadSnapshot(snapshot);
   const threadId = snapshot.thread.id;
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
@@ -426,9 +428,9 @@ function flushPendingRuntimeEventsSync(threadId: string): void {
   schedulePendingRuntimeEvents();
 }
 
-/** Drop every queued runtime delta and cancel the pending flush, if any. Exposed
- * so the mobile PWA's `resetRemoteStores` (which wipes session state on
- * desktop switch/unpair) can clear the same coalescing buffer the core owns. */
+/** Drop every queued runtime delta and cancel the pending flush, if any. Used
+ * when switching or removing a remote host so stale batches cannot cross the
+ * session boundary. */
 export function clearPendingRuntimeEvents(): void {
   if (runtimeFlushHandle !== null) {
     cancelAnimationFrame(runtimeFlushHandle);

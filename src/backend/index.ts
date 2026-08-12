@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
+  isDirectRendererDatabaseProcedure,
+  isDirectRendererServiceProcedure,
   isBackendHostRequest,
+  type BackendRendererRequest,
   type BackendHostOutboundMessage,
   type BackendHostReply,
   type BackendHostRequest,
@@ -12,6 +15,7 @@ import { BackendRendererStream } from "./BackendRendererStream";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import { ipcProcedureMap, type IpcProcedureName } from "@/shared/ipc";
 
 let backendHost: BackendHostCore | null = null;
 let desktopServices: BackendDesktopServices | null = null;
@@ -147,7 +151,8 @@ async function initialize(
       reportError,
     },
     onEvent: (event) => {
-      const rendererDeliveredDirect = rendererStream?.publish(event) ?? false;
+      const rendererDelivery = rendererStream?.publish(event);
+      const rendererDeliveredDirect = rendererDelivery?.delivered ?? false;
       desktopServices?.observeSupervisorEvent(event);
       const filtered = eventRouter.filter(event);
       if (!filtered) return;
@@ -156,6 +161,7 @@ async function initialize(
         version: BACKEND_HOST_PROTOCOL_VERSION,
         kind: "supervisor-event",
         event: filtered,
+        ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
         ...(rendererDeliveredDirect ? { rendererDeliveredDirect: true } : {}),
       });
     },
@@ -163,11 +169,13 @@ async function initialize(
       for (const event of desktopServices?.markLiveThreadsInactive() ?? []) {
         const filtered = eventRouter.filter(event);
         if (filtered) {
-          const rendererDeliveredDirect = rendererStream?.publish(filtered) ?? false;
+          const rendererDelivery = rendererStream?.publish(filtered);
+          const rendererDeliveredDirect = rendererDelivery?.delivered ?? false;
           send({
             version: BACKEND_HOST_PROTOCOL_VERSION,
             kind: "supervisor-event",
             event: filtered,
+            ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
             ...(rendererDeliveredDirect ? { rendererDeliveredDirect: true } : {}),
           });
         }
@@ -198,9 +206,47 @@ async function initialize(
         ),
         { "poracode.feature_area": "renderer-event-stream" },
       ),
+    onRequest: handleRendererRequest,
   });
   const rendererStreamInfo = await rendererStream.start();
   return { rendererStream: rendererStreamInfo };
+}
+
+async function handleRendererRequest(request: BackendRendererRequest): Promise<unknown> {
+  const procedure = ipcProcedureMap[request.name as IpcProcedureName];
+  if (!procedure) throw new Error(`Unknown renderer procedure: ${request.name}`);
+  const payload = procedure.payloadSchema.parse(request.payload);
+  if (request.operation === "supervisor") {
+    if (procedure.transport !== "supervisor") {
+      throw new Error(`Procedure ${request.name} is not owned by the supervisor.`);
+    }
+    return handleRequest({
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: request.id,
+      operation: "call-supervisor",
+      payload: { id: request.id, type: request.name, payload } as never,
+    });
+  }
+  if (request.operation === "database") {
+    if (!isDirectRendererDatabaseProcedure(request.name)) {
+      throw new Error(`Procedure ${request.name} is not a direct renderer database operation.`);
+    }
+    return handleRequest({
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: request.id,
+      operation: "call-database",
+      payload: { name: request.name, payload } as never,
+    });
+  }
+  if (!isDirectRendererServiceProcedure(request.name)) {
+    throw new Error(`Procedure ${request.name} is not a direct renderer service operation.`);
+  }
+  return handleRequest({
+    version: BACKEND_HOST_PROTOCOL_VERSION,
+    id: request.id,
+    operation: "call-service",
+    payload: { name: request.name, payload } as never,
+  });
 }
 
 async function handleRequest(request: BackendHostRequest): Promise<unknown> {

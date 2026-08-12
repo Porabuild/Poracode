@@ -16,9 +16,14 @@ import { useProjectIds } from "@/renderer/state/useThread";
 import { closeAllPanels, dismissRightOverlay } from "@/renderer/actions/panelActions";
 import { setMainPanelDropZoneElement, useIsMainPanelDropActive } from "@/renderer/dnd";
 import { DeferredFileEditorPanel } from "@/renderer/deferredFeatures";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useLingui } from "@lingui/react/macro";
+import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
+import { CompactThreadHeader } from "@/renderer/components/thread/CompactThreadHeader";
 
 export function MainPageLayout(props: { onTitleClick: () => void }) {
   const { onTitleClick } = props;
+  const { t } = useLingui();
   const channel = readBridge().channel;
   const isDev = import.meta.env.DEV;
   // Keep the dev / nightly tag beside the brand wordmark (the old text header
@@ -26,6 +31,37 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
   const channelSuffix = [channel === "nightly" ? "Nightly" : "", isDev ? "(dev)" : ""]
     .filter(Boolean)
     .join(" ");
+  const view = useAppStore((state) => state.view);
+  const compactThread = useAppStore((state) => {
+    if (state.view.kind !== "thread") return undefined;
+    const focusedId = state.focusedPaneId;
+    const threadId =
+      focusedId && state.view.panes.includes(focusedId) ? focusedId : state.view.panes[0];
+    return state.threads.find((thread) => thread.id === threadId);
+  });
+  const compactProject = useAppStore((state) =>
+    compactThread
+      ? state.projects.find((project) => project.id === compactThread.projectId)
+      : undefined,
+  );
+  const compactAgentStatuses = useProjectAgentStatuses(compactProject?.location);
+  const compactAgentStatus = compactAgentStatuses.find(
+    (status) => status.kind === compactThread?.agentKind,
+  );
+  const compactTitle = useAppStore((state) => {
+    if (state.view.kind === "thread") {
+      const focusedId = state.focusedPaneId;
+      const threadId =
+        focusedId && state.view.panes.includes(focusedId) ? focusedId : state.view.panes[0];
+      return (
+        state.threads.find((thread) => thread.id === threadId)?.title ?? getAppName(channel, isDev)
+      );
+    }
+    if (state.view.kind === "draft") return t`New thread`;
+    if (state.view.kind === "pullRequests") return t`Pull requests`;
+    if (state.view.kind === "schedules") return t`Schedules`;
+    return getAppName(channel, isDev);
+  });
 
   return (
     <PageLayout
@@ -43,6 +79,19 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       onTitleClick={onTitleClick}
       onRequestClosePanels={closeAllPanels}
       onDismissRightOverlay={dismissRightOverlay}
+      compactHome={view.kind === "home"}
+      compactTitle={compactTitle}
+      compactHeaderChildren={
+        compactThread && compactProject ? (
+          <CompactThreadHeader
+            thread={compactThread}
+            project={compactProject}
+            agentStatus={compactAgentStatus}
+          />
+        ) : undefined
+      }
+      onCompactBack={() => useAppStore.getState().openHome()}
+      mobileNavigation
       sidebarHeaderChildren={<SidebarHeaderControls />}
       sidebar={<Sidebar />}
       content={

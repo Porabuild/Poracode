@@ -59,6 +59,64 @@ describe("rendererEventInterests", () => {
     });
   });
 
+  it("coalesces same-turn and in-flight interest changes while preserving readiness", async () => {
+    let acknowledgeFirst!: () => void;
+    let acknowledgeSecond!: () => void;
+    mocks.setRendererEventInterests
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            acknowledgeFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            acknowledgeSecond = resolve;
+          }),
+      );
+
+    const terminal = retainRendererEventInterest("terminal", "terminal-1");
+    const runtime = retainRendererEventInterest("runtime", "runtime-1");
+    await vi.waitFor(() => expect(mocks.setRendererEventInterests).toHaveBeenCalledTimes(1));
+    expect(mocks.setRendererEventInterests).toHaveBeenLastCalledWith({
+      terminalThreadIds: ["terminal-1"],
+      runtimeThreadIds: ["runtime-1"],
+    });
+
+    let trailingReady = false;
+    const trailing = retainRendererEventInterest("terminal", "terminal-2");
+    void trailing.ready.then(() => {
+      trailingReady = true;
+    });
+    expect(mocks.setRendererEventInterests).toHaveBeenCalledTimes(1);
+
+    acknowledgeFirst();
+    await Promise.all([terminal.ready, runtime.ready]);
+    expect(trailingReady).toBe(false);
+    await vi.waitFor(() => expect(mocks.setRendererEventInterests).toHaveBeenCalledTimes(2));
+    expect(mocks.setRendererEventInterests).toHaveBeenLastCalledWith({
+      terminalThreadIds: ["terminal-1", "terminal-2"],
+      runtimeThreadIds: ["runtime-1"],
+    });
+
+    acknowledgeSecond();
+    await trailing.ready;
+    expect(trailingReady).toBe(true);
+
+    terminal.release();
+    runtime.release();
+    trailing.release();
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.waitFor(() =>
+      expect(mocks.setRendererEventInterests).toHaveBeenLastCalledWith({
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+      }),
+    );
+    expect(mocks.setRendererEventInterests).toHaveBeenCalledTimes(3);
+  });
+
   it("leaves remote-session interests to the remote socket coordinator", async () => {
     mocks.remoteSession = true;
 

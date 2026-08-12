@@ -82,7 +82,7 @@ export interface RemoteAccessServerOptions {
   readonly hostMode?: RemoteHostMode;
   readonly identity: RemoteAccessIdentity;
   /**
-   * Whether the hosting process is running in development mode. Loopback PWA
+   * Whether the hosting process is running in development mode. Loopback web
    * origins are trusted in every mode so a localhost development client can
    * connect to any packaged or headless Poracode app.
    */
@@ -119,12 +119,11 @@ export interface RemoteAccessServerOptions {
    */
   readonly maxWebSocketOutboundBufferBytes?: number;
   /**
-   * Dev-mode URL of the mobile PWA on the Vite dev server (e.g.
-   * `http://192.168.1.5:3100/mobile.html`). Pairing links are minted on this
-   * origin with the desktop API in `?host=...`, and `/app`/`/pair` still
-   * redirect there as a fallback so the phone gets hot reload.
+   * Dev-mode URL of the canonical browser app on the Vite dev server. Pairing
+   * links are minted on this origin with the desktop API in `?host=...`, and
+   * the remote server root redirects there so any browser gets hot reload.
    */
-  readonly devMobileAppUrl?: string;
+  readonly devWebAppUrl?: string;
   readonly port: number;
   /** Same-port retries absorb brief listener overlap during app relaunches. */
   readonly listenRetryAttempts?: number;
@@ -152,7 +151,7 @@ export interface RemoteAccessServerOptions {
    * thread metadata and persists it. Returns false when no renderer window is
    * available to receive the command.
    */
-  dispatchThreadCommand?(command: RemoteThreadCommand): boolean;
+  dispatchThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
   resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
@@ -242,12 +241,12 @@ export interface RemoteAccessServerOptions {
  * Event `type`s a remote client actually consumes, so only these are buffered
  * on the replayable stream and broadcast. Chatty supervisor events no remote
  * client reads (`lsp-message`, `git-changed`, `project-tree-changed`,
- * `provider-usage*`, `agent-detected`, `thread-osc-*`) waste phone bandwidth
+ * `provider-usage*`, `agent-detected`, `thread-osc-*`) waste client bandwidth
  * and churn the bounded replay buffer (causing spurious resync-required), so we
  * drop them here.
  *
  * Derived from the remote client consumers (kept in sync with them):
- * - `src/mobile/storeSync.ts` `dispatchRemoteSupervisorEvent`: the
+ * - `src/renderer/state/remote/sync.ts` `dispatchRemoteSupervisorEvent`: the
  *   `thread-runtime-event(s)[-multi]` pre-pass (live chat content), the
  *   `remote-git-summaries` out-of-band handler, and the switch cases
  *   (`thread-state`, `thread-pending-steer`, `thread-reset`, `thread-exited`,
@@ -649,7 +648,7 @@ export class RemoteAccessServer {
   }
 
   private mintPairingUrl(httpBaseUrl: string, credential: string): string {
-    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devMobileAppUrl;
+    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devWebAppUrl;
     return buildPairingUrl({
       httpBaseUrl,
       credential,

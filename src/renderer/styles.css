@@ -199,6 +199,56 @@
   }
 }
 
+/* Pairing handshake: signal rings pushing out from the link core while a
+   marker sweeps its orbit. Device-agnostic — the client can be a phone, a
+   tablet, or another desktop, so nothing here depicts a specific device. */
+@keyframes poracode-pair-ripple {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes poracode-pair-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.poracode-pair-ripple {
+  animation: poracode-pair-ripple 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+.poracode-pair-ripple-2 {
+  animation-delay: 0.8s;
+}
+
+.poracode-pair-ripple-3 {
+  animation-delay: 1.6s;
+}
+
+.poracode-pair-orbit {
+  animation: poracode-pair-orbit 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poracode-pair-ripple {
+    animation: none;
+    opacity: 0.28;
+    transform: scale(0.8);
+  }
+  .poracode-pair-orbit {
+    animation: none;
+  }
+}
+
 .poracode-welcome-page {
   background:
     linear-gradient(
@@ -1343,6 +1393,1043 @@ html[data-window-kind="quickComposer"] #root {
   box-sizing: border-box;
   padding-top: env(titlebar-area-height, 0px);
   background: var(--content-background);
+}
+
+/* The canonical renderer becomes a phone/tablet layout at the same breakpoint
+   used by its React adaptive-layout subscription. This is viewport-driven:
+   no device or user-agent switch is involved, and resizing back restores the
+   docked desktop shell without remounting projects or threads. */
+html[data-compact-layout] {
+  --m-tap-min: 44px;
+  --m-list-row-border: none;
+  --m-list-row-radius: 0.625rem;
+  --m-list-row-surface: color-mix(in oklab, var(--foreground) 4%, transparent);
+  --m-floating-control-height: var(--m-tap-min);
+  --m-floating-control-line-height: calc(var(--m-floating-control-height) - 2px);
+  --m-floating-control-gap: 0.625rem;
+  --m-floating-control-radius: 999px;
+  --m-floating-control-inner-size: calc(var(--m-floating-control-height) - 0.5rem);
+  --m-glass-alpha: 64%;
+  --m-glass-surface: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) var(--m-glass-alpha),
+    transparent
+  );
+  --m-glass-card-surface: color-mix(
+    in oklab,
+    var(--m-glass-surface) 75%,
+    var(--composer-surface, var(--surface, var(--content-background)))
+  );
+  --m-glass-border: var(--hairline, var(--border));
+  --m-glass-blur: blur(12px);
+  --m-floating-control-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  overscroll-behavior: none;
+}
+
+/* The dark Poracode preset uses true black for mobile page backgrounds so the
+   shared shell, full-screen routes, and safe-area backdrop stay OLED-friendly. */
+html[data-compact-layout][data-theme="dark"][data-theme-preset="default"] {
+  --background: #000;
+  --content-background: #000;
+}
+
+html[data-compact-layout]:not([data-mobile-platform="ios"]) {
+  --m-glass-alpha: 70%;
+}
+
+html[data-compact-layout][data-mobile-platform="windows"] {
+  --m-glass-alpha: 96%;
+}
+
+html[data-compact-layout],
+html[data-compact-layout] body,
+html[data-compact-layout] #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+html[data-compact-layout] #root {
+  position: fixed;
+  inset: 0;
+}
+
+html[data-compact-layout] .poracode-shell {
+  width: 100%;
+  height: 100dvh;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+html[data-compact-layout] .poracode-overlay-header {
+  box-sizing: border-box;
+  height: calc(var(--m-tap-min) + env(safe-area-inset-top)) !important;
+  padding-top: env(safe-area-inset-top);
+}
+
+html[data-compact-layout] .poracode-sidebar-aside--overlay {
+  width: 100vw !important;
+  min-width: 100vw !important;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Phone navigation is a real page, not a desktop drawer. The canonical
+   sidebar and content stay mounted on both sides of the transition so thread
+   runtimes, terminal buffers, and composer state survive back navigation. */
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation][data-mobile-home]
+  .poracode-sidebar-aside {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  border: 0;
+  background: var(--background);
+  box-shadow: none;
+  visibility: visible;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation][data-mobile-home]
+  [data-poracode-shell-content] {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  .poracode-sidebar-aside {
+  position: absolute !important;
+  inset: 0 auto 0 0 !important;
+  transform: translateX(-100%) !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  .poracode-sidebar-spacer {
+  display: none;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  [data-poracode-shell-content] {
+  width: 100%;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation][data-mobile-home]
+  .poracode-overlay-header {
+  position: relative;
+  z-index: 7;
+  justify-content: center;
+  border: 0;
+  background: color-mix(in oklab, var(--background) 78%, transparent) !important;
+  backdrop-filter: saturate(140%) blur(16px);
+  -webkit-backdrop-filter: saturate(140%) blur(16px);
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation][data-mobile-home]
+  .poracode-overlay-header
+  > :first-child {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation][data-mobile-home]
+  .poracode-overlay-header
+  .poracode-sidebar-wordmark {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+html[data-compact-layout] .poracode-mobile-home-status {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 0.375rem);
+  left: calc(50% + 3.75rem);
+  z-index: 1;
+}
+
+html[data-compact-layout] .poracode-mobile-home-status [data-slot="button"] {
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+}
+
+html[data-compact-layout] .poracode-main-sidebar > div:last-child {
+  min-width: 0 !important;
+  gap: 0;
+  padding-inline: 0.5rem;
+}
+
+html[data-compact-layout] .poracode-flat-list-head {
+  padding: 0.375rem 0 0.5rem;
+}
+
+html[data-compact-layout] .poracode-flat-thread-scroll {
+  margin-right: 0;
+  padding-right: 0;
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keep compact sidebar rows light: a faint resting surface communicates the
+   tap target without the weight of a card border. */
+html[data-compact-layout] .poracode-sidebar-thread-row {
+  min-height: 3.25rem;
+  gap: 0.625rem;
+  margin-bottom: 0.25rem;
+  border: var(--m-list-row-border);
+  border-radius: var(--m-list-row-radius);
+  background: var(--m-list-row-surface);
+  padding: 0.5rem 0.625rem;
+  cursor: pointer;
+}
+
+html[data-compact-layout] .poracode-sidebar-thread-row:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+html[data-compact-layout] .poracode-sidebar-touch-row {
+  min-height: var(--m-tap-min);
+  padding-block: 0.25rem;
+}
+
+@media (hover: none), (pointer: coarse) {
+  html[data-compact-layout] .poracode-sidebar-thread-row:hover {
+    background: var(--m-list-row-surface);
+  }
+
+  html[data-compact-layout] .poracode-sidebar-touch-row:hover {
+    background: transparent;
+  }
+}
+
+html[data-compact-layout] .m-home-compose-actions {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 6;
+  display: flex;
+  height: var(--m-floating-control-height);
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+html[data-compact-layout]
+  .poracode-shell:has(.m-compose-dock[data-expanded])
+  .m-home-compose-actions {
+  transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Same capsule as the composer pill they flank: identical height, radius,
+   material, hairline and shadow — only the width differs. Every value reads
+   from the shared floating-control tokens, so the bottom line cannot end up
+   with circles taller (or darker) than the pill between them. */
+html[data-compact-layout] .m-home-compose-action {
+  width: var(--m-floating-control-height);
+  min-width: var(--m-floating-control-height);
+  height: var(--m-floating-control-height);
+  min-height: var(--m-floating-control-height);
+  border: 1px solid var(--m-glass-border);
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
+  color: var(--foreground);
+  pointer-events: auto;
+  box-shadow: var(--m-floating-control-shadow);
+  backdrop-filter: var(--m-glass-blur);
+  -webkit-backdrop-filter: var(--m-glass-blur);
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-compact-layout] .m-home-compose-action:active,
+html[data-compact-layout] .m-home-compose-action[data-pressed="true"] {
+  background: color-mix(in oklab, var(--foreground) 10%, var(--m-glass-surface));
+  transform: scale(0.94);
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  .poracode-overlay-header {
+  border-bottom: 1px solid var(--hairline, var(--border));
+  background: color-mix(in oklab, var(--background) 72%, transparent) !important;
+  backdrop-filter: saturate(140%) blur(18px);
+  -webkit-backdrop-filter: saturate(140%) blur(18px);
+}
+
+/* Compact browser pages do not have native traffic lights. Clear the shared
+   macOS header pad so the mobile back affordance stays aligned with the page. */
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]
+  .poracode-overlay-header.poracode-mac-traffic-light-pad {
+  padding-left: 0.5rem;
+}
+
+/* The master PWA kept status, title, usage and actions in one top bar. */
+html[data-compact-layout] .poracode-thread-pane-header[data-compact] {
+  display: none;
+}
+
+html[data-compact-layout] .poracode-compact-content-header {
+  height: var(--m-tap-min);
+  gap: 0;
+}
+
+html[data-compact-layout] .m-back {
+  width: var(--m-tap-min);
+  min-width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  min-height: var(--m-tap-min);
+  margin-left: -0.5rem;
+  border-radius: 0.5rem;
+}
+
+html[data-compact-layout] .m-topbar__thread-row {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0;
+}
+
+html[data-compact-layout] .m-topbar__thread {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+html[data-compact-layout] .m-topbar__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+html[data-compact-layout] .m-topbar__actions,
+html[data-compact-layout] .m-usage-chip {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  min-width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  min-height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+}
+
+html[data-compact-layout] .m-thread-bar {
+  display: flex;
+  width: 100%;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+}
+
+html[data-compact-layout] .m-thread {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+html[data-compact-layout] .m-ws-chip {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.125rem 0.375rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-compact-layout] .m-ws-chip:active {
+  background: var(--row-hover);
+}
+
+html[data-compact-layout] .m-ws-chip__main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  gap: 0.375rem;
+  overflow: hidden;
+}
+
+html[data-compact-layout] .m-ws-chip__project {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+html[data-compact-layout] .m-ws-chip__sep {
+  flex: none;
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+html[data-compact-layout] .m-ws-chip__branch {
+  min-width: 1.5rem;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+html[data-compact-layout] .m-ws-chip__meta,
+html[data-compact-layout] .m-git-counts,
+html[data-compact-layout] .m-git-pr {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+html[data-compact-layout] .m-thread:not(.m-thread--terminal) .m-thread-content {
+  padding-bottom: 0;
+}
+
+html[data-compact-layout] .m-thread .m-thread-content [data-poracode-chat-scroller] {
+  padding-bottom: 0;
+}
+
+html[data-compact-layout] .m-thread .m-thread-content [data-chat-virtual-size-box="true"] {
+  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
+}
+
+html[data-compact-layout] .m-thread .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {
+  bottom: calc(
+    1.75rem + env(safe-area-inset-bottom) +
+      var(--m-thread-bubble-height, var(--m-floating-control-height)) +
+      var(--m-keyboard-offset, 0px)
+  );
+  transition:
+    opacity 0.2s ease-out,
+    bottom 0.2s ease-out;
+}
+
+html[data-compact-layout]
+  .m-thread:has(.m-chip-panel)
+  .m-thread-content
+  button.bottom-4:has(svg.lucide-arrow-down) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-compact-layout] .m-thread--terminal .m-thread-content {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+html[data-compact-layout] .poracode-shell[data-mobile-navigation]:not([data-mobile-home]) main {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The old PWA's composer was a floating mobile control, not a desktop footer.
+   Keep that interaction in the canonical thread tree: the transcript and PTY
+   stay mounted while this surface floats over their bottom edge. */
+html[data-compact-layout] .poracode-thread-composer-section {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 12;
+  filter: drop-shadow(0 12px 28px rgb(0 0 0 / 0.32));
+}
+
+html[data-compact-layout] .poracode-thread-composer-toggle-host {
+  height: 0;
+}
+
+html[data-compact-layout]
+  .poracode-thread-composer-section[data-compact-collapsed]
+  .poracode-thread-composer-toggle-host {
+  height: 3rem;
+}
+
+html[data-compact-layout]
+  .poracode-thread-composer-section[data-compact-collapsed]
+  .poracode-thread-composer-toggle {
+  inset: 0;
+  width: 100%;
+  min-height: 3rem;
+  justify-content: space-between;
+  padding: 0 1rem;
+  border-color: color-mix(in oklab, var(--foreground) 7%, transparent);
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.28),
+    0 12px 32px rgb(0 0 0 / 0.24);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-compact-layout]
+  [data-poracode-thread-pane]:has(.poracode-thread-composer-section[data-compact-collapsed])
+  [data-chat-virtual-size-box="true"] {
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+html[data-compact-layout]
+  [data-poracode-thread-pane]:has(.poracode-thread-composer-section:not([data-compact-collapsed]))
+  [data-chat-virtual-size-box="true"] {
+  padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+}
+
+html[data-compact-layout] [data-slot="button"] {
+  min-height: var(--m-tap-min);
+}
+
+html[data-compact-layout] [data-slot="button"].button--icon-only {
+  min-width: var(--m-tap-min);
+}
+
+html[data-compact-layout] .poracode-sidebar-body [role="button"],
+html[data-compact-layout] .m-sheet [role="button"] {
+  min-height: var(--m-tap-min);
+}
+
+/* Shared responsive menus use the same bottom-sheet DOM in every host. These
+   rules used to ship only in the separate mobile bundle. Keeping the compact
+   subset here lets Electron and Chrome switch presentation live. */
+.m-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: color-mix(in oklab, var(--background) 45%, transparent);
+  animation: poracode-sheet-backdrop-in 0.2s ease;
+}
+
+.m-sheet-backdrop[data-closing] {
+  animation: poracode-sheet-backdrop-out 0.2s cubic-bezier(1, 0, 0.68, 0.28) forwards;
+}
+
+.m-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+}
+
+.m-sheet {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-height: 65dvh;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem 1rem 0 0;
+  background: var(--sidebar-background, var(--background));
+  padding: 0.375rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  transform: translateY(var(--m-sheet-drag-y, 0));
+  animation: poracode-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  transition:
+    height 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+    max-height 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-sheet[data-expanded] {
+  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+}
+
+.m-sheet[data-full-screen] {
+  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+}
+
+.m-sheet[data-dragging] {
+  transition: none;
+}
+
+.m-sheet-backdrop[data-closing] .m-sheet {
+  animation: poracode-sheet-out 0.2s cubic-bezier(1, 0, 0.68, 0.28) forwards;
+}
+
+.m-sheet-grabber {
+  display: flex;
+  height: 1.125rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.m-sheet-grabber span {
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 24%, transparent);
+}
+
+.m-sheet-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.125rem 0.5rem 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.m-sheet-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+  overflow-y: auto;
+}
+
+/* Action rows inside bottom sheets. Shared by menus, connection actions, and
+   composer pickers — keep the same radius as compact list rows. */
+.m-sheet-action {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min, 44px);
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: var(--m-list-row-radius, 0.625rem);
+  background: transparent;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-sheet-action--split {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.m-sheet-action:active {
+  background: var(--row-hover);
+}
+
+@media (hover: hover) {
+  .m-sheet-action:hover {
+    background: var(--row-hover);
+  }
+}
+
+.m-sheet-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.m-sheet-action[data-static="true"] {
+  cursor: default;
+}
+
+.m-sheet-section {
+  padding: 0.375rem 0.625rem 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Shared list rows for mobile Connections, Projects, and Ports. Compact mode
+   supplies a lighter borderless surface while wider panels keep card chrome. */
+.m-thread-row {
+  display: flex;
+  width: 100%;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.625rem;
+  border: var(
+    --m-list-row-border,
+    1px solid color-mix(in oklab, var(--foreground) 8%, transparent)
+  );
+  border-radius: var(--m-list-row-radius, 1.25rem);
+  background: var(
+    --m-list-row-surface,
+    color-mix(
+      in oklab,
+      var(--surface-tertiary, var(--surface, var(--content-background))) 92%,
+      black
+    )
+  );
+  padding: 0.625rem 0.75rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.m-thread-row:hover {
+  background: var(--row-hover);
+}
+
+.m-thread-row:active,
+.m-thread-row[data-active="true"] {
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-thread-row__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.m-thread-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}
+
+.m-thread-row[data-live="true"] .m-thread-row__title {
+  color: var(--foreground);
+}
+
+.m-thread-row__title[data-done="true"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.m-thread-row__meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-thread-row__meta-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.1875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-thread-row__meta-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-thread-row__side {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted);
+}
+
+.m-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+
+.m-empty__icon {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem;
+  background: var(--surface, var(--content-background));
+  color: var(--muted);
+}
+
+.m-empty strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.m-empty p {
+  margin: 0;
+  max-width: 26rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Keep the last connection row clear of the floating + button. */
+.m-page--fab {
+  padding-bottom: calc(1rem + 3rem + env(safe-area-inset-bottom));
+}
+
+/* Nightly mobile settings index. The canonical settings sections still own
+   their state and actions; these classes only restore the old PWA navigation
+   density and card presentation on compact layouts. */
+.m-page {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 0.75rem 0.875rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.m-more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.m-more-row {
+  display: flex;
+  width: 100%;
+  min-height: 3.25rem;
+  flex: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.625rem;
+  border: var(--m-list-row-border, 1px solid var(--hairline, var(--border)));
+  border-radius: var(--m-list-row-radius, 0.625rem);
+  background: var(--m-list-row-surface, var(--surface, var(--content-background)));
+  padding: 0.5rem 0.625rem;
+  color: inherit;
+  text-align: left;
+}
+
+.m-more-row:active {
+  background: var(--row-hover);
+}
+
+.m-more-row__icon {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.5rem;
+  color: var(--muted);
+}
+
+.m-more-row__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.m-more-row__body strong {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.m-more-row__body span {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.m-settings-group__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  padding: 0 0.25rem;
+}
+
+.m-settings-group__head span {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-settings__body {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 0.625rem 0.75rem calc(5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+/* The compact header already names the active settings section. Keep the body
+   focused on the controls and use a denser type/spacing rhythm than desktop. */
+.m-settings__body .settings-page__header:not(:has(.settings-page__actions)) {
+  display: none;
+}
+
+.m-settings__body .settings-page__header:has(.settings-page__actions) {
+  justify-content: flex-end;
+  margin-bottom: 0.375rem;
+}
+
+.m-settings__body .settings-page__title {
+  display: none;
+}
+
+.m-settings__body .settings-page__description {
+  margin-bottom: 0.75rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.m-settings__body .space-y-4 > :not(:last-child) {
+  margin-block: 0 0.75rem;
+}
+
+.m-settings__body .space-y-3 > :not(:last-child) {
+  margin-block: 0 0.625rem;
+}
+
+.m-settings__body .settings-row {
+  flex-wrap: wrap;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
+
+.m-settings__body .settings-row__text {
+  flex: 1 1 13rem;
+}
+
+.m-settings__body .settings-row__title,
+.m-settings__body .text-sm {
+  font-size: 0.8125rem;
+  line-height: 1.25;
+}
+
+.m-settings__body .settings-row__description,
+.m-settings__body .text-xs {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.m-settings__body .settings-row > :not(.settings-row__text) {
+  max-width: 100%;
+}
+
+/* Mobile Select renders a sheet trigger instead of HeroUI's desktop field.
+   Present it as a compact trailing value while retaining a clear focus ring. */
+.m-settings__body .m-field-picker {
+  display: flex;
+  width: auto;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.125rem 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+
+.m-settings__body .m-field-picker:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+.m-settings__body .m-field-picker svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.m-sheet .list-box-item,
+.m-sheet .poracode-menu-item,
+.m-sheet [data-slot="input"] {
+  min-height: var(--m-tap-min, 44px);
+}
+
+@keyframes poracode-sheet-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes poracode-sheet-backdrop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes poracode-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes poracode-sheet-out {
+  from {
+    transform: translateY(var(--m-sheet-drag-y, 0));
+  }
+  to {
+    transform: translateY(100%);
+  }
 }
 
 /* macOS: add padding for traffic lights when titlebar-area-height is not available */
@@ -3357,9 +4444,8 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
    This is a container query, not a viewport media query: a 420px chat pane
    inside an 1800px window still compacts, and a full-width review stays as-is.
    .diff-view-wrapper is the library's per-diff root (w-full block), so its
-   inline-size tracks the panel width. This stylesheet is imported by both the
-   desktop renderer and the mobile entry (src/mobile/main.tsx), so one rule set
-   covers every surface, phones included.
+   inline-size tracks the panel width. The adaptive renderer uses this one
+   stylesheet for desktop and compact surfaces, so phones inherit the same rule.
 
    Each unified row nests three spans in .diff-line-num: [old-num][10px spacer]
    [new-num]. Added lines leave the old span empty, deletions leave the new span
@@ -3899,4 +4985,1145 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
 .tooltip {
   word-break: normal;
   overflow-wrap: break-word;
+}
+
+/* Canonical mobile composer dock. The real renderer composer floats over the
+   thread list as a bubble; this presentation layer owns no transport or state. */
+.m-compose-dock,
+.m-thread-compose-dock {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 5;
+  transition:
+    right 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    left 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+.m-compose-dock {
+  right: calc(0.75rem + var(--m-floating-control-height) + var(--m-floating-control-gap));
+  left: calc(0.75rem + var(--m-floating-control-height) + var(--m-floating-control-gap));
+}
+
+/* Ride above the on-screen keyboard while expanded (the dock is anchored to
+   the layout viewport, which iOS keeps full-height under the keyboard). */
+/* [data-lifted]: the locked (pinned-collapsed) thread composer still takes the
+   keyboard band while its one-line input is focused — a denial typed under an
+   open approval must not sit behind the keyboard. */
+.m-compose-dock[data-expanded],
+.m-thread-compose-dock[data-expanded],
+.m-thread-compose-dock[data-lifted] {
+  transform: translateY(calc(-1 * (var(--m-keyboard-offset, 0px) + var(--m-keyboard-gap, 0px))));
+}
+
+html[data-mobile-platform="ios"][data-mobile-standalone]
+  :is(
+    .m-compose-dock[data-expanded],
+    .m-thread-compose-dock[data-expanded],
+    .m-thread-compose-dock[data-lifted]
+  ) {
+  /* Installed PWAs have no Safari address pill between app content and the
+     keyboard accessory strip. Lift by the device's real home-indicator inset
+     instead of a fixed gap so the composer clears that strip on every iPhone. */
+  --m-keyboard-gap: env(safe-area-inset-bottom);
+}
+
+.m-compose-dock[data-expanded][data-android-runtime],
+.m-thread-compose-dock[data-expanded][data-android-runtime],
+.m-thread-compose-dock[data-lifted][data-android-runtime] {
+  /* Android resizes the layout viewport around the keyboard, so keep the old
+     stable bottom anchor and add the requested keyboard breathing room as a
+     paint-only shift. Changing `bottom` during WebView resize can bounce the
+     dock against transient viewport heights. */
+  --m-keyboard-gap: 0.75rem;
+  bottom: env(safe-area-inset-bottom);
+}
+
+.m-compose-dock[data-expanded] {
+  right: 0.75rem;
+  left: 0.75rem;
+}
+
+/* Cold first focus: before iOS reports a keyboard height there is no reliable
+   offset to lift by. A fixed hidden primer owns focus during that measurement;
+   keep the dock raised and nearly invisible until visualViewport reports the
+   real keyboard offset and the full composer can be expanded/focused there. */
+.m-compose-dock[data-measuring-keyboard],
+.m-thread-compose-dock[data-measuring-keyboard] {
+  transform: translateY(-50dvh);
+  opacity: 0.01;
+  transition: none !important;
+}
+
+/* Guarded first-focus expansion happens inside the touch gesture, BEFORE the
+   programmatic focus. It must land instantly: with the max-height/transform
+   transitions running, iOS evaluates the focused editable at its mid-animation
+   (bottom-edge) position and pans the layout viewport to reveal it — the
+   "keyboard pushes the page" jump. The keyboard's own rise covers the missing
+   animation; the attribute is cleared right after the expansion paints. */
+.m-compose-dock[data-instant-expand],
+.m-thread-compose-dock[data-instant-expand],
+.m-compose-dock[data-instant-expand] *,
+.m-thread-compose-dock[data-instant-expand] * {
+  transition: none !important;
+}
+
+/* ── Composer info chips (thread view) ─────────────────────────────
+ *
+ * The informational dock sections (subagents, crossagents, workflows, context,
+ * plan, goal, errors) live OUTSIDE the compact composer as icon chips stacked
+ * directly on top of it inside the floating dock; tapping a chip expands that
+ * section into its own bubble above the row. The strip ducks away while the
+ * composer itself is expanded. */
+.m-thread-chips {
+  /* In-flow inside the floating dock, between the composer bubble below and the
+     action-dock card above: the chips always ride directly on the composer, and
+     a blocking approval/question always sits on top of the whole stack. Being a
+     dock child also means they inherit its keyboard lift and centered column
+     instead of tracking the dock's height from the outside. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+  min-height: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.m-thread-chips > * {
+  pointer-events: auto;
+}
+
+/* Ducked (the composer is expanded): in-flow, so the strip must give its row
+   back instead of just fading — otherwise it holds a gap above the composer. */
+.m-thread-chips[data-hidden] {
+  display: none;
+}
+
+.m-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.75rem;
+  padding: 0 0.5625rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 9999px;
+  background: var(--m-glass-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  transform-origin: bottom right;
+  animation: m-chip-enter 0.18s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.m-chip[data-exiting] {
+  pointer-events: none;
+  animation: m-chip-exit 0.16s ease both;
+}
+
+@keyframes m-chip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes m-chip-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.9);
+  }
+}
+
+.m-chip:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-chip[data-open] {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  color: var(--foreground);
+}
+
+.m-chip[data-tone="danger"] {
+  border-color: color-mix(in oklab, var(--danger) 40%, transparent);
+  color: var(--danger);
+}
+
+/* Chips backing live work (running agents, an in-progress plan step) pulse
+   their icon softly. Transform + opacity only, so it stays on the compositor
+   and costs nothing while the thread streams. */
+.m-chip[data-active] > svg {
+  animation: m-chip-icon-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes m-chip-icon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.88);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-chip[data-active] > svg {
+    animation: none;
+  }
+}
+
+/* The expanded section bubble. The shared dock sections it hosts were styled
+   for the composer's fixedContent (transparent bg + border-b separators), so
+   the bubble supplies the surface and the trailing separator is dropped. Same
+   floating-card glass as the composer's action docks, so the two cards that can
+   sit stacked above the composer read as one material. */
+.m-chip-panel {
+  width: 100%;
+  max-height: min(45dvh, 22rem);
+  overflow-y: auto;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem;
+  background: var(--m-glass-card-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  padding: 0.25rem;
+  transform-origin: bottom right;
+  animation: m-chip-panel-exit 0.16s ease both;
+}
+
+.m-chip-panel[data-open] {
+  animation: m-chip-panel-enter 0.18s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.m-chip-panel > section:last-child {
+  border-bottom: none;
+}
+
+@keyframes m-chip-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes m-chip-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.98);
+  }
+}
+
+/* ── Composer action docks (thread view) ───────────────────────────
+ *
+ * Sign-in required, a queued steer, and an open approval/question all block or
+ * gate the turn, so they must be visible and answerable without first expanding
+ * the composer. They stack in one card hosted by the floating dock above the
+ * composer bubble (ComposerActionDocks) — the bubble itself clips to one control
+ * line while collapsed. Same glass surface as the chip panels; the shared dock
+ * sections it hosts were styled for the composer's fixedContent (transparent bg
+ * + border-b separators), so the surface is supplied here and the trailing
+ * separator dropped. */
+.m-thread-action-docks {
+  /* Shrink before the composer does when both are tall (the dock is a bounded
+     flex column), and scroll internally past that. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(45dvh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-bottom: 0.375rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem;
+  /* Same glass as the composer bubble it sits on, one step less translucent —
+     the shared floating-card material. */
+  background: var(--m-glass-card-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  padding: 0.25rem;
+  /* Approvals quote commands and paths worth copying; the surrounding dock
+     chrome disables selection. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.m-thread-action-docks > section:last-child {
+  border-bottom: none;
+}
+
+/* With a card above the bubble the dock stacks two boxes, each with its own
+   height cap, so the total could run past the top of the viewport — most easily
+   on the desktop PWA, where the composer opens expanded and a long draft can
+   grow it to its own cap. Bound the dock and let it distribute: the card shrinks
+   (and scrolls) first, the composer keeps its geometry. */
+.m-thread-compose-dock {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+}
+
+/* iOS keeps the layout viewport full-height under the keyboard, so dvh would
+   double-count the band that --m-keyboard-offset already removes (same reasoning
+   as the expanded-bubble cap below). */
+html[data-mobile-platform="ios"] .m-thread-compose-dock {
+  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+}
+
+/* Requests that ask for text (elicitation forms, user-input questions) raise the
+   keyboard without ever focusing the composer, so the dock's own composer-focus
+   lift never runs. Ride the raw keyboard band instead. */
+.m-thread-compose-dock:not([data-expanded]):has(.m-thread-action-docks:focus-within) {
+  transform: translateY(
+    calc(-1 * (var(--m-thread-keyboard-band, 0px) + var(--m-keyboard-gap, 0px)))
+  );
+}
+
+/* Wide screens center the chat column at 920px (see ThreadView) — keep the
+   floating composer dock (and everything it stacks: info chips, action docks) on
+   the same column instead of spanning the whole detail pane. 100% here is the
+   thread section, i.e. the pane. */
+@media (min-width: 768px) {
+  .m-thread-compose-dock {
+    right: max(0.75rem, calc((100% - 920px) / 2));
+    left: max(0.75rem, calc((100% - 920px) / 2));
+  }
+
+  /* Subscreens (settings, projects) read as full-bleed lists on a wide detail
+     pane; cap them at the same readable column the thread view uses. Scoped to
+     the detail pane — the sidebar thread list must stay full width. */
+  .m-settings__body,
+  .m-detail .m-page,
+  .m-detail .m-page-head,
+  .m-detail .m-thread-list,
+  .m-detail .m-subscreen > * {
+    width: 100%;
+    max-width: 944px;
+    margin-inline: auto;
+  }
+
+  /* The workspace chip bar sits above the 920px-centered thread column. */
+  .m-thread-bar {
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
+
+/* Dims the screen behind the expanded composer; tapping it collapses. It is
+   a SIBLING of the dock, not a child: the dock is transformed while expanded
+   (keyboard lift), and a transformed ancestor becomes the containing block of
+   a position:fixed child — the scrim would shrink to the bubble's box and
+   outside taps would fall through to the list. */
+.m-compose-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  border: none;
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  cursor: default;
+  animation: poracode-sheet-backdrop-in 0.2s ease;
+}
+
+/* On mouse devices the dim reads as a modal takeover of a window the user is
+   still reading; keep the invisible click-to-collapse layer but drop the
+   backdrop wash. Touch keeps the dim (it marks the keyboard session). */
+html:not([data-touch-device]) .m-compose-scrim {
+  background: transparent;
+  animation: none;
+}
+
+.m-compose-bubble {
+  /* Anchors the collapsed tap overlay. */
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* The collapsed content is exactly one compact control line + the border;
+     capping right at it keeps the collapse animation from overshooting. */
+  max-height: var(--m-floating-control-height);
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  transition:
+    max-height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 0.15s ease;
+}
+
+/* Keep compact composers quieter than the expanded card, then recover their
+   separation from the page with depth instead of outline. */
+:is(.m-compose-dock, .m-thread-compose-dock):not([data-expanded]) .m-compose-bubble {
+  border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.28),
+    0 12px 32px rgb(0 0 0 / 0.32);
+}
+
+/* Bottom-anchor the composer inside the thread bubble. The shell's one-line
+   compact box then rests against the bubble's stationary bottom edge for the
+   whole collapse height tween, so the send — pinned absolute to the shell's
+   bottom-right corner — holds that corner from the first collapse frame
+   through rest. No shell-height lockstep with the pin is needed, and nothing
+   re-anchors (teleports) when [data-collapsing] drops at pin release. */
+.m-thread-compose-dock .m-compose-bubble {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  /* Inside the bounded dock column the composer keeps its own geometry; the
+     action-dock card above it is the one that gives way (it scrolls). Its own
+     cap always leaves room, so this can never overflow the dock. */
+  flex: 0 0 auto;
+}
+
+/* :not([data-collapsing]) — during the collapse height tween the pin owns the
+   geometry (inline height/max-height), so dropping this rule early lets the
+   surface/radius cross-fade back to the pill in sync with the shrink instead
+   of snapping after it. */
+.m-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble,
+.m-thread-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble {
+  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
+  border-radius: 1rem;
+  background: var(--composer-surface, var(--sidebar-background, var(--background)));
+  /* The expanded surface is opaque, so the blur is invisible — but it still
+     forces a full backdrop repaint on every animation frame (the main source
+     of expand/collapse stutter on large desktop windows). */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* iOS keeps the layout viewport full-height while the keyboard reduces the
+   visual viewport. `--m-keyboard-offset` already removes that covered band,
+   so starting this cap from 100dvh double-counts the keyboard whenever Safari
+   also shrinks dvh. Use the stable large viewport as the iOS baseline: the
+   bubble can follow multiline input growth while remaining bounded above the
+   keyboard and safe-area chrome. Android keeps the dvh cap above because its
+   layout viewport genuinely resizes around the keyboard. */
+html[data-mobile-platform="ios"]
+  .m-compose-dock[data-expanded]:not([data-collapsing])
+  .m-compose-bubble,
+html[data-mobile-platform="ios"]
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .m-compose-bubble {
+  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
+}
+
+/* The measured grow/shrink animation (useBubbleGrowAnimation) drives an
+   inline height between the two rest heights; the bubble is content-sized, so
+   only a real height — not max-height — can hold it open against the shrunken
+   collapsed content. Gate the height transition to that window so
+   content-driven height changes while expanded (typing, attachments) stay
+   instant. */
+.m-compose-bubble[data-height-animating] {
+  /* No outline while the height tween runs: a hairline around the mid-flight
+     geometry reads as a "wrong-size pill" ghost. It drops fast when the tween
+     starts and fades back (0.15s above) once the bubble rests at its final
+     size — so the border appears late on expand and disappears early on
+     collapse. */
+  border-color: transparent;
+  transition:
+    height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 0.06s ease;
+}
+
+/* Collapse drops the hairline with no fade at all — even a 0.06s fade reads
+   as a highlight flash around the shrinking bubble. */
+:is(.m-compose-dock, .m-thread-compose-dock)[data-collapsing] .m-compose-bubble {
+  border-color: transparent;
+  transition:
+    height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Mouse devices: the grow-in-place animation only needs the bubble's own
+   max-height/radius. Animating the inner paddings and the input's max-height
+   alongside it relayouts and repaints the whole composer every frame, which
+   stutters on desktop. Touch keeps the fully choreographed version, where the
+   keyboard rise masks the extra work. */
+html:not([data-touch-device]) .m-compose-bubble .m-draft,
+html:not([data-touch-device]) .m-compose-bubble [data-draft-body],
+html:not([data-touch-device]) .m-compose-bubble .poracode-mention-input,
+html:not([data-touch-device]) .m-compose-bubble [data-composer-input-anchor] {
+  transition: none;
+}
+
+/* The embedded draft view sizes to its content inside the bubble: neutralize
+   its full-height centering (anchor spacer above, slack filler below). */
+.m-compose-bubble .m-draft {
+  display: block;
+  overflow-y: auto;
+  max-height: inherit;
+  padding: 0.375rem 0.5rem 0.5rem;
+  transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-compose-bubble .m-draft > * {
+  min-height: 0;
+  flex: none;
+  height: auto;
+}
+
+.m-compose-bubble .m-draft [data-draft-composer-anchor-spacer],
+.m-compose-bubble .m-draft [data-draft-slack] {
+  display: none;
+}
+
+.m-compose-bubble .m-draft .h-full {
+  height: auto;
+}
+
+/* The bubble supplies the surface; flatten the composer's own card chrome so
+   it doesn't read as a box-in-a-box. */
+.m-compose-bubble .poracode-composer-shell {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The input's growth is part of the bubble animation. */
+.m-compose-bubble [data-composer-input-anchor] {
+  position: relative;
+  overflow: hidden;
+  max-height: 20rem;
+  transition: max-height 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Match the collapsed composer trick for every unfocused composer input: the
+   first tap lands on a non-editable layer, then the shared guarded-focus code
+   locks scroll and focuses the real editor. If the contenteditable itself is
+   the touch target, iOS can still run its keyboard reveal pan heuristics even
+   after preventDefault. Once focused, remove the shield so normal caret taps
+   work natively. Touch-capable devices only (html[data-touch-device], see
+   pointerModality.ts) — on a mouse-driven desktop the shield would block
+   native click-to-focus and caret placement. */
+html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focus-within)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.m-compose-bubble .poracode-mention-input {
+  transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input,
+.m-thread-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input {
+  max-height: calc(3lh + 1.3rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.m-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input--compact,
+.m-thread-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input--compact {
+  max-height: calc(3lh + 1rem);
+}
+
+/* Collapsed: only the prompt input (single line) remains visible — project
+   row, worktree row, toolbar controls/probes, and attachment docks are trimmed
+   away. The compact home pill is only an opener; no nested send/collapse
+   control should peek out from the clipped composer below it. */
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-controls],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-worktree-row],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-compact-header],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-hero],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-toolbar,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-drop-overlay,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-border-glow,
+.m-compose-dock:not([data-expanded])
+  .m-compose-bubble
+  .poracode-composer-shell
+  > :not([data-composer-input-anchor]):not(.poracode-composer-toolbar) {
+  display: none;
+}
+
+/* Same one-line metrics as the live-thread pill: one compact control line,
+   no wrapper padding — the desktop editor's own top-heavy padding
+   otherwise leaves dead air above the placeholder and clips below. The draft
+   body wrapper carries its own pt-2/pb-2/px-3 in full (non-compact) mode and
+   must be zeroed too, or the whole shell rides 0.5rem low in the pill. */
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble [data-draft-body] {
+  padding: 0;
+}
+
+.m-compose-bubble [data-draft-body] {
+  transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Inner actions stay inside the shared compact line and are centered by the
+   0.25rem insets. Applies during [data-collapsing] too, and the base rule
+   below transitions the size/radius, so the button morphs into the circle
+   with the collapse tween instead of snapping at pin release. */
+/* Extra .m-compose-bubble hop outranks the toolbar-chip transition rule
+   (`.poracode-composer-toolbar > .flex.shrink-0 > *`), which would otherwise
+   replace this shorthand and leave the size/radius snapping. Keep its
+   max-width/opacity legs so the chip behaviors stay intact. */
+html[data-compact-layout]
+  .m-thread-compose-dock
+  .m-compose-bubble
+  .poracode-composer-shell
+  .poracode-composer-send {
+  transition:
+    max-width 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease,
+    width 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell
+  .poracode-composer-send {
+  width: var(--m-floating-control-inner-size);
+  height: var(--m-floating-control-inner-size);
+  min-width: var(--m-floating-control-inner-size);
+  min-height: var(--m-floating-control-inner-size);
+  /* Match the home bubble's circular action inside the pill's rounded end. */
+  border-radius: var(--m-floating-control-radius);
+}
+
+.m-compose-dock:not([data-expanded]) .m-compose-bubble [data-composer-input-anchor] {
+  height: var(--m-floating-control-line-height);
+  min-height: var(--m-floating-control-line-height);
+  max-height: var(--m-floating-control-line-height);
+  overflow: hidden;
+}
+
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-mention-input {
+  box-sizing: border-box;
+  height: var(--m-floating-control-line-height);
+  min-height: var(--m-floating-control-line-height);
+  max-height: var(--m-floating-control-line-height);
+  overflow: hidden;
+  padding: 0 1rem;
+  /* One line box exactly the collapsed pill's height: the half-leading centers
+     the single line vertically regardless of font metrics. The old
+     (height - 1lh)/2 padding calc drifted off-center whenever the effective
+     font-size/line-height changed (density overrides, the iOS 16px guard). */
+  line-height: var(--m-floating-control-line-height);
+}
+
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-shell {
+  position: relative;
+}
+
+/* Collapsed, a transparent overlay owns the whole bubble tap. The input must
+   never take the tap natively: iOS pans the (overflow-locked) document to
+   reveal a natively focused field and the offset lingers after the keyboard
+   dismisses. The overlay's handler expands and focuses with preventScroll
+   instead — still inside the gesture, so the keyboard rises. */
+.m-compose-tap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.m-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem 0.625rem;
+}
+
+html[data-compact-layout] .poracode-composer-shell [data-composer-input-anchor] {
+  max-height: var(--m-floating-control-line-height);
+  transition: max-height 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The [data-expanded]:not([data-collapsing]) / :is(:not([data-expanded]),
+   [data-collapsing]) pairs below make the compact chrome apply DURING the
+   collapse height tween (data-collapsing), so toolbar/input/summary/shell all
+   animate together with the shrinking bubble instead of snapping after it. */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .poracode-composer-shell
+  [data-composer-input-anchor] {
+  max-height: 12rem;
+}
+
+/* Toolbar chips get width/opacity transitions so the desktop wrap system's
+   label reveals animate; the compact pill itself hides the whole toolbar
+   (see the opacity rules below). */
+html[data-compact-layout] .poracode-composer-toolbar > .relative > div > *,
+html[data-compact-layout] .poracode-composer-toolbar > .flex.shrink-0 > * {
+  transition:
+    max-width 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+  max-width: 16rem;
+}
+
+/* Compact with nothing typed: no send either — the pill is a bare prompt
+   line. (Disabled markers cover HeroUI/React Aria button states.) Scoped to
+   the EMPTY case only: with a typed follow-up the button must stay visible
+   even while disabled (e.g. a running thread's stop), or the row loses its
+   only action affordance. */
+html[data-compact-layout]
+  .m-thread-compose-dock:not([data-expanded])
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-send:is([disabled], [data-disabled], [aria-disabled="true"]) {
+  display: none;
+}
+
+/* One composer language across screens: compact matches the home bubble's
+   pill (hairline, radius, translucent surface, shadow)… */
+html[data-compact-layout] .poracode-composer-shell {
+  border-color: var(--hairline, var(--border));
+  transition:
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.15s ease;
+}
+
+/* The collapsed thread composer floats over live chat on the same shared glass
+   as every other floating control: --m-glass-surface (with the per-platform
+   --m-glass-alpha) drives both the shell here and the .m-compose-bubble around
+   it, so one transparency knob covers every surface while the backdrop blur
+   still lets messages scroll visibly beneath. Expanded keeps a solid surface. */
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell {
+  border-color: var(--m-glass-border);
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
+  backdrop-filter: var(--m-glass-blur);
+  -webkit-backdrop-filter: var(--m-glass-blur);
+  box-shadow: var(--m-floating-control-shadow);
+}
+
+/* …and expanded matches the expanded bubble: flatter radius, opaque surface,
+   and the same animated border glow the draft composer shows (the glow node
+   is rendered for every variant; desktop only lights it for drafts). */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .poracode-composer-shell {
+  border-radius: 1rem;
+  border-color: transparent;
+  background: var(--composer-surface, var(--sidebar-background, var(--background)));
+}
+
+html[data-compact-layout] .m-thread-compose-dock .poracode-composer-border-glow {
+  transition: opacity 0.3s ease;
+}
+
+/* Collapse kills the glow instantly — a lit border tracing the shrinking
+   bubble reads as a leftover highlight. */
+html[data-compact-layout] .m-thread-compose-dock[data-collapsing] .poracode-composer-border-glow {
+  opacity: 0;
+  transition: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .poracode-composer-shell
+  .poracode-composer-border-glow {
+  opacity: 0.7;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-shell
+  .poracode-composer-border-glow::before {
+  animation-play-state: running;
+}
+
+/* Compact state: empty prompts show just the centered placeholder line;
+   typed prompts reserve the same one-line pill and pin the send action to the
+   right edge so it is not clipped below the collapsed bubble. The typed-prompt
+   rules also match [data-collapsing] (data-expanded is still set while the
+   height pin runs) so the send pins at collapse start instead of the summary
+   chips flashing in first and swapping to the send at pin release. */
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  [data-composer-input-anchor] {
+  margin-right: var(--m-floating-control-height);
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar {
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  z-index: 3;
+  display: flex;
+  height: auto !important;
+  align-items: center;
+  justify-content: flex-end;
+  width: var(--m-floating-control-inner-size);
+  padding: 0;
+  pointer-events: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar
+  > :not(:has(.poracode-composer-send)) {
+  display: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar
+  > :has(.poracode-composer-send) {
+  display: flex;
+  margin-left: 0;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar
+  > :has(.poracode-composer-send)
+  > :not(.poracode-composer-send) {
+  display: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-send {
+  pointer-events: auto;
+}
+
+/* Compact + empty: the toolbar is invisible chrome. It sits absolute so it
+   can't stretch the one-line pill, and fades in on expand / out on collapse.
+   (Typed prompts keep the pinned send — see the :has() rules above.) */
+html[data-compact-layout] .m-thread-compose-dock .poracode-composer-toolbar {
+  transition: opacity 0.2s ease;
+}
+
+/* The expanded toolbar holds the send 0.6rem (its compact row padding) off
+   the shell's bottom-right corner; the pinned layout uses the pill's 0.25rem
+   inset. Position flips can't transition, so run the 0.35rem settle as a
+   keyframe in sync with the size/radius morph — the button glides the last
+   few px into the corner instead of stepping on the first collapse frame.
+   Higher specificity than the [data-expanded] toolbar-enter rule so it owns
+   the toolbar's animation for the collapse window. */
+@keyframes m-thread-send-settle {
+  from {
+    transform: translate(-0.35rem, -0.35rem);
+  }
+  to {
+    transform: none;
+  }
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-collapsing]
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar {
+  animation: m-thread-send-settle 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:not([data-expanded])
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hold the toolbar still while it fades: the compact input metrics applied
+   during data-collapsing shrink the input's paddings, which would drag the
+   still-visible toolbar upward. Delay the inner morph until the toolbar's
+   0.12s fade has finished; the running transitions keep their timing when
+   data-collapsing drops at release. */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-collapsing]
+  .poracode-composer-shell
+  :is([data-composer-input-anchor], .poracode-mention-input) {
+  transition-delay: 0.1s;
+}
+
+/* While the collapse height tween runs (data-collapsing, data-expanded still
+   set so the row keeps its expanded position), fade the toolbar out in place —
+   by the time the compact absolute positioning above kicks in it is already
+   invisible, so it never ghosts over the placeholder. Empty prompts only:
+   typed prompts already run the pinned-send layout during the collapse, and
+   fading that toolbar would blink the send button. */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-collapsing]
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar {
+  opacity: 0;
+  pointer-events: none;
+  /* Faster than the 0.2s height tween: the toolbar must be gone before the
+     summary chips land in the same corner, or the two read as a swap. */
+  transition-duration: 0.12s;
+}
+
+/* Attachments belong to the expanded composer only — the compact pill is a
+   single prompt line. Drop the attachment bar instantly (display can't
+   animate, so it never blinks) from the first collapse frame: leaving it in
+   flow inflates the pinned bubble height and it flickers as the shrinking
+   bubble clips it. Mirrors the home dock's compact trim. */
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell
+  .poracode-attachment-bar {
+  display: none;
+}
+
+/* Shared compact line metrics with the home bubble: one compact control line,
+   text vertically centered (the desktop editor's padding is top-heavy). */
+html[data-compact-layout] .poracode-composer-shell .poracode-mention-input {
+  /* Explicit length instead of the desktop's unitless 1.5 (same computed value
+     at 0.875rem): unitless line-height can't animate, so without this the
+     placeholder jumps between the compact full-height line box and the
+     expanded text metrics instead of riding the expand/collapse motion. */
+  line-height: 1.3125rem;
+  transition:
+    padding 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    line-height 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell
+  .poracode-mention-input {
+  box-sizing: border-box;
+  height: var(--m-floating-control-line-height);
+  min-height: var(--m-floating-control-line-height);
+  max-height: var(--m-floating-control-line-height);
+  overflow: hidden;
+  padding: 0 1rem;
+  /* Same single-line centering as the home bubble: a full-height line box
+     instead of the font-metric-sensitive (height - 1lh)/2 padding calc. */
+  line-height: var(--m-floating-control-line-height);
+}
+
+/* Provider / fast / mode / permission summary pinned inside the compact pill's right end
+   (ComposerCompactSummary). Inert info chrome: it fades away when the
+   composer expands (the real controls take over) or once a prompt is typed
+   (the pinned send button owns that corner). */
+.m-compose-summary {
+  position: absolute;
+  top: 0;
+  right: 1rem;
+  z-index: 1;
+  display: flex;
+  height: var(--m-floating-control-height);
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--muted);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.m-compose-summary__item {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Fast is only summarized when it's on (ComposerCompactSummary gates on the
+   selected toggle), so its Zap glyph is always the "active" state: fill it to
+   match the real toolbar, whose fill rides the toggle's selected state — a
+   state this inert read-only summary never has. */
+.m-compose-summary__item--fast svg {
+  fill: currentColor;
+}
+
+.m-compose-summary__model {
+  max-width: 7rem;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.m-compose-summary__effort {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.m-thread-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-summary,
+.m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .m-compose-bubble:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .m-compose-summary {
+  opacity: 0;
+  /* Expand: clear the corner quickly — the toolbar's own controls take over. */
+  transition-duration: 0.1s;
+}
+
+/* Collapse: let the toolbar's fast fade-out finish before the summary chips
+   fade into the same corner, so the change reads as one morph, not a swap.
+   (Running transitions keep their timing when data-collapsing drops.) */
+.m-thread-compose-dock[data-collapsing] .m-compose-summary {
+  transition-delay: 0.1s;
+}
+
+/* The compact input reserves the summary's measured width (published on the
+   bubble by ComposerCompactSummary) so the placeholder never runs beneath it.
+   Empty-prompt case only — typed prompts swap to the pinned-send reserve. */
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-mention-input {
+  padding-right: calc(1.5rem + var(--m-compose-summary-width, 0px));
+}
+
+/* Compact → expanded moves the toolbar from invisible absolute chrome into
+   its own row; position can't transition, so give the expanded toolbar a
+   brief entrance that reads as one motion with the dock's max-height
+   animation. This is a keyframe animation, not a transition, so
+   [data-instant-expand] * (transition: none) does not disable it — a short
+   fade on the warm flip is harmless. */
+@keyframes m-thread-toolbar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-shell
+  .poracode-composer-toolbar {
+  animation: m-thread-toolbar-enter 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The home composer sits on a larger, darker surface while the composer card
+   inside keeps its established fill and geometry. */
+html[data-compact-layout] .m-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble {
+  background: var(--content-background);
+}
+
+html[data-compact-layout]
+  .m-compose-dock[data-expanded]:not([data-collapsing])
+  .m-compose-bubble
+  .m-draft {
+  padding: 0.75rem;
+}
+
+html[data-compact-layout]
+  .m-compose-dock[data-expanded]:not([data-collapsing])
+  .m-compose-bubble
+  .poracode-composer-shell {
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: var(--radius-4xl);
+  background: var(--composer-surface);
+}
+
+/* The phone-wide 44px Button floor is right for standalone actions, but it
+   makes the composer's + / send actions spill outside the shared 2.25rem
+   toolbar row. Keep every control on the composer's own compact grid. */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-toolbar
+  [data-slot="button"] {
+  min-height: 2.25rem;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-toolbar
+  [data-slot="button"].button--icon-only {
+  min-width: 2.25rem;
+}
+
+/* Model and effort are the two parameters that need to remain legible on a
+   phone. Preserve their text even when the desktop wrap probe collapses lower
+   priority labels; the effort's signal icon is redundant once its value is
+   written out. */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-model-control
+  > .poracode-composer-label-hideable {
+  display: flex;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-effort-control
+  > .poracode-composer-label-hideable {
+  display: inline;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-effort-control
+  > .poracode-composer-effort-icon {
+  display: none;
+}
+
+/* Inside the floating thread bubble, the bubble owns the card chrome just like
+   the home composer. Keep the reused desktop composer as content only. */
+html[data-compact-layout] .m-thread-compose-dock .poracode-composer-shell,
+html[data-compact-layout] .m-thread-compose-dock .poracode-composer-shell:not(:focus-within),
+html[data-compact-layout] .m-thread-compose-dock .poracode-composer-shell:focus-within {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-compact-layout] .poracode-thread-composer-section {
+  filter: none;
+}
+
+html[data-compact-layout] .poracode-thread-composer-section > .m-thread-compose-dock {
+  position: relative;
+  inset: auto;
 }

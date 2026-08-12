@@ -1,159 +1,96 @@
-# Mobile dev & remote pairing
+# Unified web and native-shell development
 
-Fast path for iterating on the **mobile app** (`src/mobile`) against a local
-desktop **remote server**, with HMR. If you only read one thing: run
-**`pnpm run dev:ios`** or **`pnpm run dev:android`**, then pair the
-simulator/emulator.
+Poracode has one renderer application. Electron, a desktop browser, an
+installed PWA, and the Capacitor iOS/Android shells all boot `index.html` through
+`src/renderer/bootstrap.ts`. There is no separate mobile entry, router, store,
+or component tree.
 
-## One command
+Compact mode is selected at runtime from viewport, input modality, safe-area,
+and virtual-keyboard state. It is not selected from the user agent. Resizing or
+rotating changes layout without restarting the renderer or replacing project
+and thread state.
+
+## Development commands
 
 ```bash
-pnpm run dev:ios      # iOS simulator
-pnpm run dev:android  # Android emulator or USB device
+pnpm run dev          # Electron and the canonical renderer
+pnpm run dev:web      # headless host plus canonical browser renderer
+pnpm run dev:ios      # canonical renderer in the iOS Capacitor shell
+pnpm run dev:android  # canonical renderer in the Android Capacitor shell
 ```
 
-Both run the same trio together (`concurrently -k`), plus one Android-only
-helper:
+`dev:web` prepares the backend and embedded SSH runtime, then starts the
+headless host on the first free port from `49152` and the Vite renderer on port
+`3100`. Open the `pair a device` URL printed by the server; it targets the Vite
+app and carries the actual backend port plus the one-time pairing credential.
+Both processes stop together with `Ctrl+C`. The server defaults to the isolated
+`.tmp/poracode-web-dev` data directory so it can run beside Electron. Set
+`PORACODE_BASE_DIR` or `PORACODE_REMOTE_ACCESS_PORT` before launching when a
+different data directory or explicit port is intentional.
 
-| Sub-script                        | What it is                                               | Port    |
-| --------------------------------- | -------------------------------------------------------- | ------- |
-| `dev:mobile:server`               | Headless remote server (`build:electron` + `server.cjs`) | `49152` |
-| `dev:mobile`                      | Vite dev server for the mobile target (HMR)              | `3100`  |
-| `dev:ios:app` / `dev:android:app` | target-resolving `cap run <platform> --live-reload`      | —       |
-| `android-reverse-server-port.mjs` | Android only: keeps `adb reverse tcp:49152` applied      | —       |
+For process-level debugging, `pnpm run dev:web:client` starts only Vite and
+`pnpm run dev:web:server` starts only the prepared headless host.
 
-`dev:mobile:server` sets `PORACODE_IS_DEV=1` and pins
-`PORACODE_REMOTE_ACCESS_PORT=49152` for the simulator forwarding helpers. Dev
-mode turns on two conveniences in the server (see
-[Why dev mode matters](#why-dev-mode-matters)): loopback advertising + loopback
-CORS. **No manual env vars are needed** — pairing works against
-`http://127.0.0.1:49152/` out of the box.
+The native commands run three parts together:
 
-The iOS and Android launch wrappers pass an explicit native target so Capacitor
-does not stop at an interactive device picker under `concurrently`. Override the
-automatic choice with `PORACODE_IOS_TARGET=<simulator-udid>` or
+| Process              | Purpose                                                          | Port     |
+| -------------------- | ---------------------------------------------------------------- | -------- |
+| `dev:web:server:run` | Headless Poracode host and authenticated API/WebSocket transport | `49152+` |
+| `dev:web:client`     | The same renderer used by Electron, with Vite HMR                | `3100`   |
+| Capacitor runner     | iOS/Android WebView pointed at the Vite renderer                 | n/a      |
+
+Android also maintains `adb reverse tcp:49152 tcp:49152`. The iOS simulator
+shares the host loopback interface. Override native target selection with
+`PORACODE_IOS_TARGET=<simulator-udid>` or
 `PORACODE_ANDROID_TARGET=<device-or-avd-id>`.
+The native commands intentionally pin their backend to `49152` because the
+simulator/device forwarding targets that port; stop another owner first if it
+is already in use.
 
-The endpoint is the **same on both platforms**: the iOS simulator shares the
-Mac's loopback natively, and on Android the reverse-port helper maps the
-device's `127.0.0.1:49152` back to the host via `adb reverse` (works on
-emulators and USB devices; it re-applies automatically when a device boots or
-restarts). Capacitor itself forwards only the Vite port (`--forwardPorts` takes
-a single pair), which is why the server port has its own helper.
+Use an isolated `PORACODE_BASE_DIR` when another Poracode process already owns
+the normal data directory.
 
-The server's data dir is `~/.poracode`. Override with `PORACODE_BASE_DIR` to run
-an isolated instance (avoids the single-instance lock clash with a running
-desktop app or a second server).
+## Pairing
 
-## Pair the simulator / emulator
+The server prints a root URL such as:
 
-1. Grab the pairing token — the server prints it at startup:
-   ```
-   [poracode-server] pair a device:   http://127.0.0.1:49152/pair#token=lc_pair_…
-   ```
-   Need a fresh one (10-min TTL, in-memory only)? Send `SIGUSR2`:
-   ```bash
-   kill -SIGUSR2 "$(pgrep -f dist/main/server.cjs)"   # prints a new link to stdout
-   ```
-2. In the app: **Connections → Pair a connection**. Endpoint
-   `http://127.0.0.1:49152/`, paste the `lc_pair_…` token, tap **Pair**.
-3. Once universal links are live (below), a tapped pairing link opens the
-   installed app and pairs automatically — no manual entry.
+```text
+http://127.0.0.1:3100/?host=http%3A%2F%2F127.0.0.1%3A49152#token=lc_pair_...
+```
 
-Driving the sim by automation? Enable **I/O → Keyboard → Connect Hardware
-Keyboard** and **Edit → Automatically Sync Pasteboard** first; then per field:
-copy → **Edit → Send Pasteboard** → tap field → ⌘A → ⌘V. The keyboard accessory
-up/down arrows move focus between the two fields reliably.
+Open it directly, or enter the endpoint and token under Connections. The
+canonical bootstrap exchanges the one-time credential, persists the resulting
+session, and removes the credential from the visible URL. Capacitor handles
+cold and warm app links through the same bootstrap path.
 
-## Why dev mode matters
+Legacy `/pair`, `/app`, `/desktop`, and `/mobile.html` URLs are migration-only
+and permanently redirect to `/`; new links must target the root.
 
-Two things break dev pairing on a stock (non-dev) server; `PORACODE_IS_DEV=1`
-fixes both:
+## Runtime boundaries
 
-- **iOS ATS** (`ios/App/App/Info.plist` → `NSAllowsLocalNetworking`) permits
-  cleartext to **loopback** but **not** a `192.168.x` LAN IP. A non-dev server
-  auto-advertises the LAN IP → the WebView's fetch fails with **"Load failed"**.
-  Dev mode advertises `127.0.0.1` (the sim shares the Mac's loopback).
-  See `createHeadlessRemoteHost.ts` (`advertisedHost` dev default).
-- **CORS** — the server's trusted origins only include portless
-  `http://localhost`, not the dev origin `http://localhost:3100`, so the pairing
-  fetch is CORS-blocked (also surfaces as **"Load failed"**). Dev mode trusts any
-  **loopback** web origin (`isLoopbackWebOrigin` in
-  `src/main/remote/server/security.ts`). Production is unchanged — only loopback,
-  only in dev.
+- Electron installs the native client adapter and uses IPC for local process,
+  filesystem, PTY, window, and OS capabilities.
+- Browsers install the authenticated remote bridge and use HTTP for commands and
+  snapshots plus WebSocket for ordered live events.
+- Capacitor uses the browser transport, then enables explicit native
+  capabilities such as secure storage, push, app links, and the packaged SSH
+  runtime.
+- Unsupported operations are hidden or disabled through `ClientRuntime`
+  capability checks. Layout never decides capabilities.
 
-## Deep linking (Universal Links)
+## Verification
 
-Goal: one `https://poracode.com/pair` pairing link that opens the **installed
-app** if present, else redirects browser users to the hosted PWA at
-`https://app.poracode.com/pair`. The stable and nightly PWAs use separate
-origins (`app.poracode.com` and `app-nightly.poracode.com`) so their permissions,
-storage, caches, and service workers cannot affect the marketing site or each
-other.
+For any layout or bootstrap change, test all of these without reloading between
+wide and narrow states:
 
-**Already wired (app side):**
+1. Electron at desktop width.
+2. Chrome at desktop width and a touch-sized viewport.
+3. Resize and rotate while a thread is open; identity and transcript state must
+   remain stable.
+4. Pair, reconnect, and replay live events.
+5. Install the production build and reload it offline.
+6. Exercise touch controls and an opened virtual keyboard.
+7. Run the relevant real PTY and structured-provider smoke, not only mocks.
 
-- `@capacitor/app` + `src/mobile/useDeepLinkPairing.ts` (mounted in
-  `RootLayout`): consumes a tapped pairing URL — cold start via
-  `App.getLaunchUrl()`, warm via the `appUrlOpen` event — parses it with
-  `parsePairingUrl`, and calls `pairDesktop`. Inert on the hosted PWA (there,
-  boot-time launch params are handled by `capturePairingLaunch()`).
-- Native association host defaults to `poracode.com`
-  (`scripts/configure-mobile-native.mjs`), which writes `applinks:poracode.com`
-  into the iOS entitlement + the Android intent-filter on `cap:sync`/`cap:configure`.
-
-**To make links actually route into the app (ops — needs secrets + hosting):**
-
-1. **Apple Team ID** — set `PORACODE_MOBILE_APPLE_TEAM_ID` (+ Android
-   `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`) so
-   `scripts/finalize-mobile-build.mjs` emits a **non-empty** AASA/assetlinks into
-   `dist/mobile/.well-known/` (AASA `appIDs = <team>.com.lightcodeapp.mobile`,
-   components match `/pair*` and `/app*`).
-2. **Host** `/pair` and `/.well-known/apple-app-site-association` on
-   **poracode.com**. The marketing deployment redirects browser requests for
-   `/pair` and legacy `/app*` and `/pwa*` URLs to **app.poracode.com**; legacy
-   `/app-nightly*` URLs redirect to **app-nightly.poracode.com**. Both PWA
-   domains point at the separate mobile Vercel project (`vercel.json` →
-   `dist/mobile`) and serve their channel at `/`.
-3. **Desktop** — packaged builds default to `https://poracode.com`, so minted
-   QR/links are `https://poracode.com/pair?host=…#token=…`. Set
-   `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL` only to override that host.
-4. Rebuild the app (`cap sync` + `pnpm run dev:ios`) so the entitlement + plugin
-   ship. Universal-link routing **cannot be exercised in the simulator** until
-   the app is built with the entitlement _and_ the AASA is served over https.
-
-**Gotcha — preserve the poracode.com pairing entry.** `buildPairingUrl`
-(`src/shared/remote/pairingUrl.ts`) intentionally mints
-`https://poracode.com/pair`. Existing native installs claim that universal link
-before the browser sees the redirect; browser users are redirected to
-`https://app.poracode.com/pair`.
-
-## Troubleshooting
-
-- **"Load failed" on Pair** → almost always ATS or CORS (see [Why dev mode
-  matters](#why-dev-mode-matters)). Confirm the server advertised loopback
-  (`grep "listening at" server log` → `http://127.0.0.1:49152/`) and that you
-  ran with `PORACODE_IS_DEV=1`. Sanity-check CORS:
-  ```bash
-  curl -s -D - -o /dev/null -H "Origin: http://localhost:3100" \
-    http://127.0.0.1:49152/.well-known/poracode/environment | grep -i access-control
-  ```
-- **"data dir … is in use by another Poracode process (pid N)"** → a desktop
-  app or a prior server holds the lock. Kill it (`kill N`) or run with a separate
-  `PORACODE_BASE_DIR`.
-- **Invalid pairing token** → tokens are single-use and expire in 10 min; mint a
-  fresh one with `SIGUSR2` (above).
-- **`@capacitor/app` not found at runtime in the sim** → the plugin is native;
-  rebuild via `pnpm run dev:ios` (`cap run` re-syncs pods).
-- **Android: "cannot run … adb"** → the reverse-port helper resolves adb from
-  `ANDROID_HOME`/`ANDROID_SDK_ROOT`, then `android/local.properties`
-  (`sdk.dir=…`), then `PATH`. Make sure one of those points at the SDK (Gradle
-  needs `JAVA_HOME` too).
-- **Android: pairing fetch fails on `127.0.0.1:49152`** → the `adb reverse`
-  mapping is missing; check the `adb` pane of `dev:android` for the
-  "device 127.0.0.1:49152 → host" line (emulator fallback: `10.0.2.2:49152`).
-
-## Related
-
-- `docs/REMOTE_ARCHITECTURE.md` — the remote server/client architecture.
-- `docs/RELEASE_MOBILE.md` — release build, hosting, signing, AASA/assetlinks.
+See `docs/REMOTE_ARCHITECTURE.md` for the transport and process model and
+`docs/RELEASE_MOBILE.md` for native-shell signing and releases.

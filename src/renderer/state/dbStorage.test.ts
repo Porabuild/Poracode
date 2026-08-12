@@ -223,6 +223,24 @@ describe("createDbStorage", () => {
     });
   });
 
+  it("persists the canonical app snapshot locally in the browser runtime", async () => {
+    window.poracode = { arch: "web", appVersion: "remote" } as typeof window.poracode;
+    const storage = createDbStorage();
+    const snapshot = {
+      state: {
+        projects: [{ id: "remote-project" }],
+        threads: [{ id: "remote-thread" }],
+        view: { kind: "thread", panes: ["remote-thread"] },
+      },
+      version: 4,
+    };
+
+    await storage.setItem("poracode-app-v2", snapshot as never);
+
+    expect(await storage.getItem("poracode-app-v2")).toEqual(snapshot);
+    expect(bridge.dbSyncAll).not.toHaveBeenCalled();
+  });
+
   it("still deduplicates generic persisted stores by serialized value", async () => {
     const storage = createDbStorage<{ collapsed: boolean }>();
 

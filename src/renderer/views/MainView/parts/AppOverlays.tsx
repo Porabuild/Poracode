@@ -37,6 +37,7 @@ import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
+import { BrowserRemoteConnectionGate } from "./BrowserRemoteConnectionGate";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
@@ -221,15 +222,23 @@ export function AppOverlays() {
         onExited={() => usePanelStore.getState().setGitHubActionsContext(null)}
       >
         {githubActionsContext && (
-          <Suspense fallback={<OverlayLoader />}>
-            <DeferredGitHubActionsView
-              {...(githubActionsContext.projectId
-                ? { projectId: githubActionsContext.projectId }
-                : {})}
-              {...(githubActionsContext.runId ? { runId: githubActionsContext.runId } : {})}
-              onClose={() => usePanelStore.getState().setGitHubActionsContext(null)}
-            />
-          </Suspense>
+          <BrowserRemoteConnectionGate
+            onPair={() => {
+              const panelStore = usePanelStore.getState();
+              panelStore.setGitHubActionsContext(null);
+              panelStore.openSettingsSection("remoteServers");
+            }}
+          >
+            <Suspense fallback={<OverlayLoader />}>
+              <DeferredGitHubActionsView
+                {...(githubActionsContext.projectId
+                  ? { projectId: githubActionsContext.projectId }
+                  : {})}
+                {...(githubActionsContext.runId ? { runId: githubActionsContext.runId } : {})}
+                onClose={() => usePanelStore.getState().setGitHubActionsContext(null)}
+              />
+            </Suspense>
+          </BrowserRemoteConnectionGate>
         )}
       </OverlayShell>
       <OverlayShell

@@ -301,7 +301,7 @@ describe("DesktopRemoteAccessController", () => {
     delete process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST;
   });
 
-  it("uses the hosted pairing app in production and the local mobile app in development", async () => {
+  it("uses the hosted pairing app in production and the canonical web app in development", async () => {
     const production = createController();
     await production.setEnabled(true);
 
@@ -310,7 +310,7 @@ describe("DesktopRemoteAccessController", () => {
       "https://app.poracode.com",
       "https://app-nightly.poracode.com",
     ]);
-    expect(h.servers[0]?.options.devMobileAppUrl).toBeUndefined();
+    expect(h.servers[0]?.options.devWebAppUrl).toBeUndefined();
     expect(h.servers[0]?.options.isDev).toBe(false);
 
     const development = createController("http://127.0.0.1:3100");
@@ -318,7 +318,7 @@ describe("DesktopRemoteAccessController", () => {
 
     expect(h.servers[1]?.options.pairingAppUrl).toBeUndefined();
     expect(h.servers[1]?.options.trustedCorsOrigins).toBeUndefined();
-    expect(h.servers[1]?.options.devMobileAppUrl).toBe("http://127.0.0.1:3100/mobile.html");
+    expect(h.servers[1]?.options.devWebAppUrl).toBe("http://127.0.0.1:3100/");
     expect(h.servers[1]?.options.isDev).toBe(true);
   });
 

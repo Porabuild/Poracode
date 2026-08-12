@@ -1,8 +1,8 @@
 import type { RemoteWebSocketClientMessage, RemoteWebSocketServerMessage } from "./protocol";
 
 /**
- * Client half of live terminal streaming, shared by the mobile app and the
- * renderer's remote views. The remote session owner holds the WebSocket; it
+ * Client half of live terminal streaming, shared by browser and Electron remote
+ * views. The remote session owner holds the WebSocket; it
  * registers a sender here and routes incoming `terminal-output` messages
  * through {@link TerminalFeed.handleServerMessage}, and forwards the
  * `thread-reset`/`thread-exited` supervisor events (which ride the replayable

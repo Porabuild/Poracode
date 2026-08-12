@@ -125,8 +125,7 @@ function HookInstallProposal(props: {
     if (
       props.presentationMode !== "terminal" ||
       dismissed ||
-      typeof window === "undefined" ||
-      !window.poracode?.getAgentHookPluginStatuses
+      (!window.poracodeHost && !window.poracode)
     ) {
       setStatus(undefined);
       return;
@@ -272,6 +271,8 @@ export function ThreadDraftComposerArea(props: {
   restoreWorktreeSelectionToken?: number;
   /** Override whether unmodified Enter submits instead of inserting a newline. */
   submitOnEnter?: boolean;
+  /** Override mount autofocus without changing the active submit behavior. */
+  autoFocus?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
@@ -293,8 +294,9 @@ export function ThreadDraftComposerArea(props: {
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
   const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
   const isRemoteSurface = isRemoteSession();
+  const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isRemoteSurface);
   const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
-  const isQuickComposer = window.poracode ? isQuickComposerWindow() : false;
+  const isQuickComposer = window.poracodeHost || window.poracode ? isQuickComposerWindow() : false;
   const showVoiceInputButton =
     useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
@@ -934,7 +936,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
-        autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+        autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
         compact={props.compact ?? false}
         variant="draft"
         controls={controls}
@@ -1035,7 +1037,7 @@ export function ThreadDraftComposerArea(props: {
         inputContent={
           <MentionInput
             ref={mentionRef}
-            autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+            autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
             compact={props.compact ?? false}
             // The PWA surfaces this draft as the home screen's compact composer
             // pill, where an invitation reads better than the generic prompt.

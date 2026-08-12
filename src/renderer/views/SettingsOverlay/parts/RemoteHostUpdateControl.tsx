@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { RefreshCw } from "lucide-react";
+import { CircleAlert, RefreshCw, ServerCog } from "lucide-react";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
@@ -54,12 +54,17 @@ export function RemoteHostUpdateControl({
   const currentVersion = updateState?.currentVersion ?? server.appVersion;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 py-1 pl-5">
-      {currentVersion ? (
-        <span className="text-xs text-muted">
-          <Trans>Host version: {currentVersion}</Trans>
-        </span>
-      ) : null}
+    <div className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl bg-default-50 px-3 py-2.5">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-default-100 text-muted">
+        <ServerCog className="size-4" />
+      </div>
+      <div className="mr-auto min-w-0">
+        {currentVersion ? (
+          <span className="block truncate text-xs font-medium text-foreground/80">
+            <Trans>Host version: {currentVersion}</Trans>
+          </span>
+        ) : null}
+      </div>
       {updateStatus?.type === "downloaded" ? (
         <Button variant="secondary" size="sm" isDisabled={busy || !isOnline} onPress={install}>
           <Trans>Install v{updateStatus.version}</Trans>
@@ -89,11 +94,17 @@ export function RemoteHostUpdateControl({
         </span>
       ) : null}
       {updateStatus?.type === "error" ? (
-        <span className="text-xs text-danger">
+        <span className="flex items-center gap-1 text-xs text-danger">
+          <CircleAlert className="size-3.5 shrink-0" />
           <Trans>Host update failed.</Trans>
         </span>
       ) : null}
-      {error ? <span className="text-xs text-danger">{error}</span> : null}
+      {error ? (
+        <span className="flex items-center gap-1 text-xs text-danger">
+          <CircleAlert className="size-3.5 shrink-0" />
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

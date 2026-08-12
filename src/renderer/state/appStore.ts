@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { Thread } from "@/shared/contracts";
 import { createDbStorage } from "./dbStorage";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
 import { createLaunchSlice } from "./slices/launchSlice";
@@ -56,6 +57,7 @@ export const useAppStore = create<AppStoreState>()(
           };
         },
         partialize: (state) => {
+          const persistRemoteRows = isBrowserClientRuntime();
           const view = state.view;
           const hasRemoteView =
             (view.kind === "draft" &&
@@ -74,14 +76,21 @@ export const useAppStore = create<AppStoreState>()(
               ),
             );
           return {
-            projects: state.projects.filter((project) => !project.remoteServerId),
+            projects: persistRemoteRows
+              ? state.projects
+              : state.projects.filter((project) => !project.remoteServerId),
             // Worktree-provisioning rows are renderer-only placeholders. If one
             // survived a restart, `launching` would hydrate as `inactive` and
             // reopening it would launch the agent in the base checkout.
             threads: state.threads.filter(
-              (thread) => !thread.remoteServerId && !state.provisioningWorktreeThreadIds[thread.id],
+              (thread) =>
+                (persistRemoteRows || !thread.remoteServerId) &&
+                !state.provisioningWorktreeThreadIds[thread.id],
             ),
-            view: hasRemoteView || hasPendingWorktreeView ? { kind: "home" as const } : view,
+            view:
+              (!persistRemoteRows && hasRemoteView) || hasPendingWorktreeView
+                ? { kind: "home" as const }
+                : view,
             groupLayouts: state.groupLayouts,
           };
         },

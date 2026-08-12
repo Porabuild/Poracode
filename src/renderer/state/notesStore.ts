@@ -37,7 +37,10 @@ const persistedEntries = new Map<string, ProjectNotesEntry>();
 let sessionGeneration = 0;
 
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && !!window.poracode?.dbSetProjectNotes;
+  return (
+    typeof window !== "undefined" &&
+    (window.poracodeHost !== undefined || window.poracode !== undefined)
+  );
 }
 
 function makeTodoId(): string {

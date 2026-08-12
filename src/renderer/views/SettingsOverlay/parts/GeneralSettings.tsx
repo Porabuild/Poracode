@@ -5,7 +5,9 @@ import { isRemoteSession, isWindows } from "@/renderer/bridge";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
+import { Button } from "@heroui/react";
 import { LightballTabs, Select, ToggleSwitch } from "@/renderer/components/common";
+import { isIosInstallBrowser, promptInstall, useCanInstall } from "@/renderer/pwa/install";
 import type { PreventSleep } from "@/shared/settings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { newThreadModeOptions, useLocalizedOptions } from "./settingsOptions";
@@ -35,6 +37,8 @@ export function GeneralSettings() {
   // can't affect them, so hide the rows there.
   const remote = isRemoteSession();
   const windows = !remote && isWindows();
+  const canInstallApp = useCanInstall();
+  const showIosInstallHelp = remote && isIosInstallBrowser();
 
   const newThreadOptions = useLocalizedOptions(newThreadModeOptions);
   const resolvedLocaleOptions = localeOptions.map((option) => ({
@@ -64,6 +68,27 @@ export function GeneralSettings() {
           }}
         />
       </SettingRow>
+
+      {remote && (canInstallApp || showIosInstallHelp) ? (
+        <SettingRow
+          title={t`Install app`}
+          description={
+            showIosInstallHelp ? (
+              <Trans>In Safari, tap Share, then Add to Home Screen.</Trans>
+            ) : (
+              <Trans>Install Poracode for faster access and offline launch.</Trans>
+            )
+          }
+        >
+          {canInstallApp ? (
+            <Button variant="tertiary" size="sm" onPress={() => void promptInstall()}>
+              <Trans>Install</Trans>
+            </Button>
+          ) : (
+            <span />
+          )}
+        </SettingRow>
+      ) : null}
 
       <SettingRow
         anchorId="general.commitPrLanguage"

@@ -4,7 +4,6 @@ export const productionRoots = [
   "src/renderer/",
   "src/shared/",
   "src/supervisor/",
-  "src/mobile/",
   "src/server/",
   "chrome-extension/",
 ];
@@ -85,7 +84,7 @@ export const functionalAreas = [
     title: "Device scheduled tasks, persistence, and remote management",
     patterns: [/schedule/i],
     automated: ["baseline", "schedules"],
-    manual: ["ipc-roundtrip", "remote-mobile"],
+    manual: ["ipc-roundtrip", "remote-client"],
   },
   {
     id: "settings",
@@ -102,11 +101,11 @@ export const functionalAreas = [
     manual: ["native-auth-update"],
   },
   {
-    id: "remote-mobile",
-    title: "Remote access, mobile UI, pairing, and push",
-    patterns: [/^src\/mobile\//, /remote/i, /pairing/i, /push/i],
+    id: "remote-client",
+    title: "Remote access, adaptive client, pairing, and push",
+    patterns: [/^src\/renderer\/(?:browser|native|pwa)\//, /remote/i, /pairing/i, /push/i],
     automated: ["settings"],
-    manual: ["remote-mobile"],
+    manual: ["remote-client"],
   },
   {
     id: "mcp-extensions",
@@ -178,8 +177,8 @@ export const manualGates = {
     "Launch a fresh isolated thread with each changed provider and observe first output.",
   "provider-skill-delivery":
     "Launch each supported provider with an isolated managed skill and verify the provider discovers and invokes it.",
-  "remote-mobile":
-    "Pair an isolated mobile client and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
+  "remote-client":
+    "Pair the canonical app in an isolated browser or native shell and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
   "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
   "skills-manager":

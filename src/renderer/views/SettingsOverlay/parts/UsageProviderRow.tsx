@@ -68,8 +68,8 @@ function UsageCadenceField(props: { id: string; label: string }) {
  * because it owns `useUsageProviderLogin`, and the row mounts it only while
  * tracking is on — a hook can't be called conditionally.
  */
-function UsageProviderControls(props: { id: string; label: string }) {
-  const { id, label } = props;
+function UsageProviderControls(props: { id: string; label: string; remote: boolean }) {
+  const { id, label, remote } = props;
   const { t } = useLingui();
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const sidebarHiddenProviders = useSharedSettings((s) => s.usage.sidebarHiddenProviders);
@@ -193,7 +193,7 @@ function UsageProviderControls(props: { id: string; label: string }) {
             </Tooltip.Content>
           </Tooltip>
         ) : null}
-        <UsageCadenceField id={id} label={label} />
+        {!remote ? <UsageCadenceField id={id} label={label} /> : null}
       </span>
     </>
   );
@@ -205,16 +205,16 @@ function UsageProviderControls(props: { id: string; label: string }) {
  * provider's settings and the tracking switch. Everything is on the surface, so
  * there is nothing to expand.
  *
- * Carries the shared `settings-row` classes so the phone shell reflows it with
- * every other settings row (see src/mobile/styles.css).
+ * Carries the shared `settings-row` classes so compact layout reflows it with
+ * every other settings row.
  */
-export function UsageProviderRow(props: { id: string; label: string }) {
-  const { id, label } = props;
+export function UsageProviderRow(props: { id: string; label: string; remote: boolean }) {
+  const { id, label, remote } = props;
   const { t } = useLingui();
   const snapshot = useProviderUsage(id);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
-  const enabled = !disabledProviders.includes(id);
+  const enabled = remote || !disabledProviders.includes(id);
   const hasWindows = enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
 
   return (
@@ -248,21 +248,23 @@ export function UsageProviderRow(props: { id: string; label: string }) {
           </span>
         )}
       </div>
-      {enabled ? <UsageProviderControls id={id} label={label} /> : null}
-      <span className={enabled ? "shrink-0" : "ml-auto shrink-0"}>
-        <ToggleSwitch
-          aria-label={t`Track ${label} usage`}
-          isSelected={enabled}
-          onChange={(selected) => {
-            const next = selected
-              ? disabledProviders.filter((x) => x !== id)
-              : [...new Set([...disabledProviders, id])];
-            startTransition(() => {
-              setUsageSetting("disabledProviders", next);
-            });
-          }}
-        />
-      </span>
+      {enabled ? <UsageProviderControls id={id} label={label} remote={remote} /> : null}
+      {!remote ? (
+        <span className={enabled ? "shrink-0" : "ml-auto shrink-0"}>
+          <ToggleSwitch
+            aria-label={t`Track ${label} usage`}
+            isSelected={enabled}
+            onChange={(selected) => {
+              const next = selected
+                ? disabledProviders.filter((x) => x !== id)
+                : [...new Set([...disabledProviders, id])];
+              startTransition(() => {
+                setUsageSetting("disabledProviders", next);
+              });
+            }}
+          />
+        </span>
+      ) : null}
     </div>
   );
 }

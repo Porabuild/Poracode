@@ -183,7 +183,10 @@ interface SharedSettingsState extends SharedSettings {
 
 const RECENT_MODELS_LIMIT = 16;
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && window.poracode !== undefined;
+  return (
+    typeof window !== "undefined" &&
+    (window.poracodeHost !== undefined || window.poracode !== undefined)
+  );
 }
 
 function loadFallbackSettings(): SharedSettings {

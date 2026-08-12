@@ -213,7 +213,7 @@ export interface PendingSteerState {
 }
 
 /**
- * Thread-metadata mutation issued by a remote client (the mobile PWA). Thread
+ * Thread-metadata mutation issued by a paired browser client. Thread
  * metadata is owned by the desktop renderer's store (which persists it via
  * `dbSyncAll`), so these commands are forwarded main → renderer and applied
  * through the regular thread actions instead of writing to the DB directly.

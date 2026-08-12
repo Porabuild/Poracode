@@ -8,10 +8,13 @@ import {
 } from "@/renderer/components/layout/paneSizeStorage";
 import { useAppStore, type AppStoreState } from "./appStore";
 import { usePanelStore } from "./panelStore";
+import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import type { PoracodeBridge } from "@/shared/ipc";
 
 describe("appStore runtime config sync", () => {
   beforeEach(() => {
     vi.useRealTimers();
+    resetClientRuntimeForTest();
     localStorage.clear();
     useAppStore.setState((state) => ({
       ...state,
@@ -117,6 +120,52 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
     expect(resolved.view).toMatchObject({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.persist.getOptions().version).toBe(4);
+  });
+
+  it("persists remote rows and the open transcript route in the browser runtime", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    useAppStore.setState({
+      projects: [
+        {
+          id: "remote-project",
+          remoteId: "project-1",
+          remoteServerId: "desktop-1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "remote-thread",
+          remoteId: "thread-1",
+          remoteServerId: "desktop-1",
+          projectId: "remote-project",
+          title: "Cached thread",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          presentationMode: "gui",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "thread", panes: ["remote-thread"] },
+    });
+
+    const persisted = partialize(useAppStore.getState()) as Pick<
+      AppStoreState,
+      "projects" | "threads" | "view"
+    >;
+    expect(persisted.projects).toHaveLength(1);
+    expect(persisted.threads).toHaveLength(1);
+    expect(persisted.view).toEqual({ kind: "thread", panes: ["remote-thread"] });
   });
 
   it("clears provisional worktree launch state when deleting its project", () => {

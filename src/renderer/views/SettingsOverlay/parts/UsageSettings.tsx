@@ -20,6 +20,7 @@ export function UsageSettings() {
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const remote = isRemoteSession();
   const usageProviders = usageProvidersForAgentInstances(agentInstances);
 
   // Hydrate the store from the supervisor cache on open (and let the cache's
@@ -31,13 +32,14 @@ export function UsageSettings() {
       .then((res) => {
         if (cancelled) return;
         const store = useProviderUsageStore.getState();
-        for (const snapshot of res.snapshots) store.mergeSnapshot(snapshot);
+        if (remote) store.setSnapshots(res.snapshots);
+        else for (const snapshot of res.snapshots) store.mergeSnapshot(snapshot);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [remote]);
 
   const refreshNow = () => {
     if (isRefreshing) return;
@@ -75,7 +77,7 @@ export function UsageSettings() {
     >
       {/* The background refresher runs on the desktop; a remote session's
           interval is never read, so hide the row there. */}
-      {!isRemoteSession() && (
+      {!remote && (
         <SettingRow
           anchorId="usage.autoRefreshMinutes"
           title={t`Default auto-refresh (minutes)`}
@@ -162,15 +164,17 @@ export function UsageSettings() {
         <p className="mb-1 text-sm font-medium text-foreground">
           <Trans>Providers</Trans>
         </p>
-        <p className="mb-2 text-xs text-muted">
-          <Trans>
-            Turn tracking on or off per provider. Disabled providers are skipped by the
-            auto-refresh.
-          </Trans>
-        </p>
+        {!remote ? (
+          <p className="mb-2 text-xs text-muted">
+            <Trans>
+              Turn tracking on or off per provider. Disabled providers are skipped by the
+              auto-refresh.
+            </Trans>
+          </p>
+        ) : null}
         <div>
           {usageProviders.map((p) => (
-            <UsageProviderRow key={p.id} id={p.id} label={p.label} />
+            <UsageProviderRow key={p.id} id={p.id} label={p.label} remote={remote} />
           ))}
         </div>
       </div>

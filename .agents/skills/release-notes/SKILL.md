@@ -129,7 +129,7 @@ changed what users see on every automated PR — that is `include` as `improved`
 "too small to list."
 
 **Reconciliation gate:** every `feat/*` and `fix/*` commit that touches
-`src/renderer/**`, `src/mobile/**`, `src/shared/messages.ts`, or locale catalogs must
+`src/renderer/**`, `src/shared/messages.ts`, or locale catalogs must
 end as `include` or `fold into …`. If you cannot fold it cleanly, give it a bullet.
 
 Quick helpers when auditing:
@@ -139,7 +139,7 @@ Quick helpers when auditing:
 git log --pretty='%h %s' --name-only <previousTag>..<target> -- 'src/renderer/locales/**'
 # UI / settings / PR surfaces in the range
 git log --pretty='%h %s' --name-only <previousTag>..<target> -- \
-  'src/renderer/**' 'src/mobile/**' 'website/src/**'
+  'src/renderer/**' 'website/src/**'
 ```
 
 ## Step 2 — Distill into ONE curated entry (house style)

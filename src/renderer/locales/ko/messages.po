@@ -17,6 +17,7 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -25,8 +26,7 @@ msgstr "…"
 msgid "(Draft)"
 msgstr "(초안)"
 
-#: src/mobile/GitSummaryParts.tsx
-#: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/thread/CompactThreadWorkspaceBar.tsx
 msgid "(no branch)"
 msgstr "(브랜치 없음)"
 
@@ -70,20 +70,18 @@ msgstr "{0, plural, one {# 파일} other {# 파일}}"
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
 msgstr "{0, plural, one {#개의 MCP 서버} other {#개의 MCP 서버}}"
 
-#. placeholder {0}: props.desktops.length
-#: src/mobile/views/DesktopsView.tsx
+#. placeholder {0}: servers.length
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "{0, plural, one {# paired connection} other {# paired connections}}"
 msgstr "{0, plural, one {#개의 페어링된 연결} other {#개의 페어링된 연결}}"
 
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/WideShell.tsx
-msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
-msgstr "{0, plural, one {#개의 페어링된 데스크톱} other {#개의 페어링된 데스크톱}}"
+#~ msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
+#~ msgstr "{0, plural, one {#개의 페어링된 데스크톱} other {#개의 페어링된 데스크톱}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: props.projects.length
 #. placeholder {0}: selectedProjects.size
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -296,8 +294,8 @@ msgstr "{0}회 실행"
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
-msgid "{0} threads"
-msgstr "스레드 {0}개"
+#~ msgid "{0} threads"
+#~ msgstr "스레드 {0}개"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -394,8 +392,8 @@ msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead}가 계속하려면 입력이 필요합니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "{commitsCount, plural, one {# commit} other {# commits}}"
-msgstr "{commitsCount, plural, one {커밋 #개} other {커밋 #개}}"
+#~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
+#~ msgstr "{commitsCount, plural, one {커밋 #개} other {커밋 #개}}"
 
 #. placeholder {0}: job.steps.length
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -403,8 +401,8 @@ msgstr "{commitsCount, plural, one {커밋 #개} other {커밋 #개}}"
 #~ msgstr "{completedSteps}/{0}단계 완료"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
-msgstr "{conversationCount, plural, one {댓글 또는 리뷰 #개} other {댓글 및 리뷰 #개}}"
+#~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
+#~ msgstr "{conversationCount, plural, one {댓글 또는 리뷰 #개} other {댓글 및 리뷰 #개}}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
@@ -426,8 +424,8 @@ msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel}에는 인증이 필요합니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
-msgstr "{filesCount, plural, one {파일 #개 변경됨} other {파일 #개 변경됨}}"
+#~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
+#~ msgstr "{filesCount, plural, one {파일 #개 변경됨} other {파일 #개 변경됨}}"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "{filteredCount} / {totalCount} matches"
@@ -478,7 +476,7 @@ msgstr "{label} 자동 새로고침 간격(분)"
 msgid "{label} copied."
 msgstr "{label}이(가) 복사되었습니다."
 
-#: src/mobile/ThreadUsageIndicator.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "{label} usage"
 msgstr "{label} 사용량"
 
@@ -671,14 +669,14 @@ msgid "1 run"
 msgstr "실행 1개"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "1 thread"
-msgstr "스레드 1개"
+#~ msgid "1 thread"
+#~ msgstr "스레드 1개"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "1 workflow"
 #~ msgstr "1개 워크플로"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "22"
 msgstr "22"
 
@@ -787,23 +785,23 @@ msgstr "사이드바 스레드의 빠른 제거 버튼에 대한 작업입니다
 msgid "Action name"
 msgstr "액션 이름"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Actions"
 msgstr "작업"
 
 #. placeholder {0}: thread.title
 #: src/mobile/views/threadActionSurfaces.tsx
-msgid "Actions for {0}"
-msgstr "{0} 작업"
+#~ msgid "Actions for {0}"
+#~ msgstr "{0} 작업"
 
 #: src/mobile/views/threadActionSurfaces.tsx
-msgid "Actions for {title}"
-msgstr "{title} 작업"
+#~ msgid "Actions for {title}"
+#~ msgstr "{title} 작업"
 
-#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -811,7 +809,7 @@ msgstr "{title} 작업"
 msgid "Active"
 msgstr "활성"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "활성 포워딩"
 
@@ -827,9 +825,9 @@ msgstr "활동 인사이트"
 msgid "Activity metric"
 msgstr "활동 지표"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
@@ -839,9 +837,8 @@ msgstr "추가"
 msgid "Add a local project"
 msgstr "로컬 프로젝트 추가"
 
-#: src/mobile/setupEmptyState.tsx
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add a project"
 msgstr "프로젝트 추가"
 
@@ -891,7 +888,7 @@ msgstr "할 일 추가…"
 msgid "Add action"
 msgstr "작업 추가"
 
-#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add an existing folder"
 msgstr "기존 폴더 추가"
 
@@ -939,7 +936,6 @@ msgstr "패턴 추가"
 msgid "Add profile"
 msgstr "프로필 추가"
 
-#: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Add project"
 msgstr "프로젝트 추가"
@@ -988,7 +984,8 @@ msgstr "작성기에 추가"
 msgid "Add to favorites"
 msgstr "즐겨찾기에 추가"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Add to Home Screen"
 msgstr "홈 화면에 추가"
 
@@ -1082,9 +1079,10 @@ msgstr "에이전트: {description}"
 msgid "Agent: {subagent}"
 msgstr "에이전트: {subagent}"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Agents"
 msgstr "에이전트"
 
@@ -1121,9 +1119,10 @@ msgid "AI git actions"
 msgstr "AI git 작업"
 
 #. Settings section: AI helper features (commit messages, thread titles, conflict resolution)
-#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "AI Helpers"
 msgstr "AI 도우미"
 
@@ -1140,7 +1139,7 @@ msgstr "AI 공급자"
 #~ msgid "AI, agents, and archived threads on the paired desktop"
 #~ msgstr "페어링된 데스크톱의 AI, 에이전트 및 보관된 스레드"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Alerts when threads need you"
 msgstr "스레드에 응답이 필요할 때 알림"
 
@@ -1179,7 +1178,6 @@ msgstr "모든 추론 강도"
 msgid "All files"
 msgstr "모든 파일"
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "모든 프로젝트"
@@ -1193,8 +1191,8 @@ msgstr "모든 소스"
 msgid "All workspaces"
 msgstr "모든 작업 영역"
 
-#: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
+#: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow"
 msgstr "허용"
@@ -1205,8 +1203,8 @@ msgid "Allow agents to read/write cookies and storage"
 msgstr "에이전트가 쿠키 및 저장소를 읽고 쓸 수 있도록 허용"
 
 #: src/mobile/QrScanner.tsx
-msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
-msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하고 다시 시도하거나, 아래에 엔드포인트와 토큰을 입력하세요."
+#~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
+#~ msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하고 다시 시도하거나, 아래에 엔드포인트와 토큰을 입력하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1217,7 +1215,7 @@ msgstr "평가 허용"
 msgid "Allow replacing conflicting managed skills"
 msgstr "충돌하는 관리 스킬 교체 허용"
 
-#: src/mobile/push/WebPushPermissionPrompt.tsx
+#: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "앱이 백그라운드에 있을 때 브라우저가 알림을 표시하도록 허용하세요."
@@ -1297,9 +1295,10 @@ msgstr "앱 브라우저"
 msgid "App Controls"
 msgstr "앱 제어"
 
-#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Appearance"
 msgstr "화면 표시"
 
@@ -1346,8 +1345,8 @@ msgstr "모두 보관"
 
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-msgid "Archive all threads"
-msgstr "모든 스레드 보관"
+#~ msgid "Archive all threads"
+#~ msgstr "모든 스레드 보관"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
@@ -1357,17 +1356,15 @@ msgstr "현재 스레드 보관"
 msgid "Archive thread"
 msgstr "스레드 보관"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "아카이브 스레드"
 
-#: src/mobile/settingsSections.ts
-#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Archived Threads"
 msgstr "보관된 스레드"
 
@@ -1579,33 +1576,30 @@ msgstr "아바타 색상"
 msgid "Avatar color {color}"
 msgstr "아바타 색상 {color}"
 
-#: src/mobile/views/BrowserView.tsx
-#: src/mobile/views/NotesView.tsx
-#: src/mobile/views/pr/PrPageHeader.tsx
-#: src/mobile/views/TerminalView.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PageLayout.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Back"
 msgstr "뒤로"
 
 #: src/mobile/views/GitView.tsx
-msgid "Back to changes"
-msgstr "변경 사항으로 돌아가기"
+#~ msgid "Back to changes"
+#~ msgstr "변경 사항으로 돌아가기"
 
 #: src/mobile/views/FilesView.tsx
-msgid "Back to files"
-msgstr "파일로 돌아가기"
+#~ msgid "Back to files"
+#~ msgstr "파일로 돌아가기"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "MCP 서버로 돌아가기"
 
 #: src/mobile/views/pr/PrSubPage.tsx
-msgid "Back to overview"
-msgstr "개요로 돌아가기"
+#~ msgid "Back to overview"
+#~ msgstr "개요로 돌아가기"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1627,7 +1621,6 @@ msgstr "백그라운드 프로세스가 다시 시작되었습니다."
 #~ msgid "Base branch"
 #~ msgstr "기준 브랜치"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "기본 분기가 앞서 있습니다. 먼저 분기를 업데이트해야 합니다."
@@ -1676,7 +1669,6 @@ msgstr "바이너리 파일 — 미리보기를 사용할 수 없습니다."
 msgid "Binary file or no diff available"
 msgstr "바이너리 파일이거나 diff를 사용할 수 없음"
 
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "여기서는 바이너리 파일을 편집할 수 없습니다."
@@ -1751,8 +1743,6 @@ msgstr "패널로 되돌리기"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "이 패널로 되돌리거나 실행 중인 창으로 이동하세요."
 
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "커밋되지 않은 변경 사항 가져오기"
@@ -1770,9 +1760,6 @@ msgstr "상위 폴더 찾아보기"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세요."
 
-#: src/mobile/chrome.ts
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -1780,6 +1767,8 @@ msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
@@ -1823,8 +1812,8 @@ msgid "Browser sign-in"
 msgstr "브라우저로 로그인"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Browser tabs"
-msgstr "브라우저 탭"
+#~ msgid "Browser tabs"
+#~ msgstr "브라우저 탭"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -1883,14 +1872,14 @@ msgid "Bypass branch protection rules (admin merge)"
 msgstr "브랜치 보호 규칙 우회(관리자 병합)"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Cached only"
-msgstr "캐시만 있음"
+#~ msgid "Cached only"
+#~ msgstr "캐시만 있음"
 
 #: src/mobile/QrScanner.tsx
-msgid "Camera access blocked"
-msgstr "카메라 접근이 차단됨"
+#~ msgid "Camera access blocked"
+#~ msgstr "카메라 접근이 차단됨"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "포트를 불러올 수 없습니다"
 
@@ -1899,10 +1888,6 @@ msgid "Can't reach the remote server. Check that it is online, then reconnect it
 msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확인한 후 다시 연결하세요."
 
 #. Dialog button: dismiss without deleting
-#: src/mobile/push/WebPushPermissionPrompt.tsx
-#: src/mobile/views/DesktopsView.tsx
-#: src/mobile/views/FilesView.tsx
-#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -1913,6 +1898,7 @@ msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확�
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
@@ -1929,6 +1915,7 @@ msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확�
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -1948,7 +1935,7 @@ msgstr "보류 중인 조정 취소"
 msgid "Cancel picker"
 msgstr "선택기 취소"
 
-#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Cancel removing project"
 msgstr "프로젝트 제거 취소"
 
@@ -2000,9 +1987,6 @@ msgstr "사용자 변경"
 msgid "Changelog"
 msgstr "변경 내역"
 
-#: src/mobile/views/pr/PrChangesPage.tsx
-#: src/mobile/views/pr/PrOverviewPage.tsx
-#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -2098,7 +2082,7 @@ msgstr "확인 중"
 msgid "Checking {serverName}"
 msgstr "{serverName} 확인 중"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Checking host…"
 msgstr "호스트 확인 중…"
 
@@ -2113,8 +2097,6 @@ msgstr "Tailscale 확인 중…"
 msgid "Checking…"
 msgstr "확인 중…"
 
-#: src/mobile/views/pr/PrChecksPage.tsx
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
@@ -2133,15 +2115,15 @@ msgstr "검사 통과"
 msgid "Checks pending"
 msgstr "검사 대기 중"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "폴더 선택"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder…"
 msgstr "폴더를 선택하세요…"
@@ -2150,7 +2132,7 @@ msgstr "폴더를 선택하세요…"
 msgid "Choose a local base branch for the experiment."
 msgstr "실험에 사용할 로컬 기준 브랜치를 선택하세요."
 
-#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Choose a parent folder"
 msgstr "상위 폴더 선택"
 
@@ -2259,8 +2241,6 @@ msgstr "Claude 프로필 이름"
 msgid "Claude profile removed."
 msgstr "Claude 프로필이 삭제되었습니다."
 
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "클린 작업 트리"
@@ -2289,15 +2269,13 @@ msgstr "쿠키 지우기"
 msgid "Clear goal"
 msgstr "목표 지우기"
 
-#: src/mobile/views/FilesView.tsx
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "검색 지우기"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "Clear thread search"
-msgstr "스레드 검색 지우기"
+#~ msgid "Clear thread search"
+#~ msgstr "스레드 검색 지우기"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
@@ -2313,16 +2291,16 @@ msgstr "CLI 후크"
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "단축키를 클릭하여 새 키를 기록하거나 ＋를 눌러 추가하세요."
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
 msgstr "클론"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Clone a repository"
 msgstr "저장소 복제"
 
@@ -2342,9 +2320,7 @@ msgstr "{cloneTarget} 복제 중"
 msgid "Cloning…"
 msgstr "복제 중…"
 
-#: src/mobile/components.tsx
-#: src/mobile/views/HostFolderPicker.tsx
-#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
@@ -2355,16 +2331,16 @@ msgid "Close"
 msgstr "닫기"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Close {closeTarget}"
-msgstr "{closeTarget} 닫기"
+#~ msgid "Close {closeTarget}"
+#~ msgstr "{closeTarget} 닫기"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Close {purposeNoun} terminal"
 msgstr "{purposeNoun} 터미널 닫기"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Close add project"
-msgstr "프로젝트 추가 닫기"
+#~ msgid "Close add project"
+#~ msgstr "프로젝트 추가 닫기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
@@ -2376,10 +2352,10 @@ msgstr "변경 사항 닫기"
 
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
-msgid "Close composer"
-msgstr "작성기 닫기"
+#~ msgid "Close composer"
+#~ msgstr "작성기 닫기"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Close connection actions"
 msgstr "연결 작업 닫기"
 
@@ -2408,18 +2384,18 @@ msgid "Close experiment"
 msgstr "실험 닫기"
 
 #: src/mobile/views/FilesView.tsx
-msgid "Close file actions"
-msgstr "파일 작업 닫기"
+#~ msgid "Close file actions"
+#~ msgstr "파일 작업 닫기"
 
 #: src/renderer/components/find/FindBar.tsx
 msgid "Close find"
 msgstr "찾기 닫기"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Close forward a port"
 msgstr "포트 전달 닫기"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Close forward actions"
 msgstr "전달 작업 닫기"
 
@@ -2437,26 +2413,24 @@ msgid "Close group"
 msgstr "그룹 닫기"
 
 #: src/mobile/views/threadActionSurfaces.tsx
-msgid "Close group actions"
-msgstr "그룹 작업 닫기"
+#~ msgid "Close group actions"
+#~ msgstr "그룹 작업 닫기"
 
-#: src/mobile/TodoActionsSheet.tsx
-#: src/mobile/UserMessageActionsSheet.tsx
-#: src/mobile/views/GitActionSheet.tsx
+#: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Close menu"
 msgstr "메뉴 닫기"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "Close merge options"
-msgstr "병합 옵션 닫기"
+#~ msgid "Close merge options"
+#~ msgstr "병합 옵션 닫기"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
 msgstr "오버레이 닫기"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close pairing"
-msgstr "페어링 닫기"
+#~ msgid "Close pairing"
+#~ msgstr "페어링 닫기"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -2476,26 +2450,25 @@ msgid "Close PR"
 msgstr "PR 닫기"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "Close PR review"
-msgstr "PR 리뷰 닫기"
+#~ msgid "Close PR review"
+#~ msgstr "PR 리뷰 닫기"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Close preview"
 msgstr "미리보기 닫기"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "Close project filter"
-msgstr "프로젝트 필터 닫기"
+#~ msgid "Close project filter"
+#~ msgstr "프로젝트 필터 닫기"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Close run details"
 msgstr "실행 세부 정보 닫기"
 
 #: src/mobile/QrScanner.tsx
-msgid "Close scanner"
-msgstr "스캐너 닫기"
+#~ msgid "Close scanner"
+#~ msgstr "스캐너 닫기"
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "검색 닫기"
@@ -2523,15 +2496,14 @@ msgid "Close tab"
 msgstr "탭 닫기"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Close tab switcher"
-msgstr "탭 전환기 닫기"
+#~ msgid "Close tab switcher"
+#~ msgstr "탭 전환기 닫기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Close thread"
 #~ msgstr "스레드 닫기"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Close thread actions"
 msgstr "스레드 작업 닫기"
 
@@ -2588,6 +2560,7 @@ msgid "Collapse all folders"
 msgstr "모든 폴더 접기"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Collapse composer"
 msgstr "작성기 접기"
 
@@ -2702,7 +2675,6 @@ msgstr "커밋 옵션"
 msgid "Commit, PR, and review composers"
 msgstr "커밋, PR, 리뷰 작성기"
 
-#: src/mobile/views/pr/PrCommitsPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "커밋"
@@ -2711,7 +2683,7 @@ msgstr "커밋"
 msgid "Compacting context"
 msgstr "컨텍스트 압축"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Compare this fingerprint with the one shown by your server."
 msgstr "이 지문을 서버에 표시된 지문과 비교하세요."
 
@@ -2830,7 +2802,7 @@ msgstr "충돌"
 msgid "Conflicts with a managed skill"
 msgstr "관리 스킬과 충돌함"
 
-#: src/mobile/setupEmptyState.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2850,40 +2822,51 @@ msgid "Connect an agent to create schedules."
 msgstr "일정을 만들려면 에이전트를 연결하세요."
 
 #: src/mobile/setupEmptyState.tsx
-msgid "Connect desktop"
-msgstr "데스크톱 연결"
+#~ msgid "Connect desktop"
+#~ msgstr "데스크톱 연결"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes."
 msgstr "직접, 릴레이 또는 SSH를 통해 연결하세요. 모든 전송 방식은 동일한 Poracode 원격 프로토콜, 프로젝트, 스레드 및 에이전트 런타임을 사용합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect over SSH"
 msgstr "SSH로 연결"
 
 #: src/mobile/setupEmptyState.tsx
-msgid "Connect Poracode on your desktop before starting a thread."
-msgstr "스레드를 시작하기 전에 데스크톱의 Poracode에 연결하세요."
+#~ msgid "Connect Poracode on your desktop before starting a thread."
+#~ msgstr "스레드를 시작하기 전에 데스크톱의 Poracode에 연결하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "OpenCode가 사용할 수 있는 AI 공급자를 여기에서 연결하고 로그아웃하세요."
 
+#: src/renderer/views/WelcomeOverlay.tsx
+msgid "Connect to a remote server"
+msgstr "원격 서버에 연결"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Poracode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
 #~ msgstr "다른 Poracode 데스크톱이나 헤드리스 서버에 연결하면 여기에서 해당 프로젝트를 탐색하고 관리할 수 있습니다. 해당 기기의 설정 → 원격 액세스에서 엔드포인트와 페어링 토큰을 확인하세요."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+msgid "Connect to Your Desktop"
+msgstr "데스크톱에 연결"
+
+#: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connected"
 msgstr "연결됨"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Connecting to the desktop browser…"
-msgstr "데스크톱 브라우저에 연결 중…"
+#~ msgid "Connecting to the desktop browser…"
+#~ msgstr "데스크톱 브라우저에 연결 중…"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "연결 중…"
@@ -2894,8 +2877,8 @@ msgid "Connection error"
 msgstr "연결 오류"
 
 #: src/mobile/components.tsx
-msgid "Connection error."
-msgstr "연결 오류입니다."
+#~ msgid "Connection error."
+#~ msgstr "연결 오류입니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
@@ -2903,16 +2886,16 @@ msgid "Connection failed."
 msgstr "연결에 실패했습니다."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Connection method"
-msgstr "연결 방식"
+#~ msgid "Connection method"
+#~ msgstr "연결 방식"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connection timed out."
 msgstr "연결 시간이 초과되었습니다."
 
-#: src/mobile/chrome.ts
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Connections"
 msgstr "연결"
 
@@ -2924,8 +2907,8 @@ msgstr "콘솔"
 msgid "Contains sensitive values; add manually"
 msgstr "민감한 값이 포함되어 있습니다. 직접 추가하세요"
 
-#: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context"
 msgstr "컨텍스트"
@@ -2978,8 +2961,8 @@ msgid "Continue in..."
 msgstr "다음에서 계속..."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Continue on the desktop address"
-msgstr "데스크톱 주소에서 계속"
+#~ msgid "Continue on the desktop address"
+#~ msgstr "데스크톱 주소에서 계속"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
@@ -2997,17 +2980,15 @@ msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝
 msgid "Controls the paired desktop while the agent clicks or types"
 msgstr "에이전트가 클릭하거나 입력하는 동안 페어링된 데스크톱을 제어합니다"
 
-#: src/mobile/views/pr/PrConversationPage.tsx
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Conversation"
 msgstr "대화"
 
-#: src/mobile/UserMessageActionsSheet.tsx
-#: src/mobile/views/PortsView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "복사됨"
 
@@ -3067,9 +3048,9 @@ msgstr "무시된 파일 복사"
 msgid "Copy image"
 msgstr "이미지 복사"
 
-#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Copy message"
 msgstr "메시지 복사"
 
@@ -3101,7 +3082,7 @@ msgstr "Tailscale URL 복사"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브랜치에 유지)."
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copy URL"
 msgstr "URL 복사"
 
@@ -3152,8 +3133,8 @@ msgid "Could not sign out of {serverName}."
 msgstr "{serverName}에서 로그아웃할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't cache offline data."
-msgstr "오프라인 데이터를 캐시할 수 없습니다."
+#~ msgid "Couldn't cache offline data."
+#~ msgstr "오프라인 데이터를 캐시할 수 없습니다."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -3168,8 +3149,8 @@ msgid "Couldn't create the project."
 msgstr "프로젝트를 생성할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't create the worktree."
-msgstr "worktree를 만들 수 없습니다."
+#~ msgid "Couldn't create the worktree."
+#~ msgstr "worktree를 만들 수 없습니다."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Couldn't import the selected skills."
@@ -3197,12 +3178,12 @@ msgid "Couldn't load your profile stats."
 msgstr "프로필 통계를 불러오지 못했습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't move the thread to a worktree."
-msgstr "스레드를 작업 트리로 이동할 수 없습니다."
+#~ msgid "Couldn't move the thread to a worktree."
+#~ msgstr "스레드를 작업 트리로 이동할 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop from this HTTPS page."
-msgstr "이 HTTPS 페이지에서는 데스크톱에 연결할 수 없습니다."
+#~ msgid "Couldn't reach the desktop from this HTTPS page."
+#~ msgstr "이 HTTPS 페이지에서는 데스크톱에 연결할 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
@@ -3229,8 +3210,8 @@ msgid "Couldn't schedule the Lightcode data import."
 msgstr "Lightcode 데이터 가져오기를 예약할 수 없습니다."
 
 #: src/mobile/QrScanner.tsx
-msgid "Couldn't start the camera"
-msgstr "카메라를 시작할 수 없습니다"
+#~ msgid "Couldn't start the camera"
+#~ msgstr "카메라를 시작할 수 없습니다"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
@@ -3238,6 +3219,8 @@ msgstr "스킬을 업데이트하지 못했습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Create"
 msgstr "생성"
 
@@ -3382,9 +3365,9 @@ msgstr "Crossagent: {description}"
 msgid "Crossagent: {subagent}"
 msgstr "Crossagent: {subagent}"
 
-#: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -3420,7 +3403,6 @@ msgstr "선택됨"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market에서 관리하는 엄선된 무료 및 프리미엄 스킬입니다."
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
 msgstr "최근"
@@ -3592,7 +3574,6 @@ msgid "Delegate work to other AI agents."
 msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 
 #. Thread remove action: delete permanently
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
@@ -3635,8 +3616,8 @@ msgstr "{serverName} 삭제"
 
 #. placeholder {0}: props.entry.name
 #: src/mobile/views/FilesView.tsx
-msgid "Delete <0>{0}</0>? This cannot be undone."
-msgstr "<0>{0}</0>을(를) 삭제할까요? 이 작업은 되돌릴 수 없습니다."
+#~ msgid "Delete <0>{0}</0>? This cannot be undone."
+#~ msgstr "<0>{0}</0>을(를) 삭제할까요? 이 작업은 되돌릴 수 없습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
@@ -3675,14 +3656,11 @@ msgstr "스킬 삭제"
 #~ msgid "Delete task"
 #~ msgstr "작업 삭제"
 
-#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
 msgstr "스레드 삭제"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "스레드 삭제"
@@ -3691,7 +3669,6 @@ msgstr "스레드 삭제"
 msgid "Delete thread?"
 msgstr "스레드를 삭제하시겠습니까?"
 
-#: src/mobile/TodoActionsSheet.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "할 일 삭제"
@@ -3713,9 +3690,6 @@ msgstr "작업 영역 삭제"
 msgid "Delete workspace?"
 msgstr "작업 영역을 삭제할까요?"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Delete Worktree"
 msgstr "작업트리 삭제"
@@ -3763,11 +3737,11 @@ msgid "Desktop endpoint"
 msgstr "데스크톱 엔드포인트"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Desktop is unreachable."
-msgstr "데스크톱에 연결할 수 없습니다."
+#~ msgid "Desktop is unreachable."
+#~ msgstr "데스크톱에 연결할 수 없습니다."
 
-#: src/mobile/chrome.ts
-#: src/mobile/views/MoreView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Desktop Settings"
 msgstr "데스크톱 설정"
 
@@ -3783,7 +3757,7 @@ msgstr "분리된 HEAD"
 #~ msgid "Details"
 #~ msgstr "세부 정보"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "감지됨"
 
@@ -3812,7 +3786,7 @@ msgstr "에이전트 감지 중…"
 msgid "Dev"
 msgstr "데브"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "데스크톱의 localhost에서 대기 중인 개발 서버입니다."
 
@@ -3913,16 +3887,16 @@ msgid "Discard {0}"
 msgstr "{0} 버리기"
 
 #: src/mobile/views/GitActionSheet.tsx
-msgid "Discard all changes"
-msgstr "모든 변경 사항 버리기"
+#~ msgid "Discard all changes"
+#~ msgstr "모든 변경 사항 버리기"
 
 #: src/mobile/views/GitActionSheet.tsx
-msgid "Discard changes"
-msgstr "변경 사항 버리기"
+#~ msgid "Discard changes"
+#~ msgstr "변경 사항 버리기"
 
 #: src/mobile/views/GitActionSheet.tsx
-msgid "Discard changes to <0>{title}</0>? This cannot be undone."
-msgstr "<0>{title}</0>의 변경 사항을 버릴까요? 이 작업은 되돌릴 수 없습니다."
+#~ msgid "Discard changes to <0>{title}</0>? This cannot be undone."
+#~ msgstr "<0>{title}</0>의 변경 사항을 버릴까요? 이 작업은 되돌릴 수 없습니다."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
@@ -3934,7 +3908,6 @@ msgstr "실험 폐기"
 msgid "Discard experiment?"
 msgstr "실험을 폐기할까요?"
 
-#: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -3947,8 +3920,8 @@ msgid "Discard unsaved editor changes?"
 msgstr "저장되지 않은 편집기 변경사항을 삭제하시겠습니까?"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Disconnect server"
-msgstr "서버 연결 해제"
+#~ msgid "Disconnect server"
+#~ msgstr "서버 연결 해제"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
@@ -4006,7 +3979,6 @@ msgid "done"
 msgstr "완료"
 
 #. Notification status: thread is done
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4060,7 +4032,7 @@ msgstr "모델 선택기에 공급자가 표시되는 방식을 바꾸려면 드
 msgid "Drag to reorder; double-click to edit"
 msgstr "드래그하여 재정렬하세요. 편집하려면 두 번 클릭하세요."
 
-#: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "드라이브"
@@ -4152,7 +4124,7 @@ msgstr "에디터 LSP"
 msgid "Editor tabs"
 msgstr "편집기 탭"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Edits the paired desktop and syncs back to it."
 msgstr "페어링된 데스크톱을 편집하고 다시 동기화합니다."
 
@@ -4209,7 +4181,7 @@ msgstr "유형 확인, 완성 및 진단을 위한 언어 서버 지원을 활�
 msgid "Enable microphone access in your system settings, then try again."
 msgstr "시스템 설정에서 마이크 액세스를 활성화한 후 다시 시도하세요."
 
-#: src/mobile/push/WebPushPermissionPrompt.tsx
+#: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
@@ -4228,7 +4200,7 @@ msgstr "설정에서 공급자 활성화"
 msgid "Enabled"
 msgstr "활성화됨"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Enabled agents, model visibility and order"
 msgstr "활성화된 에이전트, 모델 표시 여부 및 순서"
 
@@ -4240,8 +4212,7 @@ msgstr "활성화된 서버는 새 스레드에서도 계속 켜져 있습니다
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>쿠키</0> 및 <1>저장</1>을 활성화합니다. 쿠키는 세션 토큰을 포함할 수 있으며 저장소는 종종 인증 상태를 유지합니다. 에이전트와 에이전트가 방문하는 사이트를 모두 신뢰할 때만 활성화됩니다."
 
-#: src/mobile/views/DesktopsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Endpoint"
 msgstr "엔드포인트"
 
@@ -4250,8 +4221,8 @@ msgstr "엔드포인트"
 #~ msgstr "엔드포인트, 예: http://192.168.1.20:38987/"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Endpoint, e.g. http://192.168.1.20:49152/"
-msgstr "엔드포인트, 예: http://192.168.1.20:49152/"
+#~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
+#~ msgstr "엔드포인트, 예: http://192.168.1.20:49152/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -4278,8 +4249,8 @@ msgid "Enter a valid absolute project path."
 msgstr "유효한 절대 프로젝트 경로를 입력하세요."
 
 #: src/mobile/routeComponents.tsx
-msgid "Enter a valid desktop endpoint."
-msgstr "올바른 데스크톱 엔드포인트를 입력하세요."
+#~ msgid "Enter a valid desktop endpoint."
+#~ msgstr "올바른 데스크톱 엔드포인트를 입력하세요."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
@@ -4289,7 +4260,7 @@ msgstr "유효한 HTTP 또는 HTTPS URL을 입력하세요."
 msgid "Enter a valid project name."
 msgstr "유효한 프로젝트 이름을 입력하세요."
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Enter a valid SSH target and port."
 msgstr "올바른 SSH 대상과 포트를 입력하세요."
 
@@ -4305,11 +4276,16 @@ msgstr "MCP 서버 구성 하나를 입력하세요."
 msgid "Enter plan mode"
 msgstr "계획 모드 시작"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Enter the pairing URL shown on your desktop."
+msgstr "데스크톱에 표시된 페어링 URL을 입력하세요."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "데스크톱에서 개발 서버가 대기 중인 포트를 입력하세요."
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Enter the SSH password."
 msgstr "SSH 암호를 입력하세요."
 
@@ -4346,8 +4322,6 @@ msgid "error"
 msgstr "오류"
 
 #. Notification status: agent error
-#: src/mobile/presentation.ts
-#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -4363,7 +4337,7 @@ msgstr "오류"
 msgid "Error · Agent encountered an error"
 msgstr "오류 · 에이전트에 오류가 발생했습니다."
 
-#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "오류"
 
@@ -4388,6 +4362,7 @@ msgstr "매시간"
 msgid "Every hour at {0} minutes past"
 msgstr "매시 {0}분"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Exclude from sync"
 msgstr "동기화에서 제외"
@@ -4402,14 +4377,14 @@ msgid "Exit plan mode"
 msgstr "계획 모드 종료"
 
 #: src/mobile/views/TerminalView.tsx
-msgid "exited"
-msgstr "종료됨"
+#~ msgid "exited"
+#~ msgstr "종료됨"
 
 #. placeholder {0}: activeTab.exitCode
 #. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({0})"
-msgstr "종료됨 ({0})"
+#~ msgid "exited ({0})"
+#~ msgstr "종료됨 ({0})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -4671,8 +4646,8 @@ msgid "File"
 msgstr "파일"
 
 #: src/mobile/views/FilesView.tsx
-msgid "File actions"
-msgstr "파일 작업"
+#~ msgid "File actions"
+#~ msgstr "파일 작업"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "File changes will appear here."
@@ -4682,7 +4657,6 @@ msgstr "파일 변경사항이 여기에 표시됩니다."
 msgid "File is too large to preview."
 msgstr "파일이 너무 커서 미리 볼 수 없습니다."
 
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "파일이 더 이상 디스크에 존재하지 않습니다."
@@ -4699,8 +4673,6 @@ msgstr "표시하기에 파일이 너무 큽니다 ({0, plural, one {# 줄 변�
 msgid "File uses an unsupported encoding."
 msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 
-#: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -4724,7 +4696,6 @@ msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨�
 msgid "Fill in all required workflow inputs."
 msgstr "필수 워크플로 입력을 모두 작성하세요."
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "프로젝트별 필터"
@@ -4766,7 +4737,6 @@ msgstr "터미널에서 찾기"
 msgid "Finish your review"
 msgstr "리뷰를 마무리하세요"
 
-#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Finished"
 msgstr "완료"
@@ -4885,9 +4855,10 @@ msgid "Folder name"
 msgstr "폴더 이름"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder on the server"
-msgstr "서버의 폴더"
+#~ msgid "Folder on the server"
+#~ msgstr "서버의 폴더"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "서버의 폴더 경로"
@@ -4902,10 +4873,10 @@ msgid "Folder that holds this project's worktrees. Reset to use the global setti
 msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전역 설정을 사용하려면 재설정하세요."
 
 #: src/mobile/views/ThreadView.tsx
-msgid "Follow up..."
-msgstr "후속 질문..."
+#~ msgid "Follow up..."
+#~ msgstr "후속 질문..."
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "글꼴 및 스크롤"
 
@@ -4947,14 +4918,13 @@ msgstr "양식"
 msgid "Format files"
 msgstr "파일 포맷팅"
 
-#: src/mobile/views/BrowserView.tsx
-#: src/mobile/views/PortsView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Forward"
 msgstr "앞으로"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Forward a port"
 msgstr "포트 전달"
 
@@ -5010,12 +4980,13 @@ msgstr "전체화면 오버레이"
 msgid "Gemini"
 msgstr "Gemini"
 
-#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "General"
 msgstr "일반"
 
@@ -5053,8 +5024,6 @@ msgstr "업무 중에 간단한 점검을 받으세요."
 msgid "Get task"
 msgstr "작업 가져오기"
 
-#: src/mobile/settingsSections.ts
-#: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -5063,7 +5032,9 @@ msgstr "작업 가져오기"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Git"
 msgstr "Git"
 
@@ -5072,8 +5043,8 @@ msgid "Git {command} failed: {detail}"
 msgstr "Git {command} 실패: {detail}"
 
 #: src/mobile/views/GitActionSheet.tsx
-msgid "Git actions"
-msgstr "Git 작업"
+#~ msgid "Git actions"
+#~ msgstr "Git 작업"
 
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
@@ -5176,7 +5147,7 @@ msgstr "탐색 기록에서 뒤로 이동"
 msgid "Go forward in navigation history"
 msgstr "탐색 기록에서 앞으로 이동"
 
-#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "목표"
@@ -5293,8 +5264,8 @@ msgid "Hide context usage details"
 msgstr "컨텍스트 사용 세부정보 숨기기"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Hide keyboard"
-msgstr "키보드 숨기기"
+#~ msgid "Hide keyboard"
+#~ msgstr "키보드 숨기기"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Hide MCP servers from {providerLabel}"
@@ -5342,7 +5313,7 @@ msgstr "기록"
 msgid "Home"
 msgstr "홈"
 
-#: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
 msgstr "홈 폴더"
@@ -5385,7 +5356,7 @@ msgstr "https://example.com/mcp"
 msgid "ID: {0}"
 msgstr "ID:{0}"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Identity and usage stats"
 msgstr "신원 정보 및 사용량 통계"
 
@@ -5398,7 +5369,6 @@ msgid "Identity file path"
 msgstr "ID 파일 경로"
 
 #. Microphone input level when not testing
-#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -5497,15 +5467,20 @@ msgstr "개선됨"
 msgid "In progress"
 msgstr "진행 중"
 
-#: src/mobile/QrScanner.tsx
-msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
-msgstr "앱 내 카메라 스캔은 HTTPS에서만 작동합니다. 휴대폰의 카메라 앱으로 데스크톱 QR 코드를 스캔하거나 아래에 엔드포인트와 토큰을 입력하세요."
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "In Safari, tap Share, then Add to Home Screen."
+msgstr "Safari에서 공유를 누른 다음 홈 화면에 추가를 선택하세요."
 
-#: src/mobile/presentation.ts
+#: src/mobile/QrScanner.tsx
+#~ msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
+#~ msgstr "앱 내 카메라 스캔은 HTTPS에서만 작동합니다. 휴대폰의 카메라 앱으로 데스크톱 QR 코드를 스캔하거나 아래에 엔드포인트와 토큰을 입력하세요."
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "비활성"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Include in sync"
 msgstr "동기화에 포함"
@@ -5564,6 +5539,7 @@ msgstr "설치"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Install"
@@ -5607,6 +5583,11 @@ msgstr "{environment}에 ACP + SDK 설치"
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "설치 후 다시 시작"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Install app"
+msgstr "앱 설치"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
@@ -5654,6 +5635,11 @@ msgstr "Windows에 설치"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "패키지 설치"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Install Poracode for faster access and offline launch."
+msgstr "Poracode를 설치하면 더 빠르게 접속하고 오프라인에서도 실행할 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Install Tailscale"
@@ -5852,8 +5838,8 @@ msgid "Launch thread"
 msgstr "스레드 시작"
 
 #: src/mobile/presentation.ts
-msgid "Launching"
-msgstr "시작 중"
+#~ msgid "Launching"
+#~ msgstr "시작 중"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Launching…"
@@ -5936,15 +5922,18 @@ msgid "List tasks"
 msgstr "작업 나열"
 
 #: src/mobile/remoteConnectionState.ts
-msgid "Live"
-msgstr "실시간"
+#~ msgid "Live"
+#~ msgstr "실시간"
 
 #. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
 #: src/mobile/views/DesktopsView.tsx
-msgid "Live {0}"
-msgstr "실시간 {0}"
+#~ msgid "Live {0}"
+#~ msgstr "실시간 {0}"
 
 #: src/renderer/components/common/PixelLoader.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
 msgstr "로드 중"
 
@@ -6014,12 +6003,12 @@ msgid "Loading skills…"
 msgstr "스킬 불러오는 중…"
 
 #: src/mobile/views/ThreadView.tsx
-msgid "Loading thread"
-msgstr "스레드 로드 중"
+#~ msgid "Loading thread"
+#~ msgstr "스레드 로드 중"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "Loading threads"
-msgstr "스레드 로드 중"
+#~ msgid "Loading threads"
+#~ msgstr "스레드 로드 중"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -6029,14 +6018,11 @@ msgstr "워크플로 입력 불러오는 중"
 msgid "Loading workflow runs"
 msgstr "워크플로 실행 불러오는 중"
 
-#: src/mobile/routeComponents.tsx
-#: src/mobile/ThreadDetail.tsx
-#: src/mobile/views/FilesView.tsx
-#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "로드 중…"
@@ -6056,7 +6042,7 @@ msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "{branch}에서 가져오기 전에 로컬 변경 사항을 숨겨야 합니다."
 
 #. placeholder {0}: forward.targetPort
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
 msgstr "데스크톱의 localhost:{0}"
 
@@ -6125,7 +6111,7 @@ msgstr "최장 연속 기록"
 msgid "Longest task"
 msgstr "최장 작업"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "개발 서버를 찾는 중…"
 
@@ -6211,6 +6197,10 @@ msgstr "수동 재정의"
 msgid "Manual routes override learned routing whenever all of their task tags match."
 msgstr "모든 작업 태그가 일치하면 수동 경로가 학습된 라우팅보다 우선합니다."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+msgid "Manual URL"
+msgstr "수동 URL"
+
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Mark {0} done"
@@ -6218,8 +6208,8 @@ msgstr "{0} 완료로 표시"
 
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-msgid "Mark all done"
-msgstr "모두 완료로 표시"
+#~ msgid "Mark all done"
+#~ msgstr "모두 완료로 표시"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
@@ -6238,9 +6228,7 @@ msgstr "완료되지 않음으로 표시"
 msgid "Mark done"
 msgstr "완료로 표시"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "완료로 표시"
@@ -6376,7 +6364,6 @@ msgstr "병합 및 제거"
 #~ msgid "Merge candidate {0} ({label}) as experiment winner"
 #~ msgstr "후보 {0}({label}): 실험 우승자로 병합"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "병합 충돌을 해결해야 합니다."
@@ -6403,7 +6390,6 @@ msgstr "병합에 충돌이 있습니다:\n"
 msgid "Merge Locally & Remove Worktree"
 msgstr "로컬로 병합 및 작업 트리 제거"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6419,19 +6405,16 @@ msgstr "병합 옵션"
 #~ msgid "Merge PR"
 #~ msgstr "PR 병합"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "PR 병합: 커밋"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "PR 병합: 리베이스"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
@@ -6442,8 +6425,8 @@ msgid "Merge this candidate's changes into the base branch and remove the other 
 msgstr "이 후보의 변경 사항을 베이스 브랜치에 병합하고 다른 후보의 워크트리를 제거합니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "Merge this pull request with one squashed commit."
-msgstr "이 pull request를 하나의 squash 커밋으로 병합합니다."
+#~ msgid "Merge this pull request with one squashed commit."
+#~ msgstr "이 pull request를 하나의 squash 커밋으로 병합합니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge to Source"
@@ -6474,7 +6457,7 @@ msgstr "실험 우승자를 {sourceBranch}에 병합했습니다."
 msgid "Merging is blocked"
 msgstr "병합이 차단되었습니다."
 
-#: src/mobile/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Message actions"
 msgstr "메시지 작업"
 
@@ -6534,12 +6517,12 @@ msgid "Minute"
 msgstr "분"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Mirrored desktop browser tab"
-msgstr "미러링된 데스크톱 브라우저 탭"
+#~ msgid "Mirrored desktop browser tab"
+#~ msgstr "미러링된 데스크톱 브라우저 탭"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Mirroring is unavailable."
-msgstr "미러링을 사용할 수 없습니다."
+#~ msgid "Mirroring is unavailable."
+#~ msgstr "미러링을 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Mobile push notifications"
@@ -6600,7 +6583,7 @@ msgstr "모델"
 msgid "Modes"
 msgstr "모드"
 
-#: src/mobile/NarrowShell.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
@@ -6694,7 +6677,7 @@ msgstr "변경 사항을 새 작업 트리로 이동"
 msgid "Move panel"
 msgstr "패널 이동"
 
-#: src/mobile/ThreadTitleRow.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "클린 작업 트리로 이동"
 
@@ -6702,13 +6685,11 @@ msgstr "클린 작업 트리로 이동"
 msgid "Move to Workspace"
 msgstr "작업 영역으로 이동"
 
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "작업 트리로 이동"
 
-#: src/mobile/ThreadTitleRow.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to worktree with changes"
 msgstr "변경 사항을 포함해 작업 트리로 이동"
 
@@ -6785,7 +6766,6 @@ msgstr "네이티브 공급자"
 msgid "Native support"
 msgstr "네이티브 지원"
 
-#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
 msgstr "승인 필요"
@@ -6803,7 +6783,6 @@ msgstr "주의 필요 · 승인 필요"
 msgid "Needs Attention · Reply required"
 msgstr "주의 필요 · 답변 필요"
 
-#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "답장이 필요함"
@@ -6845,8 +6824,8 @@ msgstr "새 코드"
 #~ msgstr "새 실험"
 
 #: src/mobile/views/FilesView.tsx
-msgid "New file"
-msgstr "새 파일"
+#~ msgid "New file"
+#~ msgstr "새 파일"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -6854,12 +6833,12 @@ msgid "New File"
 msgstr "새 파일"
 
 #: src/mobile/views/useFileTree.ts
-msgid "New file name"
-msgstr "새 파일 이름"
+#~ msgid "New file name"
+#~ msgstr "새 파일 이름"
 
 #: src/mobile/views/FilesView.tsx
-msgid "New folder"
-msgstr "새 폴더"
+#~ msgid "New folder"
+#~ msgstr "새 폴더"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -6867,8 +6846,8 @@ msgid "New Folder"
 msgstr "새 폴더"
 
 #: src/mobile/views/useFileTree.ts
-msgid "New folder name"
-msgstr "새 폴더 이름"
+#~ msgid "New folder name"
+#~ msgstr "새 폴더 이름"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
@@ -6902,7 +6881,6 @@ msgstr "새 일정"
 #~ msgid "New scheduled task"
 #~ msgstr "새 예약 작업"
 
-#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
@@ -6916,13 +6894,12 @@ msgstr "그룹에 새 탭"
 #~ msgid "New task"
 #~ msgstr "새 작업"
 
-#: src/mobile/chrome.ts
-#: src/mobile/views/QuickCompose.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -6945,9 +6922,7 @@ msgstr "새 스레드 — {projectName}"
 msgid "New thread from this to-do"
 msgstr "이 할 일의 새 스레드"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "New thread in worktree"
 msgstr "worktree에서 새 스레드"
 
@@ -7037,7 +7012,6 @@ msgstr "설치된 에이전트가 없습니다."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "아직 추적된 AI 커밋, PR, 충돌 해결이 없습니다."
 
-#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "보관된 스레드가 없습니다."
@@ -7055,8 +7029,8 @@ msgid "No browser tab open"
 msgstr "브라우저 탭이 열려 있지 않습니다."
 
 #: src/mobile/QrScanner.tsx
-msgid "No camera found"
-msgstr "카메라를 찾을 수 없음"
+#~ msgid "No camera found"
+#~ msgstr "카메라를 찾을 수 없음"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -7097,10 +7071,10 @@ msgid "No configured MCP servers yet"
 msgstr "아직 구성된 MCP 서버가 없습니다"
 
 #: src/mobile/WideShell.tsx
-msgid "No connection paired"
-msgstr "페어링된 연결 없음"
+#~ msgid "No connection paired"
+#~ msgstr "페어링된 연결 없음"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No connections yet"
 msgstr "아직 연결이 없습니다"
 
@@ -7130,11 +7104,11 @@ msgstr "{provider}의 기본 원샷 모델이 구성되지 않았습니다"
 msgid "No description"
 msgstr "설명 없음"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "No desktop connection"
 msgstr "데스크톱 연결 없음"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "No dev servers detected"
 msgstr "감지된 개발 서버가 없습니다"
 
@@ -7155,9 +7129,7 @@ msgstr "이 범위에서 외부 스킬을 찾지 못했습니다."
 msgid "No file checkpoint is stored for this message."
 msgstr "이 메시지에 대해 저장된 파일 체크포인트가 없습니다."
 
-#. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "\"{0}\"과(와) 일치하는 파일이 없습니다."
@@ -7222,7 +7194,6 @@ msgstr "일치하는 일정이 없습니다."
 #~ msgid "No matching tasks."
 #~ msgstr "일치하는 작업이 없습니다."
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "일치하는 스레드 없음"
@@ -7273,21 +7244,27 @@ msgstr "패턴이 없습니다."
 msgid "No phases yet."
 msgstr "아직 단계가 없습니다."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "No Poracode pairing QR code found."
+msgstr "Poracode 페어링 QR 코드를 찾을 수 없습니다."
+
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "No projects"
-msgstr "프로젝트 없음"
+#~ msgid "No projects"
+#~ msgstr "프로젝트 없음"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "No projects in this workspace"
 msgstr "이 작업 영역에 프로젝트가 없습니다"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "No projects on this server."
 msgstr "이 서버에 프로젝트가 없습니다."
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "No projects yet"
-msgstr "아직 프로젝트가 없습니다"
+#~ msgid "No projects yet"
+#~ msgstr "아직 프로젝트가 없습니다"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "No projects yet."
@@ -7317,6 +7294,7 @@ msgstr "풀 리퀘스트를 찾을 수 없습니다."
 msgid "No remote configured. Add a remote to enable push and pull."
 msgstr "원격이 구성되지 않았습니다. push 및 pull을 활성화하려면 원격을 추가하세요."
 
+#: src/renderer/views/MainView/parts/BrowserRemoteConnectionGate.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No remote environments connected yet."
 msgstr "아직 연결된 원격 환경이 없습니다."
@@ -7385,20 +7363,20 @@ msgstr "태그 없음 — 이 항목은 더 이상 태그 친화도에 영향을
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
-msgid "No thread selected"
-msgstr "선택된 스레드 없음"
+#~ msgid "No thread selected"
+#~ msgstr "선택된 스레드 없음"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "스레드 없음"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "No threads in this project"
-msgstr "이 프로젝트에 스레드가 없음"
+#~ msgid "No threads in this project"
+#~ msgstr "이 프로젝트에 스레드가 없음"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "No threads yet"
-msgstr "아직 스레드 없음"
+#~ msgid "No threads yet"
+#~ msgstr "아직 스레드 없음"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -7465,19 +7443,19 @@ msgstr "로그인되지 않음"
 msgid "Not supported"
 msgstr "지원되지 않음"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Not synced"
 msgstr "동기화되지 않음"
 
-#: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Notes"
 msgstr "메모"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/NotesView.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Notes & to-dos"
 msgstr "메모 및 할 일"
 
@@ -7485,9 +7463,10 @@ msgstr "메모 및 할 일"
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "아직 추적된 항목이 없습니다. 사용하면 여기에 표시됩니다."
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Notifications"
 msgstr "알림"
 
@@ -7522,18 +7501,17 @@ msgstr "공식"
 msgid "Official sources only"
 msgstr "공식 소스만"
 
-#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "오프라인"
 
 #: src/mobile/components.tsx
-msgid "Offline. Showing the last synced data."
-msgstr "오프라인입니다. 마지막으로 동기화된 데이터를 표시합니다."
+#~ msgid "Offline. Showing the last synced data."
+#~ msgstr "오프라인입니다. 마지막으로 동기화된 데이터를 표시합니다."
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "Older"
-msgstr "이전"
+#~ msgid "Older"
+#~ msgstr "이전"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "on"
@@ -7686,8 +7664,8 @@ msgid "Open folder"
 msgstr "폴더 열기"
 
 #: src/mobile/ThreadUsageIndicator.tsx
-msgid "Open full usage"
-msgstr "전체 사용량 열기"
+#~ msgid "Open full usage"
+#~ msgstr "전체 사용량 열기"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -7714,7 +7692,6 @@ msgstr "이미지 미리보기 열기"
 msgid "Open in browser"
 msgstr "브라우저에서 열기"
 
-#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -7756,7 +7733,6 @@ msgstr "새 탭 열기"
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "새 스레드를 전체 페이지 또는 병렬 패널로 엽니다."
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Open on GitHub"
@@ -7816,7 +7792,12 @@ msgstr "설정 열기"
 #~ msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
 #~ msgstr "이 컴퓨터의 Poracode에서 설정 → 원격 액세스를 연 다음 페어링 토큰을 여기에 붙여넣으세요."
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
+msgid "Open Settings → Remote Access in Poracode on your desktop, then copy the pairing URL shown there."
+msgstr "데스크톱의 Poracode에서 설정 → 원격 액세스를 연 다음 거기에 표시된 페어링 URL을 복사하세요."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "데스크톱의 Poracode에서 설정 → 원격 액세스를 연 다음 여기에서 QR 코드를 스캔하세요. 또는 엔드포인트와 페어링 토큰을 직접 입력하세요."
 
@@ -7829,16 +7810,11 @@ msgstr "하위 에이전트 열기: {0}"
 msgid "Open Tailscale"
 msgstr "Tailscale 열기"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/TerminalView.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Open terminal"
 msgstr "터미널 열기"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Open terminal in worktree"
 msgstr "worktree에서 터미널 열기"
 
@@ -7865,7 +7841,7 @@ msgstr "{0} 열림 (#{1})"
 msgid "Opened pull request #{0} for the candidate."
 msgstr "후보의 풀 리퀘스트 #{0}을(를) 열었습니다."
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "OpenSSH private key"
 msgstr "OpenSSH 개인 키"
 
@@ -7952,15 +7928,15 @@ msgstr "패키지 관리자"
 msgid "Page"
 msgstr "페이지"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pair"
 msgstr "페어링"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pair a connection"
 msgstr "연결 페어링"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Pair a desktop from Connections to forward its ports."
 msgstr "연결에서 데스크톱을 페어링하여 포트를 포워딩하세요."
 
@@ -7970,43 +7946,53 @@ msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어�
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts
-msgid "Pair again"
-msgstr "다시 페어링"
+#~ msgid "Pair again"
+#~ msgstr "다시 페어링"
 
+#: src/renderer/views/MainView/parts/BrowserRemoteConnectionGate.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pair with Poracode"
 msgstr "Poracode와 페어링"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
+msgstr "데스크톱의 Poracode와 페어링하여 스레드, 프로젝트, 설정을 동기화하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
 msgstr "페어링된 기기"
 
 #: src/mobile/remoteConnectionState.ts
-msgid "Pairing"
-msgstr "페어링 중"
+#~ msgid "Pairing"
+#~ msgstr "페어링 중"
 
-#: src/mobile/components.tsx
-#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "페어링이 만료되었습니다. 다시 연결하려면 다시 페어링하세요."
 
-#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing link"
 msgstr "페어링 링크"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pairing link detected."
-msgstr "페어링 링크가 감지되었습니다."
+#~ msgid "Pairing link detected."
+#~ msgstr "페어링 링크가 감지되었습니다."
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing token"
 msgstr "페어링 토큰"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Pairing URL"
+msgstr "페어링 URL"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pairing…"
 msgstr "페어링 중…"
 
@@ -8019,13 +8005,14 @@ msgstr "패널"
 msgid "Panels and overlays"
 msgstr "패널 및 오버레이"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "상위 폴더"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Parent folder on the server"
-msgstr "서버의 상위 폴더"
+#~ msgid "Parent folder on the server"
+#~ msgstr "서버의 상위 폴더"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Parent folder, e.g. /home/me/projects"
@@ -8039,11 +8026,11 @@ msgstr "일부 선택됨"
 msgid "Passed"
 msgstr "통과"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Passphrase (optional)"
 msgstr "암호 문구(선택 사항)"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Password"
 msgstr "암호"
 
@@ -8075,7 +8062,16 @@ msgstr "이름이 지정된 서버 객체 또는 mcpServers 키로 감싼 객체
 msgid "Paste in input"
 msgstr "입력에 붙여넣기"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Paste pairing URL…"
+msgstr "페어링 URL 붙여넣기…"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+msgid "Paste the pairing URL from your desktop"
+msgstr "데스크톱의 페어링 URL을 붙여넣으세요"
+
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Paste the SSH private key."
 msgstr "SSH 개인 키를 붙여 넣으세요."
 
@@ -8152,8 +8148,8 @@ msgstr "Pi"
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
-msgid "Pick a thread from the list to follow the agent from here."
-msgstr "여기에서 에이전트를 따라가려면 목록에서 스레드를 선택하세요."
+#~ msgid "Pick a thread from the list to follow the agent from here."
+#~ msgstr "여기에서 에이전트를 따라가려면 목록에서 스레드를 선택하세요."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Pick element"
@@ -8175,9 +8171,7 @@ msgstr "선택기 실패"
 msgid "Picker returned no attachment"
 msgstr "선택 도구가 첨부파일을 반환하지 않았습니다."
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "상단에 고정"
@@ -8186,7 +8180,6 @@ msgstr "상단에 고정"
 msgid "Pin workflow"
 msgstr "워크플로 고정"
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
 msgstr "고정됨"
@@ -8195,8 +8188,8 @@ msgstr "고정됨"
 msgid "Pinned task routes"
 msgstr "고정된 작업 경로"
 
-#: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8222,8 +8215,8 @@ msgid "Plugin"
 msgstr "플러그인"
 
 #: src/mobile/QrScanner.tsx
-msgid "Point at the QR code in Settings → Remote Access"
-msgstr "설정 → 원격 접근의 QR 코드를 향하세요"
+#~ msgid "Point at the QR code in Settings → Remote Access"
+#~ msgstr "설정 → 원격 접근의 QR 코드를 향하세요"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
@@ -8268,7 +8261,7 @@ msgstr "Poracode 전용"
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Poracode SSH 런타임 매니페스트가 없거나 유효하지 않습니다: {path}"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 msgstr "Poracode는 SSH 호스트에 서버를 설치하거나 기존 서버를 재사용하며 자격 증명을 이 기기의 보안 저장소에 보관합니다."
 
@@ -8284,22 +8277,22 @@ msgstr "Poracode의 기본 제공 브라우저 도구."
 #~ msgid "poracode/my-branch"
 #~ msgstr "poracode/my-branch"
 
-#: src/mobile/views/DesktopsView.tsx
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Port"
 msgstr "포트"
 
-#. placeholder {0}: forward.targetPort
+#. placeholder {0}: actionForward.targetPort
 #. placeholder {0}: props.forward.targetPort
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Port {0}"
 msgstr "포트 {0}"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Port forwarding isn't available on this desktop."
 msgstr "이 데스크톱에서는 포트 포워딩을 사용할 수 없습니다."
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Port forwarding isn't enabled"
 msgstr "포트 포워딩이 활성화되지 않았습니다"
 
@@ -8307,12 +8300,10 @@ msgstr "포트 포워딩이 활성화되지 않았습니다"
 #~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
 #~ msgstr "포트 포워딩에는 데스크톱과의 직접 연결이 필요합니다. 릴레이나 터널을 통해서는 사용할 수 없습니다."
 
-#: src/mobile/chrome.ts
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/mobile/views/PortsView.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "포트"
 
@@ -8425,16 +8416,17 @@ msgstr "이전 실행"
 msgid "Previous tab"
 msgstr "이전 탭"
 
-#: src/mobile/views/MoreView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "개인정보 처리방침"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Private key"
 msgstr "개인 키"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Profile"
 msgstr "프로필"
 
@@ -8446,7 +8438,6 @@ msgstr "프로필 통계 기간"
 msgid "Profiles"
 msgstr "프로필"
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
@@ -8476,6 +8467,8 @@ msgstr "프로젝트에서 관리"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Project name"
 msgstr "프로젝트 이름"
 
@@ -8503,13 +8496,12 @@ msgstr "프로젝트 스킬은 에이전트가 이 프로젝트에서 실행될 
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다."
 
-#: src/mobile/chrome.ts
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/views/ManageProjectsView.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
 msgstr "프로젝트"
@@ -8521,8 +8513,8 @@ msgid "Projects in {0} move to {1}. No project is deleted."
 msgstr "{0}의 프로젝트가 {1}(으)로 이동합니다. 삭제되는 프로젝트는 없습니다."
 
 #: src/mobile/setupEmptyState.tsx
-msgid "Projects live on the connected desktop. Add one before starting a thread."
-msgstr "프로젝트는 연결된 데스크톱에 있습니다. 스레드를 시작하기 전에 프로젝트를 추가하세요."
+#~ msgid "Projects live on the connected desktop. Add one before starting a thread."
+#~ msgstr "프로젝트는 연결된 데스크톱에 있습니다. 스레드를 시작하기 전에 프로젝트를 추가하세요."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -8561,9 +8553,10 @@ msgid "Provider presets"
 msgstr "제공자 프리셋"
 
 #. Settings section: provider usage and quota dashboard
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Provider Usage"
 msgstr "공급자 사용량"
 
@@ -8637,14 +8630,14 @@ msgid "Pull Rebase ({behind})"
 msgstr "풀 리베이스({behind})"
 
 #. placeholder {0}: pr.state
-#: src/mobile/GitSummaryParts.tsx
+#: src/renderer/components/thread/CompactThreadWorkspaceBar.tsx
 msgid "Pull request {0}"
 msgstr "풀 리퀘스트 {0}"
 
 #. placeholder {0}: pr.prNumber
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "Pull request #{0}"
-msgstr "풀 리퀘스트 #{0}"
+#~ msgid "Pull request #{0}"
+#~ msgstr "풀 리퀘스트 #{0}"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
@@ -8656,13 +8649,14 @@ msgid "Pull request created, but its default automation could not be enabled: {0
 msgstr "Pull Request가 생성되었지만 기본 자동화를 활성화하지 못했습니다: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "Pull request merged"
-msgstr "Pull request가 병합되었습니다"
+#~ msgid "Pull request merged"
+#~ msgstr "Pull request가 병합되었습니다"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
 msgstr "풀 요청 옵션"
 
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
@@ -8703,6 +8697,10 @@ msgstr "스레드가 완료되거나 응답이 필요할 때 앱이 닫혀 있�
 #: src/renderer/components/providers/qoder/manifest.ts
 msgid "Qoder CLI"
 msgstr "Qoder CLI"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "QR Code"
+msgstr "QR 코드"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
@@ -8762,7 +8760,7 @@ msgstr "로컬 변경 사항을 다시 적용하면 충돌이 발생합니다."
 msgid "Re-login"
 msgstr "재로그인"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "포트 포워딩 액세스 권한을 부여하려면 이 연결을 다시 페어링하세요."
 
@@ -8821,20 +8819,21 @@ msgid "Recent threads"
 msgstr "최근 스레드"
 
 #: src/mobile/components.tsx
-msgid "Reconnect"
-msgstr "다시 연결"
+#~ msgid "Reconnect"
+#~ msgstr "다시 연결"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Reconnect the server to add projects."
 msgstr "프로젝트를 추가하려면 서버에 다시 연결하세요."
 
 #: src/mobile/remoteConnectionState.ts
-msgid "Reconnecting"
-msgstr "다시 연결 중"
+#~ msgid "Reconnecting"
+#~ msgstr "다시 연결 중"
 
 #: src/mobile/components.tsx
-msgid "Reconnecting to your desktop…"
-msgstr "데스크톱에 다시 연결 중…"
+#~ msgid "Reconnecting to your desktop…"
+#~ msgstr "데스크톱에 다시 연결 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -8846,14 +8845,11 @@ msgid "Redact notification content"
 msgstr "알림 내용 가리기"
 
 #. Button: re-fetch provider usage now
-#: src/mobile/ThreadUsageIndicator.tsx
-#: src/mobile/views/PortsView.tsx
-#: src/mobile/views/pr/PrOverviewPage.tsx
-#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -8910,8 +8906,6 @@ msgstr "{0} 인증 상태를 새로 고치는 중입니다."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} 인증 상태를 새로 고치는 중입니다."
 
-#: src/mobile/TerminalAccessory.tsx
-#: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -8954,6 +8948,8 @@ msgstr "원격 액세스 포트 {occupiedPort}이(가) 이미 사용 중입니�
 #~ msgid "Remote environments"
 #~ msgstr "원격 환경"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Environments"
@@ -9016,13 +9012,14 @@ msgid "Remote URL"
 msgstr "원격 URL"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove"
 msgstr "제거"
 
 #. placeholder {0}: att.name
-#. placeholder {0}: removeConfirm.target.name
-#: src/mobile/views/ManageProjectsView.tsx
+#. placeholder {0}: removeProject.name
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "{0} 제거"
 
@@ -9039,8 +9036,8 @@ msgstr "{pattern} 제거"
 msgid "Remove {rowTitle} from panel"
 msgstr "패널에서 {rowTitle} 제거"
 
-#. placeholder {0}: removeConfirm.target.name
-#: src/mobile/views/ManageProjectsView.tsx
+#. placeholder {0}: removeProject.name
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot be undone."
 msgstr "<0>{0}</0>을(를) 제거하고 모든 스레드를 영구적으로 삭제할까요? 이 작업은 되돌릴 수 없습니다."
 
@@ -9062,7 +9059,7 @@ msgstr "후보 {0} 제거"
 msgid "Remove Claude profile"
 msgstr "Claude 프로필 삭제"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Remove connection"
 msgstr "연결 제거"
 
@@ -9099,7 +9096,7 @@ msgstr "모델 제거"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "{tagLabel}의 고정 경로 제거"
 
-#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove project"
 msgstr "프로젝트 제거"
 
@@ -9128,15 +9125,11 @@ msgstr "프로젝트를 제거하기 전에 프로젝트의 실험을 제거하�
 msgid "Remove worktree?"
 msgstr "작업 트리를 삭제하시겠습니까?"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/TodoActionsSheet.tsx
-#: src/mobile/views/DesktopsView.tsx
-#: src/mobile/views/FilesView.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "이름 바꾸기"
@@ -9145,7 +9138,7 @@ msgstr "이름 바꾸기"
 msgid "Rename chat"
 msgstr "채팅 이름 바꾸기"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Rename connection"
 msgstr "연결 이름 변경"
 
@@ -9167,8 +9160,8 @@ msgid "Rename thread"
 msgstr "스레드 이름 바꾸기"
 
 #: src/mobile/views/FilesView.tsx
-msgid "Rename to"
-msgstr "다음으로 이름 변경"
+#~ msgid "Rename to"
+#~ msgstr "다음으로 이름 변경"
 
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -9222,13 +9215,12 @@ msgstr "저장소"
 msgid "Repository"
 msgstr "저장소"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "저장소 사전 수신 후크가 병합을 차단하고 있습니다."
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Repository URL"
 msgstr "저장소 URL"
@@ -9245,7 +9237,6 @@ msgstr "요청 세부정보"
 msgid "requested changes"
 msgstr "변경을 요청했습니다"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "필수 검토, 대화 또는 상태 확인이 충족되지 않았습니다."
@@ -9284,8 +9275,8 @@ msgid "Resize notes and to-dos"
 msgstr "메모 및 할 일 크기 조정"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-msgid "Resize right panel"
-msgstr "오른쪽 패널 크기 조절"
+#~ msgid "Resize right panel"
+#~ msgstr "오른쪽 패널 크기 조절"
 
 #: src/renderer/components/layout/SplitPaneContainer.tsx
 msgid "Resize row"
@@ -9295,7 +9286,6 @@ msgstr "행 크기 조정"
 msgid "Resize run details"
 msgstr "실행 세부 정보 크기 조절"
 
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 msgid "Resize sidebar"
@@ -9332,11 +9322,10 @@ msgstr "브라우저 복원"
 msgid "Restore default worktree base folder"
 msgstr "작업 트리 기본 폴더 복원"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Restore or delete"
 msgstr "복원 또는 삭제"
 
-#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
 msgstr "스레드 복원"
@@ -9357,12 +9346,13 @@ msgstr "재개"
 msgid "Resume goal"
 msgstr "목표 재개"
 
-#: src/mobile/views/BrowserView.tsx
-#: src/mobile/views/PortsView.tsx
-#: src/mobile/views/TerminalView.tsx
+#: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Retry"
 msgstr "다시 시도"
@@ -9380,13 +9370,14 @@ msgid "Retry cleanup"
 msgstr "정리 다시 시도"
 
 #: src/mobile/components.tsx
-msgid "Retry now"
-msgstr "지금 다시 시도"
+#~ msgid "Retry now"
+#~ msgstr "지금 다시 시도"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
 msgstr "관리자 권한으로 다시 시도"
 
+#: src/renderer/components/layout/PageLayout.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -9428,8 +9419,8 @@ msgstr "변경사항 되돌리기"
 msgid "Revert to checkpoint?"
 msgstr "체크포인트로 되돌리시겠습니까?"
 
-#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+#: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Revert to this checkpoint"
 msgstr "이 체크포인트로 되돌리기"
 
@@ -9478,7 +9469,7 @@ msgstr "PR 검토"
 msgid "Review PR #{prNumber} for {0}"
 msgstr "{0}에 대한 PR #{prNumber} 검토"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Review presentation"
 msgstr "리뷰 표시"
 
@@ -9506,8 +9497,6 @@ msgstr "오른쪽 패널"
 msgid "Right-click to switch ring"
 msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
 
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
@@ -9654,7 +9643,6 @@ msgstr "런타임 디버그"
 msgid "Runtime options"
 msgstr "런타임 옵션"
 
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -9709,20 +9697,25 @@ msgid "Saved credentials are shared across all environments."
 msgstr "저장된 자격 증명은 모든 환경에서 공유됩니다."
 
 #: src/mobile/QrScanner.tsx
-msgid "Scan pairing QR code"
-msgstr "페어링 QR 코드 스캔"
+#~ msgid "Scan pairing QR code"
+#~ msgstr "페어링 QR 코드 스캔"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Scan QR code"
 msgstr "QR 코드 스캔"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+msgid "Scan the pairing code shown on your desktop"
+msgstr "데스크톱에 표시된 페어링 코드를 스캔하세요"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "설치된 CLI를 찾기 위해 {wslDistro}을(를) 검색하는 중입니다. 이 작업은 일반적으로 몇 초 정도 걸립니다."
 
 #: src/mobile/QrScanner.tsx
-msgid "Scanning needs a secure connection"
-msgstr "스캔에는 보안 연결이 필요합니다"
+#~ msgid "Scanning needs a secure connection"
+#~ msgstr "스캔에는 보안 연결이 필요합니다"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Scanning provider configurations…"
@@ -9748,7 +9741,7 @@ msgstr "일정 상태"
 msgid "Scheduled tasks"
 msgstr "예약 작업"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Scheduled tasks on this desktop"
 msgstr "이 데스크톱의 예약 작업"
 
@@ -9756,8 +9749,9 @@ msgstr "이 데스크톱의 예약 작업"
 #~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
 #~ msgstr "예약 작업은 이 기기가 켜져 있고 Poracode가 열려 있을 때만 실행됩니다."
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "일정"
@@ -9767,7 +9761,7 @@ msgstr "일정"
 #~ msgid "Schedules shortcut"
 #~ msgstr "일정 바로가기"
 
-#: src/mobile/views/MoreView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "페어링된 데스크톱의 일정, AI, 에이전트 및 보관된 스레드"
 
@@ -9820,6 +9814,7 @@ msgstr "SDK 설치되지 않음"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
@@ -9841,7 +9836,6 @@ msgstr "에이전트 검색..."
 msgid "Search branches..."
 msgstr "브랜치 검색..."
 
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "파일 검색"
@@ -9869,7 +9863,6 @@ msgstr "모델 검색"
 msgid "Search models..."
 msgstr "모델 검색..."
 
-#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "주소 검색 또는 입력"
@@ -9918,8 +9911,6 @@ msgstr "스킬 검색..."
 msgid "Search the current view"
 msgstr "현재 보기에서 검색"
 
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "스레드 검색"
@@ -10090,11 +10081,9 @@ msgstr "단축키 설정"
 msgid "Set when this session started — start a new thread to change servers"
 msgstr "이 세션 시작 시 확정됨 — 서버를 변경하려면 새 스레드를 시작하세요"
 
-#: src/mobile/chrome.ts
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -10277,7 +10266,7 @@ msgstr "음성 입력 버튼 표시"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {#개 스킬 표시 중}}"
 
-#: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "처음 4,000개 항목을 표시합니다."
@@ -10465,7 +10454,6 @@ msgstr "솔루션 {0}"
 #~ msgid "Solution {ordinal}"
 #~ msgstr "솔루션 {ordinal}"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "일부 검사가 실패했거나 보류 중입니다."
@@ -10484,8 +10472,8 @@ msgid "Some provider folders couldn't be scanned. Successfully loaded skills are
 msgstr "일부 제공자 폴더를 검사하지 못했습니다. 성공적으로 불러온 스킬은 계속 표시됩니다."
 
 #: src/mobile/QrScanner.tsx
-msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
-msgstr "카메라를 시작하는 중 문제가 발생했습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
+#~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
+#~ msgstr "카메라를 시작하는 중 문제가 발생했습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
@@ -10519,7 +10507,6 @@ msgstr "공백으로 구분하며, 공백이 포함된 값은 따옴표로 감�
 msgid "Split Terminal"
 msgstr "터미널 분할"
 
-#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
@@ -10534,10 +10521,10 @@ msgid "SSE (legacy)"
 msgstr "SSE(레거시)"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "SSH"
-msgstr "SSH"
+#~ msgid "SSH"
+#~ msgstr "SSH"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "SSH authentication"
 msgstr "SSH 인증"
 
@@ -10550,8 +10537,8 @@ msgid "SSH connection failed."
 msgstr "SSH 연결에 실패했습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "SSH credentials are missing. Remove this connection and add it again."
-msgstr "SSH 자격 증명이 없습니다. 이 연결을 삭제한 후 다시 추가하세요."
+#~ msgid "SSH credentials are missing. Remove this connection and add it again."
+#~ msgstr "SSH 자격 증명이 없습니다. 이 연결을 삭제한 후 다시 추가하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH hostname"
@@ -10565,11 +10552,10 @@ msgstr "SSH 포트"
 msgid "SSH port (optional)"
 msgstr "SSH 포트(선택 사항)"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "SSH target"
 msgstr "SSH 대상"
 
-#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -10577,7 +10563,6 @@ msgstr "SSH 대상"
 msgid "Stage"
 msgstr "스테이지"
 
-#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Stage all"
 msgstr "모두 스테이지"
@@ -10609,7 +10594,7 @@ msgstr "시작"
 msgid "Start {appName} to see usage"
 msgstr "사용량을 보려면 {appName}을(를) 시작하세요"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Start a dev server on your desktop, then tap refresh."
 msgstr "데스크톱에서 개발 서버를 시작한 다음 새로고침을 탭하세요."
 
@@ -10621,14 +10606,13 @@ msgstr "새 스레드를 페이지가 아닌 패널로 시작"
 msgid "Start a new thread from the selected text"
 msgstr "선택한 텍스트에서 새 스레드 시작"
 
-#: src/mobile/TodoActionsSheet.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "이 할 일에서 새 스레드를 시작하세요"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "Start a new thread to put an agent to work from this device."
-msgstr "이 기기에서 에이전트를 작업시키려면 새 스레드를 시작하세요."
+#~ msgid "Start a new thread to put an agent to work from this device."
+#~ msgstr "이 기기에서 에이전트를 작업시키려면 새 스레드를 시작하세요."
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
@@ -10644,6 +10628,8 @@ msgstr "우선순위와 다음 단계로 하루를 시작하세요."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
 msgstr "처음부터 시작하세요"
 
@@ -10695,7 +10681,6 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} 스레드를 시작했습니다."
 
 #. Button label while the microphone test is starting
-#: src/mobile/remoteConnectionState.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -10703,12 +10688,12 @@ msgid "Starting"
 msgstr "시작 중"
 
 #: src/mobile/QrScanner.tsx
-msgid "Starting camera…"
-msgstr "카메라 시작 중…"
+#~ msgid "Starting camera…"
+#~ msgstr "카메라 시작 중…"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Starting mirror…"
-msgstr "미러 시작 중…"
+#~ msgid "Starting mirror…"
+#~ msgstr "미러 시작 중…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Starting remotely…"
@@ -10736,7 +10721,6 @@ msgstr "보관 및 끌어오기"
 msgid "Stashed changes pending"
 msgstr "스태시된 변경 사항 대기 중"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Status"
 msgstr "상태"
@@ -10773,7 +10757,7 @@ msgstr "중지"
 msgid "Stop {0}"
 msgstr "{0} 중지"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "전달 중지"
 
@@ -10811,7 +10795,7 @@ msgstr "일반 텍스트로 저장"
 msgid "Store as secret (encrypted at rest)"
 msgstr "비밀로 저장 (저장 시 암호화)"
 
-#: src/mobile/views/MoreView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Stored on this device; the desktop keeps its own values."
 msgstr "이 기기에 저장되며 데스크톱은 자체 값을 유지합니다."
 
@@ -10823,7 +10807,6 @@ msgstr "이 기기에 저장되며 데스크톱은 자체 값을 유지합니다
 msgid "Structured runtime"
 msgstr "구조화 런타임"
 
-#: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -10846,7 +10829,7 @@ msgstr "하위 에이전트 결과"
 msgid "Subagent runs"
 msgstr "서브에이전트 실행"
 
-#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Subagents"
 msgstr "하위 에이전트"
@@ -10898,7 +10881,7 @@ msgstr "이번 주의 진행 상황, 미완료 작업, 다음 주의 가장 중�
 msgid "Supervised"
 msgstr "감독됨"
 
-#: src/mobile/views/MoreView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Support"
 msgstr "지원"
 
@@ -10920,7 +10903,6 @@ msgstr "고속 모드 지원"
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"
 
-#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Switch branch"
@@ -10990,8 +10972,8 @@ msgid "Sync options"
 msgstr "동기화 옵션"
 
 #: src/mobile/components.tsx
-msgid "Sync with desktop"
-msgstr "데스크톱과 동기화"
+#~ msgid "Sync with desktop"
+#~ msgstr "데스크톱과 동기화"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"
@@ -11016,17 +10998,17 @@ msgid "System notifications"
 msgstr "시스템 알림"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "tab"
-msgstr "탭"
+#~ msgid "tab"
+#~ msgstr "탭"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Tabs"
-msgstr "탭"
+#~ msgid "Tabs"
+#~ msgstr "탭"
 
 #. placeholder {0}: state?.tabs.length ?? 0
 #: src/mobile/views/BrowserView.tsx
-msgid "Tabs ({0})"
-msgstr "탭({0})"
+#~ msgid "Tabs ({0})"
+#~ msgstr "탭({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
@@ -11044,7 +11026,7 @@ msgstr "스크린샷 찍기"
 msgid "Takes over the desktop while the agent clicks or types"
 msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
 
-#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "+를 탭하여 데스크톱에서 폴더를 추가하거나 저장소를 복제하세요."
 
@@ -11090,8 +11072,6 @@ msgstr "{0}에게 다음에 무엇을 해야 할지 알려주세요..."
 msgid "Tell the target provider what to do next..."
 msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요..."
 
-#: src/mobile/settingsSections.ts
-#: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
@@ -11099,8 +11079,10 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
 msgstr "터미널"
 
@@ -11114,7 +11096,6 @@ msgstr "터미널"
 msgid "Terminal for {0}"
 msgstr "{0}용 터미널"
 
-#: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "터미널 입력"
@@ -11153,12 +11134,12 @@ msgid "That conversation is no longer available."
 msgstr "해당 대화는 더 이상 사용할 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
-msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
-msgstr "이 페어링 코드는 더 이상 유효하지 않습니다. 데스크톱에서 설정 → 원격 액세스를 열고 '새 코드'를 누른 뒤 다시 페어링하세요."
+#~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+#~ msgstr "이 페어링 코드는 더 이상 유효하지 않습니다. 데스크톱에서 설정 → 원격 액세스를 열고 '새 코드'를 누른 뒤 다시 페어링하세요."
 
 #: src/mobile/routeComponents.tsx
-msgid "That QR code isn't a Poracode pairing link."
-msgstr "이 QR 코드는 Poracode 페어링 링크가 아닙니다."
+#~ msgid "That QR code isn't a Poracode pairing link."
+#~ msgstr "이 QR 코드는 Poracode 페어링 링크가 아닙니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "That remote session was already gone."
@@ -11248,8 +11229,8 @@ msgid "The normal app shell could not render. The diagnostics below are shown be
 msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시 로드하기 전에 표시되므로 오류를 조사할 수 있습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "The remote Poracode server returned no pairing credential."
-msgstr "원격 Poracode 서버가 페어링 자격 증명을 반환하지 않았습니다."
+#~ msgid "The remote Poracode server returned no pairing credential."
+#~ msgstr "원격 Poracode 서버가 페어링 자격 증명을 반환하지 않았습니다."
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "The remote server returned no pairing credential."
@@ -11348,7 +11329,7 @@ msgstr "우승자"
 msgid "Theme"
 msgstr "테마"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Theme and chat font size"
 msgstr "테마 및 채팅 글꼴 크기"
 
@@ -11391,36 +11372,34 @@ msgstr "이 코드는 {countdown} 후 만료됩니다"
 msgid "This code has expired."
 msgstr "이 코드는 만료되었습니다."
 
-#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
 
 #: src/mobile/QrScanner.tsx
-msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
-msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
+#~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
+#~ msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
 msgstr "이 환경"
 
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "이 파일은 내장 편집기에 비해 너무 큽니다."
 
-#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
 
-#: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "이 폴더는 비어 있습니다."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
-msgstr "이 HTTPS 페이지는 일반 HTTP 데스크톱에 연결할 수 없었습니다. 이 사이트에 로컬 네트워크 접근을 허용한 뒤 다시 페어링하거나, 데스크톱 자체 주소에서 계속하세요."
+#~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+#~ msgstr "이 HTTPS 페이지는 일반 HTTP 데스크톱에 연결할 수 없었습니다. 이 사이트에 로컬 네트워크 접근을 허용한 뒤 다시 페어링하거나, 데스크톱 자체 주소에서 계속하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
@@ -11508,7 +11487,6 @@ msgstr "이 작업 트리에는 로컬 변경 사항이 있습니다. Poracode�
 msgid "Thought"
 msgstr "생각"
 
-#: src/mobile/NarrowShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -11520,7 +11498,7 @@ msgstr "스레드"
 msgid "Thread + Worktree"
 msgstr "스레드 + 작업 트리"
 
-#: src/mobile/ThreadTitleRow.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Thread actions"
 msgstr "스레드 작업"
 
@@ -11528,7 +11506,7 @@ msgstr "스레드 작업"
 msgid "Thread context usage"
 msgstr "스레드 컨텍스트 사용량"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Thread defaults and home scope"
 msgstr "스레드 기본값 및 홈 범위"
 
@@ -11610,11 +11588,10 @@ msgstr "제한 시간은 양의 정수여야 합니다."
 msgid "Title Generation"
 msgstr "제목 생성"
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Title, commit, and conflict models"
 msgstr "제목, 커밋 및 충돌 모델"
 
-#: src/mobile/TodoActionsSheet.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
 msgstr "할 일"
@@ -11682,8 +11659,8 @@ msgid "Tool search"
 msgstr "도구 검색"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-msgid "Tools"
-msgstr "도구"
+#~ msgid "Tools"
+#~ msgstr "도구"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
@@ -11713,7 +11690,7 @@ msgstr "{label} 사용량 추적"
 msgid "Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
 msgstr "공급자별 세션, 주별 및 월별 사용량을 추적합니다. 사용 기간(윈도우)은 각 공급자가 보고합니다. 예상 비용은 로컬 로그에서 재구성됩니다."
 
-#: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Tracking and display"
 msgstr "추적 및 표시"
 
@@ -11739,13 +11716,13 @@ msgstr "현재 인기"
 msgid "Triggers:"
 msgstr "트리거:"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Trust and connect"
 msgstr "신뢰하고 연결"
 
 #: src/mobile/views/ThreadsView.tsx
-msgid "Try a different search or project filter."
-msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
+#~ msgid "Try a different search or project filter."
+#~ msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11774,12 +11751,12 @@ msgid "Type a command"
 msgstr "명령을 입력하세요"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Type into the page"
-msgstr "페이지에 입력"
+#~ msgid "Type into the page"
+#~ msgstr "페이지에 입력"
 
 #: src/mobile/views/BrowserView.tsx
-msgid "Type into the page (tap a field first)"
-msgstr "페이지에 입력(먼저 필드를 탭하세요)"
+#~ msgid "Type into the page (tap a field first)"
+#~ msgstr "페이지에 입력(먼저 필드를 탭하세요)"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
@@ -11794,8 +11771,8 @@ msgid "Unable to compare candidates: {0}"
 msgstr "후보를 비교할 수 없습니다: {0}"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Unable to connect over SSH."
-msgstr "SSH를 통해 연결할 수 없습니다."
+#~ msgid "Unable to connect over SSH."
+#~ msgstr "SSH를 통해 연결할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
@@ -11827,8 +11804,8 @@ msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "WSL 작업 트리 디렉터리 \"{path}\"을(를) 생성할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Unable to delete the worktree."
-msgstr "worktree를 삭제할 수 없습니다."
+#~ msgid "Unable to delete the worktree."
+#~ msgstr "worktree를 삭제할 수 없습니다."
 
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
@@ -11853,8 +11830,8 @@ msgid "Unable to load remote access pairing."
 msgstr "원격 액세스 페어링을 로드할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Unable to load thread."
-msgstr "스레드를 불러올 수 없습니다."
+#~ msgid "Unable to load thread."
+#~ msgstr "스레드를 불러올 수 없습니다."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11862,8 +11839,8 @@ msgid "Unable to log out {0}."
 msgstr "{0}을(를) 로그아웃할 수 없습니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "Unable to merge"
-msgstr "병합할 수 없습니다"
+#~ msgid "Unable to merge"
+#~ msgstr "병합할 수 없습니다"
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -11875,19 +11852,18 @@ msgstr "실험 우승자를 병합할 수 없습니다: {0}"
 msgid "Unable to open {0} login."
 msgstr "{0} 로그인을 열 수 없습니다."
 
-#: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "파일을 열 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
-msgid "Unable to pair with that desktop."
-msgstr "해당 데스크톱과 페어링할 수 없습니다."
+#~ msgid "Unable to pair with that desktop."
+#~ msgstr "해당 데스크톱과 페어링할 수 없습니다."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Unable to probe the SSH host."
-msgstr "SSH 호스트를 확인할 수 없습니다."
+#~ msgid "Unable to probe the SSH host."
+#~ msgstr "SSH 호스트를 확인할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read experiment candidate status"
@@ -11897,6 +11873,11 @@ msgstr "실험 후보 상태를 읽을 수 없습니다"
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
 msgstr "후보의 변경 사항을 읽을 수 없습니다: {0}"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Unable to read the pairing QR code."
+msgstr "페어링 QR 코드를 읽을 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read untracked candidate file: {path}"
@@ -11948,8 +11929,8 @@ msgid "Unable to resolve the experiment candidate commit"
 msgstr "실험 후보 커밋을 확인할 수 없습니다"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Unable to restore the SSH connection."
-msgstr "SSH 연결을 복원할 수 없습니다."
+#~ msgid "Unable to restore the SSH connection."
+#~ msgstr "SSH 연결을 복원할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
@@ -11969,16 +11950,16 @@ msgid "Unable to start {label}."
 msgstr "{label}을(를) 시작할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Unable to start mobile app."
-msgstr "모바일 앱을 시작할 수 없습니다."
+#~ msgid "Unable to start mobile app."
+#~ msgstr "모바일 앱을 시작할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to start Tailscale."
 msgstr "Tailscale을 시작할 수 없습니다."
 
 #: src/mobile/views/TerminalView.tsx
-msgid "Unable to start terminal"
-msgstr "터미널을 시작할 수 없습니다"
+#~ msgid "Unable to start terminal"
+#~ msgstr "터미널을 시작할 수 없습니다"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Unable to start the remote thread."
@@ -11987,8 +11968,8 @@ msgstr "원격 스레드를 시작할 수 없습니다."
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
-msgid "Unable to start the thread."
-msgstr "스레드를 시작할 수 없습니다."
+#~ msgid "Unable to start the thread."
+#~ msgstr "스레드를 시작할 수 없습니다."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -12040,8 +12021,8 @@ msgid "Unable to update the public URL."
 msgstr "공개 URL을 업데이트할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Unable to update the thread."
-msgstr "스레드를 업데이트할 수 없습니다."
+#~ msgid "Unable to update the thread."
+#~ msgstr "스레드를 업데이트할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
@@ -12091,7 +12072,6 @@ msgstr "그룹 해제"
 msgid "Ungroup All"
 msgstr "모두 그룹 해제"
 
-#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Unified view"
@@ -12136,16 +12116,14 @@ msgstr "열린 스레드에서 패널 고정 해제"
 
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-msgid "Unmark all done"
-msgstr "모두 완료 표시 해제"
+#~ msgid "Unmark all done"
+#~ msgstr "모두 완료 표시 해제"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Unmark done"
 msgstr "완료 표시 해제"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "완료 표시 해제"
@@ -12158,9 +12136,7 @@ msgstr "이름 없는 기기"
 msgid "Unphased:"
 msgstr "단계 미지정:"
 
-#: src/mobile/ThreadTitleRow.tsx
-#: src/mobile/views/threadActionSurfaces.tsx
-#: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "고정 해제"
@@ -12169,13 +12145,11 @@ msgstr "고정 해제"
 msgid "Unpin workflow"
 msgstr "워크플로 고정 해제"
 
-#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "언스테이지"
 
-#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Unstage all"
 msgstr "모두 언스테이징"
@@ -12192,7 +12166,7 @@ msgstr "스테이징되지 않음"
 msgid "Unsupported"
 msgstr "지원되지 않음"
 
-#: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "한 단계 위로"
@@ -12241,7 +12215,7 @@ msgstr "업데이트 오류:{detail}"
 msgid "Update method"
 msgstr "업데이트 방법"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "포트 포워딩을 사용하려면 데스크톱의 Poracode를 업데이트하세요."
 
@@ -12319,15 +12293,11 @@ msgstr "URL"
 msgid "URL is required."
 msgstr "URL을 입력해야 합니다."
 
-#: src/mobile/chrome.ts
-#: src/mobile/NarrowShell.tsx
-#: src/mobile/ThreadUsageIndicator.tsx
-#: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "사용량"
 
@@ -12343,7 +12313,7 @@ msgstr "사용 설정"
 msgid "Usage unknown"
 msgstr "사용량을 알 수 없음"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "+를 사용해 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 연결하세요."
 
@@ -12389,7 +12359,7 @@ msgstr "{name} 스킬을 사용합니다."
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
 
-#: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "이 폴더 사용"
@@ -12419,7 +12389,7 @@ msgstr "{conflict}에서 사용 중"
 #~ msgid "User"
 #~ msgstr "사용자"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "user@example.com"
 msgstr "user@example.com"
 
@@ -12436,11 +12406,11 @@ msgstr "v{0} 사용 가능"
 msgid "value"
 msgstr "값"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Verify host key"
 msgstr "호스트 키 확인"
 
-#: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Verify SSH host key"
 msgstr "SSH 호스트 키 확인"
 
@@ -12469,8 +12439,8 @@ msgid "View all releases on GitHub"
 msgstr "GitHub에서 모든 릴리스 보기"
 
 #: src/mobile/views/GitActionSheet.tsx
-msgid "View diff"
-msgstr "diff 보기"
+#~ msgid "View diff"
+#~ msgstr "diff 보기"
 
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
@@ -12549,7 +12519,6 @@ msgstr "우승자를 병합하기 전에 모든 후보가 완료될 때까지 �
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "풀 리퀘스트를 열기 전에 모든 후보가 완료될 때까지 기다리세요."
 
-#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "작업 트리로 이동하기 전에 스레드 시작이 완료될 때까지 기다리세요."
@@ -12632,7 +12601,7 @@ msgstr "우승자가 결정되었습니다!"
 msgid "Web search"
 msgstr "웹 검색"
 
-#: src/mobile/views/PortsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Web server"
 msgstr "웹 서버"
 
@@ -12828,13 +12797,12 @@ msgstr "워크플로 실행"
 msgid "Workflow: {description}"
 msgstr "워크플로: {description}"
 
-#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "워크플로"
 
-#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "작업 중"
@@ -12862,8 +12830,8 @@ msgid "Workspace MCP servers override user servers with the same name and are ad
 msgstr "작업 영역 MCP 서버는 이름이 같은 사용자 서버를 재정의하며, 이 프로젝트에서 에이전트가 시작될 때만 추가됩니다."
 
 #: src/mobile/views/WorkspaceView.tsx
-msgid "Workspace view"
-msgstr "작업 영역 보기"
+#~ msgid "Workspace view"
+#~ msgstr "작업 영역 보기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12871,7 +12839,6 @@ msgstr "작업 영역 보기"
 msgid "Workspaces"
 msgstr "작업 영역"
 
-#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "작업 트리"

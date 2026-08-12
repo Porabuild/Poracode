@@ -28,6 +28,12 @@ const {
   useThreadHasDraftMock: vi.fn<(threadId: string) => boolean>(),
 }));
 
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
+
 vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: (options: unknown) => {
     sortableOptionsMock(options);
@@ -165,6 +171,7 @@ const project: Project = {
 
 describe("SortableThreadItem", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
     sortableRefMock.mockClear();
     sortableOptionsMock.mockClear();
     contextMenuItemsMock.mockClear();
@@ -269,6 +276,32 @@ describe("SortableThreadItem", () => {
         disabled: false,
       }),
     );
+  });
+
+  it("removes thread drop targets and desktop row actions in compact layouts", () => {
+    layoutMock.compact = true;
+
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(sortableOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ accept: [], disabled: false }),
+    );
+    expect(screen.getByText("Project")).toBeInTheDocument();
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
   });
 
   it("enables unload for a loaded thread without a session ref", () => {

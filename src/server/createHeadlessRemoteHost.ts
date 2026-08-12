@@ -28,7 +28,6 @@ import {
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
-import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import { pickRemoteSettings, remoteProjectCommandResultSchema } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
@@ -37,8 +36,8 @@ import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
  * Boots the remote-access server outside Electron.
  *
  * This is the headless counterpart to the wiring in `src/main/main.ts`: it owns
- * the SQLite database and the forked supervisor, then constructs the **same**
- * {@link RemoteAccessServer} the desktop uses. The desktop injects a browser
+ * the SQLite database and a lazily forked supervisor, then constructs the
+ * **same** {@link RemoteAccessServer} the desktop uses. The desktop injects a browser
  * gateway and a renderer-dispatch callback; the headless host injects neither.
  *
  * Without a renderer, the SQLite DB is the source of truth — remote thread
@@ -83,7 +82,7 @@ export interface HeadlessRemoteHostOptions {
 export interface HeadlessRemoteHost {
   /** The server instance, for session inspection (listAccessSessions, …). */
   readonly server: RemoteAccessServer;
-  /** Forks the supervisor (once) and starts the HTTP/WS server. Idempotent. */
+  /** Starts the HTTP/WS server. The supervisor starts on its first call. Idempotent. */
   start(): Promise<RemoteAccessServerInfo>;
   /** Stops the server, kills the supervisor, and closes the database. */
   dispose(): Promise<void>;
@@ -286,14 +285,7 @@ export async function createHeadlessRemoteHost(
     async start() {
       if (!started) {
         await durableServices?.startIngress();
-        backendHost.startSupervisor();
         durableServices?.startBackgroundServices();
-        const gitWarmupInterests = buildRemoteGitTargetInterests(dbGetThreads(), {
-          includeRecentFallback: true,
-        });
-        if (gitWarmupInterests.length > 0) {
-          void gitStateService.refreshInterests(gitWarmupInterests, { fetchRemote: true });
-        }
         started = true;
       }
       const info = await server.start();

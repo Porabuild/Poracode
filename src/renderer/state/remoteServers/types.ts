@@ -30,6 +30,8 @@ export interface RemoteServerRecord {
   readonly scopes: RemoteAccessScope[];
   /** Last version reported by the host environment descriptor. */
   readonly appVersion?: string;
+  /** Host OS advertised by protocol-v1 servers; absent for older records. */
+  readonly platform?: "win32" | "darwin" | "linux";
   /** Absent on records paired before standalone helpers advertised their host mode. */
   readonly hostMode?: RemoteHostMode;
   /** Absent on records persisted before transport metadata existed. */

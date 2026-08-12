@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { buildPairingUrl, retargetPairingUrl } from "./pairingUrl";
+import {
+  buildDesktopPairingUrl,
+  buildPairingUrl,
+  normalizePairingEndpoint,
+  retargetPairingUrl,
+} from "./pairingUrl";
+
+describe("desktop pairing URL", () => {
+  it("opens the canonical client and normalizes back to the server origin", () => {
+    const url = buildDesktopPairingUrl({
+      httpBaseUrl: "https://desktop.tailnet.ts.net/base",
+      credential: "lc_pair_test",
+    });
+
+    expect(url).toBe("https://desktop.tailnet.ts.net/#token=lc_pair_test");
+    expect(normalizePairingEndpoint(url)).toBe("https://desktop.tailnet.ts.net");
+  });
+});
 
 describe("retargetPairingUrl", () => {
   it("changes the hosted pairing link endpoint without changing its token", () => {
@@ -22,7 +39,7 @@ describe("retargetPairingUrl", () => {
     });
 
     expect(retargetPairingUrl(original, "http://192.168.1.20:49152")).toBe(
-      "http://192.168.1.20:49152/pair#token=lc_pair_test",
+      "http://192.168.1.20:49152/#token=lc_pair_test",
     );
   });
 });

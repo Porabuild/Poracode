@@ -46,6 +46,7 @@ function pipeSupervisorStreamsToParent(child: ChildProcess): void {
 }
 
 export interface SupervisorClientOptions {
+  baseDir: string;
   appVersion: string;
   isDev: boolean;
   supervisorPath: string;
@@ -86,10 +87,7 @@ export interface SupervisorClientOptions {
 
 export class SupervisorClient {
   private child: ChildProcess | null = null;
-  private baseDir: string | null = null;
   private disposed = false;
-  private readonly startedGate: Promise<void>;
-  private resolveStartedGate!: () => void;
   private readonly pendingRequests = new Map<
     string,
     {
@@ -98,11 +96,7 @@ export class SupervisorClient {
     }
   >();
 
-  constructor(private readonly options: SupervisorClientOptions) {
-    this.startedGate = new Promise<void>((resolve) => {
-      this.resolveStartedGate = resolve;
-    });
-  }
+  constructor(private readonly options: SupervisorClientOptions) {}
 
   private rejectPendingRequests(error: Error): void {
     for (const [id, pending] of this.pendingRequests) {
@@ -116,9 +110,8 @@ export class SupervisorClient {
     this.options.onReset();
   }
 
-  start(baseDir: string): void {
-    this.baseDir = baseDir;
-    this.resolveStartedGate();
+  start(): void {
+    if (this.disposed) throw new Error("Supervisor client is disposed.");
     this.stop(new Error("Supervisor restarting"));
 
     const extraEnv = this.options.resolveExtraEnv?.() ?? {};
@@ -128,7 +121,7 @@ export class SupervisorClient {
         ...process.env,
         PORACODE_APP_VERSION: this.options.appVersion,
         PORACODE_IS_DEV: this.options.isDev ? "1" : "0",
-        PORACODE_DATA_DIR: baseDir,
+        PORACODE_DATA_DIR: this.options.baseDir,
         PORACODE_SECRET_STORAGE_KEY: this.options.secretStorageKey,
         PORACODE_WSL_HELPERS_DIR: this.options.wslHelpersDir,
         // Back-compat for one release; older supervisor builds still read
@@ -192,13 +185,13 @@ export class SupervisorClient {
       }
       this.child = null;
       this.reset(new Error("Supervisor exited"));
-      if (!this.disposed && code !== 0 && this.baseDir) {
+      if (!this.disposed && code !== 0) {
         const error = new Error(`Supervisor exited with code ${code ?? "unknown"}`);
         console.error(`[poracode] ${error.message}, restarting…`);
         this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
         setTimeout(() => {
-          if (!this.child && this.baseDir) {
-            this.start(this.baseDir);
+          if (!this.disposed && !this.child) {
+            this.start();
           }
         }, 1000);
       }
@@ -235,7 +228,6 @@ export class SupervisorClient {
 
   dispose(): void {
     this.disposed = true;
-    this.resolveStartedGate();
     this.stop(new Error("Supervisor exited"));
   }
 
@@ -243,7 +235,7 @@ export class SupervisorClient {
     type: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> {
-    await this.startedGate;
+    if (!this.child?.connected) this.start();
     const child = this.child;
     if (!child || !child.connected) {
       return Promise.reject(new Error("Supervisor is not running."));

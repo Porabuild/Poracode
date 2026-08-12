@@ -85,14 +85,17 @@ function replyFailure(child: FakeChild, request: BackendHostRequest, error: stri
 }
 
 function createClient(assignPid = vi.fn<(pid: number) => Promise<void>>(async () => undefined)) {
-  const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+  const onEvent =
+    vi.fn<
+      (event: SupervisorEvent, rendererDeliveredDirect: boolean, rendererSequence?: number) => void
+    >();
   const onReset = vi.fn<() => void>();
   const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
   const handleNativeRequest = vi.fn<(request: BackendNativeRequest) => Promise<unknown>>(
     async () => ({ delivered: true }),
   );
   const onNativeEvent = vi.fn<(event: BackendNativeEvent) => void>();
-  const onRendererStreamInfo = vi.fn<(info: { version: 1; url: string; token: string }) => void>();
+  const onRendererStreamInfo = vi.fn<(info: { version: 2; url: string; token: string }) => void>();
   const client = new BackendHostClient({
     backendHostPath: "/dist/backendHost.cjs",
     initialize: {
@@ -239,20 +242,37 @@ describe("BackendHostClient", () => {
     );
   });
 
+  it("forwards renderer sequence metadata with fallback events", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client, onEvent } = createClient();
+    await startClient(client, child);
+    const event: SupervisorEvent = { type: "git-changed", projectId: "project" };
+
+    child.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "supervisor-event",
+      event,
+      rendererSequence: 42,
+    });
+
+    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, false, 42);
+  });
+
   it("routes typed services and native callbacks across the backend boundary", async () => {
     const child = makeFakeChild();
     forkMock.mockReturnValue(child);
     const { client, handleNativeRequest, onNativeEvent } = createClient();
     await startClient(client, child, {
       rendererStream: {
-        version: 1,
+        version: 2,
         url: "ws://127.0.0.1:4567/events",
         token: "secret",
       },
     });
 
     await expect(client.getRendererStreamInfo()).resolves.toEqual({
-      version: 1,
+      version: 2,
       url: "ws://127.0.0.1:4567/events",
       token: "secret",
     });
@@ -385,10 +405,10 @@ describe("BackendHostClient", () => {
     forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
     const { client, onRendererStreamInfo } = createClient();
     await startClient(client, first, {
-      rendererStream: { version: 1, url: "ws://127.0.0.1:1001/events", token: "first" },
+      rendererStream: { version: 2, url: "ws://127.0.0.1:1001/events", token: "first" },
     });
     expect(onRendererStreamInfo).toHaveBeenLastCalledWith({
-      version: 1,
+      version: 2,
       url: "ws://127.0.0.1:1001/events",
       token: "first",
     });
@@ -397,12 +417,12 @@ describe("BackendHostClient", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(second)).toHaveLength(1));
     reply(second, requestFor(second, "initialize"), {
-      rendererStream: { version: 1, url: "ws://127.0.0.1:1002/events", token: "second" },
+      rendererStream: { version: 2, url: "ws://127.0.0.1:1002/events", token: "second" },
     });
 
     await vi.waitFor(() => expect(onRendererStreamInfo).toHaveBeenCalledTimes(2));
     expect(onRendererStreamInfo).toHaveBeenLastCalledWith({
-      version: 1,
+      version: 2,
       url: "ws://127.0.0.1:1002/events",
       token: "second",
     });

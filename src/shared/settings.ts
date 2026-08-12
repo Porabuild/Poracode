@@ -482,7 +482,7 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
    * workspace list and therefore show every project — add it to that allowlist if
    * workspaces should scope remote sessions too.
    */

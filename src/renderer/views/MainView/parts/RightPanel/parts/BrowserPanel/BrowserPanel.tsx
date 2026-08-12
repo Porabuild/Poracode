@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { isMac, readBridge } from "@/renderer/bridge";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
@@ -23,6 +24,7 @@ import { BrowserBookmarkBar } from "./parts/BrowserBookmarkBar";
 import { BrowserEmptyState } from "./parts/BrowserEmptyState";
 import { BrowserTabStrip } from "./parts/BrowserTabStrip";
 import { BrowserToolbar } from "./parts/BrowserToolbar";
+import { RemoteBrowserMirror } from "./RemoteBrowserMirror";
 import { extractBrowserToWindow, injectBrowserToMain } from "./browserWindowActions";
 import { useElementPicker } from "./hooks/useElementPicker";
 
@@ -40,6 +42,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const isWindowSurface = props.surface === "window";
+  const nativeBrowserWebContents = hasClientCapability("nativeBrowserWebContents");
   const visible = props.visible || browserOverlayOpen || isWindowSurface;
   const [menuPreviewDataUrl, setMenuPreviewDataUrl] = useState<string | null>(null);
   const {
@@ -115,7 +118,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     setBrowserPanelOpen(true);
     setRightPanelTab("browser");
   };
-  const extractButton = (
+  const extractButton = nativeBrowserWebContents ? (
     <button
       type="button"
       className={headerButtonClass}
@@ -125,7 +128,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     >
       <PictureInPicture2 className="size-3.5" />
     </button>
-  );
+  ) : null;
   return (
     <div
       ref={rootRef}
@@ -234,14 +237,18 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       {hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />}
       <BrowserBookmarkBar />
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
-        {tabs.map((tab) => (
-          <BrowserTabWebview
-            key={tab.tabId}
-            tabId={tab.tabId}
-            initialSrc={tab.url}
-            visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
-          />
-        ))}
+        {nativeBrowserWebContents ? (
+          tabs.map((tab) => (
+            <BrowserTabWebview
+              key={tab.tabId}
+              tabId={tab.tabId}
+              initialSrc={tab.url}
+              visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
+            />
+          ))
+        ) : (
+          <RemoteBrowserMirror activeTabId={activeTabId} visible={visible && !menuPreviewDataUrl} />
+        )}
         {menuPreviewDataUrl ? (
           <img
             src={menuPreviewDataUrl}

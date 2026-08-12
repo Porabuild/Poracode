@@ -1,6 +1,7 @@
 import { closeDatabase, dbMarkLiveThreadsInactive, initDatabase } from "@/main/db";
 import { SupervisorClient, type SupervisorClientOptions } from "@/main/supervisor/SupervisorClient";
 import { persistSupervisorEvent } from "@/main/remote/server/runtimePersistence";
+import { TerminalScrollbackPersistence } from "@/main/remote/server/terminalScrollbackPersistence";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { BackendEventInterests } from "@/shared/backendHostProtocol";
 import {
@@ -13,7 +14,7 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
-  supervisor: Omit<SupervisorClientOptions, "onEvent" | "onReset">;
+  supervisor: Omit<SupervisorClientOptions, "baseDir" | "onEvent" | "onReset">;
   onEvent(event: SupervisorEvent): void;
   onReset(): void;
 }
@@ -131,6 +132,7 @@ export class BackendEventRouter {
  */
 export class BackendHostCore {
   readonly supervisorClient: SupervisorClient;
+  private readonly terminalScrollbackPersistence = new TerminalScrollbackPersistence();
   private databaseOpen = false;
 
   constructor(private readonly options: BackendHostCoreOptions) {
@@ -145,7 +147,9 @@ export class BackendHostCore {
 
       this.supervisorClient = new SupervisorClient({
         ...options.supervisor,
+        baseDir: options.baseDir,
         onEvent: (event) => {
+          this.terminalScrollbackPersistence.handle(event);
           persistSupervisorEvent(event);
           options.onEvent(event);
         },
@@ -159,11 +163,11 @@ export class BackendHostCore {
   }
 
   startSupervisor(): void {
-    this.supervisorClient.start(this.options.baseDir);
+    this.supervisorClient.start();
   }
 
   restartSupervisor(): void {
-    this.supervisorClient.start(this.options.baseDir);
+    this.supervisorClient.start();
   }
 
   disposeSupervisor(): void {
@@ -172,6 +176,7 @@ export class BackendHostCore {
 
   closeDatabase(): void {
     if (!this.databaseOpen) return;
+    this.terminalScrollbackPersistence.flush();
     this.databaseOpen = false;
     closeDatabase();
   }

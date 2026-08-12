@@ -8,7 +8,7 @@ import { Button } from "@/renderer/components/common/Button";
  * Revert affordance data handed to rows that can revert: the checkpoint item
  * and the shared request-revert entry point (opens the confirm dialog owned
  * by `MessageList`). Rows render their own `CheckpointRevertButton` from it;
- * the mobile PWA instead routes it through the long-press action sheet.
+ * compact layout instead routes it through the long-press action sheet.
  */
 export interface CheckpointRevertRequest {
   itemId: string;

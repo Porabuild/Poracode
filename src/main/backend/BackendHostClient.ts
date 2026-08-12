@@ -4,6 +4,7 @@ import { constants as osConstants, setPriority } from "node:os";
 import type { Readable } from "node:stream";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
+  BACKEND_RENDERER_STREAM_VERSION,
   createBackendDatabaseRequest,
   createBackendServiceRequest,
   createBackendSupervisorRequest,
@@ -45,7 +46,11 @@ export interface BackendHostClientOptions {
   resolveExtraEnv(): Record<string, string>;
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
-  onEvent(event: SupervisorEvent, rendererDeliveredDirect: boolean): void;
+  onEvent(
+    event: SupervisorEvent,
+    rendererDeliveredDirect: boolean,
+    rendererSequence?: number,
+  ): void;
   onReset(): void;
   handleNativeRequest?(request: BackendNativeRequest): Promise<unknown> | unknown;
   onNativeEvent?(event: BackendNativeEvent): void;
@@ -193,7 +198,15 @@ export class BackendHostClient {
         return;
       }
       case "supervisor-event":
-        this.options.onEvent(message.event, message.rendererDeliveredDirect === true);
+        if (message.rendererSequence === undefined) {
+          this.options.onEvent(message.event, message.rendererDeliveredDirect === true);
+        } else {
+          this.options.onEvent(
+            message.event,
+            message.rendererDeliveredDirect === true,
+            message.rendererSequence,
+          );
+        }
         return;
       case "supervisor-reset":
         this.options.onReset();
@@ -457,7 +470,9 @@ function parseRendererStreamInfo(value: unknown): BackendRendererStreamInfo | nu
   const stream = (value as { rendererStream?: unknown }).rendererStream;
   if (typeof stream !== "object" || stream === null) return null;
   const info = stream as Record<string, unknown>;
-  return info.version === 1 && typeof info.url === "string" && typeof info.token === "string"
-    ? { version: 1, url: info.url, token: info.token }
+  return info.version === BACKEND_RENDERER_STREAM_VERSION &&
+    typeof info.url === "string" &&
+    typeof info.token === "string"
+    ? { version: BACKEND_RENDERER_STREAM_VERSION, url: info.url, token: info.token }
     : null;
 }

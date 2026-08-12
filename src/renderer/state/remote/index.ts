@@ -1,13 +1,10 @@
 /**
- * Shared remote-sync primitives used by both the desktop-as-client remote
- * servers store (`remoteServersStore`) and the mobile PWA's store sync
- * (`mobile/storeSync`). The desktop imports the core mutators directly; the
- * mobile PWA wraps {@link dispatchRemoteSupervisorEvent} with its own Live
- * Activity / terminal-feed / git-summaries fan-out via {@link RemoteDispatchHooks}.
+ * Canonical remote-sync primitives used by browser and Electron remote-client
+ * paths. Host integrations can extend {@link dispatchRemoteSupervisorEvent}
+ * through {@link RemoteDispatchHooks} without forking the state model.
  *
- * Relocating these primitives here breaks the previous renderer ↔ mobile
- * import cycle: mobile modules still import renderer state (one direction), but
- * the renderer no longer imports anything from `@/mobile`.
+ * These primitives live with canonical renderer state so every host surface
+ * shares one state model without a second application layer.
  */
 export {
   applyThreadSnapshot,

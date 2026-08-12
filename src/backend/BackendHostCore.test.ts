@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   closeDatabase: vi.fn<() => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
   persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
-  start: vi.fn<(baseDir: string) => void>(),
+  start: vi.fn<() => void>(),
   dispose: vi.fn<() => void>(),
   supervisorOptions: null as null | {
     onEvent(event: SupervisorEvent): void;
@@ -19,6 +19,8 @@ vi.mock("@/main/db", () => ({
   initDatabase: mocks.initDatabase,
   closeDatabase: mocks.closeDatabase,
   dbMarkLiveThreadsInactive: mocks.dbMarkLiveThreadsInactive,
+  dbAppendThreadTerminalOutput: vi.fn<() => void>(),
+  dbClearThreadTerminalScrollback: vi.fn<() => void>(),
 }));
 
 vi.mock("@/main/remote/server/runtimePersistence", () => ({
@@ -75,8 +77,7 @@ describe("BackendHostCore", () => {
 
     expect(mocks.initDatabase).toHaveBeenCalledExactlyOnceWith("/data/state.sqlite");
     expect(mocks.dbMarkLiveThreadsInactive).toHaveBeenCalledOnce();
-    expect(mocks.start).toHaveBeenNthCalledWith(1, "/data");
-    expect(mocks.start).toHaveBeenNthCalledWith(2, "/data");
+    expect(mocks.start).toHaveBeenCalledTimes(2);
     expect(mocks.dispose).toHaveBeenCalledOnce();
     expect(mocks.closeDatabase).toHaveBeenCalledOnce();
   });

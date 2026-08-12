@@ -10,8 +10,7 @@ import type { StartRemoteThreadInput } from "./remote/client";
  * the broken turn, and a failed relaunch lands back on `error`, so the thread
  * waits for an explicit prompt instead of an open-driven retry loop).
  *
- * Both clients gate on this one rule before relaunching: the desktop renderer
- * in `reopenStoredThread`, the mobile PWA in `ensureThreadRunning`.
+ * Every runtime adapter gates on this rule before relaunching a stored thread.
  */
 export function shouldRelaunchThreadOnOpen(thread: Pick<Thread, "status">): boolean {
   return thread.status === "inactive";
@@ -21,7 +20,7 @@ export function shouldRelaunchThreadOnOpen(thread: Pick<Thread, "status">): bool
  * The empty-prompt relaunch payload both clients send for an inactive thread.
  * The desktop renderer produces this same object in
  * `performInitialThreadLaunch` (its reopen case carries an empty prompt and no
- * segments/userMessageItemId); the mobile PWA builds it here directly. The
+ * segments/userMessageItemId); remote clients build it here directly. The
  * host resolves the MCP launch snapshot itself, so no client snapshot is
  * included.
  */

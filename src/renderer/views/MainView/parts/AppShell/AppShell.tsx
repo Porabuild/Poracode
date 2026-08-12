@@ -15,6 +15,7 @@ import { isMac, isWindows } from "@/renderer/bridge";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
 import { useSidebarGlassActive } from "@/renderer/hooks/useGlassState";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import {
   collapseSidebar,
@@ -120,8 +121,9 @@ function SidebarWidthDriver(props: {
   sidebarRef: RefObject<HTMLDivElement | null>;
   sidebarWidth: number;
   forceSidebarExpanded: boolean;
+  collapsedWidth: number;
 }) {
-  const { sidebarRef, sidebarWidth, forceSidebarExpanded } = props;
+  const { sidebarRef, sidebarWidth, forceSidebarExpanded, collapsedWidth } = props;
   const isCollapsed = useSidebarOverlayStore((s) => s.isCollapsed);
   const skipTransition = useSidebarOverlayStore((s) => s.skipTransition);
   const isOverlay = useSidebarOverlayStore(selectIsOverlay);
@@ -131,8 +133,7 @@ function SidebarWidthDriver(props: {
   // In overlay mode the aside is `position: fixed` and slides via transform —
   // its width stays at the full sidebarWidth. In normal mode we either show
   // sidebarWidth (expanded) or SIDEBAR_COLLAPSED_WIDTH (collapsed).
-  const targetWidth =
-    effectiveIsCollapsed && !effectiveIsOverlay ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth;
+  const targetWidth = effectiveIsCollapsed && !effectiveIsOverlay ? collapsedWidth : sidebarWidth;
 
   const prevTargetRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
@@ -204,14 +205,18 @@ function ShellSidebarBackdrop(props: { forceSidebarExpanded: boolean }) {
   );
 }
 
-function ShellSidebarSpacer(props: { hasHeaders: boolean; forceSidebarExpanded: boolean }) {
+function ShellSidebarSpacer(props: {
+  hasHeaders: boolean;
+  forceSidebarExpanded: boolean;
+  collapsedWidth: number;
+}) {
   const isOverlay = useSidebarOverlayStore(selectIsOverlay);
   if (props.forceSidebarExpanded) return null;
   if (!isOverlay) return null;
   return (
     <div
       className={`poracode-sidebar-spacer shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
-      style={{ width: SIDEBAR_COLLAPSED_WIDTH, minWidth: SIDEBAR_COLLAPSED_WIDTH }}
+      style={{ width: props.collapsedWidth, minWidth: props.collapsedWidth }}
     />
   );
 }
@@ -317,6 +322,7 @@ function ShellSidebarResizeHandle(props: {
   hasHeaders: boolean;
   hasContentHeader: boolean;
   forceSidebarExpanded: boolean;
+  compactLayout: boolean;
   onHoverChange: (hovered: boolean) => void;
   onResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
   onResizeKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
@@ -330,7 +336,7 @@ function ShellSidebarResizeHandle(props: {
   );
   const effectiveIsCollapsed = props.forceSidebarExpanded ? false : isCollapsed;
   const effectiveIsOverlay = props.forceSidebarExpanded ? false : isOverlay;
-  if (effectiveIsCollapsed || effectiveIsOverlay) return null;
+  if (props.compactLayout || effectiveIsCollapsed || effectiveIsOverlay) return null;
   return (
     <div
       className={`poracode-resize-handle ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
@@ -374,10 +380,14 @@ export function AppShell(props: {
   forceSidebarExpanded?: boolean;
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
+  compactHome?: boolean;
+  mobileNavigation?: boolean;
 }) {
   const { t } = useLingui();
   const { sidebar, content, sidebarHeader, contentHeader, rightPanel, gitPanel } = props;
   const forceSidebarExpanded = props.forceSidebarExpanded === true;
+  const compactLayout = useCompactLayout();
+  const collapsedSidebarWidth = compactLayout ? 0 : SIDEBAR_COLLAPSED_WIDTH;
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
 
   const mainRef = useRef<HTMLElement>(null);
@@ -547,7 +557,9 @@ export function AppShell(props: {
   // the window is very narrow — leave room for the user to click main to
   // dismiss via the backdrop and to see the underlying content.
   const overlayMaxWidth = layoutMetricsReady
-    ? Math.max(CONTENT_MIN_WIDTH, shellWidth - RIGHT_OVERLAY_MIN_GUTTER)
+    ? compactLayout
+      ? shellWidth
+      : Math.max(CONTENT_MIN_WIDTH, shellWidth - RIGHT_OVERLAY_MIN_GUTTER)
     : undefined;
   const overlayRightPanelWidth =
     overlayMaxWidth !== undefined ? Math.min(panelWidth, overlayMaxWidth) : panelWidth;
@@ -574,6 +586,9 @@ export function AppShell(props: {
   return (
     <div
       ref={shellRef}
+      data-compact-layout={compactLayout || undefined}
+      data-mobile-home={(compactLayout && props.compactHome) || undefined}
+      data-mobile-navigation={(compactLayout && props.mobileNavigation) || undefined}
       className="poracode-shell flex h-full min-h-0 overflow-hidden bg-background text-foreground"
       style={hasHeaders ? { paddingTop: 0 } : undefined}
     >
@@ -582,7 +597,11 @@ export function AppShell(props: {
       {!hasHeaders && <div aria-hidden="true" className="poracode-drag-region" />}
 
       <ShellSidebarBackdrop forceSidebarExpanded={forceSidebarExpanded} />
-      <ShellSidebarSpacer hasHeaders={hasHeaders} forceSidebarExpanded={forceSidebarExpanded} />
+      <ShellSidebarSpacer
+        hasHeaders={hasHeaders}
+        forceSidebarExpanded={forceSidebarExpanded}
+        collapsedWidth={collapsedSidebarWidth}
+      />
 
       <ShellSidebarAside
         sidebarRef={sidebarRef}
@@ -596,18 +615,21 @@ export function AppShell(props: {
         sidebarRef={sidebarRef}
         sidebarWidth={sidebarWidth}
         forceSidebarExpanded={forceSidebarExpanded}
+        collapsedWidth={collapsedSidebarWidth}
       />
 
       <MemoShellSidebarResizeHandle
         hasHeaders={hasHeaders}
         hasContentHeader={hasContentHeader}
         forceSidebarExpanded={forceSidebarExpanded}
+        compactLayout={compactLayout}
         onHoverChange={setIsSidebarHandleHovered}
         onResizeStart={handleSidebarResizeStart}
         onResizeKeyDown={handleSidebarResizeKeyDown}
       />
 
       <div
+        data-poracode-shell-content=""
         className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           rightOverlayDisplayed ? "" : "[isolation:isolate]"
         }`}

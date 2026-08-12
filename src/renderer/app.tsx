@@ -1,7 +1,7 @@
 import { toast } from "@heroui/react";
 import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
-import { Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
 import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
 import { msg } from "@/shared/messages";
@@ -63,6 +63,16 @@ import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
 import { useStandaloneWindowViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
+import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+
+const BrowserRuntimeServices = isBrowserClientRuntime()
+  ? lazy(() =>
+      import("@/renderer/pwa/BrowserRuntimeServices").then((module) => ({
+        default: module.BrowserRuntimeServices,
+      })),
+    )
+  : null;
 
 // ── Module-level IPC listeners ──────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -328,7 +338,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onSupervisorEvent(handleSupervisorEvent),
       installRuntimeEventScheduling(),
       readBridge().onUpdateStatus(handleUpdateStatus),
-      // Thread-metadata commands issued from paired remote clients (mobile PWA).
+      // Thread-metadata commands issued from paired browser clients.
       // They run through the same actions as local edits so persistence and
       // side effects (unload on archive, …) stay identical.
       readBridge().onRemoteThreadCommand((command) => {
@@ -634,13 +644,15 @@ function MainApp() {
 
   return (
     <AppProvider contentReady>
-      <MainView
-        storeHydrated={storeHydrated}
-        runtimeSnapshotsReady={runtimeSnapshotsReady}
-        loadT0={loadT0}
-      />
+      <MainView storeHydrated={storeHydrated} runtimeSnapshotsReady={runtimeSnapshotsReady} />
       <DeferredCommandPalette />
       <ImageLightboxHost />
+      {BrowserRuntimeServices ? (
+        <Suspense>
+          <BrowserRuntimeServices />
+        </Suspense>
+      ) : null}
+      <UserMessageActionsSheet />
     </AppProvider>
   );
 }

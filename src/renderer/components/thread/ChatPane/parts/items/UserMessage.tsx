@@ -13,7 +13,7 @@ import {
   formatDiffCommentPrompt,
   isImagePath,
 } from "@/shared/promptContent";
-import { isRemoteSession } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -189,13 +189,12 @@ export const UserMessage = memo(function UserMessage({
     };
   }, []);
 
-  // On touch (the PWA) there is no hover to reveal the copy/revert strip, and
+  // In compact layout there is no reliable hover to reveal the copy/revert strip, and
   // permanently visible icons crowd a one-line bubble — so the strip is
-  // dropped there and a long-press on the bubble opens the mobile action
-  // sheet instead (see src/mobile/UserMessageActionsSheet.tsx).
-  const isRemote = isRemoteSession();
+  // dropped there and a long-press opens the shared action sheet instead.
+  const compact = useCompactLayout();
   const longPressHandlers = useLongPress(
-    isRemote
+    compact
       ? () =>
           openUserMessageActions({
             text: rawText,
@@ -222,7 +221,7 @@ export const UserMessage = memo(function UserMessage({
       : isCollapsible
         ? "max-h-[50vh] overflow-y-auto"
         : "";
-  const baseBodyClass = `min-w-0 leading-snug ${!isRemote && checkpointRevert ? "pr-12" : "pr-7"} ${collapseClass}`;
+  const baseBodyClass = `min-w-0 leading-snug ${!compact && checkpointRevert ? "pr-12" : "pr-7"} ${collapseClass}`;
   const inlineBodyClass = `${baseBodyClass} poracode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 
   let bodyContent: ReactNode = null;
@@ -295,7 +294,7 @@ export const UserMessage = memo(function UserMessage({
           </Tooltip>
         </>
       ) : null}
-      {!isRemote ? (
+      {!compact ? (
         <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
           {checkpointRevert ? (
             <CheckpointRevertButton

@@ -10,6 +10,8 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
   cleanupGitRefreshProjects,
   getWatcherRefreshMode,
@@ -48,11 +50,32 @@ export function useGitRefresh(storeHydrated: boolean) {
   // Subscribe only to the active-project identity/location key so draft config
   // writes do not invalidate the whole shell.
   const activeProjectsKey = useAppStore((state) => buildActiveProjectsKey(state.projects));
+  const reachableRemoteServersKey = useRemoteServersStore((state) =>
+    state.servers
+      .filter(
+        (server) =>
+          !isRemoteProjectStatusUnreachable(
+            { remoteServerId: server.desktopId },
+            state.runtime[server.desktopId]?.status,
+          ),
+      )
+      .map((server) => server.desktopId)
+      .sort()
+      .join("\u0000"),
+  );
 
   useEffect(() => {
-    const activeProjects = useAppStore.getState().projects.filter((project) => !project.disabled);
+    const allActiveProjects = useAppStore
+      .getState()
+      .projects.filter((project) => !project.disabled);
     if (!storeHydrated) return;
-    cleanupGitRefreshProjects(new Set(activeProjects.map((project) => project.id)));
+    cleanupGitRefreshProjects(new Set(allActiveProjects.map((project) => project.id)));
+    const reachableRemoteServerIds = new Set(
+      reachableRemoteServersKey.split("\u0000").filter(Boolean),
+    );
+    const activeProjects = allActiveProjects.filter(
+      (project) => !project.remoteServerId || reachableRemoteServerIds.has(project.remoteServerId),
+    );
     if (activeProjects.length === 0) return;
 
     let isActive = true;
@@ -131,6 +154,15 @@ export function useGitRefresh(storeHydrated: boolean) {
       // view` process per worktree. Do not put this on the view-change path:
       // plain thread switches must not spawn Git work while the panel is hidden.
       for (const project of activeProjects) {
+        if (
+          project.remoteServerId &&
+          isRemoteProjectStatusUnreachable(
+            project,
+            useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
+          )
+        ) {
+          continue;
+        }
         void prefetchBranchPrData(project);
       }
     }
@@ -304,5 +336,5 @@ export function useGitRefresh(storeHydrated: boolean) {
       }
       cleanupGitRefreshProjects(new Set());
     };
-  }, [storeHydrated, activeProjectsKey]);
+  }, [storeHydrated, activeProjectsKey, reachableRemoteServersKey]);
 }

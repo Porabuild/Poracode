@@ -10,7 +10,7 @@ Show running conversations on the iOS lock screen and Dynamic Island: a live
 card with the thread title, project, status (`Running` / `Needs input` /
 `Done`), and elapsed time — updated in real time while the phone is locked and
 the app is not running. This also delivers the P0 backlog item from
-`docs/MOBILE_REVIEW.md` (background push on turn complete / needs input),
+`docs/REMOTE_ARCHITECTURE.md` (background push on turn complete / needs input),
 because Live Activity updates and plain push notifications share all the same
 plumbing.
 
@@ -83,7 +83,7 @@ card and Dynamic Island presentations cannot be web-rendered.
 Thin Swift bridge between the web layer and ActivityKit. Lives in the repo
 (local Capacitor plugin), no behavior on Android/web (no-op stubs).
 
-API surface (JS side, consumed from `src/mobile`):
+API surface (JS side, consumed from the canonical renderer's native adapter):
 
 - `getPushToStartToken(): Promise<string | null>` — iOS 17.2+; observes
   `Activity<DesktopSessionAttributes>.pushToStartTokenUpdates`.
@@ -110,7 +110,7 @@ pushToStartToken?, activityTokens?: Record<activityId, token> }`.
 - `DELETE /api/push/register` — on sign-out/unpair; also pruned when APNs
   reports `410 Unregistered`.
 
-The mobile app re-registers on launch and whenever ActivityKit rotates a
+The iOS native shell re-registers on launch and whenever ActivityKit rotates a
 token (tokens rotate; treat registration as idempotent upsert).
 
 ### 4. `PushCoordinator` (new module, `src/main/remote/push/`)
@@ -148,7 +148,7 @@ payload, priority }`. Signs the APNs JWT, forwards to
   Rate-limit per token and per IP; reject payloads > 4 KB.
 - The relay (`relayProtocol.ts`) stays untouched — it remains a dumb tunnel,
   and self-hosted relay users still get push because the desktop calls the
-  gateway directly (outbound HTTPS), independent of how the mobile client
+  gateway directly (outbound HTTPS), independent of how the canonical client
   reaches the desktop.
 
 Privacy: content states carry thread titles and project names through the
@@ -191,7 +191,7 @@ detail.
 - **iOS floors:** Live Activities 16.2+, push-to-start 17.2+ — set the
   Capacitor deployment target accordingly and gate the bridge at runtime.
 - **Apple accounts/ops:** APNs `.p8` key in release secrets; widget extension
-  needs its own provisioning; `finalize-mobile-build.mjs` /
+  needs its own provisioning; `finalize-web-build.mjs` /
   `configure-mobile-native.mjs` grow steps for the extension target.
 - **Desktop offline:** if the desktop dies mid-run no `end` push arrives;
   set `staleDate` on every update so iOS visually marks the activity stale,

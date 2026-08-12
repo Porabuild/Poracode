@@ -129,6 +129,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Show voice input button`,
     description: msg`Show the microphone button in the composer.`,
     keywords: "mic microphone dictation speech composer",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -136,6 +137,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Microphone`,
     description: msg`Device used by the composer voice input button.`,
     keywords: "mic input device audio source",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -143,6 +145,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Test microphone`,
     description: msg`Check the live input level from the selected device.`,
     keywords: "mic check level meter input test",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -150,6 +153,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input language`,
     description: msg`Language the speech model should expect when transcribing composer dictation.`,
     keywords: "transcription dictation speech locale",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -157,6 +161,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input model`,
     description: msg`Fastest uses Whisper tiny; Better uses Whisper base.`,
     keywords: "whisper transcription speech model tiny base quality speed",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -164,6 +169,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Use WebGPU acceleration`,
     description: msg`Run local transcription on the GPU when available.`,
     keywords: "gpu acceleration hardware transcription performance",
+    desktopOnly: true,
   },
 
   // Appearance
@@ -226,6 +232,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Collapse terminal composer`,
     description: msg`Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal.`,
     keywords: "collapse composer terminal-native threads input minimize",
+    desktopOnly: true,
   },
   {
     section: "terminal",

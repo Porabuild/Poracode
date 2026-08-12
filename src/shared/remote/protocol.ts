@@ -15,9 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v2 requires remote start commands to preserve caller-supplied user-message
-// ids so optimistic GUI prompts reconcile without duplication across hosts.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 2;
+// v3 makes worktree placement settings host-scoped so browser clients never
+// edit local values that the selected remote host will not use.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 3;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -390,7 +390,7 @@ export const remotePortUnforwardResultSchema = z.object({ ok: z.literal(true) })
 export type RemotePortUnforwardResult = z.infer<typeof remotePortUnforwardResultSchema>;
 
 /** Request body for `POST /api/ports/enter`: mints a fresh enter token for an
- * already-open forward. The mobile app calls this right before opening the
+ * already-open forward. The browser client calls this right before opening the
  * forwarded tab so the token in `enterPath` is always fresh, rather than
  * reusing the (possibly stale) one returned by the original `forward` call. */
 export const remotePortEnterRequestSchema = z.object({
@@ -450,7 +450,7 @@ export const remotePushRegistrationSchema = z
     activityTokens: z.record(z.string().min(1), z.string().min(1)).optional(),
     /** Standards-based Push API subscription. Installed web apps only. */
     webPushSubscription: remoteWebPushSubscriptionSchema.optional(),
-    /** Browser-history base path (`/` or `/app`) for notification click routing. */
+    /** Root-scoped browser-history base path for notification click routing. */
     webAppBasePath: z
       .string()
       .regex(/^\/(?!\/)(?:[^?#]*)$/)
@@ -609,9 +609,9 @@ export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema
  * PWA, as opposed to its device-local settings). Only settings the desktop
  * itself acts on belong here — the AI helpers (title/commit generation,
  * conflict resolver), agent/model configuration (each desktop has its own set
- * of agents and models), and persistent composer MCP enablement. Deliberately
- * excludes secrets (providerConfigs and custom MCP definitions) and
- * device-local preferences (theme, fonts, audio, …).
+ * of agents and models), worktree placement, and persistent composer MCP
+ * enablement. Deliberately excludes secrets (providerConfigs and custom MCP
+ * definitions) and device-local preferences (theme, fonts, audio, …).
  */
 const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform((settings) =>
   Object.fromEntries(
@@ -634,23 +634,32 @@ export const remoteSettingsSchema = sharedSettingsSchema
     titleGenProvider: true,
     titleGenModel: true,
     titleGenEffort: true,
+    titleGenFast: true,
     commitGenProvider: true,
     commitGenModel: true,
     commitGenEffort: true,
+    commitGenFast: true,
     conflictResolverProvider: true,
     conflictResolverModel: true,
     conflictResolverEffort: true,
+    conflictResolverFast: true,
     conflictResolverPresentationMode: true,
     wslTitleGenProvider: true,
     wslTitleGenModel: true,
     wslTitleGenEffort: true,
+    wslTitleGenFast: true,
     wslCommitGenProvider: true,
     wslCommitGenModel: true,
     wslCommitGenEffort: true,
+    wslCommitGenFast: true,
     wslConflictResolverProvider: true,
     wslConflictResolverModel: true,
     wslConflictResolverEffort: true,
+    wslConflictResolverFast: true,
     wslConflictResolverPresentationMode: true,
+    worktreeStorageMode: true,
+    worktreeBasePath: true,
+    wslWorktreeBasePath: true,
     prAutomationDefault: true,
     prMergeMethod: true,
   })

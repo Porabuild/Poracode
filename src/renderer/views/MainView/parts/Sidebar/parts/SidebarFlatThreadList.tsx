@@ -29,6 +29,8 @@ import {
 } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { MobileQuickCompose } from "./MobileQuickCompose";
 
 /**
  * `threadListLimits`/`revealMoreThreads` scope key for the flat list's single
@@ -53,6 +55,7 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  * across projects and falls back to last-updated.
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
+  const compactLayout = useCompactLayout();
   const workspaceProjectIds = useWorkspaceProjectIds();
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const projects = useAppStore(useShallow((s) => s.projects));
@@ -149,7 +152,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   });
 
   const renderNewThreadButton = (inline: boolean) =>
-    latestProjectId ? (
+    latestProjectId && !compactLayout ? (
       <NewThreadButton
         {...(inline ? { inline: true } : {})}
         projectId={latestProjectId}
@@ -183,7 +186,11 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         <div className="shrink-0 pb-0.5">{renderNewThreadButton(false)}</div>
       )}
 
-      <div ref={setScrollContainer} className={sidebarBodyScrollClass()} style={scrollFadeStyle}>
+      <div
+        ref={setScrollContainer}
+        className={`poracode-flat-thread-scroll ${sidebarBodyScrollClass()}`}
+        style={scrollFadeStyle}
+      >
         <div>
           {rows.map((row) => {
             if (row.kind === "see-more") {
@@ -233,6 +240,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           })}
         </div>
       </div>
+      {compactLayout && latestProjectId ? <MobileQuickCompose projectId={latestProjectId} /> : null}
     </div>
   );
 }

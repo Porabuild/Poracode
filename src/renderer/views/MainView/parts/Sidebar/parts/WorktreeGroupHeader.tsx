@@ -4,6 +4,7 @@ import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import type { StatusTone } from "@/renderer/components/providers/statusTone";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
@@ -44,6 +45,7 @@ export function WorktreeGroupHeader(props: {
   projectTag?: React.ReactNode;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const hiddenPanelButtonClass =
     "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
   // A project tag means this is a flat cross-project row, which stacks the tag
@@ -57,6 +59,36 @@ export function WorktreeGroupHeader(props: {
       {props.worktreeBranch}
     </span>
   );
+
+  if (compactLayout) {
+    return (
+      <SidebarButton
+        {...(props.ref != null ? { ref: props.ref } : {})}
+        onContextMenu={props.onContextMenu}
+        icon={<GitFork className="size-3.5 shrink-0 text-muted" />}
+        label={
+          <span className="flex flex-col gap-0.5 pr-0.5">
+            <span className="flex h-[18px] items-center gap-1.5">
+              {branchLabel}
+              <RelativeTime
+                iso={props.updatedAt}
+                className="block shrink-0 font-mono text-[10px] leading-none tabular-nums text-muted"
+              />
+            </span>
+            {props.projectTag ? (
+              <span className="flex h-[18px] items-center">{props.projectTag}</span>
+            ) : null}
+          </span>
+        }
+        tooltip={t`Worktree: ${props.worktreeBranch}`}
+        size="xs"
+        density="compact"
+        className="poracode-sidebar-touch-row"
+        liveText
+        onPress={props.onToggleCollapse}
+      />
+    );
+  }
 
   const panelButtons = (
     <>

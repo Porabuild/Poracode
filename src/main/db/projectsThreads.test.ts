@@ -24,6 +24,12 @@ import {
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
 import { dbPersistExperimentState, dbSyncAll } from "./sync";
+import {
+  dbAppendThreadTerminalOutput,
+  dbClearThreadTerminalScrollback,
+  dbGetThreadTerminalScrollback,
+  MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
+} from "./terminalScrollback";
 
 // node_modules/better-sqlite3 may be compiled for Electron's ABI. Fall back to
 // the Node-ABI binding used by the headless server, preparing it on demand so
@@ -111,6 +117,47 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     dbUpsertThread(testThread(), 0);
     expect(dbGetThread("thread-1")?.threadStatusSource).toBeUndefined();
+  });
+
+  it("persists bounded terminal scrollback across output batches", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    dbAppendThreadTerminalOutput("thread-1", "hello", 5);
+    dbAppendThreadTerminalOutput("thread-1", " world", 11);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("hello world");
+
+    const replacement = "x".repeat(MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS + 10);
+    dbAppendThreadTerminalOutput("thread-1", replacement, 10);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toHaveLength(
+      MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
+    );
+
+    dbClearThreadTerminalScrollback("thread-1");
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("");
+  });
+
+  it("migrates a released schema-v32 database without losing existing threads", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      DROP TABLE thread_terminal_scrollback;
+      UPDATE app_state SET value = '32' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    expect(dbGetThread("thread-1")).toMatchObject({
+      id: "thread-1",
+      title: "Test thread",
+      presentationMode: "terminal",
+    });
+    dbAppendThreadTerminalOutput("thread-1", "restored", 8);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("restored");
+    expect(dbGetState("schema_version")).toBe("33");
   });
 
   it("round-trips project MCP servers through the projects table", () => {
@@ -218,7 +265,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("32");
+    expect(dbGetState("schema_version")).toBe("33");
   });
 
   it("repairs safe schema drift even when the database claims the latest version", () => {
@@ -264,7 +311,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("32");
+    expect(dbGetState("schema_version")).toBe("33");
     expect(dbGetProject("legacy-project")).toMatchObject({
       id: "legacy-project",
       name: "Legacy project",
@@ -302,7 +349,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     initDatabase(join(dir, "state.sqlite"));
 
-    expect(dbGetState("schema_version")).toBe("32");
+    expect(dbGetState("schema_version")).toBe("33");
     expect(dbGetThread("legacy-empty-model")?.config).toEqual({
       model: "auto",
       effort: "high",

@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -30,7 +31,9 @@ function scheduleIdle(work: () => void): IdleCallbackHandle {
 }
 
 export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
-  const runtimeOwner = options.runtimeOwner ?? true;
+  const runtimeOwner =
+    options.runtimeOwner ??
+    (!window.poracodeHost && !window.poracode ? true : hasClientCapability("localBackend"));
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
   const purgeStaleArchivedThreads = useAppStore((state) => state.purgeStaleArchivedThreads);
   const archiveOldDoneThreads = useAppStore((state) => state.archiveOldDoneThreads);

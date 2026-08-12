@@ -33,7 +33,7 @@ describe("TerminalSettings", () => {
     expect(screen.queryByText("Terminal position")).not.toBeInTheDocument();
     expect(screen.queryByText("Auto-show terminal panel")).not.toBeInTheDocument();
     expect(screen.queryByText("Browser pick target (CLI threads)")).not.toBeInTheDocument();
-    expect(screen.getByText("Collapse terminal composer")).toBeInTheDocument();
+    expect(screen.queryByText("Collapse terminal composer")).not.toBeInTheDocument();
     expect(screen.getByText("Agent terminal font size")).toBeInTheDocument();
     expect(screen.getByText("Terminal panel font size")).toBeInTheDocument();
     expect(screen.getByText("Terminal scroll speed")).toBeInTheDocument();

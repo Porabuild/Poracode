@@ -445,7 +445,7 @@ export const threadTools: ToolDomain = {
       if (settled) return { timedOut: false, ...settled };
       return { timedOut: true, ...waitSnapshot(ctx, threadIds) };
     },
-    update_thread: (args, ctx) => {
+    update_thread: async (args, ctx) => {
       const parsed = updateArgsSchema.parse(args);
       requireThread(ctx, parsed.threadId);
       const applied: string[] = [];
@@ -458,45 +458,45 @@ export const threadTools: ToolDomain = {
       const stamp = (): string => new Date().toISOString();
       // Apply one optional metadata field: mirror it to the renderer and queue
       // the matching row mutation. Skipped when the field was not provided.
-      const applyField = <T>(
+      const applyField = async <T>(
         value: T | undefined,
         label: string,
         build: (value: T) => { command: RemoteThreadCommand; mutate: (thread: Thread) => Thread },
-      ): void => {
+      ): Promise<void> => {
         if (value === undefined) return;
         const { command, mutate } = build(value);
-        if (!ctx.emitRemoteThreadCommand(command)) deliveredToRenderer = false;
+        if (!(await ctx.emitRemoteThreadCommand(command))) deliveredToRenderer = false;
         rowMutations.push(mutate);
         applied.push(label);
       };
 
       // Ordered so `applied` preserves rename→group→done→starred→archived.
-      applyField(parsed.rename, "rename", (title) => ({
+      await applyField(parsed.rename, "rename", (title) => ({
         command: { kind: "rename", threadId, title },
         mutate: (thread) => ({ ...thread, title }),
       }));
-      applyField(parsed.group, "group", (group) => ({
+      await applyField(parsed.group, "group", (group) => ({
         command: { kind: "set-group", threadId, groupId: group, groupName: group },
         mutate: (thread) => ({ ...thread, groupId: group, groupName: group }),
       }));
-      applyField(parsed.done, "done", (done) => ({
+      await applyField(parsed.done, "done", (done) => ({
         command: { kind: "set-done", threadId, done },
         mutate: (thread) =>
           done
             ? { ...thread, done: true, doneAt: stamp(), starred: false }
             : { ...thread, done: false, doneAt: undefined },
       }));
-      applyField(parsed.starred, "starred", (starred) => ({
+      await applyField(parsed.starred, "starred", (starred) => ({
         command: { kind: "set-starred", threadId, starred },
         mutate: (thread) => ({ ...thread, starred }),
       }));
-      applyField(parsed.archived, "archived", (archived) => ({
+      await applyField(parsed.archived, "archived", (archived) => ({
         command: { kind: archived ? "archive" : "unarchive", threadId },
         mutate: (thread) => ({ ...thread, archived, updatedAt: stamp() }),
       }));
       if (parsed.acknowledge) {
         const command: RemoteThreadCommand = { kind: "acknowledge", threadId };
-        if (!ctx.emitRemoteThreadCommand(command)) deliveredToRenderer = false;
+        if (!(await ctx.emitRemoteThreadCommand(command))) deliveredToRenderer = false;
         // Mirror the renderer/remote-server semantics: acknowledging only clears
         // a finished thread's completion marker (status finished → idle).
         rowMutations.push((thread) =>

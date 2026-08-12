@@ -32,6 +32,7 @@ resources/wsl-helpers/mcp-filter.mjs
 resources/wsl-helpers/cursor-sdk-worker.mjs
 resources/agent-plugins/
 resources/mobile-ssh-runtime/
+resources/web-ssh-runtime/
 .envrc
 .envrc.local
 /Microsoft/Windows/PowerShell/ModuleAnalysisCache

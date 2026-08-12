@@ -9,6 +9,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RemoteAccessTailscaleStatus } from "@/shared/ipc";
 import type { RemoteAccessPairingInfo, RemoteAccessSessionSummary } from "@/shared/remote";
 import {
+  buildDesktopPairingUrl,
   normalizePairingEndpoint,
   parsePairingUrlParts,
   retargetPairingUrl,
@@ -290,6 +291,9 @@ function PairingReady(props: {
     : normalizePairingEndpoint(props.info.httpBaseUrl);
   const pairingUrl = retargetPairingUrl(props.info.pairingUrl, selectedEndpoint);
   const pairingToken = pairingTokenFromUrl(pairingUrl);
+  const desktopPairingUrl = pairingToken
+    ? buildDesktopPairingUrl({ httpBaseUrl: selectedEndpoint, credential: pairingToken })
+    : pairingUrl;
   const remainingMs = usePairingCodeRemainingMs(props.info.pairingExpiresAt);
   const countdown = formatCountdown(remainingMs);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -362,7 +366,7 @@ function PairingReady(props: {
             <Button
               size="sm"
               variant="tertiary"
-              onPress={() => void readBridge().openExternal(pairingUrl)}
+              onPress={() => void readBridge().openExternal(desktopPairingUrl)}
             >
               <ExternalLink className="size-3.5" />
               <Trans>Open</Trans>

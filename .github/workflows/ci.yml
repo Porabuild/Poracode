@@ -85,6 +85,39 @@ jobs:
       - name: Format check
         run: pnpm run fmt:check
 
+  web_build:
+    name: Canonical web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Codex protocol types
+        run: pnpm run codex-protocol:gen
+
+      - name: Build canonical web client
+        run: pnpm run build:web
+
+      - name: Verify finalized web outputs
+        run: |
+          test -f dist/web/index.html
+          test -f dist/web/manifest.webmanifest
+          test -f dist/web/service-worker.js
+          test -f dist/web/poracode-ssh-runtime/manifest.json
+          test -f dist/web/poracode-ssh-runtime/runtime.bin
+
   test_shard:
     name: Test shard (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest

@@ -53,4 +53,20 @@ describe("base control styles", () => {
       ),
     ).toContain("animation: poracode-composer-border-spin 1.2s ease-out 1 both");
   });
+
+  it("uses true-black page backgrounds for the dark Poracode theme on mobile", () => {
+    const mobilePoracode = ruleFor(
+      'html[data-compact-layout][data-theme="dark"][data-theme-preset="default"]',
+    );
+    expect(mobilePoracode).toContain("--background: #000");
+    expect(mobilePoracode).toContain("--content-background: #000");
+  });
+
+  it("keeps bottom-sheet actions compact without sticky touch hover", () => {
+    expect(ruleFor(".m-sheet-action")).toContain(
+      "border-radius: var(--m-list-row-radius, 0.625rem)",
+    );
+    expect(ruleFor(".m-sheet-action:active")).toContain("background: var(--row-hover)");
+    expect(styles).toMatch(/@media \(hover: hover\)\s*\{\s*\.m-sheet-action:hover\s*\{/);
+  });
 });

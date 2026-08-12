@@ -163,6 +163,8 @@ export function ThreadDraftView(props: {
   restoreWorktreeSelectionToken?: number;
   /** Override whether unmodified Enter submits instead of inserting a newline. */
   submitOnEnter?: boolean;
+  /** Override mount autofocus for embedded draft-composer surfaces. */
+  autoFocusComposer?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
@@ -980,7 +982,7 @@ export function ThreadDraftView(props: {
   // actually supports. A persistent enable with a "none" scope must NOT set the
   // config flag — otherwise the composer would show a phantom "on" state and the
   // scope-reset effect there would fight it.
-  const hostPlatform = readBridge()?.platform;
+  const hostPlatform = window.poracodeHost || window.poracode ? readBridge().platform : undefined;
   const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
     disabledBuiltInMcpServers[id] !== true &&
     (mention || (enabledMcpServers[id] === true && scope !== "none"));
@@ -1094,6 +1096,9 @@ export function ThreadDraftView(props: {
             presentationMode={presentationMode}
             {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
             {...(props.submitOnEnter !== undefined ? { submitOnEnter: props.submitOnEnter } : {})}
+            {...(props.autoFocusComposer !== undefined
+              ? { autoFocus: props.autoFocusComposer }
+              : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
             {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
             onConfigChange={onConfigPatch}

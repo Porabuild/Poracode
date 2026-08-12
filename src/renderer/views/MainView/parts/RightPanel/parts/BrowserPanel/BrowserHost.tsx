@@ -12,6 +12,10 @@ import { useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
+import {
+  selectBrowserPanelAvailable,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
 import { pushEscapeHandler } from "@/renderer/components/layout/overlayEscapeStack";
 import { BrowserPanel } from "./BrowserPanel";
 import {
@@ -55,6 +59,7 @@ export function BrowserHost() {
   const extracted = useBrowserPanelStore((s) => s.extracted);
   const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
   const automationActive = useBrowserPanelStore((s) => s.automationActive);
+  const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
 
   // The browser is painted wherever its dock slot lives: the right panel's
   // active layer, a right-panel split section, or a bottom dock slot. Keying
@@ -88,7 +93,7 @@ export function BrowserHost() {
   // Extracted → the standalone window owns the browser. Background renders the
   // webviews off-screen ONLY while the agent is actively automating (and there
   // are tabs); when idle it unmounts to free resources.
-  if (mode === "hidden") return null;
+  if (!browserPanelAvailable || mode === "hidden") return null;
   if (mode === "background" && (!hasTabs || !automationActive)) return null;
 
   function restoreOrCloseOverlay() {

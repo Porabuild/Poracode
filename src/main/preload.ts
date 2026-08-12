@@ -4,19 +4,19 @@ import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { GitStatePatch } from "@/shared/gitState";
-import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import {
-  rendererIpcInterests,
-  shouldDispatchRendererIpcEvent,
-} from "./backend/rendererDeliveryPolicy";
+  BACKEND_RENDERER_STREAM_VERSION,
+  type BackendRendererStreamInfo,
+} from "@/shared/backendHostProtocol";
+import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import {
-  createInvokeBridge,
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
   PORACODE_WINDOW_KINDS,
-  type BrowserEvent,
-  type PoracodeBridge,
   type PoracodeWindowKind,
+} from "@/shared/ipc/channels";
+import {
+  type BrowserEvent,
   type PrWatchMergedEvent,
   type PrWatchStatusEvent,
   type ProjectStateChangedEvent,
@@ -28,8 +28,7 @@ import {
 
 /**
  * Host home dir without `node:os` — sandboxed preload must not import Node
- * built-ins that can fail and drop `window.poracode` (index.html then redirects
- * to mobile.html).
+ * built-ins that can fail and drop the native host bridge during index.html boot.
  */
 function resolveHomeDir(): string | undefined {
   const env = process.env;
@@ -113,120 +112,7 @@ function resolveArgBoolean(prefix: string): boolean {
 }
 
 const homeDir = resolveHomeDir();
-const invokeBridge = createInvokeBridge((channel, ...args) => ipcRenderer.invoke(channel, ...args));
-const supervisorListeners = new Set<(event: SupervisorEvent) => void>();
-let rendererInterests = { terminalThreadIds: [] as string[], runtimeThreadIds: [] as string[] };
-let backendLiveSocket: WebSocket | null = null;
-let backendLiveLastSequence = 0;
-let backendLiveReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let backendLiveStreamInfo: BackendRendererStreamInfo | null = null;
-let backendLiveStreamExpected = resolveArgValue("--lc-backend-live-version=") === "1";
-
-function dispatchSupervisorEvent(event: SupervisorEvent): void {
-  for (const listener of supervisorListeners) listener(event);
-}
-
-function sendBackendLiveInterests(): void {
-  if (backendLiveSocket?.readyState !== WebSocket.OPEN) return;
-  backendLiveSocket.send(
-    JSON.stringify({
-      version: 1,
-      type: "interests",
-      terminalThreadIds: rendererInterests.terminalThreadIds,
-      runtimeThreadIds: rendererInterests.runtimeThreadIds,
-      lastSeq: backendLiveLastSequence,
-    }),
-  );
-}
-
-function connectBackendLiveStream(): void {
-  backendLiveReconnectTimer = null;
-  const info = backendLiveStreamInfo;
-  if (!info) return;
-  const endpoint = new URL(info.url);
-  endpoint.searchParams.set("token", info.token);
-  const socket = new WebSocket(endpoint);
-  backendLiveSocket = socket;
-  socket.addEventListener("open", () => sendBackendLiveInterests());
-  socket.addEventListener("message", (message) => {
-    let payload: unknown;
-    try {
-      payload = JSON.parse(String(message.data));
-    } catch {
-      socket.close();
-      return;
-    }
-    if (!isBackendLiveMessage(payload)) {
-      socket.close();
-      return;
-    }
-    if (payload.type === "interests-ack") {
-      void invokeBridge.setRendererEventInterests(rendererIpcInterests(true, rendererInterests));
-      return;
-    }
-    if (payload.type === "event") {
-      if (payload.seq <= backendLiveLastSequence) return;
-      backendLiveLastSequence = payload.seq;
-      dispatchSupervisorEvent(payload.event);
-      return;
-    }
-    if (payload.type === "resync-required") {
-      backendLiveLastSequence = payload.latestSeq;
-      for (const threadId of rendererInterests.terminalThreadIds) {
-        dispatchSupervisorEvent({ type: "thread-scrollback-resync", threadId });
-      }
-      for (const threadId of rendererInterests.runtimeThreadIds) {
-        dispatchSupervisorEvent({ type: "thread-reset", threadId });
-      }
-    }
-  });
-  socket.addEventListener("close", () => {
-    if (backendLiveSocket !== socket) return;
-    backendLiveSocket = null;
-    void invokeBridge.setRendererEventInterests(
-      rendererIpcInterests(backendLiveStreamExpected, rendererInterests),
-    );
-    backendLiveReconnectTimer = setTimeout(connectBackendLiveStream, 1_000);
-  });
-}
-
-function replaceBackendLiveStream(info: BackendRendererStreamInfo): void {
-  backendLiveStreamInfo = info;
-  backendLiveStreamExpected = true;
-  backendLiveLastSequence = 0;
-  if (backendLiveReconnectTimer) clearTimeout(backendLiveReconnectTimer);
-  backendLiveReconnectTimer = null;
-  const previous = backendLiveSocket;
-  backendLiveSocket = null;
-  previous?.close();
-  void invokeBridge.setRendererEventInterests(rendererIpcInterests(true, rendererInterests));
-  connectBackendLiveStream();
-}
-
-ipcRenderer.on(
-  IPC_EVENT_CHANNELS.supervisorEvent,
-  (_event: Electron.IpcRendererEvent, payload: SupervisorEvent) => {
-    if (shouldDispatchRendererIpcEvent(backendLiveStreamExpected)) {
-      dispatchSupervisorEvent(payload);
-    }
-  },
-);
-ipcRenderer.on(
-  IPC_EVENT_CHANNELS.backendRendererStreamChanged,
-  (_event: Electron.IpcRendererEvent, info: unknown) => {
-    if (isBackendRendererStreamInfo(info)) replaceBackendLiveStream(info);
-  },
-);
-if (backendLiveStreamExpected) {
-  void ipcRenderer
-    .invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo)
-    .then((info: unknown) => {
-      if (isBackendRendererStreamInfo(info)) replaceBackendLiveStream(info);
-    })
-    .catch(() => undefined);
-}
-
-const bridge: PoracodeBridge = {
+const bridge: ElectronHostBridge = {
   platform: process.platform,
   appVersion: resolveAppVersion(),
   arch: process.arch,
@@ -245,21 +131,33 @@ const bridge: PoracodeBridge = {
   getDroppedFilePaths(files) {
     return files.map((file) => webUtils.getPathForFile(file)).filter((path) => path.length > 0);
   },
-  ...invokeBridge,
-  async setRendererEventInterests(interests) {
-    rendererInterests = {
-      terminalThreadIds: [...new Set(interests.terminalThreadIds)],
-      runtimeThreadIds: [...new Set(interests.runtimeThreadIds)],
+  invokeProcedure(name, args) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.clientProcedureInvoke, { name, args });
+  },
+  async getBackendRendererStreamInfo() {
+    const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
+    return isBackendRendererStreamInfo(info) ? info : null;
+  },
+  onBackendRendererStreamChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, info: unknown) => {
+      if (isBackendRendererStreamInfo(info)) listener(info);
     };
-    sendBackendLiveInterests();
-    await invokeBridge.setRendererEventInterests(
-      rendererIpcInterests(backendLiveStreamExpected, rendererInterests),
-    );
+    ipcRenderer.on(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
+    };
   },
   onSupervisorEvent(listener) {
-    supervisorListeners.add(listener);
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: SupervisorEvent,
+      rendererSequence?: number,
+    ) => {
+      listener(payload, rendererSequence);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.supervisorEvent, handler);
     return () => {
-      supervisorListeners.delete(listener);
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.supervisorEvent, handler);
     };
   },
   onUpdateStatus(listener) {
@@ -385,34 +283,14 @@ const bridge: PoracodeBridge = {
   },
 };
 
-contextBridge.exposeInMainWorld("poracode", bridge);
-
-function isBackendLiveMessage(
-  value: unknown,
-): value is
-  | { version: 1; type: "hello" | "interests-ack" | "resync-required"; latestSeq: number }
-  | { version: 1; type: "event"; seq: number; event: SupervisorEvent } {
-  if (typeof value !== "object" || value === null) return false;
-  const message = value as Record<string, unknown>;
-  if (message.version !== 1 || typeof message.type !== "string") return false;
-  if (message.type === "event") {
-    return (
-      typeof message.seq === "number" &&
-      typeof message.event === "object" &&
-      message.event !== null &&
-      typeof (message.event as { type?: unknown }).type === "string"
-    );
-  }
-  return (
-    (message.type === "hello" ||
-      message.type === "interests-ack" ||
-      message.type === "resync-required") &&
-    typeof message.latestSeq === "number"
-  );
-}
+contextBridge.exposeInMainWorld("poracodeHost", bridge);
 
 function isBackendRendererStreamInfo(value: unknown): value is BackendRendererStreamInfo {
   if (typeof value !== "object" || value === null) return false;
   const info = value as Record<string, unknown>;
-  return info.version === 1 && typeof info.url === "string" && typeof info.token === "string";
+  return (
+    info.version === BACKEND_RENDERER_STREAM_VERSION &&
+    typeof info.url === "string" &&
+    typeof info.token === "string"
+  );
 }

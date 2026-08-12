@@ -3,6 +3,7 @@ import type { IpcProcedurePayload } from "@/shared/ipc";
 import { msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError, type RemoteFetch } from "@/shared/remote/client";
 import { readBridge } from "@/renderer/bridge";
+import { readClientRuntime } from "@/renderer/clientRuntime";
 
 /**
  * Remote requests run in the main process to avoid renderer CORS. Normalize
@@ -10,6 +11,26 @@ import { readBridge } from "@/renderer/bridge";
  * remote action can apply the same offline transition.
  */
 export const mainProcessFetch: RemoteFetch = async (url, init) => {
+  if ((window.poracodeHost || window.poracode) && readClientRuntime().host === "browser") {
+    try {
+      const body =
+        typeof init?.body === "string"
+          ? init.body
+          : init?.body
+            ? Uint8Array.from(init.body).buffer
+            : undefined;
+      return await window.fetch(url, {
+        ...(init?.method ? { method: init.method } : {}),
+        ...(init?.headers ? { headers: init.headers } : {}),
+        ...(body !== undefined ? { body } : {}),
+        ...(init?.signal ? { signal: init.signal } : {}),
+      });
+    } catch (error) {
+      throw new RemoteClientError(sharedMsg("remote.server.unreachable"), 0, "network", {
+        cause: error,
+      });
+    }
+  }
   const result = await readBridge()
     .remoteHttpRequest({
       url: String(url),

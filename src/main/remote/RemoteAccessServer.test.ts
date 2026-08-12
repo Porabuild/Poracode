@@ -95,6 +95,7 @@ vi.mock("../db", () => {
       () => ({ items: [], nextCursor: null }),
     ),
     dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
+    dbGetThreadTerminalScrollback: vi.fn<() => string>(() => ""),
     dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
     dbGetThreads: vi.fn<() => unknown[]>(() => []),
     dbReplaceThreadRuntimeSnapshot: vi.fn<(...args: unknown[]) => void>(),
@@ -816,7 +817,7 @@ describe("RemoteAccessServer", () => {
     const info = await server.start();
     const pairingUrl = new URL(info.pairingUrl);
     expect(pairingUrl.origin).toBe(new URL(info.httpBaseUrl).origin);
-    expect(pairingUrl.pathname).toBe("/pair");
+    expect(pairingUrl.pathname).toBe("/");
 
     const descriptorResponse = await fetch(
       new URL("/.well-known/poracode/environment", info.httpBaseUrl),
@@ -849,19 +850,26 @@ describe("RemoteAccessServer", () => {
     expect(pairingHtml).toContain("Poracode");
     expect(pairingHtml).toContain('rel="manifest"');
 
-    const appResponse = await fetch(new URL("/app", info.httpBaseUrl));
-    expect(appResponse.status).toBe(200);
-    await expect(appResponse.text()).resolves.toContain("Poracode");
-
-    const appRouteResponse = await fetch(new URL("/app/settings/appearance", info.httpBaseUrl));
-    expect(appRouteResponse.status).toBe(200);
-    await expect(appRouteResponse.text()).resolves.toContain("Poracode");
+    for (const path of [
+      "/app",
+      "/app/settings/appearance?host=https%3A%2F%2Fdesktop.example",
+      "/desktop",
+      "/desktop/projects/example",
+      "/pair?host=https%3A%2F%2Fdesktop.example",
+      "/mobile.html",
+    ]) {
+      const legacyResponse = await fetch(new URL(path, info.httpBaseUrl), { redirect: "manual" });
+      expect(legacyResponse.status).toBe(308);
+      expect(legacyResponse.headers.get("location")).toBe(
+        path.includes("?") ? `/?${path.split("?")[1]}` : "/",
+      );
+    }
 
     const manifestResponse = await fetch(new URL("/manifest.webmanifest", info.httpBaseUrl));
     expect(manifestResponse.status).toBe(200);
     await expect(manifestResponse.json()).resolves.toMatchObject({
       name: "Poracode",
-      start_url: "/app",
+      start_url: "/",
       display: "standalone",
     });
 
@@ -875,10 +883,11 @@ describe("RemoteAccessServer", () => {
     expect(serviceWorker).toContain('self.addEventListener("notificationclick"');
     expect(serviceWorker).toContain("if (response.ok)");
     expect(serviceWorker).toContain('url.pathname.startsWith("/assets/")');
+    expect(serviceWorker).toContain("caches.match(request, { ignoreVary: true })");
     expect(serviceWorker).toContain("NAVIGATION_FALLBACK_DELAY_MS = 500");
     expect(serviceWorker).toContain('if (request.mode === "navigate")');
     expect(serviceWorker).toContain("if (!isAppRequest && !isPwaStaticRequest) return");
-    expect(serviceWorker).toContain('request.mode === "navigate" ? "/app" : request');
+    expect(serviceWorker).toContain('request.mode === "navigate" ? "/" : request');
 
     const { ws, ready } = await openPairedSocket(info);
     expect(ready).toMatchObject({ type: "ready", seq: 0 });
@@ -1957,7 +1966,7 @@ describe("RemoteAccessServer", () => {
   });
 
   it("trusts loopback PWA origins in development and production", async () => {
-    // The Vite-served mobile PWA pairs without an explicit
+    // The Vite-served canonical browser app pairs without an explicit
     // pairingAppUrl/trustedCorsOrigins entry.
     const devServer = new RemoteAccessServer({
       appVersion: "1.0.0",
@@ -1976,7 +1985,7 @@ describe("RemoteAccessServer", () => {
     expect(devResponse.status).toBe(200);
     expect(devResponse.headers.get("access-control-allow-origin")).toBe("http://localhost:3100");
 
-    // The same localhost PWA can pair with a packaged/headless app. The app can
+    // The same localhost app can pair with a packaged/headless app. The app can
     // be on another machine; authentication still requires its pairing token.
     const prodServer = new RemoteAccessServer({
       appVersion: "1.0.0",
@@ -2025,7 +2034,7 @@ describe("RemoteAccessServer", () => {
     expect(info.wsBaseUrl).toBe("wss://my-machine.tailnet-1234.ts.net/");
     const pairingUrl = new URL(info.pairingUrl);
     expect(pairingUrl.origin).toBe("https://my-machine.tailnet-1234.ts.net");
-    expect(pairingUrl.pathname).toBe("/pair");
+    expect(pairingUrl.pathname).toBe("/");
   });
 
   it("trusts the advertisedBaseUrl origin for CORS", async () => {
@@ -2100,13 +2109,13 @@ describe("RemoteAccessServer", () => {
     expect(replayStatus).toBe(401);
   });
 
-  it("points dev pairing links at the mobile dev app origin", async () => {
+  it("points dev pairing links at the canonical dev app origin", async () => {
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
       port: 0,
-      devMobileAppUrl: "http://192.168.1.20:3100/mobile.html",
+      devWebAppUrl: "http://192.168.1.20:3100/",
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     });
     servers.push(server);
@@ -2114,13 +2123,13 @@ describe("RemoteAccessServer", () => {
 
     const startupPairing = new URL(info.pairingUrl);
     expect(startupPairing.origin).toBe("http://192.168.1.20:3100");
-    expect(startupPairing.pathname).toBe("/pair");
+    expect(startupPairing.pathname).toBe("/");
     expect(startupPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
     expect(new URLSearchParams(startupPairing.hash.slice(1)).get("token")).toMatch(/^lc_pair_/);
 
     const settingsPairing = new URL(server.issuePairingUrl("Settings QR"));
     expect(settingsPairing.origin).toBe(startupPairing.origin);
-    expect(settingsPairing.pathname).toBe("/pair");
+    expect(settingsPairing.pathname).toBe("/");
     expect(settingsPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
   });
 
@@ -2138,13 +2147,13 @@ describe("RemoteAccessServer", () => {
 
     const startupPairing = new URL(info.pairingUrl);
     expect(startupPairing.origin).toBe("https://poracode.com");
-    expect(startupPairing.pathname).toBe("/pair");
+    expect(startupPairing.pathname).toBe("/");
     expect(startupPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
     expect(new URLSearchParams(startupPairing.hash.slice(1)).get("token")).toMatch(/^lc_pair_/);
 
     const settingsPairing = new URL(server.issuePairingUrl("Settings QR"));
     expect(settingsPairing.origin).toBe(startupPairing.origin);
-    expect(settingsPairing.pathname).toBe("/pair");
+    expect(settingsPairing.pathname).toBe("/");
     expect(settingsPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
   });
 
@@ -3170,7 +3179,7 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor,
-      dispatchThreadCommand: (command) => {
+      dispatchThreadCommand: async (command) => {
         if (!rendererAvailable) return false;
         dispatched.push(command);
         return true;
@@ -3717,6 +3726,35 @@ describe("RemoteAccessServer", () => {
   it("serves browser state/commands and streams mirror status to watchers", async () => {
     const navigated: unknown[] = [];
     const moved: unknown[] = [];
+    const createTab = vi.fn<() => Promise<{ tabId: string }>>(async () => ({ tabId: "tab-2" }));
+    const revealPanel = vi.fn<() => void>();
+    let activeTabAttached = false;
+    const cdpSend = vi.fn<() => Promise<Record<string, never>>>(async () => ({}));
+    const activeTab = {
+      tabId: "tab-1",
+      isAttached: () => activeTabAttached,
+      isDestroyed: () => false,
+      cdp: {
+        attach: vi.fn<() => Promise<void>>(async () => {}),
+        detach: vi.fn<() => void>(),
+        isAttached: () => true,
+        on: vi.fn<() => () => void>(() => () => {}),
+        send: cdpSend,
+      },
+      webContents: {
+        once: vi.fn<() => void>(),
+        removeListener: vi.fn<() => void>(),
+      },
+    };
+    const setAutomationSession = vi.fn<(_sessionId: string, active: boolean) => boolean>(
+      (_sessionId, active) => {
+        if (active)
+          setTimeout(() => {
+            activeTabAttached = true;
+          }, 0);
+        return false;
+      },
+    );
     const fakeManager = {
       snapshot: () => ({
         tabs: [
@@ -3733,10 +3771,12 @@ describe("RemoteAccessServer", () => {
         activeTabId: "tab-1",
       }),
       addEventListener: () => () => {},
-      // No attached webview in this harness, so the mirror reports
-      // unavailable instead of streaming frames.
-      getActiveTab: () => null,
-      revealPanel: () => {},
+      // The automation session simulates BrowserHost mounting the webview in
+      // background mode on the next task, without revealing the desktop panel.
+      getActiveTab: () => activeTab,
+      createTab,
+      revealPanel,
+      setAutomationSession,
       navigate: (tabId: string, url: string) => {
         navigated.push({ tabId, url });
         return Promise.resolve();
@@ -3804,6 +3844,15 @@ describe("RemoteAccessServer", () => {
     expect(commandResponse.status).toBe(200);
     expect(navigated).toEqual([{ tabId: "tab-1", url: "https://example.org" }]);
 
+    const createTabResponse = await fetch(new URL("/api/browser/command", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ kind: "create-tab", url: "https://example.net" }),
+    });
+    expect(createTabResponse.status).toBe(200);
+    expect(createTab).toHaveBeenCalledWith({ url: "https://example.net", activate: true });
+    expect(revealPanel).not.toHaveBeenCalled();
+
     const moveResponse = await fetch(new URL("/api/browser/command", info.httpBaseUrl), {
       method: "POST",
       headers,
@@ -3839,9 +3888,18 @@ describe("RemoteAccessServer", () => {
     });
     expect(await read()).toMatchObject({
       type: "browser-mirror-status",
-      status: { status: "unavailable" },
+      status: { status: "starting" },
     });
+    expect(await read()).toMatchObject({
+      type: "browser-mirror-status",
+      status: { status: "active" },
+    });
+    expect(setAutomationSession).toHaveBeenCalledWith("remote-browser-mirror", true);
+    expect(revealPanel).not.toHaveBeenCalled();
     ws.close();
+    await vi.waitFor(() => {
+      expect(setAutomationSession).toHaveBeenCalledWith("remote-browser-mirror", false);
+    });
   });
 
   it("serves port discovery/forwarding via the injected gateway, scope-gated", async () => {
@@ -4000,7 +4058,7 @@ describe("RemoteAccessServer", () => {
     );
 
     // `POST /api/ports/enter` mints a fresh token for an already-open forward
-    // (what the mobile app calls right before opening the tab).
+    // (what the browser client calls right before opening the tab).
     const enterMintResponse = await fetch(new URL("/api/ports/enter", info.httpBaseUrl), {
       method: "POST",
       headers,
@@ -4099,7 +4157,7 @@ describe("RemoteAccessServer", () => {
     },
   );
 
-  it("lets an active forward session win over the bundled mobile PWA for /assets/*, and leaves the no-session PWA/404 fallback unchanged", async () => {
+  it("lets an active forward session win over bundled client assets and preserves the no-session 404 fallback", async () => {
     const upstream = await startUpstreamHttpServer();
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
     const portProxy = new PortProxy({ gateway });
@@ -4128,7 +4186,7 @@ describe("RemoteAccessServer", () => {
 
     // With a valid forward session cookie, `/assets/app.js` reaches the
     // forwarded dev server: the upstream stand-in echoes the request
-    // url/host as distinctive JSON, which is nothing the bundled PWA would
+    // url/host as distinctive JSON, which is nothing the bundled client would
     // ever serve at that path.
     const assetWithSession = await fetch(new URL("/assets/app.js", info.httpBaseUrl), {
       headers: { cookie: cookieHeader },
@@ -4140,7 +4198,7 @@ describe("RemoteAccessServer", () => {
     });
 
     // Without a session cookie, `/assets/*` keeps falling through to the
-    // bundled-PWA lookup — which 404s here since there is no built renderer
+    // bundled-client lookup — which 404s here since there is no built renderer
     // dist in this test environment — exactly as before this feature existed.
     const assetWithoutSession = await fetch(new URL("/assets/app.js", info.httpBaseUrl));
     expect(assetWithoutSession.status).toBe(404);
@@ -4232,7 +4290,8 @@ describe("RemoteAccessServer", () => {
     const afterStop = await fetch(new URL("/", info.httpBaseUrl), {
       headers: { cookie: cookieHeader },
     });
-    expect(afterStop.status).toBe(404);
+    expect(afterStop.status).toBe(200);
+    await expect(afterStop.text()).resolves.toContain("<!doctype html>");
 
     await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
   });

@@ -237,7 +237,10 @@ export function ChatPane(props: ChatPaneProps) {
 
   useEffect(() => {
     retainThreadRuntimeItems(threadId);
-    if (isRemoteThread) return () => releaseThreadRuntimeItems(threadId);
+    if (isRemoteThread) {
+      void hydrateThreadRuntimeItems(threadId);
+      return () => releaseThreadRuntimeItems(threadId);
+    }
 
     let active = true;
     const interest = retainRendererEventInterest("runtime", threadId);

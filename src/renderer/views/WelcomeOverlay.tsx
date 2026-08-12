@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import { FolderPlus, MessageSquareText } from "lucide-react";
+import { FolderPlus, MessageSquareText, Server } from "lucide-react";
 import { Button } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { isHomeProject } from "@/shared/homeScope";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   isWelcomeSeen,
@@ -51,6 +53,10 @@ export function WelcomeOverlay() {
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
   const openDraft = useAppStore((state) => state.openDraft);
+  // Browser clients have no local backend: there is no local home scope or
+  // folder picker, so the only sensible first action is pairing with a remote
+  // Poracode server (see docs/REMOTE_ARCHITECTURE.md).
+  const localBackend = hasClientCapability("localBackend");
 
   // `welcomeSeen` is resolved synchronously from localStorage (or the dev-only
   // manual-test bypass) so the overlay's open state is known on the very first
@@ -138,6 +144,11 @@ export function WelcomeOverlay() {
     // The user is moving on — let deferred startup work (agent detection) run
     // now rather than waiting out the settle timer.
     useWelcomeGateStore.getState().releaseBackgroundWork();
+  }
+
+  function handleConnectRemote() {
+    dismissWelcome();
+    usePanelStore.getState().openSettingsSection("remoteServers");
   }
 
   function handleAskQuestion() {
@@ -249,30 +260,45 @@ export function WelcomeOverlay() {
               visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
           >
-            <Button
-              fullWidth
-              size="lg"
-              variant="tertiary"
-              className="poracode-welcome-button h-12 justify-center gap-2 !text-white"
-              onPress={handleAskQuestion}
-            >
-              <MessageSquareText className="size-4" />
-              <Trans>Ask Question</Trans>
-              <span className="rounded-full bg-white/12 px-1.5 py-0.5 text-[10px] leading-none text-white/90">
-                <Trans>Home</Trans>
-              </span>
-            </Button>
-            <CreateProjectMenu onSelect={dismissWelcome}>
+            {localBackend ? (
+              <>
+                <Button
+                  fullWidth
+                  size="lg"
+                  variant="tertiary"
+                  className="poracode-welcome-button h-12 justify-center gap-2 !text-white"
+                  onPress={handleAskQuestion}
+                >
+                  <MessageSquareText className="size-4" />
+                  <Trans>Ask Question</Trans>
+                  <span className="rounded-full bg-white/12 px-1.5 py-0.5 text-[10px] leading-none text-white/90">
+                    <Trans>Home</Trans>
+                  </span>
+                </Button>
+                <CreateProjectMenu onSelect={dismissWelcome}>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    variant="tertiary"
+                    className="poracode-welcome-button h-12 justify-center gap-2 !text-white"
+                  >
+                    <FolderPlus className="size-4" />
+                    <Trans>Add Project</Trans>
+                  </Button>
+                </CreateProjectMenu>
+              </>
+            ) : (
               <Button
                 fullWidth
                 size="lg"
                 variant="tertiary"
-                className="poracode-welcome-button h-12 justify-center gap-2 !text-white"
+                className="poracode-welcome-button h-12 justify-center gap-2 !text-white sm:col-span-2"
+                onPress={handleConnectRemote}
               >
-                <FolderPlus className="size-4" />
-                <Trans>Add Project</Trans>
+                <Server className="size-4" />
+                <Trans>Connect to a remote server</Trans>
               </Button>
-            </CreateProjectMenu>
+            )}
           </div>
         </div>
       </div>

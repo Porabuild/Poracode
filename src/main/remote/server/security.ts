@@ -144,7 +144,7 @@ export class RemoteServerSecurity {
       for (const value of [
         key,
         this.ctx.options.pairingAppUrl,
-        this.ctx.options.devMobileAppUrl,
+        this.ctx.options.devWebAppUrl,
         ...(this.ctx.options.trustedCorsOrigins ?? []),
       ]) {
         if (!value) continue;

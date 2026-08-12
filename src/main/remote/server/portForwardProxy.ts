@@ -37,21 +37,32 @@ function isHopByHopHeader(name: string): boolean {
  * request 404s instead of silently being proxied to a forwarded dev server.
  *
  * `/assets/` is deliberately NOT reserved here: an active `lc_forward` session
- * wins over the bundled mobile PWA for that prefix (see `handleHttp`'s
+ * wins over the bundled canonical client for that prefix (see `handleHttp`'s
  * `/assets/` branch, which proxies to the forward before ever trying
- * `tryServeBuiltMobileApp`), so this list must not also cause it to 404 in the
+ * `tryServeBuiltClientApp`), so this list must not also cause it to 404 in the
  * fallthrough when no earlier branch returned.
  */
 const RESERVED_EXACT_PATHS = new Set([
+  "/",
+  "/index.html",
+  "/mobile.html",
   "/ws",
   "/pair",
   "/app",
+  "/desktop",
   "/forward",
   "/manifest.webmanifest",
   "/service-worker.js",
   "/app-icon.svg",
 ]);
-const RESERVED_PATH_PREFIXES = ["/api/", "/oauth/", "/.well-known/", "/forward/", "/app/"];
+const RESERVED_PATH_PREFIXES = [
+  "/api/",
+  "/oauth/",
+  "/.well-known/",
+  "/forward/",
+  "/app/",
+  "/desktop/",
+];
 
 export function isReservedForwardProxyPath(pathname: string): boolean {
   if (RESERVED_EXACT_PATHS.has(pathname)) return true;

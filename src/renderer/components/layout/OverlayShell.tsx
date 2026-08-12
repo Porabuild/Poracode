@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type TransitionEvent } fro
 import { pushEscapeHandler } from "./overlayEscapeStack";
 
 export type OverlayShellMode = "fixed" | "absolute";
+const EXIT_FALLBACK_MS = 200;
 
 /**
  * Shared overlay wrapper with fade-in/fade-out animation.
@@ -31,6 +32,7 @@ export function OverlayShell(props: {
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
   const escapeClosingRef = useRef(false);
+  const exitCompletedRef = useRef(false);
   // Overlays that clear their own context on close (e.g. the GitHub Actions
   // view) drop their children in the same render that flips `open` to false,
   // which would blank the surface before the fade-out ran. Keep the last open
@@ -45,6 +47,7 @@ export function OverlayShell(props: {
   useEffect(() => {
     if (open) {
       if (escapeClosingRef.current) return undefined;
+      exitCompletedRef.current = false;
       setMounted(true);
       // Batched with setMounted into a single render, so the surface never
       // paints at opacity-0 and no enter transition runs.
@@ -62,6 +65,21 @@ export function OverlayShell(props: {
     setVisible(false);
     return undefined;
   }, [open, instantEnter]);
+
+  // Browsers may omit transitionend when a tab is backgrounded, rendering is
+  // throttled, or reduced-motion styles remove the transition. Never leave an
+  // invisible full-window surface mounted indefinitely.
+  useEffect(() => {
+    if (!mounted || visible) return;
+    const timer = setTimeout(() => {
+      if (open && !escapeClosingRef.current) return;
+      if (exitCompletedRef.current) return;
+      exitCompletedRef.current = true;
+      setMounted(false);
+      onExited?.();
+    }, EXIT_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [mounted, onExited, open, visible]);
 
   // Close on Escape via the overlay escape stack — only the topmost overlay
   // dismisses, so a transient overlay floating above this one (e.g. the
@@ -82,6 +100,8 @@ export function OverlayShell(props: {
     if (event.target !== event.currentTarget) return;
     if (event.propertyName !== "opacity") return;
     if (!visible) {
+      if (exitCompletedRef.current) return;
+      exitCompletedRef.current = true;
       setMounted(false);
       onExited?.();
     }
@@ -100,7 +120,7 @@ export function OverlayShell(props: {
       // overlay is responsible for painting its own chrome on the first frame.
       {...(visible ? { "data-overlay-visible": "" } : {})}
       className={`${positionClass} flex flex-col bg-background transition-opacity duration-150 ${
-        visible ? "opacity-100" : "opacity-0"
+        visible ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
       onTransitionEnd={handleTransitionEnd}
     >

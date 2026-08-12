@@ -51,10 +51,11 @@ function makeClient() {
     supervisorPath: "/fake/supervisor.cjs",
     wslHelpersDir: "/fake/wsl",
     secretStorageKey: "key",
+    baseDir: "/base",
     onEvent: vi.fn<(event: SupervisorEvent) => void>(),
     onReset: vi.fn<() => void>(),
   });
-  client.start("/base");
+  client.start();
   return { client, child };
 }
 
@@ -87,12 +88,13 @@ describe("SupervisorClient.call", () => {
       supervisorPath: "/fake/supervisor.cjs",
       wslHelpersDir: "/fake/wsl",
       secretStorageKey: "key",
+      baseDir: "/base",
       preferUiResponsiveness: true,
       onEvent: vi.fn<(event: SupervisorEvent) => void>(),
       onReset: vi.fn<() => void>(),
     });
 
-    client.start("/base");
+    client.start();
 
     expect(setPriorityMock).toHaveBeenCalledExactlyOnceWith(42, expect.any(Number));
   });
@@ -117,6 +119,134 @@ describe("SupervisorClient.call", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("does not fork until the first supervisor call", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/lazy-base",
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+    const getId = captureSentId(child);
+
+    expect(forkMock).not.toHaveBeenCalled();
+    const promise = client.call("any" as never, undefined as never);
+
+    expect(forkMock).toHaveBeenCalledExactlyOnceWith(
+      "/fake/supervisor.cjs",
+      [],
+      expect.objectContaining({
+        env: expect.objectContaining({ PORACODE_DATA_DIR: "/lazy-base" }),
+      }),
+    );
+    child.emit("message", { replyTo: getId(), ok: true, data: "started-lazily" });
+    await expect(promise).resolves.toBe("started-lazily");
+  });
+
+  it("forks exactly once for concurrent first calls", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+    const ids: string[] = [];
+    child.send.mockImplementation((message, callback) => {
+      ids.push((message as { id: string }).id);
+      callback?.();
+      return true;
+    });
+
+    const first = client.call("first" as never, undefined as never);
+    const second = client.call("second" as never, undefined as never);
+
+    expect(forkMock).toHaveBeenCalledTimes(1);
+    expect(ids).toHaveLength(2);
+    child.emit("message", { replyTo: ids[0], ok: true, data: "first" });
+    child.emit("message", { replyTo: ids[1], ok: true, data: "second" });
+    await expect(Promise.all([first, second])).resolves.toEqual(["first", "second"]);
+  });
+
+  it("starts again on demand after a clean supervisor exit", async () => {
+    const firstChild = makeFakeChild();
+    const secondChild = makeFakeChild();
+    forkMock.mockReturnValueOnce(firstChild).mockReturnValueOnce(secondChild);
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+    const firstId = captureSentId(firstChild);
+    const first = client.call("first" as never, undefined as never);
+    firstChild.emit("message", { replyTo: firstId(), ok: true, data: null });
+    await first;
+    firstChild.emit("exit", 0);
+    const secondId = captureSentId(secondChild);
+
+    const second = client.call("second" as never, undefined as never);
+
+    expect(forkMock).toHaveBeenCalledTimes(2);
+    secondChild.emit("message", { replyTo: secondId(), ok: true, data: "restarted" });
+    await expect(second).resolves.toBe("restarted");
+  });
+
+  it("does not fork after disposal", async () => {
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+
+    client.dispose();
+
+    await expect(client.call("any" as never, undefined as never)).rejects.toThrow("disposed");
+    expect(forkMock).not.toHaveBeenCalled();
+  });
+
+  it("does not run a scheduled crash restart after disposal", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+    client.start();
+    child.emit("exit", 1);
+
+    client.dispose();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(forkMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects (does not orphan the caller) when send fails with EPIPE", async () => {

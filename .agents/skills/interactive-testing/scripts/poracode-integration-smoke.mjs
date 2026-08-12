@@ -1548,7 +1548,7 @@ async function runMockGate(client, gate, fixture) {
       assert(controls.selectControls > 0, "provider model/approval controls did not render");
       return `provider ${state.kind} was hydrated and selector UI rendered without external credentials`;
     }
-    case "remote-mobile": {
+    case "remote-client": {
       const pairing = await bridgeInvoke(client, "getRemoteAccessPairing");
       assert(pairing && typeof pairing === "object", "remote pairing bridge returned no result");
       return "remote pairing state bridge returned successfully";

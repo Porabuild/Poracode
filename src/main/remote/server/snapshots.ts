@@ -22,6 +22,7 @@ import {
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
+  dbGetThreadTerminalScrollback,
   dbGetThreads,
 } from "../../db";
 import { RemoteHttpError } from "../auth";
@@ -129,10 +130,10 @@ export async function buildThreadSnapshot(
       ctx.options.callSupervisor("readTerminalScrollback", { threadId }),
       ctx.options.callSupervisor("readTerminalSize", { threadId }),
     ]);
-    terminalScrollback = scrollback;
+    terminalScrollback = scrollback || dbGetThreadTerminalScrollback(threadId);
     terminalSize = size ?? undefined;
   } catch {
-    terminalScrollback = undefined;
+    terminalScrollback = dbGetThreadTerminalScrollback(threadId) || undefined;
     terminalSize = undefined;
   }
 

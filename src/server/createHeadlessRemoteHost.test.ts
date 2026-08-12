@@ -9,12 +9,13 @@ import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadles
 const h = vi.hoisted(() => ({
   tmpBase: "",
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
-  supervisorStart: vi.fn<(baseDir: string) => void>(),
+  supervisorStart: vi.fn<() => void>(),
   supervisorDispose: vi.fn<() => void>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
   projects: [] as unknown[],
+  threads: [] as unknown[],
   sharedSettings: {
     mcpServers: [] as unknown[],
     disabledBuiltInMcpServers: {} as Record<string, boolean>,
@@ -44,7 +45,7 @@ vi.mock("@/main/db", () => ({
   dbGetPrWatch: vi.fn<() => unknown>(() => null),
   dbUpsertPrWatch: vi.fn<() => void>(),
   dbDeletePrWatch: vi.fn<() => void>(),
-  dbGetThreads: vi.fn<() => unknown[]>(() => []),
+  dbGetThreads: vi.fn<() => unknown[]>(() => h.threads),
   dbGetThread: vi.fn<() => unknown>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
@@ -58,6 +59,9 @@ vi.mock("@/main/db", () => ({
   dbReplaceThreadRuntimeSnapshot: vi.fn<() => void>(),
   dbUpsertThread: vi.fn<() => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
+  dbAppendThreadTerminalOutput: vi.fn<() => void>(),
+  dbClearThreadTerminalScrollback: vi.fn<() => void>(),
+  dbGetThreadTerminalScrollback: vi.fn<() => null>(() => null),
   dbDeleteThread: vi.fn<() => void>(),
   dbGetSchedules: vi.fn<() => unknown[]>(() => []),
   dbGetSchedule: vi.fn<() => unknown>(() => null),
@@ -123,6 +127,7 @@ describe("createHeadlessRemoteHost", () => {
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
     h.projects = [];
+    h.threads = [];
     h.sharedSettings = { mcpServers: [], disabledBuiltInMcpServers: {} };
   });
 
@@ -130,12 +135,12 @@ describe("createHeadlessRemoteHost", () => {
     rmSync(h.tmpBase, { recursive: true, force: true });
   });
 
-  it("opens the database and forks the supervisor on start", async () => {
+  it("opens the database and starts serving without forking the supervisor", async () => {
     const host = await makeHost();
     const info = await host.start();
 
     expect(h.initDatabase).toHaveBeenCalledWith(join(h.tmpBase, "state.sqlite"));
-    expect(h.supervisorStart).toHaveBeenCalledWith(h.tmpBase);
+    expect(h.supervisorStart).not.toHaveBeenCalled();
     expect(info.httpBaseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
     expect(info.wsBaseUrl).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/$/);
     // The startup pairing link is minted against the advertised loopback host.
@@ -152,11 +157,30 @@ describe("createHeadlessRemoteHost", () => {
     await host.dispose();
   });
 
-  it("forks the supervisor only once across repeated start() calls", async () => {
+  it("does not fork the supervisor across repeated start() calls", async () => {
     const host = await makeHost();
     await host.start();
     await host.start();
-    expect(h.supervisorStart).toHaveBeenCalledTimes(1);
+    expect(h.supervisorStart).not.toHaveBeenCalled();
+    await host.dispose();
+  });
+
+  it("does not warm Git state through the supervisor for existing idle threads", async () => {
+    h.threads = [
+      {
+        id: "thread-1",
+        projectId: "project-1",
+        worktreePath: null,
+        status: "idle",
+        archived: false,
+        updatedAt: "2026-08-10T00:00:00.000Z",
+      },
+    ];
+    const host = await makeHost();
+
+    await host.start();
+
+    expect(h.supervisorCall).not.toHaveBeenCalled();
     await host.dispose();
   });
 

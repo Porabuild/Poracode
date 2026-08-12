@@ -7,7 +7,7 @@ import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Poracode Support",
-  description: "Get help pairing the Poracode mobile companion or report a problem.",
+  description: "Get help pairing Poracode across desktop, browser, and mobile or report a problem.",
   path: "/support",
 });
 
@@ -38,7 +38,7 @@ export default function SupportPage() {
         <header className="mb-12">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Poracode Support</h1>
           <p className="mt-3 text-lg leading-8 text-gray-400">
-            Help with pairing, connections, notifications, and the Poracode mobile companion.
+            Help with pairing, connections, notifications, and the Poracode app on every device.
           </p>
         </header>
 
@@ -70,8 +70,8 @@ export default function SupportPage() {
               <li>Open Settings → Remote Access in the Poracode desktop app.</li>
               <li>Make sure Remote Access is enabled and the desktop is running.</li>
               <li>
-                Scan its QR code in the mobile app, or enter the displayed endpoint and access token
-                manually.
+                Scan its QR code in Poracode on another device, or enter the displayed endpoint and
+                access token manually.
               </li>
               <li>
                 For a local connection, keep the phone and desktop on the same trusted network.
@@ -87,7 +87,8 @@ export default function SupportPage() {
               </li>
               <li>
                 A web app loaded over HTTPS cannot connect to a plain HTTP desktop endpoint because
-                browsers block mixed content. Use an HTTPS endpoint or the native mobile app.
+                browsers block mixed content. Use an HTTPS endpoint or the native iOS or Android
+                shell.
               </li>
               <li>
                 Check firewall, VPN, and Wi-Fi isolation settings if the devices cannot see each
@@ -111,7 +112,7 @@ export default function SupportPage() {
           <section>
             <h2 className="mb-3 text-xl font-semibold text-white">Send a useful report</h2>
             <p>
-              Include the Poracode desktop and mobile versions, phone model, operating system,
+              Include the Poracode host and client versions, device model, operating system,
               connection type, steps to reproduce, and the exact error. Attach relevant logs or
               screenshots, but remove access tokens, private source code, and other secrets first.
             </p>

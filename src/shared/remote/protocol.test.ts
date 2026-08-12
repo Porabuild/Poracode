@@ -120,6 +120,53 @@ describe("remote settings", () => {
     });
   });
 
+  it("exposes and accepts the selected host's worktree placement settings", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      worktreeStorageMode: "global",
+      worktreeBasePath: "D:\\worktrees",
+      wslWorktreeBasePath: "/mnt/wsl-worktrees",
+    });
+
+    expect(settings).toMatchObject({
+      worktreeStorageMode: "global",
+      worktreeBasePath: "D:\\worktrees",
+      wslWorktreeBasePath: "/mnt/wsl-worktrees",
+    });
+    expect(
+      remoteSettingsPatchSchema.parse({
+        worktreeStorageMode: "project-relative",
+        worktreeBasePath: "E:\\worktrees",
+        wslWorktreeBasePath: "/home/me/worktrees",
+      }),
+    ).toEqual({
+      worktreeStorageMode: "project-relative",
+      worktreeBasePath: "E:\\worktrees",
+      wslWorktreeBasePath: "/home/me/worktrees",
+    });
+  });
+
+  it("keeps AI helper fast mode on the selected host", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      titleGenFast: true,
+      commitGenFast: true,
+      conflictResolverFast: true,
+      wslTitleGenFast: true,
+      wslCommitGenFast: true,
+      wslConflictResolverFast: true,
+    });
+
+    expect(settings).toMatchObject({
+      titleGenFast: true,
+      commitGenFast: true,
+      conflictResolverFast: true,
+      wslTitleGenFast: true,
+      wslCommitGenFast: true,
+      wslConflictResolverFast: true,
+    });
+  });
+
   it("never exposes or accepts sensitive agent settings", () => {
     const settings = pickRemoteSettings({
       ...defaultSharedSettings,

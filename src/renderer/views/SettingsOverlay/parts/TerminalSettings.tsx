@@ -81,26 +81,28 @@ export function TerminalSettings() {
         </SettingRow>
       )}
 
-      <SettingRow
-        anchorId="terminal.collapseTerminalComposer"
-        title={t`Collapse terminal composer`}
-        description={
-          <Trans>
-            Start the composer collapsed in terminal-native threads. A collapsed composer routes
-            browser element picks straight to the terminal.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Collapse terminal composer`}
-          isSelected={collapseTerminalComposer}
-          onChange={(selected) => {
-            startTransition(() => {
-              setCollapseTerminalComposer(selected);
-            });
-          }}
-        />
-      </SettingRow>
+      {!remote && (
+        <SettingRow
+          anchorId="terminal.collapseTerminalComposer"
+          title={t`Collapse terminal composer`}
+          description={
+            <Trans>
+              Start the composer collapsed in terminal-native threads. A collapsed composer routes
+              browser element picks straight to the terminal.
+            </Trans>
+          }
+        >
+          <ToggleSwitch
+            aria-label={t`Collapse terminal composer`}
+            isSelected={collapseTerminalComposer}
+            onChange={(selected) => {
+              startTransition(() => {
+                setCollapseTerminalComposer(selected);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
 
       {!remote && (
         <SettingRow

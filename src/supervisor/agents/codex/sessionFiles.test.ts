@@ -1,9 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { readCodexRolloutMetaForLocation, readCodexRolloutMetaForLocationAsync } from "./session";
 import {
   parseCodexRolloutIdFromPath,
   parseCodexRolloutMeta,
   parseCodexSessionIndex,
 } from "./sessionFiles";
+
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 describe("parseCodexRolloutIdFromPath", () => {
   it("extracts the session id from a rollout filename", () => {
@@ -48,6 +58,52 @@ describe("parseCodexRolloutMeta", () => {
       path: "C:\\Users\\sdsle\\.codex\\sessions\\2026\\04\\05\\rollout-2026-04-05T19-22-30-019d6099-45a3-7962-a595-2d7f59276118.jsonl",
       updatedAt: 123,
       cwd: "C:\\Users\\sdsle\\work\\poracode",
+      originator: "codex-tui",
+      source: "cli",
+    });
+  });
+
+  it("reads a large session metadata line without loading the complete rollout", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-codex-rollout-"));
+    tempDirs.push(dir);
+    const path = join(
+      dir,
+      "rollout-2026-04-05T19-22-30-019d6099-45a3-7962-a595-2d7f59276118.jsonl",
+    );
+    const sessionMeta = JSON.stringify({
+      type: "session_meta",
+      payload: {
+        id: "019d6099-45a3-7962-a595-2d7f59276118",
+        cwd: "C:\\work\\poracode",
+        originator: "codex-tui",
+        source: "cli",
+        base_instructions: "x".repeat(32 * 1024),
+      },
+    });
+    writeFileSync(path, `${sessionMeta}\n${"x".repeat(1024 * 1024)}`);
+
+    expect(sessionMeta.length).toBeGreaterThan(16 * 1024);
+
+    expect(
+      readCodexRolloutMetaForLocation(
+        { kind: "windows", path: "C:\\work\\poracode" },
+        { id: "019d6099-45a3-7962-a595-2d7f59276118", path },
+      ),
+    ).toMatchObject({
+      id: "019d6099-45a3-7962-a595-2d7f59276118",
+      cwd: "C:\\work\\poracode",
+      originator: "codex-tui",
+      source: "cli",
+    });
+
+    await expect(
+      readCodexRolloutMetaForLocationAsync(
+        { kind: "windows", path: "C:\\work\\poracode" },
+        { id: "019d6099-45a3-7962-a595-2d7f59276118", path },
+      ),
+    ).resolves.toMatchObject({
+      id: "019d6099-45a3-7962-a595-2d7f59276118",
+      cwd: "C:\\work\\poracode",
       originator: "codex-tui",
       source: "cli",
     });

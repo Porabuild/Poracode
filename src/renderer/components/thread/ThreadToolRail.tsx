@@ -16,6 +16,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/parts/usePanelVisibility";
 import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useThreadToolRailDrag } from "./useThreadToolRailDrag";
 
 const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
@@ -45,7 +46,7 @@ type HeaderMenuPhase = "ready" | "suppressed" | "awaiting-reentry";
  * tools that are not tied to a thread (usage, browser) stay in the right panel
  * header only.
  *
- * Interaction mirrors the mobile PWA:
+ * Interaction is shared with compact layout:
  * - The header launcher is omitted while the side rail is rendered, leaving no
  *   duplicate icon or empty header space.
  * - Single pane wide enough that the rail lands beside the centered chat column
@@ -60,6 +61,7 @@ export function ThreadToolRail(props: {
 }) {
   const { t } = useLingui();
   const { projectId, worktreePath, paneCount } = props;
+  const compactLayout = useCompactLayout();
 
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const gitScoped = usePanelStore(
@@ -85,6 +87,7 @@ export function ThreadToolRail(props: {
 
   const paneAnchorRef = useRef<HTMLSpanElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
+  const headerRailRef = useRef<HTMLDivElement>(null);
   const headerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [paneElement, setPaneElement] = useState<HTMLElement | null>(null);
   const [paneWidth, setPaneWidth] = useState<number | null>(null);
@@ -93,11 +96,13 @@ export function ThreadToolRail(props: {
   const [headerMenuPhase, setHeaderMenuPhase] = useState<HeaderMenuPhase>("ready");
   const [headerMenuPointerOpen, setHeaderMenuPointerOpen] = useState(false);
   const [headerMenuFocusOpen, setHeaderMenuFocusOpen] = useState(false);
+  const [headerMenuTapOpen, setHeaderMenuTapOpen] = useState(false);
   const alwaysOpen =
     paneCount === 1 && paneWidth !== null && paneWidth >= ALWAYS_OPEN_MIN_PANE_WIDTH;
   const sideRailVisible = alwaysOpen && paneElement !== null && !sidePanelOpen;
   const headerMenuOpen =
-    headerMenuPhase === "ready" && (headerMenuPointerOpen || headerMenuFocusOpen);
+    headerMenuTapOpen ||
+    (headerMenuPhase === "ready" && (headerMenuPointerOpen || headerMenuFocusOpen));
 
   const cancelHeaderMenuClose = () => {
     if (headerMenuCloseTimerRef.current === null) return;
@@ -111,6 +116,16 @@ export function ThreadToolRail(props: {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!headerMenuTapOpen) return;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (event.target instanceof Node && headerRailRef.current?.contains(event.target)) return;
+      setHeaderMenuTapOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
+  }, [headerMenuTapOpen]);
 
   useLayoutEffect(() => {
     if (paneCount !== 1 || sidePanelOpen) return;
@@ -210,6 +225,7 @@ export function ThreadToolRail(props: {
     cancelHeaderMenuClose();
     setHeaderMenuPointerOpen(false);
     setHeaderMenuFocusOpen(false);
+    setHeaderMenuTapOpen(false);
     setHeaderMenuPhase("suppressed");
   };
 
@@ -267,6 +283,7 @@ export function ThreadToolRail(props: {
         : null}
       {sideRailVisible ? null : (
         <div
+          ref={headerRailRef}
           data-poracode-thread-tool-rail=""
           data-placement="header"
           className="poracode-overlay-header__controls relative shrink-0"
@@ -306,8 +323,15 @@ export function ThreadToolRail(props: {
             type="button"
             title={t`Show thread tools`}
             aria-label={t`Show thread tools`}
+            aria-expanded={compactLayout ? headerMenuTapOpen : undefined}
             className="flex size-6 items-center justify-center rounded text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
             onClick={() => {
+              if (compactLayout) {
+                cancelHeaderMenuClose();
+                setHeaderMenuPhase("ready");
+                setHeaderMenuTapOpen((open) => !open);
+                return;
+              }
               suppressHeaderMenu();
               primaryTool.activate();
             }}

@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { BrowseHostDirectoryResult, Project, Thread, TerminalSize } from "@/shared/contracts";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import {
   isRemoteTransportFailure,
+  isUnauthorizedRemoteError,
   RemoteClientError,
   RemoteDesktopClient,
 } from "@/shared/remote/client";
@@ -18,7 +19,14 @@ import {
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import { filterKnownRemoteAccessScopes, REMOTE_STANDARD_SCOPES } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
+import { readClientRuntime } from "@/renderer/clientRuntime";
 import { i18n } from "@/renderer/i18n/i18n";
+import { setRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
+import {
+  handleBrowserServerMessage,
+  setBrowserSocketSender,
+} from "@/renderer/browser/browserMirror";
+import { applyDesktopSettings, resetDesktopSettings } from "@/renderer/browser/remoteSettingsSync";
 import {
   registerRemoteProcedureHost,
   releaseRemoteTerminal,
@@ -28,6 +36,7 @@ import {
 } from "@/renderer/remoteProcedureRouter";
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
 import {
   projectRemoteProject,
@@ -79,6 +88,7 @@ import type {
   RemoteSocketLike,
   RemoteThreadLaunchResult,
 } from "@/renderer/state/remoteServers/types";
+import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers/secureStorage";
 
 /**
  * Desktop-as-client. Lets the Electron desktop connect to *other* Poracode
@@ -112,6 +122,105 @@ let openRemoteThreadRequestSeq = 0;
 
 /** In-flight connectAll(), so concurrent callers coalesce onto one pass. */
 let connectAllInFlight: Promise<void> | null = null;
+let desktopBrowserBridgeServerId: string | null = null;
+let desktopBrowserBridgeClientKey: string | null = null;
+let desktopBrowserMirrorSocket: RemoteSocketLike | null = null;
+
+export function selectBrowserBridgeServer(
+  state: RemoteServersState,
+): RemoteServerRecord | undefined {
+  const onlineServers = state.servers.filter(
+    (server) => state.runtime[server.desktopId]?.status === "online",
+  );
+  const sameOriginServer = onlineServers.find((server) => {
+    try {
+      return new URL(server.endpoint).origin === window.location.origin;
+    } catch {
+      return false;
+    }
+  });
+  const currentServer = onlineServers.find(
+    (server) => server.desktopId === desktopBrowserBridgeServerId,
+  );
+  return sameOriginServer ?? currentServer ?? onlineServers[0];
+}
+
+function selectBrowserBridgeClientServer(
+  state: RemoteServersState,
+): RemoteServerRecord | undefined {
+  return (
+    selectBrowserBridgeServer(state) ??
+    state.servers.find((server) => server.desktopId === desktopBrowserBridgeServerId)
+  );
+}
+
+/** Browser webContents are available locally in Electron and remotely only
+ * when the selected browser transport terminates at an Electron desktop host. */
+export function selectBrowserPanelAvailable(state: RemoteServersState): boolean {
+  if (typeof window === "undefined") return false;
+  if (!window.poracodeHost && !window.poracode) return true;
+  const runtime = readClientRuntime();
+  if (runtime.host === "electron") return runtime.capabilities.nativeBrowserWebContents;
+  const selected = selectBrowserBridgeServer(state);
+  return selected !== undefined && selected.hostMode !== "helper";
+}
+
+function syncDesktopBrowserBridgeClient(state: RemoteServersState): void {
+  if (typeof window === "undefined" || (!window.poracodeHost && !window.poracode)) return;
+  const runtime = readClientRuntime();
+  if (runtime.host !== "browser") return;
+
+  const server = selectBrowserBridgeClientServer(state);
+  const socket = server ? (remoteServerEventSockets.get(server.desktopId)?.socket ?? null) : null;
+  if (desktopBrowserMirrorSocket !== socket) {
+    desktopBrowserMirrorSocket = socket;
+    setBrowserSocketSender(
+      socket?.send
+        ? (message) => {
+            if (remoteServerEventSockets.get(server?.desktopId ?? "")?.socket !== socket) {
+              return false;
+            }
+            try {
+              socket.send?.(JSON.stringify(message));
+              return true;
+            } catch {
+              return false;
+            }
+          }
+        : null,
+    );
+  }
+  if (!server) {
+    desktopBrowserBridgeServerId = null;
+    desktopBrowserBridgeClientKey = null;
+    setRemoteBridgeClient(null);
+    resetDesktopSettings();
+    useAgentStatusesStore.getState().setAgentStatuses([]);
+    useAgentStatusesStore.getState().setWslAgentStatuses([]);
+    return;
+  }
+  const agentStatuses = state.runtime[server.desktopId]?.agentStatuses;
+  if (agentStatuses) {
+    useAgentStatusesStore.getState().setAgentStatuses(agentStatuses.windows);
+    useAgentStatusesStore.getState().setWslAgentStatuses(agentStatuses.wsl);
+  }
+  const clientKey = `${server.desktopId}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}`;
+  if (desktopBrowserBridgeClientKey === clientKey) return;
+  desktopBrowserBridgeServerId = server.desktopId;
+  desktopBrowserBridgeClientKey = clientKey;
+  const client = state.clientFactory(server.endpoint, server.accessToken);
+  setRemoteBridgeClient(client, server.platform ?? null);
+  resetDesktopSettings();
+  void client
+    .settings()
+    .then((settings) => {
+      if (desktopBrowserBridgeClientKey === clientKey) applyDesktopSettings(settings);
+    })
+    .catch(() => {
+      if (desktopBrowserBridgeClientKey === clientKey) resetDesktopSettings();
+    });
+}
+
 interface RemoteServerEventSocketEntry {
   readonly serverKey: string;
   socket: RemoteSocketLike | null;
@@ -406,6 +515,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             runtime: { ...state.runtime, [desktopId]: { ...current, status, message } },
           };
         });
+        syncDesktopBrowserBridgeClient(get());
       };
 
       /** Surface a remote-server action failure without ever rejecting: toast it
@@ -457,6 +567,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 },
               };
             });
+            syncDesktopBrowserBridgeClient(get());
           }
           return result;
         } catch (error) {
@@ -537,15 +648,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               },
             };
           });
+          syncDesktopBrowserBridgeClient(get());
         };
 
-        const scheduleReconnect = () => {
+        const scheduleReconnect = (minimumDelayMs = 0) => {
           if (!isCurrent()) return;
           if (get().runtime[server.desktopId]?.status === "online") {
             setSocketStatus("connecting");
           }
           if (entry.reconnectTimer) clearTimeout(entry.reconnectTimer);
-          const delay = entry.reconnectPolicy.nextDelay();
+          const delay = Math.max(entry.reconnectPolicy.nextDelay(), minimumDelayMs);
           entry.reconnectTimer = setTimeout(() => {
             entry.reconnectTimer = null;
             void connect();
@@ -558,6 +670,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           clearRemoteServerEventSocketConnectTimeout(entry);
           clearRemoteServerEventSocketHealth(entry);
           setRemoteTerminalSocketSender(server.desktopId, null);
+          syncDesktopBrowserBridgeClient(get());
           scheduleReconnect();
         };
 
@@ -622,6 +735,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               clearRemoteServerEventSocketConnectTimeout(entry);
               entry.reconnectPolicy.reset();
               activateRemoteTerminalFeed(server.desktopId, socket);
+              syncDesktopBrowserBridgeClient(get());
               const currentThreadItemInterests =
                 remoteServerThreadItemInterests.get(server.desktopId) ?? threadItemInterests;
               if (
@@ -688,6 +802,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   return;
                 }
                 if (handleRemoteTerminalServerMessage(server.desktopId, message)) {
+                  return;
+                }
+                if (desktopBrowserMirrorSocket === socket && handleBrowserServerMessage(message)) {
                   return;
                 }
                 if (message.type === "event") {
@@ -792,11 +909,21 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   "error",
                   sharedMsg("remote.session.expired"),
                 );
+                scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
                 return;
               }
               disconnectSocket(socket);
             };
           } catch (error) {
+            if (isUnauthorizedRemoteError(error)) {
+              setRemoteServerFailure(
+                server.desktopId,
+                "error",
+                sharedMsg("remote.session.expired"),
+              );
+              scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
+              return;
+            }
             const transportFailure = isRemoteTransportFailure(error);
             setRemoteServerFailure(
               server.desktopId,
@@ -827,9 +954,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
           return { runtime };
         });
+        syncDesktopBrowserBridgeClient(get());
         for (const server of servers) {
           const runtime = get().runtime[server.desktopId];
-          if (runtime) syncRemoteAppRows(server.desktopId, runtime.projects, runtime.threads);
+          if (runtime) syncRemoteAppRows(server.desktopId, runtime.projects);
         }
       };
 
@@ -868,6 +996,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             label: keepsLocalAlias ? server.label : environment.label,
             remoteLabel: environment.label,
             appVersion: environment.appVersion,
+            ...(environment.platform ? { platform: environment.platform } : {}),
             ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
           };
           const updated = server;
@@ -914,6 +1043,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           accessToken: tokenResult.accessToken,
           scopes: filterKnownRemoteAccessScopes(tokenResult.scopes),
           appVersion: environment.appVersion,
+          ...(environment.platform ? { platform: environment.platform } : {}),
           ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
           transport: input.transport,
         };
@@ -940,6 +1070,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         }
         if (snapshot.gitState) syncRemoteGitStateSnapshot(record.desktopId, snapshot.gitState);
         remoteServerSnapshotSeqByDesktopId.set(record.desktopId, snapshot.snapshotSeq);
+        syncDesktopBrowserBridgeClient(get());
         startRemoteServerEventStream(record);
         checkHostUpdateInBackground(record);
         return record;
@@ -1166,6 +1297,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               .sshDisconnect({ connectionId: removed.transport.connection.id })
               .catch(() => undefined);
           }
+          syncDesktopBrowserBridgeClient(get());
         },
 
         refreshServer: async (desktopId, options = {}) => {
@@ -1280,6 +1412,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               setRemoteServerThreadItemInterests(desktopId, []);
               set({ openThread: null });
             }
+            syncDesktopBrowserBridgeClient(get());
           } catch (error) {
             if (!isLatest()) return;
             setRuntime({
@@ -1288,6 +1421,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               projects: cached()?.projects ?? [],
               threads: cached()?.threads ?? [],
             });
+            syncDesktopBrowserBridgeClient(get());
           }
         },
 
@@ -1315,13 +1449,19 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // Coalesce concurrent callers (the sidebar and the settings panel both
           // connect on mount) so servers aren't snapshotted twice on startup.
           if (connectAllInFlight) return connectAllInFlight;
-          const servers = get().servers;
-          setServersConnecting(servers);
-          connectAllInFlight = Promise.all(servers.map(connectServer))
-            .then(() => undefined)
-            .finally(() => {
-              connectAllInFlight = null;
-            });
+          connectAllInFlight = (async () => {
+            // The secure browser vault hydrates asynchronously. Sidebar mount
+            // can otherwise observe the empty initial state, finish a no-op
+            // connection pass, and never reconnect the restored servers.
+            if (!useRemoteServersStore.persist.hasHydrated()) {
+              await useRemoteServersStore.persist.rehydrate();
+            }
+            const servers = get().servers;
+            setServersConnecting(servers);
+            await Promise.all(servers.map(connectServer));
+          })().finally(() => {
+            connectAllInFlight = null;
+          });
           return connectAllInFlight;
         },
 
@@ -1433,13 +1573,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
     },
     {
       name: "poracode-remote-servers",
-      storage: createJSONStorage(() => localStorage),
-      // Persist durable connection identity (incl. the bearer accessToken) and
+      storage: createSecureRemoteServersStorage((servers) => ({
+        servers,
+        excludedProjectIds: {},
+        projectWorkspaceIds: {},
+        projectNameOverrides: {},
+        lastKnownProjects: {},
+      })),
+      // Persist durable connection identity and
       // last-known projects so offline servers keep their sidebar rows. Live
       // runtime state and threads are re-fetched on connect; socket/client
-      // factories stay process-local. Storing the token in renderer localStorage
-      // mirrors the PWA (IndexedDB) and is scoped to the Electron renderer; the
-      // server can revoke a session at any time.
+      // factories stay process-local. Bearer tokens live in the native OS
+      // keystore or the browser/Electron WebCrypto vault, not plaintext storage.
       partialize: persistedRemoteServersState,
     },
   ),
@@ -1526,6 +1671,17 @@ export function __resetRemoteServersStoreForTest(): void {
   clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   connectAllInFlight = null;
+  desktopBrowserBridgeServerId = null;
+  desktopBrowserBridgeClientKey = null;
+  desktopBrowserMirrorSocket = null;
+  setBrowserSocketSender(null);
+  if (
+    typeof window !== "undefined" &&
+    (!!window.poracodeHost || !!window.poracode) &&
+    readClientRuntime().host === "browser"
+  ) {
+    setRemoteBridgeClient(null);
+  }
   openRemoteThreadRequestSeq = 0;
   resetRemoteTerminalFeed();
   useAppStore.setState((state) => ({

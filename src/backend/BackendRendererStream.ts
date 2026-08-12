@@ -5,6 +5,8 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import {
   BACKEND_RENDERER_STREAM_VERSION,
+  type BackendRendererRequest,
+  type BackendRendererReply,
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
 import { BackendEventRouter } from "./BackendHostCore";
@@ -14,6 +16,7 @@ const MAX_REPLAY_BYTES = 8 * 1024 * 1024;
 const MIN_CLIENT_BUFFERED_BYTES = 128 * 1024;
 const MAX_CLIENT_BUFFERED_BYTES = 1024 * 1024;
 const HEALTHY_SENDS_BEFORE_BUDGET_REDUCTION = 256;
+const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
 
 interface ReplayEntry {
   seq: number;
@@ -42,9 +45,10 @@ export interface BackendRendererStreamDiagnostics {
 
 export interface BackendRendererStreamOptions {
   onSlowClient?(details: { bufferedBytes: number; budgetBytes: number }): void;
+  onRequest?(request: BackendRendererRequest): Promise<unknown>;
 }
 
-/** Restricted loopback event stream: renderer may send interests only, never commands. */
+/** Authenticated loopback transport for renderer requests and bounded live events. */
 export class BackendRendererStream {
   private readonly token = randomBytes(24).toString("base64url");
   private readonly clients = new Map<WebSocket, ClientState>();
@@ -72,7 +76,7 @@ export class BackendRendererStream {
       host: "127.0.0.1",
       port: 0,
       perMessageDeflate: false,
-      maxPayload: 64 * 1024,
+      maxPayload: MAX_REQUEST_BYTES,
       verifyClient: ({ req }: { req: IncomingMessage }) => {
         try {
           return new URL(req.url ?? "/", "ws://127.0.0.1").searchParams.get("token") === this.token;
@@ -97,7 +101,7 @@ export class BackendRendererStream {
     };
   }
 
-  publish(event: SupervisorEvent): boolean {
+  publish(event: SupervisorEvent): { delivered: boolean; sequence: number } {
     const seq = ++this.sequence;
     const encoded = JSON.stringify({
       version: BACKEND_RENDERER_STREAM_VERSION,
@@ -128,7 +132,7 @@ export class BackendRendererStream {
       this.diagnostics.deliveredEvents += 1;
       delivered = true;
     }
-    return delivered;
+    return { delivered, sequence: seq };
   }
 
   retainTerminalBootstrap(threadId: string): void {
@@ -205,8 +209,12 @@ export class BackendRendererStream {
       socket.close(1008, "Invalid renderer stream message");
       return;
     }
+    if (isBackendRendererRequest(message)) {
+      void this.handleRequest(socket, message);
+      return;
+    }
     if (!isInterestMessage(message)) {
-      socket.close(1008, "Renderer stream accepts interests only");
+      socket.close(1008, "Invalid renderer transport message");
       return;
     }
     const interests: LiveEventInterests = {
@@ -226,6 +234,56 @@ export class BackendRendererStream {
         latestSeq: this.sequence,
       }),
     );
+  }
+
+  private async handleRequest(socket: WebSocket, request: BackendRendererRequest): Promise<void> {
+    const handler = this.options.onRequest;
+    if (!handler) {
+      this.sendReply(socket, {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "reply",
+        id: request.id,
+        ok: false,
+        error: "Renderer requests are not enabled.",
+      });
+      return;
+    }
+    try {
+      const data = await handler(request);
+      this.sendReply(socket, {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "reply",
+        id: request.id,
+        ok: true,
+        data,
+      });
+    } catch (error) {
+      this.sendReply(socket, {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "reply",
+        id: request.id,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private sendReply(socket: WebSocket, reply: BackendRendererReply): void {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    const payload = JSON.stringify(reply);
+    if (Buffer.byteLength(payload) > MAX_REQUEST_BYTES) {
+      socket.send(
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Backend response exceeded the renderer transport limit.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    socket.send(payload);
   }
 
   private replayFrom(socket: WebSocket, state: ClientState, lastSeq: number): void {
@@ -322,7 +380,7 @@ export class BackendRendererStream {
 }
 
 function isInterestMessage(value: unknown): value is {
-  version: 1;
+  version: typeof BACKEND_RENDERER_STREAM_VERSION;
   type: "interests";
   terminalThreadIds: string[];
   runtimeThreadIds: string[];
@@ -339,6 +397,21 @@ function isInterestMessage(value: unknown): value is {
       (typeof input.lastSeq === "number" &&
         Number.isSafeInteger(input.lastSeq) &&
         input.lastSeq >= 0))
+  );
+}
+
+function isBackendRendererRequest(value: unknown): value is BackendRendererRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const input = value as Record<string, unknown>;
+  return (
+    input.version === BACKEND_RENDERER_STREAM_VERSION &&
+    input.type === "request" &&
+    typeof input.id === "string" &&
+    (input.operation === "supervisor" ||
+      input.operation === "database" ||
+      input.operation === "service") &&
+    typeof input.name === "string" &&
+    "payload" in input
   );
 }
 

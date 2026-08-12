@@ -23,27 +23,62 @@ const pendingReleases: Record<
   terminal: new Map(),
   runtime: new Map(),
 };
-let publishTail = Promise.resolve();
-let latestPublish = publishTail;
+interface PublishWaiter {
+  revision: number;
+  resolve(): void;
+}
+
+let desiredRevision = 0;
+let publishScheduled = false;
+let publishInFlight = false;
+let latestPublish = Promise.resolve();
+const publishWaiters: PublishWaiter[] = [];
 
 function currentThreadIds(kind: RendererEventInterestKind): string[] {
   return [...counts[kind].keys()].sort();
 }
 
-function publishInterests(): Promise<void> {
+function publishInterests(deferToNextTask = false): Promise<void> {
   if (readBridge().appVersion === "remote") return latestPublish;
+  const revision = ++desiredRevision;
+  latestPublish = new Promise<void>((resolve) => {
+    publishWaiters.push({ revision, resolve });
+  });
+  schedulePublish(deferToNextTask);
+  return latestPublish;
+}
+
+function schedulePublish(deferToNextTask = false): void {
+  if (publishScheduled || publishInFlight) return;
+  publishScheduled = true;
+  const flush = () => void flushPublish();
+  if (deferToNextTask) setTimeout(flush, 0);
+  else queueMicrotask(flush);
+}
+
+async function flushPublish(): Promise<void> {
+  publishScheduled = false;
+  if (publishInFlight) return;
+  publishInFlight = true;
+  const revision = desiredRevision;
   const snapshot = {
     terminalThreadIds: currentThreadIds("terminal"),
     runtimeThreadIds: currentThreadIds("runtime"),
   };
-  latestPublish = publishTail
-    .then(() => readBridge().setRendererEventInterests(snapshot))
-    .catch((error: unknown) => {
-      console.error("[renderer] failed to update live-event interests:", error);
-      captureRendererException(error, { featureArea: "live-event-routing" });
-    });
-  publishTail = latestPublish;
-  return latestPublish;
+  try {
+    await readBridge().setRendererEventInterests(snapshot);
+  } catch (error) {
+    console.error("[renderer] failed to update live-event interests:", error);
+    captureRendererException(error, { featureArea: "live-event-routing" });
+  }
+  publishInFlight = false;
+  for (let index = publishWaiters.length - 1; index >= 0; index -= 1) {
+    const waiter = publishWaiters[index];
+    if (!waiter || waiter.revision > revision) continue;
+    publishWaiters.splice(index, 1);
+    waiter.resolve();
+  }
+  if (desiredRevision > revision) schedulePublish();
 }
 
 /**
@@ -87,7 +122,7 @@ export function retainRendererEventInterest(
         releaseTimers.delete(threadId);
         if (entries.get(threadId) !== 0) return;
         entries.delete(threadId);
-        void publishInterests();
+        void publishInterests(true);
       }, RELEASE_GRACE_MS);
       releaseTimers.set(threadId, timer);
     },

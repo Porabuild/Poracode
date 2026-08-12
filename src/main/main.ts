@@ -738,6 +738,7 @@ if (!hasSingleInstanceLock) {
       const dispatchBackendSupervisorEvent = (
         event: SupervisorEvent,
         rendererDeliveredDirect = false,
+        rendererSequence?: number,
       ): void => {
         if (event.type === "crossagent-selection-used") {
           try {
@@ -769,7 +770,15 @@ if (!hasSingleInstanceLock) {
         }
         handleSupervisorEventForSleep(event);
         if (!rendererDeliveredDirect) {
-          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+          if (rendererSequence === undefined) {
+            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+          } else {
+            mainWindow?.webContents.send(
+              IPC_EVENT_CHANNELS.supervisorEvent,
+              event,
+              rendererSequence,
+            );
+          }
           forwardAgentStatusEventToQuickComposer(event);
         }
       };

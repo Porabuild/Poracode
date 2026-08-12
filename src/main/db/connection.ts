@@ -168,6 +168,11 @@ export function initDatabase(
     );
     CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_pos
       ON thread_runtime_items (thread_id, position);
+    CREATE TABLE IF NOT EXISTS thread_terminal_scrollback (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      transcript TEXT NOT NULL,
+      output_length INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS thread_completed_turns (
       thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
       idx INTEGER NOT NULL,

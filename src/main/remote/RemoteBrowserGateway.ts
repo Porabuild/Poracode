@@ -20,10 +20,10 @@ import { RemoteHttpError } from "./auth";
  * `Input.dispatchMouseEvent`.
  *
  * Constraint worth knowing: tab webContents are owned by `<webview>` elements
- * in the desktop renderer, which mount only while the browser panel/overlay is
- * open there. Watching therefore reveals the panel on the desktop and waits
- * for the webview to attach; if it never does, watchers get an "unavailable"
- * status with the reason instead of frames.
+ * in the desktop renderer. Watching holds an automation session so the browser
+ * host mounts those webviews off-screen without changing the desktop layout;
+ * if one never attaches, watchers get an "unavailable" status instead of
+ * frames.
  */
 
 export interface RemoteBrowserFrame {
@@ -55,6 +55,7 @@ interface MirrorSession {
 const ATTACH_WAIT_MS = 6000;
 const ATTACH_POLL_MS = 150;
 const BROWSER_UNAVAILABLE_REASON = "The desktop browser is not available.";
+const REMOTE_BROWSER_AUTOMATION_SESSION_ID = "remote-browser-mirror";
 
 const KEY_DEFINITIONS: Record<
   RemoteBrowserKey,
@@ -118,9 +119,6 @@ export class RemoteBrowserGateway implements RemoteBrowserGatewayLike {
     const manager = this.requireManager();
     switch (command.kind) {
       case "create-tab":
-        // Surface the panel so the renderer mounts the <webview> that will
-        // host the new tab (createTab itself waits for the attach).
-        manager.revealPanel();
         await manager.createTab({ ...(command.url ? { url: command.url } : {}), activate: true });
         break;
       case "close-tab":
@@ -216,6 +214,7 @@ export class RemoteBrowserGateway implements RemoteBrowserGatewayLike {
           // these events; re-ensure so the mirror follows them.
           void this.ensureMirror();
         });
+        manager.setAutomationSession(REMOTE_BROWSER_AUTOMATION_SESSION_ID, true);
       }
     }
     try {
@@ -249,6 +248,7 @@ export class RemoteBrowserGateway implements RemoteBrowserGatewayLike {
     this.unsubscribeManager?.();
     this.unsubscribeManager = null;
     this.stopMirror();
+    this.getManager()?.setAutomationSession(REMOTE_BROWSER_AUTOMATION_SESSION_ID, false);
   }
 
   private stopMirror(): void {
@@ -284,8 +284,8 @@ export class RemoteBrowserGateway implements RemoteBrowserGatewayLike {
     this.broadcastStatus({ status: "starting", tabId: active.tabId });
 
     if (!active.isAttached()) {
-      // The webview mounts once the panel is visible on the desktop.
-      manager.revealPanel();
+      // The automation session keeps BrowserHost mounted off-screen while the
+      // remote client watches, without opening the desktop panel.
       const deadline = Date.now() + ATTACH_WAIT_MS;
       while (!active.isAttached() && !active.isDestroyed() && Date.now() < deadline) {
         await delay(ATTACH_POLL_MS);
@@ -297,7 +297,7 @@ export class RemoteBrowserGateway implements RemoteBrowserGatewayLike {
       this.broadcastStatus({
         status: "unavailable",
         tabId: active.tabId,
-        reason: "The desktop browser panel did not open. Open it on the desktop, then retry.",
+        reason: BROWSER_UNAVAILABLE_REASON,
       });
       return;
     }

@@ -14,6 +14,7 @@ import {
   useDragDropManager,
 } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { PaneLayout, PaneLayoutAxis, PaneLayoutInsertTarget } from "@/shared/paneLayout";
 import { findPanePath } from "@/shared/paneLayout";
 import type { PanelDockTarget, PanelDockZone, RightPanelTab } from "./state/panelStore";
@@ -412,6 +413,7 @@ export function AppDndProvider(props: {
   onPanelDockDrop: (source: PanelTabDragSource, target: PanelDockTarget) => void;
   paneLayout: PaneLayout;
 }) {
+  const compactLayout = useCompactLayout();
   const pointer = useRef({ x: 0, y: 0 });
   const paneIndicatorRef = useRef<PaneDropIndicator | null>(null);
   const mainPanelDropActiveRef = useRef(false);
@@ -482,13 +484,16 @@ export function AppDndProvider(props: {
   }
 
   const sensors = useMemo(
-    () => [
-      PointerSensor.configure({
-        activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
-      }),
-      KeyboardSensor,
-    ],
-    [],
+    () =>
+      compactLayout
+        ? []
+        : [
+            PointerSensor.configure({
+              activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
+            }),
+            KeyboardSensor,
+          ],
+    [compactLayout],
   );
 
   // Pane drags use a separate overlay (below), so disable the default tween:

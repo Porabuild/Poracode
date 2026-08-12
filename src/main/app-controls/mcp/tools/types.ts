@@ -306,7 +306,7 @@ export interface AppControlsToolContext {
    * headless host, or the desktop main window is closed) — the caller then
    * falls back to writing the DB row directly via {@link updateThreadRow}.
    */
-  emitRemoteThreadCommand(command: RemoteThreadCommand): boolean;
+  emitRemoteThreadCommand(command: RemoteThreadCommand): boolean | Promise<boolean>;
   /**
    * Headless / no-renderer fallback: read the current thread row, apply
    * `mutate`, and persist it (preserving sort order). Source of truth when no

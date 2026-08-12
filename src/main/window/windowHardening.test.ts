@@ -49,10 +49,10 @@ describe("renderer termination intent wiring", () => {
       posthogHost: "",
       posthogKey: "",
       sentryEnabled: false,
-      rendererStream: { version: 1, url: "ws://127.0.0.1:1234/events", token: "secret" },
+      rendererStream: { version: 2, url: "ws://127.0.0.1:1234/events", token: "secret" },
     });
 
-    expect(args).toContain("--lc-backend-live-version=1");
+    expect(args).toContain("--lc-backend-live-version=2");
     expect(args.join(" ")).not.toContain("secret");
     expect(args.join(" ")).not.toContain("127.0.0.1:1234");
   });

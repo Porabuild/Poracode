@@ -15,13 +15,13 @@ export type SheetGrabberHandlers = {
 };
 
 /**
- * Drag-to-dismiss (and optionally drag-to-expand) gesture shared by every mobile
+ * Drag-to-dismiss (and optionally drag-to-expand) gesture shared by every compact
  * sheet surface — `BottomSheet`, `FullScreenDrawer`, and the renderer's
  * `ResponsiveMenuSurface` drawer — so the finger math and thresholds live in one
  * place instead of three hand-kept-in-sync copies.
  *
  * The grabber tracks the finger by writing `--m-sheet-drag-y` on the sheet
- * element (via `sheetRef`); the CSS in `src/mobile/styles.css` turns that offset
+ * element (via `sheetRef`); the CSS in `src/renderer/styles.css` turns that offset
  * into the transform. A downward drag past the threshold calls `onClose`; when
  * `expandable`, an upward drag snaps to the expanded height and a downward drag
  * from expanded collapses back.
@@ -137,7 +137,7 @@ export function useSheetGrabber(options: {
   };
 }
 
-/** The drag handle rendered at the top of every mobile sheet/drawer. */
+/** The drag handle rendered at the top of every compact sheet/drawer. */
 export function SheetGrabber(props: { readonly handlers: SheetGrabberHandlers }) {
   return (
     <div className="m-sheet-grabber" aria-hidden="true" {...props.handlers}>

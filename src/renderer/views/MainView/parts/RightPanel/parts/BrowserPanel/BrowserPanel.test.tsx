@@ -14,6 +14,12 @@ const bridge = vi.hoisted(() => ({
   browserInjectToMain: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
+const clientCapabilities = vi.hoisted(() => ({ nativeBrowserWebContents: true }));
+
+vi.mock("@/renderer/clientRuntime", () => ({
+  hasClientCapability: () => clientCapabilities.nativeBrowserWebContents,
+}));
+
 vi.mock("./hooks/useElementPicker", () => ({
   useElementPicker: () => ({
     pickerActive: false,
@@ -49,6 +55,7 @@ vi.mock("@/renderer/bridge", () => ({
 describe("BrowserPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clientCapabilities.nativeBrowserWebContents = true;
     useBrowserPanelStore.setState({
       tabs: [],
       groups: [],
@@ -101,6 +108,28 @@ describe("BrowserPanel", () => {
     expect(webviews[0]?.getAttribute("allowpopups")).toBe("true");
     expect((webviews[0] as HTMLElement).style.display).toBe("flex");
     expect((webviews[1] as HTMLElement).style.display).toBe("none");
+  });
+
+  it("renders the remote mirror instead of Electron webviews in a browser client", () => {
+    clientCapabilities.nativeBrowserWebContents = false;
+    useBrowserPanelStore.setState({
+      tabs: [
+        {
+          tabId: "tab-1",
+          url: "https://example.com/",
+          title: "Example",
+          loading: false,
+          canGoBack: false,
+          canGoForward: false,
+        },
+      ],
+      activeTabId: "tab-1",
+    });
+
+    const { container, getByRole } = render(<BrowserPanel visible />);
+
+    expect(container.querySelector("webview")).toBeNull();
+    expect(getByRole("application", { name: "Browser" })).toBeTruthy();
   });
 
   it("updates tab group membership from browser state", () => {

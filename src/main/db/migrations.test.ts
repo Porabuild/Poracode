@@ -37,8 +37,9 @@ describe("database migration registry", () => {
       [30, "repair empty thread models"],
       [31, "project worktree location"],
       [32, "main-created thread ownership"],
+      [33, "terminal scrollback"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(32);
+    expect(LATEST_SCHEMA_VERSION).toBe(33);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

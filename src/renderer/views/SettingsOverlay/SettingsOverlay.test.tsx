@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
 
 const statusesState = {
@@ -15,6 +15,7 @@ const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<void>>
 
 const appState = {
   projects: [] as Project[],
+  openSchedules: vi.fn<() => void>(),
 };
 
 const bridgeState = {
@@ -52,10 +53,21 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 }));
 
 vi.mock("@/renderer/components/layout/PageLayout", () => ({
-  PageLayout: (props: { sidebar: ReactNode; content: ReactNode }) => (
-    <div>
+  PageLayout: (props: {
+    sidebar: ReactNode;
+    content: ReactNode;
+    compactHome?: boolean;
+    compactTitle?: string;
+    onCompactBack?: () => void;
+  }) => (
+    <div data-compact-home={props.compactHome || undefined} data-compact-title={props.compactTitle}>
       <aside>{props.sidebar}</aside>
       <main>{props.content}</main>
+      {props.onCompactBack ? (
+        <button type="button" onClick={props.onCompactBack}>
+          Mobile back
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -96,6 +108,7 @@ vi.mock("@/renderer/bridge", () => ({
   isWindows: () => false,
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
+    openExternal: vi.fn<() => Promise<void>>(async () => undefined),
   }),
 }));
 
@@ -178,6 +191,7 @@ vi.mock("./parts/SingleAgentSettings", () => ({
 }));
 
 import { SettingsOverlay, settingsSectionProductProperties } from "./SettingsOverlay";
+import { usePanelStore } from "@/renderer/state/panelStore";
 
 const baseCapabilities = {
   models: [],
@@ -205,15 +219,152 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
 }
 
 describe("SettingsOverlay", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
+    appState.openSchedules.mockReset();
     bridgeState.remote = false;
     beginFirstLaunchDiscoveryMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
     refreshAgentStatusesMock.mockReset();
     refreshAgentStatusesMock.mockResolvedValue(undefined);
+    usePanelStore.setState({ settingsSection: null });
+  });
+
+  it("ports the nightly mobile settings index and keeps its drill-down local", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+    const layout = container.querySelector("[data-compact-title]");
+    const main = screen.getByRole("main");
+    expect(layout).not.toHaveAttribute("data-compact-home");
+    expect(layout).toHaveAttribute("data-compact-title", "Settings");
+    expect(
+      within(main).getByText("Stored on this device; the desktop keeps its own values."),
+    ).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: /Desktop Settings/ })).toBeInTheDocument();
+
+    fireEvent.click(within(main).getByRole("button", { name: /Appearance/ }));
+    expect(layout).toHaveAttribute("data-compact-title", "Appearance");
+    expect(within(main).getByText("Appearance")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+    expect(layout).toHaveAttribute("data-compact-title", "Settings");
+    expect(within(main).getByRole("button", { name: /Desktop Settings/ })).toBeInTheDocument();
+  });
+
+  it("returns direct compact settings pages to the main page", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const onClose = vi.fn<() => void>();
+    usePanelStore.setState({ settingsSection: "remoteServers" });
+
+    const { container } = render(<SettingsOverlay onClose={onClose} />);
+    expect(container.querySelector("[data-compact-title]")).toHaveAttribute(
+      "data-compact-title",
+      "Connections",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /Desktop Settings/ })).not.toBeInTheDocument();
+  });
+
+  it("ports the nightly Desktop Settings index and returns detail pages to it", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+    const layout = container.querySelector("[data-compact-title]");
+    const main = screen.getByRole("main");
+
+    fireEvent.click(within(main).getByRole("button", { name: /Desktop Settings/ }));
+    expect(layout).toHaveAttribute("data-compact-title", "Desktop Settings");
+    expect(
+      within(main).getByText("Edits the paired desktop and syncs back to it."),
+    ).toBeInTheDocument();
+    expect(
+      within(main)
+        .getAllByRole("button")
+        .map((button) => button.textContent?.replace(/\s+/gu, " ").trim()),
+    ).toEqual([
+      "ProfileIdentity and usage stats",
+      "Provider UsageTracking and display",
+      "SchedulesScheduled tasks on this desktop",
+      "AI HelpersTitle, commit, and conflict models",
+      "AgentsEnabled agents, model visibility and order",
+      "Archived ThreadsRestore or delete",
+    ]);
+
+    fireEvent.click(within(main).getByRole("button", { name: /AI Helpers/ }));
+    expect(layout).toHaveAttribute("data-compact-title", "AI Helpers");
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+    expect(layout).toHaveAttribute("data-compact-title", "Desktop Settings");
+  });
+
+  it("opens Schedules from the compact Desktop Settings index", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const onClose = vi.fn<() => void>();
+
+    render(<SettingsOverlay onClose={onClose} />);
+    const main = screen.getByRole("main");
+    fireEvent.click(within(main).getByRole("button", { name: /Desktop Settings/ }));
+    fireEvent.click(within(main).getByRole("button", { name: /Schedules/ }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(appState.openSchedules).toHaveBeenCalledTimes(1);
   });
 
   it("uses bounded analytics properties for regular and agent settings", () => {
@@ -251,6 +402,7 @@ describe("SettingsOverlay", () => {
     const headers = [...container.querySelectorAll("aside p")].map((el) => el.textContent);
     expect(headers).toEqual(["Personal", "Workspace", "Agents", "About"]);
     expect(screen.getByRole("button", { name: "Models" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Browser" })).not.toBeInTheDocument();
   });

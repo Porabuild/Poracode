@@ -110,7 +110,7 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
     body: `  <div class="app">
     <main>
       <h1>${productNameFor(resolvePoracodeChannel())}</h1>
-      <p>The mobile web app bundle is not available from this desktop build. Rebuild Poracode so <span class="inline-code">mobile.html</span> is included in the renderer output, then open the pairing link again.</p>
+      <p>The web app bundle is not available from this desktop build. Rebuild Poracode so <span class="inline-code">index.html</span> is included in the renderer output, then open the pairing link again.</p>
       <p>Desktop endpoint</p>
       <code class="endpoint" id="endpoint"></code>
     </main>
@@ -168,7 +168,7 @@ export function buildForwardEnterErrorPageHtml(): string {
 }
 
 // Pairing from a nightly desktop installs a nightly PWA: same identity rules as
-// the hosted build (scripts/finalize-mobile-build.mjs), so the two never look
+// the hosted build (scripts/finalize-web-build.mjs), so the two never look
 // alike on a home screen.
 function pairingIconBaseName(channel: PoracodeChannel): string {
   return channel === "nightly" ? "icon-nightly" : "icon";
@@ -178,18 +178,18 @@ function buildPairingManifest(channel: PoracodeChannel): string {
   const icon = pairingIconBaseName(channel);
   const name = productNameFor(channel);
   return JSON.stringify({
-    id: "/app",
+    id: "/",
     name,
     short_name: name,
-    start_url: "/app",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     // Matches the installed PWA's splash/status chrome to the app's dark
-    // background (mobile.html theme-color).
+    // background (canonical index theme-color).
     background_color: "#070709",
     theme_color: "#070709",
     // PNG icons are copied from public/ into the built renderer (/icons) and
-    // served by tryServeBuiltMobileApp; the SVG falls back for older builds.
+    // served by the canonical static client; the SVG falls back for older builds.
     icons: [
       { src: `/icons/${icon}-192.png`, sizes: "192x192", type: "image/png", purpose: "any" },
       { src: `/icons/${icon}-512.png`, sizes: "512x512", type: "image/png", purpose: "any" },
@@ -215,7 +215,7 @@ export function buildLocalPairingManifestJson(
 const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "poracode-remote-local-__PORACODE_LOCAL_BUILD_VERSION__";
 const LEGACY_CACHE_NAME = "lightcode-remote-local-v1";
 const NAVIGATION_FALLBACK_DELAY_MS = 500;
-const SHELL_URLS = ["/app", "/manifest.webmanifest", "/app-icon.svg"];
+const SHELL_URLS = ["/", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)));
@@ -294,8 +294,14 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/oauth/") || url.pathname === "/ws") return;
-  const isAppRequest = url.pathname === "/app" || url.pathname.startsWith("/app/");
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/oauth/") ||
+    url.pathname.startsWith("/.well-known/") ||
+    url.pathname.startsWith("/forward/") ||
+    url.pathname === "/ws"
+  ) return;
+  const isAppRequest = request.mode === "navigate";
   const isPwaStaticRequest =
     url.pathname.startsWith("/assets/") ||
     url.pathname.startsWith("/icons/") ||
@@ -307,7 +313,10 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith(
-      caches.match(request).then(
+      // Hashed assets are immutable. URL-only cache writes omit the Origin
+      // header carried by ES-module requests, so Vary must not prevent the
+      // cached module from satisfying an offline import.
+      caches.match(request, { ignoreVary: true }).then(
         (cached) =>
           cached ||
           fetch(request).then((response) => {
@@ -330,20 +339,20 @@ self.addEventListener("fetch", (event) => {
     const networkResponse = fetch(request).then(async (response) => {
       if (response.ok) {
         const cache = await caches.open(CACHE_NAME);
-        await cache.put("/app", response.clone());
+        await cache.put("/", response.clone());
       }
       return response;
     });
     const cachedResponse = new Promise((resolve) => {
       setTimeout(() => {
-        caches.match("/app").then(resolve);
+        caches.match("/").then(resolve);
       }, NAVIGATION_FALLBACK_DELAY_MS);
     });
     event.waitUntil(networkResponse.then(() => undefined, () => undefined));
     event.respondWith(
       Promise.race([networkResponse, cachedResponse])
         .then((response) => response || networkResponse)
-        .catch(() => caches.match("/app").then((cached) => cached || Response.error())),
+        .catch(() => caches.match("/").then((cached) => cached || Response.error())),
     );
     return;
   }
@@ -353,12 +362,12 @@ self.addEventListener("fetch", (event) => {
       .then((response) => {
         if (response.ok) {
           const clone = response.clone();
-          const cacheKey = request.mode === "navigate" ? "/app" : request;
+          const cacheKey = request.mode === "navigate" ? "/" : request;
           caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/app"))),
+      .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
   );
 });
 `;

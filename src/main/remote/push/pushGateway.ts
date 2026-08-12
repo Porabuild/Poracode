@@ -239,8 +239,8 @@ export type ResolveWebPushPublicKey = () => Promise<string>;
 
 /**
  * Resolves the public VAPID application-server key from the hosted gateway.
- * The desktop proxies this public value to authenticated mobile clients so
- * hosted, relayed, and local PWAs use one subscription key.
+ * The host proxies this public value to authenticated browser clients so
+ * hosted, relayed, and local installations use one subscription key.
  */
 export function createWebPushPublicKeyResolver(
   options: CreatePushGatewayOptions = {},

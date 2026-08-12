@@ -38,14 +38,42 @@ import type { LiveEventInterests } from "./liveEventInterests";
 import type { PoracodeChannel } from "./channel";
 
 /** Increment whenever the desktop/backend-host IPC envelope becomes incompatible. */
-export const BACKEND_HOST_PROTOCOL_VERSION = 2 as const;
-export const BACKEND_RENDERER_STREAM_VERSION = 1 as const;
+// Version 3 carries renderer stream sequence numbers through the Electron IPC fallback.
+export const BACKEND_HOST_PROTOCOL_VERSION = 3 as const;
+export const BACKEND_RENDERER_STREAM_VERSION = 2 as const;
 
 export interface BackendRendererStreamInfo {
   version: typeof BACKEND_RENDERER_STREAM_VERSION;
   url: string;
   token: string;
 }
+
+export type BackendRendererRequestOperation = "supervisor" | "database" | "service";
+
+export interface BackendRendererRequest {
+  version: typeof BACKEND_RENDERER_STREAM_VERSION;
+  type: "request";
+  id: string;
+  operation: BackendRendererRequestOperation;
+  name: string;
+  payload: unknown;
+}
+
+export type BackendRendererReply =
+  | {
+      version: typeof BACKEND_RENDERER_STREAM_VERSION;
+      type: "reply";
+      id: string;
+      ok: true;
+      data: unknown;
+    }
+  | {
+      version: typeof BACKEND_RENDERER_STREAM_VERSION;
+      type: "reply";
+      id: string;
+      ok: false;
+      error: string;
+    };
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbGetProjects",
@@ -73,6 +101,16 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
 ] as const;
 
 export type BackendDatabaseProcedureName = (typeof BACKEND_DATABASE_PROCEDURE_NAMES)[number];
+
+export function isDirectRendererDatabaseProcedure(
+  name: string,
+): name is BackendDatabaseProcedureName {
+  return (
+    (BACKEND_DATABASE_PROCEDURE_NAMES as readonly string[]).includes(name) &&
+    name !== "dbDeleteThread" &&
+    name !== "dbPersistExperimentState"
+  );
+}
 
 export type BackendDatabaseCall = {
   [Name in BackendDatabaseProcedureName]: {
@@ -175,6 +213,15 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
 ] as const satisfies readonly (keyof BackendServiceProcedureMap)[];
 
 export type BackendServiceProcedureName = keyof BackendServiceProcedureMap;
+
+export function isDirectRendererServiceProcedure(
+  name: string,
+): name is BackendServiceProcedureName {
+  return (
+    (BACKEND_SERVICE_PROCEDURE_NAMES as readonly string[]).includes(name) &&
+    name !== "requestLegacyDataMigration"
+  );
+}
 export type BackendServicePayload<Name extends BackendServiceProcedureName> =
   BackendServiceProcedureMap[Name]["payload"];
 export type BackendServiceResult<Name extends BackendServiceProcedureName> =
@@ -284,6 +331,7 @@ export type BackendHostOutboundMessage =
       version: typeof BACKEND_HOST_PROTOCOL_VERSION;
       kind: "supervisor-event";
       event: SupervisorEvent;
+      rendererSequence?: number;
       rendererDeliveredDirect?: boolean;
     }
   | {
@@ -438,7 +486,14 @@ export function isBackendHostOutboundMessage(
         (message.ok || typeof message.error === "string")
       );
     case "supervisor-event":
-      return isRecord(message.event) && typeof message.event.type === "string";
+      return (
+        isRecord(message.event) &&
+        typeof message.event.type === "string" &&
+        (message.rendererSequence === undefined ||
+          (typeof message.rendererSequence === "number" &&
+            Number.isSafeInteger(message.rendererSequence) &&
+            message.rendererSequence >= 0))
+      );
     case "supervisor-reset":
       return true;
     case "native-request":

@@ -320,12 +320,12 @@ export function createDesktopRemoteAccessController(
         (options.devServerUrl ? undefined : PRODUCTION_PAIRING_APP_URL[options.channel]);
       const trustedCorsOrigins =
         !configuredPairingAppUrl && !options.devServerUrl ? PRODUCTION_HOSTED_APP_URLS : undefined;
-      // In dev, phones load the PWA from Vite instead of the built bundle.
-      let devMobileAppUrl: string | undefined;
+      // In dev, browsers load the canonical client from Vite instead of the built bundle.
+      let devWebAppUrl: string | undefined;
       if (options.devServerUrl) {
-        const devUrl = new URL("/mobile.html", options.devServerUrl);
+        const devUrl = new URL("/", options.devServerUrl);
         devUrl.hostname = advertisedHost;
-        devMobileAppUrl = devUrl.toString();
+        devWebAppUrl = devUrl.toString();
       }
       const authStore = createPersistentRemoteAuthStore(options.paths.baseDir);
       // It owns live TCP listeners, so rebuild only after a full disable/failure.
@@ -379,7 +379,7 @@ export function createDesktopRemoteAccessController(
           : {}),
         ...(pairingAppUrl ? { pairingAppUrl } : {}),
         ...(trustedCorsOrigins ? { trustedCorsOrigins } : {}),
-        ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
+        ...(devWebAppUrl ? { devWebAppUrl } : {}),
         callSupervisor: options.callSupervisor,
         dispatchThreadCommand: options.dispatchThreadCommand,
         resolveMcpLaunchSnapshot: (projectId) => {

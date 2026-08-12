@@ -28,7 +28,7 @@ import type { ProviderModelItem } from "./parts/types";
 export type { ProviderModelMenuProvider };
 
 const MODEL_MENU_ROW_HEIGHT = 28;
-/** Model rows grow to a finger-friendly target in the mobile PWA drawer; headers
+/** Model rows grow to a finger-friendly target in the compact drawer; headers
  * stay compact. Threaded through the virtualizer so the JS row math and the
  * rendered row height never disagree (a mismatch desyncs the scroll spacers). */
 const MODEL_MENU_ROW_HEIGHT_MOBILE = 44;

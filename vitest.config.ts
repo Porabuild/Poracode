@@ -32,7 +32,7 @@ export default defineConfig({
         },
         test: {
           name: "renderer",
-          include: ["src/renderer/**/*.test.{ts,tsx}", "src/mobile/**/*.test.tsx"],
+          include: ["src/renderer/**/*.test.{ts,tsx}"],
           environment: "jsdom",
           setupFiles: ["./src/renderer/testSetup.ts"],
         },
@@ -47,7 +47,7 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["src/**/*.test.{ts,tsx}"],
-          exclude: ["src/renderer/**/*.test.{ts,tsx}", "src/mobile/**/*.test.tsx"],
+          exclude: ["src/renderer/**/*.test.{ts,tsx}"],
           environment: "node",
         },
       },

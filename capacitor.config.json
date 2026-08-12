@@ -1,7 +1,7 @@
 {
   "appId": "com.lightcodeapp.mobile",
   "appName": "Poracode",
-  "webDir": "dist/mobile",
+  "webDir": "dist/web",
   "backgroundColor": "#070709",
   "server": {
     "androidScheme": "https",

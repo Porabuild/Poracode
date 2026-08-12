@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -152,6 +153,38 @@ describe("SidebarProjectFilter", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
+  it("keeps the mobile project drawer open while the controlled selection changes", async () => {
+    responsiveMenuState.mobile = true;
+
+    function ControlledFilter() {
+      const [value, setValue] = useState<ReadonlySet<string> | null>(null);
+      return (
+        <SidebarProjectFilter
+          projects={projects}
+          filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+          threadCounts={threadCounts}
+          value={value}
+          onChange={(next) => setValue(next ? new Set(next) : null)}
+        />
+      );
+    }
+
+    render(<ControlledFilter />);
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const beta = (await screen.findByText("Beta")).closest("button");
+    expect(beta).not.toBeNull();
+    fireEvent.pointerDown(beta!, { pointerType: "touch" });
+    fireEvent.click(beta!);
+
+    expect(screen.getByRole("dialog", { name: "Filter by project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filter by project", hidden: true })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(beta).not.toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Alpha").closest("button")).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("closes when the trigger is pressed again", async () => {
     renderFilter(null);
     await openMenu();
@@ -216,6 +249,48 @@ describe("SidebarProjectFilter", () => {
       ).toBe(undefined);
     });
 
+    it("stacks project and nested action drawers on mobile", async () => {
+      responsiveMenuState.mobile = true;
+      render(
+        <SidebarProjectFilter
+          projects={projects}
+          filterableProjectIds={new Set(["a", "c"])}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
+
+      expect(await screen.findByRole("dialog", { name: "Beta" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Project Settings" })).toBeInTheDocument();
+      expect(screen.queryByRole("menuitem", { name: "Project Settings" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Git" }));
+
+      expect(await screen.findByRole("dialog", { name: "Git" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Review Changes" })).toBeInTheDocument();
+      expect(document.querySelectorAll(".m-sheet")).toHaveLength(3);
+    });
+
+    it("opens settings for a selectable project on mobile without changing the filter", async () => {
+      responsiveMenuState.mobile = true;
+      const onChange = renderFilter(null);
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      const projectActions = await screen.findByRole("button", {
+        name: "Project actions for Beta",
+      });
+      expect(projectActions.className).not.toContain("hover:bg-");
+      fireEvent.click(projectActions);
+      fireEvent.click(await screen.findByRole("button", { name: "Project Settings" }));
+
+      expect(usePanelStore.getState().projectSettingsId).toBe("b");
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
     it("keeps a disabled project available for re-enabling on mobile", async () => {
       responsiveMenuState.mobile = true;
       const disabledProject = { ...projects[1]!, disabled: true };
@@ -232,7 +307,8 @@ describe("SidebarProjectFilter", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
       fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
-      fireEvent.click(await screen.findByRole("menuitem", { name: "Enable Project" }));
+      expect(await screen.findByRole("dialog", { name: "Beta" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Enable Project" }));
 
       expect(
         useAppStore.getState().projects.find((candidate) => candidate.id === "b")?.disabled,

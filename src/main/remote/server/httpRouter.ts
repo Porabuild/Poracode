@@ -69,7 +69,11 @@ import {
   buildLocalPairingPageHtml,
   buildLocalPairingServiceWorkerJs,
 } from "../pairingPage";
-import { tryServeBuiltMobileApp } from "../staticMobileApp";
+import {
+  isBuiltClientAssetPath,
+  isLegacyClientPath,
+  tryServeBuiltClientApp,
+} from "../staticClientApp";
 import type { RemoteServerContext } from "./context";
 import {
   writeError,
@@ -262,7 +266,7 @@ export async function handleHttp(
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
     // Lazily resolve the forward session at most once per request, and only for
-    // the two branches that consume it (the `/assets/` branch and the reverse-
+    // the two branches that consume it (the static-asset branch and the reverse-
     // proxy fallthrough) — the vast majority of requests hit an explicit app
     // route above and never touch it. Memoized (not `??=`) because `null` is a
     // real "no session" result that must not trigger a re-resolve, and because
@@ -284,22 +288,32 @@ export async function handleHttp(
       writeJson(res, 200, descriptor(ctx));
       return;
     }
-    if (
-      req.method === "GET" &&
-      (url.pathname === "/pair" || url.pathname === "/app" || url.pathname.startsWith("/app/"))
-    ) {
-      if (ctx.options.devMobileAppUrl) {
-        const target = new URL(ctx.options.devMobileAppUrl);
-        if (url.pathname.startsWith("/app/")) {
-          target.pathname = url.pathname.slice("/app".length);
+    if (req.method === "GET" && isLegacyClientPath(url.pathname)) {
+      res.writeHead(308, { location: `/${url.search}` });
+      res.end();
+      return;
+    }
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+      // A forwarded development server owns `/` while its HttpOnly session is
+      // active. Without a valid forward session, `/` is the canonical Poracode
+      // app entry below.
+      if (url.pathname === "/") {
+        const targetPort = forwardTargetPort();
+        if (targetPort) {
+          proxyForwardedHttpRequest(req, res, targetPort);
+          return;
         }
+      }
+      if (ctx.options.devWebAppUrl) {
+        const target = new URL(ctx.options.devWebAppUrl);
+        target.pathname = "/";
         for (const [key, value] of url.searchParams) target.searchParams.set(key, value);
         target.searchParams.set("host", ctx.requireInfo().httpBaseUrl);
         res.writeHead(302, { location: target.toString() });
         res.end();
         return;
       }
-      if (tryServeBuiltMobileApp(url.pathname, res)) {
+      if (tryServeBuiltClientApp(url.pathname, res)) {
         return;
       }
       writeHtml(
@@ -309,18 +323,18 @@ export async function handleHttp(
       );
       return;
     }
-    if (req.method === "GET" && url.pathname.startsWith("/assets/")) {
-      // An active forward session wins over the bundled mobile PWA: a
-      // forwarded dev server's own `/assets/*` files (e.g. a Vite bundle) must
+    if (req.method === "GET" && isBuiltClientAssetPath(url.pathname)) {
+      // An active forward session wins over the bundled canonical client: a
+      // forwarded dev server's own `/assets/*` and `/icons/*` files must
       // stay reachable rather than being shadowed by this reservation. No
-      // session (or no `portProxy` wired up) falls through to the PWA lookup
+      // session (or no `portProxy` wired up) falls through to the client lookup
       // exactly as before this feature existed.
       const targetPort = forwardTargetPort();
       if (targetPort) {
         proxyForwardedHttpRequest(req, res, targetPort);
         return;
       }
-      if (tryServeBuiltMobileApp(url.pathname, res)) {
+      if (tryServeBuiltClientApp(url.pathname, res)) {
         return;
       }
     }
@@ -868,7 +882,7 @@ export async function handleHttp(
       assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
         if (command.kind === "delete-worktree-group") {
-          if (ctx.options.dispatchThreadCommand?.(command) !== true) {
+          if ((await ctx.options.dispatchThreadCommand?.(command)) !== true) {
             throw new RemoteHttpError(
               "desktop_unavailable",
               "The desktop app is not available to apply this change.",
@@ -881,12 +895,12 @@ export async function handleHttp(
         }
         if (command.kind === "start" && command.isNewWorktree && command.worktreePath) {
           const prepared =
-            ctx.options.dispatchThreadCommand?.({
+            (await ctx.options.dispatchThreadCommand?.({
               kind: "prepare-worktree",
               threadId: command.threadId,
               projectId: command.projectId,
               worktreePath: command.worktreePath,
-            }) ?? false;
+            })) ?? false;
           if (!prepared) {
             throw new RemoteHttpError(
               "desktop_unavailable",
@@ -896,7 +910,7 @@ export async function handleHttp(
           }
         }
         const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
-        if (requiresRenderer && ctx.options.dispatchThreadCommand?.(command) !== true) {
+        if (requiresRenderer && (await ctx.options.dispatchThreadCommand?.(command)) !== true) {
           throw new RemoteHttpError(
             "desktop_unavailable",
             "The desktop app is not available to apply this change.",
@@ -909,7 +923,7 @@ export async function handleHttp(
             const { isNewWorktree: _isNewWorktree, ...startCommand } = command;
             return { ...startCommand, launchRuntime: false };
           })();
-          ctx.options.dispatchThreadCommand?.(rendererCommand);
+          await ctx.options.dispatchThreadCommand?.(rendererCommand);
           if (command.kind === "acknowledge") {
             ctx.publishSupervisorEvent({
               type: "remote-threads-changed",

@@ -17,7 +17,7 @@ import type { RemoteBroadcastEvent } from "./context";
  * 1. **Only bulk content is scoped.** `request.opened`/`request.resolved`,
  *    `turn.*`, `session.*`, `context.updated`, `usage.spent`, warnings and errors
  *    always pass through. Permission and question prompts ride
- *    `request.opened`, the mobile approval UI reads them out of
+ *    `request.opened`, the approval UI reads them out of
  *    `runtimeRequestsByThread`, and a thread snapshot has no field to recover an
  *    open request from — so scoping those would silently strand a background
  *    thread waiting on an approval the user never sees.

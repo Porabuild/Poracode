@@ -37,8 +37,11 @@ import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { PullRequestsView } from "@/renderer/views/PullRequestsView/PullRequestsView";
 import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
+import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
+import { resolveResponsivePaneLayout } from "./responsivePaneLayout";
 
 export function AppContent() {
   const { t } = useLingui();
@@ -55,6 +58,8 @@ export function AppContent() {
   // terminal to preserve). Hook must be called unconditionally (before the
   // `view.kind === "thread"` branch) to satisfy the rules of hooks.
   const keepAlivePaneIds = useAppStore((state) => state.keepAlivePaneIds);
+  const focusedPaneId = useAppStore((state) => state.focusedPaneId);
+  const compactLayout = useCompactLayout();
   const activeGroupName = useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread" || !v.activeGroupId) return undefined;
@@ -164,7 +169,9 @@ export function AppContent() {
   if (view.kind === "schedules") {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
-        <SchedulesView />
+        <BrowserRemoteConnectionGate>
+          <SchedulesView />
+        </BrowserRemoteConnectionGate>
       </div>
     );
   }
@@ -172,7 +179,9 @@ export function AppContent() {
   if (view.kind === "pullRequests") {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
-        <PullRequestsView />
+        <BrowserRemoteConnectionGate>
+          <PullRequestsView />
+        </BrowserRemoteConnectionGate>
       </div>
     );
   }
@@ -195,8 +204,15 @@ export function AppContent() {
 
   if (view.kind === "thread") {
     const closePane = useAppStore.getState().closePane;
-    const paneCount = view.panes.length;
-    const paneLayout = view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
+    const fullPaneLayout = view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
+    const { paneLayout, visiblePaneIds, hiddenCurrentPaneIds } = resolveResponsivePaneLayout({
+      fullPaneLayout,
+      panes: view.panes,
+      focusedPaneId,
+      compactLayout,
+    });
+    const paneCount = visiblePaneIds.length;
+    const fullPaneCount = view.panes.length;
     // Non-subscribing read: threads / projects array identity isn't worth
     // a re-render here — pane deletion always updates view.panes atomically.
     const storeThreads = useAppStore.getState().threads;
@@ -218,21 +234,22 @@ export function AppContent() {
     function getPaneDomKey(paneId: string) {
       return resolvePaneDomKey({
         paneId,
-        paneSlotId: findPaneSlotId(paneLayout, paneId) ?? paneId,
+        paneSlotId: findPaneSlotId(fullPaneLayout, paneId) ?? paneId,
         presentationMode: storeThreads.find((thread) => thread.id === paneId)?.presentationMode,
       });
     }
 
-    // Keep-alive: filter the cache to hidden, non-draft, terminal-presentation
-    // thread panes (GUI threads have no terminal; their visible DOM key is a
-    // stable slot key, not the thread id, so keep-alive wouldn't reuse it).
-    const visiblePaneIds = new Set(view.panes);
-    const hiddenPaneIds = keepAlivePaneIds.filter(
+    // Every pane in the current layout stays mounted while compact mode focuses
+    // one of them. The original slot ids remain the DOM keys, so resizing does
+    // not reset chat scroll, draft state, dialogs, or terminal buffers.
+    const visiblePaneIdSet = new Set(visiblePaneIds);
+    const cachedTerminalPaneIds = keepAlivePaneIds.filter(
       (id) =>
-        !visiblePaneIds.has(id) &&
+        !visiblePaneIdSet.has(id) &&
         !isDraftPaneId(id) &&
         storeThreads.find((thread) => thread.id === id)?.presentationMode !== "gui",
     );
+    const hiddenPaneIds = [...new Set([...hiddenCurrentPaneIds, ...cachedTerminalPaneIds])];
 
     function renderPane(paneId: string, rect: Rect, hidden = false) {
       const paneDraftProjectId = parseDraftProjectId(paneId);
@@ -245,7 +262,7 @@ export function AppContent() {
         <DraftPane
           paneId={paneId}
           projectId={paneDraftProjectId}
-          paneCount={paneCount}
+          paneCount={hidden ? fullPaneCount : paneCount}
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}

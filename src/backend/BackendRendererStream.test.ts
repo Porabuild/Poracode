@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { BackendRendererStream } from "./BackendRendererStream";
 
@@ -9,7 +9,7 @@ afterEach(async () => {
 });
 
 describe("BackendRendererStream", () => {
-  it("authenticates, filters by interest, and rejects privileged messages", async () => {
+  it("authenticates, filters by interest, and rejects malformed messages", async () => {
     const stream = new BackendRendererStream();
     streams.push(stream);
     const info = await stream.start();
@@ -17,7 +17,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 1,
+        version: 2,
         type: "interests",
         terminalThreadIds: ["wanted"],
         runtimeThreadIds: [],
@@ -33,8 +33,43 @@ describe("BackendRendererStream", () => {
       event: { type: "thread-output", threadId: "wanted", data: "yes" },
     });
 
-    socket.send(JSON.stringify({ version: 1, type: "call-supervisor", name: "startThread" }));
+    socket.send(JSON.stringify({ version: 2, type: "call-supervisor", name: "startThread" }));
     await expect(nextClose(socket)).resolves.toBe(1008);
+  });
+
+  it("carries authenticated backend requests and replies on the same connection", async () => {
+    const onRequest = vi.fn<() => Promise<{ projects: number }>>(async () => ({ projects: 3 }));
+    const stream = new BackendRendererStream({ onRequest });
+    streams.push(stream);
+    const info = await stream.start();
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+    socket.send(
+      JSON.stringify({
+        version: 2,
+        type: "request",
+        id: "request-1",
+        operation: "database",
+        name: "dbGetProjects",
+        payload: {},
+      }),
+    );
+
+    await expect(nextMessage(socket)).resolves.toEqual({
+      version: 2,
+      type: "reply",
+      id: "request-1",
+      ok: true,
+      data: { projects: 3 },
+    });
+    expect(onRequest).toHaveBeenCalledWith({
+      version: 2,
+      type: "request",
+      id: "request-1",
+      operation: "database",
+      name: "dbGetProjects",
+      payload: {},
+    });
   });
 
   it("delivers bootstrapped terminal output before the client interest arrives", async () => {
@@ -46,7 +81,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 1,
+        version: 2,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -84,7 +119,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 1,
+        version: 2,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -124,7 +159,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 1,
+        version: 2,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],

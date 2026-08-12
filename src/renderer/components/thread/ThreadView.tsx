@@ -25,6 +25,8 @@ import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 import { ThreadToolRail } from "./ThreadToolRail";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { CompactThreadWorkspaceBar } from "./CompactThreadWorkspaceBar";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -152,6 +154,7 @@ export type ThreadViewProps = {
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
+  const compactLayout = useCompactLayout();
   const {
     thread,
     agentStatus,
@@ -266,7 +269,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
   const paddingClass = "px-2";
-  const contentShellClass = `${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
+  const contentShellClass = `m-thread-content ${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
   const contentBodyClass = `${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2`;
 
   return (
@@ -274,10 +277,14 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       <div
         ref={droppableRef}
         data-poracode-thread-pane=""
-        className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
+        className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative h-full ${isDragging ? "opacity-50" : ""}`}
       >
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
-        <div className={`px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
+        <div
+          data-poracode-thread-header=""
+          data-compact={compactLayout || undefined}
+          className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
+        >
           <div
             className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
           >
@@ -306,7 +313,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   }
                 }}
               >
-                <Tooltip.Trigger className="min-w-0 flex-1" tabIndex={-1} role="none">
+                <Tooltip.Trigger
+                  className="poracode-thread-pane-title min-w-0 flex-1"
+                  tabIndex={-1}
+                  role="none"
+                >
                   <span
                     ref={titleRef}
                     className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
@@ -320,7 +331,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
               </Tooltip>
               <div className="flex shrink-0 items-center">
                 {projectName ? (
-                  <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
+                  <span className="poracode-thread-pane-project px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
                     {projectName}
                   </span>
                 ) : null}
@@ -353,6 +364,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <Tooltip.Trigger>
                       <button
                         type="button"
+                        data-poracode-thread-debug=""
                         aria-label={
                           runtimeDebugOpen
                             ? t`Hide runtime debug panel`
@@ -400,6 +412,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {showCloseButton ? (
                   <button
                     type="button"
+                    data-poracode-thread-close=""
                     aria-label={t`Close pane`}
                     className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                     onClick={(e) => {
@@ -414,6 +427,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             </div>
           </div>
         </div>
+
+        {compactLayout && !awaitingWorktree ? (
+          <CompactThreadWorkspaceBar thread={thread} projectLabel={projectName ?? ""} />
+        ) : null}
 
         <div className={contentShellClass}>
           {dropIndicator === "replace" && (

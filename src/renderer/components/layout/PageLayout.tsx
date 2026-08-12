@@ -1,14 +1,18 @@
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "@heroui/react";
-import { House } from "lucide-react";
+import { ChevronLeft, House } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { isMac, isWindows } from "@/renderer/bridge";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { macosTrafficLightGutterClass } from "@/renderer/components/layout/sidebarChrome";
 import {
   AppShell,
   SidebarContext,
   useSidebar,
 } from "@/renderer/views/MainView/parts/AppShell/AppShell";
+import { expandSidebar } from "@/renderer/state/sidebarOverlayStore";
 
 const alwaysExpandedSidebar = {
   isCollapsed: false,
@@ -41,7 +45,7 @@ function SidebarHeaderWordmark(props: {
       <button
         type="button"
         aria-label={title}
-        className="poracode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
+        className="poracode-sidebar-wordmark poracode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
         onClick={onTitleClick}
       >
         {content}
@@ -147,6 +151,45 @@ function SidebarHeaderRow(props: {
   );
 }
 
+function CompactContentHeader(props: {
+  title: string;
+  titleNode?: ReactNode | undefined;
+  children?: ReactNode;
+  onTitleClick?: () => void;
+  onBack?: (() => void) | undefined;
+}) {
+  const { t } = useLingui();
+  return (
+    <div className="poracode-compact-content-header flex min-w-0 flex-1 items-center">
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        aria-label={props.onBack ? t`Return to app` : t`Back`}
+        className="m-back min-w-0 shrink-0"
+        onPress={props.onBack ?? expandSidebar}
+      >
+        <ChevronLeft className="size-5" />
+      </Button>
+      {props.children ? (
+        props.children
+      ) : props.onTitleClick ? (
+        <button
+          type="button"
+          className="min-w-0 truncate text-left text-sm font-semibold"
+          onClick={props.onTitleClick}
+        >
+          {props.titleNode ?? props.title}
+        </button>
+      ) : (
+        <div className="min-w-0 truncate text-sm font-semibold">
+          {props.titleNode ?? props.title}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Shared page layout: split header (sidebar + content) + AppShell body.
  * Used by the main app, git review overlay, settings overlay, and file editor.
@@ -167,7 +210,13 @@ export function PageLayout(props: {
   forceSidebarExpanded?: boolean;
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
+  compactHome?: boolean;
+  compactTitle?: string;
+  compactHeaderChildren?: ReactNode;
+  onCompactBack?: () => void;
+  mobileNavigation?: boolean;
 }) {
+  const compactLayout = useCompactLayout();
   const {
     title,
     titleNode,
@@ -184,6 +233,11 @@ export function PageLayout(props: {
     forceSidebarExpanded,
     onRequestClosePanels,
     onDismissRightOverlay,
+    compactHome = false,
+    compactTitle,
+    compactHeaderChildren,
+    onCompactBack,
+    mobileNavigation = false,
   } = props;
 
   const sidebarHeader = (
@@ -196,10 +250,25 @@ export function PageLayout(props: {
     </SidebarHeaderRow>
   );
 
-  // macOS only: drop the empty center `poracode-overlay-header` when there is no content so main
-  // + the right column reclaim the titlebar row next to hidden-inset chrome. Other platforms keep
-  // the empty row (signalled by the empty fragment, since `null` would suppress it everywhere).
-  const contentHeader = contentHeaderChildren ?? (isMac() ? null : <></>);
+  // macOS and desktop browser: drop the empty center `poracode-overlay-header` when there is no
+  // content so main + the right column reclaim the titlebar row. Other native platforms keep the
+  // empty row for their titleBarOverlay controls (signalled by the empty fragment, since `null`
+  // would suppress it everywhere). Compact browser layouts retain their explicit mobile header.
+  const contentHeader =
+    compactLayout && !compactHome ? (
+      <CompactContentHeader
+        title={compactTitle ?? title}
+        {...(compactTitle === undefined && titleNode !== undefined ? { titleNode } : {})}
+        {...(compactTitle === undefined && onTitleClick !== undefined ? { onTitleClick } : {})}
+        {...(onCompactBack !== undefined ? { onBack: onCompactBack } : {})}
+      >
+        {compactHeaderChildren}
+      </CompactContentHeader>
+    ) : (
+      (contentHeaderChildren ?? (isMac() || isBrowserClientRuntime() ? null : <></>))
+    );
+  const effectiveForceSidebarExpanded =
+    (forceSidebarExpanded === true && !compactLayout) || (compactLayout && compactHome);
 
   const shell = (
     <AppShell
@@ -212,13 +281,15 @@ export function PageLayout(props: {
       {...(rightPanelOpen !== undefined ? { rightPanelOpen } : {})}
       {...(rightPanelPlacement !== undefined ? { rightPanelPlacement } : {})}
       {...(rightPanelResizeLabel !== undefined ? { rightPanelResizeLabel } : {})}
-      {...(forceSidebarExpanded === true ? { forceSidebarExpanded: true } : {})}
+      {...(effectiveForceSidebarExpanded ? { forceSidebarExpanded: true } : {})}
       {...(onRequestClosePanels != null ? { onRequestClosePanels } : {})}
       {...(onDismissRightOverlay != null ? { onDismissRightOverlay } : {})}
+      compactHome={compactHome}
+      mobileNavigation={mobileNavigation}
     />
   );
 
-  if (forceSidebarExpanded === true) {
+  if (effectiveForceSidebarExpanded) {
     return <SidebarContext.Provider value={alwaysExpandedSidebar}>{shell}</SidebarContext.Provider>;
   }
 

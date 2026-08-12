@@ -65,4 +65,24 @@ describe("backendHostProtocol", () => {
       }),
     ).toBe(false);
   });
+
+  it("accepts sequenced renderer fallback events and rejects invalid cursors", () => {
+    const event = { type: "git-changed", projectId: "project" };
+    expect(
+      isBackendHostOutboundMessage({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "supervisor-event",
+        event,
+        rendererSequence: 42,
+      }),
+    ).toBe(true);
+    expect(
+      isBackendHostOutboundMessage({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "supervisor-event",
+        event,
+        rendererSequence: 1.5,
+      }),
+    ).toBe(false);
+  });
 });

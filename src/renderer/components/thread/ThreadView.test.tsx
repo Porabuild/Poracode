@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { Thread } from "@/shared/contracts";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
@@ -81,6 +81,10 @@ function hasAncestorWithClassFragment(element: HTMLElement | null, fragment: str
 }
 
 describe("ThreadView", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -154,6 +158,61 @@ describe("ThreadView", () => {
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
     expect(screen.queryByLabelText("Disable Computer Use")).toBeNull();
     expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+  });
+
+  it("keeps thread actions reachable without duplicate compact title chrome", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    const { container } = renderThreadView({
+      thread: {
+        id: "thread-mobile-header",
+        projectId: "project-1",
+        title: "Mobile thread",
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      agentStatus: undefined,
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      onMarkDone: () => undefined,
+    });
+
+    const header = container.querySelector("[data-poracode-thread-header]");
+    expect(header).toHaveAttribute("data-compact", "true");
+    expect(header).not.toHaveClass("hidden");
+    expect(header?.querySelector(".poracode-thread-pane-title")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Mark done" })).toBeInTheDocument();
+    const toolsTrigger = screen.getByRole("button", { name: "Show thread tools" });
+    const toolsMenu = toolsTrigger
+      .closest("[data-poracode-thread-tool-rail]")
+      ?.querySelector("[data-poracode-thread-tool-menu]");
+    expect(toolsMenu).toHaveClass("invisible");
+
+    fireEvent.click(toolsTrigger);
+
+    expect(toolsTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(toolsMenu).toHaveClass("visible");
+    fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
+    expect(toolsMenu).toHaveClass("invisible");
   });
 
   it("does not infer MCP enablement from the provider identity", () => {

@@ -61,8 +61,10 @@ export interface ComposerSubmitContext {
   setIsSubmitting: (value: boolean) => void;
   /** Open the model/effort picker (backs the `/model` and `/effort` commands). */
   requestOpenControl: (target: "model" | "effort") => void;
-  /** Mobile override: routes through the remote transport + dock collapse. */
+  /** Optional surface override for the canonical thread-input action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  /** Runs only after the submitted input has been accepted. */
+  onSubmitted?: (() => void) | undefined;
 }
 
 /**
@@ -216,6 +218,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (!clearedBeforeSendSettled && ctx.isCurrentSession()) {
         clearSubmittedComposer();
       }
+      if (ctx.isCurrentSession()) ctx.onSubmitted?.();
     })
     .catch((error: unknown) => {
       // Leave the prompt intact so the user can retry.

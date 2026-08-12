@@ -54,6 +54,7 @@ export function usePanelVisibility() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const currentThreadId = useFocusedThreadId();
@@ -104,7 +105,8 @@ export function usePanelVisibility() {
       scopedSubAgentPanelOpen ||
       browserPanelOpen ||
       usagePanelOpen ||
-      notesPanelOpen
+      notesPanelOpen ||
+      portsPanelOpen
     : bottomTerminalOpen || hasBottomDocks;
   // A bottom-docked tab must not keep the right aside open on its own — it is
   // already rendered in the bottom row.
@@ -117,7 +119,8 @@ export function usePanelVisibility() {
       scopedSubAgentPanelOpen ||
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||
-      (notesPanelOpen && !isDocked("notes")));
+      (notesPanelOpen && !isDocked("notes")) ||
+      portsPanelOpen);
   const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 
   return { rightPanelOpen, gitPanelOpen: sideGitPanelOpen, sidePanelOpen };

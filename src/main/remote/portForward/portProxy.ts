@@ -90,7 +90,7 @@ export class PortProxy {
 
   /** Mints a fresh enter token for `forwardId`. Safe to call repeatedly for the
    * same forward (e.g. once at `POST /api/ports/forward` time and again from
-   * `POST /api/ports/enter` right before the mobile app opens the tab, so the
+   * `POST /api/ports/enter` right before the browser opens the tab, so the
    * token used is always fresh) — old tokens for the forward stay valid until
    * their own TTL elapses. */
   issueEnterToken(forwardId: string): IssuedEnterToken {
