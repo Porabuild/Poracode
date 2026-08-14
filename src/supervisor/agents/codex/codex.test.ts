@@ -1093,6 +1093,94 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("retries turn/interrupt with the live id after a stale-id mismatch", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-stale";
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/interrupt" && params.turnId === "turn-stale") {
+          return Promise.reject(
+            new Error("expected active turn id turn-live but found turn-stale"),
+          );
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(requests).toEqual([
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-stale" },
+      },
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live" },
+      },
+    ]);
+    expect((structuredSession as unknown as Record<string, unknown>)["activeTurnId"]).toBe(
+      "turn-live",
+    );
+  });
+
+  it("does not drop the live turn id when a previous turn completes late", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-live";
+    const updates: StructuredSessionUpdate[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onUpdate: (update: StructuredSessionUpdate) => updates.push(update),
+    };
+
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-old", status: "completed" },
+      },
+    });
+
+    expect((structuredSession as unknown as Record<string, unknown>)["activeTurnId"]).toBe(
+      "turn-live",
+    );
+    expect(updates).toEqual([]);
+
+    await structuredSession.interruptTurn();
+
+    expect(requests.at(-1)).toEqual({
+      method: "turn/interrupt",
+      params: { threadId: "provider-thread", turnId: "turn-live" },
+    });
+  });
+
+  it("interrupts a turn that starts after stop was requested without a known id", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.interruptTurn();
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", items: [], status: "inProgress" },
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(requests).toContainEqual({
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live" },
+      });
+    });
+  });
+
   it("does not carry a pending interrupt into the next turn after turn/start fails", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
