@@ -504,7 +504,7 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = this.sessions.get(payload.threadId);
+    const session = await this.findSessionAfterPendingStart(payload.threadId);
     if (!session) {
       if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
       throw new Error(`Unknown thread session: ${payload.threadId}`);
@@ -862,7 +862,10 @@ export class ThreadSessionManager {
    * Drain is automatic on cancelled-stopReason via `maybeDrainPendingSteer`.
    */
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
-    const session = this.requireSession(payload.threadId);
+    const session = await this.findSessionAfterPendingStart(payload.threadId);
+    if (!session) {
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
     if (payload.segments === undefined) {
       await this.steerCoordinator.setPendingSteer(session, payload);
       return;
@@ -1105,6 +1108,23 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${threadId}`);
     }
     return session;
+  }
+
+  /**
+   * Input can race an in-progress reconnect before `spawnPipeline` publishes
+   * the new SessionRuntime. Wait for that thread's serialized start instead of
+   * surfacing a false "Unknown thread session" error. Callers still decide
+   * normal-turn vs steer from the authoritative session status after startup.
+   */
+  private async findSessionAfterPendingStart(
+    threadId: string,
+  ): Promise<SessionRuntime | undefined> {
+    const live = this.sessions.get(threadId);
+    if (live) return live;
+    const pendingStart = this.startLocks.get(threadId);
+    if (!pendingStart) return undefined;
+    await pendingStart;
+    return this.sessions.get(threadId);
   }
 
   private rememberRemovedThread(threadId: string): void {
