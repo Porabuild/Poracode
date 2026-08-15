@@ -121,7 +121,10 @@ export interface ThreadSlice {
   touchThread: (threadId: string) => void;
   markThreadViewed: (threadId: string) => void;
   markThreadsViewed: (threadIds: readonly string[]) => void;
-  reconcileRuntimeSnapshots: (snapshots: ThreadRuntimeSnapshot[]) => void;
+  reconcileRuntimeSnapshots: (
+    snapshots: ThreadRuntimeSnapshot[],
+    requestedThreadIds?: ReadonlySet<string>,
+  ) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
 }
@@ -710,7 +713,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       }
       return changed ? { lastViewedAtByThreadId: next } : {};
     }),
-  reconcileRuntimeSnapshots: (snapshots) =>
+  reconcileRuntimeSnapshots: (snapshots, requestedThreadIds) =>
     set((state) => {
       const snapshotsById = new Map(snapshots.map((snapshot) => [snapshot.threadId, snapshot]));
       const runtimeLaunchConfigByThreadId = Object.fromEntries(
@@ -810,6 +813,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         }
 
         if (
+          (requestedThreadIds !== undefined && !requestedThreadIds.has(thread.id)) ||
           thread.status === "inactive" ||
           thread.status === "error" ||
           thread.status === "launching"

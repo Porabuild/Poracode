@@ -13,7 +13,7 @@ function deferred<T>() {
 const mocks = vi.hoisted(() => {
   const appState = {
     updateProjectDraftConfig: vi.fn<(projectId: string, config: unknown) => void>(),
-    view: { kind: "home" as const },
+    view: { kind: "home" } as { kind: string; panes?: string[]; activeGroupId?: string },
     projects: [] as Project[],
     threads: [] as Thread[],
     provisioningWorktreeThreadIds: {} as Record<string, true>,
@@ -189,11 +189,14 @@ describe("startThreadFromDraft host transport", () => {
         id: values.threadId ?? "local-thread",
         projectId: values.projectId ?? localProject.id,
         archived: false,
+        config: values.config ?? {},
         ...(values.presentationMode ? { presentationMode: values.presentationMode } : {}),
         ...(values.remoteServerId ? { remoteServerId: values.remoteServerId } : {}),
         ...(values.remoteId ? { remoteId: values.remoteId } : {}),
       } as Thread;
       mocks.appState.threads = [thread];
+      // The real createThread focuses the new thread's pane.
+      mocks.appState.view = { kind: "thread", panes: [thread.id] };
       if (values.worktreeProvisioning) {
         mocks.appState.provisioningWorktreeThreadIds[thread.id] = true;
       }
@@ -282,11 +285,15 @@ describe("startThreadFromDraft host transport", () => {
       "C:\\shared-worktrees\\feature",
       "feature",
     );
-    expect(mocks.appState.queueThreadLaunch).toHaveBeenCalledWith(
-      "local-thread",
-      "build it",
-      undefined,
-      optimisticItemId,
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "local-thread",
+        prompt: "build it",
+        projectLocation: { kind: "windows", path: "C:\\shared-worktrees\\feature" },
+        userMessageItemId: optimisticItemId,
+        initialSize: expect.objectContaining({ cols: expect.any(Number) }),
+      }),
     );
     expect(mocks.primeWorktreeGitState).toHaveBeenCalledWith(
       localProject,
@@ -297,6 +304,129 @@ describe("startThreadFromDraft host transport", () => {
       "C:\\shared-worktrees\\feature",
       "pnpm install",
     );
+  });
+
+  it("launches inline when the thread's pane was closed during worktree provisioning", async () => {
+    let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
+    mocks.createWorktree.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWorktree = resolve;
+      }),
+    );
+
+    const launch = startThreadFromDraft(localProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      presentationMode: "gui",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+    const optimisticStartCall = mocks.appState.applyRuntimeEvent.mock.calls[0];
+    if (!optimisticStartCall) throw new Error("Expected an optimistic user message event");
+    const optimisticItemId = (optimisticStartCall[1] as { itemId?: string }).itemId;
+
+    // The user switched to another thread while the worktree was provisioning,
+    // so no mounted ThreadView will ever consume a queued launch.
+    mocks.appState.view = { kind: "thread", panes: ["another-thread"] };
+    resolveWorktree({ path: "C:\\shared-worktrees\\feature" });
+    await launch;
+
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "local-thread",
+        prompt: "build it",
+        projectLocation: { kind: "windows", path: "C:\\shared-worktrees\\feature" },
+        userMessageItemId: optimisticItemId,
+        initialSize: expect.objectContaining({ cols: expect.any(Number) }),
+      }),
+    );
+    expect(mocks.runWorktreeSetupScript).toHaveBeenCalledWith(
+      localProject,
+      "C:\\shared-worktrees\\feature",
+      "pnpm install",
+    );
+  });
+
+  it("marks the thread failed when the inline launch cannot start", async () => {
+    mocks.bridge.startThread.mockRejectedValue(new Error("spawn failed"));
+    let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
+    mocks.createWorktree.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWorktree = resolve;
+      }),
+    );
+
+    const launch = startThreadFromDraft(localProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      presentationMode: "gui",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+    mocks.appState.view = { kind: "thread", panes: ["another-thread"] };
+    resolveWorktree({ path: "C:\\shared-worktrees\\feature" });
+    await expect(launch).rejects.toThrow("spawn failed");
+
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenCalledWith("local-thread", {
+      type: "error",
+      threadId: "local-thread",
+      message: "spawn failed",
+    });
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith("local-thread", {
+      status: "error",
+      attention: "error",
+      errorMessage: "spawn failed",
+      canResumeWithConfig: false,
+    });
+    expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
+  });
+
+  it("launches a local non-worktree thread inline over the bridge", async () => {
+    await startThreadFromDraft(localProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      presentationMode: "gui",
+    });
+
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "local-thread",
+        prompt: "build it",
+        projectLocation: localProject.location,
+        initialSize: expect.objectContaining({ cols: expect.any(Number) }),
+      }),
+    );
+  });
+
+  it("marks a local non-worktree thread failed when the bridge launch fails", async () => {
+    mocks.bridge.startThread.mockRejectedValue(new Error("spawn failed"));
+
+    await expect(
+      startThreadFromDraft(localProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build it",
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("spawn failed");
+
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenCalledWith("local-thread", {
+      type: "error",
+      threadId: "local-thread",
+      message: "spawn failed",
+    });
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith("local-thread", {
+      status: "error",
+      attention: "error",
+      errorMessage: "spawn failed",
+      canResumeWithConfig: false,
+    });
   });
 
   it("shows a provisioning failure on the thread opened for a new local worktree", async () => {

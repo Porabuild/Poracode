@@ -10,8 +10,9 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
@@ -311,18 +312,7 @@ export async function startThreadFromDraft(
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
           return;
         }
-        const message = friendlyError(error);
-        store.applyRuntimeEvent(pendingThread.id, {
-          type: "error",
-          threadId: pendingThread.id,
-          message,
-        });
-        store.updateThreadRuntime(pendingThread.id, {
-          status: "error",
-          attention: "error",
-          errorMessage: message,
-          canResumeWithConfig: false,
-        });
+        markThreadLaunchFailed(pendingThread.id, error);
         throw error;
       }
       if (useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
@@ -330,7 +320,30 @@ export async function startThreadFromDraft(
       }
     } else {
       store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
-      store.queueThreadLaunch(pendingThread.id, prompt, segments, pendingUserMessageItemId);
+      // Launch inline, never via the view-consumed launch queue: a queued
+      // launch fires only when a mounted ThreadView consumes it, so switching
+      // or closing the pane while the worktree provisions would leave the
+      // agent silently never started. The launch must not depend on the view.
+      const launchThread =
+        useAppStore.getState().threads.find((thread) => thread.id === pendingThread.id) ??
+        pendingThread;
+      try {
+        await performInitialThreadLaunch({
+          thread: launchThread,
+          projectLocation: resolveProjectLocation(project.location, worktreePath),
+          prompt,
+          ...(segments ? { segments } : {}),
+          ...(pendingUserMessageItemId ? { userMessageItemId: pendingUserMessageItemId } : {}),
+          initialSize: DEFAULT_TERMINAL_SIZE,
+        });
+      } catch (error) {
+        if (!useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
+          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+          return;
+        }
+        markThreadLaunchFailed(pendingThread.id, error);
+        throw error;
+      }
     }
   } else {
     await host.startThread({
@@ -402,11 +415,26 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
 
   return {
     setupRunsOnHost: false,
-    startThread: (launch) => {
+    startThread: async (launch) => {
       const thread = createThreadRow(launch);
-      const store = useAppStore.getState();
-      store.queueThreadLaunch(thread.id, launch.prompt, launch.segments);
-      return Promise.resolve("started");
+      // Launch inline, never via the view-consumed launch queue — the launch
+      // must not depend on which pane is mounted (see the worktree path above).
+      try {
+        await performInitialThreadLaunch({
+          thread,
+          projectLocation: resolveProjectLocation(launch.project.location, launch.worktreePath),
+          prompt: launch.prompt,
+          ...(launch.segments ? { segments: launch.segments } : {}),
+          ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
+          initialSize: DEFAULT_TERMINAL_SIZE,
+        });
+      } catch (error) {
+        if (useAppStore.getState().threads.some((row) => row.id === thread.id)) {
+          markThreadLaunchFailed(thread.id, error);
+        }
+        throw error;
+      }
+      return "started";
     },
   };
 }
@@ -453,6 +481,23 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
     generateTitleAsync(thread.id, launch.project.location, projectAgentStatuses, titlePrompt);
   }
   return thread;
+}
+
+/** Surface a failed launch on the thread row (error item + error status). */
+function markThreadLaunchFailed(threadId: string, error: unknown): void {
+  const store = useAppStore.getState();
+  const message = friendlyError(error);
+  store.applyRuntimeEvent(threadId, {
+    type: "error",
+    threadId,
+    message,
+  });
+  store.updateThreadRuntime(threadId, {
+    status: "error",
+    attention: "error",
+    errorMessage: message,
+    canResumeWithConfig: false,
+  });
 }
 
 function appendOptimisticInitialUserMessage(

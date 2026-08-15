@@ -46,6 +46,9 @@ const {
         worktreeBasePath: "",
         wslWorktreeBasePath: "",
         workspaces: [] as Workspace[],
+        mcpServers: [],
+        disabledBuiltInMcpServers: {},
+        disabledBuiltInMcpTools: {},
       },
     },
     quickComposerSubmitListeners: quickListeners,
@@ -391,6 +394,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
     {
       getState: () => ({
         ...sharedSettingsState.current,
+        pushRecentModel: () => undefined,
         setThemeMode: () => undefined,
       }),
     },
@@ -893,7 +897,7 @@ describe("App", () => {
     expect(useExperimentStore.getState().experiments).toEqual({});
   });
 
-  it("creates and queues the thread submitted by the quick composer", async () => {
+  it("creates and launches the thread submitted by the quick composer", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -927,18 +931,27 @@ describe("App", () => {
       });
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("sent from overlay")).toHaveAttribute(
-        "data-pending-launch",
-        "sent from overlay",
-      );
-    });
+    await waitFor(() => expect(bridge.startThread).toHaveBeenCalledTimes(1));
     expect(useAppStore.getState().view.kind).toBe("thread");
-    expect(useAppStore.getState().threads[0]).toMatchObject({
+    const thread = useAppStore.getState().threads[0];
+    expect(thread).toMatchObject({
       projectId: "project-1",
       agentKind: "codex",
       presentationMode: "gui",
     });
+    expect(screen.getByText("sent from overlay")).toHaveAttribute(
+      "data-pending-launch",
+      "__none__",
+    );
+    expect(bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: thread?.id,
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        prompt: "sent from overlay",
+        segments: [{ kind: "text", content: "sent from overlay" }],
+        presentationMode: "gui",
+      }),
+    );
   });
 
   it("mirrors a remotely started thread without queueing a duplicate launch", async () => {
