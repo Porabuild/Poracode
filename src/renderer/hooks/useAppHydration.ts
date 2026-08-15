@@ -127,6 +127,10 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
         purgeStaleArchivedThreads(30);
       });
 
+      // A user can create a thread while this request is in flight. Scope the
+      // response to the threads that existed when it began so an older empty
+      // snapshot cannot mark a fresh direct launch inactive and relaunch it.
+      const requestedThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
       const snapshotsPromise = readBridge().getThreadSnapshots();
 
       const visibleGuiThreadIds = collectVisibleGuiThreadIds();
@@ -171,6 +175,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
             selectedIds.size > 0
               ? snapshots.filter((snapshot) => selectedIds.has(snapshot.threadId))
               : [],
+            requestedThreadIds,
           );
         });
       } catch (error) {
