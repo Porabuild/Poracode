@@ -27,15 +27,66 @@ export function claudeTerminalAuthMethod(env?: Record<string, string>): AgentTer
   return env ? { ...CLAUDE_TERMINAL_AUTH_METHOD, env } : CLAUDE_TERMINAL_AUTH_METHOD;
 }
 
+/** Provider label carried by Claude's own (SDK-reported) skill entries. */
+export const CLAUDE_NATIVE_SKILL_PROVIDER = "Claude";
+
+/**
+ * Prompt-style invocation for a model-invoked skill. Per the Agent SDK docs a
+ * skill is invoked by the model through the `Skill` tool, which streams events
+ * normally; sending the bare `/name` slash text instead makes the CLI run an
+ * opaque local command that emits nothing until it finishes.
+ */
+export function claudeSkillInvocation(name: string): string {
+  return `Use the ${name} skill.`;
+}
+
+/**
+ * `skillNames` are the entries the SDK reports under `skills` on the session's
+ * `system` init message. Bundled skills appear in *both* that list and the
+ * slash-command list, so a command whose name is a known skill is re-flavored
+ * as a skill entry (model-invoked, streams) instead of a slash command
+ * (opaque local command, no stream events).
+ */
 export function mapClaudeSlashCommands(
   commands: readonly SlashCommand[],
+  skillNames?: ReadonlySet<string>,
 ): NonNullable<AgentCapability["slashCommands"]> {
-  return commands.map((c) => ({
-    id: c.name,
-    label: c.description?.trim() ? `${c.name} — ${c.description}` : c.name,
-    ...(c.description?.trim() ? { description: c.description } : {}),
-    ...(c.argumentHint ? { argumentHint: c.argumentHint } : {}),
-  }));
+  return commands.map((c) => {
+    const base = {
+      id: c.name,
+      label: c.description?.trim() ? `${c.name} — ${c.description}` : c.name,
+      ...(c.description?.trim() ? { description: c.description } : {}),
+      ...(c.argumentHint ? { argumentHint: c.argumentHint } : {}),
+    };
+    if (!skillNames?.has(c.name)) return base;
+    return {
+      ...base,
+      section: "skills" as const,
+      skillName: c.name,
+      skillInvocation: claudeSkillInvocation(c.name),
+      skillProvider: CLAUDE_NATIVE_SKILL_PROVIDER,
+      // Provider-native skills carry no SKILL.md path; scope is only used for
+      // display/precedence, and the SDK reports one flat catalog.
+      skillScope: "global" as const,
+    };
+  });
+}
+
+/**
+ * Skill names for the session, read through the SDK's skill-list control
+ * request. Used by the probes, which never consume the message stream and so
+ * cannot read `skills` off the `system` init message. Returns `undefined` when
+ * the CLI does not support the request.
+ */
+export async function readClaudeSkillNames(runtime: {
+  reloadSkills: () => Promise<{ skills: readonly { name: string }[] }>;
+}): Promise<Set<string> | undefined> {
+  try {
+    const { skills } = await runtime.reloadSkills();
+    return new Set(skills.map((skill) => skill.name));
+  } catch {
+    return undefined;
+  }
 }
 
 function probeDir(): string {
@@ -99,7 +150,7 @@ async function probeClaudeSdkPartialNative(
         },
       });
       const init = await q.initializationResult();
-      const slashCommands = mapClaudeSlashCommands(init.commands);
+      const slashCommands = mapClaudeSlashCommands(init.commands, await readClaudeSkillNames(q));
       const modelCapabilities = claudeCapabilitiesFromSdkModels(init.models);
       const fastAvailable = await resolveFastAvailability(
         q,

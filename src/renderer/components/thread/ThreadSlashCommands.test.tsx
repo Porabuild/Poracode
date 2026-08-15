@@ -684,6 +684,42 @@ describe("ThreadSlashCommands", () => {
     ]);
   });
 
+  it("keeps the SKILL.md path when a provider reports a locally scanned skill", () => {
+    const local = {
+      id: "browser-control",
+      label: "browser-control — Drive the browser",
+      description: "Drive the browser",
+      section: "skills" as const,
+      skillName: "browser-control",
+      skillPath: "/plugins/browser-tools/skills/browser-control/SKILL.md",
+      skillInvocation: "Use the browser-control skill.",
+      skillProvider: "Browser Tools",
+      skillScope: "global" as const,
+      pluginId: "browser-tools",
+      pluginName: "Browser Tools",
+    };
+
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          // Provider-native entry for the same skill: no SKILL.md path.
+          id: "browser-control",
+          label: "browser-control — Drive the browser",
+          description: "Drive the browser",
+          section: "skills",
+          skillName: "browser-control",
+          skillInvocation: "Use the browser-control skill.",
+          skillProvider: "Claude",
+          skillScope: "global",
+        },
+      ],
+      undefined,
+      { skillCommands: [local] },
+    );
+
+    expect(commands).toEqual([local]);
+  });
+
   it("finds ACP skill commands by their short display name", () => {
     const command = {
       id: "skill:simplify",

@@ -210,7 +210,15 @@ export function buildOpenCodePromptParts(
         parts.push({ type: "text", text: `@${segment.name}` });
         continue;
       }
-      const absolute = resolveAbsolutePath(location, segment.path);
+      // A provider-native skill has no SKILL.md to attach — send its
+      // invocation text so the agent resolves it from its own catalog.
+      if (segment.kind === "skill" && segment.path === undefined) {
+        parts.push({ type: "text", text: segment.invocation });
+        continue;
+      }
+      const segmentPath = segment.path;
+      if (segmentPath === undefined) continue;
+      const absolute = resolveAbsolutePath(location, segmentPath);
       const url = fileUrlForPath(location, absolute);
       const mime = mimeForSegment(segment, absolute);
       if (!shouldSendFilePart(mime)) {

@@ -978,6 +978,59 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("re-flavors commands the init message also reports as skills", async () => {
+    const fake = createFakeQuery([
+      { name: "compact", description: "Compact the conversation", argumentHint: "" },
+      { name: "code-review", description: "Review the current diff", argumentHint: "" },
+    ]);
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-skills",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    await session.openThread(config);
+    await flushAsyncWork();
+
+    fake.emitMessage({
+      type: "system",
+      subtype: "init",
+      session_id: "claude-session",
+      skills: ["code-review"],
+    } as unknown as SDKMessage);
+    await flushAsyncWork();
+
+    const latest = updates.filter((update) => update.slashCommands !== undefined).at(-1);
+    expect(latest?.slashCommands).toEqual([
+      {
+        id: "compact",
+        label: "compact — Compact the conversation",
+        description: "Compact the conversation",
+      },
+      {
+        id: "code-review",
+        label: "code-review — Review the current diff",
+        description: "Review the current diff",
+        section: "skills",
+        skillName: "code-review",
+        skillInvocation: "Use the code-review skill.",
+        skillProvider: "Claude",
+        skillScope: "global",
+      },
+    ]);
+
+    await session.dispose();
+  });
+
   it("refreshes current SDK context usage after result messages", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);

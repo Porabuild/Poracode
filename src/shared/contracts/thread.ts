@@ -114,7 +114,13 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("skill"),
     name: z.string().min(1),
-    path: z.string().min(1),
+    /**
+     * Absolute path to the skill's SKILL.md. Absent for provider-native skills
+     * the agent resolves by name (e.g. Claude's bundled skills reported through
+     * the SDK), which have no on-disk file the app can read. Consumers must
+     * treat a missing path as "nothing to read/inline/policy-match".
+     */
+    path: z.string().min(1).optional(),
     invocation: z.string().min(1),
     provider: z.string().min(1),
     scope: z.enum(["global", "project"]),
