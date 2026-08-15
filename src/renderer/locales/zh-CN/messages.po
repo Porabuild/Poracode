@@ -4932,6 +4932,10 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "使用 Poracode 的本机运行时进行一流的 Kimi Code CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+msgstr "使用 Poracode 的本机终端运行时进行一流的 Muse Code CLI 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
 
@@ -6919,6 +6923,10 @@ msgstr "已将您的更改移至“{newBranch}”上的新工作树中。“{cur
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "正在移动更改…"
+
+#: src/renderer/components/providers/muse/manifest.ts
+msgid "Muse Code"
+msgstr "Muse Code"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"

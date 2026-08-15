@@ -4932,6 +4932,10 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Tích hợp Kimi Code CLI hạng nhất bằng cách sử dụng thời gian chạy gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+msgstr "Tích hợp Muse Code CLI hạng nhất bằng cách sử dụng thời gian chạy terminal gốc của Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc của Poracode."
 
@@ -6920,6 +6924,10 @@ msgstr "Đã chuyển các thay đổi của bạn sang một cây làm việc m
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Đang di chuyển các thay đổi…"
+
+#: src/renderer/components/providers/muse/manifest.ts
+msgid "Muse Code"
+msgstr "Muse Code"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
