@@ -87,6 +87,12 @@ export async function buildSdkUserMessage(
       });
       continue;
     }
+    if (segment.kind === "skill") {
+      // A skill is invoked by its invocation text (model-invoked via the SDK's
+      // Skill tool), never as an `@<SKILL.md path>` file mention.
+      textParts.push(segment.invocation);
+      continue;
+    }
     if (segment.kind === "mcp") {
       // MCP mentions are a plain-text directive for the turn, not a file ref.
       textParts.push(`@${segment.name}`);

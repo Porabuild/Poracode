@@ -53,7 +53,10 @@ export function selectSkillSegmentsForInjection(
 ): SkillPromptSegment[] {
   const seen = new Set<string>();
   return segments.filter((segment): segment is SkillPromptSegment => {
-    if (segment.kind !== "skill" || isPathUnderAny(segment.path, nativeRootPaths)) return false;
+    // Pathless segments are provider-native skills the agent resolves by name:
+    // there is no SKILL.md to inline, so they are never selected.
+    if (segment.kind !== "skill" || !segment.path) return false;
+    if (isPathUnderAny(segment.path, nativeRootPaths)) return false;
     const key = normalizeForPrefix(segment.path);
     if (seen.has(key)) return false;
     seen.add(key);

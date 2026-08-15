@@ -203,7 +203,9 @@ export class PluginSkillPolicy {
       Array<{ segment: PromptSegment; linuxPath: string }>
     >();
     for (const segment of segments) {
-      if (segment.kind !== "skill") continue;
+      // A provider-native skill has no path, so it can never sit inside a
+      // plugin package boundary — leave it alone.
+      if (segment.kind !== "skill" || !segment.path) continue;
       const hostMatch = this.matchHostPath(roots, segment.path);
       if (hostMatch) {
         matched.set(segment, hostMatch);

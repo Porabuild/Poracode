@@ -40,7 +40,10 @@ export function buildCodexTurnInput(
   inlineInstructions?: string,
 ): TurnStartParams["input"] {
   const input: TurnStartParams["input"] = [];
-  const hasSkillSegment = segments?.some((segment) => segment.kind === "skill") === true;
+  // Codex's `skill` input requires an on-disk path. A pathless (provider-native)
+  // skill segment therefore rides along as its plain invocation text instead.
+  const hasSkillSegment =
+    segments?.some((segment) => segment.kind === "skill" && segment.path !== undefined) === true;
 
   for (const seg of segments ?? []) {
     if (seg.kind === "attachment") {
@@ -59,7 +62,7 @@ export function buildCodexTurnInput(
         path: seg.path,
         name: fileName(seg.path),
       });
-    } else if (seg.kind === "skill") {
+    } else if (seg.kind === "skill" && seg.path !== undefined) {
       input.push({ type: "skill", name: seg.name, path: seg.path });
     }
   }
@@ -71,7 +74,10 @@ export function buildCodexTurnInput(
   const text = hasSkillSegment
     ? (segments ?? [])
         .flatMap((segment) =>
-          segment.kind === "text" || segment.kind === "diff_comment" || segment.kind === "mcp"
+          segment.kind === "text" ||
+          segment.kind === "diff_comment" ||
+          segment.kind === "mcp" ||
+          (segment.kind === "skill" && segment.path === undefined)
             ? [inlinePromptSegmentText(segment)]
             : [],
         )

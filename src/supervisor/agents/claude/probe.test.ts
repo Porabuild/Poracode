@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Query,
   SDKMessage,
+  SlashCommand,
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
+import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
 
 const mockSdk = vi.hoisted(() => ({
   query: vi.fn<(input: unknown) => Query>(),
@@ -39,6 +41,7 @@ vi.mock("@/shared/processTree", () => mockProcessTree);
 
 import {
   claudeCapabilitiesFromCliVersion,
+  mapClaudeSlashCommands,
   probeClaudeCapabilities,
   win32PathToWslMount,
 } from "./probe";
@@ -115,6 +118,60 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+describe("mapClaudeSlashCommands", () => {
+  const commands = [
+    { name: "compact", description: "Compact the conversation", argumentHint: "" },
+    { name: "code-review", description: "Review the current diff", argumentHint: "<target>" },
+  ] as unknown as SlashCommand[];
+
+  it("maps every command as a plain slash command when no skills are reported", () => {
+    expect(mapClaudeSlashCommands(commands)).toEqual([
+      {
+        id: "compact",
+        label: "compact — Compact the conversation",
+        description: "Compact the conversation",
+      },
+      {
+        id: "code-review",
+        label: "code-review — Review the current diff",
+        description: "Review the current diff",
+        argumentHint: "<target>",
+      },
+    ]);
+  });
+
+  it("splits commands that are also skills into prompt-invoked skill entries", () => {
+    const mapped = mapClaudeSlashCommands(commands, new Set(["code-review"]));
+
+    expect(mapped[0]).not.toHaveProperty("section");
+    expect(mapped[1]).toEqual({
+      id: "code-review",
+      label: "code-review — Review the current diff",
+      description: "Review the current diff",
+      argumentHint: "<target>",
+      section: "skills",
+      skillName: "code-review",
+      skillInvocation: "Use the code-review skill.",
+      skillProvider: "Claude",
+      skillScope: "global",
+    });
+    // Provider-native skills have no SKILL.md on disk.
+    expect(mapped[1]).not.toHaveProperty("skillPath");
+  });
+
+  it("binds a provider-native skill command to a skill segment without a path", () => {
+    const [, skillCommand] = mapClaudeSlashCommands(commands, new Set(["code-review"]));
+
+    expect(skillSegmentFromSlashCommand(skillCommand)).toEqual({
+      kind: "skill",
+      name: "code-review",
+      invocation: "Use the code-review skill.",
+      provider: "Claude",
+      scope: "global",
+    });
+  });
 });
 
 describe("claudeCapabilitiesFromCliVersion", () => {
