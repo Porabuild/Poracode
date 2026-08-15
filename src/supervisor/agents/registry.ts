@@ -24,6 +24,7 @@ import { createFactoryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
+import { createMuseAdapter } from "./muse";
 import { createOpenCodeAdapter } from "./opencode";
 import { createPiAdapter } from "./pi";
 import { createQoderAdapter } from "./qoder";
@@ -48,6 +49,7 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
     createQoderAdapter(),
     createGrokAdapter(),
     createKimiAdapter(),
+    createMuseAdapter(),
     createAntigravityAdapter(),
     createCommandCodeAdapter(),
     createCursorAdapter(),

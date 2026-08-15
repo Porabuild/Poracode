@@ -70,6 +70,54 @@ describe("mapCodexNotification — turn lifecycle", () => {
     expect(completed).toMatchObject({ type: "turn.completed", state: "interrupted" });
   });
 
+  it("reports the completing notification's own turn id, not the stale current turn", () => {
+    const state = createCodexMapperState("t-codex");
+    mapCodexNotification("turn/started", { turnId: "t-1", threadId: "x" }, state);
+    mapCodexNotification("turn/started", { turnId: "t-2", threadId: "x" }, state);
+    const events = mapCodexNotification(
+      "turn/completed",
+      { threadId: "x", turn: { id: "t-1", status: "completed" } },
+      state,
+    );
+    const completed = events.find((e) => e.type === "turn.completed");
+    expect(completed).toMatchObject({ turnId: "t-1" });
+  });
+
+  it("keeps per-turn mapper state when a sibling turn is still running", () => {
+    const state = createCodexMapperState("t-codex");
+    mapCodexNotification("turn/started", { turnId: "t-1", threadId: "x" }, state);
+    mapCodexNotification(
+      "item/started",
+      { threadId: "x", turnId: "t-1", item: { id: "reasoning-1", type: "reasoning" } },
+      state,
+    );
+    expect(state.itemIdMap.has("reasoning-1")).toBe(true);
+
+    // The compact task's turn completes while the user's turn t-1 streams.
+    mapCodexNotification(
+      "turn/completed",
+      { threadId: "x", turn: { id: "t-compact", status: "completed" } },
+      state,
+      undefined,
+      { turnSettled: false },
+    );
+
+    expect(state.itemIdMap.has("reasoning-1")).toBe(true);
+    expect(state.itemTypeMap.has("reasoning-1")).toBe(true);
+    expect(state.currentTurnId).toBe("t-1");
+
+    // A settling completion still purges per-turn state.
+    mapCodexNotification(
+      "turn/completed",
+      { threadId: "x", turn: { id: "t-1", status: "completed" } },
+      state,
+      undefined,
+      { turnSettled: true },
+    );
+    expect(state.itemIdMap.has("reasoning-1")).toBe(false);
+    expect(state.currentTurnId).toBeUndefined();
+  });
+
   it("preserves failed turn status and surfaces the Codex error message", () => {
     const state = createCodexMapperState("t-codex");
     mapCodexNotification("turn/started", { turnId: "t-1", threadId: "x" }, state);

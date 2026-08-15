@@ -206,6 +206,99 @@ describe("ThreadSessionManager provider-session routing", () => {
 });
 
 describe("ThreadSessionManager start guards", () => {
+  it("waits for a reconnect before delivering input to the new live session", async () => {
+    const activation = deferred();
+    const structuredSession = createStructuredSession(activation.promise);
+    structuredSession.startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const start = manager.startThread({
+      threadId: "reconnecting-input",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "codex/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      sessionRef: {
+        providerSessionId: "ses_existing",
+        discoveredAt: "2026-08-15T00:00:00.000Z",
+      },
+      presentationMode: "gui",
+    });
+    await vi.waitFor(() => expect(structuredSession.activate).toHaveBeenCalledOnce());
+
+    const delivered = vi.fn<() => void>();
+    const send = manager
+      .sendThreadInput({
+        threadId: "reconnecting-input",
+        prompt: "send after reconnect",
+        config: { model: "codex/model" },
+      })
+      .then(delivered);
+    await Promise.resolve();
+    expect(delivered).not.toHaveBeenCalled();
+
+    activation.resolve();
+    await start;
+    await send;
+    expect(structuredSession.startTurn).toHaveBeenCalledWith(
+      "send after reconnect",
+      { model: "codex/model" },
+      undefined,
+      { userMessageItemId: expect.stringMatching(/^user-/) },
+    );
+  });
+
+  it("reclassifies a premature reconnect steer from authoritative idle state", async () => {
+    const activation = deferred();
+    const structuredSession = createStructuredSession(activation.promise);
+    structuredSession.startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    structuredSession.interruptTurn = vi.fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>(
+      async () => undefined,
+    );
+    structuredSession.steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
+      async () => undefined,
+    );
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const start = manager.startThread({
+      threadId: "reconnecting-steer",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "codex/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      sessionRef: {
+        providerSessionId: "ses_existing",
+        discoveredAt: "2026-08-15T00:00:00.000Z",
+      },
+      presentationMode: "gui",
+    });
+    await vi.waitFor(() => expect(structuredSession.activate).toHaveBeenCalledOnce());
+
+    const steer = manager.setPendingSteer({
+      threadId: "reconnecting-steer",
+      prompt: "normal turn after reconnect",
+      config: { model: "codex/model" },
+    });
+    activation.resolve();
+    await start;
+    await steer;
+
+    expect(structuredSession.startTurn).toHaveBeenCalledWith(
+      "normal turn after reconnect",
+      { model: "codex/model" },
+      undefined,
+      { userMessageItemId: expect.stringMatching(/^user-/) },
+    );
+    expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
+    expect(structuredSession.steerTurn).not.toHaveBeenCalled();
+  });
+
   it("lets the IPC boundary exclusively own a structured GUI factory failure", async () => {
     captureSupervisorException.mockClear();
     const structuredSession = createStructuredSession(Promise.resolve());
@@ -316,9 +409,7 @@ describe("ThreadSessionManager start guards", () => {
       const activationStarted = deferred<void>();
       const structuredSession: StructuredSessionHandle = {
         ...createStructuredSession(activation.promise, () => activationStarted.resolve()),
-        startTurn: vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
-          async () => undefined,
-        ),
+        startTurn: vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(async () => undefined),
       };
       const adapter = createAdapter(agentKind, structuredSession);
       const manager = createManager(agentKind, adapter);

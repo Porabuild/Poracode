@@ -43,6 +43,7 @@ type InboundRequest = {
 
 const SERVER_OVERLOADED_ERROR_CODE = -32001;
 const REQUEST_CANCELLED_ERROR_CODE = -32800;
+const INVALID_REQUEST_ERROR_CODE = -32600;
 const MAX_OVERLOAD_RETRIES = 2;
 const MAX_BUFFERED_THREAD_NOTIFICATIONS = 100;
 
@@ -60,6 +61,19 @@ export function isUnsupportedCodexRequestError(error: unknown): boolean {
     error instanceof CodexRpcResponseError &&
     (error.code === -32601 ||
       (error.code === -32602 && /unknown (?:field|parameter)/iu.test(error.message)))
+  );
+}
+
+/**
+ * `turn/steer` rejects with an invalid-request error when the expected turn
+ * already completed, no turn is active, or the active turn kind is not
+ * steerable (review / manual compaction). All of those are recoverable by
+ * delivering the message through a fresh `turn/start`.
+ */
+export function isCodexSteerRejectedError(error: unknown): boolean {
+  return (
+    error instanceof CodexRpcResponseError &&
+    (error.code === INVALID_REQUEST_ERROR_CODE || isUnsupportedCodexRequestError(error))
   );
 }
 

@@ -41,6 +41,7 @@ const PREFERRED_MODEL: Record<string, string> = {
   commandcode: "google/gemini-3.1-flash-lite",
   opencode: "opencode/big-pickle",
   kimi: "kimi-code/kimi-for-coding",
+  muse: "muse-spark-1.2",
   qwen: "qwen3.8-max",
   qoder: "lite",
 };

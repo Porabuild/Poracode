@@ -41,7 +41,8 @@ export interface ComposerSubmitContext {
   presentationMode: ThreadPresentationMode;
   usesTerminalPresentation: boolean;
   canSubmit: boolean;
-  /** GUI thread with a working turn — stage the prompt as a pending steer. */
+  /** Renderer routing hint for a GUI thread that appears to be working. The
+   * supervisor rechecks the live session after any pending startup completes. */
   usesPendingSteerPath: boolean;
   needsFocusBeforeInput: boolean;
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
@@ -181,7 +182,10 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     });
   };
 
-  // GUI threads + working status → stage as pending steer (replace-latest).
+  // GUI threads + working status → request a pending steer (replace-latest).
+  // This renderer status can be optimistic; the supervisor waits out a
+  // reconnect and drains the prompt as a normal turn when the live session is
+  // authoritatively idle.
   // The supervisor fires the cancel and drains the slot when the in-flight
   // turn returns with `cancelled` stopReason. No optimistic chat paint —
   // the strip above the composer is the visual confirmation; the real
