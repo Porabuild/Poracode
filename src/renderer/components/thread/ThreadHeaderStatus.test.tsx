@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 
@@ -50,6 +51,7 @@ function makeThread(status: "idle" | "finished"): Thread {
 
 describe("ThreadHeaderStatusButton", () => {
   beforeEach(() => {
+    useAppStore.setState({ connectingThreadIds: {} });
     useThreadHasBackgroundActivityMock.mockReset();
     useThreadHasBackgroundActivityMock.mockReturnValue(true);
   });
@@ -75,4 +77,23 @@ describe("ThreadHeaderStatusButton", () => {
       expect(useThreadHasBackgroundActivityMock).toHaveBeenCalledOnce();
     },
   );
+
+  it("shows connecting while a stored GUI session reconnects", () => {
+    const thread = makeThread("idle");
+    useAppStore.setState({ connectingThreadIds: { [thread.id]: "connection-1" } });
+
+    const { getByRole, getByText } = render(
+      <ThreadHeaderStatusButton
+        threadId={thread.id}
+        fallbackThread={thread}
+        fallbackAgentKind="claude"
+        agentLabel="Claude"
+      />,
+    );
+
+    expect(
+      getByRole("button", { name: "Claude: Connecting…. Hover for status details." }),
+    ).toBeInTheDocument();
+    expect(getByText("Connecting…")).toBeInTheDocument();
+  });
 });

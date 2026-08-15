@@ -5,14 +5,16 @@ import type { Thread, ThreadStatusSource } from "@/shared/contracts";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useThread } from "@/renderer/state/useThread";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 
 export function threadRuntimeStatusLabel(
   thread: Thread,
   t: TranslateFn,
-  opts?: { hasBackgroundActivity?: boolean },
+  opts?: { hasBackgroundActivity?: boolean; isConnecting?: boolean },
 ): string {
+  if (opts?.isConnecting) return t(msg`Connecting…`);
   const { status, attention } = thread;
   if (status === "launching") return t(msg`Launching…`);
   if (status === "inactive") return t(msg`Inactive`);
@@ -71,10 +73,14 @@ function ThreadStatusSupportDetail({ source }: { source: ThreadStatusSource | un
   }
 }
 
-function ThreadHeaderStatusTooltipBody(props: { thread: Thread; hasBackgroundActivity: boolean }) {
-  const { thread, hasBackgroundActivity } = props;
+function ThreadHeaderStatusTooltipBody(props: {
+  thread: Thread;
+  hasBackgroundActivity: boolean;
+  isConnecting: boolean;
+}) {
+  const { thread, hasBackgroundActivity, isConnecting } = props;
   const { t } = useLingui();
-  const runtime = threadRuntimeStatusLabel(thread, t, { hasBackgroundActivity });
+  const runtime = threadRuntimeStatusLabel(thread, t, { hasBackgroundActivity, isConnecting });
   const source = thread.threadStatusSource;
   const isServer = source === "server";
   const errorMessage = thread.status === "error" ? thread.errorMessage?.trim() : undefined;
@@ -124,8 +130,14 @@ export function ThreadHeaderStatusButton(props: {
   const { t } = useLingui();
   const thread = useThread(props.threadId) ?? props.fallbackThread;
   const hasBackgroundActivity = useThreadHasBackgroundActivity(props.threadId);
+  const isConnecting = useAppStore(
+    (state) => state.connectingThreadIds[props.threadId] !== undefined,
+  );
   const agentLabel = props.agentLabel ?? props.fallbackAgentKind;
-  const statusLabel = threadRuntimeStatusLabel(thread, t, { hasBackgroundActivity });
+  const statusLabel = threadRuntimeStatusLabel(thread, t, {
+    hasBackgroundActivity,
+    isConnecting,
+  });
 
   return (
     <Tooltip delay={0}>
@@ -156,6 +168,7 @@ export function ThreadHeaderStatusButton(props: {
         <ThreadHeaderStatusTooltipBody
           thread={thread}
           hasBackgroundActivity={hasBackgroundActivity}
+          isConnecting={isConnecting}
         />
       </Tooltip.Content>
     </Tooltip>

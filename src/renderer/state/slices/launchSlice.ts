@@ -5,6 +5,9 @@ export interface LaunchSlice {
   pendingThreadLaunches: Record<string, string>;
   pendingLaunchSegments: Record<string, PromptSegment[]>;
   pendingLaunchUserMessageItemIds: Record<string, string>;
+  /** Renderer-only reconnect state. Kept separate from `ThreadStatus` so an
+   * empty reconnect does not manufacture an active/completed turn. */
+  connectingThreadIds: Record<string, string>;
   queueThreadLaunch: (
     threadId: string,
     prompt: string,
@@ -12,12 +15,15 @@ export interface LaunchSlice {
     userMessageItemId?: string,
   ) => void;
   consumeThreadLaunch: (threadId: string) => void;
+  beginThreadConnecting: (threadId: string) => string;
+  finishThreadConnecting: (threadId: string, token: string) => void;
 }
 
 export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
   pendingThreadLaunches: {},
   pendingLaunchSegments: {},
   pendingLaunchUserMessageItemIds: {},
+  connectingThreadIds: {},
   queueThreadLaunch: (threadId, prompt, segments, userMessageItemId) =>
     set((state) => ({
       pendingThreadLaunches: {
@@ -52,5 +58,20 @@ export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
       const { [threadId]: _removedUserMessage, ...pendingLaunchUserMessageItemIds } =
         state.pendingLaunchUserMessageItemIds;
       return { pendingThreadLaunches, pendingLaunchSegments, pendingLaunchUserMessageItemIds };
+    }),
+  beginThreadConnecting: (threadId) => {
+    const token = crypto.randomUUID();
+    set((state) => ({
+      connectingThreadIds: { ...state.connectingThreadIds, [threadId]: token },
+    }));
+    return token;
+  },
+  finishThreadConnecting: (threadId, token) =>
+    set((state) => {
+      // A stale launch completion must not clear a newer reconnect for the
+      // same persisted thread id.
+      if (state.connectingThreadIds[threadId] !== token) return {};
+      const { [threadId]: _removed, ...connectingThreadIds } = state.connectingThreadIds;
+      return { connectingThreadIds };
     }),
 });

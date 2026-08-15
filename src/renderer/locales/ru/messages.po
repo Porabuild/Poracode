@@ -2963,7 +2963,9 @@ msgstr "Подключение..."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Подключение…"
@@ -4826,6 +4828,10 @@ msgstr "Файлы"
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Files for {0}"
 msgstr "Файлы для {0}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "Файлы для {projectName}"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11390,6 +11396,10 @@ msgstr "Терминал"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "Терминал для {0}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "Терминал для {projectName}"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

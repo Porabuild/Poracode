@@ -19,9 +19,23 @@ describe("appStore runtime config sync", () => {
       threads: [],
       pendingLaunchUserMessageItemIds: {},
       provisioningWorktreeThreadIds: {},
+      connectingThreadIds: {},
       view: { kind: "home" },
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
+  });
+
+  it("keeps a newer reconnect marker when an older launch finishes", () => {
+    const firstToken = useAppStore.getState().beginThreadConnecting("thread-1");
+    const secondToken = useAppStore.getState().beginThreadConnecting("thread-1");
+
+    useAppStore.getState().finishThreadConnecting("thread-1", firstToken);
+
+    expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBe(secondToken);
+
+    useAppStore.getState().finishThreadConnecting("thread-1", secondToken);
+
+    expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBeUndefined();
   });
 
   it("applies resolved runtime config onto the stored thread", () => {

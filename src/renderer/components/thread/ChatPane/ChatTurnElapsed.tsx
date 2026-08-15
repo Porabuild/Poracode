@@ -52,6 +52,30 @@ export function ChatWorktreeProvisioningFooter() {
   );
 }
 
+export function ChatConnectingFooter() {
+  const { t } = useLingui();
+  const textRef = useRef<HTMLSpanElement>(null);
+  const text = t`Connecting…`;
+  useShimmerRef(textRef, true);
+
+  return (
+    <div className="mx-auto w-full max-w-[920px]">
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          <span
+            ref={textRef}
+            className="poracode-thinking-text"
+            data-poracode-shimmer-text={text}
+            aria-live="polite"
+          >
+            {text}
+          </span>
+        </div>
+      </Surface>
+    </div>
+  );
+}
+
 function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
   if (turn.endedAt !== null) {
     return <WorkedFor startedAt={turn.startedAt} endedAt={turn.endedAt} />;

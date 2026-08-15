@@ -2962,7 +2962,9 @@ msgstr "接続中..."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "接続中…"
@@ -4825,6 +4827,10 @@ msgstr "ファイル"
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Files for {0}"
 msgstr "{0}のファイル"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "{projectName}のファイル"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11388,6 +11394,10 @@ msgstr "ターミナル"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0}用のターミナル"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "{projectName}用のターミナル"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts

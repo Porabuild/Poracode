@@ -2963,7 +2963,9 @@ msgstr "Bağlanıyor..."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Bağlanıyor…"
@@ -4826,6 +4828,10 @@ msgstr "Dosyalar"
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Files for {0}"
 msgstr "{0} için dosyalar"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Files for {projectName}"
+msgstr "{projectName} için dosyalar"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11390,6 +11396,10 @@ msgstr "Terminal"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0} için terminal"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Terminal for {projectName}"
+msgstr "{projectName} için terminal"
 
 #: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
