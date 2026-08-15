@@ -4740,6 +4740,10 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Intégration CLI Kimi Code de première classe à l'aide du runtime natif de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+msgstr "Intégration CLI Muse Code de première classe à l'aide du runtime de terminal natif de Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Intégration OpenCode de première classe à l'aide du runtime SDK natif de Poracode."
 
@@ -6652,6 +6656,10 @@ msgstr "Vos modifications ont été déplacées vers un nouveau worktree sur \"{
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Déplacement des modifications…"
+
+#: src/renderer/components/providers/muse/manifest.ts
+msgid "Muse Code"
+msgstr "Muse Code"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
