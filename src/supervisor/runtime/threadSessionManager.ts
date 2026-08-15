@@ -504,9 +504,20 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = this.sessions.get(payload.threadId);
+    let session = this.sessions.get(payload.threadId);
     if (!session) {
-      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      // A launch/resume can be mid-flight for seconds while the agent process
+      // spawns; the session only lands in the map at the end. Wait for it so a
+      // prompt typed during the spawn is delivered instead of failing.
+      const pendingStart = this.startLocks.get(payload.threadId);
+      if (pendingStart) {
+        await pendingStart;
+        session = this.sessions.get(payload.threadId);
+      }
+    }
+    if (!session) {
+      // Never swallow a full user prompt, even for a just-removed thread —
+      // callers (renderer composer, `send_to_thread`) resume on this error.
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
     if (session.status === "inactive" && !session.sessionRef) {
@@ -642,8 +653,19 @@ export class ThreadSessionManager {
         });
         return;
       }
-      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
-      throw new Error(`Unknown thread session: ${payload.threadId}`);
+      // Interrupt is idempotent "ensure this thread is not running". With no
+      // session there is nothing to stop, so emit the settled state instead of
+      // failing — this is the lever that unsticks a row whose session died
+      // while its persisted status still says `working`.
+      this.options.emit({
+        type: "thread-state",
+        threadId: payload.threadId,
+        status: "inactive",
+        attention: "none",
+        canResumeWithConfig: false,
+        forceCloseActiveTurn: true,
+      });
+      return;
     }
     this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
@@ -906,6 +928,12 @@ export class ThreadSessionManager {
     this.outputPipeline.clearSessionTimers(existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
+    // Final state before the session disappears: without it a working thread
+    // freezes at `working` in the DB and in every renderer, with nothing left
+    // running to ever move it.
+    this.outputPipeline.updateState(existing, "inactive", "none", undefined, {
+      forceCloseActiveTurn: true,
+    });
     this.sessions.delete(payload.threadId);
     if (existing.sessionRef?.providerSessionId) {
       this.sessionsBySessionId.delete(existing.sessionRef.providerSessionId);

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
+import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
 
@@ -69,11 +70,15 @@ function deferred<T = void>(): {
   return { promise, resolve, reject };
 }
 
-function createManager(agentKind: AgentKind, adapter: AgentAdapter): ThreadSessionManager {
+function createManager(
+  agentKind: AgentKind,
+  adapter: AgentAdapter,
+  emit: (event: SupervisorEvent) => void = vi.fn<(event: SupervisorEvent) => void>(),
+): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
   const manager = new ThreadSessionManager({
-    emit: vi.fn<() => void>(),
+    emit,
     isDev: false,
     logsDir: join(tempDir, "logs"),
     settingsPath: join(tempDir, "settings.json"),
@@ -258,7 +263,31 @@ describe("ThreadSessionManager start guards", () => {
     );
   });
 
-  it("treats late input, write, and interrupt IPC after known removal as idempotent", async () => {
+  it("settles a closed working session so consumers never freeze at working", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.threadId = "closed-thread";
+    runtime.status = "working";
+    runtime.attention = "working";
+    manager.sessions.set(runtime.threadId, runtime);
+
+    await manager.closeThread({ threadId: runtime.threadId });
+
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "closed-thread",
+        status: "inactive",
+        attention: "none",
+        forceCloseActiveTurn: true,
+      }),
+    );
+  });
+
+  it("rejects a prompt for a closed session instead of dropping it", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
     const manager = createManager("codex", adapter);
@@ -273,17 +302,84 @@ describe("ThreadSessionManager start guards", () => {
         prompt: "late",
         config: { model: "codex/model" },
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow("Unknown thread session: closed-thread");
+    // Raw keystrokes racing a close stay idempotent — only prompts must survive.
     await expect(
       manager.writeTerminal({ threadId: "closed-thread", data: "late" }),
     ).resolves.toBeUndefined();
+  });
+
+  it.each(guardedStructuredProviders)(
+    "delivers a prompt sent while a %s start is still in flight",
+    async (agentKind) => {
+      const activation = deferred<void>();
+      const activationStarted = deferred<void>();
+      const structuredSession: StructuredSessionHandle = {
+        ...createStructuredSession(activation.promise, () => activationStarted.resolve()),
+        startTurn: vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+          async () => undefined,
+        ),
+      };
+      const adapter = createAdapter(agentKind, structuredSession);
+      const manager = createManager(agentKind, adapter);
+
+      const start = manager.startThread({
+        threadId: `thread-${agentKind}`,
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind,
+        config: { model: `${agentKind}/model` },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      await activationStarted.promise;
+
+      // The session only lands in the map when the start settles; a prompt
+      // typed during the spawn must wait for it, not fail as unknown.
+      const send = manager.sendThreadInput({
+        threadId: `thread-${agentKind}`,
+        prompt: "queued while starting",
+        config: { model: `${agentKind}/model` },
+      });
+      activation.resolve();
+      await start;
+      await expect(send).resolves.toBeUndefined();
+      expect(structuredSession.startTurn).toHaveBeenCalledWith(
+        "queued while starting",
+        expect.objectContaining({ model: `${agentKind}/model` }),
+        undefined,
+        expect.objectContaining({ userMessageItemId: expect.any(String) }),
+      );
+    },
+  );
+
+  it("recovers a closed thread's state on interrupt", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.threadId = "closed-thread";
+    manager.sessions.set(runtime.threadId, runtime);
+    await manager.closeThread({ threadId: runtime.threadId });
+    emit.mockClear();
+
     await expect(manager.interruptThread({ threadId: "closed-thread" })).resolves.toBeUndefined();
+    expect(emit).toHaveBeenCalledWith({
+      type: "thread-state",
+      threadId: "closed-thread",
+      status: "inactive",
+      attention: "none",
+      canResumeWithConfig: false,
+      forceCloseActiveTurn: true,
+    });
   });
 
   it("preserves bookkeeping errors for never-known session ids", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
-    const manager = createManager("codex", adapter);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
 
     await expect(
       manager.sendThreadInput({
@@ -295,8 +391,10 @@ describe("ThreadSessionManager start guards", () => {
     await expect(manager.writeTerminal({ threadId: "never-known", data: "late" })).rejects.toThrow(
       "Unknown thread session: never-known",
     );
-    await expect(manager.interruptThread({ threadId: "never-known" })).rejects.toThrow(
-      "Unknown thread session: never-known",
+    // Interrupt is idempotent "ensure not running", so it settles rather than throws.
+    await expect(manager.interruptThread({ threadId: "never-known" })).resolves.toBeUndefined();
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "never-known", status: "inactive" }),
     );
   });
 
