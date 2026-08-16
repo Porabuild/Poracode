@@ -1,6 +1,42 @@
 {
   "releases": [
     {
+      "version": "1.6.3",
+      "date": "2026-08-16",
+      "title": "Muse Code, Claude skills & sturdier sessions",
+      "summary": "Poracode adds Muse Code as a first-class terminal agent, surfaces Claude's own skills in the composer, and keeps launches and follow-ups alive when you switch panes or a session disappears.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Muse Code",
+          "text": "You can now run Meta's Muse Code CLI as a terminal session in Poracode — pick Muse Spark models and reasoning effort, sign in from Settings, and resume where you left off. On Windows, install it through WSL."
+        },
+        {
+          "kind": "improved",
+          "label": "Claude",
+          "text": "Claude's own skills — the ones the CLI ships, not just files on disk — now appear in the composer slash menu and run as streaming skills instead of silent local commands."
+        },
+        {
+          "kind": "improved",
+          "label": "Threads",
+          "text": "Threads show a Connecting… state in the header and chat while the session is starting, so a launch no longer looks idle."
+        },
+        {
+          "kind": "fixed",
+          "text": "Starting a thread and switching or closing the pane no longer leaves the agent silently never started; launch failures now show as an error on the thread."
+        },
+        {
+          "kind": "fixed",
+          "text": "If a session is gone when you send a message — after a restart or unload — Poracode relaunches it and delivers the prompt instead of dropping it, including from the send_to_thread MCP tool. Interrupting a thread whose session already died now settles it to Inactive instead of leaving it stuck Working."
+        },
+        {
+          "kind": "fixed",
+          "label": "Codex",
+          "text": "Steering a running Codex turn now lands on the in-flight work instead of starting a conflicting turn, answers no longer vanish while Codex is compacting or running concurrent turns, and app-server sessions no longer stall when acquiring a server fails or two launches race."
+        }
+      ]
+    },
+    {
       "version": "1.6.2",
       "date": "2026-08-11",
       "title": "Agent Plugins, merged PR sync & stoppable actions",
