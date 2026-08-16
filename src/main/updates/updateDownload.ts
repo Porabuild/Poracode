@@ -11,10 +11,9 @@ export const UPDATE_DOWNLOAD_FIRST_PROGRESS_STALL_MS = 30_000;
 export const UPDATE_DOWNLOAD_PROGRESS_STALL_MS = 90_000;
 
 export class UpdateDownloadStallError extends Error {
-  readonly name = "TimeoutError";
-
   constructor() {
     super("Updater download stalled.");
+    this.name = "TimeoutError";
   }
 }
 
