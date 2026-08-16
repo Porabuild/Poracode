@@ -7,6 +7,12 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 
+const compactLayoutMock = vi.hoisted(() => ({ value: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => compactLayoutMock.value,
+}));
+
 vi.mock("@heroui/react", () => {
   const Tooltip = Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
     Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
@@ -34,6 +40,7 @@ function makeStatus(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
 
 describe("ThreadChangesBubble", () => {
   beforeEach(() => {
+    compactLayoutMock.value = false;
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},
@@ -96,6 +103,25 @@ describe("ThreadChangesBubble", () => {
       worktreePath,
     });
     expect(usePanelStore.getState().gitReviewAsPanel).toBe(true);
+  });
+
+  it("opens the Git page instead of a desktop panel on compact PWA layouts", () => {
+    compactLayoutMock.value = true;
+    const worktreePath = "/repo/.poracode/worktrees/mobile-git";
+    useGitStore.setState({
+      worktreeStatuses: {
+        [worktreePath]: makeStatus({ totalInsertions: 4, totalDeletions: 2 }),
+      },
+    });
+
+    render(<ThreadChangesBubble projectId="project-1" worktreePath={worktreePath} />);
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+
+    expect(usePanelStore.getState()).toMatchObject({
+      gitReviewContext: { projectId: "project-1", worktreePath },
+      gitReviewAsPanel: false,
+      gitOverlayOpen: true,
+    });
   });
 
   it("shows the PR number beside its status-colored icon in the Git bubble", () => {

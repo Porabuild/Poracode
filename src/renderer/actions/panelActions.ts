@@ -340,6 +340,14 @@ export function showGitReviewPanel(projectId: string, worktreePath?: string): vo
   panelStore.setRightPanelTab("git");
 }
 
+/** Open Git review as a full page, independent of the desktop panel preference. */
+export function showGitReviewPage(projectId: string, worktreePath?: string): void {
+  const panelStore = usePanelStore.getState();
+  panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
+  panelStore.setGitReviewAsPanel(false);
+  panelStore.setGitOverlayOpen(true);
+}
+
 export function openGitOverlay(): void {
   usePanelStore.getState().setGitOverlayOpen(true);
 }

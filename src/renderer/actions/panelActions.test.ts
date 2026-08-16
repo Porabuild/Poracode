@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { dockPanelTab, openGitReview, openUsagePanel, undockPanelTab } from "./panelActions";
+import {
+  dockPanelTab,
+  openGitReview,
+  openUsagePanel,
+  showGitReviewPage,
+  undockPanelTab,
+} from "./panelActions";
 
 function resetDockState() {
   useSharedSettings.setState({ terminalPosition: "bottom", gitReviewMode: "panel" });
@@ -196,5 +202,20 @@ describe("undockPanelTab", () => {
     undockPanelTab("notes");
 
     expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: "usage", right: null });
+  });
+});
+
+describe("showGitReviewPage", () => {
+  beforeEach(resetDockState);
+  afterEach(resetDockState);
+
+  it("opens a full-page review even when the saved desktop preference is panel", () => {
+    showGitReviewPage("p1", "/repo/worktree");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      gitReviewContext: { projectId: "p1", worktreePath: "/repo/worktree" },
+      gitReviewAsPanel: false,
+      gitOverlayOpen: true,
+    });
   });
 });
