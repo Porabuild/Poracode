@@ -11,6 +11,7 @@ const compactLayoutMock = vi.hoisted(() => ({ value: false }));
 
 vi.mock("@/renderer/adaptiveLayout", () => ({
   useCompactLayout: () => compactLayoutMock.value,
+  isCompactLayoutViewport: () => compactLayoutMock.value,
 }));
 
 vi.mock("@heroui/react", () => {
@@ -52,6 +53,7 @@ describe("ThreadChangesBubble", () => {
       gitReviewAsPanel: false,
       gitOverlayOpen: false,
       rightPanelTab: "git",
+      mobileUtilityPage: null,
     });
   });
 
@@ -105,7 +107,7 @@ describe("ThreadChangesBubble", () => {
     expect(usePanelStore.getState().gitReviewAsPanel).toBe(true);
   });
 
-  it("opens the Git page instead of a desktop panel on compact PWA layouts", () => {
+  it("opens the dedicated Git page from the compact changes chip", () => {
     compactLayoutMock.value = true;
     const worktreePath = "/repo/.poracode/worktrees/mobile-git";
     useGitStore.setState({
@@ -114,13 +116,15 @@ describe("ThreadChangesBubble", () => {
       },
     });
 
-    render(<ThreadChangesBubble projectId="project-1" worktreePath={worktreePath} />);
+    render(<ThreadChangesBubble compact projectId="project-1" worktreePath={worktreePath} />);
     fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
 
     expect(usePanelStore.getState()).toMatchObject({
       gitReviewContext: { projectId: "project-1", worktreePath },
-      gitReviewAsPanel: false,
-      gitOverlayOpen: true,
+      gitReviewAsPanel: true,
+      gitOverlayOpen: false,
+      mobileUtilityPage: "workspace",
+      rightPanelTab: "git",
     });
   });
 

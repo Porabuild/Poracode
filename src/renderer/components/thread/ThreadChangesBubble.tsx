@@ -1,10 +1,11 @@
 import { useShallow } from "zustand/shallow";
 import { Tooltip } from "@heroui/react";
-import { GitFork, GitPullRequest } from "lucide-react";
+import { GitBranch, GitFork, GitPullRequest } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { getBasename } from "@/shared/pathUtils";
 import {
   closeAllPanels,
+  openGitReview,
   showGitReviewPage,
   showGitReviewPanel,
 } from "@/renderer/actions/panelActions";
@@ -34,6 +35,7 @@ export function ThreadChangesBubble(props: {
   projectId: string;
   worktreePath?: string | undefined;
   worktreeName?: string | undefined;
+  compact?: boolean | undefined;
 }) {
   const { t } = useLingui();
   const compactLayout = useCompactLayout();
@@ -46,6 +48,7 @@ export function ThreadChangesBubble(props: {
     reviewDecision,
     mergeable,
     mergeStateStatus,
+    branch,
   } = useGitStore(
     useShallow((s) => {
       const status = props.worktreePath
@@ -61,6 +64,7 @@ export function ThreadChangesBubble(props: {
         reviewDecision: pr?.reviewDecision,
         mergeable: pr?.mergeable,
         mergeStateStatus: pr?.mergeStateStatus,
+        branch: status?.branch ?? "",
         checksStatus: combineChecksStatus(
           aggregatePrChecksStatus(details?.checks),
           pr?.checksStatus,
@@ -85,8 +89,36 @@ export function ThreadChangesBubble(props: {
     (prState !== "merged" || props.worktreePath !== undefined);
   const worktreeName =
     props.worktreeName ?? (props.worktreePath ? getBasename(props.worktreePath) : undefined);
+  const scopeName = worktreeName || branch || undefined;
 
   if (!hasChanges && !props.worktreePath && !hasVisiblePr) return null;
+
+  if (props.compact) {
+    return (
+      <button
+        type="button"
+        className="m-chip"
+        {...(scopeName ? { title: scopeName } : {})}
+        aria-label={t`Review changes`}
+        onClick={() => openGitReview(props.projectId, props.worktreePath)}
+      >
+        {props.worktreePath ? (
+          <GitFork className="size-3.5 shrink-0 text-muted" />
+        ) : (
+          <GitBranch className="size-3.5 shrink-0 text-muted" />
+        )}
+        {hasVisiblePr ? (
+          <>
+            <GitPullRequest
+              className={`size-3.5 shrink-0 ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus, { reviewDecision, mergeable, mergeStateStatus })]}`}
+            />
+            <span>#{prNumber}</span>
+          </>
+        ) : null}
+        {hasChanges ? <DiffStat insertions={insertions} deletions={deletions} /> : null}
+      </button>
+    );
+  }
 
   const bubble = (
     <button
