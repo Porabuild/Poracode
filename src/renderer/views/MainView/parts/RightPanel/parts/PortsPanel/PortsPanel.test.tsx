@@ -6,6 +6,7 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServersState } from "@/renderer/state/remoteServers/types";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { PortsPanel } from "./PortsPanel";
+import { usePortsPanelChromeStore } from "./portsPanelStore";
 
 const adaptiveLayout = vi.hoisted(() => ({ compact: false }));
 
@@ -57,6 +58,11 @@ describe("PortsPanel", () => {
 
   afterEach(() => {
     useRemoteServersStore.setState({ servers: [], runtime: {}, withClient: originalWithClient });
+    usePortsPanelChromeStore.setState({
+      refreshVersion: 0,
+      manualForwardVersion: 0,
+      loading: false,
+    });
     Object.defineProperty(window, "poracode", {
       configurable: true,
       value: undefined,
@@ -67,6 +73,10 @@ describe("PortsPanel", () => {
     render(<PortsPanel />);
 
     const row = await screen.findByRole("button", { name: /localhost:3000/u });
+    expect(row).toHaveClass("poracode-sidebar-thread-row");
+    expect(row).not.toHaveClass("m-thread-row");
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Forward a port" })).not.toBeInTheDocument();
     fireEvent.click(row);
 
     const invoke = useRemoteServersStore.getState().withClient;
@@ -120,7 +130,7 @@ describe("PortsPanel", () => {
     expect(await screen.findByText("Port forwarding isn't enabled")).toBeInTheDocument();
   });
 
-  it("places compact refresh at the bottom left and tightens the header gap", () => {
+  it("places compact refresh at the bottom left and tightens the header gap", async () => {
     adaptiveLayout.compact = true;
 
     const { container } = render(<PortsPanel />);
@@ -129,6 +139,28 @@ describe("PortsPanel", () => {
       "fixed",
       "left-[var(--m-page-inline)]",
     );
+    expect(screen.getByRole("button", { name: "Forward a port" })).toHaveClass("fixed");
     expect(container.firstElementChild).toHaveClass("pt-1");
+    expect(await screen.findByRole("button", { name: /localhost:3000/u })).toHaveClass(
+      "m-thread-row",
+    );
+  });
+
+  it("reloads when the header refresh version increments", async () => {
+    const listPorts = vi.fn<RemoteDesktopClient["listPorts"]>(async () => ({
+      detected: [{ port: 3000, protocol: "http", label: "Vite" }],
+      forwards: [],
+    }));
+    const client = { listPorts } as unknown as RemoteDesktopClient;
+    useRemoteServersStore.setState({
+      withClient: async (_desktopId, invoke) => invoke(client),
+    });
+
+    render(<PortsPanel />);
+    await screen.findByRole("button", { name: /localhost:3000/u });
+    expect(listPorts).toHaveBeenCalledTimes(1);
+
+    usePortsPanelChromeStore.getState().requestRefresh();
+    await waitFor(() => expect(listPorts).toHaveBeenCalledTimes(2));
   });
 });

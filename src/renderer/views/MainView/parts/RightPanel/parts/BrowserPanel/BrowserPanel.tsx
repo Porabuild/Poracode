@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { isMac, readBridge } from "@/renderer/bridge";
+import { readBridge } from "@/renderer/bridge";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -167,7 +168,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           } flex shrink-0 items-center gap-1 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
           style={hasWindowHeader ? overlayHeaderStyle() : { height: "32px" }}
         >
-          {isMac() && hasWindowHeader ? (
+          {hasMacWindowChrome() && hasWindowHeader ? (
             <div className={macosTrafficLightGutterClass} aria-hidden />
           ) : null}
           {hasWindowHeader ? (

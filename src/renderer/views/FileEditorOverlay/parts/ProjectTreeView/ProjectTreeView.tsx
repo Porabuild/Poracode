@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -14,6 +14,9 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ProjectTreeEntry } from "@/shared/contracts";
 import { ContextMenu, PixelLoader } from "@/renderer/components/common";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
+import { MobilePageBottomAction } from "@/renderer/components/layout/MobilePageBottomActions";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
+import { useKeyboardVisibilityOffset } from "@/renderer/components/mobileComposer/useKeyboardOffset";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import type { FileEditorRootContext } from "@/renderer/state/fileEditorStore";
@@ -37,18 +40,54 @@ export function ProjectTreeView(props: {
   rootContext: FileEditorRootContext;
   onSelectFile: (path: string) => void;
   onPinFile?: (path: string) => void;
+  compact?: boolean;
+  compactActionsVisible?: boolean;
 }) {
   const { t } = useLingui();
   const tree = useProjectTree(props);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [compactSearchOpen, setCompactSearchOpen] = useState(false);
+  const compactSearchBlurTimerRef = useRef(0);
+  const compactSearchSawKeyboardRef = useRef(false);
+  const keyboardVisibilityOffset = useKeyboardVisibilityOffset();
+  const setSearchQuery = tree.setSearchQuery;
   const treeFocusToken = useFindFocusStore((state) => state.treeFocusToken);
   const lastTreeFocusToken = useRef(treeFocusToken);
   useEffect(() => {
     if (treeFocusToken === lastTreeFocusToken.current) return;
     lastTreeFocusToken.current = treeFocusToken;
+    if (props.compact) {
+      setCompactSearchOpen(true);
+    } else {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+  }, [props.compact, treeFocusToken]);
+  useEffect(() => {
+    if (!props.compact || !compactSearchOpen) return;
     searchInputRef.current?.focus();
     searchInputRef.current?.select();
-  }, [treeFocusToken]);
+  }, [compactSearchOpen, props.compact]);
+  useEffect(() => {
+    if (!props.compact || !compactSearchOpen) {
+      compactSearchSawKeyboardRef.current = false;
+      return;
+    }
+    if (keyboardVisibilityOffset > 0) {
+      compactSearchSawKeyboardRef.current = true;
+      return;
+    }
+    if (!compactSearchSawKeyboardRef.current) return;
+    compactSearchSawKeyboardRef.current = false;
+    setCompactSearchOpen(false);
+    setSearchQuery("");
+  }, [compactSearchOpen, keyboardVisibilityOffset, props.compact, setSearchQuery]);
+  useEffect(
+    () => () => {
+      window.clearTimeout(compactSearchBlurTimerRef.current);
+    },
+    [],
+  );
   const rootIsDropTarget = useIsDropTarget("");
   const rootLoading = useIsPathLoading("");
   const { setScrollContainer, scrollRef, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
@@ -69,7 +108,7 @@ export function ProjectTreeView(props: {
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 24,
+    estimateSize: () => (props.compact ? 48 : 24),
     overscan: 16,
   });
 
@@ -99,7 +138,7 @@ export function ProjectTreeView(props: {
       }}
     >
       <div
-        className="flex h-full min-h-0 flex-col bg-inherit"
+        className={`flex h-full min-h-0 flex-col bg-inherit ${props.compact ? "m-project-tree--touch" : ""}`}
         onDragOver={(event) => {
           event.preventDefault();
           useProjectTreeStore.getState().setDropTargetPath("");
@@ -126,56 +165,115 @@ export function ProjectTreeView(props: {
           }
         }}
       >
-        <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-0 py-2">
-          <div
-            data-poracode-find-scope="tree"
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-3xl px-2 py-1.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-within:bg-[var(--row-active)] focus-within:text-foreground"
-          >
-            <Search className="size-3.5 shrink-0 text-muted" />
-            <input
-              ref={searchInputRef}
-              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
-              placeholder={t`Search files`}
-              value={tree.searchQuery}
-              onChange={(event) => tree.setSearchQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && tree.searchQuery) {
-                  event.preventDefault();
-                  tree.setSearchQuery("");
-                }
-              }}
-            />
-            {tree.searchQuery && (
-              <button
-                type="button"
-                aria-label={t`Clear search`}
-                onClick={() => tree.setSearchQuery("")}
-                className="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
-              >
-                <X className="size-3" />
-              </button>
-            )}
+        {props.compact && props.compactActionsVisible ? (
+          <>
+            <MobilePageBottomAction side="left">
+              <Tooltip delay={200}>
+                <Tooltip.Trigger>
+                  <MobileCircleButton
+                    aria-label={compactSearchOpen ? t`Clear search` : t`Search files`}
+                    className="text-muted"
+                    onPress={() => {
+                      window.clearTimeout(compactSearchBlurTimerRef.current);
+                      if (compactSearchOpen) {
+                        setSearchQuery("");
+                        setCompactSearchOpen(false);
+                        return;
+                      }
+                      setCompactSearchOpen(true);
+                    }}
+                  >
+                    {compactSearchOpen ? <X className="size-4" /> : <Search className="size-4" />}
+                  </MobileCircleButton>
+                </Tooltip.Trigger>
+                <Tooltip.Content placement="top">
+                  {compactSearchOpen ? <Trans>Clear search</Trans> : <Trans>Search files</Trans>}
+                </Tooltip.Content>
+              </Tooltip>
+            </MobilePageBottomAction>
+            <MobilePageBottomAction side="right">
+              <Tooltip delay={200}>
+                <Tooltip.Trigger>
+                  <MobileCircleButton
+                    aria-label={t`Collapse all folders`}
+                    className="text-muted"
+                    onPress={() => void tree.handleRootAction("collapse-all")}
+                  >
+                    <ChevronsDownUp className="size-4" />
+                  </MobileCircleButton>
+                </Tooltip.Trigger>
+                <Tooltip.Content placement="top">
+                  <Trans>Collapse all folders</Trans>
+                </Tooltip.Content>
+              </Tooltip>
+            </MobilePageBottomAction>
+          </>
+        ) : null}
+
+        {!props.compact || compactSearchOpen ? (
+          <div className="m-project-tree__toolbar flex items-center gap-2 border-b border-[color:var(--border)] px-0 py-2">
+            <div
+              data-poracode-find-scope="tree"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-3xl px-2 py-1.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-within:bg-[var(--row-active)] focus-within:text-foreground"
+            >
+              <Search className="size-3.5 shrink-0 text-muted" />
+              <input
+                ref={searchInputRef}
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
+                placeholder={t`Search files`}
+                value={tree.searchQuery}
+                onChange={(event) => tree.setSearchQuery(event.target.value)}
+                onFocus={() => window.clearTimeout(compactSearchBlurTimerRef.current)}
+                onBlur={() => {
+                  window.clearTimeout(compactSearchBlurTimerRef.current);
+                  compactSearchBlurTimerRef.current = window.setTimeout(() => {
+                    compactSearchSawKeyboardRef.current = false;
+                    setCompactSearchOpen(false);
+                    setSearchQuery("");
+                  }, 0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && tree.searchQuery) {
+                    event.preventDefault();
+                    tree.setSearchQuery("");
+                  }
+                }}
+              />
+              {tree.searchQuery && (
+                <button
+                  type="button"
+                  aria-label={t`Clear search`}
+                  onClick={() => tree.setSearchQuery("")}
+                  className="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </div>
+            {!props.compact ? (
+              <Tooltip delay={200}>
+                <Tooltip.Trigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    aria-label={t`Collapse all folders`}
+                    onPress={() => void tree.handleRootAction("collapse-all")}
+                  >
+                    <ChevronsDownUp className="size-4" />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content placement="bottom">
+                  <Trans>Collapse all folders</Trans>
+                </Tooltip.Content>
+              </Tooltip>
+            ) : null}
           </div>
-          <Tooltip delay={200}>
-            <Tooltip.Trigger>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                onPress={() => void tree.handleRootAction("collapse-all")}
-              >
-                <ChevronsDownUp className="size-4" />
-              </Button>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="bottom">
-              <Trans>Collapse all folders</Trans>
-            </Tooltip.Content>
-          </Tooltip>
-        </div>
+        ) : null}
 
         <div
           ref={setScrollContainer}
-          className={`min-h-0 flex-1 overflow-auto px-0 py-2 ${
+          className={`poracode-project-tree-scroll min-h-0 flex-1 overflow-auto px-0 py-2 ${
             rootIsDropTarget ? "ring-1 ring-inset ring-accent/40" : ""
           }`}
           style={scrollFadeStyle}
@@ -350,7 +448,9 @@ function SearchResultRow(props: { entry: ProjectTreeEntry; onOpen: () => void })
 
   return (
     <button
-      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-0.5 text-left text-sm text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
+      data-selected={isSelected ? "true" : undefined}
+      data-open={isOpenInTab ? "true" : undefined}
+      className={`poracode-project-tree-search-row flex w-full items-center gap-1.5 rounded-md px-2 py-0.5 text-left text-sm text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
         isSelected
           ? "bg-[var(--row-active)] text-foreground"
           : isOpenInTab

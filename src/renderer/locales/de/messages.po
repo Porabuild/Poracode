@@ -485,6 +485,7 @@ msgid "{label} usage"
 msgstr "{label}-Nutzung"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}-Nutzung – Nutzungsbereich öffnen"
 
@@ -1619,7 +1620,6 @@ msgstr "Avatar-Farbe {color}"
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
@@ -2057,6 +2057,7 @@ msgstr "Änderungsprotokoll"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Changes"
 msgstr "Änderungen"
@@ -2600,6 +2601,7 @@ msgid "Close to tray"
 msgstr "In den Infobereich minimieren"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Close usage details"
 msgstr "Nutzungsdetails schließen"
 
@@ -4821,6 +4823,7 @@ msgstr "Die Datei verwendet eine nicht unterstützte Codierung."
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "Dateien"
 
@@ -5180,6 +5183,7 @@ msgstr "Aufgabe abrufen"
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
@@ -5198,6 +5202,7 @@ msgstr "Git {command} fehlgeschlagen: {detail}"
 #~ msgid "Git actions"
 #~ msgstr "Git-Aktionen"
 
+#: src/renderer/views/GitReviewOverlay/CompactGitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
 msgstr "Git-Review"
@@ -5417,6 +5422,7 @@ msgid "Hide canonical runtime item inspector"
 msgstr "Den kanonischen Laufzeit-Elementinspektor ausblenden"
 
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Hide context usage details"
 msgstr "Details zur Kontextverwendung ausblenden"
 
@@ -7794,6 +7800,7 @@ msgstr "Nur wenn nicht fokussiert"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Nur Workflows mit einem workflow_dispatch-Trigger können manuell gestartet werden."
 
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -9712,7 +9719,6 @@ msgstr "Versuchen Sie es noch einmal mit dem Administrator"
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9991,6 +9997,7 @@ msgstr "Laufzeitoptionen"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -10547,6 +10554,7 @@ msgid "Show composer"
 msgstr "Composer anzeigen"
 
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Details zur Kontextverwendung anzeigen"
 
@@ -10603,6 +10611,7 @@ msgid "Show or hide the sidebar"
 msgstr "Seitenleiste anzeigen oder ausblenden"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "Vorschau anzeigen"
 
@@ -10620,7 +10629,6 @@ msgstr "Laufzeit-Debug-Panel anzeigen"
 #~ msgid "Show Schedules in the sidebar footer."
 #~ msgstr "Zeitpläne in der Fußzeile der Seitenleiste anzeigen."
 
-#: src/renderer/components/thread/ThreadChangesBubble.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -10636,6 +10644,7 @@ msgid "Show skills from {0}"
 msgstr "Skills von {0} anzeigen"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"
 msgstr "Quelle anzeigen"
 
@@ -11523,7 +11532,6 @@ msgstr "Terminal für {0}"
 msgid "Terminal for {projectName}"
 msgstr "Terminal für {projectName}"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "Terminaleingabe"
@@ -12774,8 +12782,10 @@ msgid "URL is required."
 msgstr "URL ist erforderlich."
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13327,9 +13337,9 @@ msgstr "Arbeitsbereich"
 msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
 msgstr "MCP-Server des Arbeitsbereichs überschreiben gleichnamige Benutzerserver und werden nur hinzugefügt, wenn Agenten in diesem Projekt starten."
 
-#: src/mobile/views/WorkspaceView.tsx
-#~ msgid "Workspace view"
-#~ msgstr "Arbeitsbereichsansicht"
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
+msgid "Workspace view"
+msgstr "Arbeitsbereichsansicht"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx

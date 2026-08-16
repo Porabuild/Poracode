@@ -412,6 +412,7 @@ const remoteBridgeOverrides = {
   // Event subscriptions: remote events arrive over the WebSocket instead.
   onSupervisorEvent: () => () => undefined,
   onGitStateChanged: () => () => undefined,
+  onUserNotification: () => () => undefined,
   onPrWatchMerged: () => () => undefined,
   onPrWatchStatus: () => () => undefined,
   onUpdateStatus: () => () => undefined,

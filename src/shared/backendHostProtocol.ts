@@ -13,6 +13,7 @@ import type {
   ScheduledTaskInput,
 } from "./contracts";
 import type { GitStatePatch } from "./gitState";
+import type { UserNotification } from "./threadNotification";
 import type {
   RemoteAccessPairingInfo,
   RemoteBrowserCommand,
@@ -263,7 +264,8 @@ export type BackendNativeEvent =
       type: "pr-watch-merged";
       event: { projectId: string; prNumber: number; worktreePath?: string };
     }
-  | { type: "git-state-changed"; patch: GitStatePatch };
+  | { type: "git-state-changed"; patch: GitStatePatch }
+  | { type: "user-notification"; notification: UserNotification };
 
 interface BackendHostRequestBase {
   version: typeof BACKEND_HOST_PROTOCOL_VERSION;
@@ -529,6 +531,7 @@ export function isBackendHostOutboundMessage(
           "pr-watch-status",
           "pr-watch-merged",
           "git-state-changed",
+          "user-notification",
         ].includes(message.event.type)
       );
     case "error":

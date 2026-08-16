@@ -29,13 +29,15 @@ vi.mock("./useKeyboardOffset", () => ({
 
 vi.mock("./composeScrollLock", () => scrollLockMock);
 
-function ComposerKeyboardHarness(props: { readonly onBeforeGuardedFocus?: () => void }) {
+function ComposerKeyboardHarness(props: {
+  readonly onBeforeGuardedFocus?: () => void;
+  readonly onAfterGuardedFocus?: () => void;
+}) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const { liftOffset, measuringKeyboard } = useComposerKeyboard(
-    ref,
-    "test-composer",
-    props.onBeforeGuardedFocus ? { onBeforeGuardedFocus: props.onBeforeGuardedFocus } : {},
-  );
+  const { liftOffset, measuringKeyboard } = useComposerKeyboard(ref, "test-composer", {
+    ...(props.onBeforeGuardedFocus ? { onBeforeGuardedFocus: props.onBeforeGuardedFocus } : {}),
+    ...(props.onAfterGuardedFocus ? { onAfterGuardedFocus: props.onAfterGuardedFocus } : {}),
+  });
 
   return (
     <div ref={ref}>
@@ -161,6 +163,30 @@ describe("useComposerKeyboard", () => {
     expect(selection?.anchorNode).toBe(input);
     expect(selection?.anchorOffset).toBe(input.childNodes.length);
     expect(input.scrollTop).toBe(120);
+  });
+
+  it("reports guarded-focus completion only after the real editor receives focus", () => {
+    const focusOrder: string[] = [];
+    scrollLockMock.focusWithoutScroll.mockImplementation((element) => {
+      focusOrder.push(element?.hasAttribute("data-composer-focus-sentinel") ? "sentinel" : "input");
+      element?.focus();
+    });
+    render(
+      <ComposerKeyboardHarness
+        onBeforeGuardedFocus={() => focusOrder.push("expand")}
+        onAfterGuardedFocus={() => focusOrder.push("after-focus")}
+      />,
+    );
+
+    fireEvent(
+      screen.getByRole("textbox"),
+      createEvent.pointerDown(screen.getByRole("textbox"), {
+        pointerType: "touch",
+        cancelable: true,
+      }),
+    );
+
+    expect(focusOrder).toEqual(["expand", "sentinel", "input", "after-focus"]);
   });
 
   it("uses the guarded focus path when the unfocused input shield is tapped", () => {

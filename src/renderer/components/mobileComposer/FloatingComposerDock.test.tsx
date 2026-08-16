@@ -70,7 +70,11 @@ async function waitForTwoFrames(): Promise<void> {
   });
 }
 
-function ControlledDockHarness() {
+async function waitForOneFrame(): Promise<void> {
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+}
+
+function ControlledDockHarness(props: { collapseContentSwapMs?: number }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -81,6 +85,9 @@ function ControlledDockHarness() {
       scrimLabel="Close composer"
       collapsedTapLabel="Open composer"
       onExpandedChange={setExpanded}
+      {...(props.collapseContentSwapMs !== undefined
+        ? { collapseContentSwapMs: props.collapseContentSwapMs }
+        : {})}
     >
       <div data-composer-input-anchor="">
         <div
@@ -122,6 +129,7 @@ function FocusLossHarness(props: { collapseOnFocusLoss?: boolean }) {
 describe("FloatingComposerDock", () => {
   afterEach(() => {
     globalThis.ResizeObserver = originalResizeObserver;
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
@@ -236,6 +244,12 @@ describe("FloatingComposerDock", () => {
       act(() => {
         vi.runOnlyPendingTimers();
       });
+      const dock = document.querySelector(".m-compose-dock");
+      // The measured dock is committed at final geometry now, but the real
+      // editor is intentionally focused two frames later. Keep transitions
+      // disabled across that entire handoff so iOS cannot pan to an in-between
+      // layout on the first tap after mount.
+      expect(dock).toHaveAttribute("data-instant-expand");
       await act(async () => {
         await waitForTwoFrames();
       });
@@ -249,6 +263,12 @@ describe("FloatingComposerDock", () => {
       );
       expect(scrollLockMock.focusWithoutScroll).toHaveBeenLastCalledWith(input);
       expect(document.activeElement).toBe(input);
+      expect(dock).toHaveAttribute("data-instant-expand");
+
+      await act(async () => {
+        await waitForOneFrame();
+      });
+      expect(dock).not.toHaveAttribute("data-instant-expand");
     } finally {
       vi.useRealTimers();
       restoreVisualViewport();
@@ -283,10 +303,11 @@ describe("FloatingComposerDock", () => {
     expect(dock).toHaveAttribute("data-instant-expand");
   });
 
-  it("animates the probe expansion (no data-instant-expand) with a remembered keyboard height", () => {
+  it("places a remembered-keyboard probe expansion instantly at its lifted position", () => {
     const restoreVisualViewport = installVisualViewport();
-    // A remembered per-device height lets the dock expand at probe start; during
-    // the probe the primer holds focus, so the expansion can animate.
+    // A remembered per-device height lets the dock expand at probe start. It
+    // must already occupy its final lifted geometry while the primer raises
+    // the keyboard, rather than visibly riding up from the page edge.
     window.localStorage.setItem("poracode-mobile-keyboard-height", "320");
     resetComposerKeyboardMemoryForTests();
 
@@ -318,7 +339,7 @@ describe("FloatingComposerDock", () => {
 
       const dock = document.querySelector(".m-compose-dock");
       expect(dock).toHaveAttribute("data-expanded");
-      expect(dock).not.toHaveAttribute("data-instant-expand");
+      expect(dock).toHaveAttribute("data-instant-expand");
     } finally {
       restoreVisualViewport();
     }
@@ -380,6 +401,7 @@ describe("FloatingComposerDock", () => {
   });
 
   it("pins a measured max-height while the dock flips, then releases to CSS", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const resizeCallbacks: ResizeObserverCallback[] = [];
     globalThis.ResizeObserver = class ResizeObserver {
       constructor(callback: ResizeObserverCallback) {
@@ -462,13 +484,64 @@ describe("FloatingComposerDock", () => {
       await waitForTwoFrames();
     });
     expect(bubble.style.height).toBe("34px");
+    expect(dock).toHaveAttribute("data-collapsing");
+    expect(dock).not.toHaveAttribute("data-compact-content");
+    await act(async () => vi.advanceTimersByTime(99));
+    expect(dock).not.toHaveAttribute("data-compact-content");
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(dock).toHaveAttribute("data-compact-content");
     fireHeightEnd();
     expect(dock).not.toHaveAttribute("data-expanded");
+    expect(dock).not.toHaveAttribute("data-collapsing");
+    expect(dock).not.toHaveAttribute("data-compact-content");
     expect(bubble.style.height).toBe("");
     expect(bubble.style.maxHeight).toBe("");
   });
 
-  it("releases an expansion pin when guarded focus interrupts the animation", async () => {
+  it("honors a host-provided earlier compact-content swap", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    globalThis.ResizeObserver = class ResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+
+    const { rerender } = render(<ControlledDockHarness collapseContentSwapMs={60} />);
+    const input = screen.getByRole("textbox", { name: "Composer input" });
+    const bubble = document.querySelector<HTMLElement>(".m-compose-bubble");
+    const dock = document.querySelector<HTMLElement>(".m-compose-dock");
+    expect(bubble).not.toBeNull();
+    expect(dock).not.toBeNull();
+    if (!bubble || !dock) return;
+
+    let rectHeight = 34;
+    vi.spyOn(bubble, "getBoundingClientRect").mockImplementation(
+      () => ({ height: rectHeight }) as unknown as DOMRect,
+    );
+    Object.defineProperty(bubble, "scrollHeight", { configurable: true, value: 90 });
+    rerender(<ControlledDockHarness collapseContentSwapMs={60} />);
+
+    fireEvent.focusIn(input);
+    await act(async () => {
+      await waitForTwoFrames();
+    });
+    rectHeight = 90;
+
+    fireEvent.click(document.body);
+    fireEvent.click(screen.getByLabelText("Close composer"));
+    expect(dock).toHaveAttribute("data-collapsing");
+    expect(dock).not.toHaveAttribute("data-compact-content");
+    await act(async () => vi.advanceTimersByTime(59));
+    expect(dock).not.toHaveAttribute("data-compact-content");
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(dock).toHaveAttribute("data-compact-content");
+  });
+
+  it("keeps a remembered-keyboard probe expansion unpinned through focus handoff", async () => {
     const restoreVisualViewport = installVisualViewport();
     const resizeCallbacks: ResizeObserverCallback[] = [];
     globalThis.ResizeObserver = class ResizeObserver {
@@ -503,15 +576,14 @@ describe("FloatingComposerDock", () => {
       });
       fireEvent(tapTarget, pointerDown);
 
-      expect(bubble.style.height).toBe("34px");
+      expect(bubble.style.height).toBe("");
       await act(async () => {
         await waitForTwoFrames();
       });
-      expect(bubble.style.height).toBe("132px");
+      expect(bubble.style.height).toBe("");
 
-      // The keyboard measurement completes the probe and switches the same
-      // already-expanded dock to instant guarded focus. That handoff used to
-      // cancel the animation cleanup while leaving its 132px pin behind.
+      // The keyboard measurement completes the probe and reasserts the same
+      // already-expanded dock at its freshly measured guarded-focus geometry.
       keyboardMock.offset = 320;
       rectHeight = 132;
       rerender(<ControlledDockHarness />);

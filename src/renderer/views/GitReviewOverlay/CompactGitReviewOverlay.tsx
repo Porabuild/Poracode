@@ -24,6 +24,9 @@ export function CompactGitReviewOverlay(props: GitReviewOverlayProps) {
           onExpandToOverlay={() => undefined}
           onClose={props.onClose}
           hideHeader
+          hideToolbar
+          touchMode
+          compactHeaderActions
         />
       }
     />

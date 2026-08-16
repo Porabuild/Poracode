@@ -1,12 +1,15 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-
-const MOBILE_PAGE_HEADER_ACTIONS_ID = "poracode-mobile-page-header-actions";
+import { useMobilePageActionScope } from "./MobilePageActionScope";
 
 /** Stable compact-header destination for actions owned by the active page. */
 export function MobilePageHeaderActionsSlot() {
+  const scope = useMobilePageActionScope();
   return (
-    <div id={MOBILE_PAGE_HEADER_ACTIONS_ID} className="ml-auto flex shrink-0 items-center gap-2" />
+    <div
+      data-poracode-mobile-page-header-actions={scope}
+      className="ml-auto flex shrink-0 items-center gap-2"
+    />
   );
 }
 
@@ -15,11 +18,14 @@ export function MobilePageHeaderActionsSlot() {
  * state into the shell or duplicating the mobile header.
  */
 export function MobilePageHeaderActions(props: { children: ReactNode }) {
+  const scope = useMobilePageActionScope();
   const [target, setTarget] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    setTarget(document.getElementById(MOBILE_PAGE_HEADER_ACTIONS_ID));
-  }, []);
+    setTarget(
+      document.querySelector<HTMLElement>(`[data-poracode-mobile-page-header-actions="${scope}"]`),
+    );
+  }, [scope]);
 
   return target ? createPortal(props.children, target) : null;
 }

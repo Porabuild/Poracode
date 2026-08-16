@@ -69,7 +69,11 @@ const h = vi.hoisted(() => ({
 
 vi.mock("../db", () => ({
   dbGetProjects: () => h.getProjects(),
+  dbGetProject: (projectId: string) =>
+    (h.getProjects() as Array<{ id: string }>).find((project) => project.id === projectId) ?? null,
   dbGetThreads: () => h.getThreads(),
+  dbGetThread: (threadId: string) =>
+    (h.getThreads() as Array<{ id: string }>).find((thread) => thread.id === threadId) ?? null,
 }));
 
 vi.mock("../sharedSettingsFile", () => ({

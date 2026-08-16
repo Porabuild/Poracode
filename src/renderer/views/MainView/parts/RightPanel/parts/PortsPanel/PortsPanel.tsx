@@ -18,6 +18,7 @@ import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -26,6 +27,7 @@ import {
   selectBrowserBridgeServer,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
+import { usePortsPanelChromeStore } from "./portsPanelStore";
 
 function EmptyState(props: {
   readonly icon: React.ReactNode;
@@ -46,15 +48,37 @@ function EmptyState(props: {
 function DetectedPortRow(props: {
   readonly port: DetectedPort;
   readonly busy: boolean;
+  readonly compact: boolean;
   readonly onForward: () => void;
 }) {
   const { t } = useLingui();
   const meta = props.port.label ?? (props.port.protocol === "http" ? t`Web server` : null);
+  const title = `localhost:${props.port.port}`;
+  if (!props.compact) {
+    return (
+      <SidebarButton
+        className="poracode-sidebar-thread-row"
+        size="xs"
+        density="compact"
+        isDisabled={props.busy}
+        icon={
+          props.busy ? (
+            <Loader2 className="size-3.5 shrink-0 animate-spin" />
+          ) : (
+            <Plug className="size-3.5 shrink-0" />
+          )
+        }
+        label={title}
+        {...(meta ? { suffix: <span className="text-[11px] text-muted">{meta}</span> } : {})}
+        onPress={props.onForward}
+      />
+    );
+  }
   return (
     <button type="button" className="m-thread-row" disabled={props.busy} onClick={props.onForward}>
       <Plug className="size-4 shrink-0 text-muted" />
       <span className="m-thread-row__body">
-        <span className="m-thread-row__title">{`localhost:${props.port.port}`}</span>
+        <span className="m-thread-row__title">{title}</span>
         {meta ? (
           <span className="m-thread-row__meta">
             <span className="m-thread-row__meta-item">{meta}</span>
@@ -72,11 +96,43 @@ function ActiveForwardRow(props: {
   readonly forward: ActivePortForward;
   readonly meta: string;
   readonly opening: boolean;
+  readonly compact: boolean;
   readonly onOpen: () => void;
   readonly onActions: () => void;
 }) {
   const { t } = useLingui();
   const longPressHandlers = useLongPress(props.onActions);
+  if (!props.compact) {
+    return (
+      <SidebarButton
+        className="poracode-sidebar-thread-row"
+        size="xs"
+        density="compact"
+        icon={
+          props.opening ? (
+            <Loader2 className="size-3.5 shrink-0 animate-spin" />
+          ) : (
+            <PlugZap className="size-3.5 shrink-0" />
+          )
+        }
+        label={<Trans>Port {props.forward.targetPort}</Trans>}
+        suffix={
+          <button
+            type="button"
+            className={panelHeaderIconButtonClass}
+            aria-label={t`Actions`}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onActions();
+            }}
+          >
+            <Ellipsis className="size-3.5" />
+          </button>
+        }
+        onPress={props.onOpen}
+      />
+    );
+  }
   return (
     <div className="m-thread-row">
       <button
@@ -135,6 +191,8 @@ export function PortsPanel() {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPort, setManualPort] = useState("");
   const loadGeneration = useRef(0);
+  const refreshVersion = usePortsPanelChromeStore((state) => state.refreshVersion);
+  const manualForwardVersion = usePortsPanelChromeStore((state) => state.manualForwardVersion);
 
   const hasScope = server?.scopes.includes("ports:forward") ?? false;
   const canUse = server !== undefined && hasScope;
@@ -156,6 +214,7 @@ export function PortsPanel() {
     const desktopId = server.desktopId;
     const generation = ++loadGeneration.current;
     setLoading(true);
+    usePortsPanelChromeStore.getState().setLoading(true);
     setNotice(null);
     void withClient(desktopId, (client) => client.listPorts())
       .then((next) => {
@@ -175,7 +234,9 @@ export function PortsPanel() {
         setNotice(describeError(error));
       })
       .finally(() => {
-        if (loadGeneration.current === generation) setLoading(false);
+        if (loadGeneration.current !== generation) return;
+        setLoading(false);
+        usePortsPanelChromeStore.getState().setLoading(false);
       });
   }
 
@@ -189,6 +250,25 @@ export function PortsPanel() {
     // intentionally stays local so explicit refreshes share the same race guard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [server?.desktopId, canUse]);
+
+  useEffect(() => {
+    if (refreshVersion === 0) return;
+    load();
+    // Header refresh only bumps the version; `load` is the local race-guarded fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshVersion]);
+
+  useEffect(() => {
+    if (manualForwardVersion === 0) return;
+    setManualOpen(true);
+  }, [manualForwardVersion]);
+
+  useEffect(
+    () => () => {
+      usePortsPanelChromeStore.getState().setLoading(false);
+    },
+    [],
+  );
 
   function openForwardUrl(url: string): void {
     void readBridge()
@@ -299,30 +379,12 @@ export function PortsPanel() {
 
   return (
     <div
-      className={`m-page-content relative flex h-full min-h-0 flex-col overflow-y-auto ${compact ? "px-3 pb-3 pt-1" : "p-3"}`}
+      className={`m-page-content relative flex h-full min-h-0 flex-col overflow-y-auto ${compact ? "px-3 pb-3 pt-1" : "p-2"}`}
     >
-      <div className="m-page--fab flex min-h-full flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs text-muted">
-            <Trans>Dev servers listening on your desktop's localhost.</Trans>
-          </p>
-          {!compact ? (
-            <Button
-              isIconOnly
-              aria-label={t`Refresh`}
-              size="sm"
-              variant="ghost"
-              isDisabled={!canUse || loading}
-              onPress={() => load()}
-            >
-              {loading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-            </Button>
-          ) : null}
-        </div>
+      <div className={`flex min-h-full flex-col ${compact ? "m-page--fab gap-3" : "gap-1"}`}>
+        <p className={`text-xs text-muted ${compact ? "" : "px-2 pb-1"}`}>
+          <Trans>Dev servers listening on your desktop's localhost.</Trans>
+        </p>
 
         {!server ? (
           <EmptyState
@@ -355,14 +417,15 @@ export function PortsPanel() {
         ) : (
           <>
             {forwards.length > 0 ? (
-              <section className="flex flex-col gap-1.5">
-                <h2 className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+              <section className={`flex flex-col ${compact ? "gap-1.5" : "gap-0.5"}`}>
+                <h2 className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
                   <Trans>Active forwards</Trans>
                 </h2>
                 {forwards.map((forward) => (
                   <ActiveForwardRow
                     key={forward.id}
                     forward={forward}
+                    compact={compact}
                     meta={
                       direct
                         ? buildForwardUrl(host, forward.listenPort)
@@ -377,8 +440,8 @@ export function PortsPanel() {
             ) : null}
 
             {showDetectedSection ? (
-              <section className="flex flex-col gap-1.5">
-                <h2 className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+              <section className={`flex flex-col ${compact ? "gap-1.5" : "gap-0.5"}`}>
+                <h2 className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
                   <Trans>Detected</Trans>
                 </h2>
                 {visibleDetected.length > 0 ? (
@@ -386,6 +449,7 @@ export function PortsPanel() {
                     <DetectedPortRow
                       key={port.port}
                       port={port}
+                      compact={compact}
                       busy={busyPort === port.port}
                       onForward={() => startForward(port.port)}
                     />
@@ -414,7 +478,7 @@ export function PortsPanel() {
         </MobileCircleButton>
       ) : null}
 
-      {canUse ? (
+      {compact && canUse ? (
         <MobileCircleButton
           aria-label={t`Forward a port`}
           className="m-page-edge-action fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40"

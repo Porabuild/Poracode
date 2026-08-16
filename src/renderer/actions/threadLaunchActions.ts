@@ -362,14 +362,8 @@ export async function startThreadFromDraft(
 function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
   const owner = remoteOwner(project);
   if (owner) {
-    const remoteServer = useRemoteServersStore
-      .getState()
-      .servers.find((server) => server.desktopId === owner.desktopId);
-    const helperHost =
-      remoteServer?.hostMode === "helper" ||
-      (remoteServer?.hostMode === undefined && remoteServer?.transport?.kind === "ssh");
     return {
-      setupRunsOnHost: !helperHost,
+      setupRunsOnHost: true,
       startThread: async (launch) => {
         const remoteId = launch.threadId;
         return useRemoteServersStore.getState().launchRemoteThread(

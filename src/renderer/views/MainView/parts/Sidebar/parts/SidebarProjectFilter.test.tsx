@@ -219,6 +219,44 @@ describe("SidebarProjectFilter", () => {
     expect(screen.getByRole("menuitemcheckbox", { name: /Gamma/ })).toHaveTextContent("0");
   });
 
+  it("renders one divider when every listed project is unavailable", async () => {
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set()}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+      />,
+    );
+    const menu = await openMenu();
+
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Project actions for Beta" })).toHaveClass("ms-auto");
+  });
+
+  it("keeps a single divider between All projects and a filterable-only list", async () => {
+    renderFilter(null);
+    const menu = await openMenu();
+
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
+  });
+
+  it("separates filterable and unavailable projects with one extra divider", async () => {
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set(["a"])}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+      />,
+    );
+    const menu = await openMenu();
+
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(2);
+  });
+
   describe("project overflow menu", () => {
     beforeEach(() => {
       usePanelStore.setState({ settingsOpen: false, projectSettingsId: null });

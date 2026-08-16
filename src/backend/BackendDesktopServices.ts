@@ -184,6 +184,8 @@ export class BackendDesktopServices {
             options.emitNativeEvent({ type: "remote-access-pairing-changed", info }),
           notifyProjectStateChanged: (projects) =>
             options.emitNativeEvent({ type: "projects-changed", projects: [...projects] }),
+          notifyUserNotification: (notification) =>
+            options.emitNativeEvent({ type: "user-notification", notification }),
           notifyEventInterestsChanged: options.setRemoteEventInterests,
           imagePreviewGenerator: generateBackendImagePreview,
           reportError: options.reportError,

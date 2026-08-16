@@ -2,11 +2,15 @@ import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/con
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
-import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
+import {
+  remoteGitStateEventSchema,
+  remoteGitSummariesEventSchema,
+  remoteUserNotificationEventSchema,
+} from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { handleThreadStateNotification } from "@/renderer/notifications";
+import { showUserNotification } from "@/renderer/notifications";
 import {
   toRuntimeChatItem,
   type CompletedTurnRecord,
@@ -516,6 +520,12 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
     hooks?.onGitState?.(gitState.data.patch);
     return;
   }
+  const userNotification = remoteUserNotificationEventSchema.safeParse(value);
+  if (userNotification.success) {
+    const { type: _type, ...notification } = userNotification.data;
+    showUserNotification(notification);
+    return;
+  }
 
   const event = asSupervisorEvent(value);
   if (!event) return;
@@ -534,7 +544,6 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
       if (event.status === "inactive" || event.status === "error") {
         useAppStore.getState().reconcileStaleSubAgents(event.threadId);
       }
-      handleThreadStateNotification(event, oldThread);
       hooks?.onThreadState?.({
         threadId: event.threadId,
         status: event.status,

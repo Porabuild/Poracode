@@ -1,5 +1,5 @@
 import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
-import { startTransition, useEffect, useLayoutEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
@@ -21,7 +21,8 @@ import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
-import { isMac, readBridge } from "@/renderer/bridge";
+import { readBridge } from "@/renderer/bridge";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
@@ -227,12 +228,6 @@ export function Sidebar() {
     }
   }, [currentProjectId, setProjectCollapsed]);
 
-  // Reconnect any persisted remote servers once on mount so their projects show
-  // in the sidebar without opening Settings → Remote Servers.
-  useLayoutEffect(() => {
-    void useRemoteServersStore.getState().connectAll();
-  }, []);
-
   useEffect(() => {
     if (currentWorktreePath) {
       setWorktreeCollapsed(currentWorktreePath, false);
@@ -280,7 +275,7 @@ export function Sidebar() {
             // macOS keeps the rail below the hidden-inset titlebar (traffic
             // lights); elsewhere the header spacer is dropped when collapsed,
             // so the rail starts at the window top with its own inset.
-            isMac() ? "pt-0" : "pt-2"
+            hasMacWindowChrome() ? "pt-0" : "pt-2"
           }`}
         >
           <div className="flex shrink-0 flex-col gap-0.5">

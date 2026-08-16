@@ -59,13 +59,13 @@ export function ThreadDockHeader({
       <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />
       <div
         className={`flex min-w-0 flex-1 leading-none ${
-          stackedContent ? "flex-col items-start gap-0.5" : "items-center gap-2"
+          stackedContent ? "flex-col items-start gap-0.5" : "items-baseline gap-2"
         }`}
         data-stacked={stackedContent ? "true" : undefined}
       >
         <span className="font-semibold text-foreground">{title}</span>
         {countLabel && (
-          <span className="flex items-center gap-1 text-[0.85em] text-[color:var(--muted)]">
+          <span className="inline-flex items-baseline gap-1 text-[0.85em] leading-none text-[color:var(--muted)]">
             {countLabel}
           </span>
         )}

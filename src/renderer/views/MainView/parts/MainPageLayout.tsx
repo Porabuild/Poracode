@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode, useEffect, useRef } from "react";
+import { lazy, Suspense, type ReactNode, useEffect, useRef } from "react";
 import { useDroppable } from "@dnd-kit/react";
 import { getAppName } from "@/shared/appName";
 import { readBridge } from "@/renderer/bridge";
@@ -7,9 +7,6 @@ import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { Sidebar } from "@/renderer/views/MainView/parts/Sidebar/Sidebar";
 import { AppContent } from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { SidebarHeaderControls } from "@/renderer/views/MainView/parts/SidebarHeaderControls";
-import { MainRightPanel } from "@/renderer/views/MainView/parts/MainRightPanel";
-import { MainGitPanel } from "@/renderer/views/MainView/parts/MainGitPanel";
-import { BottomDockDropStrip } from "@/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProjectIds } from "@/renderer/state/useThread";
@@ -23,6 +20,22 @@ import { CompactThreadHeader } from "@/renderer/components/thread/CompactThreadH
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+
+const DeferredMainRightPanel = lazy(() =>
+  import("@/renderer/views/MainView/parts/MainRightPanel").then((module) => ({
+    default: module.MainRightPanel,
+  })),
+);
+const DeferredMainGitPanel = lazy(() =>
+  import("@/renderer/views/MainView/parts/MainGitPanel").then((module) => ({
+    default: module.MainGitPanel,
+  })),
+);
+const DeferredBottomDockDropStrip = lazy(() =>
+  import("@/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip").then(
+    (module) => ({ default: module.BottomDockDropStrip }),
+  ),
+);
 
 export function MainPageLayout(props: { onTitleClick: () => void }) {
   const { onTitleClick } = props;
@@ -128,18 +141,42 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       content={
         <MainPanelDropZone>
           <AppContent />
-          <Suspense>
-            <DeferredFileEditorPanel />
-          </Suspense>
+          {!compactLayout ? (
+            <Suspense>
+              <DeferredFileEditorPanel />
+            </Suspense>
+          ) : null}
         </MainPanelDropZone>
       }
-      rightPanel={activeMobileUtilityPage === null ? <MainRightPanel /> : undefined}
-      gitPanel={activeMobileUtilityPage === null ? <MainGitPanel /> : undefined}
+      rightPanel={
+        !compactLayout && activeMobileUtilityPage === null ? (
+          <Suspense>
+            <DeferredMainRightPanel />
+          </Suspense>
+        ) : undefined
+      }
+      gitPanel={
+        !compactLayout && activeMobileUtilityPage === null ? (
+          <Suspense>
+            <DeferredMainGitPanel />
+          </Suspense>
+        ) : undefined
+      }
     />
   );
 }
 
 function MainPanelDropZone(props: { children: ReactNode }) {
+  const compactLayout = useCompactLayout();
+
+  if (compactLayout) {
+    return <div className="relative h-full min-h-0">{props.children}</div>;
+  }
+
+  return <DesktopMainPanelDropZone>{props.children}</DesktopMainPanelDropZone>;
+}
+
+function DesktopMainPanelDropZone(props: { children: ReactNode }) {
   const elementRef = useRef<HTMLDivElement>(null);
   // The dnd-kit registration keeps the source from going into "no valid
   // target" cancellation; pointer hit-testing is done by the dnd module via
@@ -160,7 +197,9 @@ function MainPanelDropZone(props: { children: ReactNode }) {
   return (
     <div ref={elementRef} className="relative h-full min-h-0">
       {props.children}
-      <BottomDockDropStrip />
+      <Suspense>
+        <DeferredBottomDockDropStrip />
+      </Suspense>
       {isActive ? (
         <div
           aria-hidden="true"

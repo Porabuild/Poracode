@@ -39,6 +39,9 @@
             (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
           document.documentElement.toggleAttribute("data-pwa-standalone", standalone);
           document.documentElement.toggleAttribute("data-mobile-standalone", standalone);
+          document.documentElement.dataset.clientHost = window.poracodeHost
+            ? "electron"
+            : "browser";
           if (standalone && ios) {
             document.documentElement.style.setProperty("height", "100lvh");
           }

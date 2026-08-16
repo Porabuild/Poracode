@@ -84,7 +84,10 @@ function replyFailure(child: FakeChild, request: BackendHostRequest, error: stri
   });
 }
 
-function createClient(assignPid = vi.fn<(pid: number) => Promise<void>>(async () => undefined)) {
+function createClient(
+  assignPid = vi.fn<(pid: number) => Promise<void>>(async () => undefined),
+  options: { initWaitTimeoutMs?: number } = {},
+) {
   const onEvent =
     vi.fn<
       (event: SupervisorEvent, rendererDeliveredDirect: boolean, rendererSequence?: number) => void
@@ -112,6 +115,9 @@ function createClient(assignPid = vi.fn<(pid: number) => Promise<void>>(async ()
     },
     resolveExtraEnv: () => ({ PORACODE_BROWSER_MCP_URL: "http://127.0.0.1" }),
     assignPid,
+    ...(options.initWaitTimeoutMs !== undefined
+      ? { initWaitTimeoutMs: options.initWaitTimeoutMs }
+      : {}),
     reportError,
     handleNativeRequest,
     onNativeEvent,
@@ -151,7 +157,10 @@ describe("BackendHostClient", () => {
     terminateMock.mockReset();
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
 
   it("initializes the worker, lowers its priority, and starts with current MCP env", async () => {
     const child = makeFakeChild();
@@ -478,5 +487,44 @@ describe("BackendHostClient", () => {
 
     await expect(call).rejects.toThrow("schema validation failed");
     expect(terminateMock).toHaveBeenCalledExactlyOnceWith(second);
+  });
+
+  it("rejects waiters when a recovery spawn fails instead of hanging", async () => {
+    const first = makeFakeChild(1);
+    forkMock.mockReturnValueOnce(first).mockReturnValue(null);
+    const { client, reportError } = createClient();
+    await startClient(client, first);
+
+    first.emit("exit", 1);
+    const call = client.callDatabase("dbGetProjects", {});
+
+    await expect(call).rejects.toThrow("Failed to spawn backend host.");
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Failed to spawn backend host." }),
+      expect.objectContaining({ "poracode.feature_area": "backend-host" }),
+    );
+    await client.disposeAsync();
+  });
+
+  it("rejects start when the initial fork fails", async () => {
+    forkMock.mockReturnValue(null);
+    const { client } = createClient();
+
+    await expect(client.startSupervisor()).rejects.toThrow("Failed to spawn backend host.");
+    await client.disposeAsync();
+  });
+
+  it("times out waiters if backend recovery never initializes", async () => {
+    const first = makeFakeChild(1);
+    const second = makeFakeChild(2);
+    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const { client } = createClient(undefined, { initWaitTimeoutMs: 20 });
+    await startClient(client, first);
+
+    first.emit("exit", 1);
+    const call = client.callDatabase("dbGetProjects", {});
+
+    await expect(call).rejects.toThrow("Backend host initialization timed out.");
+    await client.disposeAsync();
   });
 });

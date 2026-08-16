@@ -11,6 +11,7 @@ const bridge = vi.hoisted(() => ({
   listProjectTree: vi.fn<() => Promise<{ directoryPath: string; entries: unknown[] }>>(),
   searchProjectTree: vi.fn<() => Promise<{ entries: unknown[] }>>(),
   readProjectFile: vi.fn<() => Promise<unknown>>(),
+  writeProjectFile: vi.fn<() => Promise<{ modifiedAtMs: number }>>(),
 }));
 
 vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
@@ -70,6 +71,7 @@ describe("FileEditorOverlay", () => {
       lineEnding: "lf",
       hasBom: false,
     });
+    bridge.writeProjectFile.mockReset().mockResolvedValue({ modifiedAtMs: 2 });
     useFileEditorStore.setState({
       rootContext,
       overlayMode: "fullscreen",
@@ -99,6 +101,21 @@ describe("FileEditorOverlay", () => {
       expect(within(main).getByTestId("monaco-editor")).toBeInTheDocument();
     });
     expect(within(main).queryByPlaceholderText("Search files")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Editor tabs" })).not.toBeInTheDocument();
+
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save.closest("[data-poracode-mobile-page-header-actions]")).not.toBeNull();
+    expect(save).toBeDisabled();
+
+    const preview = screen.getByRole("button", { name: "Show preview" });
+    expect(preview.closest('[data-poracode-mobile-page-bottom-action$=":left"]')).not.toBeNull();
+    fireEvent.click(preview);
+    expect(screen.getByRole("button", { name: "Show source" })).toBeInTheDocument();
+
+    useFileEditorStore.getState().updateBuffer("README.md", "# Updated");
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(save);
+    await waitFor(() => expect(bridge.writeProjectFile).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(within(main).getByPlaceholderText("Search files")).toBeInTheDocument();

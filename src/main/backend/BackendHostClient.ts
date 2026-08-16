@@ -34,6 +34,7 @@ import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const RESTART_DELAY_MS = 1_000;
 const DISPOSE_TIMEOUT_MS = 1_000;
+export const BACKEND_HOST_INIT_WAIT_TIMEOUT_MS = 15_000;
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -46,6 +47,8 @@ export interface BackendHostClientOptions {
   resolveExtraEnv(): Record<string, string>;
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
+  /** Override for tests so recovery timeouts do not need fake 15s timers. */
+  initWaitTimeoutMs?: number;
   onEvent(
     event: SupervisorEvent,
     rendererDeliveredDirect: boolean,
@@ -104,10 +107,22 @@ export class BackendHostClient {
 
   private spawn(): void {
     if (this.disposed) return;
-    const child = fork(this.options.backendHostPath, [], {
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
-      env: process.env,
-    });
+    let child: ChildProcess | null;
+    try {
+      child = fork(this.options.backendHostPath, [], {
+        stdio: ["ignore", "pipe", "pipe", "ipc"],
+        env: process.env,
+      });
+    } catch (error) {
+      this.handleSpawnFailure(
+        error instanceof Error ? error : new Error("Failed to spawn backend host."),
+      );
+      return;
+    }
+    if (!child) {
+      this.handleSpawnFailure(new Error("Failed to spawn backend host."));
+      return;
+    }
     this.child = child;
     this.syncedEventInterestsKey = null;
     pipeChildStreamsToParent(child);
@@ -240,8 +255,27 @@ export class BackendHostClient {
     if (this.disposed) return;
     this.beginRecovery();
     this.reportProcessError(error);
+    this.scheduleSpawnRetry();
+  }
+
+  private handleSpawnFailure(error: Error): void {
+    this.child = null;
+    this.sender = null;
+    this.initializePromise = Promise.reject(error);
+    this.initializePromise.catch(() => undefined);
+    this.reportProcessError(error);
+    this.rejectRecoveryGate?.(error);
+    this.clearRecoveryGate();
+    if (this.disposed) return;
+    this.beginRecovery();
+    this.scheduleSpawnRetry();
+  }
+
+  private scheduleSpawnRetry(): void {
+    if (this.restartTimer) clearTimeout(this.restartTimer);
     this.restartTimer = setTimeout(() => {
       this.restartTimer = null;
+      if (this.disposed) return;
       this.spawn();
     }, RESTART_DELAY_MS);
     this.restartTimer.unref?.();
@@ -268,8 +302,20 @@ export class BackendHostClient {
 
   private async waitUntilInitialized(): Promise<void> {
     const recovery = this.recoveryGate;
-    if (recovery) await recovery;
-    await this.initializePromise;
+    const ready = (recovery ?? Promise.resolve()).then(() => this.initializePromise);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error("Backend host initialization timed out."));
+        }, this.options.initWaitTimeoutMs ?? BACKEND_HOST_INIT_WAIT_TIMEOUT_MS);
+        timeoutId.unref?.();
+        void ready.then(() => resolve(), reject);
+      });
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      void ready.catch(() => undefined);
+    }
   }
 
   private rejectPendingRequests(error: Error): void {

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -36,14 +37,34 @@ import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
-import { PullRequestsView } from "@/renderer/views/PullRequestsView/PullRequestsView";
-import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
 import { resolveResponsivePaneLayout } from "./responsivePaneLayout";
-import { MobileUtilityPage } from "../MobileUtilityPage";
+
+const DeferredMobileUtilityPage = lazy(() =>
+  import("../MobileUtilityPage").then((module) => ({ default: module.MobileUtilityPage })),
+);
+const DeferredPullRequestsView = lazy(() =>
+  import("@/renderer/views/PullRequestsView/PullRequestsView").then((module) => ({
+    default: module.PullRequestsView,
+  })),
+);
+const DeferredSchedulesView = lazy(() =>
+  import("@/renderer/views/SchedulesView/SchedulesView").then((module) => ({
+    default: module.SchedulesView,
+  })),
+);
+
+function DeferredPageLoader() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <PixelLoader size="lg" />
+    </div>
+  );
+}
 
 export function AppContent() {
   const { t } = useLingui();
@@ -166,7 +187,11 @@ export function AppContent() {
   }
 
   if (compactLayout && mobileUtilityPage) {
-    return <MobileUtilityPage />;
+    return (
+      <Suspense fallback={<DeferredPageLoader />}>
+        <DeferredMobileUtilityPage />
+      </Suspense>
+    );
   }
 
   if (view.kind === "experiment") {
@@ -177,7 +202,9 @@ export function AppContent() {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
         <BrowserRemoteConnectionGate>
-          <SchedulesView />
+          <Suspense fallback={<DeferredPageLoader />}>
+            <DeferredSchedulesView />
+          </Suspense>
         </BrowserRemoteConnectionGate>
       </div>
     );
@@ -187,7 +214,9 @@ export function AppContent() {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
         <BrowserRemoteConnectionGate>
-          <PullRequestsView />
+          <Suspense fallback={<DeferredPageLoader />}>
+            <DeferredPullRequestsView />
+          </Suspense>
         </BrowserRemoteConnectionGate>
       </div>
     );

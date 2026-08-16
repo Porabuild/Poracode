@@ -1,12 +1,5 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
-import { Keyboard } from "lucide-react";
-import type {
-  ClipboardEvent as ReactClipboardEvent,
-  FormEvent,
-  KeyboardEvent as ReactKeyboardEvent,
-} from "react";
 import { readBridge } from "@/renderer/bridge";
 import { friendlyError } from "@/shared/messages";
 
@@ -97,9 +90,7 @@ function encodeKey(key: string, modifiers: Record<Modifier, boolean>): string {
 
 /** Touch keyboard and common terminal key chords for the compact terminal page. */
 export function MobileTerminalAccessory(props: { readonly terminalId: string }) {
-  const { t } = useLingui();
   const [modifiers, setModifiers] = useState<Record<Modifier, boolean>>(NO_MODIFIERS);
-  const beforeInputHandledRef = useRef(false);
 
   function send(data: string): void {
     if (!data) return;
@@ -113,76 +104,8 @@ export function MobileTerminalAccessory(props: { readonly terminalId: string }) 
     if (hasModifier(modifiers)) setModifiers(NO_MODIFIERS);
   }
 
-  function sendText(value: string): void {
-    if (hasModifier(modifiers) && value.length === 1) {
-      send(encodeKey(value, modifiers));
-      setModifiers(NO_MODIFIERS);
-      return;
-    }
-    send(value);
-  }
-
-  function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
-    const effectiveModifiers = {
-      shift: modifiers.shift || event.shiftKey,
-      ctrl: modifiers.ctrl || event.ctrlKey,
-      cmd: modifiers.cmd || event.metaKey,
-    };
-    const shouldSend =
-      (hasModifier(effectiveModifiers) && event.key.length === 1) ||
-      KEY_DATA[event.key] !== undefined;
-    if (!shouldSend) return;
-    event.preventDefault();
-    send(encodeKey(event.key, effectiveModifiers));
-    if (hasModifier(effectiveModifiers)) setModifiers(NO_MODIFIERS);
-  }
-
-  function onBeforeInput(event: FormEvent<HTMLInputElement>): void {
-    const native = event.nativeEvent as InputEvent;
-    if (!(native.inputType ?? "").startsWith("insert") || !native.data) return;
-    event.preventDefault();
-    beforeInputHandledRef.current = true;
-    queueMicrotask(() => {
-      beforeInputHandledRef.current = false;
-    });
-    sendText(native.data);
-  }
-
-  function onInput(event: FormEvent<HTMLInputElement>): void {
-    const value = event.currentTarget.value;
-    event.currentTarget.value = "";
-    if (beforeInputHandledRef.current) {
-      beforeInputHandledRef.current = false;
-      return;
-    }
-    sendText(value);
-  }
-
-  function onPaste(event: ReactClipboardEvent<HTMLInputElement>): void {
-    const text = event.clipboardData.getData("text");
-    if (!text) return;
-    event.preventDefault();
-    send(text);
-  }
-
   return (
     <div className="m-terminal-accessory">
-      <label className="m-terminal-accessory__input">
-        <Keyboard className="size-4" />
-        <input
-          aria-label={t`Terminal input`}
-          autoCapitalize="off"
-          autoCorrect="off"
-          inputMode="text"
-          spellCheck={false}
-          value=""
-          onBeforeInput={onBeforeInput}
-          onChange={() => {}}
-          onInput={onInput}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-        />
-      </label>
       <div className="m-terminal-accessory__mods" role="group">
         {MODIFIERS.map((modifier) => (
           <button

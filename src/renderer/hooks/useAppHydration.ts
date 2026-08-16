@@ -1,7 +1,7 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
-import { hasClientCapability } from "@/renderer/clientRuntime";
+import { hasClientCapability, isCompactClientRuntimeSurface } from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -115,13 +115,14 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     void (async () => {
-      const candidateRecovery = recoverExperimentCandidateWorktrees();
-      if (candidateRecovery) await candidateRecovery;
       if (!isActive) return;
       if (!runtimeOwner) {
         setInitialLoading(false);
         setThreadRuntimeReopenEnabled(true);
         setRuntimeSnapshotsReady(true);
+        void recoverExperimentCandidateWorktrees()?.catch((error: unknown) => {
+          captureRendererException(error, { featureArea: "hydration" });
+        });
         return;
       }
 
@@ -132,12 +133,14 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
       const snapshotsPromise = readBridge().getThreadSnapshots();
 
+      // Backend IPC can hang if the host is dead; do not pin the splash on it.
       const visibleGuiThreadIds = collectVisibleGuiThreadIds();
-      if (visibleGuiThreadIds.length > 0) {
-        await Promise.all(
-          visibleGuiThreadIds.map((threadId) => hydrateThreadRuntimeItems(threadId)),
-        );
-      }
+      void Promise.all([
+        recoverExperimentCandidateWorktrees() ?? Promise.resolve(),
+        ...visibleGuiThreadIds.map((threadId) => hydrateThreadRuntimeItems(threadId)),
+      ]).catch((error: unknown) => {
+        captureRendererException(error, { featureArea: "hydration" });
+      });
 
       if (!isActive) return;
       startTransition(() => {
@@ -289,7 +292,9 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
     let stopPrewarm = () => {};
     const frame = window.requestAnimationFrame(() => {
-      stopPrewarm = startDeferredFeaturePrewarm();
+      stopPrewarm = startDeferredFeaturePrewarm(
+        isCompactClientRuntimeSurface() ? "compact" : "desktop",
+      );
     });
     return () => {
       window.cancelAnimationFrame(frame);

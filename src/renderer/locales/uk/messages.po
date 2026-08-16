@@ -485,6 +485,7 @@ msgid "{label} usage"
 msgstr "Використання {label}"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "{label} usage — open usage panel"
 msgstr "Використання {label} — відкрити панель використання"
 
@@ -1619,7 +1620,6 @@ msgstr "Колір аватара {color}"
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
@@ -2057,6 +2057,7 @@ msgstr "Список змін"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Changes"
 msgstr "Зміни"
@@ -2600,6 +2601,7 @@ msgid "Close to tray"
 msgstr "Закривати в лоток"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Close usage details"
 msgstr "Закрити деталі використання"
 
@@ -4821,6 +4823,7 @@ msgstr "Файл використовує непідтримуване коду�
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "Файли"
 
@@ -5180,6 +5183,7 @@ msgstr "Отримати завдання"
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
@@ -5198,6 +5202,7 @@ msgstr "Збій Git {command}: {detail}"
 #~ msgid "Git actions"
 #~ msgstr "Дії Git"
 
+#: src/renderer/views/GitReviewOverlay/CompactGitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
 msgstr "Перевірка Git"
@@ -5417,6 +5422,7 @@ msgid "Hide canonical runtime item inspector"
 msgstr "Сховати інспектор елементів канонічного середовища виконання"
 
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Hide context usage details"
 msgstr "Сховати деталі використання контексту"
 
@@ -7794,6 +7800,7 @@ msgstr "Лише коли немає фокусу"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Вручну можна запускати лише робочі процеси з тригером workflow_dispatch."
 
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -9712,7 +9719,6 @@ msgstr "Повторити з правами адміністратора"
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9991,6 +9997,7 @@ msgstr "Параметри середовища виконання"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -10547,6 +10554,7 @@ msgid "Show composer"
 msgstr "Показати Composer"
 
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Показати деталі використання контексту"
 
@@ -10603,6 +10611,7 @@ msgid "Show or hide the sidebar"
 msgstr "Показати або сховати бічну панель"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "Показати попередній перегляд"
 
@@ -10620,7 +10629,6 @@ msgstr "Показати панель налагодження середови�
 #~ msgid "Show Schedules in the sidebar footer."
 #~ msgstr "Показувати розклади унизу бічної панелі."
 
-#: src/renderer/components/thread/ThreadChangesBubble.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -10636,6 +10644,7 @@ msgid "Show skills from {0}"
 msgstr "Показати навички з {0}"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"
 msgstr "Показати джерело"
 
@@ -11523,7 +11532,6 @@ msgstr "Термінал для {0}"
 msgid "Terminal for {projectName}"
 msgstr "Термінал проєкту {projectName}"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "Ввід у термінал"
@@ -12774,8 +12782,10 @@ msgid "URL is required."
 msgstr "Потрібно вказати URL."
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13327,9 +13337,9 @@ msgstr "Робоча область"
 msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
 msgstr "Сервери MCP робочої області перевизначають користувацькі сервери з такою самою назвою та додаються лише під час запуску агентів у цьому проєкті."
 
-#: src/mobile/views/WorkspaceView.tsx
-#~ msgid "Workspace view"
-#~ msgstr "Подання робочої області"
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
+msgid "Workspace view"
+msgstr "Подання робочої області"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx

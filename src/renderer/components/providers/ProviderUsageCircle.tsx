@@ -51,10 +51,12 @@ export function ProviderUsageCircle(props: {
   kind: string;
   windows: readonly UsageWindow[] | undefined;
   size?: number;
+  /** Hide the provider glyph when the surrounding surface already identifies it. */
+  showProviderIcon?: boolean;
   /** Selected ring group for multi-group providers (e.g. Antigravity). */
   ringGroup?: string | undefined;
 }) {
-  const { kind, windows, size = 28, ringGroup } = props;
+  const { kind, windows, size = 28, showProviderIcon = true, ringGroup } = props;
   const { outer, inner } = pickUsageRings(kind, windows, ringGroup);
   const outerRadius = 11;
   const innerRadius = 7.5;
@@ -85,7 +87,9 @@ export function ProviderUsageCircle(props: {
         )}
         {inner ? <Ring window={inner} radius={innerRadius} /> : null}
       </svg>
-      <ProviderIcon kind={kind} fallbackLabel={kind} className="size-2.5" />
+      {showProviderIcon ? (
+        <ProviderIcon kind={kind} fallbackLabel={kind} className="size-2.5" />
+      ) : null}
     </span>
   );
 }

@@ -380,7 +380,7 @@ function DndManagerBridge(props: { managerRef: React.RefObject<DragDropManager |
   return null;
 }
 
-export function AppDndProvider(props: {
+interface AppDndProviderProps {
   children: React.ReactNode;
   onSidebarSortEnd: (
     source: DragSourceData,
@@ -394,8 +394,23 @@ export function AppDndProvider(props: {
   onMainPanelDrop: (source: MainPanelDropSource) => void;
   onPanelDockDrop: (source: PanelTabDragSource, target: PanelDockTarget) => void;
   paneLayout: PaneLayout;
-}) {
+}
+
+export function AppDndProvider(props: AppDndProviderProps) {
   const compactLayout = useCompactLayout();
+
+  if (compactLayout) {
+    return <CompactDndProvider>{props.children}</CompactDndProvider>;
+  }
+
+  return <DesktopAppDndProvider {...props} />;
+}
+
+export function CompactDndProvider(props: { children: React.ReactNode }) {
+  return <DragDropProvider sensors={[]}>{props.children}</DragDropProvider>;
+}
+
+function DesktopAppDndProvider(props: AppDndProviderProps) {
   const pointer = useRef({ x: 0, y: 0 });
   const paneIndicatorRef = useRef<PaneDropIndicator | null>(null);
   const mainPanelDropActiveRef = useRef(false);
@@ -466,16 +481,13 @@ export function AppDndProvider(props: {
   }
 
   const sensors = useMemo(
-    () =>
-      compactLayout
-        ? []
-        : [
-            PointerSensor.configure({
-              activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
-            }),
-            KeyboardSensor,
-          ],
-    [compactLayout],
+    () => [
+      PointerSensor.configure({
+        activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
+      }),
+      KeyboardSensor,
+    ],
+    [],
   );
 
   // Pane drags use a separate overlay (below), so disable the default tween:

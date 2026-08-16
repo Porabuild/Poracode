@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft } from "lucide-react";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { MobilePageBottomBar } from "@/renderer/components/layout/MobilePageBottomActions";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import {
   overlaySidebarColumnClass,
@@ -72,6 +73,18 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
       )}
     </div>
   );
+  const editor = compactLayout ? (
+    <div className="m-mobile-file-editor relative flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <FileEditorPane showTabs={false} mobileControls />
+      </div>
+      <MobilePageBottomBar className="m-mobile-file-editor__actions mx-3">
+        <span aria-hidden />
+      </MobilePageBottomBar>
+    </div>
+  ) : (
+    <FileEditorPane showTabs />
+  );
 
   return (
     <PageLayout
@@ -89,9 +102,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
         </div>
       }
       sidebar={compactLayout ? null : tree}
-      content={
-        compactLayout && compactPage === "tree" && showTree ? tree : <FileEditorPane showTabs />
-      }
+      content={compactLayout && compactPage === "tree" && showTree ? tree : editor}
     />
   );
 }

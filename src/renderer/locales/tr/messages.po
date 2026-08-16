@@ -485,6 +485,7 @@ msgid "{label} usage"
 msgstr "{label} kullanımı"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label} kullanımı — kullanım panelini aç"
 
@@ -1619,7 +1620,6 @@ msgstr "Avatar rengi {color}"
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
@@ -2057,6 +2057,7 @@ msgstr "Değişiklik günlüğü"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Changes"
 msgstr "Değişiklikler"
@@ -2600,6 +2601,7 @@ msgid "Close to tray"
 msgstr "Tepsiye küçült"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Close usage details"
 msgstr "Kullanım ayrıntılarını kapat"
 
@@ -4821,6 +4823,7 @@ msgstr "Dosya desteklenmeyen bir kodlama kullanıyor."
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "Dosyalar"
 
@@ -5180,6 +5183,7 @@ msgstr "Görev al"
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
@@ -5198,6 +5202,7 @@ msgstr "Git {command} başarısız oldu: {detail}"
 #~ msgid "Git actions"
 #~ msgstr "Git işlemleri"
 
+#: src/renderer/views/GitReviewOverlay/CompactGitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
 msgstr "Git İncelemesi"
@@ -5417,6 +5422,7 @@ msgid "Hide canonical runtime item inspector"
 msgstr "Kanonik çalışma zamanı öğe denetçisini gizle"
 
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Hide context usage details"
 msgstr "Bağlam kullanım ayrıntılarını gizle"
 
@@ -7794,6 +7800,7 @@ msgstr "Yalnızca odaklanmadığında"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Yalnızca workflow_dispatch tetikleyicisi olan iş akışları manuel olarak başlatılabilir."
 
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -9712,7 +9719,6 @@ msgstr "Yönetici ile tekrar dene"
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9991,6 +9997,7 @@ msgstr "Çalışma zamanı seçenekleri"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -10547,6 +10554,7 @@ msgid "Show composer"
 msgstr "Composer'ı göster"
 
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Bağlam kullanım ayrıntılarını göster"
 
@@ -10603,6 +10611,7 @@ msgid "Show or hide the sidebar"
 msgstr "Kenar çubuğunu göster veya gizle"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "Önizlemeyi göster"
 
@@ -10620,7 +10629,6 @@ msgstr "Çalışma zamanı hata ayıklama panelini göster"
 #~ msgid "Show Schedules in the sidebar footer."
 #~ msgstr "Zamanlamaları kenar çubuğu alt kısmında göster."
 
-#: src/renderer/components/thread/ThreadChangesBubble.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -10636,6 +10644,7 @@ msgid "Show skills from {0}"
 msgstr "{0} becerilerini göster"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"
 msgstr "Kaynağı göster"
 
@@ -11523,7 +11532,6 @@ msgstr "{0} için terminal"
 msgid "Terminal for {projectName}"
 msgstr "{projectName} terminali"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "Terminal girişi"
@@ -12774,8 +12782,10 @@ msgid "URL is required."
 msgstr "URL gereklidir."
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13327,9 +13337,9 @@ msgstr "Çalışma alanı"
 msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
 msgstr "Çalışma alanı MCP sunucuları aynı adlı kullanıcı sunucularını geçersiz kılar ve yalnızca aracılar bu projede başlatıldığında eklenir."
 
-#: src/mobile/views/WorkspaceView.tsx
-#~ msgid "Workspace view"
-#~ msgstr "Çalışma alanı görünümü"
+#: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
+msgid "Workspace view"
+msgstr "Çalışma alanı görünümü"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx

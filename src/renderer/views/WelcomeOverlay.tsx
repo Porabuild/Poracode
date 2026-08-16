@@ -165,10 +165,12 @@ export function WelcomeOverlay() {
         {WELCOME_BACKGROUND_CODE}
       </pre>
 
-      <div
-        className="poracode-overlay-header relative z-10 flex shrink-0 items-center px-2"
-        style={{ height: "env(titlebar-area-height, 32px)" }}
-      />
+      {isBrowserClientRuntime() ? null : (
+        <div
+          className="poracode-overlay-header relative z-10 flex shrink-0 items-center px-2"
+          style={{ height: "env(titlebar-area-height, 32px)" }}
+        />
+      )}
 
       <div className="relative z-10 flex flex-1 items-center justify-center px-6">
         <div className="poracode-welcome-stage flex w-full max-w-[680px] flex-col items-center gap-8 text-center">

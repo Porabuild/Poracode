@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +19,7 @@ import type { ThreadErrorDockState } from "./threadErrorState";
 
 const bridgeMock = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
+  isCompactClientSurface: vi.fn<() => boolean>(() => false),
   clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -69,6 +70,7 @@ vi.mock("@/renderer/actions/agentLoginActions", () => ({
 
 vi.mock("../../bridge", () => ({
   isRemoteSession: bridgeMock.isRemoteSession,
+  isCompactClientSurface: bridgeMock.isCompactClientSurface,
   readBridge: () => ({
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
     clearPendingSteer: bridgeMock.clearPendingSteer,
@@ -235,6 +237,7 @@ describe("ThreadComposerSection", () => {
     useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
     bridgeMock.isRemoteSession.mockReturnValue(false);
+    bridgeMock.isCompactClientSurface.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
     bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
     bridgeMock.refreshAgentStatuses.mockClear();
@@ -513,6 +516,17 @@ describe("ThreadComposerSection", () => {
     expect(section).toHaveAttribute("data-compact-collapsed");
     expect(section?.querySelector("[inert]")).toBeNull();
     expect(dock).not.toHaveAttribute("data-expanded");
+    expect(dock).not.toHaveAttribute("data-input-has-content");
+
+    // WebKit leaves a filler <br> in an empty contenteditable. Compact chrome
+    // must follow the composer's semantic text state, not DOM child count, or
+    // the full selector row flashes together with the compact summary.
+    input.innerHTML = "<br>";
+    fireEvent.input(input);
+    expect(dock).not.toHaveAttribute("data-input-has-content");
+
+    typeComposerText(input, "Follow up");
+    expect(dock).toHaveAttribute("data-input-has-content");
 
     fireEvent.focus(input);
 
@@ -548,6 +562,46 @@ describe("ThreadComposerSection", () => {
       expect(onSubmitInput).toHaveBeenCalledWith("Ship it", [{ kind: "text", content: "Ship it" }]);
       expect(dock).not.toHaveAttribute("data-expanded");
     });
+  });
+
+  it("submits on unmodified Enter on the desktop PWA composer", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "Ship it from desktop");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("Ship it from desktop", [
+        { kind: "text", content: "Ship it from desktop" },
+      ]);
+    });
+  });
+
+  it("keeps unmodified Enter as a newline on the compact PWA composer", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "Keep writing");
+    const event = createEvent.keyDown(input, { key: "Enter" });
+    fireEvent(input, event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(input).toHaveTextContent("Keep writing");
   });
 
   it("preserves an unsent draft when the composer unmounts and restores it on remount", async () => {
@@ -762,6 +816,28 @@ describe("ThreadComposerSection", () => {
       expect(input).toHaveFocus();
       expect(useAppStore.getState().pendingComposerFocusThreadId).toBeNull();
     });
+    outsideButton.remove();
+  });
+
+  it("drops an explicit focus request on compact touch surfaces instead of focusing", async () => {
+    bridgeMock.isCompactClientSurface.mockReturnValue(true);
+    renderComposer();
+    const input = screen.getByRole("textbox");
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+    outsideButton.focus();
+
+    act(() => {
+      useAppStore.getState().requestComposerFocus(guiThread.id);
+    });
+
+    // The compact dock owns focus via the guarded tap choreography; a deferred
+    // raw focus() would land mid keyboard-rise and iOS pans the page for it.
+    await waitFor(() => {
+      expect(useAppStore.getState().pendingComposerFocusThreadId).toBeNull();
+    });
+    expect(input).not.toHaveFocus();
+    expect(outsideButton).toHaveFocus();
     outsideButton.remove();
   });
 

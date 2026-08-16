@@ -12,6 +12,7 @@ export const IPC_EVENT_CHANNELS = {
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
   projectStateChanged: createChannel("projectStateChanged"),
   gitStateChanged: createChannel("gitStateChanged"),
+  userNotification: createChannel("userNotification"),
   prWatchMerged: createChannel("prWatchMerged"),
   prWatchStatus: createChannel("prWatchStatus"),
   threadOpenRequested: createChannel("threadOpenRequested"),

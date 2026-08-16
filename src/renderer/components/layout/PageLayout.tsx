@@ -6,12 +6,14 @@ import { isMac, isWindows } from "@/renderer/bridge";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { macosTrafficLightGutterClass } from "@/renderer/components/layout/sidebarChrome";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import {
   AppShell,
   SidebarContext,
   useSidebar,
 } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { MobilePageHeader } from "./MobilePageHeader";
+import { MobilePageActionScope } from "./MobilePageActionScope";
 
 const alwaysExpandedSidebar = {
   isCollapsed: false,
@@ -101,7 +103,7 @@ function SidebarHeaderRow(props: {
         }`}
         aria-hidden="true"
       >
-        {isMac() && <div className={macosTrafficLightGutterClass} />}
+        {hasMacWindowChrome() && <div className={macosTrafficLightGutterClass} />}
         {showHeaderActions && (
           <SidebarHeaderWordmark
             title={props.title}
@@ -116,7 +118,7 @@ function SidebarHeaderRow(props: {
         ref={ref}
         className={`flex min-h-0 min-w-0 flex-1 items-center gap-1.5${isWindows() ? " pl-1" : ""}`}
       >
-        {isMac() && <div className={macosTrafficLightGutterClass} />}
+        {hasMacWindowChrome() && <div className={macosTrafficLightGutterClass} />}
         {showHeaderActions ? (
           hideWordmark && props.onTitleClick ? (
             <Tooltip delay={150}>
@@ -244,27 +246,29 @@ export function PageLayout(props: {
     (forceSidebarExpanded === true && !compactLayout) || (compactLayout && compactHome);
 
   const shell = (
-    <AppShell
-      sidebarHeader={sidebarHeader}
-      contentHeader={contentHeader}
-      sidebar={sidebar}
-      content={content}
-      rightPanel={rightPanel}
-      gitPanel={gitPanel}
-      {...(rightPanelOpen !== undefined ? { rightPanelOpen } : {})}
-      {...(rightPanelPlacement !== undefined ? { rightPanelPlacement } : {})}
-      {...(rightPanelResizeLabel !== undefined ? { rightPanelResizeLabel } : {})}
-      {...(effectiveForceSidebarExpanded ? { forceSidebarExpanded: true } : {})}
-      {...(onRequestClosePanels != null ? { onRequestClosePanels } : {})}
-      {...(onDismissRightOverlay != null ? { onDismissRightOverlay } : {})}
-      compactHome={compactHome}
-      mobileNavigation={mobileNavigation}
-    />
+    <MobilePageActionScope>
+      <AppShell
+        sidebarHeader={sidebarHeader}
+        contentHeader={contentHeader}
+        sidebar={sidebar}
+        content={content}
+        rightPanel={rightPanel}
+        gitPanel={gitPanel}
+        {...(rightPanelOpen !== undefined ? { rightPanelOpen } : {})}
+        {...(rightPanelPlacement !== undefined ? { rightPanelPlacement } : {})}
+        {...(rightPanelResizeLabel !== undefined ? { rightPanelResizeLabel } : {})}
+        {...(effectiveForceSidebarExpanded ? { forceSidebarExpanded: true } : {})}
+        {...(onRequestClosePanels != null ? { onRequestClosePanels } : {})}
+        {...(onDismissRightOverlay != null ? { onDismissRightOverlay } : {})}
+        compactHome={compactHome}
+        mobileNavigation={mobileNavigation}
+      />
+    </MobilePageActionScope>
   );
 
-  if (effectiveForceSidebarExpanded) {
-    return <SidebarContext.Provider value={alwaysExpandedSidebar}>{shell}</SidebarContext.Provider>;
-  }
-
-  return shell;
+  return (
+    <SidebarContext.Provider value={effectiveForceSidebarExpanded ? alwaysExpandedSidebar : null}>
+      {shell}
+    </SidebarContext.Provider>
+  );
 }

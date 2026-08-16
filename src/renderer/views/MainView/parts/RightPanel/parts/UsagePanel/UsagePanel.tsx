@@ -196,7 +196,9 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         className={`m-page-content min-h-0 flex-1 overflow-y-auto p-2.5 [scrollbar-gutter:stable] ${
           compact
             ? "pb-[calc(var(--m-floating-control-height)+2.5rem+env(safe-area-inset-bottom))]"
-            : ""
+            : servers.length > 0
+              ? "pb-2"
+              : ""
         }`}
         style={scrollFadeStyle}
       >
@@ -254,11 +256,22 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         </div>
       </div>
 
-      {!compact && lastUpdated > 0 ? (
-        <div className="m-page-content shrink-0 px-3 py-1.5">
-          <p className="text-[11px] text-muted/70">
-            <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
-          </p>
+      {!compact ? (
+        <div className="m-page-content flex shrink-0 flex-col items-center gap-1.5 px-3 py-2">
+          {servers.length > 0 ? (
+            <RemoteServerPicker
+              value={effectiveDesktopId}
+              includeLocal={!browserRuntime}
+              onChange={setRequestedDesktopId}
+              buttonClassName="h-7 min-h-7 max-w-[12rem] gap-1 rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
+              opensUpward
+            />
+          ) : null}
+          {lastUpdated > 0 ? (
+            <p className="text-[11px] text-muted/70">
+              <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
+            </p>
+          ) : null}
         </div>
       ) : null}
 

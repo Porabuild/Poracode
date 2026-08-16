@@ -32,14 +32,16 @@ export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
  *
  * Compression is worth it here — runtime transcript frames are highly redundant
  * JSON — but `ws` warns that it carries real CPU/memory cost, and this server
- * runs on the Electron **main** process, so every knob below is deliberate:
+ * runs in the extracted backend-host process (not Electron main), so every
+ * knob below is deliberate:
  *
  * - Context takeover is DISABLED in both directions. With it on, every
  *   connection retains a persistent zlib context (hundreds of KB each way) for
  *   the life of the socket. Per-message contexts cost some ratio but keep memory
  *   flat and predictable across many paired devices.
  * - `concurrencyLimit` bounds simultaneous zlib jobs so a burst of large frames
- *   cannot starve the main process's event loop.
+ *   cannot starve the backend-host event loop (PWA HTTP/WS, desktop renderer
+ *   stream, SQLite, and supervisor IPC share it).
  * - `level: 3` favors throughput over ratio; transcript JSON is already
  *   redundant enough that higher levels buy little.
  * - `threshold` skips small frames, which is most of the stream (status

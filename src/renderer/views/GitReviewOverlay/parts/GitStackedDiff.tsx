@@ -27,8 +27,10 @@ import { buildInWorker, diffFileFromBundle, extractDiffNames, getLang } from "./
 import { loadGitDiffForDisplay } from "./gitDiffLoader";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { useGitReviewRowPadX } from "./GitReviewSidebar/gitReviewPadXContext";
+import { useGitTouch } from "./GitReviewSidebar/gitTouchContext";
 import { reconcileStagingStatus } from "./GitReviewSidebar/parts/reconcileStagingStatus";
 import { DiffAnnotationView } from "./DiffAnnotationView";
 
@@ -85,6 +87,7 @@ export function StackedFileCard(props: {
   } = props;
   const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
+  const touch = useGitTouch();
   const [actionsVisible, setActionsVisible] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
@@ -93,6 +96,18 @@ export function StackedFileCard(props: {
   const [retryKey, setRetryKey] = useState(0);
   const loadedKeyRef = useRef<string | null>(null);
   const tooLarge = file.insertions + file.deletions > LARGE_DIFF_THRESHOLD;
+  const longPressHandlers = useLongPress(
+    touch
+      ? () =>
+          touch.openFileMenu({
+            path: file.path,
+            staged: file.staged,
+            status: file.status,
+            insertions: file.insertions,
+            deletions: file.deletions,
+          })
+      : null,
+  );
 
   // Theme is intentionally excluded from the fetch key — DiffView re-styles without re-fetching.
   const fetchKey = `${file.path}|${file.staged ? "s" : "u"}|${file.status}|${file.insertions}|${file.deletions}|${retryKey}`;
@@ -241,12 +256,22 @@ export function StackedFileCard(props: {
         <div
           role="button"
           tabIndex={0}
-          draggable
-          className={`${isExpanded ? "sticky top-0 z-10" : ""} bg-[var(--content-background)] group flex cursor-pointer select-none items-center gap-1.5 py-1 text-xs transition-colors hover:bg-content2 ${rowPadX}`}
+          draggable={!touch}
+          className={`${isExpanded ? "sticky top-0 z-10" : ""} bg-[var(--content-background)] group flex cursor-pointer select-none items-center gap-1.5 transition-colors ${
+            touch
+              ? "min-h-[2.75rem] py-2 text-sm active:bg-content2"
+              : "py-1 text-xs hover:bg-content2"
+          } ${rowPadX}`}
           onClick={() => onExpandedChange(!isExpanded)}
-          onPointerMove={() => setActionsVisible(true)}
+          {...longPressHandlers}
+          onPointerMove={(event) => {
+            longPressHandlers.onPointerMove?.(event);
+            if (!touch) setActionsVisible(true);
+          }}
           onPointerLeave={(event) => {
-            if (!event.currentTarget.contains(document.activeElement)) setActionsVisible(false);
+            if (!touch && !event.currentTarget.contains(document.activeElement)) {
+              setActionsVisible(false);
+            }
           }}
           onFocus={() => setActionsVisible(true)}
           onBlur={(event) => {
@@ -287,13 +312,13 @@ export function StackedFileCard(props: {
           <span className="relative w-14 shrink-0">
             {/* Stats — visible when not hovering */}
             <span
-              className={`flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity ${actionsVisible ? "opacity-0" : ""}`}
+              className={`flex items-center justify-end leading-4 font-medium transition-opacity ${touch ? "text-[11px]" : "text-[10px]"} ${actionsVisible && !touch ? "opacity-0" : ""}`}
             >
               {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
               {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
             </span>
             {/* Action buttons — visible on hover */}
-            {actionsVisible && (
+            {actionsVisible && !touch && (
               <span className="absolute inset-0 flex items-center justify-end gap-0.5">
                 <div
                   role="button"

@@ -35,7 +35,7 @@ import {
 } from "../composer/MentionInput";
 import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -81,7 +81,6 @@ import { FloatingComposerDock } from "@/renderer/components/mobileComposer/Float
 import { ComposerActionDocks } from "@/renderer/components/mobileComposer/ComposerActionDocks";
 import { ComposerCompactSummary } from "@/renderer/components/mobileComposer/ComposerCompactSummary";
 import { ComposerInfoChips } from "@/renderer/components/mobileComposer/ComposerInfoChips";
-import { ThreadUsageBubble } from "./ThreadUsageBubble";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -103,7 +102,11 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean | undefined;
   /**
    * Override mount autofocus for the composer. Compact layouts suppress the
@@ -143,6 +146,7 @@ function AdaptiveThreadComposerDock(props: {
   children: ReactNode;
   aboveBubble?: ReactNode;
   summary?: ReactNode;
+  inputHasContent?: boolean;
   expansionLocked?: boolean;
   onDockHeightChange?: (height: number) => void;
   onExpandedChange: (expanded: boolean) => void;
@@ -155,6 +159,12 @@ function AdaptiveThreadComposerDock(props: {
       scrimLabel={props.scrimLabel}
       collapsedTapLabel={props.collapsedTapLabel}
       expanded={!props.collapsed}
+      focusOnExpand
+      // The thread pill's compact content swaps in early — inside the 25-45%
+      // transparent window of m-thread-compose-content-collapse — so the
+      // one-line placeholder and summary read around the tween's middle.
+      collapseContentSwapMs={60}
+      inputHasContent={props.inputHasContent}
       aboveBubble={props.aboveBubble}
       expansionLocked={props.expansionLocked}
       onDockHeightChange={props.onDockHeightChange}
@@ -485,11 +495,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     agentStatus: effectiveAgentStatus,
     reportedUsage: reportedContextUsage,
   });
-  const showContextIndicator =
-    !hideInfoDocks &&
+  const hasContextUsage =
     canShowRuntimeChrome &&
     hasReportedContextUsage(reportedContextUsage) &&
     contextSummary.maxTokens !== undefined;
+  const showContextIndicator = !hideInfoDocks && hasContextUsage;
   const showContextInComposer = showContextIndicator && contextDockOpen;
   const project = useAppStore((s) =>
     s.projects.find((candidate) => candidate.id === thread.projectId),
@@ -705,7 +715,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
 
   const pendingComposerFocusThreadId = useAppStore((s) => s.pendingComposerFocusThreadId);
   useEffect(() => {
-    if (pendingComposerFocusThreadId !== thread.id || isComposerCollapsed) return;
+    if (pendingComposerFocusThreadId !== thread.id) return;
+    // Compact touch surfaces own composer focus through the guarded tap
+    // choreography (useComposerKeyboard): the dock mounts collapsed, so this
+    // desktop focus handoff would stay pending until the first expand and then
+    // land a raw focus() mid keyboard-rise — iOS pans the page to reveal the
+    // editable and the scroll lock snaps it back, a visible jump. Drop the
+    // request instead of deferring it.
+    if (isCompactClientSurface()) {
+      useAppStore.getState().clearComposerFocusRequest(thread.id);
+      return;
+    }
+    if (isComposerCollapsed) return;
     const raf = requestAnimationFrame(() => {
       mentionRef.current?.focus();
       useAppStore.getState().clearComposerFocusRequest(thread.id);
@@ -734,6 +755,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             keyboardKey={thread.id}
             scrimLabel={t`Collapse composer`}
             collapsedTapLabel={t`Send a message...`}
+            inputHasContent={hasContent}
             expansionLocked={activeRuntimeRequest !== undefined}
             onDockHeightChange={(height) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
@@ -758,7 +780,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     agentStatus={effectiveAgentStatus}
                     project={project}
                     projectLocation={projectLocation}
-                    contextSummary={showContextIndicator ? contextSummary : null}
+                    contextSummary={hasContextUsage ? contextSummary : null}
                     todoDockState={todoDockState}
                     goalDockState={goalDockState}
                     errorDockStates={errorDockStates}
@@ -779,7 +801,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         />
                       )
                     }
-                    trailing={<ThreadUsageBubble thread={thread} />}
+                    usageThread={thread}
                   />
                 </>
               ) : null
@@ -914,7 +936,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               : t`Send a message...`
                         }
                         projectLocation={projectLocation}
-                        submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
+                        submitOnEnter={props.submitOnEnter ?? !compactLayout}
                         {...(showCommandPanel
                           ? {
                               commandListId,

@@ -54,7 +54,7 @@ export const functionalAreas = [
   {
     id: "git-review",
     title: "Git status, staging, review, conflicts, and pull requests",
-    patterns: [/git/i, /PrReview/i, /mergeConflict/i],
+    patterns: [/git/i, /PrReview/i, /mergeConflict/i, /MobileWorkspacePage/],
     automated: ["baseline"],
     manual: ["git-mutations"],
   },
@@ -68,7 +68,7 @@ export const functionalAreas = [
   {
     id: "file-editor",
     title: "Project tree, file editor, Monaco, and file mutations",
-    patterns: [/FileEditor/i, /fileEditor/i, /projectTree/i, /FileIndex/i],
+    patterns: [/FileEditor/i, /fileEditor/i, /projectTree/i, /FileIndex/i, /MobileWorkspacePage/],
     automated: ["baseline"],
     manual: ["file-editor"],
   },

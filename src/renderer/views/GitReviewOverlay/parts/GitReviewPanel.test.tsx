@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,17 +28,32 @@ vi.mock("@/renderer/views/MainView/parts/AppShell/AppShell", async () => {
   return { SidebarContext: React.createContext(null) };
 });
 
-vi.mock("./GitReviewSidebar/GitReviewSidebar", () => ({ GitReviewSidebar: () => null }));
+vi.mock("./GitReviewSidebar/GitReviewSidebar", () => ({
+  GitReviewSidebar: () => <div data-testid="git-review-sidebar" />,
+}));
+vi.mock("./GitReviewTouchMenus", () => ({
+  GitReviewTouchMenus: (props: { children: ReactNode }) => (
+    <div data-testid="git-touch-menus">{props.children}</div>
+  ),
+}));
+vi.mock("@/renderer/components/layout/MobilePageHeaderActions", () => ({
+  MobilePageHeaderActions: (props: { children: ReactNode }) => <>{props.children}</>,
+}));
 vi.mock("./initGitRepository", () => ({
   addGitRemote: vi.fn<() => void>(),
   initGitRepository: vi.fn<() => void>(),
 }));
 
 vi.mock("@heroui/react", () => {
+  const Button = (props: { "aria-label"?: string; children: ReactNode; onPress?: () => void }) => (
+    <button type="button" aria-label={props["aria-label"]} onClick={props.onPress}>
+      {props.children}
+    </button>
+  );
   const Tooltip = (props: { children: ReactNode }) => <>{props.children}</>;
   Tooltip.Trigger = (props: { children: ReactNode }) => <>{props.children}</>;
   Tooltip.Content = (props: { children: ReactNode }) => <>{props.children}</>;
-  return { Tooltip, toast: { danger: vi.fn<() => void>() } };
+  return { Button, Tooltip, toast: { danger: vi.fn<() => void>() } };
 });
 
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -112,5 +127,34 @@ describe("GitReviewPanel", () => {
       });
       expect(useGitStore.getState().statuses[project.id]).toEqual(currentStatus);
     });
+  });
+
+  it("uses compact header actions and touch rows without the panel toolbar", () => {
+    const project: Project = {
+      id: "mobile-project",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "posix", path: "/repo" },
+    };
+    useGitStore.getState().setStatus(project.id, cleanStatus);
+    bridgeMock.getGitStatus.mockResolvedValue(cleanStatus);
+
+    render(
+      <GitReviewPanel
+        project={project}
+        onClose={() => undefined}
+        onExpandToOverlay={() => undefined}
+        hideHeader
+        hideToolbar
+        touchMode
+        compactHeaderActions
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+    expect(screen.getByTestId("git-touch-menus")).toContainElement(
+      screen.getByTestId("git-review-sidebar"),
+    );
+    expect(screen.queryByText("main")).not.toBeInTheDocument();
   });
 });

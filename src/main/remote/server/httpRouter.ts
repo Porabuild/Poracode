@@ -895,33 +895,19 @@ export async function handleHttp(
       });
       assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
-        if (command.kind === "delete-worktree-group") {
-          if ((await ctx.options.dispatchThreadCommand?.(command)) !== true) {
-            throw new RemoteHttpError(
-              "desktop_unavailable",
-              "The desktop app is not available to apply this change.",
-              503,
-            );
-          }
-          await applyRemoteThreadCommand(ctx, command);
-          ctx.publishThreadsChanged(command.threadIds);
-          return { ok: true };
-        }
         if (command.kind === "start" && command.isNewWorktree && command.worktreePath) {
-          const prepared =
-            (await ctx.options.dispatchThreadCommand?.({
-              kind: "prepare-worktree",
-              threadId: command.threadId,
-              projectId: command.projectId,
-              worktreePath: command.worktreePath,
-            })) ?? false;
-          if (!prepared) {
-            throw new RemoteHttpError(
-              "desktop_unavailable",
-              "The desktop app is not available to prepare the worktree.",
-              503,
-            );
-          }
+          await applyRemoteThreadCommand(ctx, {
+            kind: "prepare-worktree",
+            threadId: command.threadId,
+            projectId: command.projectId,
+            worktreePath: command.worktreePath,
+          });
+          await ctx.options.dispatchThreadCommand?.({
+            kind: "prepare-worktree",
+            threadId: command.threadId,
+            projectId: command.projectId,
+            worktreePath: command.worktreePath,
+          });
         }
         const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
         if (requiresRenderer && (await ctx.options.dispatchThreadCommand?.(command)) !== true) {

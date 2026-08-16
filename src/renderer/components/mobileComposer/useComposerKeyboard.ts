@@ -107,7 +107,12 @@ function focusComposerInputFromNeutralTarget(root: HTMLElement | null): void {
 
 interface ComposerKeyboardOptions {
   readonly onBeforeGuardedFocus?: () => void;
+  /** The real editor has received guarded focus at its final keyboard-safe geometry. */
+  readonly onAfterGuardedFocus?: () => void;
+  /** A primer probe ended without transferring focus to the real editor. */
+  readonly onGuardedFocusCancelled?: () => void;
   readonly onKeyboardProbeStart?: () => void;
+  readonly onRememberedKeyboardProbeExpand?: () => void;
   readonly onKeyboardProbeExpand?: () => void;
 }
 
@@ -181,12 +186,18 @@ export function useComposerKeyboard(
   // keyboard height flips it back.
   const keyboardAbsentRef = useRef(false);
   const onBeforeGuardedFocusRef = useRef(options.onBeforeGuardedFocus);
+  const onAfterGuardedFocusRef = useRef(options.onAfterGuardedFocus);
+  const onGuardedFocusCancelledRef = useRef(options.onGuardedFocusCancelled);
   const onKeyboardProbeStartRef = useRef(options.onKeyboardProbeStart);
+  const onRememberedKeyboardProbeExpandRef = useRef(options.onRememberedKeyboardProbeExpand);
   const onKeyboardProbeExpandRef = useRef(options.onKeyboardProbeExpand);
   keyboardOffsetRef.current = keyboardOffset;
   keyboardLiftOffsetRef.current = keyboardLiftOffset;
   onBeforeGuardedFocusRef.current = options.onBeforeGuardedFocus;
+  onAfterGuardedFocusRef.current = options.onAfterGuardedFocus;
+  onGuardedFocusCancelledRef.current = options.onGuardedFocusCancelled;
   onKeyboardProbeStartRef.current = options.onKeyboardProbeStart;
+  onRememberedKeyboardProbeExpandRef.current = options.onRememberedKeyboardProbeExpand;
   onKeyboardProbeExpandRef.current = options.onKeyboardProbeExpand;
 
   const armGuardedFocusSettle = () => {
@@ -205,13 +216,15 @@ export function useComposerKeyboard(
     !probeFutileRef.current;
 
   const cancelColdKeyboardProbe = (reason: string) => {
-    if (pendingColdFocusRef.current || coldKeyboardProbeActive) {
+    const wasActive = pendingColdFocusRef.current || coldKeyboardProbeActive;
+    if (wasActive) {
       keyboardDebug("probe-cancel", { reason });
     }
     pendingColdFocusRef.current = false;
     window.clearTimeout(coldKeyboardStableTimerRef.current);
     window.clearTimeout(coldKeyboardProbeTimerRef.current);
     setColdKeyboardProbeActive(false);
+    if (wasActive) onGuardedFocusCancelledRef.current?.();
   };
 
   const focusComposerAfterColdKeyboardProbe = (root: HTMLElement) => {
@@ -260,6 +273,7 @@ export function useComposerKeyboard(
         input: describeElement(getComposerInput(root)),
       });
       focusComposerInputWithScrollLock(root);
+      onAfterGuardedFocusRef.current?.();
       keyboardDebug("real-focus-done");
     });
   };
@@ -374,14 +388,20 @@ export function useComposerKeyboard(
         // With a remembered height the dock can expand right away at that
         // lift while the primer raises the keyboard — only the caret waits
         // for the measurement. The focused element during the probe is the
-        // fixed primer, so iOS won't pan for the composer geometry: the
-        // expansion can ANIMATE (onKeyboardProbeExpand) rather than snap. The
-        // probe-completion path calls onBeforeGuardedFocus again to assert the
-        // final geometry instantly right before the caret lands. Without a
-        // remembered height there is no safe position, so the probe-start path
-        // keeps the dock hidden until the offset is known.
+        // fixed primer, so iOS won't pan for the composer geometry. The dock
+        // can therefore occupy the remembered final position immediately
+        // (onRememberedKeyboardProbeExpand) while only the caret waits for
+        // measurement. The probe-completion path calls onBeforeGuardedFocus
+        // again to assert the freshly measured final geometry before the caret
+        // lands.
+        // Without a remembered height there is no safe position, so the
+        // probe-start path keeps the dock hidden until the offset is known.
         if (recallKeyboardHeight() > 0) {
-          (onKeyboardProbeExpandRef.current ?? onBeforeGuardedFocusRef.current)?.();
+          (
+            onRememberedKeyboardProbeExpandRef.current ??
+            onKeyboardProbeExpandRef.current ??
+            onBeforeGuardedFocusRef.current
+          )?.();
         } else {
           onKeyboardProbeStartRef.current?.();
         }
@@ -403,6 +423,7 @@ export function useComposerKeyboard(
       cancelColdKeyboardProbe("warm-focus");
       keyboardDebug("warm-real-focus-run", { input: describeElement(composerInput) });
       focusComposerInputWithScrollLock(root);
+      onAfterGuardedFocusRef.current?.();
       keyboardDebug("warm-real-focus-done");
     }
     // Focusing expands the composer while the finger is still down; the

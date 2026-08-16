@@ -11,7 +11,11 @@ import {
 } from "react";
 import { useShallow } from "zustand/shallow";
 import { useLingui } from "@lingui/react/macro";
-import { isMac, isWindows } from "@/renderer/bridge";
+import { isWindows } from "@/renderer/bridge";
+import {
+  hasMacWindowChrome,
+  hasNativeWindowChrome,
+} from "@/renderer/components/layout/windowChrome";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
 import { useSidebarGlassActive } from "@/renderer/hooks/useGlassState";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -86,7 +90,7 @@ function MacCollapsedTracker(props: {
 }) {
   const isCollapsed = useSidebarOverlayStore((s) => s.isCollapsed);
   useEffect(() => {
-    if (!isMac()) return;
+    if (!hasMacWindowChrome()) return;
     const el = props.shellRef.current;
     if (!el) return;
     if (isCollapsed && !props.forceSidebarExpanded) {
@@ -265,7 +269,9 @@ function ShellSidebarAside(props: {
   // HOWEVER, if the sidebar is too narrow (e.g. collapsed), the full-height border would run
   // directly through the macOS traffic light controls, so we push it below the header in that case.
   const sidebarDividerBelowHeader =
-    hasHeaders && !effectiveIsOverlay && (isMac() ? effectiveIsCollapsed : !glassActive);
+    hasHeaders &&
+    !effectiveIsOverlay &&
+    (hasMacWindowChrome() ? effectiveIsCollapsed : !glassActive);
 
   // `width` and `min-width` are driven imperatively by `SidebarWidthDriver`
   // (raf-interpolated to match the drag path). React just owns the rest of
@@ -288,17 +294,17 @@ function ShellSidebarAside(props: {
       {/* Collapsed icon rail on Windows/Linux starts at the window top — the
           titlebar-height header row would only be an empty spacer there. macOS
           keeps it so the rail clears the hidden-inset traffic-light controls. */}
-      {sidebarHeader && (isMac() || !effectiveIsCollapsed || effectiveIsOverlay) && (
+      {sidebarHeader && (hasMacWindowChrome() || !effectiveIsCollapsed || effectiveIsOverlay) && (
         <div
           className={`poracode-overlay-header flex shrink-0 items-center gap-3 ${
-            isMac() ? "pl-3 pr-2 pt-0.5" : "px-2"
+            hasMacWindowChrome() ? "pl-3 pr-2 pt-0.5" : "px-2"
           } ${
             effectiveIsOverlay
               ? "poracode-overlay-header--no-drag bg-background"
               : "bg-[var(--content-background)]"
           }`}
           style={{
-            height: "env(titlebar-area-height, 32px)",
+            height: hasNativeWindowChrome() ? "env(titlebar-area-height, 32px)" : 32,
             ...(effectiveIsCollapsed && !effectiveClosingOverlay
               ? {}
               : { minWidth: SIDEBAR_MIN_WIDTH }),
@@ -345,7 +351,11 @@ function ShellSidebarResizeHandle(props: {
           ? {
               // When there is a sidebar header but no center content header, main + right start
               // at the top; align the handle to y=0 so it stays beside the top title row.
-              marginTop: props.hasContentHeader ? "env(titlebar-area-height, 32px)" : 0,
+              marginTop: props.hasContentHeader
+                ? hasNativeWindowChrome()
+                  ? "env(titlebar-area-height, 32px)"
+                  : 32
+                : 0,
               marginBottom: "0.25rem",
             }
           : undefined
@@ -565,7 +575,11 @@ export function AppShell(props: {
     overlayMaxWidth !== undefined ? Math.min(panelWidth, overlayMaxWidth) : panelWidth;
   const overlayGitPanelWidth =
     overlayMaxWidth !== undefined ? Math.min(gitPanelWidth, overlayMaxWidth) : gitPanelWidth;
-  const rightOverlayTop = hasContentHeader ? "env(titlebar-area-height, 32px)" : "0px";
+  const rightOverlayTop = hasContentHeader
+    ? hasNativeWindowChrome()
+      ? "env(titlebar-area-height, 32px)"
+      : "32px"
+    : "0px";
   const rightPanelAsOverlay = rightOverlayDisplayed && displayedRightOverlaySlot === "right";
   const gitPanelAsOverlay = rightOverlayDisplayed && displayedRightOverlaySlot === "git";
 
@@ -637,12 +651,16 @@ export function AppShell(props: {
         {contentHeader && (
           <div
             className={`poracode-overlay-header ${macosTrafficLightPadClass} flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-2`}
-            style={{
-              height: "env(titlebar-area-height, 32px)",
-              paddingRight: isWindows()
-                ? "max(calc(1rem + 4px), calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 4px))"
-                : "max(1rem, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)))",
-            }}
+            style={
+              hasNativeWindowChrome()
+                ? {
+                    height: "env(titlebar-area-height, 32px)",
+                    paddingRight: isWindows()
+                      ? "max(calc(1rem + 4px), calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 4px))"
+                      : "max(1rem, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)))",
+                  }
+                : { height: 32 }
+            }
           >
             {contentHeader}
           </div>
@@ -669,7 +687,7 @@ export function AppShell(props: {
             className={`relative flex min-h-0 min-w-0 flex-1 overflow-hidden ${isBottom && rightPanel ? "flex-col" : ""}`}
           >
             <main ref={mainRef} className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
-              {isMac() && !contentHeader && (
+              {hasMacWindowChrome() && !contentHeader && (
                 <div aria-hidden="true" className="poracode-content-drag-region" />
               )}
               <div className="relative h-full min-h-0">{content}</div>

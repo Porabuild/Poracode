@@ -52,7 +52,7 @@ describe("MobileUtilityPage", () => {
   });
 
   afterEach(() => {
-    document.getElementById("poracode-mobile-page-header-actions")?.remove();
+    document.querySelector("[data-poracode-mobile-page-header-actions]")?.remove();
     resetClientRuntimeForTest();
     Reflect.deleteProperty(window, "poracode");
   });
@@ -69,7 +69,7 @@ describe("MobileUtilityPage", () => {
   it("identifies the browser's active connection in the compact page header", () => {
     usePanelStore.setState({ mobileUtilityPage: "browser" });
     const headerActions = document.createElement("div");
-    headerActions.id = "poracode-mobile-page-header-actions";
+    headerActions.dataset.poracodeMobilePageHeaderActions = "unscoped";
     document.body.append(headerActions);
 
     render(<MobileUtilityPage />);

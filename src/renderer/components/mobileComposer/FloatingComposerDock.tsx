@@ -9,6 +9,7 @@ import { useBubbleGrowAnimation } from "./useBubbleGrowAnimation";
 import { getComposerInput, useComposerKeyboard } from "./useComposerKeyboard";
 
 const KEYBOARD_VISIBILITY_OFFSET_VAR = "--m-keyboard-visibility-offset";
+const COLLAPSE_CONTENT_SWAP_MS = 100;
 const COMPOSER_OVERLAY_SELECTOR = [
   '[data-slot^="popover-"]',
   '[data-slot$="-popover"]',
@@ -49,6 +50,15 @@ export function FloatingComposerDock(props: {
    */
   readonly expansionLocked?: boolean | undefined;
   readonly focusOnExpand?: boolean | undefined;
+  /** Semantic editor state; unlike DOM emptiness this is stable across WebKit's filler `<br>`. */
+  readonly inputHasContent?: boolean | undefined;
+  /**
+   * When to flip the collapsing content to its compact metrics
+   * (data-compact-content), in ms from the start of the collapse. Must land
+   * inside the transparent window of the host's content-collapse keyframes;
+   * defaults to the shared midpoint swap.
+   */
+  readonly collapseContentSwapMs?: number | undefined;
   /**
    * Collapse on an outside press without mounting the blocking scrim, allowing
    * the original background interaction to continue. Used by desktop PWA
@@ -76,6 +86,8 @@ export function FloatingComposerDock(props: {
   // reveal it (reads as the keyboard pushing the page). Cleared after the
   // expansion has painted so later offset reconciliation animates normally.
   const [instantExpand, setInstantExpand] = useState(false);
+  const instantExpandVersionRef = useRef(0);
+  const instantExpandReleaseRafRef = useRef(0);
   const expansionLocked = props.expansionLocked === true;
   const expanded = expansionLocked ? false : (props.expanded ?? internalExpanded);
   const wasExpandedRef = useRef(expanded);
@@ -114,6 +126,18 @@ export function FloatingComposerDock(props: {
       );
     }
   };
+  const beginInstantExpand = () => {
+    instantExpandVersionRef.current += 1;
+    window.cancelAnimationFrame(instantExpandReleaseRafRef.current);
+    setInstantExpand(true);
+  };
+  const releaseInstantExpandAfterFocus = () => {
+    const version = instantExpandVersionRef.current;
+    window.cancelAnimationFrame(instantExpandReleaseRafRef.current);
+    instantExpandReleaseRafRef.current = window.requestAnimationFrame(() => {
+      if (instantExpandVersionRef.current === version) setInstantExpand(false);
+    });
+  };
 
   const { focusComposer, inputFocused, liftOffset, measuringKeyboard } = useComposerKeyboard(
     bubbleRef,
@@ -126,22 +150,37 @@ export function FloatingComposerDock(props: {
           controlled: props.expanded !== undefined,
         });
         skipNextFocusOnExpandRef.current = true;
-        setInstantExpand(true);
+        beginInstantExpand();
         setExpanded(true);
         onComposerFocusChange?.(true);
       },
+      onAfterGuardedFocus: releaseInstantExpandAfterFocus,
+      onGuardedFocusCancelled: releaseInstantExpandAfterFocus,
       onKeyboardProbeExpand: () => {
-        // Mirror onBeforeGuardedFocus but WITHOUT setInstantExpand: during the
-        // probe the focused element is the fixed primer, so iOS won't pan for
-        // the composer's geometry and the expansion can animate in sync with
-        // the keyboard rise. The probe-completion path calls onBeforeGuardedFocus
-        // (instant) to assert final geometry right before the caret lands.
         preseedAndroidKeyboardOffset();
-        keyboardDebug("dock-probe-expand-animated", {
+        keyboardDebug("dock-direct-focus-expand-animated", {
           expanded,
           controlled: props.expanded !== undefined,
         });
         skipNextFocusOnExpandRef.current = true;
+        setExpanded(true);
+        onComposerFocusChange?.(true);
+      },
+      onRememberedKeyboardProbeExpand: () => {
+        // A remembered keyboard height lets the dock occupy its final lifted
+        // position while the fixed primer raises the keyboard. Keep this flip
+        // instant too: if the dock animates up from the page edge, the thread
+        // composer visibly rides the keyboard and can still be mid-transition
+        // when the real editable takes focus. The completion path repeats the
+        // instant commit with the freshly measured height before the caret
+        // lands.
+        preseedAndroidKeyboardOffset();
+        keyboardDebug("dock-probe-expand-instant", {
+          expanded,
+          controlled: props.expanded !== undefined,
+        });
+        skipNextFocusOnExpandRef.current = true;
+        beginInstantExpand();
         setExpanded(true);
         onComposerFocusChange?.(true);
       },
@@ -156,13 +195,7 @@ export function FloatingComposerDock(props: {
     },
   );
 
-  useEffect(() => {
-    if (!instantExpand) return;
-    const raf = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => setInstantExpand(false));
-    });
-    return () => window.cancelAnimationFrame(raf);
-  }, [instantExpand]);
+  useEffect(() => () => window.cancelAnimationFrame(instantExpandReleaseRafRef.current), []);
 
   // Hiding the keyboard (dismiss key, tapping the iOS "Done" bar) never taps
   // the scrim, so nothing would collapse the dock: the shell compacts via
@@ -303,6 +336,21 @@ export function FloatingComposerDock(props: {
   // summary in, compact input metrics) in sync with the height tween; by the
   // time the pin releases everything already sits at compact values.
   const visuallyExpanded = expanded || bubblePin !== null;
+  const collapsing = !expanded && bubblePin !== null;
+  const collapseContentSwapMs = props.collapseContentSwapMs ?? COLLAPSE_CONTENT_SWAP_MS;
+  const [compactCollapseContent, setCompactCollapseContent] = useState(false);
+  useEffect(() => {
+    if (!collapsing) {
+      setCompactCollapseContent(false);
+      return;
+    }
+
+    setCompactCollapseContent(false);
+    const timeout = window.setTimeout(() => {
+      setCompactCollapseContent(true);
+    }, collapseContentSwapMs);
+    return () => window.clearTimeout(timeout);
+  }, [collapsing, collapseContentSwapMs]);
   const bubbleStyle: CSSProperties = {};
   if (bubblePin !== null) {
     bubbleStyle.height = bubblePin.height;
@@ -325,7 +373,9 @@ export function FloatingComposerDock(props: {
         data-expanded={visuallyExpanded || undefined}
         data-locked={expansionLocked || undefined}
         {...(expansionLocked && inputFocused && liftOffset > 0 ? { "data-lifted": "" } : {})}
-        data-collapsing={(!expanded && bubblePin !== null) || undefined}
+        data-collapsing={collapsing || undefined}
+        data-compact-content={(collapsing && compactCollapseContent) || undefined}
+        data-input-has-content={props.inputHasContent || undefined}
         data-android-runtime={androidRuntime || undefined}
         data-instant-expand={instantExpand || undefined}
         data-measuring-keyboard={hideDockForMeasuring || undefined}

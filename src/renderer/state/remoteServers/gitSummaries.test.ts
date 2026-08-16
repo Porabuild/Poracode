@@ -1,14 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { syncRemoteGitSummaries } from "./gitSummaries";
-
-const refreshGitProject = vi.hoisted(() =>
-  vi.fn<(project: Project, reason: string, mode: string) => Promise<void>>(),
-);
-
-vi.mock("@/renderer/state/gitRefresh", () => ({ refreshGitProject }));
 
 const project: Project = {
   id: "remote-project",
@@ -48,12 +42,11 @@ function status(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
 
 describe("syncRemoteGitSummaries", () => {
   beforeEach(() => {
-    refreshGitProject.mockReset();
     useAppStore.setState({ projects: [project], threads: [thread] });
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
   });
 
-  it("does not overwrite detailed file state with conflicting aggregate counts", () => {
+  it("applies a newer host summary without discarding cached detailed files", () => {
     useGitStore.getState().setWorktreeStatus(thread.worktreePath!, status());
 
     syncRemoteGitSummaries("desktop-1", {
@@ -70,10 +63,36 @@ describe("syncRemoteGitSummaries", () => {
 
     expect(useGitStore.getState().worktreeStatuses[thread.worktreePath!]).toMatchObject({
       unstaged: [],
-      totalInsertions: 0,
-      totalDeletions: 0,
+      detail: "summary",
+      totalInsertions: 6,
+      totalDeletions: 1,
     });
-    expect(refreshGitProject).toHaveBeenCalledWith(project, "watcher", "status");
+  });
+
+  it("creates an immediately displayable status from the first host summary", () => {
+    syncRemoteGitSummaries("desktop-1", {
+      "thread-1": {
+        isRepo: true,
+        branch: "feature/test",
+        totalInsertions: 9,
+        totalDeletions: 4,
+        ahead: 2,
+        behind: 1,
+        pr: null,
+      },
+    });
+
+    expect(useGitStore.getState().worktreeStatuses[thread.worktreePath!]).toMatchObject({
+      detail: "summary",
+      isRepo: true,
+      branch: "feature/test",
+      staged: [],
+      unstaged: [],
+      ahead: 2,
+      behind: 1,
+      totalInsertions: 9,
+      totalDeletions: 4,
+    });
   });
 
   it("updates summary metadata when aggregate counts match the detailed files", () => {
@@ -112,6 +131,5 @@ describe("syncRemoteGitSummaries", () => {
       totalInsertions: 6,
       totalDeletions: 1,
     });
-    expect(refreshGitProject).not.toHaveBeenCalled();
   });
 });

@@ -928,6 +928,67 @@ describe("GitReviewSidebar", () => {
     });
   });
 
+  it("uses touch-sized expandable rows and long-press actions in panel mode", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "posix", path: "/repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/touch-row.ts",
+          status: "M",
+          staged: false,
+          insertions: 3,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 3,
+      totalDeletions: 1,
+    };
+    useGitStore.getState().setStatus(project.id, gitStatus);
+    const openFileMenu = vi.fn<(target: GitTouchFileTarget) => void>();
+
+    render(
+      <GitTouchProvider value={{ openFileMenu, openGroupMenu: () => undefined }}>
+        <GitReviewSidebar
+          project={project}
+          gitStatus={gitStatus}
+          selectedFile={null}
+          selectedStaged={false}
+          refreshKey={0}
+          onSelectFile={() => undefined}
+          onClose={() => undefined}
+          onRefresh={() => undefined}
+          mode="panel"
+          statusKey={project.id}
+        />
+      </GitTouchProvider>,
+    );
+
+    const row = screen.getByRole("button", { name: /touch-row\.ts/i });
+    expect(row).toHaveClass("min-h-[2.75rem]");
+
+    fireEvent.contextMenu(row);
+    expect(openFileMenu).toHaveBeenCalledWith({
+      path: "src/touch-row.ts",
+      staged: false,
+      status: "M",
+      insertions: 3,
+      deletions: 1,
+    });
+  });
+
   it("uses the conflict resolver launch override when provided", () => {
     const project: Project = {
       id: "project-1",

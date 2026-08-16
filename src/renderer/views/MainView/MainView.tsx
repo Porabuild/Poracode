@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useLayoutEffect, useState } from "react";
+import { startTransition, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import type { AgentStatus } from "@/shared/contracts";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -13,7 +13,7 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { AppDndProvider } from "@/renderer/dnd";
+import { AppDndProvider, CompactDndProvider } from "@/renderer/dnd";
 
 import { useKeyboardShortcuts } from "@/renderer/hooks/useKeyboardShortcuts";
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
@@ -68,12 +68,9 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
 
   useThreadLifecycle(storeHydrated && runtimeSnapshotsReady);
   useKeyboardShortcuts();
-  useGitRefresh(storeHydrated);
+  useGitRefresh(storeHydrated && !(compactLayout && isBrowserClientRuntime()));
   useRightPanelThreadLock();
   useBrowserSync();
-
-  const { handleSortEnd, handlePaneDrop, handleMainPanelDrop, handlePanelDockDrop } =
-    useDndHandlers();
 
   useLayoutEffect(() => {
     if (!isBrowserClientRuntime()) return;
@@ -158,20 +155,23 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
           checkingConnection={!browserConnectionChecked}
           fallback={<BrowserConnectionPage />}
         >
-          <AppDndProvider
-            onSidebarSortEnd={handleSortEnd}
-            onPaneDrop={handlePaneDrop}
-            onMainPanelDrop={handleMainPanelDrop}
-            onPanelDockDrop={handlePanelDockDrop}
-            paneLayout={
-              view.kind === "thread"
-                ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))
-                : buildPaneLayoutFromLegacy(["__placeholder__"])
-            }
-          >
-            <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
-            <ThreadSearchOverlayHost />
-          </AppDndProvider>
+          {compactLayout ? (
+            <CompactDndProvider>
+              <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
+              <ThreadSearchOverlayHost />
+            </CompactDndProvider>
+          ) : (
+            <DesktopMainDndProvider
+              paneLayout={
+                view.kind === "thread"
+                  ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))
+                  : buildPaneLayoutFromLegacy(["__placeholder__"])
+              }
+            >
+              <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
+              <ThreadSearchOverlayHost />
+            </DesktopMainDndProvider>
+          )}
         </BrowserRemoteConnectionGate>
       )}
       <StalePanelCleanup />
@@ -180,6 +180,26 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
       <PullFromSourceDialog />
       <ExperimentWorkflowTrackers />
     </>
+  );
+}
+
+function DesktopMainDndProvider(props: {
+  children: ReactNode;
+  paneLayout: ReturnType<typeof buildPaneLayoutFromLegacy>;
+}) {
+  const { handleSortEnd, handlePaneDrop, handleMainPanelDrop, handlePanelDockDrop } =
+    useDndHandlers();
+
+  return (
+    <AppDndProvider
+      onSidebarSortEnd={handleSortEnd}
+      onPaneDrop={handlePaneDrop}
+      onMainPanelDrop={handleMainPanelDrop}
+      onPanelDockDrop={handlePanelDockDrop}
+      paneLayout={props.paneLayout}
+    >
+      {props.children}
+    </AppDndProvider>
   );
 }
 

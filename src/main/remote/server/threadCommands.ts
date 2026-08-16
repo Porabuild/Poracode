@@ -36,6 +36,7 @@ import {
 } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
+import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle";
 import { readJsonBody } from "./requestBody";
 import { sortOrderForThread } from "./snapshots";
 
@@ -137,8 +138,8 @@ export function runProjectCommand(
 
 /**
  * Applies thread commands to the durable DB path used by remote snapshots.
- * Returns true for commands whose behavior still requires renderer-owned side
- * effects beyond simple thread metadata persistence.
+ * Returns true only for commands that still have renderer-owned side effects
+ * after the host has applied the durable work.
  */
 export async function applyRemoteThreadCommand(
   ctx: RemoteServerContext,
@@ -146,7 +147,11 @@ export async function applyRemoteThreadCommand(
 ): Promise<boolean> {
   switch (command.kind) {
     case "prepare-worktree":
-      return true;
+      await prepareHostWorktree(ctx, {
+        projectId: command.projectId,
+        worktreePath: command.worktreePath,
+      });
+      return false;
     case "start":
       await startRemoteThread(ctx, command);
       return false;
@@ -185,14 +190,22 @@ export async function applyRemoteThreadCommand(
         starred: command.starred,
       }));
       return false;
-    case "set-worktree":
+    case "set-worktree": {
+      const previous = dbGetThreads().find((thread) => thread.id === command.threadId);
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
         worktreePath: command.worktreePath,
         ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
         updatedAt: new Date().toISOString(),
       }));
+      if (command.isNewWorktree && previous) {
+        await prepareHostWorktree(ctx, {
+          projectId: previous.projectId,
+          worktreePath: command.worktreePath,
+        });
+      }
       return false;
+    }
     case "set-group":
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
@@ -219,10 +232,18 @@ export async function applyRemoteThreadCommand(
       await closeThreadBestEffort(ctx, command.threadId);
       dbDeleteThread(command.threadId);
       return false;
-    case "delete-worktree-group":
+    case "delete-worktree-group": {
+      const groupThreads = dbGetThreads().filter((thread) => command.threadIds.includes(thread.id));
+      const worktreeBranch = groupThreads.find((thread) => thread.worktreeBranch)?.worktreeBranch;
       await Promise.all(command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
       for (const threadId of command.threadIds) dbDeleteThread(threadId);
-      return true;
+      await removeHostWorktree(ctx, {
+        projectId: command.projectId,
+        worktreePath: command.worktreePath,
+        ...(worktreeBranch ? { worktreeBranch } : {}),
+      });
+      return false;
+    }
   }
 }
 

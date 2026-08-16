@@ -253,10 +253,9 @@ export interface PendingSteerState {
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
   /**
-   * Host lifecycle preflight for a freshly-created worktree. The paired
-   * desktop enqueues setup before the host launches the thread. Keeping this
-   * separate from `start` prevents the post-launch metadata mirror from
-   * enqueueing setup a second time.
+   * Host lifecycle preflight for a freshly-created worktree. The host primes
+   * git watches and runs the project setup script before launching the thread.
+   * The desktop renderer only mirrors UI state; it must not run setup again.
    */
   z.object({
     kind: z.literal("prepare-worktree"),
@@ -331,10 +330,8 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
   }),
   // Tags a remotely-started thread with its worktree so it groups under that
   // worktree. The supervisor launches in the dir (via projectLocation) but
-  // never records this metadata; the desktop renderer owns it. `isNewWorktree`
-  // means the remote client just created the worktree, so the desktop should
-  // also prime its git state and run the project setup script (parity with a
-  // local "new thread in worktree").
+  // never records this metadata; the desktop renderer owns the sidebar row.
+  // Setup for a new worktree is applied on the host via `prepare-worktree`.
   z.object({
     kind: z.literal("set-worktree"),
     threadId: z.string().min(1),
@@ -342,9 +339,9 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     worktreeBranch: z.string().optional(),
     isNewWorktree: z.boolean().optional(),
   }),
-  // Removes a worktree group from a remote client. The desktop renderer handles
-  // this through its existing worktree cleanup path so scripts, terminals,
-  // linked threads, git state, and persistence stay consistent with desktop.
+  // Removes a worktree group. The host closes threads, runs cleanup, and
+  // removes the git worktree/branch. The desktop renderer only dismisses
+  // local UI (tabs, overlays) when a window is present.
   z.object({
     kind: z.literal("delete-worktree-group"),
     threadId: z.string().min(1),

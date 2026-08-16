@@ -20,6 +20,7 @@ import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/Not
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
 import { PortsPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel";
+import { PortsPanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/parts/PortsPanelHeaderActions";
 import {
   SubAgentContent,
   SubAgentHeaderText,
@@ -469,6 +470,9 @@ export function ProjectAuxiliaryPanel(props: {
       }
       usageHeaderActions={
         <UsagePanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
+      }
+      portsHeaderActions={
+        <PortsPanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
       }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}

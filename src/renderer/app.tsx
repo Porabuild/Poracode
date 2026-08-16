@@ -12,10 +12,7 @@ import {
   type UpdateStatus,
 } from "@/shared/ipc";
 import { readBridge } from "./bridge";
-import {
-  handleThreadStateNotification,
-  shouldInspectThreadStateForNotification,
-} from "./notifications";
+import { showUserNotification } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
 import { useExperimentStore } from "./state/experimentStore";
@@ -29,7 +26,7 @@ import {
   toggleMarkThreadDone,
   toggleStarThread,
 } from "./actions/threadActions";
-import { deleteWorktreeGroup } from "./actions/worktreeActions";
+import { forgetRemovedWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServersStore";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
@@ -50,29 +47,33 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
-import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
-import {
-  primeWorktreeGitState,
-  runWorktreeSetupScript,
-} from "@/renderer/actions/worktreeLaunchActions";
+import { primeWorktreeGitState } from "@/renderer/actions/worktreeLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
-import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
-import { useStandaloneWindowViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 
-const BrowserRuntimeServices = isBrowserClientRuntime()
+const browserClientRuntime = isBrowserClientRuntime();
+const BrowserRuntimeServices = browserClientRuntime
   ? lazy(() =>
       import("@/renderer/pwa/BrowserRuntimeServices").then((module) => ({
         default: module.BrowserRuntimeServices,
       })),
     )
   : null;
+const BrowserExtractWindowApp = lazy(() =>
+  import("@/renderer/windowApps/BrowserExtractWindowApp").then((module) => ({
+    default: module.BrowserExtractWindowApp,
+  })),
+);
+const QuickComposerWindowApp = lazy(() =>
+  import("@/renderer/windowApps/QuickComposerWindowApp").then((module) => ({
+    default: module.QuickComposerWindowApp,
+  })),
+);
 
 // ── Module-level IPC listeners ──────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -83,7 +84,6 @@ const BrowserRuntimeServices = isBrowserClientRuntime()
 // Both subscribe calls return unsubscribe functions which we store
 // so that Vite HMR can tear them down before re-executing the module.
 
-let threadStateNotificationsArmed = false;
 export const STARTUP_RECOVERY_TIMEOUT_MS = 15_000;
 const windowKind = readBridge().windowKind;
 const isBrowserExtractWindow = windowKind === "browserExtract";
@@ -237,17 +237,8 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
   }
 
   if (event.type === "thread-state") {
-    const shouldCheckNotifications =
-      threadStateNotificationsArmed && shouldInspectThreadStateForNotification();
     const appStore = useAppStore.getState();
-    const oldThread = shouldCheckNotifications
-      ? appStore.threads.find((t) => t.id === event.threadId)
-      : undefined;
     appStore.updateThreadRuntime(event.threadId, event);
-    if (shouldCheckNotifications) {
-      const newThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
-      handleThreadStateNotification(event, oldThread, newThread);
-    }
     // Once the agent process is gone, any sub-agent that hadn't completed is
     // orphaned — its parent `item.completed` will never arrive. Reconcile so
     // the active dock stops showing it as running.
@@ -343,7 +334,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       // side effects (unload on archive, …) stay identical.
       readBridge().onRemoteThreadCommand((command) => {
         if (command.kind === "delete-worktree-group") {
-          deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+          forgetRemovedWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
           return;
         }
         if (command.kind === "prepare-worktree") {
@@ -352,12 +343,6 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             .projects.find((entry) => entry.id === command.projectId);
           if (!project) return;
           void primeWorktreeGitState(project, command.worktreePath);
-          const setupScript = project.scripts?.setupScript;
-          if (setupScript) {
-            void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
-              openTerminalPanel: false,
-            });
-          }
           return;
         }
         if (command.kind === "start") {
@@ -443,21 +428,12 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             useAppStore
               .getState()
               .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
-            // A freshly-created remote worktree needs the same desktop-side follow-up
-            // a local "new thread in worktree" gets: prime its git state and run the
-            // project setup script.
             if (command.isNewWorktree) {
               const project = useAppStore
                 .getState()
                 .projects.find((p) => p.id === thread.projectId);
               if (project) {
                 void primeWorktreeGitState(project, command.worktreePath);
-                const setupScript = project.scripts?.setupScript;
-                if (setupScript) {
-                  void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
-                    openTerminalPanel: false,
-                  });
-                }
               }
             }
             break;
@@ -490,6 +466,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);
       }),
+      readBridge().onUserNotification((notification) => {
+        showUserNotification(notification);
+      }),
       readBridge().onThreadOpenRequested(({ threadId, source }) => {
         openThread(threadId, {
           focusComposer: true,
@@ -509,7 +488,10 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           await startThreadFromDraft(project, submission.input, { preserveActiveGroup: false });
         })().catch(() => undefined);
       }),
-      installRemoteGitSummaryPublisher(),
+      // Only the desktop host owns live local git state and publishes it to
+      // paired clients. Installing this in the PWA subscribes to projected
+      // state and attempts to send the projection back to the host.
+      ...(browserClientRuntime ? [] : [installRemoteGitSummaryPublisher()]),
       installRemoteProjectWorkspaceSync(),
       installThreadOutputPruning(),
     ]
@@ -537,45 +519,20 @@ if (import.meta.hot) {
 
 export function App() {
   if (isBrowserExtractWindow) {
-    return <BrowserExtractApp />;
+    return (
+      <Suspense>
+        <BrowserExtractWindowApp />
+      </Suspense>
+    );
   }
   if (isQuickComposerWindow) {
-    return <QuickComposerApp />;
+    return (
+      <Suspense>
+        <QuickComposerWindowApp />
+      </Suspense>
+    );
   }
   return <MainApp />;
-}
-
-function BrowserExtractApp() {
-  useBrowserSync();
-  useStandaloneWindowViewTracking("browser_extracted");
-
-  return (
-    <AppProvider contentReady syncWindowChrome={false}>
-      <div className="flex h-screen w-screen overflow-hidden bg-[var(--content-background)] text-foreground">
-        <BrowserPanel visible surface="window" />
-      </div>
-    </AppProvider>
-  );
-}
-
-function QuickComposerApp() {
-  const { initialLoading } = useAppHydration({ runtimeOwner: false });
-  useStandaloneWindowViewTracking("quick_composer", !initialLoading);
-
-  return (
-    <AppProvider contentReady={!initialLoading} syncWindowChrome={false}>
-      {initialLoading ? (
-        <div className="quick-composer-root">
-          <div className="quick-composer-status">
-            <PixelLoader size="sm" />
-          </div>
-        </div>
-      ) : (
-        <QuickComposerOverlay />
-      )}
-      <ImageLightboxHost />
-    </AppProvider>
-  );
 }
 
 function MainApp() {
@@ -596,11 +553,9 @@ function MainApp() {
 
   useEffect(() => {
     if (initialLoading) {
-      threadStateNotificationsArmed = false;
       return;
     }
 
-    threadStateNotificationsArmed = true;
     void readBridge().notifyQuickComposerMainReady();
     if (!uninstallProductAnalytics) {
       uninstallProductAnalytics = installProductAnalytics();
@@ -610,7 +565,6 @@ function MainApp() {
       captureAppStarted();
     }
     return () => {
-      threadStateNotificationsArmed = false;
       void flushProductAnalytics();
     };
   }, [initialLoading]);

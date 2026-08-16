@@ -162,7 +162,11 @@ export function ThreadDraftView(props: {
   quickComposer?: boolean;
   composerPlaceholder?: string;
   restoreWorktreeSelectionToken?: number;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean;
   /** Override mount autofocus for embedded draft-composer surfaces. */
   autoFocusComposer?: boolean;

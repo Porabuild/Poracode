@@ -4,7 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { readBridge } from "@/renderer/bridge";
-import { formatBytes } from "@/shared/formatBytes";
+import { updateDownloadDisplay } from "@/renderer/state/updateDownloadDisplay";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 
 /**
@@ -33,11 +33,11 @@ export function UpdateButtons(props: {
   }
 
   if (updatePhase === "downloading") {
-    const percent = Math.min(100, Math.max(0, Math.round(downloadPercent)));
-    const byteLine =
-      transferred != null && total != null && total > 0
-        ? `${formatBytes(transferred)} / ${formatBytes(total)}`
-        : null;
+    const { determinate, percent, byteLine } = updateDownloadDisplay(
+      downloadPercent,
+      transferred,
+      total,
+    );
 
     if (iconOnly) {
       return (
@@ -48,7 +48,9 @@ export function UpdateButtons(props: {
             </div>
           </Tooltip.Trigger>
           <Tooltip.Content placement={tooltipPlacement} className="pointer-events-none">
-            <Trans>Downloading update</Trans> — {percent}%{byteLine ? ` · ${byteLine}` : ""}
+            <Trans>Downloading update</Trans>
+            {determinate ? ` — ${percent}%` : ""}
+            {byteLine ? ` · ${byteLine}` : ""}
           </Tooltip.Content>
         </Tooltip>
       );
@@ -63,12 +65,16 @@ export function UpdateButtons(props: {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
             <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
-            <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
+            {determinate ? (
+              <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
+            ) : null}
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
             <div
-              className="h-1 rounded-full bg-foreground transition-[width] duration-300"
-              style={{ width: `${percent}%` }}
+              className={`h-1 rounded-full bg-foreground ${
+                determinate ? "transition-[width] duration-300" : "w-1/2 animate-pulse"
+              }`}
+              style={determinate ? { width: `${percent}%` } : undefined}
             />
           </div>
         </div>

@@ -92,7 +92,7 @@ describe("GitReviewOverlay", () => {
     useSidebarOverlayStore.setState({ isCollapsed: false, isAutoCollapsed: false });
   });
 
-  it("navigates the file list and a selected diff as compact pages", () => {
+  it("uses the touch Git layout in the compact overlay", async () => {
     layout.compact = true;
     useSidebarOverlayStore.setState({ isCollapsed: true, isAutoCollapsed: true });
 
@@ -104,19 +104,12 @@ describe("GitReviewOverlay", () => {
     expect(within(main).getByText("worktree-only.ts")).toBeInTheDocument();
     expect(within(main).getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
     expect(within(main).queryByText("No changes to display")).not.toBeInTheDocument();
-    expect(within(main).getByRole("button", { name: "Refresh" })).toHaveClass(
-      "m-home-compose-action",
-    );
+    expect(within(main).queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toHaveClass("m-home-compose-action");
 
     fireEvent.click(within(main).getByText("worktree-only.ts"));
-    expect(
-      within(main).queryByPlaceholderText("Commit message (Ctrl+Enter)"),
-    ).not.toBeInTheDocument();
-    expect(within(main).getByText("No changes to display")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await within(main).findByText("Unable to load diff.")).toBeInTheDocument();
     expect(within(main).getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
-    expect(within(main).queryByText("No changes to display")).not.toBeInTheDocument();
   });
 
   it("stages a file from the compact long-press drawer while the shell sidebar is collapsed", async () => {

@@ -1,5 +1,5 @@
 import type { BrowserPanelManager } from "../browser";
-import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
+import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
@@ -17,6 +17,7 @@ import {
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { UserNotification } from "@/shared/threadNotification";
 import type { Project } from "@/shared/contracts";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
@@ -46,6 +47,7 @@ import {
   type RemoteAccessServerOptions,
 } from "./RemoteAccessServer";
 import { RemoteBrowserGateway, type RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
+import { ThreadNotificationPublisher } from "./ThreadNotificationPublisher";
 import {
   buildTailscaleHttpsUrl,
   disableTailscaleServe,
@@ -77,6 +79,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
   readonly notifyProjectStateChanged: (projects: readonly Project[]) => void;
+  readonly notifyUserNotification?: (notification: UserNotification) => void;
   readonly notifyEventInterestsChanged: NonNullable<
     RemoteAccessServerOptions["onEventInterestsChanged"]
   >;
@@ -174,6 +177,25 @@ export function createDesktopRemoteAccessController(
   let remoteGitSummaries: RemoteGitSummaries = {};
   let disposePromise: Promise<void> | null = null;
   let gitStatePrewarmed = false;
+  const threadNotifications = new ThreadNotificationPublisher({
+    getThread: dbGetThread,
+    getProjectName: (projectId) => dbGetProject(projectId)?.name ?? "Project",
+    getSettings: () => {
+      const settings = readSharedSettingsFile(options.paths.settingsPath);
+      return {
+        notificationsEnabled: settings.notificationsEnabled,
+        notificationStatuses: settings.notificationStatuses,
+        notifyL2Cli: settings.notifyL2Cli,
+      };
+    },
+    publish: (notification) => {
+      remoteAccessServer?.publishSupervisorEvent({
+        type: "remote-user-notification",
+        ...notification,
+      });
+      options.notifyUserNotification?.(notification);
+    },
+  });
 
   const prewarmGitStateOnce = (): void => {
     if (gitStatePrewarmed) return;
@@ -693,6 +715,7 @@ export function createDesktopRemoteAccessController(
     handleSupervisorEvent: (event) => {
       remoteAccessServer?.publishSupervisorEvent(event);
       pushCoordinator?.handleSupervisorEvent(event);
+      threadNotifications.handleSupervisorEvent(event);
     },
     updateGitSummaries: (summaries) => {
       remoteGitSummaries = summaries;

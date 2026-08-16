@@ -86,6 +86,7 @@ import {
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
 import { shouldUseMockKeychain } from "./mockKeychain";
+import { APP_QUIT_CLEANUP_TIMEOUT_MS, raceWithTimeout } from "./appQuitCleanup";
 import { BackendHostClient } from "./backend/BackendHostClient";
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
@@ -932,6 +933,9 @@ if (!hasSingleInstanceLock) {
               return;
             case "git-state-changed":
               mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, event.patch);
+              return;
+            case "user-notification":
+              mainWindow?.webContents.send(IPC_EVENT_CHANNELS.userNotification, event.notification);
           }
         },
         onRendererStreamInfo: (info) => {
@@ -1256,16 +1260,18 @@ if (!hasSingleInstanceLock) {
         sleepInhibitor.dispose();
         tray?.destroy();
         tray = null;
-        void Promise.all([sshDispose])
-          .then(() => backendHost.disposeAsync())
-          .catch((error) => {
-            captureMainException(error, { "poracode.feature_area": "backend-host" });
-          })
-          .finally(() => {
-            windowsJobObjectManager?.dispose();
-            windowsJobObjectManager = null;
-            app.quit();
-          });
+        void raceWithTimeout(
+          sshDispose
+            .then(() => backendHost.disposeAsync())
+            .catch((error) => {
+              captureMainException(error, { "poracode.feature_area": "backend-host" });
+            }),
+          APP_QUIT_CLEANUP_TIMEOUT_MS,
+        ).finally(() => {
+          windowsJobObjectManager?.dispose();
+          windowsJobObjectManager = null;
+          app.quit();
+        });
       });
     })
     .catch((error: unknown) => {

@@ -23,6 +23,8 @@ const { bridge, captureFileCheckpoint, runtimeActions } = vi.hoisted(() => ({
     dbGetThreadRuntimeItems: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     dbGetThreadCompletedTurns: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     dbGetThreadContextUsage: vi.fn<() => Promise<unknown | null>>().mockResolvedValue(null),
+    getProviderUsage: vi.fn<() => Promise<null>>().mockResolvedValue(null),
+    setRendererEventInterests: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   },
   captureFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   runtimeActions: {
@@ -41,6 +43,7 @@ vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
 vi.mock("../../bridge", () => ({
   readBridge: () => bridge,
   isRemoteSession: () => false,
+  isCompactClientSurface: () => false,
   isDevApp: () => false,
 }));
 

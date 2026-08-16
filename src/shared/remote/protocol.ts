@@ -14,6 +14,7 @@ import {
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
+import { userNotificationSchema } from "../threadNotification";
 
 // v3 makes worktree placement settings host-scoped so browser clients never
 // edit local values that the selected remote host will not use.
@@ -464,6 +465,12 @@ export const remoteThreadsChangedEventSchema = z.object({
   viewedThreadIds: z.array(z.string().min(1)).optional(),
 });
 export type RemoteThreadsChangedEvent = z.infer<typeof remoteThreadsChangedEventSchema>;
+
+/** Host-owned notification. Clients display it; they do not re-classify thread-state. */
+export const remoteUserNotificationEventSchema = userNotificationSchema.extend({
+  type: z.literal("remote-user-notification"),
+});
+export type RemoteUserNotificationEvent = z.infer<typeof remoteUserNotificationEventSchema>;
 
 /**
  * Port forwarding. Lets a paired client discover dev servers listening on the

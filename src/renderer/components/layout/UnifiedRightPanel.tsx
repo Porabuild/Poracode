@@ -35,6 +35,8 @@ export function UnifiedRightPanel(props: {
   subagentTitle?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the usage tab is active. */
   usageHeaderActions?: ReactNode;
+  /** Tab-specific action buttons rendered in the header when the ports tab is active. */
+  portsHeaderActions?: ReactNode;
   showTerminalTab?: boolean;
   showFilesTab?: boolean;
   showGitTab?: boolean;
@@ -84,6 +86,7 @@ export function UnifiedRightPanel(props: {
     subagentModel,
     subagentTitle,
     usageHeaderActions,
+    portsHeaderActions,
     showTerminalTab = true,
     showFilesTab = true,
     showGitTab = true,
@@ -287,6 +290,7 @@ export function UnifiedRightPanel(props: {
           </button>
         )}
         {activeTab === "usage" ? usageHeaderActions : null}
+        {activeTab === "ports" ? portsHeaderActions : null}
         <div className="mx-0.5 h-3 w-px bg-border" />
         {tabs.map((tab) => {
           if (!tab.visible) return null;

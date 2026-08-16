@@ -203,6 +203,7 @@ const {
         return () => undefined;
       }),
       onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
+      onUserNotification: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchStatus: vi.fn<() => () => void>(() => () => undefined),
       onThreadOpenRequested: vi.fn<
@@ -245,21 +246,25 @@ vi.mock("./components/ui/provider", () => ({
   AppProvider: (props: { children: ReactNode }) => props.children,
 }));
 
-vi.mock("./views/MainView/parts/AppShell/AppShell", () => ({
-  AppShell: (props: { sidebar: ReactNode; content: ReactNode }) => (
-    <div>
-      <div>{props.sidebar}</div>
-      <div>{props.content}</div>
-    </div>
-  ),
-  useSidebar: () => ({
-    isCollapsed: false,
-    closingOverlay: false,
-    isOverlay: false,
-    collapse: () => {},
-    expand: () => {},
-  }),
-}));
+vi.mock("./views/MainView/parts/AppShell/AppShell", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./views/MainView/parts/AppShell/AppShell")>();
+  return {
+    SidebarContext: actual.SidebarContext,
+    AppShell: (props: { sidebar: ReactNode; content: ReactNode }) => (
+      <div>
+        <div>{props.sidebar}</div>
+        <div>{props.content}</div>
+      </div>
+    ),
+    useSidebar: () => ({
+      isCollapsed: false,
+      closingOverlay: false,
+      isOverlay: false,
+      collapse: () => {},
+      expand: () => {},
+    }),
+  };
+});
 
 vi.mock("./components/layout/SplitPaneContainer", () => ({
   SplitPaneContainer: (props: {
@@ -780,7 +785,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("runs setup once and headlessly for a worktree newly created from the PWA", () => {
+  it("mirrors a host-prepared worktree into desktop git state without rerunning setup", () => {
     const project = {
       id: "project-1",
       name: "Repo",
@@ -807,13 +812,11 @@ describe("App", () => {
       });
     });
 
-    expect(runWorktreeSetupScript).toHaveBeenCalledTimes(1);
-    expect(runWorktreeSetupScript).toHaveBeenCalledWith(
-      project,
-      "C:\\worktrees\\mobile-fix",
-      "direnv allow\npnpm ci",
-      { openTerminalPanel: false },
-    );
+    expect(runWorktreeSetupScript).not.toHaveBeenCalled();
+    expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+      projectId: project.id,
+      worktreePaths: ["C:\\worktrees\\mobile-fix"],
+    });
   });
 
   it("does not run setup when the PWA reuses an existing worktree", () => {
@@ -1043,7 +1046,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("hydrates the selected GUI thread transcript before initial render", async () => {
+  it("requests the selected GUI thread transcript while showing the persisted thread", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -1101,13 +1104,12 @@ describe("App", () => {
       });
     });
     expect(bridge.dbGetThreadRuntimeItems).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("thread-view-thread-visible-gui")).not.toBeInTheDocument();
-
-    resolveRuntimeItems({ items: [], nextCursor: null });
 
     await waitFor(() => {
       expect(screen.getByTestId("thread-view-thread-visible-gui")).toBeInTheDocument();
     });
+
+    resolveRuntimeItems({ items: [], nextCursor: null });
   });
 
   it("queues launch for the selected thread after persisted state hydrates", async () => {

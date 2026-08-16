@@ -24,19 +24,17 @@ describe("MobileTerminalAccessory", () => {
     writeTerminal.mockReset().mockResolvedValue(undefined);
   });
 
-  it("forwards typed text to the active terminal", () => {
+  it("does not render a software-keyboard launcher", () => {
     render(<MobileTerminalAccessory terminalId="term-1" />);
 
-    fireEvent.input(screen.getByLabelText("Terminal input"), { target: { value: "hello" } });
-
-    expect(writeTerminal).toHaveBeenCalledWith({ threadId: "term-1", data: "hello" });
+    expect(screen.queryByLabelText("Terminal input")).not.toBeInTheDocument();
   });
 
   it("forwards Ctrl+T and Ctrl+Tab sequences", () => {
     render(<MobileTerminalAccessory terminalId="term-1" />);
 
-    const input = screen.getByLabelText("Terminal input");
-    fireEvent.keyDown(input, { key: "t", ctrlKey: true });
+    fireEvent.click(screen.getByRole("button", { name: "^" }));
+    fireEvent.click(screen.getByRole("button", { name: "T" }));
     fireEvent.click(screen.getByRole("button", { name: "^" }));
     fireEvent.click(screen.getByRole("button", { name: "Tab" }));
 

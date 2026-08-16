@@ -3,7 +3,7 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   DeferredGitHubActionsView,
-  DeferredProjectAuxiliaryPanel,
+  DeferredMobileWorkspacePage,
   DeferredProjectSettingsOverlay,
   DeferredSettingsOverlay,
 } from "@/renderer/deferredFeatures";
@@ -26,11 +26,7 @@ export function MobileTopLevelPage() {
   if (page === "workspace") {
     return (
       <Suspense fallback={<PageLoader />}>
-        <DeferredProjectAuxiliaryPanel
-          includeTerminal={false}
-          visible
-          onClose={() => usePanelStore.getState().closeMobileUtilityPage()}
-        />
+        <DeferredMobileWorkspacePage />
       </Suspense>
     );
   }

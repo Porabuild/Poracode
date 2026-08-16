@@ -9,6 +9,7 @@ import {
   type UpdateFailureKind,
   type UpdateOperation,
 } from "./updateErrorPolicy";
+import { createDownloadStallWatch, downloadUpdateWithStallFallback } from "./updateDownload";
 
 /**
  * Delay before the first update check once the app is ready. Matches VS Code's
@@ -52,6 +53,7 @@ export function createAutoUpdaterController(
   let updateAvailable = false;
   let activeAttempt: { operation: UpdateOperation; eventError: unknown | null } | null = null;
   const transientReportTimes = new Map<string, number>();
+  const downloadStallWatch = createDownloadStallWatch();
 
   function reportClassifiedFailure(operation: UpdateOperation, outcome: UpdateFailureKind): void {
     if (outcome === "optional-manifest-missing") {
@@ -122,7 +124,15 @@ export function createAutoUpdaterController(
   function beginDownload(): Promise<void> {
     if (downloadPromise) return downloadPromise;
     checkInFlight = true;
-    downloadPromise = runOperation("download", () => autoUpdater.downloadUpdate()).finally(() => {
+    downloadPromise = runOperation("download", () =>
+      downloadUpdateWithStallFallback(
+        (token) => autoUpdater.downloadUpdate(token as never),
+        (disabled) => {
+          autoUpdater.disableDifferentialDownload = disabled;
+        },
+        { stallWatch: downloadStallWatch },
+      ),
+    ).finally(() => {
       downloadPromise = null;
       if (!updateReady) checkInFlight = false;
     });
@@ -169,6 +179,10 @@ export function createAutoUpdaterController(
     // downloadUpdate ourselves so transient retries and final reporting belong
     // to one typed operation instead of the updater's global error event.
     autoUpdater.autoDownload = false;
+    // Prefer the small blockmap delta. GitHub's Azure CDN can stall that
+    // path; downloadUpdateWithStallFallback then retries once as a full
+    // download so the UI cannot sit at 0% forever.
+    autoUpdater.disableDifferentialDownload = false;
     // A renderer stuck during hydration cannot reach the normal install
     // button. Once an update is downloaded, Cmd/Ctrl+Q still provides a
     // main-process-owned recovery path that applies it on quit.
@@ -202,6 +216,7 @@ export function createAutoUpdaterController(
     });
     autoUpdater.on("download-progress", (progress) => {
       checkInFlight = true;
+      downloadStallWatch.markProgress();
       sendStatus({
         type: "downloading",
         percent: progress.percent,

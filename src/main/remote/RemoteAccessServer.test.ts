@@ -2902,13 +2902,16 @@ describe("RemoteAccessServer", () => {
     ]);
   });
 
-  it("enqueues a new worktree setup exactly once before launching the remote thread", async () => {
-    const project = createTestProject();
+  it("runs new-worktree setup on the host before launching the remote thread", async () => {
+    const project = createTestProject({
+      scripts: { actions: [], setupScript: "pnpm install" },
+    });
     vi.mocked(dbGetProjects).mockReturnValue([project]);
     mockThreadDb();
-    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
-      async () => ({ threadId: "thread-worktree" }) as never,
-    );
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "startThread") return { threadId: "thread-worktree" } as never;
+      return undefined as never;
+    });
     const dispatchThreadCommand = vi.fn<
       NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
     >(() => true);
@@ -2946,23 +2949,93 @@ describe("RemoteAccessServer", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "gitWatchWorktrees",
+      expect.objectContaining({
+        projectId: project.id,
+        worktreePaths: ["/repo/worktrees/mobile-fix"],
+      }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startShell",
+      expect.objectContaining({ worktreePath: "/repo/worktrees/mobile-fix" }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "writeTerminal",
+      expect.objectContaining({ data: "pnpm install && exit\r" }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startThread",
+      expect.objectContaining({ threadId: "thread-worktree" }),
+    );
+    const startShellOrder =
+      callSupervisor.mock.invocationCallOrder[
+        callSupervisor.mock.calls.findIndex((call) => call[0] === "startShell")
+      ]!;
+    const startThreadOrder =
+      callSupervisor.mock.invocationCallOrder[
+        callSupervisor.mock.calls.findIndex((call) => call[0] === "startThread")
+      ]!;
+    expect(startShellOrder).toBeLessThan(startThreadOrder);
     expect(dispatchThreadCommand).toHaveBeenNthCalledWith(1, {
       kind: "prepare-worktree",
       threadId: "thread-worktree",
       projectId: project.id,
       worktreePath: "/repo/worktrees/mobile-fix",
     });
-    expect(callSupervisor).toHaveBeenCalledWith(
-      "startThread",
-      expect.objectContaining({ threadId: "thread-worktree" }),
-    );
-    expect(dispatchThreadCommand).toHaveBeenCalledTimes(2);
     expect(dispatchThreadCommand).toHaveBeenNthCalledWith(
       2,
       expect.not.objectContaining({ isNewWorktree: true }),
     );
-    expect(dispatchThreadCommand.mock.invocationCallOrder[0]).toBeLessThan(
-      callSupervisor.mock.invocationCallOrder[0]!,
+  });
+
+  it("prepares a new worktree on the host when the desktop window is gone", async () => {
+    const project = createTestProject({
+      scripts: { actions: [], setupScript: "pnpm install" },
+    });
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    mockThreadDb();
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "startThread") return { threadId: "thread-offline" } as never;
+      return undefined as never;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      dispatchThreadCommand: () => false,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/thread-offline/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "start",
+        projectId: project.id,
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "start offline",
+        worktreePath: "/repo/worktrees/offline",
+        isNewWorktree: true,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startShell",
+      expect.objectContaining({ worktreePath: "/repo/worktrees/offline" }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startThread",
+      expect.objectContaining({ threadId: "thread-offline" }),
     );
   });
 
@@ -3173,7 +3246,10 @@ describe("RemoteAccessServer", () => {
   });
 
   it("persists simple thread commands and mirrors them to the renderer", async () => {
-    const db = mockThreadDb([createTestThread()]);
+    vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
+    const db = mockThreadDb([
+      createTestThread({ worktreePath: "/repo/wt", worktreeBranch: "feat/x" }),
+    ]);
     const dispatched: unknown[] = [];
     let rendererAvailable = true;
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
@@ -3277,9 +3353,17 @@ describe("RemoteAccessServer", () => {
       threadIds: ["thread-1", "thread-2"],
     });
     expect(db.threads()).toEqual([]);
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "gitRemoveWorktree",
+      expect.objectContaining({ path: "/repo/wt", force: true }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "gitDeleteBranch",
+      expect.objectContaining({ branch: "feat/x", force: true }),
+    );
 
     rendererAvailable = false;
-    const unavailableResponse = await fetch(
+    const offlineDeleteResponse = await fetch(
       new URL("/api/threads/thread-1/command", info.httpBaseUrl),
       {
         method: "POST",
@@ -3292,10 +3376,7 @@ describe("RemoteAccessServer", () => {
         }),
       },
     );
-    expect(unavailableResponse.status).toBe(503);
-    await expect(unavailableResponse.json()).resolves.toMatchObject({
-      error: { code: "desktop_unavailable" },
-    });
+    expect(offlineDeleteResponse.status).toBe(200);
     ws.close();
   });
 

@@ -17,6 +17,7 @@ import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { friendlyError } from "@/shared/messages";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
@@ -272,7 +273,11 @@ export function ThreadDraftComposerArea(props: {
   placeholder?: string;
   /** Restores the selection replaced by a one-shot worktree target when this token changes. */
   restoreWorktreeSelectionToken?: number;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean;
   /** Override mount autofocus without changing the active submit behavior. */
   autoFocus?: boolean;
@@ -296,6 +301,7 @@ export function ThreadDraftComposerArea(props: {
   const [experimentMode, setExperimentMode] = useState(false);
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
   const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
+  const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
   const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isRemoteSurface);
   const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
@@ -1054,7 +1060,7 @@ export function ThreadDraftComposerArea(props: {
               props.placeholder ?? (isRemoteSurface ? t`Plan, ask, build…` : t`Send a message...`)
             }
             projectLocation={isHomeScope ? undefined : props.project.location}
-            submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
+            submitOnEnter={props.submitOnEnter ?? !compactLayout}
             {...(showCommandPanel
               ? {
                   commandListId,

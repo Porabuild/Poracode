@@ -2,6 +2,7 @@ import type { PoracodeChannel } from "../channel";
 import type { RemoteThreadCommand } from "../contracts";
 import type { RemoteAccessPairingInfo } from "../remote";
 import type { SharedSettings } from "../settings";
+import type { UserNotification } from "../threadNotification";
 import type { GitStatePatch } from "../gitState";
 import type { PoracodeWindowKind } from "./channels";
 import {
@@ -72,6 +73,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
   onProjectStateChanged(listener: (event: ProjectStateChangedEvent) => void): () => void;
   onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
+  onUserNotification(listener: (notification: UserNotification) => void): () => void;
   onPrWatchMerged(listener: (event: PrWatchMergedEvent) => void): () => void;
   /** Live PR state observed by the PR-watch loop, so watched PRs stay fresh. */
   onPrWatchStatus(listener: (event: PrWatchStatusEvent) => void): () => void;

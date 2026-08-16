@@ -12,6 +12,12 @@ function ruleFor(selector: string): string {
 }
 
 describe("base control styles", () => {
+  it("clears native titlebar inset on the desktop web client", () => {
+    expect(styles).toMatch(
+      /html\[data-client-host="browser"\] \.poracode-shell\s*\{\s*padding-top:\s*0;/,
+    );
+  });
+
   it("keeps neutral button variants on the theme foreground", () => {
     for (const selector of [".button--primary", ".button--secondary", ".button--tertiary"]) {
       expect(ruleFor(selector)).toContain("--button-fg: var(--foreground)");
@@ -60,6 +66,22 @@ describe("base control styles", () => {
     );
     expect(mobilePoracode).toContain("--background: #000");
     expect(mobilePoracode).toContain("--content-background: #000");
+  });
+
+  it("keeps home and thread composer collapse choreography in one 200ms motion", () => {
+    expect(styles).toContain("@keyframes m-compose-content-collapse");
+    expect(styles).toMatch(
+      /\.m-thread-compose-dock\[data-collapsing\][^{]*\.poracode-composer-shell\s*\{\s*animation: m-compose-content-collapse 0\.2s linear both;/s,
+    );
+    expect(styles).toContain(
+      ".m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])",
+    );
+    expect(styles).toContain(".m-thread-compose-dock[data-expanded]:not([data-collapsing]),");
+    expect(styles).toMatch(
+      /\.m-thread-compose-dock\[data-collapsing\]\[data-compact-content\][^{]*\.poracode-composer-shell[^{]*\{\s*transition-duration: 0\.1s;/s,
+    );
+    expect(styles).toContain("[data-input-has-content]");
+    expect(styles).not.toContain("[contenteditable]:not(:empty)");
   });
 
   it("uses one safe-zone token for compact headers and under-header page scrolling", () => {

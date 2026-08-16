@@ -7,6 +7,7 @@ import type {
   RemoteGitStateEvent,
   RemoteProjectsChangedEvent,
   RemoteThreadsChangedEvent,
+  RemoteUserNotificationEvent,
   RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -24,7 +25,8 @@ export type RemoteBroadcastEvent =
   | RemoteGitSummariesEvent
   | RemoteGitStateEvent
   | RemoteProjectsChangedEvent
-  | RemoteThreadsChangedEvent;
+  | RemoteThreadsChangedEvent
+  | RemoteUserNotificationEvent;
 
 export interface BufferedSupervisorEvent {
   readonly seq: number;
@@ -84,4 +86,8 @@ export interface RemoteServerContext {
    * before taking a snapshot.
    */
   notifyEventInterestsChanged(): void | Promise<void>;
+  waitForSupervisorEvent(
+    match: (event: RemoteBroadcastEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<RemoteBroadcastEvent>;
 }

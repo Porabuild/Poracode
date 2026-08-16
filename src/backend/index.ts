@@ -11,6 +11,7 @@ import {
 } from "@/shared/backendHostProtocol";
 import { BackendEventRouter, BackendHostCore } from "./BackendHostCore";
 import { BackendDesktopServices } from "./BackendDesktopServices";
+import { applyElectronIpcBackpressure } from "./electronIpcBackpressure";
 import { BackendRendererStream } from "./BackendRendererStream";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
@@ -57,7 +58,11 @@ const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
     void shutdown(1, false);
   },
   onBackpressureChange: (paused) => {
-    backendHost?.supervisorClient.setOutputBackpressured(paused);
+    applyElectronIpcBackpressure({
+      paused,
+      setSupervisorOutputBackpressured: (value) =>
+        backendHost?.supervisorClient.setOutputBackpressured(value),
+    });
   },
 });
 

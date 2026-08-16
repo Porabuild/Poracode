@@ -13,8 +13,18 @@ export function GitReviewPanelContent(props: {
   gitPanelContext: { projectId: string; worktreePath?: string | undefined } | null;
   onClose: () => void;
   onExpandToOverlay: () => void;
+  hideToolbar?: boolean;
+  touchMode?: boolean;
+  compactHeaderActions?: boolean;
 }) {
-  const { gitPanelContext, onClose, onExpandToOverlay } = props;
+  const {
+    gitPanelContext,
+    onClose,
+    onExpandToOverlay,
+    hideToolbar,
+    touchMode,
+    compactHeaderActions,
+  } = props;
   const project = useAppStore((s) =>
     gitPanelContext ? s.projects.find((p) => p.id === gitPanelContext.projectId) : undefined,
   );
@@ -94,6 +104,9 @@ export function GitReviewPanelContent(props: {
         onExpandToOverlay={onExpandToOverlay}
         onClose={onClose}
         hideHeader
+        {...(hideToolbar ? { hideToolbar: true } : {})}
+        {...(touchMode ? { touchMode: true } : {})}
+        {...(compactHeaderActions ? { compactHeaderActions: true } : {})}
       />
     </Suspense>
   );

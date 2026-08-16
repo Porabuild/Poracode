@@ -113,6 +113,8 @@ function useFilterDismissal(args: {
 function ProjectRowMenuButton(props: {
   project: Project;
   mobile?: boolean;
+  /** Extra classes for the host — used to pin the desktop button to the row end. */
+  className?: string;
   onOpenMenu: (anchor: { x: number; y: number }) => void;
 }) {
   const { t } = useLingui();
@@ -127,7 +129,7 @@ function ProjectRowMenuButton(props: {
       role="button"
       tabIndex={0}
       aria-label={t`Project actions for ${props.project.name}`}
-      className={`${props.mobile ? "size-11 rounded-lg" : "-mr-1 size-5 rounded hover:bg-[var(--row-hover)] hover:text-foreground"} flex shrink-0 items-center justify-center text-muted/60`}
+      className={`${props.mobile ? "size-11 rounded-lg" : "-mr-1 size-5 rounded hover:bg-[var(--row-hover)] hover:text-foreground"} flex shrink-0 items-center justify-center text-muted/60${props.className ? ` ${props.className}` : ""}`}
       onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -527,7 +529,7 @@ export function SidebarProjectFilter(props: {
             </Label>
             <Dropdown.ItemIndicator />
           </Dropdown.Item>
-          <Separator />
+          {filterableProjects.length > 0 || unavailableProjects.length > 0 ? <Separator /> : null}
           {filterableProjects.map((project) => {
             const remote = remoteServerFor(project);
             return (
@@ -553,25 +555,28 @@ export function SidebarProjectFilter(props: {
               </Dropdown.Item>
             );
           })}
-          {unavailableProjects.length > 0 ? <Separator /> : null}
-          <Dropdown.Section selectionMode="none">
-            {unavailableProjects.map((project) => {
-              const remote = remoteServerFor(project);
-              return (
-                <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
-                  <ProjectSelectorIcon project={project} remote={remote} />
-                  <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
-                  {remote.serverName ? <Description>{remote.serverName}</Description> : null}
-                  {isHomeProject(project) ? null : (
-                    <ProjectRowMenuButton
-                      project={project}
-                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
-                    />
-                  )}
-                </Dropdown.Item>
-              );
-            })}
-          </Dropdown.Section>
+          {filterableProjects.length > 0 && unavailableProjects.length > 0 ? <Separator /> : null}
+          {unavailableProjects.length > 0 ? (
+            <Dropdown.Section selectionMode="none">
+              {unavailableProjects.map((project) => {
+                const remote = remoteServerFor(project);
+                return (
+                  <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
+                    {remote.serverName ? <Description>{remote.serverName}</Description> : null}
+                    {isHomeProject(project) ? null : (
+                      <ProjectRowMenuButton
+                        project={project}
+                        className="ms-auto"
+                        onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                      />
+                    )}
+                  </Dropdown.Item>
+                );
+              })}
+            </Dropdown.Section>
+          ) : null}
         </Dropdown.Menu>
         {overflowTarget ? (
           <ProjectOverflowMenu

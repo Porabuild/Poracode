@@ -19,6 +19,7 @@ import { getLanguageFromPath, isMarkdownFile } from "./parts/langMap";
 import { defineAppThemes, useResolvedTheme } from "./parts/monacoThemes";
 import { SortableTab } from "./parts/SortableTab";
 import { EditorToolbar } from "./parts/EditorToolbar";
+import { MobileFileEditorActions } from "./parts/MobileFileEditorActions";
 import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
@@ -55,6 +56,7 @@ export function FileEditorPane(props: {
   headerNeedsTrafficLightPad?: boolean;
   onOpenFullscreen?: () => void;
   onClose?: () => void;
+  mobileControls?: boolean;
 }) {
   const { t } = useLingui();
   const activePath = useFileEditorStore((state) => state.activePath);
@@ -123,6 +125,16 @@ export function FileEditorPane(props: {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+      {props.mobileControls && activePath ? (
+        <MobileFileEditorActions
+          isDirty={isDirty}
+          isMarkdown={isMarkdown}
+          showPreview={showPreview}
+          onSave={() => void handleSave(activePath)}
+          onTogglePreview={() => setShowPreview((visible) => !visible)}
+        />
+      ) : null}
+
       {props.showTabs ? (
         <TabStripHeader
           isDirty={isDirty}
@@ -140,7 +152,7 @@ export function FileEditorPane(props: {
 
       {activePath && bufferStatus ? (
         <>
-          {!props.showTabs ? (
+          {!props.showTabs && !props.mobileControls ? (
             <div
               className={`flex shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] px-3 ${
                 props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""

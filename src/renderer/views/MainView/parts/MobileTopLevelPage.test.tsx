@@ -6,8 +6,8 @@ import { MobileTopLevelPage } from "./MobileTopLevelPage";
 
 vi.mock("@/renderer/deferredFeatures", () => ({
   DeferredGitHubActionsView: () => null,
-  DeferredProjectAuxiliaryPanel: (props: { onClose?: () => void }) => (
-    <button type="button" onClick={props.onClose}>
+  DeferredMobileWorkspacePage: () => (
+    <button type="button" onClick={() => usePanelStore.getState().closeMobileUtilityPage()}>
       Close Git and Files
     </button>
   ),

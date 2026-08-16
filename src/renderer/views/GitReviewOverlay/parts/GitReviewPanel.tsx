@@ -22,8 +22,11 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { BranchSelector } from "@/renderer/components/common";
 import { overlaySidebarSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
+import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { SidebarContext } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { GitReviewSidebar } from "./GitReviewSidebar/GitReviewSidebar";
+import { GitReviewTouchMenus } from "./GitReviewTouchMenus";
 import { addGitRemote, initGitRepository } from "./initGitRepository";
 
 const alwaysExpanded = {
@@ -45,6 +48,9 @@ export function GitReviewPanel(props: {
   onExpandToOverlay: () => void;
   onClose: () => void;
   hideHeader?: boolean;
+  hideToolbar?: boolean;
+  touchMode?: boolean;
+  compactHeaderActions?: boolean;
 }) {
   const {
     project,
@@ -57,6 +63,9 @@ export function GitReviewPanel(props: {
     onExpandToOverlay,
     onClose,
     hideHeader,
+    hideToolbar,
+    touchMode,
+    compactHeaderActions,
   } = props;
   const { t } = useLingui();
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
@@ -173,13 +182,63 @@ export function GitReviewPanel(props: {
       });
   }
 
+  const sidebar = (
+    <GitReviewSidebar
+      project={effectiveProject}
+      gitStatus={gitStatus}
+      selectedFile={selectedFile}
+      selectedStaged={selectedStaged}
+      worktreeBranch={worktreeBranch}
+      worktreePath={worktreePath}
+      onMergeAndRemove={onMergeAndRemove}
+      onSelectFile={handleSelectFile}
+      onClose={onClose}
+      refreshKey={refreshKey}
+      onRefresh={() => void handleRefresh()}
+      onInitRepository={() =>
+        void initGitRepository({
+          project,
+          effectiveLocation,
+          statusKey,
+          setRefreshing,
+          bumpRefreshKey: () => setRefreshKey((k) => k + 1),
+        })
+      }
+      onAddRemote={(remote, url) =>
+        addGitRemote({
+          project,
+          effectiveLocation,
+          statusKey,
+          remote,
+          url,
+          setRefreshing,
+          bumpRefreshKey: () => setRefreshKey((k) => k + 1),
+        })
+      }
+      statusKey={statusKey}
+      mode="panel"
+      wrapLines={wrapLines}
+    />
+  );
+
   return (
     <SidebarContext.Provider value={alwaysExpanded}>
       <div
-        className={`flex h-full min-h-0 flex-col ${hideHeader ? overlaySidebarSurfaceClass : ""}`}
+        className={`poracode-git-review-panel flex h-full min-h-0 flex-col ${hideHeader ? overlaySidebarSurfaceClass : ""}`}
       >
+        {compactHeaderActions ? (
+          <MobilePageHeaderActions>
+            <MobileCircleButton
+              aria-label={t`Refresh`}
+              className="text-muted"
+              onPress={() => void handleRefresh()}
+            >
+              <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+            </MobileCircleButton>
+          </MobilePageHeaderActions>
+        ) : null}
         {/* Header — full when standalone, slim git-actions-only bar when parent provides its own header */}
-        {hideHeader ? (
+        {hideToolbar ? null : hideHeader ? (
           <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] pl-1.5 pr-3 text-xs leading-tight">
             {gitStatus?.branch ? (
               <>
@@ -374,42 +433,20 @@ export function GitReviewPanel(props: {
 
         {/* Sidebar content */}
         <div className="min-h-0 flex-1 overflow-hidden">
-          <GitReviewSidebar
-            project={effectiveProject}
-            gitStatus={gitStatus}
-            selectedFile={selectedFile}
-            selectedStaged={selectedStaged}
-            worktreeBranch={worktreeBranch}
-            worktreePath={worktreePath}
-            onMergeAndRemove={onMergeAndRemove}
-            onSelectFile={handleSelectFile}
-            onClose={onClose}
-            refreshKey={refreshKey}
-            onRefresh={() => void handleRefresh()}
-            onInitRepository={() =>
-              void initGitRepository({
-                project,
-                effectiveLocation,
-                statusKey,
-                setRefreshing,
-                bumpRefreshKey: () => setRefreshKey((k) => k + 1),
-              })
-            }
-            onAddRemote={(remote, url) =>
-              addGitRemote({
-                project,
-                effectiveLocation,
-                statusKey,
-                remote,
-                url,
-                setRefreshing,
-                bumpRefreshKey: () => setRefreshKey((k) => k + 1),
-              })
-            }
-            statusKey={statusKey}
-            mode="panel"
-            wrapLines={wrapLines}
-          />
+          {touchMode ? (
+            <GitReviewTouchMenus
+              project={effectiveProject}
+              storeKey={statusKey ?? project.id}
+              isWorktree={Boolean(statusKey)}
+              onRefresh={() => void handleRefresh()}
+              {...(worktreePath ? { worktreePath } : {})}
+              {...(worktreeBranch ? { worktreeBranch } : {})}
+            >
+              {sidebar}
+            </GitReviewTouchMenus>
+          ) : (
+            sidebar
+          )}
         </div>
       </div>
     </SidebarContext.Provider>

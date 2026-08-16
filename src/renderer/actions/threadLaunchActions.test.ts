@@ -388,7 +388,7 @@ describe("startThreadFromDraft host transport", () => {
     expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
   });
 
-  it("launches a helper thread through the same flow and runs setup from the client", async () => {
+  it("launches a helper thread through the same flow and leaves setup on the host", async () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
     mocks.createWorktree.mockResolvedValue({
       path: "/srv/worktrees/feature",
@@ -424,11 +424,7 @@ describe("startThreadFromDraft host transport", () => {
       },
       { isPendingLaunchOwned: expect.any(Function) },
     );
-    expect(mocks.runWorktreeSetupScript).toHaveBeenCalledWith(
-      remoteProject,
-      "/srv/worktrees/feature",
-      "pnpm install",
-    );
+    expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
   it("shows the same optimistic GUI launch while a remote worktree is provisioning", async () => {

@@ -286,6 +286,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "remote-git-state",
   "remote-projects-changed",
   "remote-threads-changed",
+  "remote-user-notification",
 ]);
 
 export class RemoteAccessServer {
@@ -302,6 +303,7 @@ export class RemoteAccessServer {
   private readonly terminalCursorSync = new TerminalCursorSyncRegistry();
   /** Per-connection Git interests, so PR bodies only reach clients that asked. */
   private readonly gitStateInterests = new Map<WebSocket, readonly GitStateInterest[]>();
+  private readonly supervisorEventListeners = new Set<(event: RemoteBroadcastEvent) => void>();
   /** Per-connection transcript-content scoping; absent = receives everything. */
   private readonly itemInterests = new Map<WebSocket, ReadonlySet<string>>();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
@@ -368,7 +370,28 @@ export class RemoteAccessServer {
       send: (ws, message) => this.send(ws, message),
       sendRaw: (ws, data) => this.sendRaw(ws, data),
       notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
+      waitForSupervisorEvent: (match, timeoutMs) => this.waitForSupervisorEvent(match, timeoutMs),
     };
+  }
+
+  private waitForSupervisorEvent(
+    match: (event: RemoteBroadcastEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<RemoteBroadcastEvent> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.supervisorEventListeners.delete(listener);
+        reject(new Error("Timed out waiting for supervisor event."));
+      }, timeoutMs);
+      timer.unref?.();
+      const listener = (event: RemoteBroadcastEvent) => {
+        if (!match(event)) return;
+        clearTimeout(timer);
+        this.supervisorEventListeners.delete(listener);
+        resolve(event);
+      };
+      this.supervisorEventListeners.add(listener);
+    });
   }
 
   private notifyEventInterestsChanged(): void | Promise<void> {
@@ -470,6 +493,7 @@ export class RemoteAccessServer {
     this.terminalWatches.clear();
     this.terminalCursorSync.clearAll();
     this.gitStateInterests.clear();
+    this.supervisorEventListeners.clear();
     this.itemInterests.clear();
     void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
     this.wss.close();
@@ -513,6 +537,13 @@ export class RemoteAccessServer {
   /** Pushes an event onto the replayable WS event stream. Out-of-band desktop
    * events (git summaries) ride the same stream as supervisor events. */
   publishSupervisorEvent(event: RemoteBroadcastEvent): void {
+    for (const listener of this.supervisorEventListeners) {
+      try {
+        listener(event);
+      } catch (error) {
+        console.warn("[remote] supervisor event waiter failed:", error);
+      }
+    }
     if (this.options.ownsSupervisorPersistence !== false) {
       persistSupervisorEvent(event);
     }

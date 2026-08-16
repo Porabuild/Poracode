@@ -23,14 +23,25 @@ const mocks = vi.hoisted(() => ({
     >(),
   },
   hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>(),
+  compactClientRuntimeSurface: false,
+  startDeferredFeaturePrewarm: vi.fn<(target: "desktop" | "compact") => () => void>(
+    () => () => undefined,
+  ),
 }));
 
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => mocks.bridge }));
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   hydrateThreadRuntimeItems: mocks.hydrateThreadRuntimeItems,
 }));
+vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/clientRuntime")>()),
+  isCompactClientRuntimeSurface: () => mocks.compactClientRuntimeSurface,
+}));
 vi.mock("@/renderer/deferredFeatures", () => ({
-  startDeferredFeaturePrewarm: () => () => undefined,
+  startDeferredFeaturePrewarm: (target: "desktop" | "compact") => {
+    mocks.startDeferredFeaturePrewarm(target);
+    return () => undefined;
+  },
 }));
 
 const project: Project = {
@@ -71,6 +82,7 @@ function snapshot(threadId: string): ThreadRuntimeSnapshot {
 describe("useAppHydration experiments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.compactClientRuntimeSurface = false;
     vi.spyOn(useAppStore.persist, "hasHydrated").mockReturnValue(true);
     vi.spyOn(useExperimentStore.persist, "hasHydrated").mockReturnValue(true);
     vi.spyOn(useAppStore.persist, "onHydrate").mockReturnValue(() => undefined);
@@ -169,7 +181,17 @@ describe("useAppHydration experiments", () => {
     });
   });
 
-  it("recovers candidate worktree paths from their durable branches before showing the UI", async () => {
+  it("prewarms only the compact feature set on a mobile browser surface", async () => {
+    mocks.compactClientRuntimeSurface = true;
+
+    renderHook(() => useAppHydration());
+
+    await waitFor(() => {
+      expect(mocks.startDeferredFeaturePrewarm).toHaveBeenCalledWith("compact");
+    });
+  });
+
+  it("recovers candidate worktree paths from their durable branches without blocking the splash", async () => {
     useExperimentStore.setState((state) => ({
       experiments: Object.fromEntries(
         Object.entries(state.experiments).map(([id, experiment]) => [
@@ -187,12 +209,14 @@ describe("useAppHydration experiments", () => {
     const { result } = renderHook(() => useAppHydration());
 
     await waitFor(() => expect(result.current.initialLoading).toBe(false));
-    expect(
-      useAppStore
-        .getState()
-        .threads.filter((item) => item.id.startsWith("candidate-"))
-        .map((item) => item.worktreePath),
-    ).toEqual(["/repo/one", "/repo/two"]);
+    await waitFor(() => {
+      expect(
+        useAppStore
+          .getState()
+          .threads.filter((item) => item.id.startsWith("candidate-"))
+          .map((item) => item.worktreePath),
+      ).toEqual(["/repo/one", "/repo/two"]);
+    });
     expect(
       useExperimentStore
         .getState()
@@ -230,12 +254,25 @@ describe("useAppHydration experiments", () => {
     const { result } = renderHook(() => useAppHydration());
 
     await waitFor(() => expect(result.current.initialLoading).toBe(false));
-    expect(
-      useExperimentStore.getState().experiments["experiment-1"]?.candidates[0]?.worktreePath,
-    ).toBeUndefined();
+    await waitFor(() => {
+      expect(
+        useExperimentStore.getState().experiments["experiment-1"]?.candidates[0]?.worktreePath,
+      ).toBeUndefined();
+    });
     expect(
       useAppStore.getState().threads.find((item) => item.id === "candidate-1")?.worktreePath,
     ).toBeUndefined();
+  });
+
+  it("shows the UI even if worktree recovery or runtime hydration never resolves", async () => {
+    mocks.bridge.gitListWorktrees.mockReturnValue(new Promise(() => undefined));
+    mocks.hydrateThreadRuntimeItems.mockReturnValue(new Promise(() => undefined));
+
+    const { result } = renderHook(() => useAppHydration());
+
+    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+    expect(mocks.hydrateThreadRuntimeItems).toHaveBeenCalled();
+    expect(mocks.bridge.gitListWorktrees).toHaveBeenCalled();
   });
 
   it("keeps experiment operations blocked while snapshot recovery is pending", async () => {

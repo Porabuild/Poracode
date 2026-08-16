@@ -10,7 +10,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import type { AgentStatus, Project, ProjectLocation } from "@/shared/contracts";
+import type { AgentStatus, Project, ProjectLocation, Thread } from "@/shared/contracts";
 import {
   ActiveSubAgentTile,
   useActiveAgentKindCounts,
@@ -28,8 +28,9 @@ import {
 import type { ThreadGoalDockState } from "@/renderer/components/thread/threadGoalState";
 import type { ThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
 import type { ThreadContextUsageSummary } from "@/renderer/components/thread/threadContextUsage";
+import { ThreadUsageBubble, ThreadUsageDock } from "@/renderer/components/thread/ThreadUsageBubble";
 
-type ChipKey = ActiveAgentKind | "auth" | "context" | "plan" | "goal" | "errors";
+type ChipKey = ActiveAgentKind | "auth" | "context" | "usage" | "plan" | "goal" | "errors";
 const PANEL_EXIT_MS = 160;
 const CHIP_EXIT_MS = 160;
 const CHIP_ORDER: readonly ChipKey[] = [
@@ -69,6 +70,8 @@ export function ComposerInfoChips(props: {
   readonly hidden: boolean;
   readonly leading?: ReactNode;
   readonly trailing?: ReactNode;
+  /** Merge context and quota meters into the mobile thread resource bubble. */
+  readonly usageThread?: Thread;
 }) {
   const { t } = useLingui();
   const { threadId, projectLocation, contextSummary, hidden } = props;
@@ -220,12 +223,48 @@ export function ComposerInfoChips(props: {
       chips.find((item) => item.key === key) ?? exitingChips.find((item) => item.key === key);
     return chip ? [chip] : [];
   });
-  if (renderedChips.length === 0 && !props.leading && !props.trailing) return null;
+  if (renderedChips.length === 0 && !props.leading && !props.trailing && !props.usageThread) {
+    return null;
+  }
 
   const renderedChip = openChip ?? closingChip;
   const open = renderedChips.find((chip) => chip.key === renderedChip) ?? null;
   const authChip = renderedChips.find((chip) => chip.key === "auth");
-  const leadingChips = renderedChips.filter((chip) => chip.key !== "auth");
+  const contextLivesInTrailing = props.usageThread !== undefined && contextSummary != null;
+  const leadingChips = renderedChips.filter(
+    (chip) => chip.key !== "auth" && (!contextLivesInTrailing || chip.key !== "context"),
+  );
+
+  const toggleContext = () => {
+    if (!contextSummary) return;
+    if (openChip === "context") {
+      closePanel();
+      return;
+    }
+    setClosingChip(null);
+    setOpenChip("context");
+  };
+  const toggleUsage = () => {
+    if (!props.usageThread) return;
+    if (openChip === "usage") {
+      closePanel();
+      return;
+    }
+    setClosingChip(null);
+    setOpenChip("usage");
+  };
+  const trailing = props.usageThread ? (
+    <ThreadUsageBubble
+      thread={props.usageThread}
+      contextSummary={contextSummary ?? null}
+      contextOpen={openChip === "context"}
+      usageOpen={openChip === "usage"}
+      onContextToggle={toggleContext}
+      onUsageToggle={toggleUsage}
+    />
+  ) : (
+    props.trailing
+  );
 
   const renderChipButton = (chip: ChipDescriptor) => {
     const Icon = chip.icon;
@@ -259,34 +298,40 @@ export function ComposerInfoChips(props: {
     );
   };
 
+  const panelKey = openChip ?? closingChip;
+  const panelLabel = panelKey === "usage" ? t`Usage` : open?.label;
+
   return (
     <div ref={containerRef} className="m-thread-chips" data-hidden={hidden || undefined}>
-      {open ? (
+      {panelKey && panelLabel ? (
         <div
-          key={open.key}
+          key={panelKey}
           className="m-chip-panel"
-          data-open={openChip === open.key || undefined}
+          data-open={openChip === panelKey || undefined}
           role="region"
-          aria-label={open.label}
+          aria-label={panelLabel}
         >
-          {open.key === "goal" && props.goalDockState ? (
+          {panelKey === "usage" && props.usageThread ? (
+            <ThreadUsageDock thread={props.usageThread} onClose={closePanel} />
+          ) : null}
+          {panelKey === "goal" && props.goalDockState ? (
             <ThreadGoalDock
               threadId={threadId}
               state={props.goalDockState}
               onDismiss={props.onGoalDockDismiss}
             />
           ) : null}
-          {open.key === "auth" && props.agentStatus ? (
+          {panelKey === "auth" && props.agentStatus ? (
             <ThreadAuthRequiredDock
               agentStatus={props.agentStatus}
               multilineDescription
               {...(props.project ? { project: props.project } : {})}
             />
           ) : null}
-          {open.key === "context" && contextSummary ? (
+          {panelKey === "context" && contextSummary ? (
             <ThreadContextDock summary={contextSummary} onClose={closePanel} />
           ) : null}
-          {open.key === "plan" && props.todoDockState ? (
+          {panelKey === "plan" && props.todoDockState ? (
             <ThreadTodoDock
               state={props.todoDockState}
               placement="composer"
@@ -297,7 +342,7 @@ export function ComposerInfoChips(props: {
               onRetire={props.onTodoDockRetire ?? (() => undefined)}
             />
           ) : null}
-          {open.key === "errors"
+          {panelKey === "errors"
             ? props.errorDockStates.map((state) => (
                 <ThreadErrorDock
                   key={state.sourceItemId}
@@ -306,11 +351,11 @@ export function ComposerInfoChips(props: {
                 />
               ))
             : null}
-          {open.key === "subagent" || open.key === "crossagent" || open.key === "workflow" ? (
+          {panelKey === "subagent" || panelKey === "crossagent" || panelKey === "workflow" ? (
             <ActiveSubAgentTile
               threadId={threadId}
               projectLocation={projectLocation}
-              kinds={[open.key]}
+              kinds={[panelKey]}
             />
           ) : null}
         </div>
@@ -318,9 +363,9 @@ export function ComposerInfoChips(props: {
       <div className="m-chip-row">
         {props.leading}
         {leadingChips.map(renderChipButton)}
-        {props.trailing || authChip ? (
+        {trailing || authChip ? (
           <div className="m-chip-row__trailing">
-            {props.trailing}
+            {trailing}
             {authChip ? renderChipButton(authChip) : null}
           </div>
         ) : null}

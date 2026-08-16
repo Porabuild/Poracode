@@ -1,5 +1,5 @@
 import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
-import { dbGetProject, dbGetProjects, dbGetThreads } from "@/main/db";
+import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads } from "@/main/db";
 import { BackendHostCore } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
@@ -20,6 +20,7 @@ import {
   PushRegistrationStore,
 } from "@/main/remote/push";
 import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
+import { ThreadNotificationPublisher } from "@/main/remote/ThreadNotificationPublisher";
 import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
@@ -136,6 +137,7 @@ export async function createHeadlessRemoteHost(
   let serverRef: RemoteAccessServer | null = null;
   let durableServices: BackendDurableServices | null = null;
   let pushCoordinator: PushCoordinator | null = null;
+  let threadNotifications: ThreadNotificationPublisher | null = null;
 
   const backendHost = new BackendHostCore({
     baseDir: paths.baseDir,
@@ -162,6 +164,7 @@ export async function createHeadlessRemoteHost(
       durableServices?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
       pushCoordinator?.handleSupervisorEvent(event);
+      threadNotifications?.handleSupervisorEvent(event);
     },
     onReset: () => {
       // Supervisor restarted/exited: in-flight requests are already rejected by
@@ -190,6 +193,24 @@ export async function createHeadlessRemoteHost(
       };
     },
     getAttributes: () => ({ desktopId: identity.desktopId, desktopName: identity.label }),
+  });
+  threadNotifications = new ThreadNotificationPublisher({
+    getThread: dbGetThread,
+    getProjectName: (projectId) => dbGetProject(projectId)?.name ?? "Project",
+    getSettings: () => {
+      const settings = readSharedSettingsFile(paths.settingsPath);
+      return {
+        notificationsEnabled: settings.notificationsEnabled,
+        notificationStatuses: settings.notificationStatuses,
+        notifyL2Cli: settings.notifyL2Cli,
+      };
+    },
+    publish: (notification) => {
+      serverRef?.publishSupervisorEvent({
+        type: "remote-user-notification",
+        ...notification,
+      });
+    },
   });
 
   const publishHeadlessProjectsChanged = (): void => {

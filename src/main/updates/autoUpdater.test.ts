@@ -6,6 +6,7 @@ const autoUpdaterMock = vi.hoisted(() => {
   return {
     autoDownload: false,
     autoInstallOnAppQuit: true,
+    disableDifferentialDownload: false,
     forceDevUpdateConfig: false,
     allowPrerelease: false,
     channel: "",
@@ -40,6 +41,7 @@ describe("createAutoUpdaterController", () => {
     vi.clearAllMocks();
     autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined);
     autoUpdaterMock.downloadUpdate.mockResolvedValue(undefined);
+    autoUpdaterMock.disableDifferentialDownload = false;
   });
 
   afterEach(() => {
@@ -72,6 +74,35 @@ describe("createAutoUpdaterController", () => {
 
     expect(autoUpdaterMock.autoDownload).toBe(false);
     expect(autoUpdaterMock.autoInstallOnAppQuit).toBe(true);
+    expect(autoUpdaterMock.disableDifferentialDownload).toBe(false);
+  });
+
+  it("retries a stalled differential download as a full download", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const controller = createAutoUpdaterController(vi.fn(), "nightly", false);
+    controller.initialize();
+    autoUpdaterMock.downloadUpdate.mockImplementation(async (token?: { cancel(): void }) => {
+      if (autoUpdaterMock.disableDifferentialDownload) return;
+      await new Promise<void>((_resolve, reject) => {
+        const original = token?.cancel.bind(token);
+        if (!token || !original) return;
+        token.cancel = () => {
+          original();
+          reject(new Error("cancelled"));
+        };
+      });
+    });
+
+    const downloading = controller.startUpdateDownload();
+    await vi.advanceTimersByTimeAsync(31_000);
+    await downloading;
+
+    expect(autoUpdaterMock.downloadUpdate).toHaveBeenCalledTimes(2);
+    expect(autoUpdaterMock.disableDifferentialDownload).toBe(false);
+    expect(warn).toHaveBeenCalledWith(
+      "[poracode] updater differential download stalled; retrying as a full download.",
+    );
+    warn.mockRestore();
   });
 
   it("starts the controller-owned download when a check finds an update", async () => {
