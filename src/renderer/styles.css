@@ -4996,10 +4996,13 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
   bottom: calc(0.75rem + env(safe-area-inset-bottom));
   left: 0.75rem;
   z-index: 5;
+  /* Same 0.2s as the bubble's height tween: the keyboard lift and the grow
+     animation must travel as one motion — a longer transform leg keeps
+     sliding the dock after the bubble has already finished growing. */
   transition:
-    right 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    left 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    right 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    left 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.2s cubic-bezier(0.32, 0.72, 0, 1),
     opacity 0.2s ease;
 }
 
@@ -5878,17 +5881,11 @@ html[data-compact-layout]
   pointer-events: none;
 }
 
-/* Hold the toolbar still while it fades: the compact input metrics applied
-   during data-collapsing shrink the input's paddings, which would drag the
-   still-visible toolbar upward. Delay the inner morph until the toolbar's
-   0.12s fade has finished; the running transitions keep their timing when
-   data-collapsing drops at release. */
-html[data-compact-layout]
-  .m-thread-compose-dock[data-collapsing]
-  .poracode-composer-shell
-  :is([data-composer-input-anchor], .poracode-mention-input) {
-  transition-delay: 0.1s;
-}
+/* The input metrics (height clamp, padding, line-height) morph across the
+   same 0.2s window as the bubble's height tween — no delay: a staggered
+   start left the placeholder still moving after the bubble had already
+   rested, which read as a swap-then-settle instead of one collapse. The
+   toolbar fades out fast (0.12s below) while everything shrinks together. */
 
 /* While the collapse height tween runs (data-collapsing, data-expanded still
    set so the row keeps its expanded position), fade the toolbar out in place —
@@ -6004,11 +6001,12 @@ html[data-compact-layout]
   transition-duration: 0.1s;
 }
 
-/* Collapse: let the toolbar's fast fade-out finish before the summary chips
-   fade into the same corner, so the change reads as one morph, not a swap.
-   (Running transitions keep their timing when data-collapsing drops.) */
+/* Collapse: start after the toolbar's fast fade-out is mostly gone, but
+   finish WITH the 0.2s height tween (0.06s + 0.14s) — chips still fading in
+   after the bubble has rested read as a second, separate animation. */
 .m-thread-compose-dock[data-collapsing] .m-compose-summary {
-  transition-delay: 0.1s;
+  transition-delay: 0.06s;
+  transition-duration: 0.14s;
 }
 
 /* The compact input reserves the summary's measured width (published on the

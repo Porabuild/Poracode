@@ -8,6 +8,7 @@ import {
   COLD_KEYBOARD_STABLE_MS,
   KEYBOARD_OPEN_THRESHOLD_PX,
   MIRRORED_POINTER_WINDOW_MS,
+  SUB_KEYBOARD_PROBE_MIN_PX,
   afterNextFrame,
   afterTwoFrames,
   computeGuardedLiftOffset,
@@ -43,9 +44,12 @@ function isKeyboardTarget(target: EventTarget | null): boolean {
  * and emit interim viewport sizes — on the first focus after load and on
  * every later focus from a dismissed keyboard alike. A remembered height
  * doesn't skip that probe — it pre-positions the visible dock during it, so
- * only the caret waits. Probes are disabled after one times out with no
- * keyboard (hardware keyboard: nothing will ever be measured) and re-enabled
- * the moment any keyboard height is observed.
+ * only the caret waits. A probe that ends with no measurable keyboard (a
+ * hardware keyboard: at most its assistant bar appears) still completes the
+ * focus against the real input — with no keyboard there is nothing to pan
+ * for — but records the keyboard as absent: the remembered height must not
+ * lift the dock over a keyboard-less screen, and further probes are skipped
+ * until any keyboard height is observed again.
  *
  * The primer element, thresholds, and height memory live in
  * keyboardFocusShared.ts, shared with the files-search guarded focus
@@ -167,10 +171,15 @@ export function useComposerKeyboard(
   // height must not shift under the visible dock mid-probe (interim
   // measurements update the remembered value only after the probe resolves).
   const coldProbeLiftRef = useRef(0);
-  // True after a probe timed out with no keyboard measurement — a hardware
+  // True after a probe completed with no keyboard measurement — a hardware
   // keyboard is attached, so further probes would stall every focus. Any
   // observed keyboard height flips it back.
   const probeFutileRef = useRef(false);
+  // True when the last probe proved no liftable keyboard exists on this
+  // device right now. The remembered per-device height must not lift the dock
+  // then — it would hang mid-air over a keyboard-less screen. Any observed
+  // keyboard height flips it back.
+  const keyboardAbsentRef = useRef(false);
   const onBeforeGuardedFocusRef = useRef(options.onBeforeGuardedFocus);
   const onKeyboardProbeStartRef = useRef(options.onKeyboardProbeStart);
   const onKeyboardProbeExpandRef = useRef(options.onKeyboardProbeExpand);
@@ -222,6 +231,13 @@ export function useComposerKeyboard(
     // The offset has now been stable for the settle window — this is the
     // trustworthy per-device height (interim mid-animation values are not).
     rememberKeyboardHeight(keyboardLiftOffsetRef.current);
+    // A probe that ends with no liftable offset proved there is no software
+    // keyboard right now (hardware keyboard: at most its ~44px assistant bar
+    // showed up). Complete the focus without any lift and skip future probes
+    // until a real keyboard height is ever observed.
+    const keyboardAbsent = keyboardOffsetRef.current === 0;
+    keyboardAbsentRef.current = keyboardAbsent;
+    if (keyboardAbsent) probeFutileRef.current = true;
     armGuardedFocusSettle();
     // The expansion (and the full-screen scrim) render hundreds of ms after
     // the tap that started the probe — past the ghost-tap guard armed at
@@ -273,11 +289,12 @@ export function useComposerKeyboard(
         keyboardOffset: keyboardOffsetRef.current,
         pendingColdFocus: pendingColdFocusRef.current,
       });
-      probeFutileRef.current = true;
-      getKeyboardPrimer(root).blur();
-      cancelColdKeyboardProbe("timeout");
-      unlockComposeScroll();
-      setInputFocused(false);
+      // No keyboard responded at all — the tap must still work. Complete the
+      // guarded focus against the real input: with no software keyboard there
+      // is nothing for iOS to pan for. The completion path records the
+      // keyboard as absent, which drops any remembered-height lift and skips
+      // future probes until a real keyboard height is observed.
+      focusComposerAfterColdKeyboardProbe(root);
     }, COLD_KEYBOARD_PROBE_TIMEOUT_MS);
   };
 
@@ -349,7 +366,10 @@ export function useComposerKeyboard(
       input: describeElement(composerInput),
     });
     if (probeColdKeyboard) {
-      coldProbeLiftRef.current = recallKeyboardHeight();
+      // A device with a proven-absent keyboard must not pre-lift the dock by
+      // the remembered height — nothing will occupy that space.
+      const probeLift = keyboardAbsentRef.current ? 0 : recallKeyboardHeight();
+      coldProbeLiftRef.current = probeLift;
       flushSync(() => {
         // With a remembered height the dock can expand right away at that
         // lift while the primer raises the keyboard — only the caret waits
@@ -451,6 +471,7 @@ export function useComposerKeyboard(
     if (keyboardOffset > 0) {
       // A software keyboard exists after all — probes work on this device.
       probeFutileRef.current = false;
+      keyboardAbsentRef.current = false;
       // A probe in flight sees interim mid-animation sizes; it remembers the
       // stable value itself when it resolves.
       if (!pendingColdFocusRef.current) {
@@ -469,6 +490,14 @@ export function useComposerKeyboard(
       } else {
         cancelColdKeyboardProbe("measured-without-root");
       }
+    } else if (pendingColdFocusRef.current && rawKeyboardOffset > SUB_KEYBOARD_PROBE_MIN_PX) {
+      // The viewport shrank a little but never past the keyboard threshold —
+      // a hardware keyboard's input-assistant bar. That IS the keyboard's
+      // full response, so finish the probe once it holds stable instead of
+      // stalling to the timeout. The completion path sees keyboardOffset 0
+      // and records the keyboard as absent (no lift).
+      const root = ref.current;
+      if (root) scheduleColdKeyboardStableFocus(root);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debug logs and helper closures read current refs; this effect is keyed to viewport offset changes
   }, [keyboardLiftOffset, keyboardOffset, rawKeyboardLiftOffset, rawKeyboardOffset, ref]);
@@ -610,7 +639,8 @@ export function useComposerKeyboard(
     probing: measuringKeyboard,
     coldProbeLift: coldProbeLiftRef.current,
     keyboardOffset: keyboardLiftOffset,
-    recalledHeight: useColdKeyboardPrimer ? recallKeyboardHeight() : 0,
+    recalledHeight:
+      useColdKeyboardPrimer && !keyboardAbsentRef.current ? recallKeyboardHeight() : 0,
   });
   return {
     focusComposer,

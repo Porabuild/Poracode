@@ -409,7 +409,7 @@ describe("useComposerKeyboard", () => {
     }
   });
 
-  it("does not focus the real editor when cold first focus times out without measurement", () => {
+  it("completes the guarded focus on the real editor when a cold probe times out keyboard-less", async () => {
     const restoreVisualViewport = installVisualViewport();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 
@@ -426,13 +426,51 @@ describe("useComposerKeyboard", () => {
       expect(document.activeElement).toHaveAttribute("data-composer-keyboard-primer");
 
       act(() => {
-        vi.advanceTimersByTime(1_200);
+        vi.advanceTimersByTime(700);
+      });
+      vi.useRealTimers();
+      // The tap still works: with no keyboard there is nothing to pan for,
+      // so the timeout finishes the guarded focus on the real input.
+      await act(async () => {
+        await waitForTwoFrames();
       });
 
-      expect(document.activeElement).not.toBe(input);
+      expect(document.activeElement).toBe(input);
       expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
       expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
-      expect(scrollLockMock.focusWithoutScroll).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      restoreVisualViewport();
+    }
+  });
+
+  it("drops the remembered-height lift once a probe proves the keyboard absent", async () => {
+    const restoreVisualViewport = installVisualViewport();
+    window.localStorage.setItem("poracode-mobile-keyboard-height", "337");
+    resetComposerKeyboardMemoryForTests();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    try {
+      render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+
+      fireEvent(input, createEvent.pointerDown(input, { pointerType: "touch", cancelable: true }));
+
+      // During the probe the dock pre-positions at the remembered height.
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("337");
+
+      act(() => {
+        vi.advanceTimersByTime(700);
+      });
+      vi.useRealTimers();
+      await act(async () => {
+        await waitForTwoFrames();
+      });
+
+      // No keyboard ever showed: the dock must not hang mid-air at the
+      // remembered height, neither now nor on the next (warm) focus.
+      expect(document.activeElement).toBe(input);
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
     } finally {
       vi.useRealTimers();
       restoreVisualViewport();

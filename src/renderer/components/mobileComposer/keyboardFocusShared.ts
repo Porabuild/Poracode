@@ -19,8 +19,21 @@ import { getMobileRuntimePlatform } from "./mobilePlatform";
  */
 const KEYBOARD_HEIGHT_KEY = "poracode-mobile-keyboard-height";
 const ANDROID_KEYBOARD_HEIGHT_KEY = `${KEYBOARD_HEIGHT_KEY}:android`;
-/** Give up a cold-keyboard probe after this long with no measurement. */
-export const COLD_KEYBOARD_PROBE_TIMEOUT_MS = 1_200;
+/**
+ * Complete a cold-keyboard probe after this long with no measurement. iOS
+ * reports the keyboard height at the end of its ~250-400ms appear animation,
+ * so past this window no software keyboard is coming (hardware keyboard, or
+ * the simulator with a connected Mac keyboard) and the guarded focus finishes
+ * against the real input — with no keyboard there is nothing to pan for.
+ */
+export const COLD_KEYBOARD_PROBE_TIMEOUT_MS = 700;
+/**
+ * A visual-viewport shrink past this during a probe counts as the keyboard
+ * responding even when it stays below KEYBOARD_OPEN_THRESHOLD_PX — a hardware
+ * keyboard's input-assistant bar is ~44-55px. It completes the probe (no
+ * taller keyboard is coming) without being treated as a liftable keyboard.
+ */
+export const SUB_KEYBOARD_PROBE_MIN_PX = 24;
 /** The measured offset must hold this long before the real input is focused. */
 export const COLD_KEYBOARD_STABLE_MS = 80;
 /** Below this the visual-viewport delta is bar-chrome noise, not a keyboard. */
