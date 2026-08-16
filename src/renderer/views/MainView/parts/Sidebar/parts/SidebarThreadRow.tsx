@@ -56,9 +56,16 @@ export function SidebarThreadRow(props: {
     // Group children hang off the same dashed rail as the chat tool-call group
     // (shared recipe). `ml-3.5` drops the rail down the centerline of the group
     // header's icon; no left padding keeps the child hugging the rail so the
-    // nesting reads without a wide indent.
+    // nesting reads without a wide indent. The first child starts slightly
+    // lower so the rail does not run into the group row.
     if (row.inGroup) {
-      return <div className={`ml-3.5 pl-1 ${chatRowRailClass}`}>{item}</div>;
+      return (
+        <div
+          className={`ml-3.5 pl-1 ${row.firstInGroup ? "poracode-sidebar-group-first-thread mt-1.5" : ""} ${row.lastInGroup ? "poracode-sidebar-group-last-thread" : ""} ${chatRowRailClass}`}
+        >
+          {item}
+        </div>
+      );
     }
     return item;
   }

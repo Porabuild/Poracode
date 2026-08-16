@@ -313,6 +313,7 @@ export class ThreadOutputPipeline {
       threadId: session.threadId,
       data,
       outputLength: session.outputLength,
+      terminalInstanceId: session.instanceId,
     });
 
     const ptyCarryIn = session.ptyOscCarry;

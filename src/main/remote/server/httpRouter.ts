@@ -41,6 +41,7 @@ import {
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
+import { projectNotesWriteBodySchema } from "@/shared/remote/contract/routeBodies";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
@@ -484,15 +485,8 @@ export async function handleHttp(
       if (!dbGetProject(notesProjectId)) {
         throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
-      const notes = projectNotesSchema.parse(await readJsonBody(req));
-      if (notes.projectId !== notesProjectId) {
-        throw new RemoteHttpError(
-          "project_notes_mismatch",
-          "Project notes do not match the requested project.",
-          400,
-        );
-      }
-      dbSetProjectNotes(notes);
+      const notes = projectNotesWriteBodySchema.parse(await readJsonBody(req));
+      dbSetProjectNotes(projectNotesSchema.parse({ ...notes, projectId: notesProjectId }));
       writeJson(res, 200, {});
       return;
     }
@@ -778,14 +772,34 @@ export async function handleHttp(
     if (req.method === "POST" && url.pathname === "/api/push/register") {
       ctx.security.requireBearer(req, ["session:operate"]);
       const registration = remotePushRegistrationSchema.parse(await readJsonBody(req));
+      if (
+        registration.routing &&
+        registration.routing.desktopId !== ctx.options.identity.desktopId
+      ) {
+        throw new RemoteHttpError(
+          "push_routing_desktop_mismatch",
+          "Push registration targets a different desktop.",
+          409,
+        );
+      }
       ctx.requirePushRegistrations().upsert(registration);
-      writeJson(res, 200, { ok: true });
+      writeJson(res, 200, {
+        ok: true,
+        ...(registration.routing ? { routing: { version: registration.routing.version } } : {}),
+      });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/push/unregister") {
       ctx.security.requireBearer(req, ["session:operate"]);
-      const { deviceId } = remotePushUnregisterSchema.parse(await readJsonBody(req));
-      ctx.requirePushRegistrations().remove(deviceId);
+      const { deviceId, routing } = remotePushUnregisterSchema.parse(await readJsonBody(req));
+      if (routing && routing.desktopId !== ctx.options.identity.desktopId) {
+        throw new RemoteHttpError(
+          "push_routing_desktop_mismatch",
+          "Push unregistration targets a different desktop.",
+          409,
+        );
+      }
+      ctx.requirePushRegistrations().remove(deviceId, routing);
       writeJson(res, 200, { ok: true });
       return;
     }

@@ -1,139 +1,92 @@
-import { useState } from "react";
-import { Button } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Link2, QrCode } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Trans } from "@lingui/react/macro";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
+import { WelcomeAppIcon } from "@/renderer/components/common/WelcomeAppIcon";
+import { WelcomeBackdrop } from "@/renderer/components/common/WelcomeBackdrop";
 import type { Pairing } from "../usePairing";
 import {
-  DesktopHint,
   InstallRecommendation,
+  OtherWaysDrawer,
   PairingErrors,
-  PairingUrlForm,
+  PairingScannerOverlay,
+  ScanCard,
   ScanFileInput,
 } from "./PairingChrome";
 import { PairingProgress } from "./PairingProgress";
 
-/** Camera-viewfinder corner brackets framing the QR glyph. */
-function ScanFrame() {
-  const corner = "absolute size-9 border-accent/60 transition-colors group-active:border-accent";
-  return (
-    <span aria-hidden="true" className="relative flex size-40 items-center justify-center">
-      <span className={`${corner} left-0 top-0 rounded-tl-xl border-l-2 border-t-2`} />
-      <span className={`${corner} right-0 top-0 rounded-tr-xl border-r-2 border-t-2`} />
-      <span className={`${corner} bottom-0 left-0 rounded-bl-xl border-b-2 border-l-2`} />
-      <span className={`${corner} bottom-0 right-0 rounded-br-xl border-b-2 border-r-2`} />
-      <QrCode className="size-20 text-accent" strokeWidth={1.25} />
-    </span>
-  );
-}
-
 /**
- * Pairing on a device with a camera. Scanning is the single primary action —
- * the viewfinder itself is the target, with no button chrome around it — and
- * typing a URL on a phone keyboard is the fallback, on its own step so the
- * landing screen keeps one obvious next tap.
+ * Pairing on a device with a camera. Scanning the desktop's code is the one
+ * visible route; pasting a link lives in a bottom drawer, because the endpoint
+ * and token a link carries are exactly what the code encodes, and typing either
+ * on a phone keyboard is busywork almost nobody should have to do.
+ *
+ * The QR action remains primary even when camera capability cannot be established
+ * up front. The scanner handles permission and secure-context failures after the
+ * user taps it, with a manual fallback; the drawer never obscures first launch.
+ *
+ * Wears the shared first-launch dressing (same backdrop, app icon, wordmark) as
+ * the welcome and desktop-pairing surfaces, so a phone's first screen reads as the
+ * same product as everyone else's.
  */
 export function TouchPairing({ pairing }: { readonly pairing: Pairing }) {
-  const { t } = useLingui();
-  const [step, setStep] = useState<"scan" | "manual">("scan");
   const [pairingUrl, setPairingUrl] = useState("");
+  const [endpoint, setEndpoint] = useState("");
+  const [token, setToken] = useState("");
+  const [otherWaysOpen, setOtherWaysOpen] = useState(false);
+  // The icon's landing animation belongs to the first paint of this screen. Held
+  // in state, not a ref, so ordinary re-renders can't truncate it mid-flight.
+  const [intro, setIntro] = useState(true);
+
+  useEffect(() => {
+    if (pairing.busy) setIntro(false);
+  }, [pairing.busy]);
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
-      <div className="flex h-11 items-center">
-        {step === "manual" ? (
-          <Button
-            isIconOnly
-            variant="ghost"
-            size="sm"
-            aria-label={t`Back`}
-            className="-ml-2 size-11 text-muted"
-            onPress={() => {
-              setStep("scan");
-              pairing.setValidationError(null);
-            }}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
-        ) : null}
-      </div>
+    <WelcomeBackdrop className="min-h-full">
+      <div className="poracode-touch-pairing flex min-h-[calc(100svh-6rem)] w-full max-w-sm flex-col items-center pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-center">
+        <div className="poracode-touch-pairing-hero flex w-full flex-1 translate-y-[4svh] flex-col items-center justify-center">
+          {pairing.busy ? (
+            <PairingProgress className="size-24" />
+          ) : (
+            <WelcomeAppIcon intro={intro} />
+          )}
 
-      {step === "scan" ? (
-        <>
-          <div className="flex flex-col items-center text-center">
-            <BrandWordmark className="text-xl text-foreground" />
-            <h1 className="mt-6 text-[26px] font-bold leading-tight tracking-tight text-foreground">
-              <Trans>Connect to Your Desktop</Trans>
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight text-foreground">
+              <BrandWordmark />
             </h1>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              <Trans>
-                Pair with Poracode on your desktop to sync threads, projects, and settings.
-              </Trans>
+            <p className="text-sm leading-6 text-muted">
+              <Trans>Scan the pairing code shown in Remote Access on your desktop.</Trans>
             </p>
           </div>
+        </div>
 
-          {/* The viewfinder itself is the scan action — no button chrome. */}
-          <button
-            type="button"
-            aria-label={t`Scan QR code`}
-            disabled={pairing.busy}
-            onClick={() => pairing.scanInputRef.current?.click()}
-            className="group mt-10 flex w-full touch-manipulation flex-col items-center gap-5 transition-transform active:scale-[0.98] disabled:opacity-70"
-          >
-            {pairing.busy ? <PairingProgress className="size-40" /> : <ScanFrame />}
-            <span className="flex flex-col gap-1 text-center">
-              <span className="text-base font-semibold text-foreground">
-                {pairing.busy ? <Trans>Pairing…</Trans> : <Trans>Scan QR code</Trans>}
-              </span>
-              <span className="text-xs leading-5 text-muted">
-                <Trans>Scan the pairing code shown on your desktop</Trans>
-              </span>
-            </span>
-          </button>
+        <div className="flex w-full shrink-0 flex-col">
+          <ScanCard pairing={pairing} />
 
-          <PairingErrors pairing={pairing} />
+          {!otherWaysOpen ? <PairingErrors pairing={pairing} /> : null}
 
-          <Button
-            fullWidth
-            variant="ghost"
-            className="mt-10 h-12 touch-manipulation justify-center gap-2 text-muted"
-            isDisabled={pairing.busy}
-            onPress={() => setStep("manual")}
-          >
-            <Link2 className="size-4" />
-            <Trans>Manual URL</Trans>
-          </Button>
-
-          <InstallRecommendation busy={pairing.busy} label={<Trans>Add to Home Screen</Trans>} />
-
-          <DesktopHint />
-        </>
-      ) : (
-        <>
-          <div className="mt-6 flex flex-col items-center text-center">
-            <Link2 className="size-7 text-accent" strokeWidth={1.75} />
-            <h1 className="mt-4 text-[22px] font-bold leading-tight tracking-tight text-foreground">
-              <Trans>Manual URL</Trans>
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              <Trans>Paste the pairing URL from your desktop</Trans>
-            </p>
-          </div>
-
-          <PairingUrlForm
+          <OtherWaysDrawer
+            open={otherWaysOpen}
+            onOpenChange={setOtherWaysOpen}
             pairing={pairing}
-            value={pairingUrl}
-            onValueChange={setPairingUrl}
-            className="mt-8"
+            pairingUrl={pairingUrl}
+            onPairingUrlChange={setPairingUrl}
+            endpoint={endpoint}
+            onEndpointChange={setEndpoint}
+            token={token}
+            onTokenChange={setToken}
+            className="mt-3"
           />
 
-          <PairingErrors pairing={pairing} />
+          <InstallRecommendation busy={pairing.busy} label={<Trans>Add to Home Screen</Trans>} />
+        </div>
 
-          <DesktopHint />
-        </>
-      )}
+        <ScanFileInput pairing={pairing} />
+      </div>
 
-      <ScanFileInput pairing={pairing} />
-    </div>
+      {/* Falling back from the scanner reveals the paste route it was hiding. */}
+      <PairingScannerOverlay pairing={pairing} onEnterManually={() => setOtherWaysOpen(true)} />
+    </WelcomeBackdrop>
   );
 }

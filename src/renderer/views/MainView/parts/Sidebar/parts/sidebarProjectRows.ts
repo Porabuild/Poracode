@@ -23,6 +23,10 @@ export type SidebarRow =
       sortDisabled?: boolean;
       /** Child of a worktree/thread group — rendered against a left rail. */
       inGroup?: boolean;
+      /** First child leaves breathing room between the group header and rail. */
+      firstInGroup?: boolean;
+      /** Last child terminates the group rail instead of carrying it past the group. */
+      lastInGroup?: boolean;
     }
   | {
       kind: "worktree-group";
@@ -162,6 +166,8 @@ function pushEntryRows(
           showWorktreeBadge: false,
           showWorktreeFilesButton: false,
           inGroup: true,
+          firstInGroup: threadIndex === 0,
+          lastInGroup: threadIndex === entry.group.threads.length - 1,
         });
       });
     }
@@ -193,6 +199,8 @@ function pushEntryRows(
         showWorktreeFilesButton: !!thread.worktreePath,
         sortDisabled: input.dndDisabled,
         inGroup: true,
+        firstInGroup: threadIndex === 0,
+        lastInGroup: threadIndex === threads.length - 1,
       });
     });
   }

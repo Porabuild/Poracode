@@ -29,13 +29,6 @@ const BROWSER_CAPABILITIES: ClientCapabilities = {
   nativeSsh: false,
 };
 
-function browserCapabilities(): ClientCapabilities {
-  const capacitor = (globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-  return capacitor?.isNativePlatform?.() === true
-    ? { ...BROWSER_CAPABILITIES, nativeSsh: true }
-    : BROWSER_CAPABILITIES;
-}
-
 export function installClientRuntime(runtime: ClientRuntime): void {
   if (runtime.version !== PORACODE_CLIENT_RUNTIME_VERSION) {
     throw new Error(`Unsupported client runtime version: ${String(runtime.version)}`);
@@ -74,7 +67,7 @@ export function installBrowserClientRuntime(bridge: PoracodeBridge): void {
     host: "browser",
     surface: "adaptive",
     transport: "remote-http-websocket",
-    capabilities: browserCapabilities(),
+    capabilities: BROWSER_CAPABILITIES,
     procedures: bridge,
     native: bridge,
   });
@@ -87,7 +80,7 @@ function inferClientRuntime(bridge: PoracodeBridge): ClientRuntime {
     host: browser ? "browser" : "electron",
     surface: "adaptive",
     transport: browser ? "remote-http-websocket" : "electron-backend-host",
-    capabilities: browser ? browserCapabilities() : ELECTRON_CAPABILITIES,
+    capabilities: browser ? BROWSER_CAPABILITIES : ELECTRON_CAPABILITIES,
     procedures: bridge,
     native: bridge,
   };

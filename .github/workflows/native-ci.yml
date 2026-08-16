@@ -1,0 +1,324 @@
+name: Native clients
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
+jobs:
+  remote_v3_contract:
+    name: Remote v3 generated artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Check committed remote-v3 bindings
+        run: pnpm run protocol:remote:v3:check
+
+      - name: Test the remote-v3 contract
+        run: pnpm exec vitest run --configLoader runner protocol/remote/v3
+
+      - name: Reject generated changes
+        run: git diff --exit-code -- protocol/remote/v3/generated
+
+  android:
+    name: Android Compose build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Install compile SDK
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Require Android 17 while preserving API 26 compatibility
+        run: |
+          grep -Eq 'compileSdk = 37' android/app/build.gradle.kts
+          grep -Eq 'targetSdk = 37' android/app/build.gradle.kts
+          grep -Eq 'minSdk = 26' android/app/build.gradle.kts
+
+      - name: Test, assemble, and lint Android
+        working-directory: android
+        run: ./gradlew clean testDebugUnitTest assembleDebug lintDebug --no-daemon --stacktrace
+
+      - name: Upload Android evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-native-ci-${{ github.run_attempt }}
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/reports/tests/testDebugUnitTest/**
+            android/app/build/reports/lint-results-debug.*
+            android/app/build/test-results/testDebugUnitTest/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  ios:
+    name: iOS SwiftUI build and AppTests
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      IOS_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Select Xcode 26.6
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.6"
+
+      # App.xcodeproj currently has no packageReferences. Do not key a cache
+      # from the unreferenced legacy Capacitor Package.resolved file.
+      - name: Show Xcode toolchain
+        run: |
+          xcodebuild -version
+          test "$(xcodebuild -version | sed -n '1s/^Xcode //p')" = "26.6"
+          test "$(xcrun --sdk iphonesimulator --show-sdk-version)" = "26.5"
+          for target in App AppTests PoracodeActivities; do
+            deployment_target="$(xcodebuild -project ios/App/App.xcodeproj -target "$target" \
+              -showBuildSettings \
+              | awk '/^[[:space:]]*IPHONEOS_DEPLOYMENT_TARGET = / { print $3; exit }')"
+            awk -v version="$deployment_target" 'BEGIN { exit !(version + 0 >= 17) }'
+          done
+
+      - name: Build iOS tests for Simulator
+        working-directory: ios/App
+        run: |
+          xcodebuild build-for-testing -quiet \
+            -project App.xcodeproj \
+            -scheme App \
+            -destination "$IOS_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/PoracodeDerivedData"
+
+      - name: Run AppTests
+        working-directory: ios/App
+        run: |
+          xcodebuild test-without-building -quiet \
+            -project App.xcodeproj \
+            -scheme App \
+            -only-testing:AppTests \
+            -destination "$IOS_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/PoracodeDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/AppTests.xcresult" \
+            -parallel-testing-enabled NO
+
+      - name: Upload iOS test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-native-ci-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/AppTests.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+  android_api37_runtime:
+    name: Android 17 emulator runtime
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Install Android 17 SDK
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot Android 17, install, launch, and run required instrumentation
+        uses: ReactiveCircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: "37.0"
+          target: google_apis
+          arch: x86_64
+          profile: pixel_9
+          avd-name: poracode-pixel9-api37
+          cores: 2
+          ram-size: 4096M
+          heap-size: 512M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          working-directory: android
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "17"
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "37"
+            test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
+            ./gradlew assembleDebug --no-daemon --stacktrace
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=26'
+            adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
+            adb logcat -c
+            adb shell am force-stop com.lightcodeapp.mobile
+            adb shell am start -W -n com.lightcodeapp.mobile/com.poracode.app.MainActivity | tee "$RUNNER_TEMP/android-api37-launch.txt"
+            grep -F 'Status: ok' "$RUNNER_TEMP/android-api37-launch.txt"
+            sleep 3
+            test -n "$(adb shell pidof com.lightcodeapp.mobile | tr -d '\r')"
+            adb logcat -d -v threadtime > "$RUNNER_TEMP/android-api37-logcat.txt"
+            bash -euo pipefail -c 'if grep -A3 -F "FATAL EXCEPTION" "$RUNNER_TEMP/android-api37-logcat.txt" | grep -F "com.lightcodeapp.mobile"; then echo "Poracode crashed during Android 17 launch." >&2; exit 1; fi'
+            bash -euo pipefail -c 'mapfile -d "" sources < <(find app/src/androidTest -type f \( -name "*.kt" -o -name "*.java" \) -print0 2>/dev/null); test "${#sources[@]}" -gt 0 || { echo "::error::API 37 androidTest coverage is required; no instrumentation sources exist."; exit 1; }; grep -Eiq "ACCESS_LOCAL_NETWORK|LocalNetworkAccess\.PERMISSION" "${sources[@]}" || { echo "::error::androidTest must exercise ACCESS_LOCAL_NETWORK."; exit 1; }; grep -Eiq "grant(ed)?|allow(ed)?" "${sources[@]}" || { echo "::error::androidTest must exercise the granted local-network path."; exit 1; }; grep -Eiq "den(i|y|ied)|revoke(d)?|not[_ ]?allow" "${sources[@]}" || { echo "::error::androidTest must exercise denial or revocation."; exit 1; }'
+            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+            printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 26 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Android 17 runtime evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-api37-runtime-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/android-api37-launch.txt
+            ${{ runner.temp }}/android-api37-logcat.txt
+            android/app/build/outputs/androidTest-results/**
+            android/app/build/reports/androidTests/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  native_e2e_foundation:
+    name: Native wire and real-host foundation
+    needs: remote_v3_contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build the production headless host
+        run: |
+          pnpm run codex-protocol:gen
+          pnpm run build:electron
+          pnpm run prepare:server-native
+          test -f dist/main/server.cjs
+          test -f dist/server-native/better_sqlite3.node
+
+      - name: Run native foundation and production-host smoke
+        env:
+          NATIVE_E2E_TEST_TIMEOUT_MS: "180000"
+        run: |
+          pnpm exec vitest run \
+            --config tests/native-e2e/vitest.config.ts \
+            --reporter=default \
+            --reporter=junit \
+            --outputFile.junit="$RUNNER_TEMP/native-e2e-junit.xml"
+
+      - name: Require real production-host evidence
+        run: |
+          test -f "$RUNNER_TEMP/native-e2e-junit.xml"
+          node -e '
+            const fs = require("node:fs");
+            const xml = fs.readFileSync(process.env.RUNNER_TEMP + "/native-e2e-junit.xml", "utf8");
+            const expected = "starts the built headless host and walks environment/pair/token/ticket/socket";
+            if (!xml.includes(expected)) throw new Error("real-host testcase missing");
+            const suite = xml.match(/<testsuite name="realHost\.smoke\.test\.ts"[^>]*>/)?.[0];
+            if (!suite) throw new Error("real-host testsuite missing");
+            const attrs = Object.fromEntries(
+              [...suite.matchAll(/([A-Za-z]+)="([^"]*)"/g)].map((match) => [match[1], match[2]]),
+            );
+            if (Number(attrs.tests) < 2 || attrs.skipped !== "0" || attrs.failures !== "0" || attrs.errors !== "0") {
+              throw new Error(`real-host suite did not run cleanly: ${suite}`);
+            }
+          '
+
+      - name: Upload native E2E evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-e2e-foundation-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-e2e-junit.xml
+          if-no-files-found: warn
+          retention-days: 7
+
+  native_gate:
+    name: Native required gate
+    if: ${{ always() }}
+    needs:
+      - remote_v3_contract
+      - android
+      - android_api37_runtime
+      - ios
+      - native_e2e_foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require native build evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ needs.remote_v3_contract.result }}" = "success"
+          test "${{ needs.android.result }}" = "success"
+          test "${{ needs.android_api37_runtime.result }}" = "success"
+          test "${{ needs.ios.result }}" = "success"
+          test "${{ needs.native_e2e_foundation.result }}" = "success"

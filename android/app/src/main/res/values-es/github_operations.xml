@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string><string name="github_unavailable">GitHub CLI no está disponible para este proyecto.</string>
+    <string name="github_pull_requests">Solicitudes de cambios</string><string name="github_actions">Acciones</string><string name="github_repositories">Repositorios</string>
+    <string name="github_confirm_title">Confirmar acción de GitHub</string><string name="github_confirm_message">Esta acción puede eliminar o cambiar permanentemente datos remotos de GitHub.</string><string name="github_confirm">Continuar</string>
+    <string name="github_refresh">Actualizar GitHub</string><string name="github_no_pull_requests">No se encontraron solicitudes de cambios.</string>
+    <string name="github_pr_title">Título de la solicitud</string><string name="github_head_branch">Rama de origen</string><string name="github_base_branch">Rama base</string><string name="github_create_pr">Crear solicitud de cambios</string>
+    <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Selecciona una solicitud de cambios para inspeccionarla.</string><string name="github_pr_number">Solicitud de cambios #%1$d</string>
+    <string name="github_ready">Marcar como lista</string><string name="github_update_branch">Actualizar rama</string><string name="github_reopen">Reabrir</string><string name="github_close">Cerrar</string><string name="github_merge">Fusionar</string><string name="github_approve">Aprobar</string>
+    <string name="github_comment">Comentario</string><string name="github_post_comment">Publicar comentario</string><string name="github_details">Detalles</string><string name="github_checks">Comprobaciones</string><string name="github_files">Archivos</string><string name="github_reviews">Revisiones</string><string name="github_diff">Diferencias</string>
+    <string name="github_dispatch">Ejecutar flujo</string><string name="github_rerun">Volver a ejecutar</string><string name="github_cancel_run">Cancelar ejecución</string><string name="github_delete_run">Eliminar ejecución</string><string name="github_workflow_definition">Definición del flujo</string><string name="github_run_details">Detalles de la ejecución</string>
+    <string name="github_discover_accounts">Buscar cuentas de GitHub</string><string name="github_account">%1$s en %2$s</string>
+    <string name="github_change_reconciled">El resultado era incierto. Poracode no repitió la acción y consultó una vez el estado más reciente de GitHub.</string>
+</resources>

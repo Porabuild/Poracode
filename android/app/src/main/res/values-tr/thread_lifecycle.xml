@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">İleti dizisi işlemleri</string>
+    <string name="thread_lifecycle_rename">Yeniden adlandır</string>
+    <string name="thread_lifecycle_rename_prompt">Yeni ileti dizisi başlığı</string>
+    <string name="thread_lifecycle_relaunch">Yeniden başlat</string>
+    <string name="thread_lifecycle_relaunch_prompt">Aracı bundan sonra ne yapmalı?</string>
+    <string name="thread_lifecycle_pin">Sabitle</string>
+    <string name="thread_lifecycle_unpin">Sabitlemeyi kaldır</string>
+    <string name="thread_lifecycle_done">Tamamlandı olarak işaretle</string>
+    <string name="thread_lifecycle_not_done">Tamamlanmadı olarak işaretle</string>
+    <string name="thread_lifecycle_acknowledge">Onayla</string>
+    <string name="thread_lifecycle_archive">Arşivle</string>
+    <string name="thread_lifecycle_unarchive">Arşivden çıkar</string>
+    <string name="thread_lifecycle_delete">Sil</string>
+    <string name="thread_lifecycle_cancel">İptal</string>
+    <string name="thread_lifecycle_submit">Gönder</string>
+    <string name="thread_lifecycle_archive_confirmation">Bu ileti dizisi arşivlensin mi?</string>
+    <string name="thread_lifecycle_delete_confirmation">Bu ileti dizisi kalıcı olarak silinsin mi?</string>
+    <string name="thread_lifecycle_failed">İleti dizisi işlemi başarısız</string>
+    <string name="thread_lifecycle_close">Kapat</string>
+    <string name="thread_lifecycle_failure_ambiguous">Sonuç belirsiz. İleti dizisi listesi yenileniyor.</string>
+    <string name="thread_lifecycle_failure_generic">İleti dizisi işlemi tamamlanamadı. Listeyi yenileyip tekrar deneyin.</string>
+</resources>

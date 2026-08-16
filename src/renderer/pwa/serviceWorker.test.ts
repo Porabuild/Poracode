@@ -144,31 +144,20 @@ describe("canonical web delivery", () => {
     expect(packageJson.scripts["build:mobile"]).toBeUndefined();
   });
 
-  it("keeps browser and native runtime services out of unrelated startup graphs", () => {
+  it("keeps browser runtime services out of unrelated startup graphs", () => {
     const appSource = readFileSync(resolve(root, "src/renderer/app.tsx"), "utf8");
-    const pushLifecycleSource = readFileSync(
-      resolve(root, "src/renderer/pwa/push/usePushLifecycle.ts"),
-      "utf8",
-    );
 
     expect(appSource).not.toMatch(/^import .*BrowserRuntimeServices/m);
     expect(appSource).toContain('import("@/renderer/pwa/BrowserRuntimeServices")');
-    expect(pushLifecycleSource).not.toMatch(/^import .*@poracode\/activity-bridge/m);
-    expect(pushLifecycleSource).not.toMatch(/^import .*\.\/pushRegistration/m);
-    expect(pushLifecycleSource).toContain('import("./pushRegistration")');
   });
 
-  it("serves the same root-scoped build through Vercel and Capacitor", () => {
-    const capacitor = JSON.parse(readFileSync(resolve(root, "capacitor.config.json"), "utf8")) as {
-      webDir: string;
-    };
+  it("serves one root-scoped build through Vercel", () => {
     const vercel = JSON.parse(readFileSync(resolve(root, "vercel.json"), "utf8")) as {
       buildCommand: string;
       outputDirectory: string;
       redirects: Array<{ source: string; destination: string; permanent: boolean }>;
     };
 
-    expect(capacitor.webDir).toBe("dist/web");
     expect(vercel.buildCommand).toBe("node scripts/vercel-build-web.mjs");
     expect(vercel.outputDirectory).toBe("dist/web");
     for (const source of [

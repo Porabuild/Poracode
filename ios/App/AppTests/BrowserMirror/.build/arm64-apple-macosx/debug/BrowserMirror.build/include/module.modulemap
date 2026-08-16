@@ -1,0 +1,3 @@
+module BrowserMirror {
+    header "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/include/BrowserMirror-Swift.h"
+}

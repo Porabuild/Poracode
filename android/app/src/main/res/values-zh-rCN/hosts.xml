@@ -1,0 +1,7 @@
+<resources>
+    <string name="hosts_title">桌面设备</string><string name="hosts_manage">管理桌面设备</string>
+    <string name="hosts_add">添加桌面设备</string><string name="hosts_add_description">粘贴配对链接，或输入直连地址和一次性令牌。</string><string name="hosts_add_action">添加桌面设备</string>
+    <string name="hosts_remove">移除桌面设备</string><string name="hosts_remove_action">移除</string><string name="hosts_remove_confirm_title">移除 %1$s？</string><string name="hosts_remove_confirm_message">此设备将忘记该桌面设备并删除其已存储凭据。你稍后可以重新配对。</string>
+    <string name="hosts_selected">已选择</string><string name="hosts_kept_ready">保持就绪</string><string name="hosts_switch">切换</string><string name="hosts_empty">尚无桌面设备</string><string name="hosts_choose_detail">选择桌面设备以查看连接详情。</string>
+    <string name="local_network_permission_title">允许访问本地网络？</string><string name="local_network_permission_rationale">Poracode 需要本地网络权限才能直连 %1$s。中继和互联网连接不需要此权限。</string><string name="local_network_permission_continue">继续</string><string name="local_network_permission_not_now">暂不</string><string name="local_network_permission_denied_title">本地网络访问已拒绝</string><string name="local_network_permission_denied_message">没有权限，Poracode 无法连接此局域网桌面设备。你可以重试或使用中继连接。</string><string name="local_network_permission_try_again">重试</string>
+</resources>

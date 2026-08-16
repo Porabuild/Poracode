@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Acciones del hilo</string>
+    <string name="thread_lifecycle_rename">Cambiar nombre</string>
+    <string name="thread_lifecycle_rename_prompt">Nuevo título del hilo</string>
+    <string name="thread_lifecycle_relaunch">Reiniciar</string>
+    <string name="thread_lifecycle_relaunch_prompt">¿Qué debe hacer el agente ahora?</string>
+    <string name="thread_lifecycle_pin">Fijar</string>
+    <string name="thread_lifecycle_unpin">Desfijar</string>
+    <string name="thread_lifecycle_done">Marcar como terminado</string>
+    <string name="thread_lifecycle_not_done">Marcar como no terminado</string>
+    <string name="thread_lifecycle_acknowledge">Confirmar</string>
+    <string name="thread_lifecycle_archive">Archivar</string>
+    <string name="thread_lifecycle_unarchive">Desarchivar</string>
+    <string name="thread_lifecycle_delete">Eliminar</string>
+    <string name="thread_lifecycle_cancel">Cancelar</string>
+    <string name="thread_lifecycle_submit">Enviar</string>
+    <string name="thread_lifecycle_archive_confirmation">¿Archivar este hilo?</string>
+    <string name="thread_lifecycle_delete_confirmation">¿Eliminar este hilo permanentemente?</string>
+    <string name="thread_lifecycle_failed">Error en la acción del hilo</string>
+    <string name="thread_lifecycle_close">Cerrar</string>
+    <string name="thread_lifecycle_failure_ambiguous">El resultado es incierto. Se está actualizando la lista de hilos.</string>
+    <string name="thread_lifecycle_failure_generic">No se pudo completar la acción del hilo. Actualiza la lista e inténtalo de nuevo.</string>
+</resources>

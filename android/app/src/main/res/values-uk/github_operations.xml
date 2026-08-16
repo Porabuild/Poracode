@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string><string name="github_unavailable">GitHub CLI недоступний для цього проєкту.</string>
+    <string name="github_pull_requests">Запити на злиття</string><string name="github_actions">Дії</string><string name="github_repositories">Репозиторії</string>
+    <string name="github_confirm_title">Підтвердьте дію GitHub</string><string name="github_confirm_message">Ця дія може видалити або назавжди змінити віддалені дані GitHub.</string><string name="github_confirm">Продовжити</string>
+    <string name="github_refresh">Оновити GitHub</string><string name="github_no_pull_requests">Запитів на злиття не знайдено.</string>
+    <string name="github_pr_title">Заголовок запиту</string><string name="github_head_branch">Вихідна гілка</string><string name="github_base_branch">Базова гілка</string><string name="github_create_pr">Створити запит на злиття</string>
+    <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Виберіть запит на злиття для перегляду.</string><string name="github_pr_number">Запит на злиття #%1$d</string>
+    <string name="github_ready">Позначити готовим</string><string name="github_update_branch">Оновити гілку</string><string name="github_reopen">Відкрити знову</string><string name="github_close">Закрити</string><string name="github_merge">Злити</string><string name="github_approve">Схвалити</string>
+    <string name="github_comment">Коментар</string><string name="github_post_comment">Опублікувати коментар</string><string name="github_details">Відомості</string><string name="github_checks">Перевірки</string><string name="github_files">Файли</string><string name="github_reviews">Рецензії</string><string name="github_diff">Відмінності</string>
+    <string name="github_dispatch">Запустити процес</string><string name="github_rerun">Запустити повторно</string><string name="github_cancel_run">Скасувати запуск</string><string name="github_delete_run">Видалити запуск</string><string name="github_workflow_definition">Опис процесу</string><string name="github_run_details">Відомості про запуск</string>
+    <string name="github_discover_accounts">Знайти облікові записи GitHub</string><string name="github_account">%1$s на %2$s</string>
+    <string name="github_change_reconciled">Результат був невизначеним. Poracode не повторював дію й один раз отримав останній стан GitHub.</string>
+</resources>

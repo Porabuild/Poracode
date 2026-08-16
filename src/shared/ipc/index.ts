@@ -1,5 +1,17 @@
 export type { IpcProcedureDef, IpcTransport } from "./core";
 export {
+  omittedResultSchema,
+  omittedCallEnvelopeSchema,
+  jsonCallEnvelopeSchema,
+  isOmittedResultSchema,
+  remoteProcedureCallEnvelopeSchema,
+  parseRemoteProcedureResultValue,
+  parseRemoteProcedureSuccessEnvelope,
+  isOmittedResult,
+  OMITTED_RESULT_WIRE_KIND,
+  type OmittedResult,
+} from "./resultCodec";
+export {
   groupedIpcProcedures,
   ipcProcedureMap,
   MAIN_LOCAL_PROCEDURE_NAMES,
@@ -72,6 +84,9 @@ export {
   type SubAgentSubscribeResult,
   type WindowChromePayload,
   type WindowChromeResult,
+  workflowGetRunResultSchema,
+  workflowAgentChatResultSchema,
+  subAgentSubscribeResultSchema,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
   quickComposerSubmissionSchema,

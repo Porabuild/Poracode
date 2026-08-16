@@ -73,13 +73,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   // Web-host-only deps. The default dev server can also serve the browser app and
   // noDiscovery skips anything not listed. Keep in sync with the browser graph;
   // compare against a one-off discovery-enabled cache when dependencies change.
-  "@aparajita/capacitor-secure-storage",
-  "@capacitor/app",
-  "@capacitor/core",
-  "@capacitor/push-notifications",
   "@chenglou/pretext",
-  "@poracode/activity-bridge",
-  "@poracode/ssh-bridge",
 ] as const;
 
 function readEnvValue(env: Record<string, string>, key: string): string {
@@ -445,11 +439,15 @@ export default defineConfig(({ mode }) => ({
             {
               // Catch-all for everything not handled above. Excludes
               // @shikijs/langs and @shikijs/themes so each grammar/theme
-              // becomes its own auto-chunk (one per file actually used).
+              // becomes its own auto-chunk (one per file actually used), and
+              // jsqr so the QR decoder's fallback engine stays lazy — only
+              // browsers without `BarcodeDetector` (iOS Safari) ever fetch it,
+              // and only once they open the pairing scanner.
               name: "vendor",
               test: (id: string) =>
                 /[\\/]node_modules[\\/]/.test(id) &&
-                !/[\\/]@shikijs[\\/](?:langs|themes)[\\/]/.test(id),
+                !/[\\/]@shikijs[\\/](?:langs|themes)[\\/]/.test(id) &&
+                !/[\\/]node_modules[\\/]jsqr[\\/]/.test(id),
               priority: 10,
             },
           ].filter((group) => !webOnly || group.name === "ui" || group.name === "framework"),
@@ -465,10 +463,7 @@ export default defineConfig(({ mode }) => ({
         LEGACY_MANAGED_WORKTREES_GLOB,
         ELECTRON_OUTPUT_GLOB,
         ...TEMP_OUTPUT_GLOBS,
-        "**/ios/App/App/public/**",
         "**/ios/DerivedData/**",
-        "**/ios/capacitor-cordova-ios-plugins/**",
-        "**/android/app/src/main/assets/public/**",
       ],
     },
     // Bind all interfaces so phones on the LAN can load the canonical app

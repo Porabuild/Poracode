@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
 import { House } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { AgentStatus, ProjectLocation, ThreadPresentationMode } from "@/shared/contracts";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { ProjectLocationIcon } from "@/renderer/components/common/ProjectRemoteServer";
@@ -52,19 +53,30 @@ function EditorSection(props: { title: ReactNode; children: ReactNode }) {
 
 /** Label-left / control-right row mirroring the settings `SettingRow` layout. */
 function FieldRow(props: { label: ReactNode; description?: ReactNode; children: ReactNode }) {
+  const compact = useCompactLayout();
   return (
-    <div className="flex min-h-11 items-center justify-between gap-4 py-1.5">
+    <div
+      className={
+        compact
+          ? "flex flex-col items-stretch gap-2 py-2"
+          : "flex min-h-11 items-center justify-between gap-4 py-1.5"
+      }
+    >
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{props.label}</p>
         {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
       </div>
-      <div className="flex shrink-0 justify-end">{props.children}</div>
+      <div className={compact ? "w-full min-w-0" : "flex shrink-0 justify-end"}>
+        {props.children}
+      </div>
     </div>
   );
 }
 
 export function ScheduleEditor(props: ScheduleEditorProps) {
   const { t, i18n } = useLingui();
+  const compact = useCompactLayout();
+  const controlWidth = compact ? "w-full" : CONTROL_WIDTH;
   const projects = useAppStore((state) => state.projects);
   const draft = props.draft;
   const projectOptions = [
@@ -216,7 +228,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                 >
                   <Select
                     aria-label={t`Project`}
-                    className={CONTROL_WIDTH}
+                    className={controlWidth}
                     options={projectSelectOptions}
                     value={draft.projectId ?? HOME_PROJECT_ID}
                     onChange={(value) =>
@@ -249,7 +261,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                   <FieldRow label={<Trans>Repeat</Trans>}>
                     <Select
                       aria-label={t`Repeat`}
-                      className={CONTROL_WIDTH}
+                      className={controlWidth}
                       options={[
                         { id: "hourly", label: t`Hourly` },
                         { id: "daily", label: t`Daily` },
@@ -295,7 +307,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                     <FieldRow label={<Trans>Run at</Trans>}>
                       <TextField
                         aria-label={t`Run at`}
-                        className={CONTROL_WIDTH}
+                        className={controlWidth}
                         type="datetime-local"
                         value={draft.runAt}
                         onChange={(runAt) => set({ runAt })}
@@ -311,7 +323,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                     >
                       <Select
                         aria-label={draft.repeatMode === "hourly" ? t`Minute` : t`Time`}
-                        className={CONTROL_WIDTH}
+                        className={controlWidth}
                         options={draft.repeatMode === "hourly" ? hourlyOptions : timeOptions}
                         value={draft.time}
                         onChange={(time) => set({ time })}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">线程操作</string>
+    <string name="thread_lifecycle_rename">重命名</string>
+    <string name="thread_lifecycle_rename_prompt">新线程标题</string>
+    <string name="thread_lifecycle_relaunch">重新启动</string>
+    <string name="thread_lifecycle_relaunch_prompt">接下来让智能体做什么？</string>
+    <string name="thread_lifecycle_pin">置顶</string>
+    <string name="thread_lifecycle_unpin">取消置顶</string>
+    <string name="thread_lifecycle_done">标记为完成</string>
+    <string name="thread_lifecycle_not_done">标记为未完成</string>
+    <string name="thread_lifecycle_acknowledge">确认</string>
+    <string name="thread_lifecycle_archive">归档</string>
+    <string name="thread_lifecycle_unarchive">取消归档</string>
+    <string name="thread_lifecycle_delete">删除</string>
+    <string name="thread_lifecycle_cancel">取消</string>
+    <string name="thread_lifecycle_submit">提交</string>
+    <string name="thread_lifecycle_archive_confirmation">要归档此线程吗？</string>
+    <string name="thread_lifecycle_delete_confirmation">要永久删除此线程吗？</string>
+    <string name="thread_lifecycle_failed">线程操作失败</string>
+    <string name="thread_lifecycle_close">关闭</string>
+    <string name="thread_lifecycle_failure_ambiguous">结果尚不确定。正在刷新线程列表。</string>
+    <string name="thread_lifecycle_failure_generic">无法完成线程操作。请刷新列表后重试。</string>
+</resources>

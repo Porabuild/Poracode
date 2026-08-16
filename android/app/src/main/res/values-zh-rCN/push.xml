@@ -1,0 +1,7 @@
+<resources>
+    <string name="push_channel_attention_name">需要关注</string><string name="push_channel_attention_description">需要你关注的对话更新</string><string name="push_channel_status_name">状态</string><string name="push_channel_status_description">安静地更新对话进度</string>
+    <string name="push_not_configured_title">通知不可用</string><string name="push_not_configured_message">此版本未配置 Firebase 推送通知。</string><string name="push_unavailable_title">推送通知不可用</string><string name="push_unavailable_message">无法安全读取已保存的通知数据。数据已保持不变。</string>
+    <string name="push_permission_title">及时了解进展</string><string name="push_permission_message">启用通知，以便在桌面设备上的对话需要关注或完成时收到提醒。</string><string name="push_permission_enable">启用</string><string name="push_permission_denied_title">通知已被拒绝</string><string name="push_permission_denied_message">通知权限已关闭。请打开系统设置以启用通知。</string><string name="push_permission_open_settings">打开设置</string>
+    <string name="push_notification_title">Poracode</string><string name="push_notification_body">桌面设备上的对话有更新。</string>
+    <string name="push_route_confirm_title">在其他桌面设备上打开？</string><string name="push_route_confirm_message">此通知属于 %1$s。切换到该桌面设备并打开？</string><string name="push_route_confirm_switch">切换桌面设备</string><string name="push_route_confirm_cancel">取消</string><string name="push_route_confirm_description">切换到桌面设备 %1$s 并打开通知</string>
+</resources>

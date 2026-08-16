@@ -91,6 +91,12 @@ import { BackendStateStore } from "./backend/BackendStateStore";
 import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
+import { installProcessStdioErrorHandlers } from "./processStdio";
+
+// Electron can remain alive after its launching terminal or dev runner exits.
+// Install this before any startup logging so a detached diagnostic pipe cannot
+// recurse through the global exception handler below and wedge the main loop.
+installProcessStdioErrorHandlers();
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolvePoracodeChannel();

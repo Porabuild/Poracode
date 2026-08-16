@@ -281,38 +281,11 @@ const remoteBridgeOverrides = {
   },
   getDroppedFilePaths: () => [],
   pickFiles: pickBrowserFiles,
+  // SSH-hosted remote environments are driven by the Electron desktop host, which
+  // owns the SSH client. Browsers have none, so these stay inert.
   sshDiscoverHosts: () => Promise.resolve([]),
-  sshConnect: async (payload: {
-    connection: import("@/shared/ssh").SshConnectionConfig;
-    issuePairingCredential?: boolean;
-  }) => {
-    const [{ isNativeApp }, { connectNativeSsh }, { getSshCredential }] = await Promise.all([
-      import("@/renderer/pwa/install"),
-      import("@/renderer/native/nativeSsh"),
-      import("@/renderer/native/sshVault"),
-    ]);
-    if (!isNativeApp()) throw new Error("SSH connections require Electron or a native app.");
-    const authentication = await getSshCredential(payload.connection.id);
-    if (!authentication) throw new Error("SSH credentials are missing for this connection.");
-    const result = await connectNativeSsh(
-      payload.connection,
-      authentication,
-      payload.issuePairingCredential ?? false,
-    );
-    return {
-      connectionId: payload.connection.id,
-      endpoint: result.endpoint,
-      remotePort: result.remotePort,
-      ...(result.pairingCredential ? { pairingCredential: result.pairingCredential } : {}),
-    };
-  },
-  sshDisconnect: async ({ connectionId }: { connectionId: string }) => {
-    const [{ isNativeApp }, { disconnectNativeSsh }] = await Promise.all([
-      import("@/renderer/pwa/install"),
-      import("@/renderer/native/nativeSsh"),
-    ]);
-    if (isNativeApp()) await disconnectNativeSsh(connectionId);
-  },
+  sshConnect: () => Promise.reject(new Error("SSH connections require the Poracode desktop app.")),
+  sshDisconnect: () => Promise.resolve(),
   saveClipboardImage: (payload: { threadId: string; data: Uint8Array; extension: string }) =>
     withClient((client) =>
       client.uploadAttachment({

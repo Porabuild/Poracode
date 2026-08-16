@@ -16,7 +16,7 @@ import {
   type Thread,
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
-import { ipcProcedureMap } from "@/shared/ipc";
+import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
@@ -71,7 +71,24 @@ export async function runRemoteProcedure(
     typeof name
   >;
   assertRemoteGitMutationExperimentSafe(procedure, parsedPayload);
-  return ctx.options.callSupervisor(name, parsedPayload);
+  const resultSchema = ipcProcedureMap[name].resultSchema;
+  if (!resultSchema) {
+    throw new RemoteHttpError(
+      "git_procedure_result_schema_missing",
+      `Procedure "${procedure}" is missing an authoritative result schema.`,
+      500,
+    );
+  }
+  const raw = await ctx.options.callSupervisor(name, parsedPayload);
+  try {
+    return parseRemoteProcedureResultValue(resultSchema, raw);
+  } catch {
+    throw new RemoteHttpError(
+      "invalid_procedure_result",
+      `Procedure "${procedure}" returned a result that does not match its contract.`,
+      500,
+    );
+  }
 }
 
 /**

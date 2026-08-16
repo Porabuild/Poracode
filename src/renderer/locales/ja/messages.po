@@ -347,12 +347,14 @@ msgstr "{0}が使用されました"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}、アイドル状態"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Running"
 msgstr "{0}、実行中"
@@ -478,7 +480,7 @@ msgstr "{label} の自動更新間隔 (分単位)"
 msgid "{label} copied."
 msgstr "{label}をコピーしました。"
 
-#: src/renderer/components/thread/CompactThreadHeader.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "{label} usage"
 msgstr "{label}の使用状況"
 
@@ -682,8 +684,8 @@ msgstr "1 件の実行"
 #~ msgstr "1 個のワークフロー"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "22"
-msgstr "22"
+#~ msgid "22"
+#~ msgstr "22"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
@@ -805,7 +807,9 @@ msgstr "アクション名"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Actions"
 msgstr "アクション"
@@ -882,6 +886,7 @@ msgstr "プルリクエストを表示するには、プロジェクトを追加
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Add a project to start"
 msgstr "開始するプロジェクトを追加してください"
 
@@ -1223,6 +1228,10 @@ msgstr "エージェントに Cookie とストレージの読み取り/書き込
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可して再試行するか、下にエンドポイントとトークンを入力してください。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
+msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可して再試行するか、代わりにペアリングリンクを貼り付けてください。"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
@@ -1390,6 +1399,8 @@ msgstr "アーカイブされたスレッド"
 #~ msgstr "アーカイブ済みスレッドはデスクトップアプリで管理されます。このデバイスからの復元または削除はまだ利用できません。"
 
 #. placeholder {0}: file.path
+#. placeholder {0}: revertFile?.path
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Are you sure you want to revert <0>{0}</0>? This cannot be undone."
 msgstr "<0>{0}</0> を元に戻してもよろしいですか?これを元に戻すことはできません。"
@@ -1399,6 +1410,7 @@ msgid "Are you sure you want to revert <0>{path}</0>? This cannot be undone."
 msgstr "<0>{path}</0> を元に戻してもよろしいですか?これを元に戻すことはできません。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "ステージングされていない変更をすべて元に戻してもよろしいですか?これを元に戻すことはできません。"
 
@@ -1603,9 +1615,13 @@ msgstr "アバターの色：{color}"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/layout/PageLayout.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/components/layout/MobilePageHeader.tsx
+#: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Back"
 msgstr "戻る"
@@ -1799,6 +1815,7 @@ msgstr "Poracode の隔離された組み込みブラウザーで Web サイト�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -1921,9 +1938,9 @@ msgstr "ブランチ保護ルールをバイパスする (管理マージ)"
 #~ msgid "Cached only"
 #~ msgstr "キャッシュのみ"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Camera access blocked"
-#~ msgstr "カメラアクセスがブロックされています"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "カメラアクセスがブロックされています"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
@@ -1961,7 +1978,6 @@ msgstr "リモートサーバーに接続できません。オンラインであ
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2133,8 +2149,8 @@ msgid "Checking {serverName}"
 msgstr "{serverName} を確認中"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Checking host…"
-msgstr "ホストを確認中…"
+#~ msgid "Checking host…"
+#~ msgstr "ホストを確認中…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Checking Tailscale…"
@@ -2185,6 +2201,10 @@ msgstr "実験用のローカルベースブランチを選択してください
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Choose a parent folder"
 msgstr "親フォルダーを選択"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Choose a photo"
+msgstr "写真を選択"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
@@ -2278,6 +2298,10 @@ msgstr "このスレッドに対して Chrome MCP が有効になっています
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Chrome Tools"
 msgstr "Chrome ツール"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "CI Actions: Workflows"
+msgstr "CI アクション: ワークフロー"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2384,11 +2408,11 @@ msgid "Cloning…"
 msgstr "クローン作成中…"
 
 #: src/renderer/components/common/BottomSheet.tsx
-#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Close"
 msgstr "閉じる"
@@ -2527,9 +2551,9 @@ msgstr "プレビューを閉じる"
 msgid "Close run details"
 msgstr "実行の詳細を閉じる"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Close scanner"
-#~ msgstr "スキャナーを閉じる"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Close scanner"
+msgstr "スキャナーを閉じる"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -2755,8 +2779,8 @@ msgid "Compacting context"
 msgstr "コンテキストの圧縮"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Compare this fingerprint with the one shown by your server."
-msgstr "このフィンガープリントをサーバーに表示されているものと比較してください。"
+#~ msgid "Compare this fingerprint with the one shown by your server."
+#~ msgstr "このフィンガープリントをサーバーに表示されているものと比較してください。"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "Comparing candidates…"
@@ -2811,6 +2835,7 @@ msgid "Composer"
 msgstr "コンポーザー"
 
 #: src/renderer/commands/composerCommands.ts
+#: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "コンポーザーの操作"
 
@@ -2876,6 +2901,7 @@ msgstr "管理対象スキルと競合しています"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2924,8 +2950,8 @@ msgstr "リモートサーバーに接続"
 #~ msgstr "別の Poracode デスクトップまたはヘッドレスサーバーに接続すると、そのプロジェクトをここから参照・管理できます。エンドポイントとペアリングトークンは、その端末の「設定 → リモートアクセス」から取得してください。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Connect to Your Desktop"
-msgstr "デスクトップに接続"
+#~ msgid "Connect to Your Desktop"
+#~ msgstr "デスクトップに接続"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
@@ -2944,7 +2970,6 @@ msgstr "接続中..."
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "接続中…"
@@ -2971,6 +2996,7 @@ msgstr "接続に失敗しました。"
 msgid "Connection timed out."
 msgstr "接続がタイムアウトしました。"
 
+#: src/renderer/components/common/RemoteServerPicker.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -3063,6 +3089,7 @@ msgid "Controls the paired desktop while the agent clicks or types"
 msgstr "エージェントがクリックや入力をしている間、ペアリングしたデスクトップを操作します"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Conversation"
 msgstr "会話"
 
@@ -3159,6 +3186,10 @@ msgstr "選択範囲をコピー"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
 msgstr "Tailscale URL をコピー"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Copy the link from Remote Access settings on your desktop."
+#~ msgstr "デスクトップの設定 → リモートアクセスからリンクをコピーしてください。"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -3297,9 +3328,9 @@ msgstr "MCP サーバー設定をスキャンできませんでした。"
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Lightcode データのインポートを予約できませんでした。"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Couldn't start the camera"
-#~ msgstr "カメラを開始できませんでした"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "カメラを開始できませんでした"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
@@ -3492,6 +3523,7 @@ msgstr "選定済み"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market が管理する厳選された無料およびプレミアムスキル。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
 msgstr "最近"
@@ -3833,6 +3865,7 @@ msgstr "デスクトップエンドポイント"
 #~ msgid "Desktop is unreachable."
 #~ msgstr "デスクトップに到達できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Desktop Settings"
@@ -4318,8 +4351,8 @@ msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session to
 msgstr "<0>Cookie</0> と <1>ストレージ</1> を有効にします。Cookie にはセッション トークンが含まれることがあり、ストレージには認証状態が保持されることが多いため、エージェントとエージェントが訪問するサイトの両方を信頼できる場合にのみ有効にしてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
-msgid "Endpoint"
-msgstr "エンドポイント"
+#~ msgid "Endpoint"
+#~ msgstr "エンドポイント"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:38987/"
@@ -4366,8 +4399,8 @@ msgid "Enter a valid project name."
 msgstr "有効なプロジェクト名を入力してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Enter a valid SSH target and port."
-msgstr "有効な SSH 接続先とポートを入力してください。"
+#~ msgid "Enter a valid SSH target and port."
+#~ msgstr "有効な SSH 接続先とポートを入力してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
@@ -4382,6 +4415,7 @@ msgid "Enter plan mode"
 msgstr "計画モードに入る"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Enter the pairing URL shown on your desktop."
 msgstr "デスクトップに表示されているペアリング URL を入力してください。"
@@ -4391,8 +4425,8 @@ msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "デスクトップの開発サーバーが待ち受けているポートを入力してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Enter the SSH password."
-msgstr "SSH パスワードを入力してください。"
+#~ msgid "Enter the SSH password."
+#~ msgstr "SSH パスワードを入力してください。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter valid JSON."
@@ -4557,6 +4591,7 @@ msgstr "ワークツリーの所有者は {expected} のはずですが、{actua
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 msgid "Experiment"
 msgstr "実験"
 
@@ -5096,7 +5131,9 @@ msgstr "Gemini"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5184,6 +5221,7 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
@@ -5601,6 +5639,10 @@ msgstr "実行中"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "Safari で「共有」をタップし、「ホーム画面に追加」を選択します。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
+msgstr "アプリ内のカメラスキャンは HTTPS または localhost でのみ動作します。代わりにスマートフォンのカメラアプリでデスクトップのコードをスキャンするか、ペアリングリンクを貼り付けてください。"
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
@@ -6178,6 +6220,7 @@ msgid "local"
 msgstr "ローカル"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+#: src/renderer/components/common/RemoteServerPicker.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -6345,6 +6388,11 @@ msgstr "プロバイダーが管理"
 #~ msgid "Managed skills"
 #~ msgstr "管理対象スキル"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Manual connection"
+msgstr "手動接続"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "手動並び替え"
@@ -6358,8 +6406,8 @@ msgid "Manual routes override learned routing whenever all of their task tags ma
 msgstr "すべてのタスクタグが一致する場合、手動ルートが学習済みルーティングより優先されます。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Manual URL"
-msgstr "手動 URL"
+#~ msgid "Manual URL"
+#~ msgstr "手動 URL"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -6497,7 +6545,9 @@ msgid "MCP servers"
 msgstr "MCPサーバー"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -7156,6 +7206,7 @@ msgstr "アクティブなセッションがありません"
 #~ msgid "No active workflows"
 #~ msgstr "アクティブなワークフローがありません"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "有効なワークフローが見つかりません。"
@@ -7204,9 +7255,9 @@ msgstr "ブランチが見つかりませんでした"
 msgid "No browser tab open"
 msgstr "ブラウザのタブが開いていません"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "No camera found"
-#~ msgstr "カメラが見つかりません"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "No camera found"
+msgstr "カメラが見つかりません"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -7629,6 +7680,7 @@ msgstr "未同期"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Notes"
@@ -7720,6 +7772,11 @@ msgstr "1行につきKEY=VALUEのペアを1つ"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
 msgstr "1回のみ"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "One-time pairing token"
+msgstr "ワンタイムペアリングトークン"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
@@ -7868,12 +7925,14 @@ msgid "Open image preview"
 msgstr "画像のプレビューを開く"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "ブラウザで開く"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "エディタで開く"
@@ -7975,10 +8034,21 @@ msgstr "設定を開く"
 msgid "Open Settings → Remote Access in Poracode on your desktop, then copy the pairing URL shown there."
 msgstr "デスクトップの Poracode で「設定 → リモートアクセス」を開き、そこに表示されるペアリング URL をコピーしてください。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "デスクトップの Poracode で「設定 → リモートアクセス」を開き、ここから QR コードをスキャンしてください。または、エンドポイントとペアリングトークンを手動で入力します。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
+#~ msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code shown there — or copy the pairing link it shows."
+#~ msgstr "デスクトップの Poracode で「設定 → リモートアクセス」を開き、そこに表示された QR コードをスキャンしてください。または、そのペアリングリンクをコピーします。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#~ msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code shown there — or paste its pairing link."
+#~ msgstr "デスクトップの Poracode で「設定 → リモートアクセス」を開き、そこに表示された QR コードをスキャンしてください。または、そのペアリングリンクを貼り付けます。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Open Settings → Remote Access on your desktop to show the code."
+msgstr "デスクトップで「設定 → リモートアクセス」を開いてペアリングコードを表示してください。"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -7990,6 +8060,7 @@ msgid "Open Tailscale"
 msgstr "Tailscaleを開く"
 
 #: src/renderer/components/thread/CompactThreadHeader.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 msgid "Open terminal"
 msgstr "ターミナルを開く"
 
@@ -8021,8 +8092,8 @@ msgid "Opened pull request #{0} for the candidate."
 msgstr "候補のプルリクエスト #{0} を作成しました。"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "OpenSSH private key"
-msgstr "OpenSSH 秘密鍵"
+#~ msgid "OpenSSH private key"
+#~ msgstr "OpenSSH 秘密鍵"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Operate desktop apps through Poracode's desktop-control tools."
@@ -8051,6 +8122,11 @@ msgstr "任意です。有効にすると、リモートアクセス用ポート
 msgid "Options"
 msgstr "オプション"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "or"
+msgstr "または"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
 msgid "Or write a custom answer"
 msgstr "またはカスタムの回答を作成します"
@@ -8058,6 +8134,10 @@ msgstr "またはカスタムの回答を作成します"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "その他"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Other ways to connect"
+msgstr "その他の接続方法"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Other workspaces"
@@ -8116,8 +8196,8 @@ msgid "Page"
 msgstr "ページ"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
-msgid "Pair"
-msgstr "ペアリング"
+#~ msgid "Pair"
+#~ msgstr "ペアリング"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pair a connection"
@@ -8142,7 +8222,6 @@ msgid "Pair with Poracode"
 msgstr "Poracode とペアリング"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "デスクトップの Poracode とペアリングして、スレッド、プロジェクト、設定を同期します。"
 
@@ -8158,6 +8237,8 @@ msgstr "ペアリング済みデバイス"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "ペアリングの期限が切れました。再接続するにはもう一度ペアリングしてください。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing link"
 msgstr "ペアリングリンク"
@@ -8166,18 +8247,17 @@ msgstr "ペアリングリンク"
 #~ msgid "Pairing link detected."
 #~ msgstr "ペアリングリンクを検出しました。"
 
-#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "ペアリングトークン"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing URL"
 msgstr "ペアリング URL"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pairing…"
 msgstr "ペアリング中…"
@@ -8213,16 +8293,18 @@ msgid "Passed"
 msgstr "成功"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Passphrase (optional)"
-msgstr "パスフレーズ（任意）"
+#~ msgid "Passphrase (optional)"
+#~ msgstr "パスフレーズ（任意）"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Password"
-msgstr "パスワード"
+#~ msgid "Password"
+#~ msgstr "パスワード"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Paste"
 msgstr "ペースト"
 
@@ -8248,18 +8330,31 @@ msgstr "名前付きサーバーオブジェクト、またはmcpServersキー�
 msgid "Paste in input"
 msgstr "入力に貼り付けます"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Paste link"
+msgstr "リンクを貼り付け"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Paste pairing link"
+msgstr "ペアリングリンクを貼り付け"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Paste pairing URL…"
 msgstr "ペアリング URL を貼り付け…"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Paste the pairing URL from your desktop"
-msgstr "デスクトップのペアリング URL を貼り付けます"
+#~ msgid "Paste the pairing URL from your desktop"
+#~ msgstr "デスクトップのペアリング URL を貼り付けます"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Paste the SSH private key."
-msgstr "SSH 秘密鍵を貼り付けてください。"
+#~ msgid "Paste the SSH private key."
+#~ msgstr "SSH 秘密鍵を貼り付けてください。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Paste your pairing link"
+#~ msgstr "ペアリングリンクを貼り付けてください"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
@@ -8361,6 +8456,7 @@ msgstr "ピッカーは添付ファイルを返しませんでした"
 msgid "Pin to top"
 msgstr "トップにピン留めする"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Pin workflow"
 msgstr "ワークフローをピン留め"
@@ -8382,6 +8478,7 @@ msgid "Plan"
 msgstr "計画"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "計画、質問、構築…"
 
@@ -8426,13 +8523,17 @@ msgstr "plugin.json はこのビルドが対応していない Agent Plugins バ
 msgid "Plugins"
 msgstr "プラグイン"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Point at the QR code in Settings → Remote Access"
-#~ msgstr "設定 → リモートアクセスの QR コードに向けてください"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "設定 → リモートアクセスの QR コードに向けてください"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
 msgstr "このプロファイルを、カスタムの環境変数・モデル名・推論レベルとともにAnthropic以外のプロバイダー（z.aiなど）に向けます。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Point your camera at the code on your desktop"
+#~ msgstr "デスクトップのコードにカメラを向けてください"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8478,8 +8579,8 @@ msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Poracode SSH ランタイムマニフェストが見つからないか、無効です: {path}"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
-msgstr "Poracode は SSH ホストにサーバーをインストールまたは再利用し、認証情報をこのデバイスのセキュアストレージに保存します。"
+#~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
+#~ msgstr "Poracode は SSH ホストにサーバーをインストールまたは再利用し、認証情報をこのデバイスのセキュアストレージに保存します。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
@@ -8494,7 +8595,6 @@ msgstr "Poracode の組み込みブラウザツール。"
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Port"
 msgstr "ポート"
 
@@ -8517,8 +8617,8 @@ msgstr "ポート転送が有効になっていません"
 #~ msgstr "ポート転送にはデスクトップへの直接接続が必要です。リレーやトンネル経由では利用できません。"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "ポート"
@@ -8637,13 +8737,15 @@ msgid "Privacy Policy"
 msgstr "プライバシーポリシー"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Private key"
-msgstr "秘密鍵"
+#~ msgid "Private key"
+#~ msgstr "秘密鍵"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "生産性"
 
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -8660,8 +8762,10 @@ msgstr "プロファイル"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/MobileProjectPicker.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -8717,10 +8821,12 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "グローバル検索設定に加えてプロジェクト固有のオーバーライド。"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -9071,6 +9177,7 @@ msgstr "通知内容を伏せる"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -9599,12 +9706,16 @@ msgstr "クリーンアップを再試行"
 msgid "Retry with admin"
 msgstr "管理者で再試行してください"
 
-#: src/renderer/components/layout/PageLayout.tsx
+#: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Return to app"
 msgstr "アプリに戻る"
@@ -9624,19 +9735,23 @@ msgstr "ファイルツリーに表示"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert"
 msgstr "元に戻す"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Revert all"
 msgstr "すべて元に戻す"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Revert all changes"
 msgstr "すべての変更を元に戻す"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "変更を元に戻す"
@@ -9816,6 +9931,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "下記のスケジュールでこのスケジュールを自動的に実行します。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
@@ -9922,26 +10038,37 @@ msgstr "ショートカットを保存"
 msgid "Saved credentials are shared across all environments."
 msgstr "保存された認証情報はすべての環境で共有されます。"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Scan pairing QR code"
-#~ msgstr "ペアリング QR コードをスキャン"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Scan pairing code"
+msgstr "ペアリングコードをスキャン"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "ペアリング QR コードをスキャン"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Scan QR code"
 msgstr "QR コードをスキャン"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Scan the desktop pairing code with the camera"
+msgstr "カメラでデスクトップのペアリングコードをスキャン"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Scan the pairing code shown on your desktop"
-msgstr "デスクトップに表示されたペアリングコードをスキャンします"
+msgid "Scan the pairing code shown in Remote Access on your desktop."
+msgstr "デスクトップのリモートアクセスに表示されたペアリングコードをスキャンします。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Scan the pairing code shown on your desktop"
+#~ msgstr "デスクトップに表示されたペアリングコードをスキャンします"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "インストールされている CLI について{wslDistro}をスキャンしています。通常、これには数秒かかります。"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Scanning needs a secure connection"
-#~ msgstr "スキャンには安全な接続が必要です"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "スキャンには安全な接続が必要です"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Scanning provider configurations…"
@@ -10043,8 +10170,10 @@ msgstr "SDK 未インストール"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search"
@@ -10315,6 +10444,11 @@ msgstr "サーバー {target} は正しく設定されていないためスキ�
 msgid "Server {target} runs on this computer and is unavailable for WSL projects."
 msgstr "サーバー {target} はこのコンピューターで動作するため、WSL プロジェクトでは利用できません。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Server base URL"
+msgstr "サーバーのベースURL"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "このプラグインが mcp.json で宣言しているサーバーです。Poracode はサポートされているすべてのエージェントに渡します。"
@@ -10336,6 +10470,7 @@ msgid "Set when this session started — start a new thread to change servers"
 msgstr "このセッションの開始時に確定されます — サーバーを変更するには新しいスレッドを開始してください"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -10483,6 +10618,7 @@ msgstr "ランタイムデバッグパネルを表示"
 #~ msgid "Show Schedules in the sidebar footer."
 #~ msgstr "サイドバーのフッターにスケジュールを表示します。"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -10558,6 +10694,7 @@ msgstr "サインインが必要です"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "ペアリング済みのデスクトップでサインインしてから、この状態を更新してください。"
 
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -10660,8 +10797,10 @@ msgstr "SKILL.md が大きすぎます。"
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -10746,6 +10885,10 @@ msgstr "一部のプロバイダーフォルダーをスキャンできません
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "カメラの起動中に問題が発生しました。代わりに下のエンドポイントとトークンを入力してペアリングしてください。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
+msgstr "カメラの起動中に問題が発生しました。代わりにペアリングリンクを貼り付けるか、コードの写真を選択してください。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
 msgstr "作成順に並べ替える"
@@ -10796,8 +10939,8 @@ msgstr "SSE（レガシー）"
 #~ msgstr "SSH"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "SSH authentication"
-msgstr "SSH 認証"
+#~ msgid "SSH authentication"
+#~ msgstr "SSH 認証"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH config / agent"
@@ -10824,17 +10967,19 @@ msgid "SSH port (optional)"
 msgstr "SSH ポート（任意）"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "SSH target"
-msgstr "SSH 接続先"
+#~ msgid "SSH target"
+#~ msgstr "SSH 接続先"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Stage"
 msgstr "ステージ"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Stage all"
 msgstr "すべてステージ"
 
@@ -10958,9 +11103,9 @@ msgstr "{targetLabel}スレッドを開始しました"
 msgid "Starting"
 msgstr "開始しています"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Starting camera…"
-#~ msgstr "カメラを起動中…"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "カメラを起動中…"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Starting mirror…"
@@ -11353,6 +11498,7 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -11375,6 +11521,7 @@ msgstr "{0}用のターミナル"
 msgid "Terminal for {projectName}"
 msgstr "{projectName} のターミナル"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "ターミナル入力"
@@ -11399,6 +11546,7 @@ msgid "Terminal scroll speed"
 msgstr "ターミナルのスクロール速度"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Terminal tabs"
 msgstr "ターミナルタブ"
@@ -11411,6 +11559,10 @@ msgstr "マイクをテスト"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "その会話は利用できなくなりました。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+msgid "That isn't a Poracode pairing code."
+msgstr "それは Poracode のペアリングコードではありません。"
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
@@ -11662,6 +11814,10 @@ msgstr "この接続ではプロジェクトを表示できますが、管理は
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "このデバイスには使用できるカメラがありません。代わりに下のエンドポイントとトークンを入力してペアリングしてください。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
+msgstr "このデバイスには使用できるカメラがありません。代わりにペアリングリンクを貼り付けるか、コードの写真を選択してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
@@ -12028,8 +12184,8 @@ msgid "Triggers:"
 msgstr "トリガー："
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Trust and connect"
-msgstr "信頼して接続"
+#~ msgid "Trust and connect"
+#~ msgstr "信頼して接続"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
@@ -12460,16 +12616,19 @@ msgstr "フェーズなし:"
 msgid "Unpin"
 msgstr "固定を解除する"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "ワークフローのピン留めを解除"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "アンステージ"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Unstage all"
 msgstr "すべてのステージを解除する"
 
@@ -12615,6 +12774,7 @@ msgstr "URLは必須です。"
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
@@ -12625,6 +12785,7 @@ msgid "Usage not supported"
 msgstr "使用量はサポートされていません"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Usage settings"
 msgstr "利用設定"
 
@@ -12713,8 +12874,8 @@ msgstr "{conflict}で使用中"
 #~ msgstr "ユーザー"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "user@example.com"
-msgstr "user@example.com"
+#~ msgid "user@example.com"
+#~ msgstr "user@example.com"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -12730,12 +12891,12 @@ msgid "value"
 msgstr "値"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Verify host key"
-msgstr "ホストキーを確認"
+#~ msgid "Verify host key"
+#~ msgstr "ホストキーを確認"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Verify SSH host key"
-msgstr "SSH ホストキーを確認"
+#~ msgid "Verify SSH host key"
+#~ msgstr "SSH ホストキーを確認"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -13113,6 +13274,7 @@ msgstr "ワークフローの結果"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflow run"
 msgstr "ワークフロー実行"
 
@@ -13120,6 +13282,7 @@ msgstr "ワークフロー実行"
 msgid "Workflow run deleted."
 msgstr "ワークフロー実行を削除しました。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
@@ -13131,6 +13294,7 @@ msgstr "ワークフロー:{description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "ワークフロー"
@@ -13224,8 +13388,10 @@ msgstr "Poracode がプルリクエストのマージを検知すると、ワー
 msgid "Worktree: {0}"
 msgstr "ワークツリー:{0}"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"

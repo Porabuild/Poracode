@@ -4,6 +4,7 @@ import {
   isUnauthorizedRemoteError,
   RemoteClientError,
   RemoteDesktopClient,
+  type RemoteFetch,
 } from "./client";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
 
@@ -115,15 +116,40 @@ describe("RemoteDesktopClient", () => {
     expect(onRequestError).toHaveBeenLastCalledWith(transportError);
   });
 
-  it("keeps profile-stats fields beyond the light shape check (loose parse)", async () => {
+  it("validates complete profile stats without stripping contract fields", async () => {
     const coreStats = {
-      scope: "device",
-      device: { id: "dev-1" },
-      totals: { prompts: 3 },
-      accounts: [{ key: "claude", label: "Claude", count: 3, share: 1 }],
+      scope: "device" as const,
+      device: { id: "dev-1", label: "Test Mac", platform: "darwin" },
+      generatedAt: 1,
+      timezoneOffsetMinutes: 0,
+      totals: {
+        totalThreads: 1,
+        totalPrompts: 3,
+        messagesSent: 3,
+        goalsSet: 0,
+        longestTaskMs: 100,
+        currentStreakDays: 1,
+        longestStreakDays: 1,
+        activeDays: 1,
+      },
+      promptHeatmap: { metric: "prompts" as const, windowDays: 7, cells: [], max: 0 },
+      insights: {
+        fastModePercent: 0,
+        skillsExplored: 0,
+        totalSkillsUsed: 0,
+        workflowRuns: 0,
+        subagentRuns: 0,
+        mcpToolCalls: 0,
+      },
+      accounts: [{ key: "claude", label: "Claude", count: 3, percent: 100 }],
       providers: [],
-      availableAccounts: [],
+      models: [],
+      modes: [],
+      skills: [],
+      mcps: [],
+      aiActions: [],
       identity: { name: "Test", handle: "test", avatarColor: "oklch(0.6 0.14 295)" },
+      availableAccounts: [],
     };
     const client = new RemoteDesktopClient(
       "http://127.0.0.1:38987/",
@@ -135,8 +161,6 @@ describe("RemoteDesktopClient", () => {
         }),
     );
 
-    // A plain z.object would strip every key the check doesn't name; the
-    // desktop ProfileSettings component reads accounts/providers/identity.
     await expect(client.profileCoreStats({ utcOffsetMinutes: 0 })).resolves.toEqual(coreStats);
   });
 
@@ -234,7 +258,11 @@ describe("RemoteDesktopClient", () => {
       {
         url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
         method: "POST",
-        body: notes,
+        body: {
+          doc: notes.doc,
+          todos: notes.todos,
+          updatedAt: notes.updatedAt,
+        },
       },
     ]);
   });
@@ -691,6 +719,57 @@ describe("RemoteDesktopClient", () => {
       client: { label: "My Mac", deviceType: "desktop" },
     });
     expect(body.client).toEqual({ label: "My Mac", deviceType: "desktop" });
+  });
+
+  it("parses /api/git/call with the procedure result schema and treats void as {}", async () => {
+    const payloads: unknown[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        payloads.push(JSON.parse(typeof init?.body === "string" ? init.body : "{}"));
+        const body = payloads.at(-1) as { procedure?: string };
+        if (body.procedure === "gitPush") {
+          return new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ result: { available: true } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(client.callRemoteProcedure("ghCheckAvailable", {})).resolves.toEqual({
+      available: true,
+    });
+    await expect(client.callRemoteProcedure("gitPush", {})).resolves.toBeUndefined();
+
+    const nullVoid = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ result: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    await expect(nullVoid.callRemoteProcedure("gitPush", {})).rejects.toMatchObject({
+      code: "invalid_response",
+    });
+  });
+
+  it("rejects non-allowlisted remote procedures before making a request", async () => {
+    const fetch = vi.fn<RemoteFetch>();
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "lc_access_test", fetch);
+
+    await expect(client.callRemoteProcedure("notAProcedure", {})).rejects.toMatchObject({
+      status: 403,
+      code: "git_procedure_not_allowed",
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each(["gitPush", "waitMcpServerOauth"])(

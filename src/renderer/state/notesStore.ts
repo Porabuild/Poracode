@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { toast } from "@heroui/react";
 import type { NotesTodoItem } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { isRemoteTransportFailure } from "@/shared/remote/client";
 import { readBridge } from "@/renderer/bridge";
 
 export type NotesLoadStatus = "unloaded" | "loading" | "ready";
@@ -50,7 +51,7 @@ function makeTodoId(): string {
   return `todo-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
 }
 
-function persistNow(projectId: string, entry: ProjectNotesEntry): void {
+function persistNow(projectId: string, entry: ProjectNotesEntry, attempt = 0): void {
   if (!hasBridge()) return;
   const persistGeneration = sessionGeneration;
   void readBridge()
@@ -66,6 +67,14 @@ function persistNow(projectId: string, entry: ProjectNotesEntry): void {
       }
     })
     .catch((error) => {
+      if (
+        attempt === 0 &&
+        persistGeneration === sessionGeneration &&
+        isRemoteTransportFailure(error)
+      ) {
+        setTimeout(() => persistNow(projectId, entry, 1), 500);
+        return;
+      }
       console.error("[notes] failed to persist project notes", error);
       toast.danger(friendlyError(error));
       if (persistGeneration !== sessionGeneration) return;
@@ -147,14 +156,25 @@ export const useNotesStore = create<NotesStore>((set, get) => {
         setReady(null, []);
         return;
       }
-      void readBridge()
-        .dbGetProjectNotes(projectId)
-        .then((data) => setReady(data?.doc ?? null, data?.todos ?? []))
-        .catch((error) => {
-          console.error("[notes] failed to load project notes", error);
-          toast.danger(friendlyError(error));
-          setReady(null, []);
-        });
+      const load = (attempt: number) => {
+        void readBridge()
+          .dbGetProjectNotes(projectId)
+          .then((data) => setReady(data?.doc ?? null, data?.todos ?? []))
+          .catch((error) => {
+            if (
+              attempt === 0 &&
+              loadGeneration === sessionGeneration &&
+              isRemoteTransportFailure(error)
+            ) {
+              setTimeout(() => load(1), 500);
+              return;
+            }
+            console.error("[notes] failed to load project notes", error);
+            toast.danger(friendlyError(error));
+            setReady(null, []);
+          });
+      };
+      load(0);
     },
 
     setDoc: (projectId, doc) => mutate(projectId, (entry) => ({ ...entry, doc })),

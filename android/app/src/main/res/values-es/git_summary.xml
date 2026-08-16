@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_summary_ahead_behind">%1$d por delante, %2$d por detrás</string>
+    <string name="git_summary_additions_deletions">+%1$d / −%2$d</string>
+    <string name="git_summary_not_repo">No es un repositorio</string>
+    <string name="git_summary_pull_request">Pull request #%1$d</string>
+    <string name="git_summary_state_description">Rama %1$s, %2$d commits por delante y %3$d commits por detrás del remoto.</string>
+    <plurals name="git_summary_project_active_threads">
+        <item quantity="one">%1$d hilo con cambios</item>
+        <item quantity="other">%1$d hilos con cambios</item>
+    </plurals>
+</resources>

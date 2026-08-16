@@ -1,5 +1,6 @@
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
+  REMOTE_PUSH_ROUTING_VERSION,
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
@@ -13,6 +14,7 @@ import {
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
+import { TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS } from "./terminalCursorSync";
 import type { Thread } from "@/shared/contracts";
 import {
   dbGetProjects,
@@ -60,6 +62,14 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
     endpoints: {
       httpBaseUrl: info.httpBaseUrl,
       wsBaseUrl: info.wsBaseUrl,
+    },
+    capabilities: {
+      ...(ctx.options.pushRegistrations
+        ? { pushRouting: { versions: [REMOTE_PUSH_ROUTING_VERSION] } }
+        : {}),
+      terminalCursorSync: {
+        versions: [...TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS],
+      },
     },
   });
 }

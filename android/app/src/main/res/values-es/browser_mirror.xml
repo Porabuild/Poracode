@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">Duplicación del navegador</string>
+    <string name="browser_mirror_create_tab">Crear pestaña</string>
+    <string name="browser_mirror_close_tab">Cerrar pestaña</string>
+    <string name="browser_mirror_selected_tab">Pestaña seleccionada</string>
+    <string name="browser_mirror_untitled_tab">Pestaña sin título</string>
+    <string name="browser_mirror_back">Atrás</string>
+    <string name="browser_mirror_forward">Adelante</string>
+    <string name="browser_mirror_reload">Recargar</string>
+    <string name="browser_mirror_address">Dirección</string>
+    <string name="browser_mirror_loading">Cargando el estado del navegador…</string>
+    <string name="browser_mirror_starting">Iniciando la duplicación del navegador…</string>
+    <string name="browser_mirror_unavailable">La duplicación del navegador no está disponible.</string>
+    <string name="browser_mirror_waiting_frame">Esperando la imagen del navegador…</string>
+    <string name="browser_mirror_retry">Reintentar</string>
+    <string name="browser_mirror_no_session">No hay ninguna sesión remota seleccionada.</string>
+    <string name="browser_mirror_offline">La sesión remota está sin conexión.</string>
+    <string name="browser_mirror_not_ready">La sesión remota no está lista.</string>
+    <string name="browser_mirror_permission_denied">Esta sesión no permite controlar el navegador.</string>
+    <string name="browser_mirror_remote_error">La duplicación del navegador falló.</string>
+    <string name="browser_mirror_refreshing_after_command">El resultado del comando es incierto. Actualizando el estado del navegador…</string>
+    <string name="browser_mirror_frame_description">Página del navegador duplicada</string>
+    <string name="browser_mirror_type_on_page">Escribir en la página</string>
+    <string name="browser_mirror_key_enter">Intro</string>
+    <string name="browser_mirror_key_backspace">Retroceso</string>
+    <string name="browser_mirror_key_tab">Tabulador</string>
+    <string name="browser_mirror_key_escape">Escape</string>
+    <string name="browser_mirror_key_up">Arriba</string>
+    <string name="browser_mirror_key_down">Abajo</string>
+    <string name="browser_mirror_key_left">Izquierda</string>
+    <string name="browser_mirror_key_right">Derecha</string>
+    <string name="browser_mirror_back_nav">Atrás</string>
+    <string name="browser_mirror_start">Iniciar duplicación</string>
+    <string name="browser_mirror_stop">Detener duplicación</string>
+    <string name="browser_mirror_empty">No hay pestañas del navegador abiertas.</string>
+    <string name="browser_mirror_stopped">La duplicación del navegador está detenida.</string>
+</resources>

@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/primary.swiftdeps"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.dia"
+  }
+}

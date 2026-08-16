@@ -89,6 +89,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   dbGetThreadContextUsage: "remote-runtime-mirror-local",
   readTerminalScrollback: "remote-thread-snapshot-provided",
   readTerminalSize: "remote-server-internal",
+  // Desktop-only IPC for remote terminal cursor-sync; never exposed as HTTP.
+  readTerminalSnapshot: "remote-server-internal",
   dbPersistExperimentState: "remote-experiments-excluded",
   browserStartPicker: "device-owned-browser-control",
   showNotification: "device-owned-notification",

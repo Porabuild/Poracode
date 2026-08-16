@@ -19,6 +19,8 @@ import {
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import {
   useThreadTodoDockStore,
   type ThreadTodoDockPlacement,
@@ -109,9 +111,12 @@ export function openWorkspaceSettings(): void {
   usePanelStore.getState().openSettingsSection("workspaces");
 }
 
-/** Open the docked usage panel, or close all right-side panels if it is already active. */
-export function openUsagePanel(): void {
+function openUsagePanelSurface(): void {
   const panelStore = usePanelStore.getState();
+  if (isCompactLayoutViewport()) {
+    panelStore.openMobileUtilityPage("usage");
+    return;
+  }
   // A docked Usage is not what the right panel is showing, so closing it here
   // would be a no-op the user can see; bring it back instead.
   if (
@@ -126,9 +131,25 @@ export function openUsagePanel(): void {
   panelStore.openUsagePanel();
 }
 
+/** Open Usage in its ordinary saved provider order. */
+export function openUsagePanel(): void {
+  useUsageScopeStore.getState().setPreferredProviderId(null);
+  openUsagePanelSurface();
+}
+
+/** Open Usage with one provider temporarily promoted, without changing the saved order. */
+export function openUsagePanelForProvider(providerId: string): void {
+  useUsageScopeStore.getState().setPreferredProviderId(providerId);
+  openUsagePanelSurface();
+}
+
 /** Open the docked notes panel, or close all right-side panels if it is already active. */
 export function openNotesPanel(): void {
   const panelStore = usePanelStore.getState();
+  if (isCompactLayoutViewport()) {
+    panelStore.openMobileUtilityPage("notes");
+    return;
+  }
   if (
     panelStore.notesPanelOpen &&
     panelStore.rightPanelTab === "notes" &&
@@ -144,6 +165,10 @@ export function openNotesPanel(): void {
 /** Open the mobile remote-port forwarding panel, or close it when already active. */
 export function openPortsPanel(): void {
   const panelStore = usePanelStore.getState();
+  if (isCompactLayoutViewport()) {
+    panelStore.openMobileUtilityPage("ports");
+    return;
+  }
   if (panelStore.portsPanelOpen && panelStore.rightPanelTab === "ports") {
     closeAllPanels();
     return;
@@ -160,6 +185,11 @@ export function openPortsPanel(): void {
 export function toggleBrowserPanel(): void {
   if (!selectBrowserPanelAvailable(useRemoteServersStore.getState())) return;
   const panelStore = usePanelStore.getState();
+  if (isCompactLayoutViewport()) {
+    if (panelStore.mobileUtilityPage === "browser") panelStore.closeMobileUtilityPage();
+    else panelStore.openMobileUtilityPage("browser");
+    return;
+  }
   if (panelStore.browserPanelOpen && panelStore.rightPanelTab === "browser") {
     panelStore.setBrowserPanelOpen(false);
   } else {
@@ -297,8 +327,14 @@ export function openGitReview(
   worktreePath?: string,
   originComposerId?: string,
 ): void {
-  const mode = useSharedSettings.getState().gitReviewMode;
   const panelStore = usePanelStore.getState();
+  if (isCompactLayoutViewport()) {
+    showGitReviewPanel(projectId, worktreePath, originComposerId);
+    panelStore.openMobileUtilityPage("workspace");
+    return;
+  }
+
+  const mode = useSharedSettings.getState().gitReviewMode;
   const gitReviewContext = panelStore.gitReviewContext;
   const gitPanelOpen = !!gitReviewContext && panelStore.gitReviewAsPanel;
   const rightPanelTab = panelStore.rightPanelTab;
@@ -332,9 +368,17 @@ export function openGitReview(
   }
 }
 
-export function showGitReviewPanel(projectId: string, worktreePath?: string): void {
+export function showGitReviewPanel(
+  projectId: string,
+  worktreePath?: string,
+  originComposerId?: string,
+): void {
   const panelStore = usePanelStore.getState();
-  panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
+  panelStore.setGitReviewContext({
+    projectId,
+    ...(worktreePath ? { worktreePath } : {}),
+    ...(originComposerId ? { originComposerId } : {}),
+  });
   panelStore.setGitReviewAsPanel(true);
   panelStore.setGitOverlayOpen(false);
   panelStore.setRightPanelTab("git");

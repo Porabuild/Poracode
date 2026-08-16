@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">Salida del terminal</string>
+    <string name="terminal_input_label">Entrada del terminal</string>
+    <string name="terminal_input_placeholder">Escribe un comando</string>
+    <string name="terminal_send">Enviar</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Tabulador</string>
+    <string name="terminal_close">Cerrar terminal</string>
+    <string name="terminal_reconnect">Reconectar</string>
+    <string name="terminal_start">Iniciar terminal</string>
+    <string name="terminal_start_description">Iniciar una terminal de desarrollo para este proyecto</string>
+    <string name="terminal_status_authentication">El acceso al terminal caducó</string>
+    <string name="terminal_status_permission">No se permite el acceso al terminal</string>
+    <string name="terminal_status_unsupported">La transmisión fiable del terminal no está disponible en este host</string>
+    <string name="terminal_status_protocol">El terminal envió una respuesta no válida</string>
+    <string name="terminal_status_offline">No se encontró el terminal</string>
+    <string name="terminal_status_reconnecting">Reconectando el terminal…</string>
+    <string name="terminal_status_connecting">Conectando el terminal…</string>
+    <string name="terminal_status_synchronizing">Sincronizando el terminal…</string>
+    <string name="terminal_status_suspended">Terminal pausado en segundo plano</string>
+    <string name="terminal_status_failed">Falló la conexión del terminal</string>
+    <string name="terminal_status_exited">El proceso del terminal finalizó</string>
+    <string name="terminal_status_live">Terminal conectado</string>
+    <string name="terminal_status_idle">Terminal inactivo</string>
+</resources>

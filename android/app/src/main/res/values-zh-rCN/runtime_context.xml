@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">上下文</string>
+    <string name="runtime_context_usage">上下文用量</string>
+    <string name="runtime_context_show_details">显示上下文用量详情</string>
+    <string name="runtime_context_hide_details">隐藏上下文用量详情</string>
+    <string name="runtime_context_percent_full">已使用 %1$d%%</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s 个令牌</string>
+    <string name="runtime_context_used_value">已使用 %1$s</string>
+    <string name="runtime_context_limit_value">上限 %1$s</string>
+    <string name="runtime_context_used">已使用</string>
+    <string name="runtime_context_unknown">未知</string>
+    <string name="runtime_context_provider_unreported">提供商尚未报告令牌用量。</string>
+    <string name="runtime_context_summary">%1$s：%2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s千</string>
+    <string name="runtime_context_compact_millions">%1$s百万</string>
+</resources>

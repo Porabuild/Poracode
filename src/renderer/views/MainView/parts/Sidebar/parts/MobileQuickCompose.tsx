@@ -35,6 +35,9 @@ export function MobileQuickCompose(props: { projectId: string }) {
       }}
     >
       <section className="m-draft">
+        <span className="m-draft-collapsed-placeholder" aria-hidden="true">
+          {t`Plan, ask, build…`}
+        </span>
         <ThreadDraftView
           key={project.id}
           project={project}

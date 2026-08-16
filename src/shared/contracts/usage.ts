@@ -21,9 +21,14 @@ export type {
   UsageCredits,
   UsageMechanism,
   UsageProviderDescriptor,
-} from "@poracode/agents-usage";
+} from "@poracode/agents-usage/types";
 
-import type { UsageSnapshot } from "@poracode/agents-usage";
+import { usageSnapshotSchema, type UsageSnapshot } from "@poracode/agents-usage/types";
+import {
+  assertExactType,
+  type AssertExact,
+  type NormalizeExactOptionalProperties,
+} from "./exactType";
 
 export const providerUsagePayloadSchema = z.object({
   /** Restrict collection to these provider ids; omitted = all known providers. */
@@ -43,6 +48,18 @@ export interface ProviderUsageResponse {
   /** True when the snapshots came from the on-disk cache (a refresh may be in flight). */
   fromCache: boolean;
 }
+
+export const providerUsageResponseSchema = z.object({
+  snapshots: z.array(usageSnapshotSchema),
+  fromCache: z.boolean(),
+});
+
+assertExactType<
+  AssertExact<
+    z.output<typeof providerUsageResponseSchema>,
+    NormalizeExactOptionalProperties<ProviderUsageResponse>
+  >
+>();
 
 export const usageLoginPayloadSchema = z.object({
   /** Provider to launch the browser-overlay cookie login for (e.g. "grok"). */

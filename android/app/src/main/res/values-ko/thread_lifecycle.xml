@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">스레드 작업</string>
+    <string name="thread_lifecycle_rename">이름 변경</string>
+    <string name="thread_lifecycle_rename_prompt">새 스레드 제목</string>
+    <string name="thread_lifecycle_relaunch">다시 시작</string>
+    <string name="thread_lifecycle_relaunch_prompt">에이전트가 다음에 무엇을 해야 하나요?</string>
+    <string name="thread_lifecycle_pin">고정</string>
+    <string name="thread_lifecycle_unpin">고정 해제</string>
+    <string name="thread_lifecycle_done">완료로 표시</string>
+    <string name="thread_lifecycle_not_done">미완료로 표시</string>
+    <string name="thread_lifecycle_acknowledge">확인</string>
+    <string name="thread_lifecycle_archive">보관</string>
+    <string name="thread_lifecycle_unarchive">보관 해제</string>
+    <string name="thread_lifecycle_delete">삭제</string>
+    <string name="thread_lifecycle_cancel">취소</string>
+    <string name="thread_lifecycle_submit">제출</string>
+    <string name="thread_lifecycle_archive_confirmation">이 스레드를 보관할까요?</string>
+    <string name="thread_lifecycle_delete_confirmation">이 스레드를 영구적으로 삭제할까요?</string>
+    <string name="thread_lifecycle_failed">스레드 작업 실패</string>
+    <string name="thread_lifecycle_close">닫기</string>
+    <string name="thread_lifecycle_failure_ambiguous">결과가 확실하지 않습니다. 스레드 목록을 새로 고치는 중입니다.</string>
+    <string name="thread_lifecycle_failure_generic">스레드 작업을 완료할 수 없습니다. 목록을 새로 고친 후 다시 시도하세요.</string>
+</resources>

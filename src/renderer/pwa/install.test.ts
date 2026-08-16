@@ -52,7 +52,7 @@ describe("pwaInstall", () => {
     expect(pwaInstall.canInstall()).toBe(false);
   });
 
-  it("detects standalone and native app contexts", async () => {
+  it("detects the standalone display context", async () => {
     const pwaInstall = await loadPwaInstall();
     Object.defineProperty(window.navigator, "standalone", {
       configurable: true,
@@ -64,9 +64,8 @@ describe("pwaInstall", () => {
         matches: query === "(display-mode: standalone)",
       })),
     });
-    vi.stubGlobal("Capacitor", { isNativePlatform: () => true });
 
     expect(pwaInstall.isStandaloneDisplay()).toBe(true);
-    expect(pwaInstall.isNativeApp()).toBe(true);
+    expect(pwaInstall.isIosInstallBrowser()).toBe(false);
   });
 });

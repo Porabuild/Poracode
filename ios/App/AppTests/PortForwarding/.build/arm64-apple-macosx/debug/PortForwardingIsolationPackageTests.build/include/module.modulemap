@@ -1,0 +1,3 @@
+module PortForwardingIsolationPackageTests {
+    header "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/include/PortForwardingIsolationPackageTests-Swift.h"
+}

@@ -1,0 +1,1851 @@
+{
+  "builtTestProducts": [
+    {
+      "binaryPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.xctest/Contents/MacOS/PortForwardingIsolationPackageTests",
+      "packagePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding",
+      "productName": "PortForwardingIsolationPackageTests"
+    }
+  ],
+  "copyCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolation_PortForwarding.bundle/Info.plist": {
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Info.plist"
+        }
+      ],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolation_PortForwarding.bundle/Info.plist"
+        }
+      ]
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolation_PortForwarding.bundle/PortForwarding.xcstrings": {
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwarding.xcstrings"
+        }
+      ],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolation_PortForwarding.bundle/PortForwarding.xcstrings"
+        }
+      ]
+    }
+  },
+  "explicitTargetDependencyImportCheckingMode": {
+    "none": {}
+  },
+  "generatedSourceTargetSet": [],
+  "pluginDescriptions": [],
+  "swiftCommands": {
+    "C.PortForwarding-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/ClientConnectionID.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingController.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGlass.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingPresentation.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionComposition.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Metadata001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models009.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models010.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models011.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models012.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models013.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models014.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models015.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models016.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models017.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models018.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models019.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models020.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models021.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models022.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models023.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models024.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models025.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models026.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models027.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Runtime.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/RemoteMutationClassification.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingEntryURL.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHTTPClient.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostCatalog.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostTransportSource.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteAPI.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteV3Contract.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/SelectedPortForwardingGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "virtual",
+          "name": "<PortForwarding-arm64-apple-macosx-debug.module-resources>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "PortForwarding",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwarding.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/include/PortForwarding-Swift.h",
+        "-swift-version",
+        "6",
+        "-strict-concurrency=complete",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "portforwarding"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwarding.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/ClientConnectionID.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingController.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGateway.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGlass.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingModels.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingPresentation.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionComposition.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionView.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingStrings.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingView.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Metadata001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models004.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models005.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models006.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models007.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models008.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models009.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models010.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models011.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models012.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models013.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models014.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models015.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models016.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models017.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models018.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models019.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models020.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models021.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models022.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models023.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models024.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models025.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models026.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models027.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Runtime.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation004.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation005.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation006.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation007.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation008.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/RemoteMutationClassification.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingEntryURL.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHTTPClient.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostCatalog.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostTransportSource.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteAPI.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteV3Contract.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/SelectedPortForwardingGateway.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/DerivedSources/resource_bundle_accessor.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build",
+      "wholeModuleOptimization": false
+    },
+    "C.PortForwardingIsolationPackageTests-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.derived/runner.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwardingTests.swiftmodule"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "PortForwardingIsolationPackageTests",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwardingIsolationPackageTests.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/include/PortForwardingIsolationPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "portforwarding"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwardingIsolationPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.derived/runner.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build",
+      "wholeModuleOptimization": false
+    },
+    "C.PortForwardingTests-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingContractTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingControllerTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingEntryURLTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingHTTPTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingQualityTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingSecurityTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingTestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/SelectedPortForwardingGatewayTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwarding.swiftmodule"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "PortForwardingTests",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwardingTests.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingContractTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingControllerTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingEntryURLTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingHTTPTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingQualityTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingSecurityTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingTestSupport.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/SelectedPortForwardingGatewayTests.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-strict-concurrency=complete",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "portforwarding"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingContractTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingControllerTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingEntryURLTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingHTTPTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingQualityTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingSecurityTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingTestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/SelectedPortForwardingGatewayTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules/PortForwardingTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingContractTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingControllerTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingEntryURLTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingHTTPTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingQualityTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingSecurityTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingTestSupport.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/SelectedPortForwardingGatewayTests.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build",
+      "wholeModuleOptimization": false
+    }
+  },
+  "swiftFrontendCommands": {},
+  "swiftTargetScanArgs": {
+    "PortForwarding": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "PortForwarding",
+      "-package-name",
+      "portforwarding",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/ClientConnectionID.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingController.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGateway.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGlass.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingModels.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingPresentation.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionComposition.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionView.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingStrings.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingView.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Metadata001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models004.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models005.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models006.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models007.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models008.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models009.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models010.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models011.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models012.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models013.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models014.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models015.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models016.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models017.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models018.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models019.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models020.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models021.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models022.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models023.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models024.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models025.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models026.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models027.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Runtime.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation004.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation005.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation006.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation007.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation008.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/RemoteMutationClassification.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingEntryURL.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHTTPClient.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostCatalog.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostTransportSource.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteAPI.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteV3Contract.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/SelectedPortForwardingGateway.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/include/PortForwarding-Swift.h",
+      "-swift-version",
+      "6",
+      "-strict-concurrency=complete",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "portforwarding",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "PortForwardingIsolationPackageTests": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "PortForwardingIsolationPackageTests",
+      "-package-name",
+      "portforwarding",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/include/PortForwardingIsolationPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "portforwarding",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "PortForwardingTests": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "PortForwardingTests",
+      "-package-name",
+      "portforwarding",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingContractTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingControllerTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingEntryURLTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingHTTPTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingQualityTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingSecurityTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingTestSupport.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/SelectedPortForwardingGatewayTests.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-strict-concurrency=complete",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "portforwarding",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap": {
+    "PortForwarding": [],
+    "PortForwardingIsolationPackageTests": ["PortForwardingTests", "PortForwarding"],
+    "PortForwardingTests": ["PortForwarding"]
+  },
+  "testDiscoveryCommands": {},
+  "testEntryPointCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.derived/runner.swift": {
+      "inputs": [],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration": {
+    "default": {}
+  },
+  "writeCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/ClientConnectionID.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingController.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGlass.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingPresentation.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionComposition.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Metadata001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models009.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models010.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models011.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models012.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models013.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models014.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models015.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models016.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models017.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models018.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models019.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models020.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models021.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models022.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models023.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models024.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models025.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models026.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models027.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Runtime.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/RemoteMutationClassification.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingEntryURL.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHTTPClient.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostCatalog.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostTransportSource.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteAPI.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteV3Contract.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/SelectedPortForwardingGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/DerivedSources/resource_bundle_accessor.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.product/Objects.LinkFileList": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<link-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingContractTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingControllerTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingEntryURLTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingHTTPTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingQualityTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingSecurityTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/PortForwardingTestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/SelectedPortForwardingGatewayTests.swift.o"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingIsolationPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingContractTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingControllerTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingEntryURLTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingHTTPTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingQualityTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingSecurityTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PortForwardingTestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/SelectedPortForwardingGatewayTests.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwardingTests.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt": {
+      "alwaysOutOfDate": true,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<swift-get-version>"
+        },
+        {
+          "kind": "file",
+          "name": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

@@ -415,7 +415,7 @@ export function createDesktopRemoteAccessController(
         pushRegistrations: {
           webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
           upsert: (registration) => pushStore.upsert(registration),
-          remove: (deviceId) => pushStore.remove(deviceId),
+          remove: (deviceId, routing) => pushStore.remove(deviceId, routing),
         },
         onPairingChanged: () => {
           options.notifyRemoteAccessPairingChanged(getRemoteAccessPairingInfo(server));
@@ -518,11 +518,13 @@ export function createDesktopRemoteAccessController(
     remoteAccessServer = null;
     pushCoordinator = null;
     portForwarding = null;
-    options.notifyEventInterestsChanged({
-      terminalThreadIds: [],
-      runtimeThreadIds: [],
-      allRuntimeEvents: false,
-    });
+    void Promise.resolve(
+      options.notifyEventInterestsChanged({
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        allRuntimeEvents: false,
+      }),
+    ).catch(() => {});
     if (attempt?.tailscaleServeUrl) {
       void teardownAttemptTailscaleServe(attempt);
     } else {
@@ -716,11 +718,13 @@ export function createDesktopRemoteAccessController(
       remoteAccessServer = null;
       pushCoordinator = null;
       portForwarding = null;
-      options.notifyEventInterestsChanged({
-        terminalThreadIds: [],
-        runtimeThreadIds: [],
-        allRuntimeEvents: false,
-      });
+      void Promise.resolve(
+        options.notifyEventInterestsChanged({
+          terminalThreadIds: [],
+          runtimeThreadIds: [],
+          allRuntimeEvents: false,
+        }),
+      ).catch(() => {});
       // Preserve the historical before-quit ordering: start closing the HTTP
       // server, then immediately tear down forwarding, without disabling Serve.
       const serverDisposal = server

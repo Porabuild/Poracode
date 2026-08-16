@@ -40,6 +40,8 @@ export function TerminalSurfaces(props: {
   updateTabTitle: (tabId: string, title: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+  mobile?: boolean;
+  allowSplit?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -88,7 +90,9 @@ export function TerminalSurfaces(props: {
     frame = requestAnimationFrame(() => {
       settledFrame = requestAnimationFrame(() => {
         terminalRefs.current.get(selectedTabId)?.refit();
-        if (activeTab?.splitId) terminalRefs.current.get(activeTab.splitId)?.refit();
+        if (props.allowSplit !== false && activeTab?.splitId) {
+          terminalRefs.current.get(activeTab.splitId)?.refit();
+        }
         terminalRefs.current.get(selectedTabId)?.focus();
       });
     });
@@ -97,7 +101,7 @@ export function TerminalSurfaces(props: {
       if (frame !== 0) cancelAnimationFrame(frame);
       if (settledFrame !== 0) cancelAnimationFrame(settledFrame);
     };
-  }, [activeTab?.splitId, activeTabId, focusRequestId, selectedTabId]);
+  }, [activeTab?.splitId, activeTabId, focusRequestId, props.allowSplit, selectedTabId]);
 
   function handleResizeStart(e: React.MouseEvent) {
     e.preventDefault();
@@ -149,6 +153,15 @@ export function TerminalSurfaces(props: {
   }
 
   function surfaceProps(tab: DevTerminalTab) {
+    const mobileProps = props.mobile
+      ? {
+          preferDomRenderer: true,
+          resizeTerminalOnFit: true,
+          suppressTouchKeyboard: true,
+          themeBackgroundVar: "--background",
+          touchScrollEnabled: true,
+        }
+      : {};
     if (watchTerminal) {
       return {
         outputSource: (listener: TerminalFeedListener) => watchTerminal(tab.id, listener),
@@ -156,11 +169,15 @@ export function TerminalSurfaces(props: {
           ? useThreadOutputStore.getState().readTail(tab.id, 100_000)
           : "",
         preferDomRenderer: true,
+        ...mobileProps,
       };
     }
-    return tab.runActionId
-      ? { initialScrollback: useThreadOutputStore.getState().readTail(tab.id, 100_000) }
-      : {};
+    return {
+      ...(tab.runActionId
+        ? { initialScrollback: useThreadOutputStore.getState().readTail(tab.id, 100_000) }
+        : {}),
+      ...mobileProps,
+    };
   }
 
   function handleResizeKeyDown(e: React.KeyboardEvent) {
@@ -186,7 +203,7 @@ export function TerminalSurfaces(props: {
     }
   }
 
-  if (activeTab?.splitId) {
+  if (props.allowSplit !== false && activeTab?.splitId) {
     return (
       <div ref={containerRef} className="flex h-full min-h-0 w-full">
         <div

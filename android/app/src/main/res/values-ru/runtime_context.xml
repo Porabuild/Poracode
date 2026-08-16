@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">Контекст</string>
+    <string name="runtime_context_usage">Использование контекста</string>
+    <string name="runtime_context_show_details">Показать сведения об использовании контекста</string>
+    <string name="runtime_context_hide_details">Скрыть сведения об использовании контекста</string>
+    <string name="runtime_context_percent_full">Заполнено на %1$d%%</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s токенов</string>
+    <string name="runtime_context_used_value">Использовано %1$s</string>
+    <string name="runtime_context_limit_value">Лимит: %1$s</string>
+    <string name="runtime_context_used">Использовано</string>
+    <string name="runtime_context_unknown">Неизвестно</string>
+    <string name="runtime_context_provider_unreported">Провайдер не сообщил об использовании токенов.</string>
+    <string name="runtime_context_summary">%1$s: %2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s тыс.</string>
+    <string name="runtime_context_compact_millions">%1$s млн</string>
+</resources>

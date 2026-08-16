@@ -8,6 +8,7 @@ import { Bold, Italic, MessageSquarePlus } from "lucide-react";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { useNotesStore } from "@/renderer/state/notesStore";
 import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChrome";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
 /**
  * Free-form rich-text notes editor for a project (TipTap). Persists the
@@ -18,6 +19,7 @@ import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChro
 export function NotesEditor(props: { projectId: string }) {
   const { projectId } = props;
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const setDoc = useNotesStore((s) => s.setDoc);
   // Read the loaded document once at mount — feeding store updates back into the
   // editor on every keystroke would reset the caret.
@@ -64,6 +66,24 @@ export function NotesEditor(props: { projectId: string }) {
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
         className={`lc-notes-editor ${sidebarBodyScrollClass()} px-3 py-2`}
+        onPointerDownCapture={(event) => {
+          if (
+            !compact ||
+            (event.pointerType !== "touch" && event.pointerType !== "pen") ||
+            editor.view.dom.contains(document.activeElement)
+          ) {
+            return;
+          }
+          const position = editor.view.posAtCoords({
+            left: event.clientX,
+            top: event.clientY,
+          })?.pos;
+          event.preventDefault();
+          if (position !== undefined) editor.commands.setTextSelection(position);
+          editor.view.dom.focus({ preventScroll: true });
+          window.scrollTo(0, 0);
+          window.requestAnimationFrame(() => window.scrollTo(0, 0));
+        }}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) {
             e.preventDefault();

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Chuyển tiếp cổng</string>
+    <string name="ports_back">Quay lại</string>
+    <string name="ports_refresh">Làm mới các cổng</string>
+    <string name="ports_target_port">Cổng đích</string>
+    <string name="ports_start_open">Bắt đầu và mở</string>
+    <string name="ports_dismiss">Đóng</string>
+    <string name="ports_detected">Các cổng đã phát hiện</string>
+    <string name="ports_no_detected">Không phát hiện cổng nào đang lắng nghe.</string>
+    <string name="ports_active">Các chuyển tiếp đang hoạt động</string>
+    <string name="ports_no_active">Không có chuyển tiếp cổng nào đang hoạt động.</string>
+    <string name="ports_port_number">Cổng %1$d</string>
+    <string name="ports_protocol_http">Dịch vụ HTTP</string>
+    <string name="ports_protocol_unknown">Giao thức không xác định</string>
+    <string name="ports_forward_port">Chuyển tiếp</string>
+    <string name="ports_forward_summary">Cổng %1$d → %2$d</string>
+    <string name="ports_open">Mở</string>
+    <string name="ports_busy">Đang xử lý…</string>
+    <string name="ports_stop">Dừng</string>
+    <string name="ports_failure_offline">Hãy kết nối lại với máy chủ để quản lý chuyển tiếp cổng.</string>
+    <string name="ports_failure_scope">Kết nối này không cấp quyền chuyển tiếp cổng.</string>
+    <string name="ports_failure_auth">Phiên máy chủ đã hết hạn. Hãy kết nối lại rồi thử lại.</string>
+    <string name="ports_failure_not_found">Chuyển tiếp cổng đó không còn tồn tại.</string>
+    <string name="ports_failure_input">Nhập một cổng hợp lệ từ 1 đến 65535.</string>
+    <string name="ports_failure_response">Máy chủ trả về phản hồi chuyển tiếp cổng không hợp lệ.</string>
+    <string name="ports_failure_ambiguous">Yêu cầu có thể đã hoàn tất. Danh sách đã được làm mới.</string>
+    <string name="ports_failure_unavailable">Hiện không thể sử dụng tính năng chuyển tiếp cổng.</string>
+</resources>

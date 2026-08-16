@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">Recopie du navigateur</string>
+    <string name="browser_mirror_create_tab">Créer un onglet</string>
+    <string name="browser_mirror_close_tab">Fermer l’onglet</string>
+    <string name="browser_mirror_selected_tab">Onglet sélectionné</string>
+    <string name="browser_mirror_untitled_tab">Onglet sans titre</string>
+    <string name="browser_mirror_back">Précédent</string>
+    <string name="browser_mirror_forward">Suivant</string>
+    <string name="browser_mirror_reload">Actualiser</string>
+    <string name="browser_mirror_address">Adresse</string>
+    <string name="browser_mirror_loading">Chargement de l’état du navigateur…</string>
+    <string name="browser_mirror_starting">Démarrage de la recopie du navigateur…</string>
+    <string name="browser_mirror_unavailable">La recopie du navigateur est indisponible.</string>
+    <string name="browser_mirror_waiting_frame">En attente de l’image du navigateur…</string>
+    <string name="browser_mirror_retry">Réessayer</string>
+    <string name="browser_mirror_no_session">Aucune session distante n’est sélectionnée.</string>
+    <string name="browser_mirror_offline">La session distante est hors ligne.</string>
+    <string name="browser_mirror_not_ready">La session distante n’est pas prête.</string>
+    <string name="browser_mirror_permission_denied">Cette session n’autorise pas le contrôle du navigateur.</string>
+    <string name="browser_mirror_remote_error">La recopie du navigateur a échoué.</string>
+    <string name="browser_mirror_refreshing_after_command">Le résultat de la commande est incertain. Actualisation de l’état du navigateur…</string>
+    <string name="browser_mirror_frame_description">Page du navigateur recopiée</string>
+    <string name="browser_mirror_type_on_page">Saisir sur la page</string>
+    <string name="browser_mirror_key_enter">Entrée</string>
+    <string name="browser_mirror_key_backspace">Retour arrière</string>
+    <string name="browser_mirror_key_tab">Tabulation</string>
+    <string name="browser_mirror_key_escape">Échap</string>
+    <string name="browser_mirror_key_up">Haut</string>
+    <string name="browser_mirror_key_down">Bas</string>
+    <string name="browser_mirror_key_left">Gauche</string>
+    <string name="browser_mirror_key_right">Droite</string>
+    <string name="browser_mirror_back_nav">Retour</string>
+    <string name="browser_mirror_start">Démarrer la recopie</string>
+    <string name="browser_mirror_stop">Arrêter la recopie</string>
+    <string name="browser_mirror_empty">Aucun onglet du navigateur n’est ouvert.</string>
+    <string name="browser_mirror_stopped">La recopie du navigateur est arrêtée.</string>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">スレッドの操作</string>
+    <string name="thread_lifecycle_rename">名前を変更</string>
+    <string name="thread_lifecycle_rename_prompt">新しいスレッド名</string>
+    <string name="thread_lifecycle_relaunch">再起動</string>
+    <string name="thread_lifecycle_relaunch_prompt">エージェントに次に何をさせますか？</string>
+    <string name="thread_lifecycle_pin">ピン留め</string>
+    <string name="thread_lifecycle_unpin">ピン留めを解除</string>
+    <string name="thread_lifecycle_done">完了にする</string>
+    <string name="thread_lifecycle_not_done">未完了に戻す</string>
+    <string name="thread_lifecycle_acknowledge">確認済みにする</string>
+    <string name="thread_lifecycle_archive">アーカイブ</string>
+    <string name="thread_lifecycle_unarchive">アーカイブ解除</string>
+    <string name="thread_lifecycle_delete">削除</string>
+    <string name="thread_lifecycle_cancel">キャンセル</string>
+    <string name="thread_lifecycle_submit">送信</string>
+    <string name="thread_lifecycle_archive_confirmation">このスレッドをアーカイブしますか？</string>
+    <string name="thread_lifecycle_delete_confirmation">このスレッドを完全に削除しますか？</string>
+    <string name="thread_lifecycle_failed">スレッド操作に失敗しました</string>
+    <string name="thread_lifecycle_close">閉じる</string>
+    <string name="thread_lifecycle_failure_ambiguous">結果を確認できません。スレッド一覧を更新しています。</string>
+    <string name="thread_lifecycle_failure_generic">スレッド操作を完了できませんでした。一覧を更新してもう一度お試しください。</string>
+</resources>

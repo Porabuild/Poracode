@@ -1,0 +1,7 @@
+<resources>
+    <string name="hosts_title">デスクトップ</string><string name="hosts_manage">デスクトップを管理</string>
+    <string name="hosts_add">デスクトップを追加</string><string name="hosts_add_description">ペアリングリンクを貼り付けるか、直接接続先とワンタイムトークンを入力します。</string><string name="hosts_add_action">デスクトップを追加</string>
+    <string name="hosts_remove">デスクトップを削除</string><string name="hosts_remove_action">削除</string><string name="hosts_remove_confirm_title">%1$s を削除しますか？</string><string name="hosts_remove_confirm_message">このデバイスからデスクトップと保存済み認証情報を削除します。後で再度ペアリングできます。</string>
+    <string name="hosts_selected">選択中</string><string name="hosts_kept_ready">待機中</string><string name="hosts_switch">切り替え</string><string name="hosts_empty">デスクトップはまだありません</string><string name="hosts_choose_detail">接続の詳細を表示するデスクトップを選択してください。</string>
+    <string name="local_network_permission_title">ローカルネットワークへのアクセスを許可しますか？</string><string name="local_network_permission_rationale">%1$s に直接接続するには、Poracode にローカルネットワークへのアクセスが必要です。リレー接続とインターネット接続には不要です。</string><string name="local_network_permission_continue">続ける</string><string name="local_network_permission_not_now">後で</string><string name="local_network_permission_denied_title">ローカルネットワークへのアクセスが拒否されました</string><string name="local_network_permission_denied_message">許可がないため、この LAN デスクトップに接続できません。再試行するか、リレー接続を使用してください。</string><string name="local_network_permission_try_again">再試行</string>
+</resources>

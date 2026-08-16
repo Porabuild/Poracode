@@ -1,18 +1,271 @@
-import { Button, Input } from "@heroui/react";
+import type { KeyboardEvent, ReactNode } from "react";
+import { Button, Drawer, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Download, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  ClipboardPaste,
+  Download,
+  Link2,
+  Loader2,
+  MoreHorizontal,
+  QrCode,
+  SlidersHorizontal,
+} from "lucide-react";
 import { isIosInstallBrowser, useCanInstall, promptInstall } from "@/renderer/pwa/install";
 import type { Pairing } from "../usePairing";
+import { QrScanner } from "./QrScanner";
 
-/** Where the desktop shows its pairing code — repeated on both surfaces. */
-export function DesktopHint() {
+/**
+ * The live scanner plus its standard wiring, so each surface only has to say what
+ * "enter it by hand instead" means for its own layout. Renders nothing until the
+ * scanner is open.
+ */
+export function PairingScannerOverlay(props: {
+  readonly pairing: Pairing;
+  readonly onEnterManually: () => void;
+}) {
+  const { pairing } = props;
+  if (!pairing.scanning) return null;
   return (
-    <p className="mt-8 text-center text-xs leading-5 text-muted">
-      <Trans>
-        Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here —
-        or enter the endpoint and pairing token manually.
-      </Trans>
-    </p>
+    <QrScanner
+      rejection={pairing.scanRejection}
+      onResult={pairing.pairFromScan}
+      onCancel={pairing.closeScanner}
+      onPickPhoto={() => {
+        pairing.closeScanner();
+        pairing.scanInputRef.current?.click();
+      }}
+      onEnterManually={() => {
+        pairing.closeScanner();
+        props.onEnterManually();
+      }}
+    />
+  );
+}
+
+/**
+ * The primary pairing route. A card rather than a button: on the first screen a
+ * new user sees, the one thing we want them to do should read as the surface's
+ * subject, not as one control among several.
+ */
+export function ScanCard(props: {
+  readonly pairing: Pairing;
+  /** Phones get a full-width thumb target; a mouse-sized card suits desktop. */
+  readonly compact?: boolean;
+  readonly className?: string;
+}) {
+  const { t } = useLingui();
+  const { pairing } = props;
+  return (
+    <button
+      type="button"
+      aria-label={t`Scan the desktop pairing code with the camera`}
+      disabled={pairing.busy}
+      onClick={pairing.openScanner}
+      className={`poracode-pair-card group flex w-full touch-manipulation items-center gap-4 text-left disabled:opacity-70 ${
+        props.compact ? "px-5 py-4" : "px-5 py-5"
+      } ${props.className ?? ""}`}
+    >
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent/12 text-accent">
+        <QrCode className="size-6" strokeWidth={1.5} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[0.9375rem] font-semibold text-foreground">
+          {pairing.busy ? <Trans>Pairing…</Trans> : <Trans>Scan pairing code</Trans>}
+        </span>
+        <span className="text-xs leading-5 text-muted">
+          <Trans>Open Settings → Remote Access on your desktop to show the code.</Trans>
+        </span>
+      </span>
+      <ChevronDown className="size-4 shrink-0 -rotate-90 text-muted" />
+    </button>
+  );
+}
+
+/**
+ * Everything that is not scanning, in a bottom drawer. Scanning is what almost
+ * everyone will use, so pasting a link is demoted rather than presented as an
+ * equal choice — but it stays one tap away in the phone's thumb zone.
+ *
+ * Controlled because the surface opens it on the user's behalf when a device
+ * cannot scan or the scanner falls back to manual entry.
+ */
+export function OtherWaysDrawer(props: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly pairing: Pairing;
+  readonly pairingUrl: string;
+  readonly onPairingUrlChange: (value: string) => void;
+  readonly endpoint: string;
+  readonly onEndpointChange: (value: string) => void;
+  readonly token: string;
+  readonly onTokenChange: (value: string) => void;
+  readonly className?: string;
+}) {
+  const { t } = useLingui();
+  const canPairFromLink = props.pairingUrl.trim().length > 0;
+  const canPairManually = props.endpoint.trim().length > 0 && props.token.trim().length > 0;
+  const canSubmit = !props.pairing.busy && (canPairFromLink || canPairManually);
+  const canReadClipboard =
+    typeof navigator !== "undefined" && typeof navigator.clipboard?.readText === "function";
+  const clearError = () => props.pairing.setValidationError(null);
+  const pastePairingLink = async () => {
+    if (!canReadClipboard) return;
+    try {
+      const value = await navigator.clipboard.readText();
+      if (value.length === 0) return;
+      props.onPairingUrlChange(value);
+      clearError();
+    } catch {
+      // Clipboard permission remains browser-owned; the field still supports
+      // the platform paste menu when programmatic reading is unavailable.
+    }
+  };
+  const submit = () => {
+    if (!canSubmit) return;
+    if (canPairFromLink) {
+      props.pairing.pairFromValue(props.pairingUrl);
+      return;
+    }
+    props.pairing.pairFromCredentials(props.endpoint, props.token);
+  };
+  const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") submit();
+  };
+
+  return (
+    <div className={`flex w-full flex-col ${props.className ?? ""}`}>
+      <button
+        type="button"
+        aria-expanded={props.open}
+        onClick={() => props.onOpenChange(true)}
+        className="flex h-12 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl text-sm text-muted transition-colors hover:bg-default hover:text-foreground"
+      >
+        <MoreHorizontal className="size-4" />
+        <Trans>Other ways to connect</Trans>
+        <ChevronDown className="size-4 -rotate-90" />
+      </button>
+
+      <Drawer.Backdrop
+        isOpen={props.open}
+        onOpenChange={props.onOpenChange}
+        variant="blur"
+        className="poracode-pairing-drawer-viewport"
+      >
+        <Drawer.Content placement="bottom" className="poracode-pairing-drawer-viewport">
+          <Drawer.Dialog className="poracode-pairing-drawer-dialog max-h-[min(80lvh,42rem)] rounded-t-[1.75rem] bg-surface !p-0">
+            <Drawer.Handle className="pb-3 pt-2" />
+            <Drawer.Header className="px-6 pb-4">
+              <Drawer.Heading>
+                <Trans>Other ways to connect</Trans>
+              </Drawer.Heading>
+            </Drawer.Header>
+            <Drawer.Body className="px-6 pb-5">
+              <div className="flex w-full flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label
+                      htmlFor="poracode-pairing-link"
+                      className="flex items-center gap-2 text-xs font-medium text-foreground"
+                    >
+                      <Link2 className="size-4 text-muted" />
+                      <Trans>Pairing link</Trans>
+                    </label>
+                    <Button
+                      isIconOnly
+                      aria-label={t`Paste`}
+                      size="sm"
+                      variant="ghost"
+                      className="size-7 min-h-7 min-w-7 p-0"
+                      isDisabled={props.pairing.busy || !canReadClipboard}
+                      onPress={() => void pastePairingLink()}
+                    >
+                      <ClipboardPaste className="size-3.5" />
+                    </Button>
+                  </div>
+                  <Input
+                    id="poracode-pairing-link"
+                    aria-label={t`Pairing URL`}
+                    className="h-12 w-full text-base"
+                    value={props.pairingUrl}
+                    placeholder={t`Paste pairing URL…`}
+                    inputMode="url"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    disabled={props.pairing.busy}
+                    onChange={(event) => {
+                      props.onPairingUrlChange(event.currentTarget.value);
+                      clearError();
+                    }}
+                    onKeyDown={submitOnEnter}
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-muted">
+                  <span className="h-px flex-1 bg-border" />
+                  <Trans>or</Trans>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <SlidersHorizontal className="size-4 text-muted" />
+                    <Trans>Manual connection</Trans>
+                  </span>
+                  <Input
+                    aria-label={t`Server base URL`}
+                    className="h-12 w-full text-base"
+                    value={props.endpoint}
+                    placeholder={t`Server base URL`}
+                    inputMode="url"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    disabled={props.pairing.busy}
+                    onChange={(event) => {
+                      props.onEndpointChange(event.currentTarget.value);
+                      clearError();
+                    }}
+                    onKeyDown={submitOnEnter}
+                  />
+                  <Input
+                    aria-label={t`One-time pairing token`}
+                    className="h-12 w-full text-base"
+                    type="password"
+                    value={props.token}
+                    placeholder={t`One-time pairing token`}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    disabled={props.pairing.busy}
+                    onChange={(event) => {
+                      props.onTokenChange(event.currentTarget.value);
+                      clearError();
+                    }}
+                    onKeyDown={submitOnEnter}
+                  />
+                </div>
+
+                <PairingErrors pairing={props.pairing} />
+              </div>
+            </Drawer.Body>
+            <Drawer.Footer className="poracode-pairing-drawer-footer border-t border-border px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+              <Button
+                fullWidth
+                variant="primary"
+                className="h-12 justify-center"
+                isDisabled={!canSubmit}
+                onPress={submit}
+              >
+                {props.pairing.busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {props.pairing.busy ? <Trans>Pairing…</Trans> : <Trans>Connect</Trans>}
+              </Button>
+            </Drawer.Footer>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+    </div>
   );
 }
 
@@ -33,7 +286,7 @@ export function PairingErrors({ pairing }: { readonly pairing: Pairing }) {
   );
 }
 
-/** Hidden picker the scan surfaces trigger; on phones it opens the camera. */
+/** Hidden photo picker used when live camera scanning is unavailable or unwanted. */
 export function ScanFileInput({ pairing }: { readonly pairing: Pairing }) {
   const { t } = useLingui();
   return (
@@ -42,9 +295,14 @@ export function ScanFileInput({ pairing }: { readonly pairing: Pairing }) {
       className="sr-only"
       type="file"
       accept="image/*"
-      capture="environment"
       aria-label={t`QR Code`}
-      onChange={(event) => void pairing.onScanFile(event.currentTarget.files?.[0])}
+      onChange={(event) => {
+        const input = event.currentTarget;
+        const file = input.files?.[0];
+        // Permit retrying the same photo after a failed decode.
+        input.value = "";
+        void pairing.onScanFile(file);
+      }}
     />
   );
 }
@@ -57,7 +315,7 @@ export function ScanFileInput({ pairing }: { readonly pairing: Pairing }) {
  */
 export function InstallRecommendation(props: {
   readonly busy: boolean;
-  readonly label: React.ReactNode;
+  readonly label: ReactNode;
   /** Keep the install action below the pairing action in the visual hierarchy. */
   readonly variant?: "tertiary" | "secondary";
   /** Mouse-sized button instead of the phone's full-width thumb target. */

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import type {
   ThreadListLayout,
   ThreadSortMode,
@@ -56,6 +57,22 @@ export type RightPanelTab =
   | "ports"
   | "plan"
   | "subagent";
+
+/** Compact-browser destinations that replace the home list as a full page. */
+export type MobileUtilityPage =
+  | "profile"
+  | "usage"
+  | "projects"
+  | "terminal"
+  | "browser"
+  | "ports"
+  | "notes"
+  | "workspace"
+  | "pullRequests"
+  | "schedules"
+  | "githubActions"
+  | "projectSettings"
+  | "settings";
 
 /** Tabs that can be dragged into a dock zone. Thread-transient tabs (plan, subagent) and ports stay fixed. */
 export const DOCKABLE_PANEL_TABS: ReadonlySet<RightPanelTab> = new Set([
@@ -138,6 +155,8 @@ interface PanelState {
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
   cloneProjectModalOpen: boolean;
+  /** Session-only compact PWA page. Desktop panel state remains independent. */
+  mobileUtilityPage: MobileUtilityPage | null;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
   setThreadSortMode: (mode: ThreadSortMode) => void;
   setThreadListLayout: (layout: ThreadListLayout) => void;
@@ -179,6 +198,8 @@ interface PanelState {
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
   closeCloneProjectModal: () => void;
+  openMobileUtilityPage: (page: MobileUtilityPage) => void;
+  closeMobileUtilityPage: () => void;
   closeAllPanels: () => void;
 }
 
@@ -316,6 +337,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   threadSearchOpen: false,
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
+  mobileUtilityPage: null,
 
   setGitReviewContext: (ctx) => {
     const prev = usePanelStore.getState().gitReviewContext;
@@ -367,7 +389,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ) {
         return {};
       }
-      return { githubActionsContext: ctx };
+      const compactLayout = isCompactLayoutViewport();
+      return {
+        githubActionsContext: ctx,
+        ...(compactLayout && ctx !== null ? { mobileUtilityPage: "githubActions" as const } : {}),
+        ...(compactLayout && ctx === null && state.mobileUtilityPage === "githubActions"
+          ? { mobileUtilityPage: null }
+          : {}),
+      };
     }),
   setFilesPanelContext: (ctx) =>
     set((state) => {
@@ -550,18 +579,46 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.threadListLayout === layout ? {} : { threadListLayout: layout })),
   openSettings: () =>
     set((state) =>
-      state.settingsOpen && state.settingsSection === null
-        ? {}
-        : { settingsOpen: true, settingsSection: null },
+      isCompactLayoutViewport()
+        ? state.mobileUtilityPage === "settings" && state.settingsSection === null
+          ? {}
+          : { settingsOpen: false, settingsSection: null, mobileUtilityPage: "settings" as const }
+        : state.settingsOpen && state.settingsSection === null
+          ? {}
+          : { settingsOpen: true, settingsSection: null },
     ),
-  openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
+  openSettingsSection: (section) =>
+    set(
+      isCompactLayoutViewport()
+        ? { settingsOpen: false, settingsSection: section, mobileUtilityPage: "settings" as const }
+        : { settingsOpen: true, settingsSection: section },
+    ),
   clearSettingsSection: () =>
     set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
-  closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
+  closeSettings: () =>
+    set((state) => ({
+      ...(state.settingsOpen ? { settingsOpen: false } : {}),
+      ...(state.mobileUtilityPage === "settings" ? { mobileUtilityPage: null } : {}),
+    })),
   openProjectSettings: (projectId) =>
-    set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
+    set((state) => {
+      const compactLayout = isCompactLayoutViewport();
+      if (
+        state.projectSettingsId === projectId &&
+        (!compactLayout || state.mobileUtilityPage === "projectSettings")
+      ) {
+        return {};
+      }
+      return {
+        projectSettingsId: projectId,
+        ...(compactLayout ? { mobileUtilityPage: "projectSettings" as const } : {}),
+      };
+    }),
   closeProjectSettings: () =>
-    set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
+    set((state) => ({
+      ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
+      ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
+    })),
   openThreadSearch: () =>
     set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
   closeThreadSearch: () =>
@@ -574,6 +631,20 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
   closeCloneProjectModal: () =>
     set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
+  openMobileUtilityPage: (page) =>
+    set((state) => ({
+      ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),
+      ...(page !== "projectSettings" && state.projectSettingsId !== null
+        ? { projectSettingsId: null }
+        : {}),
+    })),
+  closeMobileUtilityPage: () =>
+    set((state) => ({
+      ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
+      ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
+        ? { projectSettingsId: null }
+        : {}),
+    })),
   closeAllPanels: () => {
     set((state) => {
       // The floating browser overlay (drawer/fullscreen) is intentionally NOT

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { useAppStore } from "@/renderer/state/appStore";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
+import { MobileProjectSettingsIndex } from "./parts/MobileProjectSettingsIndex";
 import { GeneralSection } from "./parts/GeneralSection";
 import { ScriptsSection } from "./parts/ScriptsSection";
 import { ActionsSection } from "./parts/ActionsSection";
@@ -14,13 +16,17 @@ import type { ProjectSettingsSection } from "./parts/types";
 
 export { resolveActionIcon } from "@/renderer/utils/actionIcons";
 
+type CompactSettingsPage = "index" | "section";
+
 export function ProjectSettingsOverlay(props: { projectId: string; onClose: () => void }) {
   const { projectId, onClose } = props;
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const projectName = useAppStore(
     (s) => s.projects.find((p) => p.id === projectId)?.name ?? t`Project`,
   );
   const [activeSection, setActiveSection] = useState<ProjectSettingsSection>("general");
+  const [compactPage, setCompactPage] = useState<CompactSettingsPage>("index");
   useProductViewTracking(
     {
       key: `project-settings:${activeSection}`,
@@ -34,30 +40,67 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
     "project_settings",
   );
 
+  function openSection(section: ProjectSettingsSection) {
+    setActiveSection(section);
+    if (compactLayout) setCompactPage("section");
+  }
+
+  const sectionTitle =
+    activeSection === "general"
+      ? t`General`
+      : activeSection === "worktrees"
+        ? t`Worktrees`
+        : activeSection === "actions"
+          ? t`Actions`
+          : activeSection === "skills"
+            ? t`Skills`
+            : activeSection === "mcp"
+              ? t`MCP Servers`
+              : t`Search`;
+
+  const sectionContent =
+    activeSection === "general" ? (
+      <GeneralSection projectId={projectId} />
+    ) : activeSection === "worktrees" ? (
+      <ScriptsSection projectId={projectId} />
+    ) : activeSection === "actions" ? (
+      <ActionsSection projectId={projectId} />
+    ) : activeSection === "skills" ? (
+      <SkillsSection projectId={projectId} />
+    ) : activeSection === "mcp" ? (
+      <McpSection projectId={projectId} />
+    ) : activeSection === "search" ? (
+      <SearchSection projectId={projectId} />
+    ) : null;
+
   return (
     <PageLayout
       title={t`${projectName} Settings`}
+      compactTitle={compactPage === "section" ? sectionTitle : t`${projectName} Settings`}
+      compactBackLabel={compactPage === "index" ? t`Return to app` : t`Back`}
+      onCompactBack={() => {
+        if (compactPage === "section") {
+          setCompactPage("index");
+          return;
+        }
+        onClose();
+      }}
+      mobileNavigation
       sidebar={
         <SettingsSidebar
           activeSection={activeSection}
-          onSectionChange={setActiveSection}
+          onSectionChange={openSection}
           onClose={onClose}
         />
       }
       content={
-        activeSection === "general" ? (
-          <GeneralSection projectId={projectId} />
-        ) : activeSection === "worktrees" ? (
-          <ScriptsSection projectId={projectId} />
-        ) : activeSection === "actions" ? (
-          <ActionsSection projectId={projectId} />
-        ) : activeSection === "skills" ? (
-          <SkillsSection projectId={projectId} />
-        ) : activeSection === "mcp" ? (
-          <McpSection projectId={projectId} />
-        ) : activeSection === "search" ? (
-          <SearchSection projectId={projectId} />
-        ) : null
+        compactLayout && compactPage === "index" ? (
+          <MobileProjectSettingsIndex onOpenSection={openSection} />
+        ) : compactLayout ? (
+          <div className="m-settings__body">{sectionContent}</div>
+        ) : (
+          sectionContent
+        )
       }
     />
   );

@@ -1,0 +1,164 @@
+{
+  "authority": "wire schemas plus isStaleTerminalWatchId and canAppendTerminalCursorRange",
+  "consumerConvention": "buffer/ignore/resync actions are recommendations, not encoded by the wire schema",
+  "steps": [
+    {
+      "id": "pre-baseline",
+      "currentWatchId": "watch-a",
+      "previous": null,
+      "message": {
+        "type": "terminal-output",
+        "id": "terminal-rich",
+        "data": "lo",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "generation": "generation-a",
+          "fromCursor": 3,
+          "toCursor": 5
+        }
+      },
+      "expected": { "stale": false, "appendCompatible": true, "consumerAction": "buffer" }
+    },
+    {
+      "id": "baseline",
+      "currentWatchId": "watch-a",
+      "previous": null,
+      "message": {
+        "type": "terminal-watch-result",
+        "id": "terminal-rich",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "result": {
+            "status": "ready",
+            "generation": "generation-a",
+            "fromCursor": 0,
+            "toCursor": 5,
+            "data": "hello",
+            "processState": "running",
+            "terminalSize": { "cols": 100, "rows": 30 }
+          }
+        }
+      },
+      "expected": { "stale": false, "appendCompatible": true, "consumerAction": "replace" }
+    },
+    {
+      "id": "duplicate",
+      "currentWatchId": "watch-a",
+      "previous": { "generation": "generation-a", "toCursor": 7 },
+      "message": {
+        "type": "terminal-output",
+        "id": "terminal-rich",
+        "data": "!!",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "generation": "generation-a",
+          "fromCursor": 5,
+          "toCursor": 7
+        }
+      },
+      "expected": { "stale": false, "appendCompatible": false, "consumerAction": "ignore" }
+    },
+    {
+      "id": "overlap",
+      "currentWatchId": "watch-a",
+      "previous": { "generation": "generation-a", "toCursor": 7 },
+      "message": {
+        "type": "terminal-output",
+        "id": "terminal-rich",
+        "data": "!xy",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "generation": "generation-a",
+          "fromCursor": 6,
+          "toCursor": 9
+        }
+      },
+      "expected": {
+        "stale": false,
+        "appendCompatible": false,
+        "consumerAction": "append-unseen-suffix"
+      }
+    },
+    {
+      "id": "gap",
+      "currentWatchId": "watch-a",
+      "previous": { "generation": "generation-a", "toCursor": 9 },
+      "message": {
+        "type": "terminal-output",
+        "id": "terminal-rich",
+        "data": "z",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "generation": "generation-a",
+          "fromCursor": 11,
+          "toCursor": 12
+        }
+      },
+      "expected": { "stale": false, "appendCompatible": false, "consumerAction": "resync" }
+    },
+    {
+      "id": "generation-change",
+      "currentWatchId": "watch-a",
+      "previous": { "generation": "generation-a", "toCursor": 9 },
+      "message": {
+        "type": "terminal-output",
+        "id": "terminal-rich",
+        "data": "ok",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "generation": "generation-b",
+          "fromCursor": 0,
+          "toCursor": 2
+        }
+      },
+      "expected": { "stale": false, "appendCompatible": false, "consumerAction": "resync" }
+    },
+    {
+      "id": "null-generation",
+      "currentWatchId": "watch-a",
+      "previous": { "generation": "generation-b", "toCursor": 2 },
+      "message": {
+        "type": "terminal-watch-result",
+        "id": "terminal-rich",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "result": {
+            "status": "ready",
+            "generation": null,
+            "fromCursor": 100,
+            "toCursor": 104,
+            "data": "tail",
+            "processState": "exited",
+            "terminalSize": null
+          }
+        }
+      },
+      "expected": { "stale": false, "appendCompatible": false, "consumerAction": "replace" }
+    },
+    {
+      "id": "stale-watch",
+      "currentWatchId": "watch-b",
+      "previous": { "generation": "generation-b", "toCursor": 2 },
+      "message": {
+        "type": "terminal-output",
+        "id": "terminal-rich",
+        "data": "x",
+        "cursorSync": {
+          "version": 1,
+          "watchId": "watch-a",
+          "generation": "generation-b",
+          "fromCursor": 2,
+          "toCursor": 3
+        }
+      },
+      "expected": { "stale": true, "appendCompatible": true, "consumerAction": "ignore" }
+    }
+  ]
+}

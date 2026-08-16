@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -32,6 +33,7 @@ const DEFAULT_HOME = "https://duckduckgo.com";
 
 export function BrowserPanel(props: { visible: boolean; surface?: "main" | "window" }) {
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
@@ -129,6 +131,25 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       <PictureInPicture2 className="size-3.5" />
     </button>
   ) : null;
+  const toolbar = (
+    <BrowserToolbar
+      onPick={onPick}
+      pickerActive={pickerActive}
+      pickerTargets={threadTargets}
+      hasPendingPick={pendingPickerAttachment !== null}
+      pendingPickAnchor={
+        pendingPickerAttachment &&
+        typeof pendingPickerAttachment.anchorX === "number" &&
+        typeof pendingPickerAttachment.anchorY === "number"
+          ? { x: pendingPickerAttachment.anchorX, y: pendingPickerAttachment.anchorY }
+          : null
+      }
+      onChoosePickTarget={chooseTargetForPendingPick}
+      onCancelPendingPick={cancelPendingPick}
+      onMenuPreviewChange={setMenuPreviewDataUrl}
+    />
+  );
+  const tabStrip = hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />;
   return (
     <div
       ref={rootRef}
@@ -218,24 +239,9 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           )}
         </div>
       ) : null}
-      <BrowserToolbar
-        onPick={onPick}
-        pickerActive={pickerActive}
-        pickerTargets={threadTargets}
-        hasPendingPick={pendingPickerAttachment !== null}
-        pendingPickAnchor={
-          pendingPickerAttachment &&
-          typeof pendingPickerAttachment.anchorX === "number" &&
-          typeof pendingPickerAttachment.anchorY === "number"
-            ? { x: pendingPickerAttachment.anchorX, y: pendingPickerAttachment.anchorY }
-            : null
-        }
-        onChoosePickTarget={chooseTargetForPendingPick}
-        onCancelPendingPick={cancelPendingPick}
-        onMenuPreviewChange={setMenuPreviewDataUrl}
-      />
-      {hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />}
-      <BrowserBookmarkBar />
+      {compact ? null : toolbar}
+      {compact ? null : tabStrip}
+      {compact ? null : <BrowserBookmarkBar />}
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
         {nativeBrowserWebContents ? (
           tabs.map((tab) => (
@@ -263,6 +269,13 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           </div>
         ) : null}
       </div>
+      {compact ? (
+        <div className="poracode-mobile-browser-chrome" data-mobile-browser-chrome="">
+          {tabStrip}
+          <BrowserBookmarkBar />
+          {toolbar}
+        </div>
+      ) : null}
     </div>
   );
 }

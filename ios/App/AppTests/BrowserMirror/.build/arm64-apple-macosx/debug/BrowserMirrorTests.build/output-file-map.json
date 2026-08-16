@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/primary.swiftdeps"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorContractTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorControllerTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorHTTPTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorInputGeometryTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorQualityTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorTestSupport.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.dia"
+  }
+}

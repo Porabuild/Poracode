@@ -60,80 +60,58 @@ export function WorktreeGroupHeader(props: {
     </span>
   );
 
-  if (compactLayout) {
-    return (
-      <SidebarButton
-        {...(props.ref != null ? { ref: props.ref } : {})}
-        onContextMenu={props.onContextMenu}
-        icon={<GitFork className="size-3.5 shrink-0 text-muted" />}
-        label={
-          <span className="flex flex-col gap-0.5 pr-0.5">
-            <span className="flex h-[18px] items-center gap-1.5">
-              {branchLabel}
-              <RelativeTime
-                iso={props.updatedAt}
-                className="block shrink-0 font-mono text-[10px] leading-none tabular-nums text-muted"
-              />
-            </span>
-            {props.projectTag ? (
-              <span className="flex h-[18px] items-center">{props.projectTag}</span>
-            ) : null}
-          </span>
-        }
-        tooltip={t`Worktree: ${props.worktreeBranch}`}
-        size="xs"
-        density="compact"
-        className="poracode-sidebar-touch-row"
-        liveText
-        onPress={props.onToggleCollapse}
-      />
-    );
-  }
-
   const panelButtons = (
     <>
-      <SidebarPanelDragButton
-        panel="files"
-        projectId={props.projectId}
-        worktreePath={props.worktreePath}
-        ariaLabel={t`Files for ${props.worktreeBranch}`}
-        className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-          props.isActiveFiles
-            ? "w-[18px] p-0.5 text-accent"
-            : `text-muted/60 ${hiddenPanelButtonClass}`
-        }`}
-        onPress={props.onOpenFiles}
-      >
-        <FolderOpen className="size-3.5" />
-      </SidebarPanelDragButton>
-      <SidebarPanelDragButton
-        panel="terminal"
-        projectId={props.projectId}
-        worktreePath={props.worktreePath}
-        ariaLabel={t`Terminal for ${props.worktreeBranch}`}
-        className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-          props.isActiveTerminal
-            ? "w-[18px] p-0.5 text-accent"
-            : props.hasTerminal
-              ? "w-[18px] p-0.5 text-foreground"
+      {!compactLayout ? (
+        <SidebarPanelDragButton
+          panel="files"
+          projectId={props.projectId}
+          worktreePath={props.worktreePath}
+          ariaLabel={t`Files for ${props.worktreeBranch}`}
+          className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+            props.isActiveFiles
+              ? "w-[18px] p-0.5 text-accent"
               : `text-muted/60 ${hiddenPanelButtonClass}`
-        }`}
-        onPress={props.onOpenTerminal}
-      >
-        <AnimatedTerminalIcon className="size-3.5" isBusy={props.isBusyTerminal} />
-      </SidebarPanelDragButton>
+          }`}
+          onPress={props.onOpenFiles}
+        >
+          <FolderOpen className="size-3.5" />
+        </SidebarPanelDragButton>
+      ) : null}
+      {!compactLayout ? (
+        <SidebarPanelDragButton
+          panel="terminal"
+          projectId={props.projectId}
+          worktreePath={props.worktreePath}
+          ariaLabel={t`Terminal for ${props.worktreeBranch}`}
+          className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+            props.isActiveTerminal
+              ? "w-[18px] p-0.5 text-accent"
+              : props.hasTerminal
+                ? "w-[18px] p-0.5 text-foreground"
+                : `text-muted/60 ${hiddenPanelButtonClass}`
+          }`}
+          onPress={props.onOpenTerminal}
+        >
+          <AnimatedTerminalIcon className="size-3.5" isBusy={props.isBusyTerminal} />
+        </SidebarPanelDragButton>
+      ) : null}
     </>
   );
 
   const gitBadges = (
     <>
-      <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
+      {!compactLayout ? (
+        <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
+      ) : null}
       <GitBadge
         projectId={props.projectId}
         projectName={props.worktreeBranch}
         worktreePath={props.worktreePath}
         onPress={props.onOpenGitReview}
         isActive={props.isActiveGit}
+        {...(!compactLayout ? { fallbackToWorktreeIcon: true } : {})}
+        {...(compactLayout ? { compact: true } : {})}
       />
     </>
   );
@@ -165,9 +143,9 @@ export function WorktreeGroupHeader(props: {
     <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
       <RelativeTime
         iso={props.updatedAt}
-        className="block font-mono text-[10px] leading-none tabular-nums text-muted group-hover:invisible"
+        className={`block font-mono text-[10px] leading-none tabular-nums text-muted ${compactLayout ? "" : "group-hover:invisible"}`}
       />
-      {deleteButton}
+      {compactLayout ? null : deleteButton}
     </span>
   ) : (
     <span className="relative w-[2.4ch] shrink-0">
@@ -232,7 +210,9 @@ export function WorktreeGroupHeader(props: {
       tooltip={t`Worktree: ${props.worktreeBranch}`}
       size="xs"
       liveText
-      {...(stacked ? { density: "compact" as const } : { className: "h-8" })}
+      {...(stacked
+        ? { density: "compact" as const, className: "poracode-sidebar-worktree-row" }
+        : { className: "h-8" })}
       onPress={props.onToggleCollapse}
       {...(props.isDragging != null ? { isDragging: props.isDragging } : {})}
       {...(props.isDraggingAnything != null

@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/primary.swiftdeps"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/GitHubOperationsContractTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsContractTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsContractTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsContractTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsContractTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsContractTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/GitHubOperationsControllerTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsControllerTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsControllerTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsControllerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsControllerTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsControllerTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/GitHubOperationsQualityGatesTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsQualityGatesTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsQualityGatesTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsQualityGatesTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsQualityGatesTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsQualityGatesTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/GitHubOperationsTestSupport.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTestSupport.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTestSupport.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTestSupport~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTestSupport.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTestSupport.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/GitHubOperationsTransportTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTransportTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTransportTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTransportTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTransportTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/GitHubOperationsTransportTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/SelectedGitHubOperationsGatewayTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/SelectedGitHubOperationsGatewayTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/SelectedGitHubOperationsGatewayTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/SelectedGitHubOperationsGatewayTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/SelectedGitHubOperationsGatewayTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsTests.build/SelectedGitHubOperationsGatewayTests.dia"
+  }
+}

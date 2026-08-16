@@ -102,6 +102,8 @@ describe("useComposerKeyboard", () => {
     keyboardMock.liftOffset = undefined;
     keyboardMock.visibilityOffset = undefined;
     window.localStorage.clear();
+    // Restores the jsdom prototype getter for any stubbed Android UA.
+    Reflect.deleteProperty(window.navigator, "userAgent");
     vi.unstubAllGlobals();
     resetComposerKeyboardMemoryForTests();
     scrollLockMock.lockComposeScroll.mockClear();
@@ -301,7 +303,12 @@ describe("useComposerKeyboard", () => {
 
   it("focuses directly on Android and ignores legacy shared remembered height", () => {
     const restoreVisualViewport = installVisualViewport();
-    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    // Platform detection is user-agent based.
+    Object.defineProperty(window.navigator, "userAgent", {
+      configurable: true,
+      value:
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
+    });
     window.localStorage.setItem("poracode-mobile-keyboard-height", "480");
     window.localStorage.setItem("poracode-mobile-keyboard-height:android", "336");
     resetComposerKeyboardMemoryForTests();

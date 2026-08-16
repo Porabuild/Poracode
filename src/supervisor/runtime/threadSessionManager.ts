@@ -23,6 +23,7 @@ import {
   type StartThreadResult,
   type TerminalSize,
   type TerminalShellSnapshot,
+  type TerminalSnapshot,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
   type WriteTerminalPayload,
@@ -71,6 +72,14 @@ import {
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
 import { StructuredFailureReporter } from "./threadSession/structuredFailureReporter";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
+import {
+  buildRetainedShellSnapshot,
+  isRetainedShellExpired,
+  putRetainedShellSnapshot,
+  snapshotFromLiveSession,
+  snapshotFromLiveShell,
+  type RetainedShellSnapshot,
+} from "./retainedShellSnapshots";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
@@ -82,6 +91,12 @@ export class ThreadSessionManager {
   readonly shellSessions = new Map<string, ShellSessionRuntime>();
   /** Reverse index: agent-native session id → SessionRuntime, for CLI hook routing fallback. */
   readonly sessionsBySessionId = new Map<string, SessionRuntime>();
+  /**
+   * Naturally-exited dev shells keep a bounded in-memory snapshot so remote
+   * cursor-sync clients can still hydrate after the PTY goes away. Shells are
+   * not written to SQLite scrollback; agent threads use the DB fallback path.
+   */
+  private readonly exitedShellSnapshots = new Map<string, RetainedShellSnapshot>();
   private readonly startLocks = new Map<string, Promise<void>>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
@@ -888,6 +903,7 @@ export class ThreadSessionManager {
     if (shell) {
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
+      this.clearRetainedShellSnapshot(payload.threadId);
       this.rememberRemovedThread(payload.threadId);
       this.ptyLifecycle.killShell(shell);
       await this.ptyLifecycle.waitForExit(shell);
@@ -926,6 +942,8 @@ export class ThreadSessionManager {
   async startShell(payload: StartShellPayload): Promise<void> {
     ensureNodePtySpawnHelperExecutable();
     this.recentlyRemovedThreadIds.delete(payload.shellId);
+    // Id reuse must not append old retained bytes to a new generation.
+    this.clearRetainedShellSnapshot(payload.shellId);
     const existing = this.shellSessions.get(payload.shellId);
     if (existing) {
       existing.ignoreExit = true;
@@ -1023,6 +1041,7 @@ export class ThreadSessionManager {
         threadId: payload.shellId,
         data,
         outputLength: session.outputLength,
+        terminalInstanceId: session.instanceId,
       });
     });
 
@@ -1031,6 +1050,7 @@ export class ThreadSessionManager {
       if (session.ignoreExit) {
         return;
       }
+      this.retainExitedShellSnapshot(session);
       this.shellSessions.delete(payload.shellId);
       this.rememberRemovedThread(payload.shellId);
       this.options.emit({
@@ -1065,8 +1085,52 @@ export class ThreadSessionManager {
     return this.sessions.get(threadId)?.terminalSize ?? null;
   }
 
+  /**
+   * Snapshot for remote terminal cursor-sync. Returns live or retained-exited
+   * state only — the remote server falls back to persisted SQLite scrollback
+   * when this is null.
+   *
+   * Live agent sessions require an actual PTY **and** effective terminal
+   * presentation (`session.presentationMode ?? adapter.capabilities.presentationMode`).
+   * GUI/structured SessionRuntime entries often have `pty`/`ptyExited` unset;
+   * returning an empty "running" snapshot for those would shadow the SQLite
+   * fallback. A helper `structuredSession` on a terminal PTY does **not**
+   * disqualify the live path. `processState` follows `ptyExited`.
+   */
+  readTerminalSnapshot(threadId: string): TerminalSnapshot | null {
+    const session = this.sessions.get(threadId);
+    if (session && isTerminalPtySession(session)) {
+      return snapshotFromLiveSession(session, session.ptyExited ? "exited" : "running");
+    }
+    const shell = this.shellSessions.get(threadId);
+    if (shell) {
+      return snapshotFromLiveShell(shell, shell.ptyExited ? "exited" : "running");
+    }
+    const retained = this.exitedShellSnapshots.get(threadId);
+    if (retained && !isRetainedShellExpired(retained)) {
+      return {
+        generation: retained.generation,
+        fromCursor: retained.fromCursor,
+        toCursor: retained.toCursor,
+        data: retained.data,
+        processState: "exited",
+        terminalSize: retained.terminalSize,
+      };
+    }
+    if (retained) this.exitedShellSnapshots.delete(threadId);
+    return null;
+  }
+
   setPtyOutputPaused(paused: boolean): void {
     this.ptyLifecycle.setOutputPaused(paused);
+  }
+
+  private retainExitedShellSnapshot(shell: ShellSessionRuntime): void {
+    putRetainedShellSnapshot(this.exitedShellSnapshots, buildRetainedShellSnapshot(shell));
+  }
+
+  private clearRetainedShellSnapshot(threadId: string): void {
+    this.exitedShellSnapshots.delete(threadId);
   }
 
   handlePtyDataForTests(session: SessionRuntime, data: string): void {
@@ -1200,4 +1264,12 @@ export class ThreadSessionManager {
       ...(settings.agentSettings[adapter.kind] ?? {}),
     };
   }
+}
+
+/** True when the session backs a real terminal-presentation PTY (not GUI/structured-only). */
+function isTerminalPtySession(session: SessionRuntime): boolean {
+  if (!session.pty) return false;
+  const presentationMode =
+    session.presentationMode ?? session.adapter.capabilities.presentationMode;
+  return presentationMode === "terminal";
 }

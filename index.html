@@ -34,7 +34,14 @@
             window.navigator.standalone === true ||
             window.matchMedia("(display-mode: standalone)").matches ||
             window.matchMedia("(display-mode: fullscreen)").matches;
+          var ios =
+            /iPad|iPhone|iPod/i.test(window.navigator.userAgent || "") ||
+            (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
           document.documentElement.toggleAttribute("data-pwa-standalone", standalone);
+          document.documentElement.toggleAttribute("data-mobile-standalone", standalone);
+          if (standalone && ios) {
+            document.documentElement.style.setProperty("height", "100lvh");
+          }
         } catch (e) {
           // The canonical renderer will re-evaluate capabilities during boot.
         }

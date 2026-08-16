@@ -24,7 +24,8 @@ import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
+import type { ContextMenuItem } from "@/renderer/components/common/ContextMenu";
+import { ResponsiveContextMenu } from "@/renderer/components/common/ResponsiveContextMenu";
 import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useWorktreeGitItems } from "@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions";
@@ -122,7 +123,8 @@ export function ThreadContextMenu(props: {
   }
 
   return (
-    <ContextMenu
+    <ResponsiveContextMenu
+      label={thread.title}
       items={[
         ...(thread.worktreePath && !isExperimentCandidate
           ? [
@@ -388,6 +390,6 @@ export function ThreadContextMenu(props: {
       }}
     >
       {props.children}
-    </ContextMenu>
+    </ResponsiveContextMenu>
   );
 }

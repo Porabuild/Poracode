@@ -44,6 +44,8 @@ import {
   type RemoteProjectCommandResult,
   type RemoteProjectSettings,
   type RemotePushRegistration,
+  type RemotePushRegistrationRouting,
+  type RemotePushRegistrationResult,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
   type RemoteSettings,
@@ -56,7 +58,11 @@ import {
 import {
   DEFAULT_TERMINAL_SIZE,
   controlThreadGoalPayloadSchema,
-  profileIdentitySchema,
+  profileCoreStatsSchema,
+  profileDevicesResponseSchema,
+  profileIdentityResponseSchema,
+  profileTokenStatsSchema,
+  providerUsageResponseSchema,
   prWatchSchema,
   projectNotesSchema,
   sendThreadInputPayloadSchema,
@@ -89,6 +95,13 @@ import {
   type ScheduledTaskInput,
 } from "@/shared/contracts";
 import { readBoundedResponseBody } from "@/shared/http";
+import type { NormalizeExactOptionalProperties } from "@/shared/contracts/exactType";
+import {
+  ipcProcedureMap,
+  jsonCallEnvelopeSchema,
+  omittedCallEnvelopeSchema,
+  omittedResultSchema,
+} from "@/shared/ipc";
 
 export class RemoteClientError extends Error {
   constructor(
@@ -156,6 +169,29 @@ function parseResponse<T>(schema: z.ZodType<T>, value: unknown, what: string): T
     "invalid_response",
     { cause: result.error },
   );
+}
+
+function removeExplicitUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(removeExplicitUndefined);
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (nested !== undefined) result[key] = removeExplicitUndefined(nested);
+  }
+  return result;
+}
+
+/**
+ * JSON cannot carry explicit `undefined`, but Zod's inferred optional properties
+ * include it. Remove any transform/default-produced undefined keys recursively
+ * so the validated result soundly satisfies exact-optional producer interfaces.
+ */
+function parseExactOptionalResponse<Contract>(
+  schema: z.ZodType<NormalizeExactOptionalProperties<Contract>>,
+  value: unknown,
+  what: string,
+): Contract {
+  return removeExplicitUndefined(parseResponse(schema, value, what)) as Contract;
 }
 
 function defaultClientMetadata(): RemoteClientMetadata {
@@ -367,15 +403,13 @@ export class RemoteDesktopClient {
     await this.requestJson("/api/host-update/install", { method: "POST", body: {} });
   }
 
-  /** Provider usage snapshots; the response shape is a typed contract with no
-   * runtime schema (see `ProviderUsageResponse`), so a light shape check only. */
+  /** Provider usage snapshots validated against the collector-owned wire schema. */
   async providerUsage(): Promise<ProviderUsageResponse> {
-    const result = parseResponse(
-      z.object({ snapshots: z.array(z.unknown()), fromCache: z.boolean() }),
+    return parseResponse(
+      providerUsageResponseSchema,
       await this.requestJson("/api/provider-usage"),
       "provider usage",
     );
-    return result as ProviderUsageResponse;
   }
 
   async projectNotes(projectId: string): Promise<ProjectNotes | null> {
@@ -388,9 +422,10 @@ export class RemoteDesktopClient {
   }
 
   async setProjectNotes(notes: ProjectNotes): Promise<void> {
-    await this.requestJson(`/api/projects/${encodeURIComponent(notes.projectId)}/notes`, {
+    const { projectId, ...body } = notes;
+    await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/notes`, {
       method: "POST",
-      body: notes,
+      body,
     });
   }
 
@@ -506,47 +541,37 @@ export class RemoteDesktopClient {
     await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
   }
 
-  /**
-   * Profile: local usage stats + identity, computed on the paired desktop's
-   * SQLite store. Response shapes are typed contracts with no runtime schema
-   * (like {@link providerUsage}), so only a light shape check. The stats
-   * blobs carry many more keys than the check names, so they must stay
-   * looseObject — a plain z.object would strip everything unnamed.
-   */
+  /** Profile data computed from the paired desktop's SQLite store. */
   async profileDevices(): Promise<ProfileDevicesResponse> {
-    const result = parseResponse(
-      z.object({ devices: z.array(z.unknown()), currentDeviceId: z.string() }),
+    return parseExactOptionalResponse<ProfileDevicesResponse>(
+      profileDevicesResponseSchema,
       await this.requestJson("/api/profile/devices"),
       "profile devices",
     );
-    return result as ProfileDevicesResponse;
   }
 
   async profileCoreStats(req: ProfileStatsRequest): Promise<ProfileCoreStats> {
-    const result = parseResponse(
-      z.looseObject({ scope: z.string(), device: z.unknown(), totals: z.unknown() }),
+    return parseExactOptionalResponse<ProfileCoreStats>(
+      profileCoreStatsSchema,
       await this.requestJson("/api/profile/core-stats", { method: "POST", body: req }),
       "profile stats",
     );
-    return result as unknown as ProfileCoreStats;
   }
 
   async profileTokenStats(req: ProfileStatsRequest): Promise<ProfileTokenStats> {
-    const result = parseResponse(
-      z.looseObject({ available: z.boolean(), scope: z.string(), device: z.unknown() }),
+    return parseExactOptionalResponse<ProfileTokenStats>(
+      profileTokenStatsSchema,
       await this.requestJson("/api/profile/token-stats", { method: "POST", body: req }),
       "profile token stats",
     );
-    return result as unknown as ProfileTokenStats;
   }
 
   async setProfileIdentity(identity: ProfileIdentity): Promise<ProfileIdentityResponse> {
-    const result = parseResponse(
-      z.object({ identity: profileIdentitySchema, device: z.unknown() }),
+    return parseExactOptionalResponse<ProfileIdentityResponse>(
+      profileIdentityResponseSchema,
       await this.requestJson("/api/profile/identity", { method: "POST", body: identity }),
       "profile identity",
     );
-    return result as ProfileIdentityResponse;
   }
 
   async browserState(): Promise<RemoteBrowserState> {
@@ -772,15 +797,35 @@ export class RemoteDesktopClient {
    * it.
    */
   async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
-    const spec = isRemoteProcedure(procedure) ? REMOTE_PROCEDURE_SPECS[procedure] : undefined;
-    const result = (await this.requestJson("/api/git/call", {
+    if (!isRemoteProcedure(procedure)) {
+      throw new RemoteClientError(
+        `Procedure "${procedure}" is not available to remote clients.`,
+        403,
+        "git_procedure_not_allowed",
+      );
+    }
+    const spec = REMOTE_PROCEDURE_SPECS[procedure];
+    const envelope = await this.requestJson("/api/git/call", {
       method: "POST",
       body: { procedure, payload },
-      ...(spec && "timeout" in spec && spec.timeout === "long"
+      ...("timeout" in spec && spec.timeout === "long"
         ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
         : {}),
-    })) as { result: unknown };
-    return result.result;
+    });
+    const resultSchema = ipcProcedureMap[procedure].resultSchema;
+    if (!resultSchema) {
+      throw new RemoteClientError(
+        `Procedure "${procedure}" is missing an authoritative result schema.`,
+        500,
+        "git_procedure_result_schema_missing",
+      );
+    }
+    if (resultSchema === omittedResultSchema) {
+      parseResponse(omittedCallEnvelopeSchema, envelope, `procedure ${procedure}`);
+      return undefined;
+    }
+    return parseResponse(jsonCallEnvelopeSchema(resultSchema), envelope, `procedure ${procedure}`)
+      .result;
   }
 
   /**
@@ -852,8 +897,8 @@ export class RemoteDesktopClient {
    * `session:operate` scope (no separate push scope), so already-paired devices
    * register without re-pairing.
    */
-  async registerPush(registration: RemotePushRegistration): Promise<void> {
-    parseResponse(
+  async registerPush(registration: RemotePushRegistration): Promise<RemotePushRegistrationResult> {
+    return parseResponse(
       remotePushRegistrationResultSchema,
       await this.requestJson("/api/push/register", { method: "POST", body: registration }),
       "push registration",
@@ -866,8 +911,11 @@ export class RemoteDesktopClient {
   }
 
   /** Drop all push registrations for a device (sign-out / unpair). */
-  async unregisterPush(deviceId: string): Promise<void> {
-    await this.requestJson("/api/push/unregister", { method: "POST", body: { deviceId } });
+  async unregisterPush(deviceId: string, routing?: RemotePushRegistrationRouting): Promise<void> {
+    await this.requestJson("/api/push/unregister", {
+      method: "POST",
+      body: { deviceId, ...(routing ? { routing } : {}) },
+    });
   }
 
   async websocketTicket(timeoutMs?: number): Promise<string> {

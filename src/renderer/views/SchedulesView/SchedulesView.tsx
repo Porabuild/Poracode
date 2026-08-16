@@ -1,19 +1,36 @@
 import { useEffect, useState } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { Bot, CalendarClock, ChevronDown, Clock3, Loader2, Plus, Sparkles } from "lucide-react";
+import {
+  Bot,
+  CalendarClock,
+  ChevronDown,
+  Clock3,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import type { AgentCapability, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import { isHomeProject } from "@/shared/homeScope";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { agentConfigProductProperties } from "@/renderer/analytics/threadAnalyticsProperties";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { BottomSheet } from "@/renderer/components/common/BottomSheet";
+import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
+import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProjectIdsHiddenByWorkspace } from "@/renderer/state/workspaceSelectors";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { ScheduleEditor } from "./ScheduleEditor";
@@ -52,8 +69,14 @@ function scheduleAnalyticsProperties(
   };
 }
 
-export function SchedulesView() {
+export function SchedulesView(
+  props: {
+    readonly remoteDesktopId?: string;
+    readonly onRemoteDesktopChange?: (desktopId: string | null) => void;
+  } = {},
+) {
   const { t, i18n } = useLingui();
+  const compact = useCompactLayout();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -63,6 +86,11 @@ export function SchedulesView() {
   const [draft, setDraft] = useState<ScheduleDraft | null>(null);
   const [deleteTask, setDeleteTask] = useState<ScheduledTask | null>(null);
   const [runsTaskId, setRunsTaskId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [createActionsOpen, setCreateActionsOpen] = useState(false);
+  const createLongPressHandlers = useLongPress(() => {
+    setCreateActionsOpen(true);
+  });
   /**
    * Only projects the active workspace hides are excluded, which lets both the
    * device-wide schedules (no project) and schedules whose project was deleted
@@ -219,6 +247,7 @@ export function SchedulesView() {
       return;
     }
     setError("");
+    if (compact) usePanelStore.getState().closeMobileUtilityPage();
     openThread(threadId);
   }
 
@@ -274,12 +303,22 @@ export function SchedulesView() {
   async function createWithAgent() {
     setError("");
     try {
-      const project = await ensureHomeScopeProject();
       const store = useAppStore.getState();
+      const currentProjectId = getCurrentProjectId();
+      const remoteProject =
+        store.projects.find(
+          (project) => project.id === currentProjectId && !isHomeProject(project),
+        ) ?? store.projects.find((project) => !isHomeProject(project));
+      const project = isRemoteSession() ? remoteProject : await ensureHomeScopeProject();
+      if (!project) {
+        setError(t`Add a project to start`);
+        return;
+      }
       store.setComposerSeed(
         project.id,
         t`Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me.`,
       );
+      if (compact) usePanelStore.getState().closeMobileUtilityPage();
       store.openDraft(project.id);
     } catch (agentError) {
       setError(agentError instanceof Error ? agentError.message : String(agentError));
@@ -374,64 +413,70 @@ export function SchedulesView() {
         </Trans>
       }
       bodyClassName="space-y-5"
-      actions={
-        <ButtonGroup className="w-full">
-          <Button
-            variant="tertiary"
-            size="sm"
-            className="flex-1 text-foreground"
-            isDisabled={agents.length === 0}
-            onPress={() => void createWithAgent()}
-          >
-            <Plus className="size-4" />
-            <Trans>New schedule</Trans>
-          </Button>
-          <Dropdown>
-            <Button
-              isIconOnly
-              variant="tertiary"
-              size="sm"
-              aria-label={t`More schedule options`}
-              isDisabled={agents.length === 0}
-            >
-              <ButtonGroup.Separator />
-              <ChevronDown className="size-3.5" />
-            </Button>
-            <Dropdown.Popover placement="bottom end">
-              <Dropdown.Menu
-                aria-label={t`Create schedule`}
-                onAction={(key) => {
-                  if (key === "agent") void createWithAgent();
-                  else setDraft(newScheduleDraft(agents[0]));
-                }}
-              >
-                <Dropdown.Item id="manual" textValue={t`Create schedule`}>
-                  <CalendarClock className="size-4 text-muted" />
-                  <Label>
-                    <Trans>Create schedule</Trans>
-                  </Label>
-                </Dropdown.Item>
-                <Dropdown.Item id="agent" textValue={t`Create with Agent`}>
-                  <Bot className="size-4 text-muted" />
-                  <Label>
-                    <Trans>Create with Agent</Trans>
-                  </Label>
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
-        </ButtonGroup>
-      }
+      {...(!compact
+        ? {
+            actions: (
+              <ButtonGroup className="w-full">
+                <Button
+                  variant="tertiary"
+                  size="sm"
+                  className="flex-1 text-foreground"
+                  isDisabled={agents.length === 0}
+                  onPress={() => void createWithAgent()}
+                >
+                  <Plus className="size-4" />
+                  <Trans>New schedule</Trans>
+                </Button>
+                <Dropdown>
+                  <Button
+                    isIconOnly
+                    variant="tertiary"
+                    size="sm"
+                    aria-label={t`More schedule options`}
+                    isDisabled={agents.length === 0}
+                  >
+                    <ButtonGroup.Separator />
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                  <Dropdown.Popover placement="bottom end">
+                    <Dropdown.Menu
+                      aria-label={t`Create schedule`}
+                      onAction={(key) => {
+                        if (key === "agent") void createWithAgent();
+                        else setDraft(newScheduleDraft(agents[0]));
+                      }}
+                    >
+                      <Dropdown.Item id="manual" textValue={t`Create schedule`}>
+                        <CalendarClock className="size-4 text-muted" />
+                        <Label>
+                          <Trans>Create schedule</Trans>
+                        </Label>
+                      </Dropdown.Item>
+                      <Dropdown.Item id="agent" textValue={t`Create with Agent`}>
+                        <Bot className="size-4 text-muted" />
+                        <Label>
+                          <Trans>Create with Agent</Trans>
+                        </Label>
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              </ButtonGroup>
+            ),
+          }
+        : {})}
     >
       <div className="flex flex-wrap items-center gap-3">
-        <TextField
-          aria-label={t`Search scheduled tasks`}
-          className="min-w-56 flex-1"
-          value={query}
-          onChange={setQuery}
-        >
-          <Input placeholder={t`Search scheduled tasks`} />
-        </TextField>
+        {!compact ? (
+          <TextField
+            aria-label={t`Search scheduled tasks`}
+            className="min-w-56 flex-1"
+            value={query}
+            onChange={setQuery}
+          >
+            <Input placeholder={t`Search scheduled tasks`} />
+          </TextField>
+        ) : null}
         <LightballTabs<FilterMode>
           tabs={[
             { id: "all", label: t`All` },
@@ -443,6 +488,73 @@ export function SchedulesView() {
           ariaLabel={t`Schedule status`}
         />
       </div>
+
+      {compact ? (
+        <>
+          {props.remoteDesktopId && props.onRemoteDesktopChange ? (
+            <MobileMachineToolbar
+              desktopId={props.remoteDesktopId}
+              onDesktopChange={props.onRemoteDesktopChange}
+              leading={
+                <MobileCircleButton
+                  aria-label={t`Search scheduled tasks`}
+                  onPress={() => setSearchOpen(true)}
+                >
+                  <Search className="size-5" />
+                </MobileCircleButton>
+              }
+              trailing={
+                <div {...createLongPressHandlers}>
+                  <MobileCircleButton
+                    aria-label={t`New schedule`}
+                    onPress={() => void createWithAgent()}
+                  >
+                    <Plus className="size-5" />
+                  </MobileCircleButton>
+                </div>
+              }
+            />
+          ) : null}
+          {searchOpen ? (
+            <BottomSheet label={t`Search scheduled tasks`} onClose={() => setSearchOpen(false)}>
+              <div className="px-1 pb-2 pt-1">
+                <TextField aria-label={t`Search scheduled tasks`} value={query} onChange={setQuery}>
+                  <Input placeholder={t`Search scheduled tasks`} />
+                </TextField>
+              </div>
+            </BottomSheet>
+          ) : null}
+          {createActionsOpen ? (
+            <BottomSheet label={t`Create schedule`} onClose={() => setCreateActionsOpen(false)}>
+              <div className="m-sheet-list">
+                <button
+                  type="button"
+                  className="m-sheet-action"
+                  disabled={agents.length === 0}
+                  onClick={() => {
+                    setCreateActionsOpen(false);
+                    setDraft(newScheduleDraft(agents[0]));
+                  }}
+                >
+                  <CalendarClock className="size-4 text-muted" />
+                  <Trans>Create schedule</Trans>
+                </button>
+                <button
+                  type="button"
+                  className="m-sheet-action"
+                  onClick={() => {
+                    setCreateActionsOpen(false);
+                    void createWithAgent();
+                  }}
+                >
+                  <Bot className="size-4 text-muted" />
+                  <Trans>Create with Agent</Trans>
+                </button>
+              </div>
+            </BottomSheet>
+          ) : null}
+        </>
+      ) : null}
 
       {error ? <p className="text-sm whitespace-pre-wrap text-danger">{error}</p> : null}
 

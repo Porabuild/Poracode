@@ -24,7 +24,8 @@ export function WelcomeBackdrop(props: {
     <div
       ref={containerRef}
       className={`poracode-welcome-page relative flex flex-col ${props.className ?? ""}`}
-      onMouseMove={(event) => {
+      onPointerMove={(event) => {
+        if (event.pointerType !== "mouse") return;
         posRef.current = { x: event.clientX, y: event.clientY };
         if (rafRef.current !== null) return;
         rafRef.current = requestAnimationFrame(() => {
@@ -39,7 +40,8 @@ export function WelcomeBackdrop(props: {
           container.style.setProperty("--mouse-y", `${pos.y - rect.top}px`);
         });
       }}
-      onMouseLeave={() => {
+      onPointerLeave={(event) => {
+        if (event.pointerType !== "mouse") return;
         rectRef.current = null;
         if (rafRef.current !== null) {
           cancelAnimationFrame(rafRef.current);

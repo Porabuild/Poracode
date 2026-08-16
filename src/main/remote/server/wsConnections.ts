@@ -5,6 +5,7 @@ import { WebSocket } from "ws";
 import {
   remoteThreadItemInterestsSchema,
   remoteWebSocketClientMessageSchema,
+  type RemoteTerminalWatchResult,
 } from "@/shared/remote";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
@@ -13,6 +14,15 @@ import { isReservedForwardProxyPath, proxyForwardedWebSocketUpgrade } from "./po
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
 import { projectGitStatePatchForInterests } from "./gitStateProjection";
 import { filterEventForItemInterests } from "./itemInterestFilter";
+import {
+  buildTerminalWatchResultMessage,
+  composeTerminalWatchReadyResult,
+  forbiddenWatchResult,
+  isSupportedTerminalCursorSyncVersion,
+  notFoundWatchResult,
+  unavailableWatchResult,
+  unsupportedCursorSyncVersionResult,
+} from "./terminalCursorSync";
 
 export const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_JSON_BODY_BYTES;
 export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
@@ -100,6 +110,115 @@ export function rejectUpgrade(socket: Duplex, status: number, reason: string): v
   }
 }
 
+/**
+ * Install reliable watch state, await the event-interest barrier, take a
+ * supervisor snapshot (reply flush establishes the cursor boundary), then emit
+ * `terminal-watch-result` only if the install epoch is still current.
+ *
+ * Failed setups (interest barrier, snapshot not-found/unavailable, etc.) clear
+ * only that exact registration so live deltas never stream without a baseline,
+ * and an older failure cannot clear a newer same-watchId registration.
+ */
+async function handleReliableTerminalWatch(
+  ctx: RemoteServerContext,
+  ws: WebSocket,
+  session: AuthenticatedRemoteSession,
+  terminalId: string,
+  watchId: string,
+  version: number,
+): Promise<void> {
+  if (!isSupportedTerminalCursorSyncVersion(version)) {
+    // Replacement semantics: an unsupported positive version must not leave a
+    // prior reliable *or* legacy stream for this terminal alive, and must never
+    // install/downgrade a watch. Clear both interest maps, notify the supervisor
+    // filter safely, then emit the non-retryable unavailable result.
+    // Guard sync *and* async throws from the notify hook so the client still
+    // receives the unavailable result.
+    ctx.terminalCursorSync.clearReliable(ws, terminalId);
+    ctx.terminalWatches.get(ws)?.delete(terminalId);
+    try {
+      void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    } catch {
+      // Synchronous throw from onEventInterestsChanged — still deliver error.
+    }
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(
+        ws,
+        buildTerminalWatchResultMessage(terminalId, watchId, unsupportedCursorSyncVersionResult()),
+      );
+    }
+    return;
+  }
+
+  if (!session.scopes.includes("terminal:read")) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, forbiddenWatchResult()));
+    }
+    return;
+  }
+
+  // Rewatch replaces prior reliable state for this terminal id (new epoch).
+  const epoch = ctx.terminalCursorSync.setReliable(ws, terminalId, { version: 1, watchId });
+  ctx.terminalWatches.get(ws)?.add(terminalId);
+
+  const stillCurrent = () => ctx.terminalCursorSync.isCurrent(ws, terminalId, watchId, epoch);
+
+  /** Clear this install only, drop interest, notify supervisor filter, emit error. */
+  const failSetup = (
+    errorResult: Extract<RemoteTerminalWatchResult, { status: "error" }>,
+  ): void => {
+    if (!ctx.terminalCursorSync.clearReliableIfMatch(ws, terminalId, watchId, epoch)) return;
+    // Only remove terminal interest when no reliable registration remains for it.
+    if (!ctx.terminalCursorSync.hasReliableWatcher(ws, terminalId)) {
+      ctx.terminalWatches.get(ws)?.delete(terminalId);
+    }
+    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, errorResult));
+    }
+  };
+
+  try {
+    await Promise.resolve(ctx.notifyEventInterestsChanged());
+  } catch {
+    if (!stillCurrent()) return;
+    failSetup(unavailableWatchResult());
+    return;
+  }
+
+  if (!stillCurrent()) return;
+
+  let result;
+  try {
+    const snapshot = await ctx.options.callSupervisor("readTerminalSnapshot", {
+      threadId: terminalId,
+    });
+    result = composeTerminalWatchReadyResult(snapshot, terminalId) ?? notFoundWatchResult();
+  } catch {
+    result = unavailableWatchResult();
+  }
+
+  if (!stillCurrent()) return;
+  if (ws.readyState !== WebSocket.OPEN) {
+    // Socket closed mid-setup: drop the registration so reconnect cannot inherit
+    // a half-installed reliable watch without a delivered baseline.
+    if (ctx.terminalCursorSync.clearReliableIfMatch(ws, terminalId, watchId, epoch)) {
+      if (!ctx.terminalCursorSync.hasReliableWatcher(ws, terminalId)) {
+        ctx.terminalWatches.get(ws)?.delete(terminalId);
+      }
+      void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    }
+    return;
+  }
+
+  if (result.status === "error") {
+    failSetup(result);
+    return;
+  }
+
+  ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, result));
+}
+
 export async function handleUpgrade(
   ctx: RemoteServerContext,
   req: IncomingMessage,
@@ -158,7 +277,7 @@ function handleConnection(
   if (initialItemInterests && session.scopes.includes("session:read")) {
     ctx.itemInterests.set(ws, initialItemInterests);
   }
-  ctx.notifyEventInterestsChanged();
+  void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
   const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
@@ -188,9 +307,10 @@ function handleConnection(
     ctx.itemInterests.delete(ws);
     ctx.options.gitState?.clearInterests(gitStateInterestOwnerId);
     ctx.terminalWatches.delete(ws);
+    ctx.terminalCursorSync.clearConnection(ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
-    ctx.notifyEventInterestsChanged();
+    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
   });
   ws.on("pong", () => {
     ctx.clientLiveness.set(ws, true);
@@ -248,18 +368,35 @@ function handleConnection(
         void ctx.options.browser.dispatchInput(message.input).catch(() => {});
       }
       if (message.type === "terminal-watch") {
+        if (message.cursorSync) {
+          // Fire-and-forget setup; swallow rejections so a late throw cannot
+          // become an unhandled promise rejection on the host process.
+          void handleReliableTerminalWatch(
+            ctx,
+            ws,
+            session,
+            message.id,
+            message.cursorSync.watchId,
+            message.cursorSync.version,
+          ).catch(() => {});
+          return;
+        }
         if (!session.scopes.includes("terminal:read")) return;
+        // One interest per (connection, terminalId): legacy rewatch drops any
+        // prior reliable registration so we never dual-stream the same id.
+        ctx.terminalCursorSync.clearReliable(ws, message.id);
         ctx.terminalWatches.get(ws)?.add(message.id);
-        ctx.notifyEventInterestsChanged();
+        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
       }
       if (message.type === "terminal-unwatch") {
         ctx.terminalWatches.get(ws)?.delete(message.id);
-        ctx.notifyEventInterestsChanged();
+        ctx.terminalCursorSync.clearReliable(ws, message.id);
+        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
       }
       if (message.type === "thread-item-interests") {
         if (!session.scopes.includes("session:read")) return;
         ctx.itemInterests.set(ws, new Set(message.threadIds));
-        ctx.notifyEventInterestsChanged();
+        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
       }
       if (message.type === "git-state-interests") {
         if (!session.scopes.includes("session:read")) return;

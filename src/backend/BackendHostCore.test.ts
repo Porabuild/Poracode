@@ -159,14 +159,26 @@ describe("BackendHostCore", () => {
 
     expect(
       filterSupervisorEventForInterests(
-        { type: "thread-output", threadId: "terminal-hidden", data: "noise", outputLength: 5 },
+        {
+          type: "thread-output",
+          threadId: "terminal-hidden",
+          data: "noise",
+          outputLength: 5,
+          terminalInstanceId: "gen-test",
+        },
         interests,
       ),
     ).toBeNull();
     const hiddenShellActivityAt = new Map<string, number>();
     expect(
       filterSupervisorEventForInterests(
-        { type: "thread-output", threadId: "shell:action", data: "done", outputLength: 4 },
+        {
+          type: "thread-output",
+          threadId: "shell:action",
+          data: "done",
+          outputLength: 4,
+          terminalInstanceId: "gen-test",
+        },
         interests,
         hiddenShellActivityAt,
         1_000,
@@ -176,10 +188,17 @@ describe("BackendHostCore", () => {
       threadId: "shell:action",
       data: "",
       outputLength: 4,
+      terminalInstanceId: "gen-test",
     });
     expect(
       filterSupervisorEventForInterests(
-        { type: "thread-output", threadId: "shell:action", data: "more", outputLength: 8 },
+        {
+          type: "thread-output",
+          threadId: "shell:action",
+          data: "more",
+          outputLength: 8,
+          terminalInstanceId: "gen-test",
+        },
         interests,
         hiddenShellActivityAt,
         1_499,
@@ -187,7 +206,13 @@ describe("BackendHostCore", () => {
     ).toBeNull();
     expect(
       filterSupervisorEventForInterests(
-        { type: "thread-output", threadId: "shell:action", data: "more", outputLength: 8 },
+        {
+          type: "thread-output",
+          threadId: "shell:action",
+          data: "more",
+          outputLength: 8,
+          terminalInstanceId: "gen-test",
+        },
         interests,
         hiddenShellActivityAt,
         1_500,
@@ -197,6 +222,7 @@ describe("BackendHostCore", () => {
       threadId: "shell:action",
       data: "",
       outputLength: 8,
+      terminalInstanceId: "gen-test",
     });
     expect(
       filterSupervisorEventForInterests(
@@ -299,6 +325,7 @@ describe("BackendHostCore", () => {
       threadId: "terminal-starting",
       data: "first frame",
       outputLength: 11,
+      terminalInstanceId: "gen-test",
     };
 
     router.retainTerminalBootstrap("terminal-starting");
@@ -330,6 +357,7 @@ describe("BackendHostCore", () => {
       threadId: "terminal-starting",
       data: "first frame",
       outputLength: 11,
+      terminalInstanceId: "gen-test",
     };
 
     router.retainTerminalBootstrap("terminal-starting");

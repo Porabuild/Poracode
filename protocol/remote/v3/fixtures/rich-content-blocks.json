@@ -1,0 +1,65 @@
+{
+  "accepted": [
+    { "id": "text", "block": { "kind": "text", "text": "Inspect the fixture." } },
+    {
+      "id": "skill",
+      "block": {
+        "kind": "skill",
+        "name": "review-code",
+        "invocation": "$review-code",
+        "pluginId": "quality",
+        "pluginName": "Quality tools"
+      }
+    },
+    { "id": "mcp", "block": { "kind": "mcp", "name": "github" } },
+    {
+      "id": "diff-comment",
+      "block": {
+        "kind": "diff_comment",
+        "path": "src/example.ts",
+        "lineNumber": 7,
+        "side": "new",
+        "staged": false,
+        "body": "Keep this branch covered."
+      }
+    },
+    {
+      "id": "image",
+      "block": {
+        "kind": "image",
+        "mimeType": "image/png",
+        "dataUrl": "data:image/png;base64,iVBORw0KGgo=",
+        "path": "/tmp/fixture.png",
+        "name": "fixture.png",
+        "source": "attachment"
+      }
+    },
+    {
+      "id": "file",
+      "block": {
+        "kind": "file",
+        "path": "notes/spec.txt",
+        "name": "spec.txt",
+        "mimeType": "text/plain",
+        "source": "mention"
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "id": "diff-line-zero",
+      "block": {
+        "kind": "diff_comment",
+        "path": "src/example.ts",
+        "lineNumber": 0,
+        "side": "new",
+        "staged": false,
+        "body": "Invalid line."
+      }
+    },
+    {
+      "id": "unknown-file-source",
+      "block": { "kind": "file", "path": "spec.txt", "source": "network" }
+    }
+  ]
+}

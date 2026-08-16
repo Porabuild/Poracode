@@ -20,10 +20,11 @@ import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { BottomTerminalLayout } from "./parts/BottomTerminalLayout";
 import { RightTerminalLayout } from "./parts/RightTerminalLayout";
+import { MobileTerminalLayout } from "./parts/MobileTerminalLayout";
 
 export function DevTerminalPanel(props: {
   hideHeader?: boolean;
-  positionOverride?: "bottom" | "right";
+  positionOverride?: "bottom" | "right" | "mobile";
   onEmpty?: () => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
 }) {
@@ -67,6 +68,7 @@ export function DevTerminalPanel(props: {
   const activeTab = projectTabs.find((tab) => tab.id === selectedTabId);
 
   const isBottom = terminalPosition === "bottom";
+  const isMobile = terminalPosition === "mobile";
 
   // Cross-fade when switching between project and worktree contexts.
   const isOpen = useDevTerminalStore((s) => s.isOpen);
@@ -152,7 +154,7 @@ export function DevTerminalPanel(props: {
       return !other.worktreePath;
     });
     if (remainingInContext.length === 0) {
-      if (!isBottom) closeAllPanels();
+      if (!isBottom && !isMobile) closeAllPanels();
       useDevTerminalStore.getState().closePanel();
       onEmpty?.();
     }
@@ -222,6 +224,26 @@ export function DevTerminalPanel(props: {
         </button>
       </div>
     ) : null;
+
+  if (isMobile) {
+    return (
+      <MobileTerminalLayout
+        tabs={tabs}
+        projectTabs={projectTabs}
+        selectedTabId={selectedTabId}
+        activeTab={activeTab}
+        focusRequestId={focusRequestId}
+        markTabActive={markTabActive}
+        updateTabTitle={updateTabTitle}
+        fadeStyle={fadeStyle}
+        emptyState={emptyState}
+        handleCloseTab={handleCloseTab}
+        handleSelectionChange={handleSelectionChange}
+        onTerminalResize={handleTerminalResize}
+        {...(watchTerminal ? { watchTerminal } : {})}
+      />
+    );
+  }
 
   if (isBottom) {
     return (

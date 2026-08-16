@@ -149,7 +149,7 @@ async function readLegacyMobileServers(): Promise<RemoteServerRecord[]> {
 }
 
 /** Persists remote-server metadata locally while keeping bearer credentials in
- * the native OS keystore or the browser's encrypted WebCrypto vault. */
+ * the browser's encrypted WebCrypto vault. */
 export function createSecureRemoteServersStorage<S extends StateWithServers>(
   createLegacyState?: (servers: RemoteServerRecord[]) => S,
 ): PersistStorage<S> {

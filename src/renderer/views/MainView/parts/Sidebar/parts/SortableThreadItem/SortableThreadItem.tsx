@@ -1,10 +1,8 @@
 import type { Project, Thread } from "@/shared/contracts";
-import { Star } from "lucide-react";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
-import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
@@ -136,38 +134,28 @@ export function SortableThreadItem(props: {
                 <span className="flex h-[18px] items-center gap-1.5">
                   <span className="min-w-0 flex-1 truncate">{titleContent}</span>
                   {hasDraft && <DraftIndicator />}
-                  {/* No padding here: the time slot carries the 2px inset that
-                      matches the git badge's own p-0.5, so both rows' icon
-                      columns share the same offset from the row's right edge. */}
                   <span className="flex shrink-0 items-center gap-1 text-muted">
-                    {compactLayout && thread.starred ? (
-                      <Star className="size-3 fill-current" aria-hidden />
-                    ) : null}
-                    {compactLayout ? (
-                      <RelativeTime
-                        iso={thread.updatedAt}
-                        className="block font-mono text-[10px] leading-none tabular-nums"
-                      />
-                    ) : (
-                      <ThreadItemTopSuffix {...suffixProps} />
-                    )}
+                    <ThreadItemTopSuffix {...suffixProps} mobileControls={compactLayout} />
                   </span>
                 </span>
                 <span className="flex h-[18px] items-center gap-1.5">
                   {projectTag}
-                  {compactLayout ? null : (
-                    <span className="flex shrink-0 items-center gap-[3px]">
-                      <ThreadItemBottomSuffix {...suffixProps} />
-                    </span>
-                  )}
+                  <span className="flex shrink-0 items-center gap-[3px]">
+                    <ThreadItemBottomSuffix {...suffixProps} mobileControls={compactLayout} />
+                  </span>
                 </span>
               </span>
             ) : isEditing ? (
               titleContent
             ) : (
               <span className="flex items-center gap-1.5">
-                <span className="min-w-0 truncate">{titleNode}</span>
+                <span className="min-w-0 flex-1 truncate">{titleNode}</span>
                 {hasDraft && <DraftIndicator />}
+                {compactLayout ? (
+                  <span className="flex shrink-0 items-center text-muted">
+                    <ThreadItemTopSuffix {...suffixProps} mobileControls />
+                  </span>
+                ) : null}
               </span>
             )
           }

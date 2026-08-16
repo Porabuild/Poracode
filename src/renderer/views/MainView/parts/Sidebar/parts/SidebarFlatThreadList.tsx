@@ -1,10 +1,8 @@
-import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import {
   ProjectRemoteServerChip,
   ProjectSelectorIcon,
-  useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
@@ -15,11 +13,8 @@ import {
   useLiveBackgroundThreadIds,
 } from "@/renderer/hooks/uiSelectors";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
-import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
-import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
 import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChrome";
 import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
@@ -32,6 +27,7 @@ import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobileQuickCompose } from "./MobileQuickCompose";
+import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
 
 /**
  * `threadListLimits`/`revealMoreThreads` scope key for the flat list's single
@@ -57,17 +53,23 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const compactLayout = useCompactLayout();
-  const workspaceProjectIds = useWorkspaceProjectIds();
-  const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
-  const projects = useAppStore(useShallow((s) => s.projects));
-  const remoteServerFor = useProjectRemoteServerLookup();
+  const {
+    workspaceProjects,
+    visibleProjects,
+    actionableProjects,
+    projectsById,
+    filterableProjectIds,
+    activeProjectFilter,
+    visibleThreads,
+    threadCounts,
+    remoteServerFor,
+    setFlatListProjectFilter,
+  } = useFlatListProjectFilterModel();
   const experimentCandidateOrder = useExperimentCandidateOrder();
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
   const setEditingThreadId = useSidebarUiStore((s) => s.setEditingThreadId);
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
-  const flatListProjectFilter = useSidebarUiStore((s) => s.flatListProjectFilter);
-  const setFlatListProjectFilter = useSidebarUiStore((s) => s.setFlatListProjectFilter);
   const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
@@ -77,53 +79,13 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     maxFadePx: 10,
   });
 
-  // Same visibility rules as the grouped sidebar — workspace projects plus Home
-  // (when enabled), minus disabled projects — except remote mirrors, which are
-  // stricter here: the grouped view keeps an errored-but-reachable server's
-  // section visible because its header carries the status, but flat rows have
-  // no header to explain a dead server (e.g. a relay answering for a powered-off
-  // machine reports `error`, not `offline`), so only online servers' threads
-  // mix into the list.
-  const includedIds = new Set(workspaceProjectIds);
-  const workspaceProjects = projects.filter((project) => {
-    // Home is a synthetic row persisted with `disabled: true` by design — the
-    // home-scope setting alone decides whether it shows (mirrors the grouped
-    // sidebar's dedicated Home section).
-    if (isHomeProject(project)) return homeScopeEnabled;
-    return includedIds.has(project.id);
-  });
-  const visibleProjects = workspaceProjects.filter((project) => {
-    if (isHomeProject(project)) return true;
-    if (project.disabled) return false;
-    if (!project.remoteServerId) return true;
-    return remoteServerFor(project).status === "online";
-  });
-  const newThreadProjects = [...visibleProjects].sort((a, b) => {
+  // Offline machines remain browseable on mobile, but they are not valid
+  // composer targets until their connection comes back.
+  const newThreadProjects = [...actionableProjects].sort((a, b) => {
     const rank = (project: Project) =>
       isHomeProject(project) ? 0 : project.remoteServerId ? 2 : 1;
     return rank(a) - rank(b);
   });
-  const projectsById = new Map(visibleProjects.map((project) => [project.id, project]));
-  const filterableProjectIds = new Set(projectsById.keys());
-
-  // The persisted filter can name projects that are gone or currently hidden
-  // (workspace switch, home scope off, dead remote server); only ids
-  // intersecting the visible set can match, and a selection covering every
-  // visible project reads — and behaves — the same as no filter.
-  const filteredVisibleIds = flatListProjectFilter?.filter((id) => projectsById.has(id)) ?? [];
-  const activeProjectFilter: ReadonlySet<string> | null =
-    filteredVisibleIds.length === 0 || filteredVisibleIds.length >= visibleProjects.length
-      ? null
-      : new Set(filteredVisibleIds);
-
-  const allThreads = useAppStore((s) => s.threads);
-  const visibleThreads = allThreads.filter(
-    (thread) => !thread.archived && projectsById.has(thread.projectId),
-  );
-  const threadCounts = new Map<string, number>();
-  for (const thread of visibleThreads) {
-    threadCounts.set(thread.projectId, (threadCounts.get(thread.projectId) ?? 0) + 1);
-  }
   const threads =
     activeProjectFilter === null
       ? visibleThreads
@@ -135,15 +97,17 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   // visible project when unfiltered — on a fresh workspace.
   let latestProjectId: string | undefined;
   let latestUpdatedAt = "";
+  const actionableProjectIds = new Set(actionableProjects.map((project) => project.id));
   for (const thread of threads) {
+    if (!actionableProjectIds.has(thread.projectId)) continue;
     if (thread.updatedAt > latestUpdatedAt) {
       latestUpdatedAt = thread.updatedAt;
       latestProjectId = thread.projectId;
     }
   }
   latestProjectId ??= activeProjectFilter
-    ? visibleProjects.find((project) => activeProjectFilter.has(project.id))?.id
-    : visibleProjects[0]?.id;
+    ? actionableProjects.find((project) => activeProjectFilter.has(project.id))?.id
+    : actionableProjects[0]?.id;
   const hasDraft = useHasDraft(latestProjectId ?? "");
   const isDraftActive = useIsCurrentProjectDraft(latestProjectId ?? "");
 
@@ -183,7 +147,8 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {visibleProjects.length > 1 || workspaceProjects.length > visibleProjects.length ? (
+      {!compactLayout &&
+      (visibleProjects.length > 1 || workspaceProjects.length > visibleProjects.length) ? (
         // Filter and new-thread share one head row; the new-thread control
         // collapses to an icon button (tooltip) when the row is narrow.
         <div className="poracode-flat-list-head flex shrink-0 items-center gap-1 pb-0.5">
@@ -198,7 +163,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           </div>
           {renderNewThreadButton(true)}
         </div>
-      ) : (
+      ) : compactLayout ? null : (
         <div className="shrink-0 pb-0.5">{renderNewThreadButton(false)}</div>
       )}
 

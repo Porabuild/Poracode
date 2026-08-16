@@ -196,6 +196,23 @@ describe("buildSidebarProjectRows — See more cap (date sort)", () => {
     expect(group?.liveBackgroundThreadIds).toBe(liveBackgroundThreadIds);
   });
 
+  it("marks the endpoints of an expanded group's child rail", () => {
+    const worktree = { worktreePath: "/repo/wt", worktreeBranch: "feature" };
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({ id: "wt-first", ...worktree }),
+        makeThread({ id: "wt-second", ...worktree }),
+      ],
+      sortMode: "updated",
+      collapsedWorktrees: { [worktree.worktreePath]: false },
+      visibleLimit: 10,
+    });
+
+    expect(threadRows(rows).map((row) => row.firstInGroup)).toEqual([true, false]);
+    expect(threadRows(rows).map((row) => row.lastInGroup)).toEqual([false, true]);
+  });
+
   it("hides done threads behind See more before live ones", () => {
     const threads = [
       ...Array.from({ length: 8 }, (_, i) => makeThread({ id: `live-${i}` })),

@@ -65,23 +65,31 @@ vi.mock("@/renderer/components/common/ContextMenu", () => ({
 }));
 
 vi.mock("@/renderer/components/common/SidebarButton", () => ({
-  SidebarButton: forwardRef<HTMLDivElement, { label: ReactNode; suffix?: ReactNode }>(
-    (props, ref) => (
-      <div ref={ref} role="button">
-        {props.label}
-        {props.suffix}
-      </div>
-    ),
-  ),
+  SidebarButton: forwardRef<
+    HTMLDivElement,
+    { icon: ReactNode; label: ReactNode; suffix?: ReactNode }
+  >((props, ref) => (
+    <div ref={ref} role="button">
+      {props.icon}
+      {props.label}
+      {props.suffix}
+    </div>
+  )),
 }));
 
 vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
-  ThreadProviderIcon: () => null,
+  ThreadProviderIcon: (props: { className: string; tone: string }) => (
+    <span data-testid="provider-icon" data-tone={props.tone} className={props.className} />
+  ),
 }));
 
 vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/GitBadge", () => ({
-  GitBadge: (props: { projectName: string }) => (
-    <button type="button" aria-label={`Git status for ${props.projectName}`} />
+  GitBadge: (props: { projectName: string; fallbackToWorktreeIcon?: boolean }) => (
+    <button
+      type="button"
+      aria-label={`Git status for ${props.projectName}`}
+      data-worktree-icon={props.fallbackToWorktreeIcon || undefined}
+    />
   ),
 }));
 
@@ -321,7 +329,7 @@ describe("SortableThreadItem", () => {
     );
   });
 
-  it("removes thread drop targets and desktop row actions in compact layouts", () => {
+  it("uses a status-coloured provider icon and compact Git metadata on mobile", () => {
     layoutMock.compact = true;
 
     render(
@@ -340,11 +348,56 @@ describe("SortableThreadItem", () => {
     expect(sortableOptionsMock).toHaveBeenCalledWith(
       expect.objectContaining({ accept: [], disabled: false }),
     );
+    expect(screen.getByTestId("provider-icon")).toHaveClass("size-3.5");
+    expect(screen.getByTestId("provider-icon")).toHaveAttribute("data-tone", "default");
     expect(screen.getByText("Project")).toBeInTheDocument();
     expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+  });
+
+  it("keeps relative time on grouped compact rows", () => {
+    layoutMock.compact = true;
+
+    const { container } = render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(container.querySelector(".tabular-nums")).toBeInTheDocument();
+  });
+
+  it("shows the worktree glyph beside compact Git counts without repeating the branch", () => {
+    layoutMock.compact = true;
+    const thread = {
+      ...makeThread(),
+      worktreePath: "C:\\repo\\worktree",
+      worktreeBranch: "feature/mobile-cards",
+    };
+
+    render(
+      <SortableThreadItem
+        thread={thread}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
     expect(
-      screen.queryByRole("button", { name: "Git status for Project" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Git status for feature/mobile-cards" }),
+    ).toHaveAttribute("data-worktree-icon", "true");
+    expect(screen.queryByText("feature/mobile-cards")).not.toBeInTheDocument();
   });
 
   it("enables unload for a loaded thread without a session ref", () => {

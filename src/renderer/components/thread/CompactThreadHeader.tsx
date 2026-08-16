@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { Button } from "@heroui/react";
+import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Archive,
@@ -13,9 +12,8 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { baseAgentKind, type AgentStatus, type Project, type Thread } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
-import { openNotesPanel, openUsagePanel } from "@/renderer/actions/panelActions";
+import type { AgentStatus, Project, Thread } from "@/shared/contracts";
+import { openNotesPanel } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
 import {
   archiveThread,
@@ -27,32 +25,15 @@ import {
 } from "@/renderer/actions/threadActions";
 import { openTerminal, openWorktreeTerminal } from "@/renderer/actions/terminalActions";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
-import { SidebarButton } from "@/renderer/components/common/SidebarButton";
-import { ProviderUsageCircle } from "@/renderer/components/providers/ProviderUsageCircle";
 import {
-  resolveDisplayedProviders,
-  USAGE_PROVIDERS,
-} from "@/renderer/components/providers/usageProviders";
-import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+  ProjectRemoteServerChip,
+  useProjectRemoteServer,
+} from "@/renderer/components/common/ProjectRemoteServer";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
-
-function resolveThreadUsageProviderId(
-  thread: { readonly agentKind: string; readonly agentInstanceId?: string | undefined },
-  availableIds: readonly string[],
-): string {
-  const ids = new Set(availableIds);
-  const base = baseAgentKind(thread.agentKind);
-  const candidates = thread.agentInstanceId
-    ? [thread.agentKind, `${base}:${thread.agentInstanceId}`]
-    : [thread.agentKind];
-  for (const candidate of candidates) {
-    if (ids.has(candidate)) return candidate;
-  }
-  return availableIds.find((id) => baseAgentKind(id) === base) ?? thread.agentKind;
-}
 
 function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
   const { t } = useLingui();
@@ -68,16 +49,9 @@ function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
 
   return (
     <>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="m-topbar__actions"
-        aria-label={t`Thread actions`}
-        onPress={() => setOpen(true)}
-      >
+      <MobileCircleButton aria-label={t`Thread actions`} onPress={() => setOpen(true)}>
         <Ellipsis className="size-4" />
-      </Button>
+      </MobileCircleButton>
       {open ? (
         <BottomSheet
           label={t`Thread actions`}
@@ -175,35 +149,9 @@ export function CompactThreadHeader(props: {
   project: Project;
   agentStatus: AgentStatus | undefined;
 }) {
-  const { t } = useLingui();
   const { thread, agentStatus } = props;
   const [renaming, setRenaming] = useState(false);
-  const snapshots = useProviderUsageStore((state) => state.snapshots);
-  const agentInstances = useSharedSettings((state) => state.agentInstances);
-
-  useEffect(() => {
-    let cancelled = false;
-    void readBridge()
-      .getProviderUsage({})
-      .then((result) => {
-        if (cancelled || !result) return;
-        const store = useProviderUsageStore.getState();
-        for (const snapshot of result.snapshots) store.mergeSnapshot(snapshot);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [thread.id]);
-
-  const providerId = resolveThreadUsageProviderId(thread, Object.keys(snapshots));
-  const snapshot = snapshots[providerId];
-  const label =
-    resolveDisplayedProviders([], [], agentInstances).find((provider) => provider.id === providerId)
-      ?.label ??
-    USAGE_PROVIDERS.find((provider) => provider.id === baseAgentKind(providerId))?.label ??
-    baseAgentKind(providerId);
-
+  const remote = useProjectRemoteServer(props.project);
   return (
     <div className="m-topbar__thread-row">
       <span className="m-topbar__thread">
@@ -225,20 +173,16 @@ export function CompactThreadHeader(props: {
               agentLabel={agentStatus?.label}
               agentIcon={agentStatus?.icon}
             />
-            <span className="m-topbar__title">{thread.title}</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="m-topbar__title">{thread.title}</span>
+              <span className="flex min-w-0 items-center gap-1 text-[10px] leading-4 text-muted/70">
+                <span className="truncate">{props.project.name}</span>
+                <ProjectRemoteServerChip info={remote} size="xs" />
+              </span>
+            </span>
           </>
         )}
       </span>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="m-usage-chip"
-        aria-label={t`${label} usage`}
-        onPress={openUsagePanel}
-      >
-        <ProviderUsageCircle kind={providerId} windows={snapshot?.windows} size={26} />
-      </Button>
       <CompactThreadActions thread={thread} onRename={() => setRenaming(true)} />
     </div>
   );

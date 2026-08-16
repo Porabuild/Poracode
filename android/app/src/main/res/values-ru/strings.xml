@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">Запуск Poracode…</string>
+    <string name="reconnecting_stored_session">Повторное подключение к компьютеру…</string>
+    <string name="session_expired_title">Срок действия сеанса истёк</string>
+    <string name="session_expired_message">Срок действия сеанса удалённого доступа истёк. Приложение автоматически повторит попытку. Вы также можете сопрячь устройство заново.</string>
+    <string name="session_expired_forget">Забыть этот компьютер</string>
+    <string name="protocol_incompatible_title">Несовместимый компьютер</string>
+    <string name="protocol_incompatible_message">Эта версия приложения несовместима с этим сервером. Обновите оба до одной версии. Сохранённое сопряжение сохраняется.</string>
+    <string name="send_missing_thread_config">Этот поток ещё не готов к отправке. Дождитесь загрузки переписки или откройте поток заново.</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">Отсканируйте код сопряжения, показанный в разделе «Удалённый доступ» на компьютере.</string>
+    <string name="pairing_link_label">Ссылка сопряжения</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">или</string>
+    <string name="manual_connection">Ручное подключение</string>
+    <string name="server_base_url">Базовый URL-адрес сервера</string>
+    <string name="one_time_pairing_token">Одноразовый токен сопряжения</string>
+    <string name="connect_button">Подключить</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">Отсканировать код сопряжения</string>
+    <string name="pair_scan_card_message">Откройте Настройки → Удалённый доступ на компьютере, чтобы показать код.</string>
+    <string name="pair_scan_card_action">Сканировать код сопряжения компьютера камерой</string>
+    <string name="pair_other_ways">Другие способы подключения</string>
+    <string name="pair_link_paste">Вставить</string>
+    <string name="pair_link_clipboard_empty">В буфере обмена нет ссылки сопряжения.</string>
+    <string name="pair_cleartext_warning">Это подключение использует незашифрованный HTTP в вашей локальной сети.</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">Сканировать код сопряжения</string>
+    <string name="scan_close">Закрыть сканер</string>
+    <string name="scan_frame_hint">Расположите QR-код в центре рамки</string>
+    <string name="scan_desktop_caption">Откройте Настройки → Удалённый доступ в приложении для компьютера, чтобы показать код сопряжения.</string>
+    <string name="scan_starting">Запуск камеры…</string>
+    <string name="scan_preview_description">Видоискатель камеры для сопряжения по QR-коду</string>
+    <string name="scan_invalid_code">Этот код не является ссылкой сопряжения Poracode. Держите камеру на коде из Настройки → Удалённый доступ.</string>
+    <string name="scan_use_link_instead">Вставить ссылку вместо этого</string>
+    <string name="scan_camera_permission_title">Требуется доступ к камере</string>
+    <string name="scan_camera_permission_message">Poracode использует камеру только для считывания QR-кода сопряжения с вашего компьютера.</string>
+    <string name="scan_camera_permission_allow">Разрешить камеру</string>
+    <string name="scan_camera_permission_denied_title">В доступе к камере отказано</string>
+    <string name="scan_camera_permission_denied_message">В разрешении на использование камеры было отказано. Вы можете запросить его снова или выполнить сопряжение, вставив ссылку.</string>
+    <string name="scan_camera_permission_blocked_title">Камера заблокирована в настройках</string>
+    <string name="scan_camera_permission_blocked_message">Доступ к камере для Poracode отключён. Включите его в системных настройках или сопрягитесь, вставив ссылку.</string>
+    <string name="scan_camera_open_settings">Открыть настройки</string>
+    <string name="scan_camera_try_again">Повторить</string>
+    <string name="scan_no_camera_title">Нет доступной камеры</string>
+    <string name="scan_no_camera_message">На этом устройстве нет доступной камеры. Сопрягитесь, вставив ссылку, или введите данные вручную.</string>
+    <string name="scan_camera_failed_title">Камера недоступна</string>
+    <string name="scan_camera_failed_message">Не удалось запустить камеру. Повторите попытку или сопрягитесь, вставив ссылку.</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">Выбрать поток</string>
+    <string name="select_thread_message">Выберите поток проекта, чтобы открыть переписку.</string>
+    <string name="refresh_projects">Обновить проекты</string>
+    <string name="disconnect">Отключиться</string>
+    <string name="loading_projects">Загрузка проектов…</string>
+    <string name="loading_conversations">Загрузка бесед…</string>
+    <string name="no_conversations_title">Пока нет бесед</string>
+    <string name="no_conversations_message">Здесь появятся беседы со всех подключённых компьютеров.</string>
+    <string name="no_projects_title">Нет проектов</string>
+    <string name="no_projects_message">На этом компьютере пока нет проектов.</string>
+    <string name="failed_load_projects">Не удалось загрузить проекты</string>
+    <string name="no_open_threads">Нет открытых потоков</string>
+    <string name="untitled_thread">Поток без названия</string>
+    <string name="starred">в избранном</string>
+    <string name="project_expanded">развёрнут</string>
+    <string name="project_collapsed">свёрнут</string>
+    <string name="project_content_description">Проект %1$s, %2$s</string>
+    <string name="thread_content_description">Поток %1$s, %2$s, %3$s</string>
+    <string name="error_prefix">Ошибка: %1$s</string>
+    <string name="home_filter_projects">Фильтр проектов</string>
+    <string name="home_all_projects">Все проекты</string>
+    <string name="home_search_threads">Поиск веток</string>
+    <string name="home_no_matching_threads">Подходящих веток нет</string>
+    <string name="home_no_matching_threads_message">Измените запрос или фильтр проектов.</string>
+    <string name="home_quick_compose_prompt">Планируйте, спрашивайте, создавайте…</string>
+    <string name="home_more">Ещё</string>
+    <string name="home_new_thread">Новая ветка</string>
+    <string name="home_project">Проект</string>
+    <string name="home_agent_value">Агент: %1$s</string>
+    <string name="home_model_value">Модель: %1$s</string>
+    <string name="home_start">Запустить</string>
+    <string name="home_quick_compose_defaults_description">Используются последние настройки агента и модели этого проекта.</string>
+    <string name="home_quick_compose_unavailable">Ни в одном проекте пока нет настроек запуска. Сначала запустите ветку на компьютере.</string>
+    <string name="home_new_thread_failed">Не удалось запустить новую ветку.</string>
+    <string name="home_expand_worktree">Развернуть рабочее дерево</string>
+    <string name="home_collapse_worktree">Свернуть рабочее дерево</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">Неактивен</string>
+    <string name="socket_connecting">Подключение…</string>
+    <string name="socket_online">В сети</string>
+    <string name="socket_reconnecting">Повторное подключение…</string>
+    <string name="socket_suspended">Приостановлено в фоновом режиме</string>
+    <string name="socket_failed">Не в сети</string>
+    <string name="socket_session_expired">Срок действия сеанса истёк</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">Поток</string>
+    <string name="back">Назад</string>
+    <string name="interrupt_thread">Прервать поток</string>
+    <string name="loading_transcript">Загрузка переписки…</string>
+    <string name="failed_load_transcript">Не удалось загрузить переписку</string>
+    <string name="empty_transcript_title">Пустая переписка</string>
+    <string name="empty_transcript_message">Отправьте сообщение, чтобы начать этот поток.</string>
+    <string name="thread_transcript">Переписка потока</string>
+    <string name="load_older_messages">Загрузить старые сообщения</string>
+    <string name="loading_older">Загрузка старых…</string>
+    <string name="message_input">Поле сообщения</string>
+    <string name="message_placeholder">Сообщение…</string>
+    <string name="send_message">Отправить сообщение</string>
+    <string name="stop_generation">Остановить генерацию</string>
+    <string name="stop">Остановить</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">Повторить</string>
+    <string name="pairing_failed">Сопряжение не удалось</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">Подтвердить сопряжение с компьютером</string>
+    <string name="confirm_pair_message">Сопрячь с компьютером %1$s?</string>
+    <string name="confirm_pair_replace_warning">Это заменит текущее подключение к компьютеру.</string>
+    <string name="confirm_pair_button">Подтвердить</string>
+    <string name="cancel_pair_button">Отмена</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">Ошибка хранилища учётных данных</string>
+    <string name="local_store_inconsistent_message">Локальное хранилище учётных данных некорректно. Забудьте этот компьютер и выполните сопряжение заново.</string>
+</resources>

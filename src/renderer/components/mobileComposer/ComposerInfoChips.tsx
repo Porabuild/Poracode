@@ -1,7 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { AlertTriangle, Bot, Gauge, GitBranch, ListChecks, Target, Users } from "lucide-react";
-import type { ProjectLocation } from "@/shared/contracts";
+import {
+  AlertTriangle,
+  Bot,
+  Gauge,
+  GitBranch,
+  KeyRound,
+  ListChecks,
+  Target,
+  Users,
+} from "lucide-react";
+import type { AgentStatus, Project, ProjectLocation } from "@/shared/contracts";
 import {
   ActiveSubAgentTile,
   useActiveAgentKindCounts,
@@ -10,19 +19,24 @@ import {
 import { ThreadContextDock } from "@/renderer/components/thread/ThreadContextDock";
 import { ThreadErrorDock } from "@/renderer/components/thread/ThreadErrorDock";
 import { ThreadGoalDock } from "@/renderer/components/thread/ThreadGoalDock";
+import { ThreadAuthRequiredDock } from "@/renderer/components/thread/ThreadAuthRequiredDock";
 import { ThreadTodoDock } from "@/renderer/components/thread/ThreadTodoDock";
-import type { ThreadErrorDockState } from "@/renderer/components/thread/threadErrorState";
+import {
+  resolveThreadAuthState,
+  type ThreadErrorDockState,
+} from "@/renderer/components/thread/threadErrorState";
 import type { ThreadGoalDockState } from "@/renderer/components/thread/threadGoalState";
 import type { ThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
 import type { ThreadContextUsageSummary } from "@/renderer/components/thread/threadContextUsage";
 
-type ChipKey = ActiveAgentKind | "context" | "plan" | "goal" | "errors";
+type ChipKey = ActiveAgentKind | "auth" | "context" | "plan" | "goal" | "errors";
 const PANEL_EXIT_MS = 160;
 const CHIP_EXIT_MS = 160;
 const CHIP_ORDER: readonly ChipKey[] = [
   "subagent",
   "crossagent",
   "workflow",
+  "auth",
   "context",
   "plan",
   "goal",
@@ -34,13 +48,15 @@ interface ChipDescriptor {
   readonly icon: React.ElementType<{ className?: string; "aria-hidden"?: boolean }>;
   readonly label: string;
   readonly count?: string;
-  readonly tone?: "danger";
+  readonly tone?: "danger" | "warning";
   readonly active?: boolean;
 }
 
 /** Compact info chips floating above the collapsed thread composer. */
 export function ComposerInfoChips(props: {
   readonly threadId: string;
+  readonly agentStatus: AgentStatus | undefined;
+  readonly project: Project | undefined;
   readonly projectLocation: ProjectLocation;
   readonly contextSummary?: ThreadContextUsageSummary | null | undefined;
   readonly todoDockState: ThreadTodoDockState | null;
@@ -51,6 +67,8 @@ export function ComposerInfoChips(props: {
   readonly onTodoDockPlacementChange: (placement: "composer" | "right") => void;
   readonly onTodoDockRetire?: (() => void) | undefined;
   readonly hidden: boolean;
+  readonly leading?: ReactNode;
+  readonly trailing?: ReactNode;
 }) {
   const { t } = useLingui();
   const { threadId, projectLocation, contextSummary, hidden } = props;
@@ -62,6 +80,10 @@ export function ComposerInfoChips(props: {
   const previousChipsRef = useRef<readonly ChipDescriptor[]>([]);
   const previousThreadIdRef = useRef(threadId);
   const agentCounts = useActiveAgentKindCounts(threadId);
+  const { authRequired } = resolveThreadAuthState({
+    authState: props.agentStatus?.authState,
+    errorDockStates: props.errorDockStates,
+  });
   const completedSteps =
     props.todoDockState?.steps.filter((step) => step.status === "completed").length ?? 0;
 
@@ -91,6 +113,14 @@ export function ComposerInfoChips(props: {
       label: t`Workflows`,
       count: String(agentCounts.workflow),
       active: true,
+    });
+  }
+  if (authRequired && props.agentStatus) {
+    chips.push({
+      key: "auth",
+      icon: KeyRound,
+      label: t`Sign in required`,
+      tone: "warning",
     });
   }
   if (contextSummary) {
@@ -190,10 +220,44 @@ export function ComposerInfoChips(props: {
       chips.find((item) => item.key === key) ?? exitingChips.find((item) => item.key === key);
     return chip ? [chip] : [];
   });
-  if (renderedChips.length === 0) return null;
+  if (renderedChips.length === 0 && !props.leading && !props.trailing) return null;
 
   const renderedChip = openChip ?? closingChip;
   const open = renderedChips.find((chip) => chip.key === renderedChip) ?? null;
+  const authChip = renderedChips.find((chip) => chip.key === "auth");
+  const leadingChips = renderedChips.filter((chip) => chip.key !== "auth");
+
+  const renderChipButton = (chip: ChipDescriptor) => {
+    const Icon = chip.icon;
+    const isOpen = chip.key === openChip;
+    const isExiting = !chips.some((item) => item.key === chip.key);
+    return (
+      <button
+        key={chip.key}
+        type="button"
+        className="m-chip"
+        data-open={isOpen || undefined}
+        data-tone={chip.tone}
+        data-active={chip.active || undefined}
+        data-exiting={isExiting || undefined}
+        aria-expanded={isOpen}
+        aria-label={chip.label}
+        title={chip.label}
+        onClick={() => {
+          if (isExiting) return;
+          if (isOpen) {
+            closePanel();
+            return;
+          }
+          setClosingChip(null);
+          setOpenChip(chip.key);
+        }}
+      >
+        <Icon className="size-3.5" aria-hidden />
+        {chip.count ? <span className="m-chip__count">{chip.count}</span> : null}
+      </button>
+    );
+  };
 
   return (
     <div ref={containerRef} className="m-thread-chips" data-hidden={hidden || undefined}>
@@ -210,6 +274,13 @@ export function ComposerInfoChips(props: {
               threadId={threadId}
               state={props.goalDockState}
               onDismiss={props.onGoalDockDismiss}
+            />
+          ) : null}
+          {open.key === "auth" && props.agentStatus ? (
+            <ThreadAuthRequiredDock
+              agentStatus={props.agentStatus}
+              multilineDescription
+              {...(props.project ? { project: props.project } : {})}
             />
           ) : null}
           {open.key === "context" && contextSummary ? (
@@ -245,37 +316,14 @@ export function ComposerInfoChips(props: {
         </div>
       ) : null}
       <div className="m-chip-row">
-        {renderedChips.map((chip) => {
-          const Icon = chip.icon;
-          const isOpen = chip.key === openChip;
-          const isExiting = !chips.some((item) => item.key === chip.key);
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              className="m-chip"
-              data-open={isOpen || undefined}
-              data-tone={chip.tone}
-              data-active={chip.active || undefined}
-              data-exiting={isExiting || undefined}
-              aria-expanded={isOpen}
-              aria-label={chip.label}
-              title={chip.label}
-              onClick={() => {
-                if (isExiting) return;
-                if (isOpen) {
-                  closePanel();
-                  return;
-                }
-                setClosingChip(null);
-                setOpenChip(chip.key);
-              }}
-            >
-              <Icon className="size-3.5" aria-hidden />
-              {chip.count ? <span className="m-chip__count">{chip.count}</span> : null}
-            </button>
-          );
-        })}
+        {props.leading}
+        {leadingChips.map(renderChipButton)}
+        {props.trailing || authChip ? (
+          <div className="m-chip-row__trailing">
+            {props.trailing}
+            {authChip ? renderChipButton(authChip) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

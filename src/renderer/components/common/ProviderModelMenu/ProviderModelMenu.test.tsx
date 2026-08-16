@@ -5,6 +5,12 @@ import "@/renderer/components/providers/opencode";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderModelMenu, type ProviderModelMenuProvider } from "./ProviderModelMenu";
 
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
+
 function makeProvider(modelCount: number): ProviderModelMenuProvider {
   return makeNamedProvider("codex", "Codex", modelCount);
 }
@@ -118,11 +124,52 @@ function hasComposedHeader(providerLabel: string, subProviderLabel: string): boo
 
 describe("ProviderModelMenu", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
     useSharedSettings.setState({
       favoriteModels: [],
       recentModels: [],
       hiddenModels: {},
     });
+  });
+
+  it("uses divider headers without an initial hover highlight in the mobile drawer", async () => {
+    layoutMock.compact = true;
+    render(
+      <ProviderModelMenu
+        providers={[makeSubProviderBackedProvider(), makeNamedProvider("codex", "Codex", 2)]}
+        currentAgentKind="opencode"
+        currentModel="github-copilot/model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(listbox).toHaveAttribute("data-mobile", "true");
+    expect(listbox.querySelector('[role="option"][aria-selected="true"]')).not.toHaveAttribute(
+      "data-active",
+    );
+
+    const providerHeader = within(listbox)
+      .getAllByText("OpenCode")
+      .map((label) => label.closest('[role="presentation"]'))
+      .find(Boolean);
+    const subProviderHeader = within(listbox)
+      .getAllByText("Copilot")
+      .map((label) => label.closest('[role="presentation"]'))
+      .find(Boolean);
+    expect(providerHeader).toHaveClass(
+      "poracode-model-menu-header",
+      "poracode-model-menu-header--provider",
+    );
+    expect(subProviderHeader).toHaveClass(
+      "poracode-model-menu-header",
+      "poracode-model-menu-header--sub",
+    );
+
+    fireEvent.keyDown(listbox, { key: "ArrowDown" });
+    expect(listbox.querySelector('[data-active="true"]')).not.toBeNull();
   });
 
   it("hides the list scrollbar for long model lists", async () => {

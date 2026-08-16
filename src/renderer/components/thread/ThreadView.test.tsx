@@ -103,6 +103,34 @@ describe("ThreadView", () => {
     });
   });
 
+  it("fills the desktop pane so the composer stays at the bottom", () => {
+    const { container } = renderThreadView({
+      thread: {
+        id: "thread-desktop-layout",
+        projectId: "project-1",
+        title: "Desktop layout",
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      agentStatus: undefined,
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+    });
+
+    expect(container.querySelector("[data-poracode-thread-pane]")).toHaveClass(
+      "flex",
+      "min-h-0",
+      "flex-col",
+    );
+  });
+
   it("does not render MCP controls in active-thread headers", () => {
     renderThreadView({
       thread: {

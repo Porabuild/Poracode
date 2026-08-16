@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Portweiterleitungen</string>
+    <string name="ports_back">Zurück</string>
+    <string name="ports_refresh">Ports aktualisieren</string>
+    <string name="ports_target_port">Zielport</string>
+    <string name="ports_start_open">Starten und öffnen</string>
+    <string name="ports_dismiss">Schließen</string>
+    <string name="ports_detected">Erkannte Ports</string>
+    <string name="ports_no_detected">Es wurden keine lauschenden Ports erkannt.</string>
+    <string name="ports_active">Aktive Weiterleitungen</string>
+    <string name="ports_no_active">Keine Portweiterleitung ist aktiv.</string>
+    <string name="ports_port_number">Port %1$d</string>
+    <string name="ports_protocol_http">HTTP-Dienst</string>
+    <string name="ports_protocol_unknown">Unbekanntes Protokoll</string>
+    <string name="ports_forward_port">Weiterleiten</string>
+    <string name="ports_forward_summary">Port %1$d → %2$d</string>
+    <string name="ports_open">Öffnen</string>
+    <string name="ports_busy">Wird verarbeitet…</string>
+    <string name="ports_stop">Stoppen</string>
+    <string name="ports_failure_offline">Stelle die Verbindung zum Host wieder her, um Portweiterleitungen zu verwalten.</string>
+    <string name="ports_failure_scope">Diese Verbindung gewährt keinen Zugriff auf Portweiterleitungen.</string>
+    <string name="ports_failure_auth">Die Host-Sitzung ist abgelaufen. Stelle die Verbindung wieder her und versuche es erneut.</string>
+    <string name="ports_failure_not_found">Diese Portweiterleitung existiert nicht mehr.</string>
+    <string name="ports_failure_input">Gib einen gültigen Port zwischen 1 und 65535 ein.</string>
+    <string name="ports_failure_response">Der Host hat eine ungültige Antwort zur Portweiterleitung zurückgegeben.</string>
+    <string name="ports_failure_ambiguous">Die Anfrage wurde möglicherweise abgeschlossen. Die Liste wurde aktualisiert.</string>
+    <string name="ports_failure_unavailable">Portweiterleitung ist derzeit nicht verfügbar.</string>
+</resources>

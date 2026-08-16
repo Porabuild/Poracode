@@ -81,6 +81,7 @@ import { FloatingComposerDock } from "@/renderer/components/mobileComposer/Float
 import { ComposerActionDocks } from "@/renderer/components/mobileComposer/ComposerActionDocks";
 import { ComposerCompactSummary } from "@/renderer/components/mobileComposer/ComposerCompactSummary";
 import { ComposerInfoChips } from "@/renderer/components/mobileComposer/ComposerInfoChips";
+import { ThreadUsageBubble } from "./ThreadUsageBubble";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -138,6 +139,7 @@ function AdaptiveThreadComposerDock(props: {
   collapsed: boolean;
   keyboardKey: string;
   scrimLabel: string;
+  collapsedTapLabel: string;
   children: ReactNode;
   aboveBubble?: ReactNode;
   summary?: ReactNode;
@@ -151,6 +153,7 @@ function AdaptiveThreadComposerDock(props: {
       dockClassName="m-thread-compose-dock"
       keyboardKey={props.keyboardKey}
       scrimLabel={props.scrimLabel}
+      collapsedTapLabel={props.collapsedTapLabel}
       expanded={!props.collapsed}
       aboveBubble={props.aboveBubble}
       expansionLocked={props.expansionLocked}
@@ -718,18 +721,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           className="poracode-thread-composer-section relative"
           data-compact-collapsed={(compactLayout && isComposerCollapsed) || undefined}
         >
-          {awaitingWorktree ? null : (
+          {!compactLayout && !awaitingWorktree ? (
             <ThreadChangesBubble
               projectId={thread.projectId}
               {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
               {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
             />
-          )}
+          ) : null}
           <AdaptiveThreadComposerDock
             compact={compactLayout}
             collapsed={isComposerCollapsed}
             keyboardKey={thread.id}
             scrimLabel={t`Collapse composer`}
+            collapsedTapLabel={t`Send a message...`}
             expansionLocked={activeRuntimeRequest !== undefined}
             onDockHeightChange={(height) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
@@ -743,8 +747,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
-                    project={project}
-                    errorDockStates={errorDockStates}
                     {...(props.onOpenProjectRelativePath
                       ? {
                           onOpenPlanFile: (path: string) => props.onOpenProjectRelativePath?.(path),
@@ -753,6 +755,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   />
                   <ComposerInfoChips
                     threadId={thread.id}
+                    agentStatus={effectiveAgentStatus}
+                    project={project}
                     projectLocation={projectLocation}
                     contextSummary={showContextIndicator ? contextSummary : null}
                     todoDockState={todoDockState}
@@ -764,7 +768,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     {...(props.onTodoDockRetire
                       ? { onTodoDockRetire: props.onTodoDockRetire }
                       : {})}
-                    hidden={!isComposerCollapsed && activeRuntimeRequest === undefined}
+                    hidden={false}
+                    leading={
+                      awaitingWorktree ? null : (
+                        <ThreadChangesBubble
+                          compact
+                          projectId={thread.projectId}
+                          {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                          {...(branchName ? { worktreeName: branchName } : {})}
+                        />
+                      )
+                    }
+                    trailing={<ThreadUsageBubble thread={thread} />}
                   />
                 </>
               ) : null

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Переадресация портов</string>
+    <string name="ports_back">Назад</string>
+    <string name="ports_refresh">Обновить порты</string>
+    <string name="ports_target_port">Целевой порт</string>
+    <string name="ports_start_open">Запустить и открыть</string>
+    <string name="ports_dismiss">Закрыть</string>
+    <string name="ports_detected">Обнаруженные порты</string>
+    <string name="ports_no_detected">Прослушиваемые порты не обнаружены.</string>
+    <string name="ports_active">Активные переадресации</string>
+    <string name="ports_no_active">Активных переадресаций портов нет.</string>
+    <string name="ports_port_number">Порт %1$d</string>
+    <string name="ports_protocol_http">Служба HTTP</string>
+    <string name="ports_protocol_unknown">Неизвестный протокол</string>
+    <string name="ports_forward_port">Перенаправить</string>
+    <string name="ports_forward_summary">Порт %1$d → %2$d</string>
+    <string name="ports_open">Открыть</string>
+    <string name="ports_busy">Выполняется…</string>
+    <string name="ports_stop">Остановить</string>
+    <string name="ports_failure_offline">Переподключитесь к хосту, чтобы управлять переадресацией портов.</string>
+    <string name="ports_failure_scope">Это подключение не предоставляет доступ к переадресации портов.</string>
+    <string name="ports_failure_auth">Сеанс хоста истёк. Переподключитесь и повторите попытку.</string>
+    <string name="ports_failure_not_found">Эта переадресация порта больше не существует.</string>
+    <string name="ports_failure_input">Введите допустимый порт от 1 до 65535.</string>
+    <string name="ports_failure_response">Хост вернул недопустимый ответ переадресации портов.</string>
+    <string name="ports_failure_ambiguous">Запрос мог быть выполнен. Список обновлён.</string>
+    <string name="ports_failure_unavailable">Переадресация портов сейчас недоступна.</string>
+</resources>

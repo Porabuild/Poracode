@@ -347,12 +347,14 @@ msgstr "{0} usado"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}, Inativo"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Running"
 msgstr "{0}, Em execução"
@@ -478,7 +480,7 @@ msgstr "Intervalo de atualização automática de {label} em minutos"
 msgid "{label} copied."
 msgstr "Copiado: {label}."
 
-#: src/renderer/components/thread/CompactThreadHeader.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "{label} usage"
 msgstr "Uso de {label}"
 
@@ -683,8 +685,8 @@ msgstr "1 execução"
 #~ msgstr "1 fluxo de trabalho"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "22"
-msgstr "22"
+#~ msgid "22"
+#~ msgstr "22"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
@@ -806,7 +808,9 @@ msgstr "Nome da ação"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Actions"
 msgstr "Ações"
@@ -883,6 +887,7 @@ msgstr "Adicione um projeto para ver os pull requests."
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Add a project to start"
 msgstr "Adicione um projeto para começar"
 
@@ -1224,6 +1229,10 @@ msgstr "Permitir que os agentes leiam/escrevam cookies e armazenamento"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "Permita o acesso à câmera para este site nas configurações do navegador e tente novamente, ou informe o endpoint e o token abaixo."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
+msgstr "Permita o acesso à câmera para este site nas configurações do navegador e tente novamente, ou cole o link de pareamento em vez disso."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
@@ -1391,6 +1400,8 @@ msgstr "Tópicos arquivados"
 #~ msgstr "Os tópicos arquivados são gerenciados pelo app desktop. Restaurá-los ou excluí-los deste dispositivo ainda não está disponível."
 
 #. placeholder {0}: file.path
+#. placeholder {0}: revertFile?.path
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Are you sure you want to revert <0>{0}</0>? This cannot be undone."
 msgstr "Tem certeza de que deseja reverter <0>{0}</0>? Isto não pode ser desfeito."
@@ -1400,6 +1411,7 @@ msgid "Are you sure you want to revert <0>{path}</0>? This cannot be undone."
 msgstr "Tem certeza de que deseja reverter <0>{path}</0>? Isto não pode ser desfeito."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "Tem certeza de que deseja reverter todas as alterações não preparadas? Isto não pode ser desfeito."
 
@@ -1604,9 +1616,13 @@ msgstr "Cor do avatar {color}"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/layout/PageLayout.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/components/layout/MobilePageHeader.tsx
+#: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Back"
 msgstr "Voltar"
@@ -1800,6 +1816,7 @@ msgstr "Navegue, inspecione e teste sites no navegador isolado integrado do Pora
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -1922,9 +1939,9 @@ msgstr "Ignorar regras de proteção de branch (mesclagem de administrador)"
 #~ msgid "Cached only"
 #~ msgstr "Somente em cache"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Camera access blocked"
-#~ msgstr "Acesso à câmera bloqueado"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "Acesso à câmera bloqueado"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
@@ -1962,7 +1979,6 @@ msgstr "Não foi possível acessar o servidor remoto. Verifique se ele está onl
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2134,8 +2150,8 @@ msgid "Checking {serverName}"
 msgstr "Verificando {serverName}"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Checking host…"
-msgstr "Verificando host…"
+#~ msgid "Checking host…"
+#~ msgstr "Verificando host…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Checking Tailscale…"
@@ -2186,6 +2202,10 @@ msgstr "Escolha um branch base local para o experimento."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Choose a parent folder"
 msgstr "Escolha uma pasta pai"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Choose a photo"
+msgstr "Escolher uma foto"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
@@ -2279,6 +2299,10 @@ msgstr "MCP do Chrome ativado para este tópico"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Chrome Tools"
 msgstr "Ferramentas do Chrome"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "CI Actions: Workflows"
+msgstr "Ações de CI: Fluxos de trabalho"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2385,11 +2409,11 @@ msgid "Cloning…"
 msgstr "Clonando…"
 
 #: src/renderer/components/common/BottomSheet.tsx
-#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Close"
 msgstr "Fechar"
@@ -2528,9 +2552,9 @@ msgstr "Fechar visualização"
 msgid "Close run details"
 msgstr "Fechar detalhes da execução"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Close scanner"
-#~ msgstr "Fechar scanner"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Close scanner"
+msgstr "Fechar scanner"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -2756,8 +2780,8 @@ msgid "Compacting context"
 msgstr "Compactando contexto"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Compare this fingerprint with the one shown by your server."
-msgstr "Compare esta impressão digital com a exibida no seu servidor."
+#~ msgid "Compare this fingerprint with the one shown by your server."
+#~ msgstr "Compare esta impressão digital com a exibida no seu servidor."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "Comparing candidates…"
@@ -2812,6 +2836,7 @@ msgid "Composer"
 msgstr "Composer"
 
 #: src/renderer/commands/composerCommands.ts
+#: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Controles do Composer"
 
@@ -2877,6 +2902,7 @@ msgstr "Conflita com uma skill gerenciada"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2925,8 +2951,8 @@ msgstr "Conectar a um servidor remoto"
 #~ msgstr "Conecte-se a outro desktop do Poracode ou a um servidor headless para navegar e gerenciar seus projetos aqui. Obtenha o endpoint e o token de pareamento em Configurações → Acesso remoto naquela máquina."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Connect to Your Desktop"
-msgstr "Conecte ao seu desktop"
+#~ msgid "Connect to Your Desktop"
+#~ msgstr "Conecte ao seu desktop"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
@@ -2945,7 +2971,6 @@ msgstr "Conectando..."
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Conectando…"
@@ -2972,6 +2997,7 @@ msgstr "Falha na conexão."
 msgid "Connection timed out."
 msgstr "A conexão excedeu o tempo limite."
 
+#: src/renderer/components/common/RemoteServerPicker.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -3064,6 +3090,7 @@ msgid "Controls the paired desktop while the agent clicks or types"
 msgstr "Controla a área de trabalho emparelhada enquanto o agente clica ou digita"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Conversation"
 msgstr "Conversa"
 
@@ -3160,6 +3187,10 @@ msgstr "Copiar seleção"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
 msgstr "Copiar URL do Tailscale"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Copy the link from Remote Access settings on your desktop."
+#~ msgstr "Copie o link das configurações de Acesso remoto no seu desktop."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -3298,9 +3329,9 @@ msgstr "Não foi possível verificar as configurações de servidores MCP."
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Não foi possível agendar a importação dos dados do Lightcode."
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Couldn't start the camera"
-#~ msgstr "Não foi possível iniciar a câmera"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "Não foi possível iniciar a câmera"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
@@ -3493,6 +3524,7 @@ msgstr "Coroado"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Skills gratuitas e premium selecionadas e gerenciadas pelo MCP Market."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
 msgstr "Recentes"
@@ -3834,6 +3866,7 @@ msgstr "Endpoint do desktop"
 #~ msgid "Desktop is unreachable."
 #~ msgstr "O desktop está inacessível."
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Desktop Settings"
@@ -4319,8 +4352,8 @@ msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session to
 msgstr "Ativa <0>cookies</0> e <1>armazenamento</1>. Os cookies podem conter tokens de sessão e o armazenamento geralmente mantém o estado de autenticação – ativado apenas quando você confia no agente e nos sites que ele visita."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
-msgid "Endpoint"
-msgstr "Endpoint"
+#~ msgid "Endpoint"
+#~ msgstr "Endpoint"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:38987/"
@@ -4367,8 +4400,8 @@ msgid "Enter a valid project name."
 msgstr "Insira um nome de projeto válido."
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Enter a valid SSH target and port."
-msgstr "Insira um destino SSH e uma porta válidos."
+#~ msgid "Enter a valid SSH target and port."
+#~ msgstr "Insira um destino SSH e uma porta válidos."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
@@ -4383,6 +4416,7 @@ msgid "Enter plan mode"
 msgstr "Entrar no modo de plano"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Enter the pairing URL shown on your desktop."
 msgstr "Insira a URL de pareamento exibida no seu desktop."
@@ -4392,8 +4426,8 @@ msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "Informe a porta em que um servidor de desenvolvimento do seu desktop está escutando."
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Enter the SSH password."
-msgstr "Insira a senha SSH."
+#~ msgid "Enter the SSH password."
+#~ msgstr "Insira a senha SSH."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter valid JSON."
@@ -4558,6 +4592,7 @@ msgstr "Era esperado o proprietário {expected} da árvore de trabalho, mas foi 
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 msgid "Experiment"
 msgstr "Experimento"
 
@@ -5097,7 +5132,9 @@ msgstr "Gemini"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5185,6 +5222,7 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
@@ -5602,6 +5640,10 @@ msgstr "Em andamento"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "No Safari, toque em Compartilhar e depois em Adicionar à tela inicial."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
+msgstr "A leitura pela câmera dentro do app só funciona por HTTPS ou em localhost. Escaneie o código do desktop com o app de câmera do telefone, ou cole o link de pareamento."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
@@ -6179,6 +6221,7 @@ msgid "local"
 msgstr "local"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+#: src/renderer/components/common/RemoteServerPicker.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -6346,6 +6389,11 @@ msgstr "Gerenciada pelo provedor"
 #~ msgid "Managed skills"
 #~ msgstr "Skills gerenciadas"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Manual connection"
+msgstr "Conexão manual"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Ordem manual"
@@ -6359,8 +6407,8 @@ msgid "Manual routes override learned routing whenever all of their task tags ma
 msgstr "As rotas manuais substituem o roteamento aprendido quando todas as tags de tarefa correspondem."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Manual URL"
-msgstr "URL manual"
+#~ msgid "Manual URL"
+#~ msgstr "URL manual"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -6498,7 +6546,9 @@ msgid "MCP servers"
 msgstr "Servidores MCP"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -7158,6 +7208,7 @@ msgstr "Nenhuma sessão ativa"
 #~ msgid "No active workflows"
 #~ msgstr "Nenhum fluxo de trabalho ativo"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Nenhum workflow ativo encontrado."
@@ -7206,9 +7257,9 @@ msgstr "Nenhuma branch encontrada"
 msgid "No browser tab open"
 msgstr "Nenhuma guia do navegador aberta"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "No camera found"
-#~ msgstr "Nenhuma câmera encontrada"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "No camera found"
+msgstr "Nenhuma câmera encontrada"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -7631,6 +7682,7 @@ msgstr "Não sincronizado"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Notes"
@@ -7722,6 +7774,11 @@ msgstr "Um par KEY=VALUE por linha"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
 msgstr "Uma vez"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "One-time pairing token"
+msgstr "Token de pareamento de uso único"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
@@ -7870,12 +7927,14 @@ msgid "Open image preview"
 msgstr "Abrir prévia da imagem"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "Abrir no navegador"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Abrir no editor"
@@ -7977,10 +8036,21 @@ msgstr "Abrir configurações"
 msgid "Open Settings → Remote Access in Poracode on your desktop, then copy the pairing URL shown there."
 msgstr "Abra Configurações → Acesso remoto no Poracode no seu desktop e copie a URL de pareamento exibida ali."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "Abra Configurações → Acesso remoto no Poracode no seu desktop e escaneie o código QR daqui — ou insira o endpoint e o token de pareamento manualmente."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
+#~ msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code shown there — or copy the pairing link it shows."
+#~ msgstr "Abra Configurações → Acesso remoto no Poracode no seu desktop e escaneie o código QR exibido ali — ou copie o link de pareamento dele."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#~ msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code shown there — or paste its pairing link."
+#~ msgstr "Abra Configurações → Acesso remoto no Poracode no seu desktop e escaneie o código QR exibido ali — ou cole o link de pareamento dele."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Open Settings → Remote Access on your desktop to show the code."
+msgstr "Abra Configurações → Acesso remoto no seu desktop para mostrar o código de pareamento."
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -7992,6 +8062,7 @@ msgid "Open Tailscale"
 msgstr "Abrir o Tailscale"
 
 #: src/renderer/components/thread/CompactThreadHeader.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 msgid "Open terminal"
 msgstr "Abrir terminal"
 
@@ -8023,8 +8094,8 @@ msgid "Opened pull request #{0} for the candidate."
 msgstr "Pull request #{0} aberta para o candidato."
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "OpenSSH private key"
-msgstr "Chave privada OpenSSH"
+#~ msgid "OpenSSH private key"
+#~ msgstr "Chave privada OpenSSH"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Operate desktop apps through Poracode's desktop-control tools."
@@ -8053,6 +8124,11 @@ msgstr "Opcional. Ao ativar, o tailscale serve é executado para a porta de aces
 msgid "Options"
 msgstr "Opções"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "or"
+msgstr "ou"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
 msgid "Or write a custom answer"
 msgstr "Ou escreva uma resposta personalizada"
@@ -8060,6 +8136,10 @@ msgstr "Ou escreva uma resposta personalizada"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "Outros"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Other ways to connect"
+msgstr "Outras formas de conectar"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Other workspaces"
@@ -8118,8 +8198,8 @@ msgid "Page"
 msgstr "Página"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
-msgid "Pair"
-msgstr "Parear"
+#~ msgid "Pair"
+#~ msgstr "Parear"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pair a connection"
@@ -8144,7 +8224,6 @@ msgid "Pair with Poracode"
 msgstr "Emparelhar com o Poracode"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "Emparelhe com o Poracode no seu desktop para sincronizar tópicos, projetos e configurações."
 
@@ -8160,6 +8239,8 @@ msgstr "Dispositivos pareados"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "O pareamento expirou — pareie novamente para reconectar."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing link"
 msgstr "Link de pareamento"
@@ -8168,18 +8249,17 @@ msgstr "Link de pareamento"
 #~ msgid "Pairing link detected."
 #~ msgstr "Link de pareamento detectado."
 
-#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "Token de pareamento"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing URL"
 msgstr "URL de pareamento"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pairing…"
 msgstr "Pareando…"
@@ -8215,16 +8295,18 @@ msgid "Passed"
 msgstr "Aprovado"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Passphrase (optional)"
-msgstr "Frase secreta (opcional)"
+#~ msgid "Passphrase (optional)"
+#~ msgstr "Frase secreta (opcional)"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Password"
-msgstr "Senha"
+#~ msgid "Password"
+#~ msgstr "Senha"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Paste"
 msgstr "Colar"
 
@@ -8250,18 +8332,31 @@ msgstr "Cole um objeto de servidor nomeado ou um objeto envolvido por uma chave 
 msgid "Paste in input"
 msgstr "Colar na entrada"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Paste link"
+msgstr "Colar link"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Paste pairing link"
+msgstr "Colar link de pareamento"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Paste pairing URL…"
 msgstr "Cole a URL de pareamento…"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Paste the pairing URL from your desktop"
-msgstr "Cole a URL de pareamento do seu desktop"
+#~ msgid "Paste the pairing URL from your desktop"
+#~ msgstr "Cole a URL de pareamento do seu desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Paste the SSH private key."
-msgstr "Cole a chave privada SSH."
+#~ msgid "Paste the SSH private key."
+#~ msgstr "Cole a chave privada SSH."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Paste your pairing link"
+#~ msgstr "Cole seu link de pareamento"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
@@ -8363,6 +8458,7 @@ msgstr "O seletor não retornou nenhum anexo"
 msgid "Pin to top"
 msgstr "Fixar no topo"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Pin workflow"
 msgstr "Fixar fluxo de trabalho"
@@ -8384,6 +8480,7 @@ msgid "Plan"
 msgstr "Plano"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "Planeje, pergunte, crie…"
 
@@ -8428,13 +8525,17 @@ msgstr "plugin.json aponta para uma versão do Agent Plugins que esta build não
 msgid "Plugins"
 msgstr "Plugins"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Point at the QR code in Settings → Remote Access"
-#~ msgstr "Aponte para o QR code em Configurações → Acesso remoto"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "Aponte para o QR code em Configurações → Acesso remoto"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
 msgstr "Aponte este perfil para um provedor não Anthropic (z.ai, …) com variáveis de ambiente, nomes de modelo e níveis de esforço personalizados."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Point your camera at the code on your desktop"
+#~ msgstr "Aponte a câmera para o código no seu desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8480,8 +8581,8 @@ msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "O manifesto de runtime SSH do Poracode está ausente ou é inválido: {path}"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
-msgstr "Poracode instalará ou reutilizará o servidor no host SSH e manterá as credenciais no armazenamento seguro deste dispositivo."
+#~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
+#~ msgstr "Poracode instalará ou reutilizará o servidor no host SSH e manterá as credenciais no armazenamento seguro deste dispositivo."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
@@ -8496,7 +8597,6 @@ msgstr "As ferramentas de navegador integradas do Poracode."
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Port"
 msgstr "Porta"
 
@@ -8519,8 +8619,8 @@ msgstr "O encaminhamento de portas não está ativado"
 #~ msgstr "O encaminhamento de portas precisa de uma conexão direta com o desktop. Não está disponível por meio de um relay ou túnel."
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "Portas"
@@ -8639,13 +8739,15 @@ msgid "Privacy Policy"
 msgstr "Política de Privacidade"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Private key"
-msgstr "Chave privada"
+#~ msgid "Private key"
+#~ msgstr "Chave privada"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "Produtividade"
 
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -8662,8 +8764,10 @@ msgstr "Perfis"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/MobileProjectPicker.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -8719,10 +8823,12 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "Substituições específicas do projeto nas configurações de pesquisa global."
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -9073,6 +9179,7 @@ msgstr "Ocultar o conteúdo das notificações"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -9601,12 +9708,16 @@ msgstr "Tentar a limpeza novamente"
 msgid "Retry with admin"
 msgstr "Tentar novamente como administrador"
 
-#: src/renderer/components/layout/PageLayout.tsx
+#: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Return to app"
 msgstr "Voltar ao aplicativo"
@@ -9626,19 +9737,23 @@ msgstr "Revelar na árvore de arquivos"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert"
 msgstr "Reverter"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Revert all"
 msgstr "Reverter tudo"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Revert all changes"
 msgstr "Reverter todas as alterações"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Reverter alterações"
@@ -9818,6 +9933,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "Executar este agendamento automaticamente conforme o agendamento abaixo."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
@@ -9924,26 +10040,37 @@ msgstr "Salvar atalho"
 msgid "Saved credentials are shared across all environments."
 msgstr "As credenciais salvas são compartilhadas em todos os ambientes."
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Scan pairing QR code"
-#~ msgstr "Escanear QR code de pareamento"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Scan pairing code"
+msgstr "Escanear código de pareamento"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "Escanear QR code de pareamento"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Scan QR code"
 msgstr "Escanear QR code"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Scan the desktop pairing code with the camera"
+msgstr "Escanear o código de pareamento do desktop com a câmera"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Scan the pairing code shown on your desktop"
-msgstr "Escaneie o código de pareamento exibido no seu desktop"
+msgid "Scan the pairing code shown in Remote Access on your desktop."
+msgstr "Escaneie o código de pareamento exibido em Acesso remoto no seu desktop."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Scan the pairing code shown on your desktop"
+#~ msgstr "Escaneie o código de pareamento exibido no seu desktop"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "Verificando {wslDistro} em busca de CLIs instaladas. Isso geralmente leva alguns segundos."
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Scanning needs a secure connection"
-#~ msgstr "O escaneamento precisa de uma conexão segura"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "O escaneamento precisa de uma conexão segura"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Scanning provider configurations…"
@@ -10045,8 +10172,10 @@ msgstr "SDK não instalado"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search"
@@ -10317,6 +10446,11 @@ msgstr "O servidor {target} não está configurado corretamente e foi ignorado."
 msgid "Server {target} runs on this computer and is unavailable for WSL projects."
 msgstr "O servidor {target} roda neste computador e não está disponível para projetos WSL."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Server base URL"
+msgstr "URL base do servidor"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "Servidores que este plugin declara em mcp.json. O Poracode os repassa a todos os agentes compatíveis."
@@ -10338,6 +10472,7 @@ msgid "Set when this session started — start a new thread to change servers"
 msgstr "Definido quando esta sessão começou — inicie uma nova thread para mudar os servidores"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -10485,6 +10620,7 @@ msgstr "Mostrar painel de depuração em tempo de execução"
 #~ msgid "Show Schedules in the sidebar footer."
 #~ msgstr "Mostrar agendamentos no rodapé da barra lateral."
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -10560,6 +10696,7 @@ msgstr "É necessário fazer login"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Entre no desktop pareado e depois atualize este status."
 
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -10662,8 +10799,10 @@ msgstr "O SKILL.md é grande demais."
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -10748,6 +10887,10 @@ msgstr "Não foi possível verificar algumas pastas de provedores. As skills car
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Algo deu errado ao iniciar a câmera. Informe o endpoint e o token abaixo para parear manualmente."
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
+msgstr "Algo deu errado ao iniciar a câmera. Cole o link de pareamento ou escolha uma foto do código em vez disso."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
 msgstr "Classificar por data de criação"
@@ -10798,8 +10941,8 @@ msgstr "SSE (legado)"
 #~ msgstr "SSH"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "SSH authentication"
-msgstr "Autenticação SSH"
+#~ msgid "SSH authentication"
+#~ msgstr "Autenticação SSH"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH config / agent"
@@ -10826,17 +10969,19 @@ msgid "SSH port (optional)"
 msgstr "Porta SSH (opcional)"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "SSH target"
-msgstr "Destino SSH"
+#~ msgid "SSH target"
+#~ msgstr "Destino SSH"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Stage"
 msgstr "Adicionar ao stage"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Stage all"
 msgstr "Adicionar tudo ao stage"
 
@@ -10960,9 +11105,9 @@ msgstr "Tópico {targetLabel} iniciado"
 msgid "Starting"
 msgstr "Começando"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Starting camera…"
-#~ msgstr "Iniciando câmera…"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "Iniciando câmera…"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Starting mirror…"
@@ -11355,6 +11500,7 @@ msgstr "Diga ao provedor alvo o que fazer a seguir..."
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -11377,6 +11523,7 @@ msgstr "Terminal para {0}"
 msgid "Terminal for {projectName}"
 msgstr "Terminal de {projectName}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "Entrada do terminal"
@@ -11401,6 +11548,7 @@ msgid "Terminal scroll speed"
 msgstr "Velocidade de rolagem do terminal"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Terminal tabs"
 msgstr "Guias de terminal"
@@ -11413,6 +11561,10 @@ msgstr "Testar microfone"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "Essa conversa não está mais disponível."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+msgid "That isn't a Poracode pairing code."
+msgstr "Isso não é um código de pareamento do Poracode."
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
@@ -11664,6 +11816,10 @@ msgstr "Esta conexão pode ver projetos, mas não gerenciá-los. Faça o pareame
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Este dispositivo não tem câmera utilizável. Informe o endpoint e o token abaixo para parear manualmente."
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
+msgstr "Este dispositivo não tem câmera utilizável. Cole o link de pareamento ou escolha uma foto do código em vez disso."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
@@ -12030,8 +12186,8 @@ msgid "Triggers:"
 msgstr "Gatilhos:"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Trust and connect"
-msgstr "Confiar e conectar"
+#~ msgid "Trust and connect"
+#~ msgstr "Confiar e conectar"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
@@ -12462,16 +12618,19 @@ msgstr "Sem fase:"
 msgid "Unpin"
 msgstr "Desafixar"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "Desafixar fluxo de trabalho"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "Remover do stage"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Unstage all"
 msgstr "Remover tudo do stage"
 
@@ -12617,6 +12776,7 @@ msgstr "A URL é obrigatória."
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
@@ -12627,6 +12787,7 @@ msgid "Usage not supported"
 msgstr "Uso não suportado"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Usage settings"
 msgstr "Configurações de uso"
 
@@ -12715,8 +12876,8 @@ msgstr "Usado por {conflict}"
 #~ msgstr "Usuário"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "user@example.com"
-msgstr "user@example.com"
+#~ msgid "user@example.com"
+#~ msgstr "user@example.com"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -12732,12 +12893,12 @@ msgid "value"
 msgstr "valor"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Verify host key"
-msgstr "Verificar chave do host"
+#~ msgid "Verify host key"
+#~ msgstr "Verificar chave do host"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Verify SSH host key"
-msgstr "Verificar chave do host SSH"
+#~ msgid "Verify SSH host key"
+#~ msgstr "Verificar chave do host SSH"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -13115,6 +13276,7 @@ msgstr "Resultados do fluxo de trabalho"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflow run"
 msgstr "Execução do fluxo de trabalho"
 
@@ -13122,6 +13284,7 @@ msgstr "Execução do fluxo de trabalho"
 msgid "Workflow run deleted."
 msgstr "Execução do workflow excluída."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
@@ -13133,6 +13296,7 @@ msgstr "Fluxo de trabalho: {description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Fluxos de trabalho"
@@ -13226,8 +13390,10 @@ msgstr "Os tópicos de árvore de trabalho são marcados como concluídos assim 
 msgid "Worktree: {0}"
 msgstr "Árvore de trabalho: {0}"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"

@@ -1,0 +1,96 @@
+{
+  "": {
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/primary.swiftdeps"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsCatalogTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsContractTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsControllerTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsFormTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsOutcomeTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsPresentationTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsQualityGatesTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsScreenModelTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsSourceGateTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTestSupport.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTransportTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsUITestSupport.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/SelectedAdvancedOperationsGatewayTests.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.dia"
+  }
+}

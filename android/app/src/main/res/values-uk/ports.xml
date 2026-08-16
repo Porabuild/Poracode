@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Перенаправлення портів</string>
+    <string name="ports_back">Назад</string>
+    <string name="ports_refresh">Оновити порти</string>
+    <string name="ports_target_port">Цільовий порт</string>
+    <string name="ports_start_open">Запустити й відкрити</string>
+    <string name="ports_dismiss">Закрити</string>
+    <string name="ports_detected">Виявлені порти</string>
+    <string name="ports_no_detected">Порти, що прослуховуються, не виявлено.</string>
+    <string name="ports_active">Активні перенаправлення</string>
+    <string name="ports_no_active">Активних перенаправлень портів немає.</string>
+    <string name="ports_port_number">Порт %1$d</string>
+    <string name="ports_protocol_http">Служба HTTP</string>
+    <string name="ports_protocol_unknown">Невідомий протокол</string>
+    <string name="ports_forward_port">Перенаправити</string>
+    <string name="ports_forward_summary">Порт %1$d → %2$d</string>
+    <string name="ports_open">Відкрити</string>
+    <string name="ports_busy">Виконується…</string>
+    <string name="ports_stop">Зупинити</string>
+    <string name="ports_failure_offline">Підключіться до хоста знову, щоб керувати перенаправленням портів.</string>
+    <string name="ports_failure_scope">Це підключення не надає доступу до перенаправлення портів.</string>
+    <string name="ports_failure_auth">Сеанс хоста завершився. Підключіться знову та повторіть спробу.</string>
+    <string name="ports_failure_not_found">Цього перенаправлення порту більше не існує.</string>
+    <string name="ports_failure_input">Введіть дійсний порт від 1 до 65535.</string>
+    <string name="ports_failure_response">Хост повернув недійсну відповідь перенаправлення портів.</string>
+    <string name="ports_failure_ambiguous">Запит міг бути виконаний. Список оновлено.</string>
+    <string name="ports_failure_unavailable">Перенаправлення портів зараз недоступне.</string>
+</resources>

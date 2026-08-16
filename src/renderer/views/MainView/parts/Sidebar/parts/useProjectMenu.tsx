@@ -31,6 +31,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useRunningProjectActionIds } from "@/renderer/hooks/uiSelectors";
+import { isRemoteSession } from "@/renderer/bridge";
 
 /**
  * The project context menu: entries plus their action dispatcher, shared by
@@ -49,6 +50,7 @@ export function useProjectMenu(
   const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
   const isDisabled = !!project.disabled;
   const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
+  const isRemoteClient = isRemoteSession();
   const runningActionIds = useRunningProjectActionIds(project.id);
   const runActionItems: ContextMenuItem[] = [];
   for (const action of project.scripts?.actions ?? []) {
@@ -146,11 +148,15 @@ export function useProjectMenu(
           },
         ]
       : []),
-    {
-      id: "toggle-disabled",
-      label: isDisabled ? t`Enable Project` : t`Disable Project`,
-      icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
-    },
+    ...(!isRemoteClient || !isRemote
+      ? [
+          {
+            id: "toggle-disabled",
+            label: isDisabled ? t`Enable Project` : t`Disable Project`,
+            icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
+          },
+        ]
+      : []),
     // Dropping a mirrored project from this client is local state, so it
     // stays available while the server is offline — unlike Remove Project,
     // which deletes it on the host.

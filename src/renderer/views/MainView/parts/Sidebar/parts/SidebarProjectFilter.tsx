@@ -12,12 +12,11 @@ import {
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
-import {
-  ResponsiveMenuSurface,
-  useResponsiveMenu,
-} from "@/renderer/components/common/ResponsiveMenuSurface";
+import { useResponsiveMenu } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { ResponsiveContextMenuSurface } from "@/renderer/components/common/ResponsiveContextMenuSurface";
+import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { useProjectMenu } from "./useProjectMenu";
 
@@ -220,6 +219,8 @@ export function SidebarProjectFilter(props: {
    */
   value: ReadonlySet<string> | null;
   onChange: (next: string[] | null) => void;
+  /** Compact header uses an icon trigger; desktop keeps the labelled row. */
+  mobileIconTrigger?: boolean;
 }) {
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
@@ -324,105 +325,117 @@ export function SidebarProjectFilter(props: {
   );
 
   if (mobile) {
-    return (
-      <ResponsiveMenuSurface
-        isOpen={isOpen}
-        onOpenChange={setIsOpen}
-        label={t`Filter by project`}
-        trigger={
-          <button
-            type="button"
-            aria-label={t`Filter by project`}
-            aria-expanded={isOpen}
-            className={sidebarRowClass({ size: "xs" })}
-            onClick={() => setIsOpen(true)}
-          >
-            {triggerContent}
-          </button>
-        }
+    const trigger = props.mobileIconTrigger ? (
+      <MobileCircleButton
+        aria-label={t`Filter by project`}
+        aria-expanded={isOpen}
+        className={`poracode-mobile-project-filter ${isAll ? "text-muted" : "text-accent"}`}
+        onPointerDown={() => setIsOpen(true)}
+        onPress={() => setIsOpen(true)}
       >
-        <div className="m-sheet-list">
-          <button
-            type="button"
-            className="m-sheet-action"
-            aria-pressed={isAll || undefined}
-            onClick={selectAll}
-          >
-            <span className="flex-1 truncate">
-              <Trans>All projects</Trans>
-            </span>
-            {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
-          </button>
-          {filterableProjects.map((project) => {
-            const selected = selectedProjects.has(project.id);
-            const remote = remoteServerFor(project);
-            return (
-              <div key={project.id} className="m-sheet-action m-sheet-action--split">
-                <button
-                  type="button"
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5 text-left"
-                  aria-pressed={selected || undefined}
-                  onClick={() => toggleProject(project.id)}
-                >
-                  <ProjectSelectorIcon project={project} remote={remote} />
-                  <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                  {remote.serverName ? (
-                    <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
-                      {remote.serverName}
+        <ListFilter className="size-5" />
+      </MobileCircleButton>
+    ) : (
+      <button
+        type="button"
+        aria-label={t`Filter by project`}
+        aria-expanded={isOpen}
+        className={sidebarRowClass({ size: "xs" })}
+        onClick={() => setIsOpen(true)}
+      >
+        {triggerContent}
+      </button>
+    );
+    return (
+      <>
+        {trigger}
+        <BottomSheet isOpen={isOpen} label={t`Filter by project`} onClose={close}>
+          <div className="m-sheet-head">
+            <span className="truncate">{t`Filter by project`}</span>
+          </div>
+          <div className="m-sheet-list">
+            <button
+              type="button"
+              className="m-sheet-action"
+              aria-pressed={isAll || undefined}
+              onClick={selectAll}
+            >
+              <span className="flex-1 truncate">
+                <Trans>All projects</Trans>
+              </span>
+              {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
+            </button>
+            {filterableProjects.map((project) => {
+              const selected = selectedProjects.has(project.id);
+              const remote = remoteServerFor(project);
+              return (
+                <div key={project.id} className="m-sheet-action m-sheet-action--split">
+                  <button
+                    type="button"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5 text-left"
+                    aria-pressed={selected || undefined}
+                    onClick={() => toggleProject(project.id)}
+                  >
+                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                    {remote.serverName ? (
+                      <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                        {remote.serverName}
+                      </span>
+                    ) : null}
+                    <span className="shrink-0 text-xs text-muted">
+                      {props.threadCounts.get(project.id) ?? 0}
                     </span>
-                  ) : null}
-                  <span className="shrink-0 text-xs text-muted">
-                    {props.threadCounts.get(project.id) ?? 0}
-                  </span>
-                  {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
-                </button>
-                {isHomeProject(project) ? null : (
-                  <ProjectRowMenuButton
-                    project={project}
-                    mobile
-                    onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
-                  />
-                )}
-              </div>
-            );
-          })}
-          {unavailableProjects.map((project) => {
-            const remote = remoteServerFor(project);
-            return (
-              <div
-                key={project.id}
-                className="m-sheet-action m-sheet-action--split opacity-50"
-                data-static="true"
-              >
-                <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5">
-                  <ProjectSelectorIcon project={project} remote={remote} />
-                  <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                  {remote.serverName ? (
-                    <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
-                      {remote.serverName}
-                    </span>
-                  ) : null}
+                    {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
+                  </button>
+                  {isHomeProject(project) ? null : (
+                    <ProjectRowMenuButton
+                      project={project}
+                      mobile
+                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                    />
+                  )}
                 </div>
-                {isHomeProject(project) ? null : (
-                  <ProjectRowMenuButton
-                    project={project}
-                    mobile
-                    onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {overflowTarget ? (
-          <ProjectOverflowMenu
-            project={overflowTarget.project}
-            anchor={overflowTarget.anchor}
-            onClose={() => setOverflowTarget(null)}
-            onAction={close}
-          />
-        ) : null}
-      </ResponsiveMenuSurface>
+              );
+            })}
+            {unavailableProjects.map((project) => {
+              const remote = remoteServerFor(project);
+              return (
+                <div
+                  key={project.id}
+                  className="m-sheet-action m-sheet-action--split opacity-50"
+                  data-static="true"
+                >
+                  <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5">
+                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                    {remote.serverName ? (
+                      <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                        {remote.serverName}
+                      </span>
+                    ) : null}
+                  </div>
+                  {isHomeProject(project) ? null : (
+                    <ProjectRowMenuButton
+                      project={project}
+                      mobile
+                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {overflowTarget ? (
+            <ProjectOverflowMenu
+              project={overflowTarget.project}
+              anchor={overflowTarget.anchor}
+              onClose={() => setOverflowTarget(null)}
+              onAction={close}
+            />
+          ) : null}
+        </BottomSheet>
+      </>
     );
   }
 

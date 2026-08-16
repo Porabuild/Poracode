@@ -1,0 +1,49 @@
+{
+  "valid": {
+    "nestedRef": {
+      "__poracodeImageRef": {
+        "threadId": "thread-rich",
+        "itemId": "image-rich",
+        "path": ["result", "content", 1, "data"],
+        "mime": "image/webp",
+        "bytes": 4096
+      }
+    },
+    "omitted": { "__poracodeOmitted": { "bytes": 8388608 } }
+  },
+  "invalidRefs": [
+    {
+      "id": "remote-preview",
+      "value": {
+        "__poracodeImageRef": {
+          "threadId": "thread-rich",
+          "itemId": "image-rich",
+          "path": ["images", 0],
+          "mime": "image/png",
+          "bytes": 10,
+          "preview": "https://tracker.example.test/pixel.png"
+        }
+      }
+    },
+    {
+      "id": "non-image-mime",
+      "value": {
+        "__poracodeImageRef": {
+          "threadId": "thread-rich",
+          "itemId": "image-rich",
+          "path": ["images", 0],
+          "mime": "text/html",
+          "bytes": 10
+        }
+      }
+    }
+  ],
+  "sharedDisplayPolicyCases": [
+    { "id": "remote-http", "source": "https://tracker.example.test/pixel.png" },
+    { "id": "local-file", "source": "file:///etc/passwd" },
+    { "id": "script", "source": "javascript:alert(1)" },
+    { "id": "local-protocol", "source": "poracode-local://local/etc/passwd" },
+    { "id": "non-image-data", "source": "data:text/html,<img src=x>" }
+  ],
+  "schemaGap": "canonicalContentBlockSchema constrains dataUrl only as string; shared display classification rejects unsafe sources"
+}

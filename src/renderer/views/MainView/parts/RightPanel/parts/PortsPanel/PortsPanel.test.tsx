@@ -7,12 +7,19 @@ import type { RemoteServersState } from "@/renderer/state/remoteServers/types";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { PortsPanel } from "./PortsPanel";
 
+const adaptiveLayout = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => adaptiveLayout.compact,
+}));
+
 const forward = { id: "forward-1", targetPort: 3000, listenPort: 4100, createdAt: 1 };
 
 describe("PortsPanel", () => {
   const originalWithClient = useRemoteServersStore.getState().withClient;
 
   beforeEach(() => {
+    adaptiveLayout.compact = false;
     const listPorts = vi.fn<RemoteDesktopClient["listPorts"]>(async () => ({
       detected: [{ port: 3000, protocol: "http", label: "Vite" }],
       forwards: [],
@@ -92,6 +99,9 @@ describe("PortsPanel", () => {
     expect(await screen.findByText("Stop forwarding")).toBeInTheDocument();
     expect(window.poracode.openExternal).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Close forward actions" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Port 3000" })).not.toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /Port 3000/u }));
     await waitFor(() => expect(enterPortForward).toHaveBeenCalledWith("forward-1"));
@@ -108,5 +118,17 @@ describe("PortsPanel", () => {
     render(<PortsPanel />);
 
     expect(await screen.findByText("Port forwarding isn't enabled")).toBeInTheDocument();
+  });
+
+  it("places compact refresh at the bottom left and tightens the header gap", () => {
+    adaptiveLayout.compact = true;
+
+    const { container } = render(<PortsPanel />);
+
+    expect(screen.getByRole("button", { name: "Refresh" })).toHaveClass(
+      "fixed",
+      "left-[var(--m-page-inline)]",
+    );
+    expect(container.firstElementChild).toHaveClass("pt-1");
   });
 });

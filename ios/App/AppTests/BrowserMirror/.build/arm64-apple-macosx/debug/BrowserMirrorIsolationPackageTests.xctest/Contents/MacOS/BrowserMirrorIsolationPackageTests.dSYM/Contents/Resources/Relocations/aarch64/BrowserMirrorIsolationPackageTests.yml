@@ -1,0 +1,5 @@
+---
+triple: "arm64-apple-darwin"
+binary-path: "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.xctest/Contents/MacOS/BrowserMirrorIsolationPackageTests"
+relocations: []
+...

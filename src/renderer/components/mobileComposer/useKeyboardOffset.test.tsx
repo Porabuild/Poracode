@@ -70,6 +70,17 @@ function installVisualViewport(input: { height: number; offsetTop?: number }) {
   };
 }
 
+const ANDROID_USER_AGENT =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
+
+/** Platform detection is user-agent based, so Android tests stub the UA string. */
+function useAndroidUserAgent(): void {
+  Object.defineProperty(window.navigator, "userAgent", {
+    configurable: true,
+    value: ANDROID_USER_AGENT,
+  });
+}
+
 describe("useKeyboardOffset", () => {
   afterEach(() => {
     document.documentElement.style.removeProperty("--m-viewport-baseline-height");
@@ -89,6 +100,8 @@ describe("useKeyboardOffset", () => {
     } else {
       Reflect.deleteProperty(window, "visualViewport");
     }
+    // Restores the jsdom prototype getter for the stubbed Android UA.
+    Reflect.deleteProperty(window.navigator, "userAgent");
     vi.unstubAllGlobals();
   });
 
@@ -131,7 +144,7 @@ describe("useKeyboardOffset", () => {
   });
 
   it("uses Android window innerHeight when documentElement keeps its pre-keyboard height", async () => {
-    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    useAndroidUserAgent();
     setWindowHeight(923);
     setDocumentHeight(923);
     const visualViewport = installVisualViewport({ height: 923 });
@@ -156,7 +169,7 @@ describe("useKeyboardOffset", () => {
   });
 
   it("ignores Android visual viewport undershoot after the layout viewport has resized", async () => {
-    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    useAndroidUserAgent();
     setWindowHeight(923);
     setDocumentHeight(923);
     const visualViewport = installVisualViewport({ height: 923 });
@@ -175,7 +188,7 @@ describe("useKeyboardOffset", () => {
   });
 
   it("suppresses Android manual lift during visual-viewport-only pre-resize frames", async () => {
-    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    useAndroidUserAgent();
     setWindowHeight(923);
     setDocumentHeight(923);
     const visualViewport = installVisualViewport({ height: 923 });
@@ -192,7 +205,7 @@ describe("useKeyboardOffset", () => {
   });
 
   it("keeps Android visual viewport reveal pan as visibility-only keyboard height", async () => {
-    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    useAndroidUserAgent();
     setWindowHeight(800);
     setDocumentHeight(800);
     const visualViewport = installVisualViewport({ height: 800 });

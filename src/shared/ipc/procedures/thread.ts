@@ -58,6 +58,7 @@ import type {
   StartThreadResult,
   TerminalSize,
   TerminalShellSnapshot,
+  TerminalSnapshot,
   ThreadRuntimeSnapshot,
   UpdateAcpRegistryAgentPayload,
   UpdateAgentBinaryPayload,
@@ -69,16 +70,24 @@ import type {
   WriteTerminalPayload,
 } from "../../contracts";
 import type { CrossagentRoutingState } from "../../crossagentRanking";
-import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
+import {
+  defineIpcProcedure,
+  defineNoArgProcedure,
+  definePayloadProcedure,
+  omittedResultSchema,
+} from "../core";
 import {
   readThreadPayloadSchema,
   subAgentSubscribePayloadSchema,
+  subAgentSubscribeResultSchema,
   type SubAgentSubscribePayload,
   type SubAgentSubscribeResult,
   workflowAgentChatPayloadSchema,
+  workflowAgentChatResultSchema,
   type WorkflowAgentChatPayload,
   type WorkflowAgentChatResult,
   workflowGetRunPayloadSchema,
+  workflowGetRunResultSchema,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
 } from "../schemas";
@@ -203,7 +212,12 @@ export const threadProcedures = {
     RollbackThreadConversationPayload,
     void,
     "supervisor"
-  >("rollbackThreadConversation", "supervisor", rollbackThreadConversationPayloadSchema),
+  >(
+    "rollbackThreadConversation",
+    "supervisor",
+    rollbackThreadConversationPayloadSchema,
+    omittedResultSchema,
+  ),
   setPendingSteer: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
     "setPendingSteer",
     "supervisor",
@@ -223,6 +237,7 @@ export const threadProcedures = {
     "stageThreadInput",
     "supervisor",
     stageThreadInputPayloadSchema,
+    omittedResultSchema,
   ),
   resizeTerminal: definePayloadProcedure<ResizeTerminalPayload, void, "supervisor">(
     "resizeTerminal",
@@ -264,24 +279,45 @@ export const threadProcedures = {
     "supervisor",
     readThreadPayloadSchema,
   ),
+  /**
+   * Internal snapshot used by remote terminal cursor-sync watches. Not exposed
+   * as a remote HTTP procedure — remote server only.
+   */
+  readTerminalSnapshot: definePayloadProcedure<
+    { threadId: string },
+    TerminalSnapshot | null,
+    "supervisor"
+  >("readTerminalSnapshot", "supervisor", readThreadPayloadSchema),
   subagentSubscribe: definePayloadProcedure<
     SubAgentSubscribePayload,
     SubAgentSubscribeResult,
     "supervisor"
-  >("subagentSubscribe", "supervisor", subAgentSubscribePayloadSchema),
+  >(
+    "subagentSubscribe",
+    "supervisor",
+    subAgentSubscribePayloadSchema,
+    subAgentSubscribeResultSchema,
+  ),
   subagentUnsubscribe: definePayloadProcedure<SubAgentSubscribePayload, void, "supervisor">(
     "subagentUnsubscribe",
     "supervisor",
     subAgentSubscribePayloadSchema,
+    omittedResultSchema,
   ),
   workflowGetRun: definePayloadProcedure<WorkflowGetRunPayload, WorkflowGetRunResult, "supervisor">(
     "workflowGetRun",
     "supervisor",
     workflowGetRunPayloadSchema,
+    workflowGetRunResultSchema,
   ),
   workflowAgentChat: definePayloadProcedure<
     WorkflowAgentChatPayload,
     WorkflowAgentChatResult,
     "supervisor"
-  >("workflowAgentChat", "supervisor", workflowAgentChatPayloadSchema),
+  >(
+    "workflowAgentChat",
+    "supervisor",
+    workflowAgentChatPayloadSchema,
+    workflowAgentChatResultSchema,
+  ),
 } as const;

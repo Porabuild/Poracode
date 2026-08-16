@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">Terminal çıktısı</string>
+    <string name="terminal_input_label">Terminal girişi</string>
+    <string name="terminal_input_placeholder">Bir komut yazın</string>
+    <string name="terminal_send">Gönder</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Sekme</string>
+    <string name="terminal_close">Terminali kapat</string>
+    <string name="terminal_reconnect">Yeniden bağlan</string>
+    <string name="terminal_start">Terminali başlat</string>
+    <string name="terminal_start_description">Bu proje için bir geliştirme terminali başlat</string>
+    <string name="terminal_status_authentication">Terminal erişiminin süresi doldu</string>
+    <string name="terminal_status_permission">Terminal erişimine izin verilmiyor</string>
+    <string name="terminal_status_unsupported">Güvenilir terminal akışı bu ana makinede kullanılamıyor</string>
+    <string name="terminal_status_protocol">Terminal geçersiz bir yanıt gönderdi</string>
+    <string name="terminal_status_offline">Terminal bulunamadı</string>
+    <string name="terminal_status_reconnecting">Terminal yeniden bağlanıyor…</string>
+    <string name="terminal_status_connecting">Terminal bağlanıyor…</string>
+    <string name="terminal_status_synchronizing">Terminal eşitleniyor…</string>
+    <string name="terminal_status_suspended">Terminal arka planda duraklatıldı</string>
+    <string name="terminal_status_failed">Terminal bağlantısı başarısız oldu</string>
+    <string name="terminal_status_exited">Terminal işlemi sona erdi</string>
+    <string name="terminal_status_live">Terminal bağlı</string>
+    <string name="terminal_status_idle">Terminal boşta</string>
+</resources>

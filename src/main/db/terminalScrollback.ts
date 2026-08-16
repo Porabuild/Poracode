@@ -8,17 +8,29 @@ interface TerminalScrollbackRow {
 }
 
 export function dbGetThreadTerminalScrollback(threadId: string): string {
+  return dbGetThreadTerminalScrollbackRecord(threadId)?.transcript ?? "";
+}
+
+/**
+ * Transcript plus absolute **JS string code-unit** output length for
+ * cursor-sync snapshots (UTF-16 units = `String.length`, not code points).
+ * Returns null when no row exists (distinct from empty transcript).
+ */
+export function dbGetThreadTerminalScrollbackRecord(
+  threadId: string,
+): { transcript: string; outputLength: number } | null {
   const row = getSqlite()
-    .prepare("SELECT transcript FROM thread_terminal_scrollback WHERE thread_id = ?")
-    .get(threadId) as Pick<TerminalScrollbackRow, "transcript"> | undefined;
-  return row?.transcript ?? "";
+    .prepare("SELECT transcript, output_length FROM thread_terminal_scrollback WHERE thread_id = ?")
+    .get(threadId) as TerminalScrollbackRow | undefined;
+  if (!row) return null;
+  return { transcript: row.transcript, outputLength: row.output_length };
 }
 
 /**
  * Appends one coalesced supervisor output batch. `outputLength` is the
- * supervisor's absolute JS string offset, so an offset mismatch means a new
- * terminal generation and replaces stale scrollback instead of joining two
- * unrelated PTY sessions.
+ * supervisor's absolute JS code-unit offset, so an offset mismatch means a new
+ * terminal generation and **replaces** stale scrollback instead of joining two
+ * unrelated PTY sessions (restart / generation change).
  */
 export function dbAppendThreadTerminalOutput(
   threadId: string,

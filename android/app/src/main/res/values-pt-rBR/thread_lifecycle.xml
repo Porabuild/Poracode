@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Ações da conversa</string>
+    <string name="thread_lifecycle_rename">Renomear</string>
+    <string name="thread_lifecycle_rename_prompt">Novo título da conversa</string>
+    <string name="thread_lifecycle_relaunch">Reiniciar</string>
+    <string name="thread_lifecycle_relaunch_prompt">O que o agente deve fazer em seguida?</string>
+    <string name="thread_lifecycle_pin">Fixar</string>
+    <string name="thread_lifecycle_unpin">Desafixar</string>
+    <string name="thread_lifecycle_done">Marcar como concluído</string>
+    <string name="thread_lifecycle_not_done">Marcar como não concluído</string>
+    <string name="thread_lifecycle_acknowledge">Confirmar</string>
+    <string name="thread_lifecycle_archive">Arquivar</string>
+    <string name="thread_lifecycle_unarchive">Desarquivar</string>
+    <string name="thread_lifecycle_delete">Excluir</string>
+    <string name="thread_lifecycle_cancel">Cancelar</string>
+    <string name="thread_lifecycle_submit">Enviar</string>
+    <string name="thread_lifecycle_archive_confirmation">Arquivar esta conversa?</string>
+    <string name="thread_lifecycle_delete_confirmation">Excluir esta conversa permanentemente?</string>
+    <string name="thread_lifecycle_failed">Falha na ação da conversa</string>
+    <string name="thread_lifecycle_close">Fechar</string>
+    <string name="thread_lifecycle_failure_ambiguous">O resultado é incerto. A lista de conversas está sendo atualizada.</string>
+    <string name="thread_lifecycle_failure_generic">Não foi possível concluir a ação da conversa. Atualize a lista e tente novamente.</string>
+</resources>

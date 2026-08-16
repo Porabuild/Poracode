@@ -1,0 +1,986 @@
+{
+  "id": "remote-v3-replay-git-state-parity",
+  "format": "remote-v3-transition-tape",
+  "protocolVersion": 3,
+  "versionBoundary": "fixture-only-additive",
+  "lifecycle": {
+    "transitions": [
+      {
+        "id": "reset-target-thread-only",
+        "message": {
+          "type": "event",
+          "seq": 101,
+          "event": { "type": "thread-reset", "threadId": "thread-target" }
+        },
+        "before": {
+          "thread-target": {
+            "transcript": "target transcript before reset",
+            "pendingSteerId": "steer-target",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-before-target", "outputLength": 29 }
+          },
+          "thread-other": {
+            "transcript": "other transcript remains",
+            "pendingSteerId": "steer-other",
+            "terminalWatchIntent": false,
+            "terminalBaseline": { "generation": "generation-other", "outputLength": 23 }
+          }
+        },
+        "expectedAfter": {
+          "thread-target": {
+            "transcript": "",
+            "pendingSteerId": null,
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-fresh-target", "outputLength": 0 }
+          },
+          "thread-other": {
+            "transcript": "other transcript remains",
+            "pendingSteerId": "steer-other",
+            "terminalWatchIntent": false,
+            "terminalBaseline": { "generation": "generation-other", "outputLength": 23 }
+          }
+        },
+        "assertions": [
+          "clear-only-thread-target",
+          "clear-pending-steer-for-target",
+          "preserve-terminal-watch-intent-with-fresh-baseline",
+          "preserve-other-thread"
+        ]
+      },
+      {
+        "id": "reset-different-thread-only",
+        "message": {
+          "type": "event",
+          "seq": 102,
+          "event": { "type": "thread-reset", "threadId": "thread-other" }
+        },
+        "before": {
+          "thread-target": {
+            "transcript": "target transcript remains",
+            "pendingSteerId": "steer-target",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-target", "outputLength": 25 }
+          },
+          "thread-other": {
+            "transcript": "other transcript before reset",
+            "pendingSteerId": "steer-other",
+            "terminalWatchIntent": false,
+            "terminalBaseline": { "generation": "generation-before-other", "outputLength": 28 }
+          }
+        },
+        "expectedAfter": {
+          "thread-target": {
+            "transcript": "target transcript remains",
+            "pendingSteerId": "steer-target",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-target", "outputLength": 25 }
+          },
+          "thread-other": {
+            "transcript": "",
+            "pendingSteerId": null,
+            "terminalWatchIntent": false,
+            "terminalBaseline": { "generation": "generation-fresh-other", "outputLength": 0 }
+          }
+        },
+        "assertions": [
+          "clear-only-thread-other",
+          "clear-pending-steer-for-other",
+          "preserve-target-thread"
+        ]
+      },
+      {
+        "id": "exit-target-preserves-transcript",
+        "message": {
+          "type": "event",
+          "seq": 103,
+          "event": { "type": "thread-exited", "threadId": "thread-target", "exitCode": 17 }
+        },
+        "before": {
+          "thread-target": {
+            "transcript": "transcript survives process exit",
+            "pendingSteerId": "steer-target-on-exit",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-exit-target", "outputLength": 32 }
+          },
+          "thread-other": {
+            "transcript": "unrelated transcript",
+            "pendingSteerId": "steer-other",
+            "terminalWatchIntent": false,
+            "terminalBaseline": { "generation": "generation-other", "outputLength": 19 }
+          }
+        },
+        "expectedAfter": {
+          "thread-target": {
+            "transcript": "transcript survives process exit",
+            "pendingSteerId": null,
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-exit-target", "outputLength": 32 }
+          },
+          "thread-other": {
+            "transcript": "unrelated transcript",
+            "pendingSteerId": "steer-other",
+            "terminalWatchIntent": false,
+            "terminalBaseline": { "generation": "generation-other", "outputLength": 19 }
+          }
+        },
+        "assertions": [
+          "preserve-transcript-on-exit",
+          "clear-pending-steer-on-exit",
+          "preserve-terminal-watch-intent-on-exit",
+          "preserve-other-thread"
+        ]
+      },
+      {
+        "id": "exit-other-thread-with-null-code",
+        "message": {
+          "type": "event",
+          "seq": 104,
+          "event": { "type": "thread-exited", "threadId": "thread-other", "exitCode": null }
+        },
+        "before": {
+          "thread-target": {
+            "transcript": "target transcript remains",
+            "pendingSteerId": "steer-target",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-target", "outputLength": 25 }
+          },
+          "thread-other": {
+            "transcript": "other transcript survives signal exit",
+            "pendingSteerId": "steer-other-on-exit",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-exit-other", "outputLength": 36 }
+          }
+        },
+        "expectedAfter": {
+          "thread-target": {
+            "transcript": "target transcript remains",
+            "pendingSteerId": "steer-target",
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-target", "outputLength": 25 }
+          },
+          "thread-other": {
+            "transcript": "other transcript survives signal exit",
+            "pendingSteerId": null,
+            "terminalWatchIntent": true,
+            "terminalBaseline": { "generation": "generation-exit-other", "outputLength": 36 }
+          }
+        },
+        "assertions": [
+          "preserve-transcript-on-null-exit",
+          "clear-pending-steer-on-null-exit",
+          "preserve-other-thread"
+        ]
+      }
+    ]
+  },
+  "agentStatus": {
+    "identityFormula": ["kind", "envKind", "envDistro"],
+    "neverLoaded": { "windows": false, "wsl": false },
+    "events": [
+      {
+        "id": "merge-posix-codex",
+        "message": {
+          "type": "event",
+          "seq": 111,
+          "event": {
+            "type": "agent-status-updated",
+            "status": {
+              "kind": "codex",
+              "label": "Codex POSIX",
+              "installed": true,
+              "version": "1-posix",
+              "authState": "authenticated",
+              "capabilities": {},
+              "envKind": "posix"
+            }
+          }
+        },
+        "expected": {
+          "updated": ["codex|posix|"],
+          "windows": [],
+          "wsl": [],
+          "loaded": { "windows": false, "wsl": false }
+        }
+      },
+      {
+        "id": "merge-windows-codex",
+        "message": {
+          "type": "event",
+          "seq": 112,
+          "event": {
+            "type": "agent-status-updated",
+            "status": {
+              "kind": "codex",
+              "label": "Codex Windows",
+              "installed": true,
+              "version": "1-windows",
+              "authState": "authenticated",
+              "capabilities": {},
+              "envKind": "windows"
+            }
+          }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|"],
+          "windows": [],
+          "wsl": [],
+          "loaded": { "windows": false, "wsl": false }
+        }
+      },
+      {
+        "id": "merge-wsl-ubuntu-codex",
+        "message": {
+          "type": "event",
+          "seq": 113,
+          "event": {
+            "type": "agent-status-updated",
+            "status": {
+              "kind": "codex",
+              "label": "Codex Ubuntu",
+              "installed": true,
+              "version": "1-ubuntu",
+              "authState": "authenticated",
+              "capabilities": {},
+              "envKind": "wsl",
+              "envDistro": "Ubuntu"
+            }
+          }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|", "codex|wsl|Ubuntu"],
+          "windows": [],
+          "wsl": [],
+          "loaded": { "windows": false, "wsl": false }
+        }
+      },
+      {
+        "id": "merge-wsl-debian-codex",
+        "message": {
+          "type": "event",
+          "seq": 114,
+          "event": {
+            "type": "agent-status-updated",
+            "status": {
+              "kind": "codex",
+              "label": "Codex Debian",
+              "installed": true,
+              "version": "1-debian",
+              "authState": "authenticated",
+              "capabilities": {},
+              "envKind": "wsl",
+              "envDistro": "Debian"
+            }
+          }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|", "codex|wsl|Ubuntu", "codex|wsl|Debian"],
+          "windows": [],
+          "wsl": [],
+          "loaded": { "windows": false, "wsl": false }
+        }
+      },
+      {
+        "id": "replace-windows-with-one-status",
+        "message": {
+          "type": "event",
+          "seq": 115,
+          "event": {
+            "type": "windows-agent-statuses",
+            "statuses": [
+              {
+                "kind": "codex",
+                "label": "Codex Windows",
+                "installed": true,
+                "version": "2-windows",
+                "authState": "authenticated",
+                "capabilities": {},
+                "envKind": "windows"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|", "codex|wsl|Ubuntu", "codex|wsl|Debian"],
+          "windows": ["codex|windows|"],
+          "wsl": [],
+          "loaded": { "windows": true, "wsl": false }
+        }
+      },
+      {
+        "id": "replace-windows-with-explicit-empty",
+        "message": {
+          "type": "event",
+          "seq": 116,
+          "event": { "type": "windows-agent-statuses", "statuses": [] }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|", "codex|wsl|Ubuntu", "codex|wsl|Debian"],
+          "windows": [],
+          "wsl": [],
+          "loaded": { "windows": true, "wsl": false }
+        }
+      },
+      {
+        "id": "replace-wsl-with-two-distros",
+        "message": {
+          "type": "event",
+          "seq": 117,
+          "event": {
+            "type": "wsl-agent-statuses",
+            "statuses": [
+              {
+                "kind": "codex",
+                "label": "Codex Ubuntu",
+                "installed": true,
+                "version": "2-ubuntu",
+                "authState": "authenticated",
+                "capabilities": {},
+                "envKind": "wsl",
+                "envDistro": "Ubuntu"
+              },
+              {
+                "kind": "codex",
+                "label": "Codex Debian",
+                "installed": true,
+                "version": "2-debian",
+                "authState": "authenticated",
+                "capabilities": {},
+                "envKind": "wsl",
+                "envDistro": "Debian"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|", "codex|wsl|Ubuntu", "codex|wsl|Debian"],
+          "windows": [],
+          "wsl": ["codex|wsl|Ubuntu", "codex|wsl|Debian"],
+          "loaded": { "windows": true, "wsl": true }
+        }
+      },
+      {
+        "id": "replace-wsl-with-explicit-empty",
+        "message": {
+          "type": "event",
+          "seq": 118,
+          "event": { "type": "wsl-agent-statuses", "statuses": [] }
+        },
+        "expected": {
+          "updated": ["codex|posix|", "codex|windows|", "codex|wsl|Ubuntu", "codex|wsl|Debian"],
+          "windows": [],
+          "wsl": [],
+          "loaded": { "windows": true, "wsl": true }
+        }
+      }
+    ]
+  },
+  "gitSummaries": {
+    "replacementAssertions": [
+      "multiple-thread-full-replacement",
+      "empty-replacement-removes-all-previous-thread-keys",
+      "later-full-replacement-does-not-resurrect-removed-keys"
+    ],
+    "events": [
+      {
+        "id": "full-multi-thread-summary",
+        "message": {
+          "type": "event",
+          "seq": 121,
+          "event": {
+            "type": "remote-git-summaries",
+            "summaries": {
+              "thread-summary-a": {
+                "isRepo": true,
+                "branch": "feature/東京/🚀",
+                "totalInsertions": 12,
+                "totalDeletions": 3,
+                "ahead": 2,
+                "behind": 1,
+                "pr": {
+                  "number": 314,
+                  "state": "draft",
+                  "title": "レビュー ✅",
+                  "url": "https://example.test/pr/314",
+                  "isDraft": true,
+                  "checksStatus": "pending"
+                }
+              },
+              "thread-summary-b": {
+                "isRepo": false,
+                "branch": "",
+                "totalInsertions": 0,
+                "totalDeletions": 0,
+                "ahead": 0,
+                "behind": 0,
+                "pr": null
+              }
+            }
+          }
+        },
+        "expectedThreadIds": ["thread-summary-a", "thread-summary-b"]
+      },
+      {
+        "id": "empty-summary-replacement",
+        "message": {
+          "type": "event",
+          "seq": 122,
+          "event": { "type": "remote-git-summaries", "summaries": {} }
+        },
+        "expectedThreadIds": []
+      },
+      {
+        "id": "later-full-summary-replacement",
+        "message": {
+          "type": "event",
+          "seq": 123,
+          "event": {
+            "type": "remote-git-summaries",
+            "summaries": {
+              "thread-summary-c": {
+                "isRepo": true,
+                "branch": "release/naïve-路径",
+                "totalInsertions": 1,
+                "totalDeletions": 0,
+                "ahead": 0,
+                "behind": 4,
+                "pr": null
+              }
+            }
+          }
+        },
+        "expectedThreadIds": ["thread-summary-c"]
+      }
+    ]
+  },
+  "gitState": {
+    "keys": {
+      "project": "project\u000015:desktop-fixture\u000013:project-alpha",
+      "targetMain": "target\u000015:desktop-fixture\u000013:project-alpha\u000010:/repo/main",
+      "targetRemoved": "target\u000015:desktop-fixture\u000013:project-alpha\u000013:/repo/removed",
+      "pullRequest": "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42",
+      "oldBranch": "pr-branch\u000015:desktop-fixture\u000013:project-alpha\u000011:feature/old",
+      "currentBranch": "pr-branch\u000015:desktop-fixture\u000013:project-alpha\u000015:feature/current",
+      "pullRequestList": "project\u000015:desktop-fixture\u000013:project-alpha"
+    },
+    "initialSnapshot": {
+      "revision": 0,
+      "projects": {},
+      "targets": {},
+      "pullRequests": {},
+      "pullRequestKeyByBranch": {},
+      "projectPullRequestLists": {}
+    },
+    "patches": [
+      {
+        "id": "first-positive-patch",
+        "message": {
+          "type": "event",
+          "seq": 131,
+          "event": {
+            "type": "remote-git-state",
+            "patch": {
+              "revision": 2,
+              "projects": {
+                "project\u000015:desktop-fixture\u000013:project-alpha": {
+                  "ref": { "hostId": "desktop-fixture", "projectId": "project-alpha" },
+                  "refreshedAt": "2026-08-12T00:02:00.000Z"
+                }
+              },
+              "targets": {
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000010:/repo/main": {
+                  "ref": {
+                    "hostId": "desktop-fixture",
+                    "projectId": "project-alpha",
+                    "worktreePath": "/repo/main"
+                  },
+                  "pullRequestKey": "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42",
+                  "refreshedAt": "2026-08-12T00:02:01.000Z"
+                },
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000013:/repo/removed": {
+                  "ref": {
+                    "hostId": "desktop-fixture",
+                    "projectId": "project-alpha",
+                    "worktreePath": "/repo/removed"
+                  },
+                  "refreshedAt": "2026-08-12T00:02:02.000Z"
+                }
+              },
+              "pullRequests": {
+                "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42": {
+                  "ref": {
+                    "hostId": "desktop-fixture",
+                    "projectId": "project-alpha",
+                    "prNumber": 42
+                  },
+                  "data": {
+                    "number": 42,
+                    "state": "open",
+                    "title": "Initial parity state",
+                    "url": "https://example.test/pr/42",
+                    "baseBranch": "main",
+                    "isDraft": false,
+                    "updatedAt": "2026-08-12T00:02:03.000Z"
+                  },
+                  "freshness": { "core": "2026-08-12T00:02:03.000Z" }
+                }
+              },
+              "pullRequestKeyByBranch": {
+                "pr-branch\u000015:desktop-fixture\u000013:project-alpha\u000011:feature/old": "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"
+              },
+              "projectPullRequestLists": {
+                "project\u000015:desktop-fixture\u000013:project-alpha": {
+                  "project": { "hostId": "desktop-fixture", "projectId": "project-alpha" },
+                  "pullRequestKeys": ["pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"],
+                  "viewerLogin": "fixture-user",
+                  "refreshedAt": "2026-08-12T00:02:04.000Z"
+                }
+              }
+            }
+          }
+        },
+        "expected": {
+          "disposition": "applied",
+          "revision": 2,
+          "targetKeys": ["targetMain", "targetRemoved"]
+        }
+      },
+      {
+        "id": "duplicate-revision-ignored",
+        "message": {
+          "type": "event",
+          "seq": 132,
+          "event": {
+            "type": "remote-git-state",
+            "patch": {
+              "revision": 2,
+              "removeTargets": [
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000010:/repo/main"
+              ]
+            }
+          }
+        },
+        "expected": {
+          "disposition": "ignored",
+          "revision": 2,
+          "targetKeys": ["targetMain", "targetRemoved"]
+        }
+      },
+      {
+        "id": "lower-revision-ignored",
+        "message": {
+          "type": "event",
+          "seq": 133,
+          "event": {
+            "type": "remote-git-state",
+            "patch": {
+              "revision": 1,
+              "removeProjects": ["project\u000015:desktop-fixture\u000013:project-alpha"]
+            }
+          }
+        },
+        "expected": {
+          "disposition": "ignored",
+          "revision": 2,
+          "targetKeys": ["targetMain", "targetRemoved"]
+        }
+      },
+      {
+        "id": "higher-patch-removes-before-upserts",
+        "message": {
+          "type": "event",
+          "seq": 134,
+          "event": {
+            "type": "remote-git-state",
+            "patch": {
+              "revision": 3,
+              "projects": {
+                "project\u000015:desktop-fixture\u000013:project-alpha": {
+                  "ref": { "hostId": "desktop-fixture", "projectId": "project-alpha" },
+                  "refreshedAt": "2026-08-12T00:03:00.000Z"
+                }
+              },
+              "targets": {
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000010:/repo/main": {
+                  "ref": {
+                    "hostId": "desktop-fixture",
+                    "projectId": "project-alpha",
+                    "worktreePath": "/repo/main"
+                  },
+                  "sourceInfo": { "sourceBranch": "main", "commitsAhead": 2, "sourceAhead": 0 },
+                  "pullRequestKey": null,
+                  "refreshedAt": "2026-08-12T00:03:01.000Z"
+                }
+              },
+              "pullRequests": {
+                "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42": {
+                  "ref": {
+                    "hostId": "desktop-fixture",
+                    "projectId": "project-alpha",
+                    "prNumber": 42
+                  },
+                  "data": {
+                    "number": 42,
+                    "state": "draft",
+                    "title": "Updated parity state",
+                    "url": "https://example.test/pr/42",
+                    "baseBranch": "main",
+                    "isDraft": true,
+                    "updatedAt": "2026-08-12T00:03:02.000Z"
+                  },
+                  "freshness": { "core": "2026-08-12T00:03:02.000Z" }
+                }
+              },
+              "pullRequestKeyByBranch": {
+                "pr-branch\u000015:desktop-fixture\u000013:project-alpha\u000011:feature/old": null,
+                "pr-branch\u000015:desktop-fixture\u000013:project-alpha\u000015:feature/current": "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"
+              },
+              "projectPullRequestLists": {
+                "project\u000015:desktop-fixture\u000013:project-alpha": {
+                  "project": { "hostId": "desktop-fixture", "projectId": "project-alpha" },
+                  "pullRequestKeys": ["pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"],
+                  "viewerLogin": "updated-fixture-user",
+                  "refreshedAt": "2026-08-12T00:03:03.000Z"
+                }
+              },
+              "removeProjects": ["project\u000015:desktop-fixture\u000013:project-alpha"],
+              "removeTargets": [
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000010:/repo/main",
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000013:/repo/removed"
+              ],
+              "removePullRequests": ["pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"],
+              "removeProjectPullRequestLists": [
+                "project\u000015:desktop-fixture\u000013:project-alpha"
+              ]
+            }
+          }
+        },
+        "expected": {
+          "disposition": "applied",
+          "revision": 3,
+          "targetKeys": ["targetMain"],
+          "removedKeys": ["targetRemoved", "oldBranch"]
+        }
+      },
+      {
+        "id": "omitted-fields-preserve-state",
+        "message": {
+          "type": "event",
+          "seq": 135,
+          "event": { "type": "remote-git-state", "patch": { "revision": 4 } }
+        },
+        "expected": { "disposition": "applied", "revision": 4, "targetKeys": ["targetMain"] }
+      },
+      {
+        "id": "final-removal",
+        "message": {
+          "type": "event",
+          "seq": 136,
+          "event": {
+            "type": "remote-git-state",
+            "patch": {
+              "revision": 5,
+              "removeTargets": [
+                "target\u000015:desktop-fixture\u000013:project-alpha\u000010:/repo/main"
+              ]
+            }
+          }
+        },
+        "expected": { "disposition": "applied", "revision": 5, "targetKeys": [] }
+      }
+    ],
+    "expectedFinalSnapshot": {
+      "revision": 5,
+      "projects": {
+        "project\u000015:desktop-fixture\u000013:project-alpha": {
+          "ref": { "hostId": "desktop-fixture", "projectId": "project-alpha" },
+          "refreshedAt": "2026-08-12T00:03:00.000Z"
+        }
+      },
+      "targets": {},
+      "pullRequests": {
+        "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42": {
+          "ref": { "hostId": "desktop-fixture", "projectId": "project-alpha", "prNumber": 42 },
+          "data": {
+            "number": 42,
+            "state": "draft",
+            "title": "Updated parity state",
+            "url": "https://example.test/pr/42",
+            "baseBranch": "main",
+            "isDraft": true,
+            "updatedAt": "2026-08-12T00:03:02.000Z"
+          },
+          "freshness": { "core": "2026-08-12T00:03:02.000Z" }
+        }
+      },
+      "pullRequestKeyByBranch": {
+        "pr-branch\u000015:desktop-fixture\u000013:project-alpha\u000015:feature/current": "pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"
+      },
+      "projectPullRequestLists": {
+        "project\u000015:desktop-fixture\u000013:project-alpha": {
+          "project": { "hostId": "desktop-fixture", "projectId": "project-alpha" },
+          "pullRequestKeys": ["pr\u000015:desktop-fixture\u000013:project-alpha\u00002:42"],
+          "viewerLogin": "updated-fixture-user",
+          "refreshedAt": "2026-08-12T00:03:03.000Z"
+        }
+      }
+    }
+  },
+  "gitInterests": {
+    "threads": [
+      {
+        "id": "selected",
+        "projectId": "project-alpha",
+        "worktreePath": "/repo/shared",
+        "status": "idle",
+        "archived": false,
+        "updatedAt": "2026-08-12T00:00:01.000Z"
+      },
+      {
+        "id": "active-duplicate",
+        "projectId": "project-alpha",
+        "worktreePath": "/repo/shared",
+        "status": "working",
+        "archived": false,
+        "updatedAt": "2026-08-12T00:00:09.000Z"
+      },
+      {
+        "id": "active-two",
+        "projectId": "project-beta",
+        "worktreePath": "/repo/active-2",
+        "status": "working",
+        "archived": false,
+        "updatedAt": "2026-08-12T00:00:08.000Z"
+      },
+      {
+        "id": "active-three",
+        "projectId": "project-gamma",
+        "worktreePath": "/repo/active-3",
+        "status": "needs_approval",
+        "archived": false,
+        "updatedAt": "2026-08-12T00:00:07.000Z"
+      },
+      {
+        "id": "active-four",
+        "projectId": "project-delta",
+        "worktreePath": "/repo/active-4",
+        "status": "launching",
+        "archived": false,
+        "updatedAt": "2026-08-12T00:00:06.000Z"
+      },
+      {
+        "id": "active-five",
+        "projectId": "project-epsilon",
+        "worktreePath": "/repo/active-5",
+        "status": "working",
+        "archived": false,
+        "updatedAt": "2026-08-12T00:00:05.000Z"
+      },
+      {
+        "id": "archived-active",
+        "projectId": "project-zeta",
+        "worktreePath": "/repo/archived",
+        "status": "working",
+        "archived": true,
+        "updatedAt": "2026-08-12T00:00:10.000Z"
+      }
+    ],
+    "selectedThreadId": "selected",
+    "expectedPassiveTargetInterests": [
+      {
+        "kind": "target",
+        "projectId": "project-alpha",
+        "worktreePath": "/repo/shared",
+        "includePrDetails": true
+      },
+      {
+        "kind": "target",
+        "projectId": "project-beta",
+        "worktreePath": "/repo/active-2",
+        "includePrDetails": true
+      },
+      {
+        "kind": "target",
+        "projectId": "project-gamma",
+        "worktreePath": "/repo/active-3",
+        "includePrDetails": true
+      },
+      {
+        "kind": "target",
+        "projectId": "project-delta",
+        "worktreePath": "/repo/active-4",
+        "includePrDetails": true
+      }
+    ],
+    "messages": [
+      {
+        "id": "all-wire-variants-with-heavy-pr",
+        "message": {
+          "type": "git-state-interests",
+          "interests": [
+            {
+              "kind": "target",
+              "projectId": "project-alpha",
+              "worktreePath": "/repo/shared",
+              "includePrDetails": true
+            },
+            {
+              "kind": "target",
+              "projectId": "project-beta",
+              "worktreePath": "/repo/active-2",
+              "includePrDetails": true
+            },
+            {
+              "kind": "target",
+              "projectId": "project-gamma",
+              "worktreePath": "/repo/active-3",
+              "includePrDetails": true
+            },
+            {
+              "kind": "target",
+              "projectId": "project-delta",
+              "worktreePath": "/repo/active-4",
+              "includePrDetails": true
+            },
+            {
+              "kind": "pull-request",
+              "projectId": "project-alpha",
+              "prNumber": 42,
+              "branch": "feature/current",
+              "includeReviewBundle": true
+            },
+            { "kind": "project-pull-requests", "projectId": "project-alpha" }
+          ]
+        }
+      },
+      {
+        "id": "exact-empty-clear",
+        "message": { "type": "git-state-interests", "interests": [] }
+      }
+    ],
+    "explicitPullRequestUiInterest": {
+      "kind": "pull-request",
+      "projectId": "project-alpha",
+      "prNumber": 42,
+      "branch": "feature/current",
+      "includeReviewBundle": true
+    }
+  },
+  "sequencing": {
+    "outOfBandTypes": [
+      "browser-state",
+      "browser-frame",
+      "browser-mirror-status",
+      "terminal-output",
+      "terminal-watch-result"
+    ],
+    "messages": [
+      {
+        "id": "ready-does-not-advance",
+        "message": { "type": "ready", "seq": 0 },
+        "expected": { "disposition": "ready", "cursor": 0 }
+      },
+      {
+        "id": "contiguous-one",
+        "message": {
+          "type": "event",
+          "seq": 1,
+          "event": { "type": "thread-reset", "threadId": "thread-sequence" }
+        },
+        "expected": { "disposition": "applied", "cursor": 1 }
+      },
+      {
+        "id": "contiguous-two",
+        "message": {
+          "type": "event",
+          "seq": 2,
+          "event": { "type": "thread-exited", "threadId": "thread-sequence", "exitCode": 0 }
+        },
+        "expected": { "disposition": "applied", "cursor": 2 }
+      },
+      {
+        "id": "duplicate-two",
+        "message": {
+          "type": "event",
+          "seq": 2,
+          "event": { "type": "thread-exited", "threadId": "thread-sequence", "exitCode": 0 }
+        },
+        "expected": { "disposition": "duplicate", "cursor": 2 }
+      },
+      {
+        "id": "gap-four",
+        "message": {
+          "type": "event",
+          "seq": 4,
+          "event": { "type": "thread-reset", "threadId": "thread-gap" }
+        },
+        "expected": { "disposition": "gap", "cursor": 2 }
+      },
+      {
+        "id": "authoritative-resync-four",
+        "message": {
+          "type": "resync-required",
+          "seq": 4,
+          "reason": "Event replay window expired; request a fresh snapshot."
+        },
+        "expected": { "disposition": "authoritative-resync", "cursor": 4 }
+      },
+      {
+        "id": "post-resync-five",
+        "message": {
+          "type": "event",
+          "seq": 5,
+          "event": { "type": "thread-reset", "threadId": "thread-after-resync" }
+        },
+        "expected": { "disposition": "applied", "cursor": 5 }
+      },
+      {
+        "id": "browser-state-out-of-band",
+        "message": { "type": "browser-state", "state": { "tabs": [], "activeTabId": null } },
+        "expected": { "disposition": "out-of-band", "cursor": 5 }
+      },
+      {
+        "id": "browser-frame-out-of-band",
+        "message": {
+          "type": "browser-frame",
+          "tabId": "tab-sequence",
+          "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2Q==",
+          "metadata": {
+            "deviceWidth": 390,
+            "deviceHeight": 844,
+            "pageScaleFactor": 1,
+            "offsetTop": 0,
+            "scrollOffsetX": 0,
+            "scrollOffsetY": 0
+          }
+        },
+        "expected": { "disposition": "out-of-band", "cursor": 5 }
+      },
+      {
+        "id": "browser-status-out-of-band",
+        "message": {
+          "type": "browser-mirror-status",
+          "status": { "status": "active", "tabId": "tab-sequence" }
+        },
+        "expected": { "disposition": "out-of-band", "cursor": 5 }
+      },
+      {
+        "id": "terminal-output-out-of-band",
+        "message": { "type": "terminal-output", "id": "terminal-sequence", "data": "live bytes" },
+        "expected": { "disposition": "out-of-band", "cursor": 5 }
+      },
+      {
+        "id": "terminal-watch-out-of-band",
+        "message": {
+          "type": "terminal-watch-result",
+          "id": "terminal-sequence",
+          "cursorSync": {
+            "version": 1,
+            "watchId": "watch-sequence",
+            "result": { "status": "error", "code": "unavailable", "retryable": true }
+          }
+        },
+        "expected": { "disposition": "out-of-band", "cursor": 5 }
+      }
+    ]
+  }
+}

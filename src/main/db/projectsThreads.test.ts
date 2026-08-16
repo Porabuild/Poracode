@@ -28,6 +28,7 @@ import {
   dbAppendThreadTerminalOutput,
   dbClearThreadTerminalScrollback,
   dbGetThreadTerminalScrollback,
+  dbGetThreadTerminalScrollbackRecord,
   MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
 } from "./terminalScrollback";
 
@@ -133,6 +134,29 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     dbClearThreadTerminalScrollback("thread-1");
     expect(dbGetThreadTerminalScrollback("thread-1")).toBe("");
+  });
+
+  it("replaces rather than concatenates on generation restart (absolute offset mismatch)", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+
+    // Generation A absolute row.
+    dbAppendThreadTerminalOutput("thread-1", "gen-A-full", 10);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "gen-A-full",
+      outputLength: 10,
+    });
+
+    // Generation B first batch restarts at cursor 0..3 — must replace, not append.
+    dbAppendThreadTerminalOutput("thread-1", "Bok", 3);
+    const genB = dbGetThreadTerminalScrollbackRecord("thread-1");
+    expect(genB).toEqual({ transcript: "Bok", outputLength: 3 });
+    expect(genB!.transcript).not.toContain("gen-A");
+    // Contiguous same-generation append after restart still concatenates.
+    dbAppendThreadTerminalOutput("thread-1", "!", 4);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "Bok!",
+      outputLength: 4,
+    });
   });
 
   it("migrates a released schema-v32 database without losing existing threads", () => {

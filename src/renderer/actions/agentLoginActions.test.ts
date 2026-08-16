@@ -157,6 +157,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: "Open https://auth.x.ai/oauth2/authorize?response_type=code\n",
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
     expect(bridge.openExternalNative).not.toHaveBeenCalled();
@@ -166,6 +167,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: "&client_id=grok-build\n&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fcallback\n",
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -194,6 +196,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `Open this URL to sign in:\n  ${url}\n`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -249,6 +252,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `\r\nSigning in with Grok...\r\n\r\nOpen this URL to sign in:\r\n  ${url}\r\n\r\nPaste the URL here if it doesn't connect:\r\n`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -273,6 +277,7 @@ describe("runAgentLoginCommand", () => {
         "  E9YP-N7CQ\n",
       ].join(""),
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -295,6 +300,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: "1. Open this link in your browser and sign in to your account\n   https://auth.openai.com/codex/device2. Enter this one-time code\n",
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -317,6 +323,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `Starting local login server on http://localhost:1455.\nIf your browser did not open, navigate to this URL to authenticate:\n\n${authUrl}\n`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -341,6 +348,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `Open a browser and navigate to this link: ${url}\n`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -365,6 +373,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `Opening browser for Kimi device login: ${url}\n`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
     emit({
@@ -372,6 +381,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `If the browser did not open, paste this URL: ${url}\n`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -396,6 +406,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: "https://geminicli.com/docs/resources/tos-privacy/%E2%94%82\n",
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(250);
 
@@ -419,6 +430,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `\u001B]777;poracode-login-complete=${token}:1\u0007`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
     vi.advanceTimersByTime(1200);
 
@@ -444,6 +456,7 @@ describe("runAgentLoginCommand", () => {
       threadId: shellId!,
       data: `\u001B]777;poracode-login-complete=${token}:0\u0007`,
       outputLength: 0,
+      terminalInstanceId: "gen-test",
     });
 
     expect(loginTerminalStore.close).not.toHaveBeenCalled();

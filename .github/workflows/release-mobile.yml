@@ -1,8 +1,7 @@
-name: Release Mobile
+name: Release native mobile apps
 
-# Builds the signed native store artifacts. Store upload is automatic when the
-# corresponding publisher credentials are configured. The hosted PWA is
-# released separately via release-pwa.yml.
+# The iOS and Android products are independent native projects. This workflow
+# never builds the web renderer and never runs Capacitor synchronization.
 
 on:
   workflow_dispatch:
@@ -22,153 +21,187 @@ on:
 permissions:
   contents: read
 
-env:
-  # Mobile release runners are disposable single checkouts and do not benefit
-  # from the developer worktree global virtual store.
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
-
 concurrency:
-  group: release-mobile-${{ github.ref }}
+  group: release-native-mobile-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  native_preflight:
+    name: Required native CI
+    uses: ./.github/workflows/native-ci.yml
+
   setup:
-    name: Resolve release
+    name: Resolve native release
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       android: ${{ steps.release.outputs.android }}
       ios: ${{ steps.release.outputs.ios }}
       version: ${{ steps.release.outputs.version }}
       build_number: ${{ steps.release.outputs.build_number }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - id: release
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Resolve targets and version
+        id: release
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "android=${{ inputs.android }}" >> "$GITHUB_OUTPUT"
-            echo "ios=${{ inputs.ios }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if test "${{ github.event_name }}" = "workflow_dispatch"; then
+            android="${{ inputs.android }}"
+            ios="${{ inputs.ios }}"
             version="$(node -p "require('./package.json').version")"
+            if test "$android" != "true" && test "$ios" != "true"; then
+              echo "Select at least one native release target." >&2
+              exit 1
+            fi
           else
-            echo "android=true" >> "$GITHUB_OUTPUT"
-            echo "ios=true" >> "$GITHUB_OUTPUT"
+            android=true
+            ios=true
             version="${GITHUB_REF_NAME#mobile-v}"
           fi
 
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid mobile version: $version" >&2
+            echo "Invalid native mobile version: $version" >&2
             exit 1
           fi
 
+          build_number=$((GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
+          if test "$build_number" -gt 2100000000; then
+            echo "Derived Android build number exceeds the signed 32-bit range." >&2
+            exit 1
+          fi
+
+          echo "android=$android" >> "$GITHUB_OUTPUT"
+          echo "ios=$ios" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "build_number=$((GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))" >> "$GITHUB_OUTPUT"
+          echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
 
   android:
-    name: Android (Play)
-    needs: setup
-    if: needs.setup.outputs.android == 'true'
+    name: Android native AAB
+    needs: [setup, native_preflight]
+    if: ${{ needs.setup.outputs.android == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: mobile-android
     env:
-      PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
       PORACODE_MOBILE_BUILD_NUMBER: ${{ needs.setup.outputs.build_number }}
       PORACODE_MOBILE_VERSION_NAME: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: "21"
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
 
-      - name: Validate Android release configuration
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Install Android 17 SDK
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Require Android 17 while preserving API 26 compatibility
+        run: |
+          grep -Eq 'compileSdk = 37' android/app/build.gradle.kts
+          grep -Eq 'targetSdk = 37' android/app/build.gradle.kts
+          grep -Eq 'minSdk = 26' android/app/build.gradle.kts
+
+      - name: Run Android release gates
+        working-directory: android
+        run: ./gradlew clean testDebugUnitTest lintRelease --no-daemon --stacktrace
+
+      - name: Validate Android signing configuration
         shell: bash
         env:
-          ANDROID_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
         run: |
+          set -euo pipefail
           required=(
             ANDROID_KEYSTORE_BASE64
             ANDROID_KEYSTORE_PASSWORD
             ANDROID_KEY_ALIAS
             ANDROID_KEY_PASSWORD
-            ANDROID_GOOGLE_SERVICES_JSON_BASE64
-            PORACODE_MOBILE_APP_HOST
           )
           for name in "${required[@]}"; do
-            if [ -z "${!name}" ]; then
-              echo "Missing mobile-android secret or variable: $name" >&2
+            if test -z "${!name}"; then
+              echo "Missing mobile-android signing secret: $name" >&2
               exit 1
             fi
           done
-          if [ -z "$PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS" ]; then
-            echo "Play app-signing fingerprint is not available yet; assetlinks.json will remain empty for the first AAB."
-          fi
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Decode Android release files
+      - name: Decode the Android keystore
         shell: bash
         env:
-          ANDROID_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/poracode-release.keystore"
-          echo "$ANDROID_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > "$RUNNER_TEMP/google-services.json"
-          echo "PORACODE_ANDROID_GOOGLE_SERVICES_JSON=$RUNNER_TEMP/google-services.json" >> "$GITHUB_ENV"
-      - name: Build web assets
-        env:
-          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
-        run: pnpm run build:web
-      - name: Sync Capacitor
-        env:
-          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
-        run: |
-          pnpm exec cap sync android
-          pnpm run cap:configure
-      - name: Lint Android release
+          set -euo pipefail
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode > "$RUNNER_TEMP/poracode-release.keystore"
+          test -s "$RUNNER_TEMP/poracode-release.keystore"
+
+      - name: Build signed Android App Bundle
         working-directory: android
-        run: ./gradlew lintRelease
-      - name: Build signed AAB
-        working-directory: android
+        shell: bash
         env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ORG_GRADLE_PROJECT_android.injected.signing.store.file: ${{ runner.temp }}/poracode-release.keystore
+          ORG_GRADLE_PROJECT_android.injected.signing.store.password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_android.injected.signing.key.alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_android.injected.signing.key.password: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/poracode-release.keystore" \
-            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
-      - name: Upload AAB artifact
+          set -euo pipefail
+          ./gradlew bundleRelease --no-daemon --stacktrace
+
+          shopt -s nullglob
+          bundles=(app/build/outputs/bundle/release/*.aab)
+          if test "${#bundles[@]}" -ne 1; then
+            echo "Expected exactly one release AAB, found ${#bundles[@]}." >&2
+            exit 1
+          fi
+          sha256sum "${bundles[0]}" > "${bundles[0]}.sha256"
+
+      - name: Upload Android release evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: poracode-android-${{ needs.setup.outputs.version }}-${{ needs.setup.outputs.build_number }}
-          path: android/app/build/outputs/bundle/release/*.aab
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/bundle/release/*.sha256
+            android/app/build/reports/lint-results-release.*
+            android/app/build/test-results/testDebugUnitTest/**
           if-no-files-found: error
-      - name: Check Play publishing credentials
+          retention-days: 30
+
+      - name: Detect Google Play publishing credentials
         id: play
         shell: bash
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
-          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+          if test -n "$PLAY_SERVICE_ACCOUNT_JSON"; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Google Play credentials are absent; the signed AAB remains an artifact."
           fi
+
       - name: Publish to Google Play
-        if: steps.play.outputs.configured == 'true'
+        if: ${{ steps.play.outputs.configured == 'true' }}
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -177,26 +210,61 @@ jobs:
           track: ${{ vars.PLAY_TRACK || 'internal' }}
           status: completed
 
+      - name: Remove signing material
+        if: ${{ always() }}
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/poracode-release.keystore"
+
   ios:
-    name: iOS (TestFlight)
-    needs: setup
-    if: needs.setup.outputs.ios == 'true'
+    name: iOS native archive and TestFlight
+    needs: [setup, native_preflight]
+    if: ${{ needs.setup.outputs.ios == 'true' }}
     runs-on: macos-26
+    timeout-minutes: 60
     environment: mobile-ios
     env:
-      PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
+      IOS_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=latest
       PORACODE_MOBILE_BUILD_NUMBER: ${{ needs.setup.outputs.build_number }}
       PORACODE_MOBILE_VERSION_NAME: ${{ needs.setup.outputs.version }}
-      PORACODE_MOBILE_REQUIRE_IOS_LINKS: "1"
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Validate iOS release configuration
+      - name: Select Xcode 26.6
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.6"
+
+      # App.xcodeproj currently has no packageReferences. Do not key a cache
+      # from the unreferenced legacy Capacitor Package.resolved file.
+      - name: Require Xcode 26.6 and the iOS 26.5 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          test "$(xcodebuild -version | sed -n '1s/^Xcode //p')" = "26.6"
+          test "$(xcrun --sdk iphoneos --show-sdk-version)" = "26.5"
+          test "$(xcrun --sdk iphonesimulator --show-sdk-version)" = "26.5"
+          for target in App AppTests PoracodeActivities; do
+            deployment_target="$(xcodebuild -project ios/App/App.xcodeproj -target "$target" \
+              -showBuildSettings \
+              | awk '/^[[:space:]]*IPHONEOS_DEPLOYMENT_TARGET = / { print $3; exit }')"
+            awk -v version="$deployment_target" 'BEGIN { exit !(version + 0 >= 17) }'
+          done
+
+      - name: Run iOS AppTests
+        working-directory: ios/App
+        run: |
+          xcodebuild test -quiet \
+            -project App.xcodeproj \
+            -scheme App \
+            -only-testing:AppTests \
+            -destination "$IOS_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/PoracodeDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/AppTests.xcresult" \
+            -parallel-testing-enabled NO
+
+      - name: Validate iOS signing configuration
         shell: bash
         env:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -204,42 +272,33 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
         run: |
+          set -euo pipefail
           required=(
             APP_STORE_CONNECT_KEY_ID
             APP_STORE_CONNECT_ISSUER_ID
             APP_STORE_CONNECT_PRIVATE_KEY
-            PORACODE_MOBILE_APP_HOST
             PORACODE_MOBILE_APPLE_TEAM_ID
           )
           for name in "${required[@]}"; do
-            if [ -z "${!name}" ]; then
-              echo "Missing mobile-ios secret or variable: $name" >&2
+            if test -z "${!name}"; then
+              echo "Missing mobile-ios signing secret: $name" >&2
               exit 1
             fi
           done
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Build web assets
-        env:
-          PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
-        run: pnpm run build:web
-      - name: Sync Capacitor
-        env:
-          PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
-        run: |
-          pnpm exec cap sync ios
-          pnpm run cap:configure
+
       - name: Prepare App Store Connect key
         shell: bash
         env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
-          key_path="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          set -euo pipefail
+          umask 077
+          key_path="$RUNNER_TEMP/poracode-app-store-connect.p8"
           printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$key_path"
-          chmod 600 "$key_path"
+          test -s "$key_path"
           echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
-      - name: Archive and export IPA
+
+      - name: Archive and export the native iOS app
         working-directory: ios/App
         shell: bash
         env:
@@ -247,7 +306,8 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
         run: |
-          xcodebuild \
+          set -euo pipefail
+          xcodebuild archive \
             -project App.xcodeproj \
             -scheme App \
             -configuration Release \
@@ -260,10 +320,9 @@ jobs:
             DEVELOPMENT_TEAM="$PORACODE_MOBILE_APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION="$PORACODE_MOBILE_VERSION_NAME" \
-            CURRENT_PROJECT_VERSION="$PORACODE_MOBILE_BUILD_NUMBER" \
-            archive
-          xcodebuild \
-            -exportArchive \
+            CURRENT_PROJECT_VERSION="$PORACODE_MOBILE_BUILD_NUMBER"
+
+          xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
             -exportOptionsPlist exportOptions.plist \
@@ -271,16 +330,68 @@ jobs:
             -authenticationKeyPath "$APP_STORE_CONNECT_KEY_PATH" \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
-      - name: Upload IPA artifact
+
+          set -- "$RUNNER_TEMP"/export/*.ipa
+          if test "$#" -ne 1 || test ! -f "$1"; then
+            echo "Expected exactly one exported IPA." >&2
+            exit 1
+          fi
+          mv "$1" "$RUNNER_TEMP/Poracode.ipa"
+          shasum -a 256 "$RUNNER_TEMP/Poracode.ipa" > "$RUNNER_TEMP/Poracode.ipa.sha256"
+
+      - name: Upload iOS release evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: poracode-ios-${{ needs.setup.outputs.version }}-${{ needs.setup.outputs.build_number }}
-          path: ${{ runner.temp }}/export/*.ipa
+          path: |
+            ${{ runner.temp }}/Poracode.ipa
+            ${{ runner.temp }}/Poracode.ipa.sha256
+            ${{ runner.temp }}/App.xcarchive/dSYMs/**
           if-no-files-found: error
+          retention-days: 30
+
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@9fd28d4e690396e43caca69cef54cccccce77034 # v3
         with:
-          app-path: ${{ runner.temp }}/export/App.ipa
+          app-path: ${{ runner.temp }}/Poracode.ipa
           issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+      - name: Upload iOS test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: poracode-ios-tests-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/AppTests.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Remove App Store Connect key
+        if: ${{ always() }}
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/poracode-app-store-connect.p8"
+
+  release_gate:
+    name: Native release gate
+    if: ${{ always() }}
+    needs: [native_preflight, setup, android, ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require selected native artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ needs.native_preflight.result }}" = "success"
+          test "${{ needs.setup.result }}" = "success"
+          if test "${{ needs.setup.outputs.android }}" = "true"; then
+            test "${{ needs.android.result }}" = "success"
+          else
+            test "${{ needs.android.result }}" = "skipped"
+          fi
+          if test "${{ needs.setup.outputs.ios }}" = "true"; then
+            test "${{ needs.ios.result }}" = "success"
+          else
+            test "${{ needs.ios.result }}" = "skipped"
+          fi

@@ -9,6 +9,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
+import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { ProfileSettings } from "./parts/ProfileSettings";
@@ -43,6 +44,7 @@ import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSett
 import type { SettingsSection } from "./parts/types";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
+  selectBrowserBridgeDesktop,
   selectBrowserBridgeServer,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
@@ -103,6 +105,7 @@ const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
 function renderSection(
   activeSection: SettingsSection,
   onSectionChange: (section: SettingsSection) => void,
+  onOpenDesktopSettings: (desktopId: string) => void,
 ): ReactNode {
   let section: ReactNode;
   if (activeSection === "acpRegistry") {
@@ -116,6 +119,8 @@ function renderSection(
         onOpenProfile={(kind) => onSectionChange(`agents:${kind}`)}
       />
     );
+  } else if (activeSection === "remoteServers") {
+    section = <RemoteServersSettings onOpenDesktopSettings={onOpenDesktopSettings} />;
   } else {
     section = SECTION_VIEWS[activeSection]?.() ?? null;
   }
@@ -145,8 +150,8 @@ export function settingsSectionProductProperties(activeSection: SettingsSection)
   };
 }
 
-export function SettingsOverlay(props: { onClose: () => void }) {
-  const { onClose } = props;
+export function SettingsOverlay(props: { onClose: () => void; onBack?: () => void }) {
+  const { onClose, onBack = onClose } = props;
   const { t } = useLingui();
   const compactLayout = useCompactLayout();
   const requestedSection = usePanelStore((s) => s.settingsSection);
@@ -160,6 +165,14 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const [mobileDetailParent, setMobileDetailParent] = useState<MobileSettingsParent>(
     requestedSection === null ? "root" : "main",
   );
+  const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
+  const servers = useRemoteServersStore((state) => state.servers);
+  const defaultDesktop = useRemoteServersStore(
+    (state) => selectBrowserBridgeServer(state) ?? state.servers[0],
+  );
+  const [mobileDesktopId, setMobileDesktopId] = useState<string | null>(null);
+  const selectedDesktop =
+    servers.find((server) => server.desktopId === mobileDesktopId) ?? defaultDesktop;
   const initialRequestedSectionRef = useRef(requestedSection !== null);
   useProductViewTracking(
     {
@@ -186,6 +199,18 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       clearSettingsSection();
     }
   }, [requestedSection, clearSettingsSection]);
+
+  useEffect(() => {
+    if (mobileDesktopId && !servers.some((server) => server.desktopId === mobileDesktopId)) {
+      setMobileDesktopId(null);
+    }
+  }, [mobileDesktopId, servers]);
+
+  const changeMobileDesktop = (desktopId: string | null) => {
+    if (!desktopId) return;
+    setMobileDesktopId(desktopId);
+    selectBrowserBridgeDesktop(desktopId);
+  };
 
   // Pending scroll-to-setting target, set when a settings search result is
   // clicked. The token re-fires the effect when the same setting is picked
@@ -249,11 +274,18 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   );
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
-  const section = renderSection(activeSection, (nextSection) =>
-    navigateToSection(nextSection, undefined, mobileDetailParent),
+  const section = renderSection(
+    activeSection,
+    (nextSection) => navigateToSection(nextSection, undefined, mobileDetailParent),
+    (desktopId) => {
+      changeMobileDesktop(desktopId);
+      setMobileDesktopParent("connections");
+      setMobileScreen("desktop");
+    },
   );
   const remoteSession = isRemoteSession();
-  const selectedRemoteServer = useRemoteServersStore(selectBrowserBridgeServer);
+  const showMobileDesktopPicker =
+    compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
   const openSchedules = useAppStore((state) => state.openSchedules);
   const detailTitle = (() => {
     if (activeSection === "general") return t`General`;
@@ -314,7 +346,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const mobileIndex = (
     <MobileSettingsIndex
       screen={mobileScreen === "desktop" ? "desktop" : "device"}
-      hasDesktop={!remoteSession || selectedRemoteServer !== undefined}
+      hasDesktop={!remoteSession || selectedDesktop !== undefined}
       showArchived={!remoteSession}
       onOpenDesktop={() => setMobileScreen("desktop")}
       onOpenSchedules={() => {
@@ -351,6 +383,22 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       </div>
     );
 
+  const pageContent = compactLayout && mobileScreen !== "detail" ? mobileIndex : detailContent;
+  const scopedPageContent =
+    showMobileDesktopPicker && selectedDesktop ? (
+      <div className="m-machine-scoped-content relative h-full min-h-0">
+        <div key={selectedDesktop.desktopId} className="h-full min-h-0">
+          {pageContent}
+        </div>
+        <MobileMachineToolbar
+          desktopId={selectedDesktop.desktopId}
+          onDesktopChange={changeMobileDesktop}
+        />
+      </div>
+    ) : (
+      pageContent
+    );
+
   return (
     <PageLayout
       title={t`Settings`}
@@ -358,11 +406,17 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       compactTitle={compactTitle}
       onCompactBack={() => {
         if (mobileScreen === "root") {
-          onClose();
+          onBack();
         } else if (mobileScreen === "desktop") {
-          setMobileScreen("root");
+          if (mobileDesktopParent === "connections") {
+            setActiveSection("remoteServers");
+            setMobileDetailParent("main");
+            setMobileScreen("detail");
+          } else {
+            setMobileScreen("root");
+          }
         } else if (mobileDetailParent === "main") {
-          onClose();
+          onBack();
         } else {
           setMobileScreen(mobileDetailParent);
         }
@@ -379,7 +433,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           onRefreshAgents={refreshAgents}
         />
       }
-      content={compactLayout && mobileScreen !== "detail" ? mobileIndex : detailContent}
+      content={scopedPageContent}
     />
   );
 }

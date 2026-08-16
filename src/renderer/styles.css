@@ -249,6 +249,107 @@
   }
 }
 
+/* The touch pairing screen's scan target. A glass card lifted off the backdrop
+   with an accent-tinted hairline, so the one primary action on a phone's first
+   screen reads as raised rather than as another form row. */
+.poracode-pair-card {
+  border-radius: 1.75rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--surface-secondary) 88%, transparent) 0%,
+    color-mix(in oklab, var(--surface) 82%, transparent) 100%
+  );
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 20%, transparent),
+    0 18px 48px color-mix(in oklab, black 20%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 10%, transparent);
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.poracode-pair-card:active:not(:disabled) {
+  transform: scale(0.985);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent),
+    0 10px 28px color-mix(in oklab, black 24%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 10%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poracode-pair-card {
+    transition: none;
+  }
+  .poracode-pair-card:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Live QR scanner reticle. The window carries the shroud itself — a single
+   enormous spread shadow dims the whole viewport outside its rounded box — so
+   the clear area and the corner brackets drawn on its edges can never fall out
+   of register the way two separately positioned layers would. */
+.poracode-scan-window {
+  width: min(70vw, 17.5rem);
+  aspect-ratio: 1;
+  border-radius: 1.5rem;
+  box-shadow: 0 0 0 100vmax color-mix(in oklab, black 64%, transparent);
+}
+
+@keyframes poracode-scan-sweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(600%);
+    opacity: 0;
+  }
+}
+
+.poracode-scan-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Parked at -20% of the window and 20% tall, so a 600%-of-self travel carries
+   it from just above the top edge to just past the bottom one. Animating only
+   `transform` keeps the sweep on the compositor — this runs continuously while
+   the camera decodes, and a layout-thrashing sweep would cost frames the
+   decoder needs. */
+.poracode-scan-sweep::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -20%;
+  height: 20%;
+  border-bottom: 1px solid var(--accent);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in oklab, var(--accent) 40%, transparent) 100%
+  );
+  animation: poracode-scan-sweep 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poracode-scan-sweep::before {
+    animation: none;
+    top: 50%;
+    opacity: 0.5;
+  }
+}
+
 .poracode-welcome-page {
   background:
     linear-gradient(
@@ -338,6 +439,14 @@
   filter: blur(0.6px);
   animation: poracode-ring-spin-2 4s linear infinite;
   will-change: transform;
+}
+
+/* An icon that re-enters after the intro has already played (a pairing attempt
+   returning to its form, say) keeps the always-on glow pulse but must skip the
+   2s-delayed reveal, which would blink the ring out on the way back. */
+.poracode-welcome-ring-steady {
+  animation: poracode-lightning-glow 4s ease-in-out infinite;
+  animation-delay: 0s;
 }
 
 .poracode-welcome-light {
@@ -903,6 +1012,70 @@
   background-color: var(--row-active);
 }
 
+/* In the compact model drawer, section labels should organize the list rather
+   than read as white cards. Provider labels get a small icon badge and a
+   trailing hairline; nested provider groups use an indented branch marker. */
+html[data-compact-layout] .poracode-model-menu-header {
+  border-bottom: 0;
+  background: transparent;
+  padding-inline: 0.75rem;
+  color: color-mix(in oklab, var(--foreground) 58%, transparent);
+}
+
+html[data-compact-layout] .poracode-model-menu-header::after {
+  content: "";
+  height: 1px;
+  min-width: 1rem;
+  flex: 1;
+  margin-left: 0.625rem;
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+html[data-compact-layout] .poracode-model-menu-header--provider {
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
+}
+
+html[data-compact-layout] .poracode-model-menu-provider-mark {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+
+html[data-compact-layout] .poracode-model-menu-header--sub {
+  padding-left: 2.25rem;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--foreground) 48%, transparent);
+}
+
+html[data-compact-layout] .poracode-model-menu-header--sub::before {
+  content: "";
+  width: 0.75rem;
+  height: 1px;
+  flex: 0 0 0.75rem;
+  margin-right: 0.5rem;
+  background: color-mix(in oklab, var(--foreground) 20%, transparent);
+}
+
+/* iOS may retain `:hover` after a tap. Compact model rows use only the press
+   fill below; keyboard navigation still opts into `data-active` explicitly. */
+html[data-compact-layout] .poracode-model-menu-listbox .poracode-menu-item:hover:not(:active) {
+  background-color: transparent;
+}
+
+html[data-compact-layout] .poracode-model-menu-listbox .poracode-menu-item[data-active="true"] {
+  background-color: var(--default);
+}
+
+html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-header {
+  background: color-mix(in oklab, var(--sidebar-background, var(--background)) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
 .poracode-menu .list-box-item:has(.list-box-item__indicator) {
   padding-right: 1.75rem;
 }
@@ -1400,16 +1573,20 @@ html[data-window-kind="quickComposer"] #root {
    no device or user-agent switch is involved, and resizing back restores the
    docked desktop shell without remounting projects or threads. */
 html[data-compact-layout] {
+  --m-page-inline: 0.7rem;
   --m-tap-min: 44px;
+  --m-header-height: 48px;
+  --m-page-header-safe-zone: calc(var(--m-header-height) + env(safe-area-inset-top));
+  --m-header-content-gap: 12px;
   --m-list-row-border: none;
   --m-list-row-radius: 0.625rem;
-  --m-list-row-surface: color-mix(in oklab, var(--foreground) 4%, transparent);
+  --m-list-row-surface: color-mix(in oklab, var(--foreground) 14%, transparent);
   --m-floating-control-height: var(--m-tap-min);
   --m-floating-control-line-height: calc(var(--m-floating-control-height) - 2px);
   --m-floating-control-gap: 0.625rem;
   --m-floating-control-radius: 999px;
   --m-floating-control-inner-size: calc(var(--m-floating-control-height) - 0.5rem);
-  --m-glass-alpha: 64%;
+  --m-glass-alpha: 74%;
   --m-glass-surface: color-mix(
     in oklab,
     var(--composer-surface, var(--surface, var(--content-background))) var(--m-glass-alpha),
@@ -1426,27 +1603,255 @@ html[data-compact-layout] {
   overscroll-behavior: none;
 }
 
+/* Dropdowns stay anchored on compact PWA layouts, but their dense desktop
+   rows grow to the shared 44px minimum touch target. Cover HeroUI menus and
+   list boxes, Poracode's virtualized rows, and plain-button menu actions. */
+html[data-compact-layout] .menu-item,
+html[data-compact-layout] .list-box-item,
+html[data-compact-layout] .poracode-menu-item,
+html[data-compact-layout] .poracode-menu-action {
+  min-height: var(--m-tap-min);
+}
+
 /* The dark Poracode preset uses true black for mobile page backgrounds so the
    shared shell, full-screen routes, and safe-area backdrop stay OLED-friendly. */
 html[data-compact-layout][data-theme="dark"][data-theme-preset="default"] {
   --background: #000;
   --content-background: #000;
+  --m-list-row-surface: #1c1c1e;
+  --m-glass-surface: #1c1c1e;
+  --m-glass-card-surface: #1c1c1e;
+}
+
+/* Full-page compact terminal, adapted from the original standalone PWA
+   terminal. The PTY surface stays above a keyboard-aware touch accessory and
+   a horizontally scrollable tab strip instead of entering the desktop dock. */
+html[data-compact-layout] .m-terminal-page {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  background: var(--background);
+}
+
+html[data-compact-layout] .m-terminal-page__surface {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 0.5rem 0.5rem 0;
+}
+
+html[data-compact-layout] .m-terminal-page__dock {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  flex-direction: column;
+  gap: 0.375rem;
+  border-top: 1px solid var(--hairline, var(--border));
+  background: var(--background);
+  padding: 0.375rem 0.375rem
+    calc(0.375rem + env(safe-area-inset-bottom) + var(--m-terminal-keyboard-offset, 0px));
+}
+
+html[data-compact-layout] .m-terminal-accessory {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+html[data-compact-layout] .m-terminal-accessory__input {
+  position: relative;
+  display: flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: var(--row-hover, var(--surface));
+  color: var(--foreground);
+  cursor: text;
+}
+
+html[data-compact-layout] .m-terminal-accessory__input input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+  opacity: 0.01;
+}
+
+html[data-compact-layout] .m-terminal-accessory__input:focus-within {
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+
+html[data-compact-layout] .m-terminal-accessory__mods,
+html[data-compact-layout] .m-terminal-accessory__keys {
+  display: flex;
+  gap: 0.25rem;
+}
+
+html[data-compact-layout] .m-terminal-accessory__mods {
+  flex: none;
+}
+
+html[data-compact-layout] .m-terminal-accessory__keys {
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+html[data-compact-layout] .m-terminal-accessory__keys::-webkit-scrollbar,
+html[data-compact-layout] .m-terminal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+html[data-compact-layout] .m-terminal-accessory__key {
+  display: flex;
+  min-width: 2.75rem;
+  height: var(--m-tap-min);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--surface, var(--background)));
+  padding: 0 0.625rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  color: var(--foreground);
+}
+
+html[data-compact-layout] .m-terminal-accessory__key--mod {
+  padding: 0;
+}
+
+html[data-compact-layout] .m-terminal-accessory__key[data-active="true"] {
+  background: var(--accent);
+  color: var(--accent-foreground, var(--background));
+}
+
+html[data-compact-layout] .m-terminal-tabs {
+  display: flex;
+  min-width: 0;
+  width: max-content;
+  gap: 0.25rem;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+}
+
+html[data-compact-layout] .m-terminal-tab {
+  display: flex;
+  min-width: 7rem;
+  max-width: 12rem;
+  height: var(--m-tap-min);
+  flex: 0 0 auto;
+  gap: 0;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--surface, var(--background)));
+  padding: 0 0 0 0.625rem;
+  color: var(--muted);
+}
+
+html[data-compact-layout] .m-terminal-tab[aria-selected="true"] {
+  border-color: var(--border);
+  background: var(--row-active, var(--row-hover));
+  color: var(--foreground);
+}
+
+html[data-compact-layout] .m-terminal-tab__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+html[data-compact-layout] .m-terminal-tab__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+html[data-compact-layout] .m-terminal-tab__close {
+  display: flex;
+  width: 2.75rem;
+  height: 100%;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-left: 1px solid var(--hairline, var(--border));
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: transparent;
+  color: inherit;
+}
+
+html[data-compact-layout] .m-terminal-tab--add {
+  min-width: var(--m-tap-min);
+  max-width: var(--m-tap-min);
+  justify-content: center;
+  border-color: var(--hairline, var(--border));
+  padding: 0;
+}
+
+html[data-compact-layout][data-theme="light"] {
+  --m-list-row-surface: #fff;
+  --m-floating-control-shadow: 0 2px 8px rgb(15 23 42 / 0.06);
+}
+
+html[data-compact-layout][data-theme="light"]
+  :is(.poracode-sidebar-thread-row, .poracode-sidebar-worktree-row) {
+  --muted: color-mix(in oklab, var(--foreground) 70%, white);
+  color: color-mix(in oklab, var(--foreground) 90%, white);
+}
+
+html[data-compact-layout][data-theme="light"]
+  :is(.m-compose-bubble, .m-compose-action-docks, .poracode-composer-shell) {
+  box-shadow: 0 2px 10px rgb(15 23 42 / 0.055);
 }
 
 html[data-compact-layout]:not([data-mobile-platform="ios"]) {
-  --m-glass-alpha: 70%;
+  --m-glass-alpha: 80%;
 }
 
 html[data-compact-layout][data-mobile-platform="windows"] {
   --m-glass-alpha: 96%;
 }
 
+/* iOS Safari magnifies the page when an editable control below 16px receives
+   focus. Keep the compact web client at Safari's no-zoom threshold without
+   disabling user-controlled pinch zoom in the viewport metadata. */
+html[data-compact-layout][data-mobile-platform="ios"]
+  :is(input, textarea, select, [contenteditable="true"]) {
+  font-size: 16px !important;
+}
+
 html[data-compact-layout],
 html[data-compact-layout] body,
 html[data-compact-layout] #root {
   width: 100%;
+  max-width: 100vw;
   height: 100%;
   overflow: hidden;
+  overflow-x: clip;
 }
 
 html[data-compact-layout] #root {
@@ -1458,19 +1863,61 @@ html[data-compact-layout] .poracode-shell {
   width: 100%;
   height: 100dvh;
   padding: 0;
-  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Installed iOS PWAs report a visual viewport that stops above the system's
+   home-indicator band. The pre-paint bootstrap pins <html> to physical 100lvh;
+   keep body/root in normal document flow so that full-height surfaces and
+   portalled bottom drawers paint through that band. Their own env() padding
+   remains responsible for keeping controls above the home indicator. */
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] body {
+  height: 100%;
+  min-height: 100%;
+}
+
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] #root {
+  position: static;
+  height: 100%;
+  min-height: 100%;
+}
+
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] .poracode-shell {
+  height: 100%;
+  min-height: 100%;
+}
+
+/* Match the installed PWA's pairing composition to the native welcome
+   screens. The action stack needs a modest lift; its flexing hero previously
+   carried an additional 4svh downward bias, so reduce that independently. */
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone]
+  .poracode-touch-pairing {
+  transform: translateY(-1.5rem);
+}
+
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone]
+  .poracode-touch-pairing-hero {
+  transform: translateY(calc(1svh - 24px));
+}
+
+/* The welcome comet deliberately travels far outside its icon box. Safari can
+   otherwise retain that transformed overflow as a horizontally panned visual
+   viewport after a drawer input is focused and dismissed. */
+html[data-compact-layout] .poracode-welcome-page {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
 }
 
 html[data-compact-layout] .poracode-overlay-header {
   box-sizing: border-box;
-  height: calc(var(--m-tap-min) + env(safe-area-inset-top)) !important;
+  height: var(--m-page-header-safe-zone) !important;
+  padding-inline: var(--m-page-inline) !important;
   padding-top: env(safe-area-inset-top);
 }
 
 html[data-compact-layout] .poracode-sidebar-aside--overlay {
   width: 100vw !important;
   min-width: 100vw !important;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Phone navigation is a real page, not a desktop drawer. The canonical
@@ -1528,47 +1975,47 @@ html[data-compact-layout]
   position: relative;
   z-index: 7;
   justify-content: center;
+  margin-bottom: var(--m-header-content-gap);
   border: 0;
   background: color-mix(in oklab, var(--background) 78%, transparent) !important;
   backdrop-filter: saturate(140%) blur(16px);
   -webkit-backdrop-filter: saturate(140%) blur(16px);
 }
 
-html[data-compact-layout]
-  .poracode-shell[data-mobile-navigation][data-mobile-home]
-  .poracode-overlay-header
-  > :first-child {
-  flex: 1;
+html[data-compact-layout] .poracode-mobile-header {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  align-items: center;
+}
+
+html[data-compact-layout] .poracode-mobile-header[data-variant="home"] {
   justify-content: flex-end;
 }
 
-html[data-compact-layout]
-  .poracode-shell[data-mobile-navigation][data-mobile-home]
-  .poracode-overlay-header
-  .poracode-sidebar-wordmark {
+html[data-compact-layout] .poracode-mobile-header__home-title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
-html[data-compact-layout] .poracode-mobile-home-status {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 0.375rem);
-  left: calc(50% + 3.75rem);
-  z-index: 1;
-}
-
-html[data-compact-layout] .poracode-mobile-home-status [data-slot="button"] {
-  width: 2rem;
-  min-width: 2rem;
-  height: 2rem;
-  min-height: 2rem;
+html[data-compact-layout] .poracode-mobile-header__trailing {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 html[data-compact-layout] .poracode-main-sidebar > div:last-child {
   min-width: 0 !important;
   gap: 0;
-  padding-inline: 0.5rem;
+  padding-inline: var(--m-page-inline);
 }
 
 html[data-compact-layout] .poracode-flat-list-head {
@@ -1584,9 +2031,10 @@ html[data-compact-layout] .poracode-flat-thread-scroll {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Keep compact sidebar rows light: a faint resting surface communicates the
-   tap target without the weight of a card border. */
-html[data-compact-layout] .poracode-sidebar-thread-row {
+/* Compact PWA uses the desktop flat-row markup with a larger touch target and
+   a faint resting surface. Only interaction controls differ. */
+html[data-compact-layout] .poracode-sidebar-thread-row,
+html[data-compact-layout] .poracode-sidebar-worktree-row {
   min-height: 3.25rem;
   gap: 0.625rem;
   margin-bottom: 0.25rem;
@@ -1595,6 +2043,25 @@ html[data-compact-layout] .poracode-sidebar-thread-row {
   background: var(--m-list-row-surface);
   padding: 0.5rem 0.625rem;
   cursor: pointer;
+}
+
+html[data-compact-layout] .poracode-sidebar-group-first-thread {
+  margin-top: 0.125rem;
+}
+
+html[data-compact-layout] .poracode-sidebar-group-last-thread {
+  position: relative;
+  border-left: 0;
+}
+
+html[data-compact-layout] .poracode-sidebar-group-last-thread::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0.375rem;
+  left: 0;
+  border-left: 1px dashed var(--border);
+  pointer-events: none;
 }
 
 html[data-compact-layout] .poracode-sidebar-thread-row:active {
@@ -1618,9 +2085,9 @@ html[data-compact-layout] .poracode-sidebar-touch-row {
 
 html[data-compact-layout] .m-home-compose-actions {
   position: absolute;
-  right: 0.75rem;
+  right: var(--m-page-inline);
   bottom: calc(0.75rem + env(safe-area-inset-bottom));
-  left: 0.75rem;
+  left: var(--m-page-inline);
   z-index: 6;
   display: flex;
   height: var(--m-floating-control-height);
@@ -1649,7 +2116,7 @@ html[data-compact-layout] .m-home-compose-action {
   min-width: var(--m-floating-control-height);
   height: var(--m-floating-control-height);
   min-height: var(--m-floating-control-height);
-  border: 1px solid var(--m-glass-border);
+  border: 1px solid color-mix(in oklab, var(--m-glass-border) 55%, transparent);
   border-radius: var(--m-floating-control-radius);
   background: var(--m-glass-surface);
   color: var(--foreground);
@@ -1662,6 +2129,27 @@ html[data-compact-layout] .m-home-compose-action {
     transform 0.15s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Shared compact-page selector bubble. Usage and GitHub Actions keep their
+   page-specific contents while sharing the same floating touch surface. */
+html[data-compact-layout] .m-floating-selector {
+  height: var(--m-floating-control-height);
+  min-height: var(--m-floating-control-height);
+  max-width: calc(100vw - 2rem);
+  min-width: 0;
+  gap: 0.5rem;
+  border: 1px solid var(--m-glass-border);
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
+  box-shadow: var(--m-floating-control-shadow);
+  backdrop-filter: var(--m-glass-blur);
+  -webkit-backdrop-filter: var(--m-glass-blur);
+}
+
+html[data-compact-layout] .m-floating-selector:active,
+html[data-compact-layout] .m-floating-selector[data-pressed="true"] {
+  transform: scale(0.97);
+}
+
 html[data-compact-layout] .m-home-compose-action:active,
 html[data-compact-layout] .m-home-compose-action[data-pressed="true"] {
   background: color-mix(in oklab, var(--foreground) 10%, var(--m-glass-surface));
@@ -1671,10 +2159,34 @@ html[data-compact-layout] .m-home-compose-action[data-pressed="true"] {
 html[data-compact-layout]
   .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
   .poracode-overlay-header {
-  border-bottom: 1px solid var(--hairline, var(--border));
-  background: color-mix(in oklab, var(--background) 72%, transparent) !important;
-  backdrop-filter: saturate(140%) blur(18px);
-  -webkit-backdrop-filter: saturate(140%) blur(18px);
+  margin-bottom: var(--m-header-content-gap);
+  border-bottom: 0;
+  background: var(--m-glass-surface) !important;
+  backdrop-filter: var(--m-glass-blur);
+  -webkit-backdrop-filter: var(--m-glass-blur);
+}
+
+html[data-compact-layout][data-theme="dark"]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  .poracode-overlay-header {
+  background: color-mix(in oklab, var(--background) 78%, transparent) !important;
+}
+
+/* A compact page opts into under-header scrolling with one shared surface
+   class. The shell lifts its existing header out of layout, while the scroll
+   surface reserves the same safe-zone token for its initial content. */
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  [data-poracode-shell-content]:has(.m-page-scroll-surface) {
+  position: relative;
+}
+
+html[data-compact-layout]
+  .poracode-shell[data-mobile-navigation]:not([data-mobile-home])
+  [data-poracode-shell-content]:has(.m-page-scroll-surface)
+  > .poracode-overlay-header {
+  position: absolute;
+  inset: 0 0 auto;
 }
 
 /* Compact browser pages do not have native traffic lights. Clear the shared
@@ -1682,7 +2194,7 @@ html[data-compact-layout]
 html[data-compact-layout]
   .poracode-shell[data-mobile-navigation]
   .poracode-overlay-header.poracode-mac-traffic-light-pad {
-  padding-left: 0.5rem;
+  padding-left: var(--m-page-inline);
 }
 
 /* The master PWA kept status, title, usage and actions in one top bar. */
@@ -1690,8 +2202,7 @@ html[data-compact-layout] .poracode-thread-pane-header[data-compact] {
   display: none;
 }
 
-html[data-compact-layout] .poracode-compact-content-header {
-  height: var(--m-tap-min);
+html[data-compact-layout] .poracode-mobile-header[data-variant="page"] {
   gap: 0;
 }
 
@@ -1702,6 +2213,13 @@ html[data-compact-layout] .m-back {
   min-height: var(--m-tap-min);
   margin-left: -0.5rem;
   border-radius: 0.5rem;
+}
+
+html[data-compact-layout] .m-back--with-title {
+  width: auto;
+  max-width: 100%;
+  justify-content: flex-start;
+  padding-right: 0.625rem;
 }
 
 html[data-compact-layout] .m-topbar__thread-row {
@@ -1830,6 +2348,10 @@ html[data-compact-layout] .m-thread:not(.m-thread--terminal) .m-thread-content {
   padding-bottom: 0;
 }
 
+html[data-compact-layout] .m-thread-content {
+  padding-inline: var(--m-page-inline);
+}
+
 html[data-compact-layout] .m-thread .m-thread-content [data-poracode-chat-scroller] {
   padding-bottom: 0;
 }
@@ -1861,18 +2383,14 @@ html[data-compact-layout] .m-thread--terminal .m-thread-content {
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 
-html[data-compact-layout] .poracode-shell[data-mobile-navigation]:not([data-mobile-home]) main {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
 /* The old PWA's composer was a floating mobile control, not a desktop footer.
    Keep that interaction in the canonical thread tree: the transcript and PTY
    stay mounted while this surface floats over their bottom edge. */
 html[data-compact-layout] .poracode-thread-composer-section {
   position: absolute;
-  right: 0.75rem;
+  right: var(--m-page-inline);
   bottom: calc(0.75rem + env(safe-area-inset-bottom));
-  left: 0.75rem;
+  left: var(--m-page-inline);
   z-index: 12;
   filter: drop-shadow(0 12px 28px rgb(0 0 0 / 0.32));
 }
@@ -1929,6 +2447,30 @@ html[data-compact-layout] .m-sheet [role="button"] {
   min-height: var(--m-tap-min);
 }
 
+html[data-compact-layout] .poracode-sidebar-body [role="button"].poracode-sidebar-thread-row,
+html[data-compact-layout] .poracode-sidebar-body [role="button"].poracode-sidebar-worktree-row {
+  min-height: 3.25rem;
+}
+
+html[data-compact-layout]
+  .poracode-sidebar-body
+  [role="button"]:is(.poracode-compact-git-badge, .poracode-compact-panel-button) {
+  min-height: 0;
+}
+
+/* Worktree metadata stays visually aligned to the 18px desktop grid, but its
+   compact Files button needs a forgiving touch target. The pseudo-element
+   enlarges hit testing without pushing the two-line row apart. */
+html[data-compact-layout] .poracode-compact-panel-button {
+  position: relative;
+}
+
+html[data-compact-layout] .poracode-compact-panel-button::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+}
+
 /* Shared responsive menus use the same bottom-sheet DOM in every host. These
    rules used to ship only in the separate mobile bundle. Keeping the compact
    subset here lets Electron and Chrome switch presentation live. */
@@ -1941,6 +2483,15 @@ html[data-compact-layout] .m-sheet [role="button"] {
   justify-content: flex-end;
   background: color-mix(in oklab, var(--background) 45%, transparent);
   animation: poracode-sheet-backdrop-in 0.2s ease;
+  transition: background-color 0.18s ease;
+}
+
+.m-sheet-backdrop[data-covered] {
+  pointer-events: none;
+}
+
+.m-sheet-backdrop[data-nested] {
+  background: transparent;
 }
 
 .m-sheet-backdrop[data-closing] {
@@ -1968,8 +2519,28 @@ html[data-compact-layout] .m-sheet [role="button"] {
   transform: translateY(var(--m-sheet-drag-y, 0));
   animation: poracode-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
   transition:
+    opacity 0.18s ease,
     height 0.22s cubic-bezier(0.32, 0.72, 0, 1),
     max-height 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The model picker owns a virtual scroll range. Put the home-indicator room in
+   that scroll range rather than below it so the final model can be brought
+   fully into view at the physical bottom of the device. */
+.m-sheet--model-picker {
+  padding-bottom: 0.375rem;
+}
+
+/* Menu rows scroll inside the sheet, so their home-indicator clearance must
+   belong to that scroll range as well. Keeping it on `.m-sheet` strands the
+   gap below the scroller and prevents the final row from moving fully into
+   view. Non-menu sheets retain the shared outer padding above. */
+.m-sheet:has(.m-sheet-list) {
+  padding-bottom: 0;
+}
+
+.m-sheet-backdrop[data-covered] .m-sheet {
+  opacity: 0;
 }
 
 .m-sheet[data-expanded] {
@@ -1996,6 +2567,10 @@ html[data-compact-layout] .m-sheet [role="button"] {
   flex: none;
   align-items: center;
   justify-content: center;
+  margin-inline: -0.75rem;
+  background: color-mix(in oklab, var(--sidebar-background, var(--background)) 78%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
   cursor: grab;
   touch-action: none;
 }
@@ -2008,13 +2583,37 @@ html[data-compact-layout] .m-sheet [role="button"] {
 }
 
 .m-sheet-head {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0.125rem 0.5rem 0.25rem;
+  margin-inline: -0.75rem;
+  padding: 0 0.875rem 0.5rem 1rem;
+  background: color-mix(in oklab, var(--sidebar-background, var(--background)) 78%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+/* Sheets with glass headers use one scroll plane. The header stays pinned in
+   that plane while rows travel beneath it, making its translucency observable;
+   the list's end spacer keeps the home-indicator safe area scrollable. */
+.m-sheet-scroll {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.m-sheet-scroll > .m-sheet-head {
+  position: sticky;
+  top: 0;
 }
 
 .m-sheet-list {
@@ -2023,6 +2622,30 @@ html[data-compact-layout] .m-sheet [role="button"] {
   flex-direction: column;
   gap: 0.375rem;
   overflow-y: auto;
+  scroll-padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.m-sheet-scroll > .m-sheet-list {
+  min-height: auto;
+  flex: none;
+  overflow-y: visible;
+}
+
+/* A flex item is more reliable than overflow padding as end clearance in
+   mobile Safari. The list gap plus this spacer preserves the sheet's existing
+   0.75rem visual inset while making the safe area scrollable. */
+.m-sheet-list::after {
+  content: "";
+  flex: 0 0 calc(0.375rem + env(safe-area-inset-bottom));
+}
+
+/* Pairing is the forward action in this compact drawer. Restore HeroUI's
+   accent-backed primary treatment after the app-wide neutral button override. */
+html[data-compact-layout] .poracode-mobile-pair-connect.button--primary {
+  --button-bg: var(--accent);
+  --button-bg-hover: var(--accent-hover);
+  --button-bg-pressed: var(--accent-hover);
+  --button-fg: var(--accent-foreground);
 }
 
 /* Action rows inside bottom sheets. Shared by menus, connection actions, and
@@ -2217,6 +2840,148 @@ html[data-compact-layout] .m-sheet [role="button"] {
   padding-bottom: calc(1rem + 3rem + env(safe-area-inset-bottom));
 }
 
+html[data-compact-layout] .m-utility-page {
+  padding: 0.5rem var(--m-page-inline) calc(5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+html[data-compact-layout] .m-utility-page .settings-page {
+  max-width: none;
+}
+
+/* The shared compact shell already owns the page title. Desktop feature
+   headers would duplicate it and add an unnecessary visual seam on phones. */
+html[data-compact-layout] .m-utility-page .settings-page__header,
+html[data-compact-layout] .m-utility-page .settings-page__description {
+  display: none;
+}
+
+html[data-compact-layout] .m-utility-floating-actions {
+  position: absolute;
+  right: var(--m-page-inline);
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: var(--m-page-inline);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+html[data-compact-layout] .m-utility-floating-actions--with-selector {
+  display: grid;
+  grid-template-columns:
+    var(--m-floating-control-height) minmax(0, 1fr)
+    var(--m-floating-control-height);
+  gap: var(--m-floating-control-gap);
+}
+
+html[data-compact-layout] .m-utility-floating-actions--centered {
+  justify-content: center;
+}
+
+html[data-compact-layout] .m-utility-floating-actions > * {
+  pointer-events: auto;
+}
+
+html[data-compact-layout] .m-machine-scoped-content > div:first-child > .m-page {
+  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(
+    var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom)
+  );
+}
+
+html[data-compact-layout] [data-browser-toolbar] {
+  min-height: var(--m-tap-min);
+  order: 2;
+  justify-content: space-between;
+  gap: 0.125rem;
+  border-bottom: 0;
+  padding: 0 0.375rem 0.375rem;
+  background: transparent;
+  touch-action: manipulation;
+}
+
+html[data-compact-layout] [data-browser-toolbar] > button,
+html[data-compact-layout] [data-browser-toolbar] > [data-slot="button"] {
+  width: var(--m-tap-min);
+  min-width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  border-radius: 999px;
+}
+
+html[data-compact-layout] .poracode-mobile-browser-address {
+  order: -1;
+  min-width: 0;
+  padding: 0.375rem 0 0.25rem;
+}
+
+html[data-compact-layout] .poracode-mobile-browser-address input {
+  height: var(--m-tap-min);
+  border-color: color-mix(in oklab, var(--foreground) 12%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 7%, var(--content-background));
+  padding-inline: 1rem;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 5%, transparent);
+}
+
+html[data-compact-layout] .poracode-mobile-browser-address input:focus {
+  border-color: color-mix(in oklab, var(--accent) 72%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+html[data-compact-layout] .poracode-mobile-browser-chrome {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  margin: 0 var(--m-page-inline) calc(0.5rem + env(safe-area-inset-bottom));
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--m-glass-border) 70%, transparent);
+  border-radius: 1.5rem;
+  background: var(--m-glass-surface);
+  box-shadow: var(--m-floating-control-shadow);
+  backdrop-filter: var(--m-glass-blur);
+  -webkit-backdrop-filter: var(--m-glass-blur);
+}
+
+html[data-compact-layout] .poracode-browser-tab-strip {
+  min-height: var(--m-tap-min);
+  order: 1;
+  border-bottom: 0;
+  background: transparent;
+  padding: 0.375rem 0.375rem 0;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+html[data-compact-layout] .poracode-browser-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+html[data-compact-layout] .poracode-browser-tab {
+  width: min(9rem, 42vw);
+  min-width: 7rem;
+  min-height: 2.5rem;
+  border-radius: 0.875rem;
+  touch-action: manipulation;
+}
+
+html[data-compact-layout] .poracode-mobile-browser-chrome .poracode-browser-tab-strip > button {
+  width: var(--m-tap-min);
+  min-width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  border-radius: 999px;
+}
+
+@media (hover: none), (pointer: coarse) {
+  html[data-compact-layout] .poracode-browser-tab-close {
+    visibility: visible;
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+}
+
 /* Nightly mobile settings index. The canonical settings sections still own
    their state and actions; these classes only restore the old PWA navigation
    density and card presentation on compact layouts. */
@@ -2227,7 +2992,7 @@ html[data-compact-layout] .m-sheet [role="button"] {
   flex-direction: column;
   gap: 0.75rem;
   overflow-y: auto;
-  padding: 0.75rem 0.875rem calc(0.75rem + env(safe-area-inset-bottom));
+  padding: 0.75rem var(--m-page-inline) calc(0.75rem + env(safe-area-inset-bottom));
 }
 
 .m-more-list {
@@ -2312,8 +3077,32 @@ html[data-compact-layout] .m-sheet [role="button"] {
   min-height: 0;
   height: 100%;
   overflow-y: auto;
-  padding: 0.625rem 0.75rem calc(5rem + env(safe-area-inset-bottom));
+  padding: 0.625rem var(--m-page-inline) calc(5rem + env(safe-area-inset-bottom));
   scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+/* Shared full-page scroll surface: content starts below the translucent header
+   but can move behind it. A real final spacer also avoids iOS WebKit dropping
+   trailing padding outside the scrollable range. */
+html[data-compact-layout] .m-page-scroll-surface {
+  padding-top: calc(var(--m-page-header-safe-zone) + var(--m-header-content-gap));
+  padding-bottom: 0;
+  scroll-padding-top: var(--m-page-header-safe-zone);
+  scroll-padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+
+html[data-compact-layout] .m-page-scroll-surface::after {
+  content: "";
+  display: block;
+  height: env(safe-area-inset-bottom);
+}
+
+html[data-compact-layout] .m-page-content {
+  padding-inline: var(--m-page-inline);
+}
+
+html[data-compact-layout] .m-page-edge-action {
+  right: var(--m-page-inline);
 }
 
 /* The compact header already names the active settings section. Keep the body
@@ -4980,6 +5769,43 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
   pointer-events: none;
 }
 
+html[data-compact-layout] .lc-notes-divider {
+  background: transparent;
+}
+
+html[data-compact-layout] .lc-notes-divider [role="separator"] {
+  height: 1.5rem;
+  top: -0.75rem;
+  touch-action: none;
+}
+
+html[data-compact-layout] .lc-notes-todo-row,
+html[data-compact-layout] .lc-notes-todo-add-row {
+  min-height: var(--m-tap-min);
+  gap: 0.625rem;
+  padding-block: 0.375rem;
+}
+
+html[data-compact-layout] .lc-notes-todo-toggle,
+html[data-compact-layout] .lc-notes-todo-check {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+html[data-compact-layout] .lc-notes-todo-text,
+html[data-compact-layout] .lc-notes-todo-input,
+html[data-compact-layout] .lc-notes-todo-add-row input {
+  min-height: 2rem;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+@media (hover: none), (pointer: coarse) {
+  html[data-compact-layout] .lc-notes-todo-actions {
+    display: none;
+  }
+}
+
 /* HeroUI's `.tooltip` base sets `word-break: break-all`, which splits words
    mid-word ("lis t/paragraph"). Break only tokens that cannot fit otherwise. */
 .tooltip {
@@ -4992,9 +5818,9 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
 .m-compose-dock,
 .m-thread-compose-dock {
   position: absolute;
-  right: 0.75rem;
+  right: var(--m-page-inline);
   bottom: calc(0.75rem + env(safe-area-inset-bottom));
-  left: 0.75rem;
+  left: var(--m-page-inline);
   z-index: 5;
   /* Same 0.2s as the bubble's height tween: the keyboard lift and the grow
      animation must travel as one motion — a longer transform leg keeps
@@ -5007,8 +5833,12 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
 }
 
 .m-compose-dock {
-  right: calc(0.75rem + var(--m-floating-control-height) + var(--m-floating-control-gap));
-  left: calc(0.75rem + var(--m-floating-control-height) + var(--m-floating-control-gap));
+  right: calc(
+    var(--m-page-inline) + var(--m-floating-control-height) + var(--m-floating-control-gap)
+  );
+  left: calc(
+    var(--m-page-inline) + var(--m-floating-control-height) + var(--m-floating-control-gap)
+  );
 }
 
 /* Ride above the on-screen keyboard while expanded (the dock is anchored to
@@ -5046,8 +5876,8 @@ html[data-mobile-platform="ios"][data-mobile-standalone]
 }
 
 .m-compose-dock[data-expanded] {
-  right: 0.75rem;
-  left: 0.75rem;
+  right: var(--m-page-inline);
+  left: var(--m-page-inline);
 }
 
 /* Cold first focus: before iOS reports a keyboard height there is no reliable
@@ -5109,9 +5939,20 @@ html[data-mobile-platform="ios"][data-mobile-standalone]
 
 .m-chip-row {
   display: flex;
+  width: 100%;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.375rem;
+}
+
+.m-chip-row__trailing {
+  display: flex;
+  margin-left: auto;
+  gap: 0.375rem;
+}
+
+.m-chip--usage {
+  margin-left: auto;
 }
 
 .m-chip {
@@ -5174,6 +6015,11 @@ html[data-mobile-platform="ios"][data-mobile-standalone]
 .m-chip[data-tone="danger"] {
   border-color: color-mix(in oklab, var(--danger) 40%, transparent);
   color: var(--danger);
+}
+
+.m-chip[data-tone="warning"] {
+  border-color: color-mix(in oklab, var(--warning) 40%, transparent);
+  color: var(--warning);
 }
 
 /* Chips backing live work (running agents, an in-progress plan step) pulse
@@ -5255,14 +6101,13 @@ html[data-mobile-platform="ios"][data-mobile-standalone]
 
 /* ── Composer action docks (thread view) ───────────────────────────
  *
- * Sign-in required, a queued steer, and an open approval/question all block or
- * gate the turn, so they must be visible and answerable without first expanding
- * the composer. They stack in one card hosted by the floating dock above the
- * composer bubble (ComposerActionDocks) — the bubble itself clips to one control
- * line while collapsed. Same glass surface as the chip panels; the shared dock
- * sections it hosts were styled for the composer's fixedContent (transparent bg
- * + border-b separators), so the surface is supplied here and the trailing
- * separator dropped. */
+ * A queued steer and an open approval/question must stay visible and answerable
+ * without first expanding the composer. They stack in one card hosted by the
+ * floating dock above the composer bubble (ComposerActionDocks) — the bubble
+ * itself clips to one control line while collapsed. Same glass surface as the
+ * chip panels; the shared dock sections it hosts were styled for the composer's
+ * fixedContent (transparent bg + border-b separators), so the surface is
+ * supplied here and the trailing separator dropped. */
 .m-thread-action-docks {
   /* Shrink before the composer does when both are tall (the dock is a bounded
      flex column), and scroll internally past that. */
@@ -5592,6 +6437,32 @@ html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focu
   padding: 0;
 }
 
+/* If the canonical draft has no launchable provider it renders a full error
+   state. Keep that useful explanation in the expanded composer, but preserve
+   the compact pill as a one-line launcher instead of clipping the error title
+   into it. */
+.m-draft-collapsed-placeholder {
+  display: none;
+}
+
+.m-compose-dock:not([data-expanded])
+  .m-draft:not(:has(.poracode-composer-shell))
+  > :not(.m-draft-collapsed-placeholder) {
+  display: none;
+}
+
+.m-compose-dock:not([data-expanded])
+  .m-draft:not(:has(.poracode-composer-shell))
+  > .m-draft-collapsed-placeholder {
+  display: flex;
+  height: var(--m-floating-control-line-height);
+  align-items: center;
+  overflow: hidden;
+  padding-inline: 1rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .m-compose-bubble [data-draft-body] {
   transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -5648,6 +6519,39 @@ html[data-compact-layout]
      (height - 1lh)/2 padding calc drifted off-center whenever the effective
      font-size/line-height changed (density overrides, the iOS 16px guard). */
   line-height: var(--m-floating-control-line-height);
+}
+
+/* The collapsed pill is a launcher, never a focus target — the tap overlay
+   expands the dock before the editor receives focus, so the iOS 16px no-zoom
+   guard has nothing to protect here. Use the composer's regular type size
+   (!important to outrank that guard's own !important). Only the collapsed
+   state carries a font-size transition leg: entering it animates the shrink
+   with the collapse morph, while leaving it snaps back through the expanded
+   rules' transition (no font-size leg) — the editor must already be at 16px
+   when the post-expand focus lands, or Safari zooms the page. */
+html[data-compact-layout]
+  :is(
+    .m-compose-dock:not([data-expanded]),
+    .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  )
+  .m-compose-bubble
+  .poracode-mention-input {
+  font-size: 0.875rem !important;
+}
+
+/* Touch only: the mouse-device rule above kills these transitions on desktop,
+   where animating the input's box relayouts the composer every frame. */
+html[data-compact-layout][data-touch-device]
+  :is(
+    .m-compose-dock:not([data-expanded]),
+    .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  )
+  .m-compose-bubble
+  .poracode-mention-input {
+  transition:
+    padding 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    line-height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    font-size 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-shell {
@@ -6019,6 +6923,20 @@ html[data-compact-layout]
   padding-right: calc(1.5rem + var(--m-compose-summary-width, 0px));
 }
 
+/* The generated placeholder is a pseudo-element, so WebKit can paint its
+   unbroken first line through the absolutely-positioned summary even though
+   the editor itself reserves that space. Make the collapsed prompt a true
+   one-line label; the full copy is available as soon as the composer opens. */
+html[data-compact-layout]
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-mention-input:empty::before {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Compact → expanded moves the toolbar from invisible absolute chrome into
    its own row; position can't transition, so give the expanded toolbar a
    brief entrance that reads as one motion with the dock's max-height
@@ -6080,6 +6998,63 @@ html[data-compact-layout]
   .poracode-composer-toolbar
   [data-slot="button"].button--icon-only {
   min-width: 2.25rem;
+}
+
+html[data-compact-layout] .poracode-mobile-overflow-source {
+  display: contents;
+}
+
+html[data-compact-layout] .poracode-mobile-overflow-trigger {
+  display: none;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+}
+
+html[data-compact-layout]
+  .poracode-composer-toolbar:is([data-wrap-level="3"], [data-wrap-level="4"], [data-wrap-level="5"])
+  .poracode-mobile-overflow-source {
+  display: none;
+}
+
+html[data-compact-layout]
+  .poracode-composer-toolbar:is([data-wrap-level="3"], [data-wrap-level="4"], [data-wrap-level="5"])
+  .poracode-mobile-overflow-trigger {
+  display: inline-flex;
+}
+
+.m-composer-overflow-control {
+  display: flex;
+  min-height: var(--m-tap-min, 44px);
+  align-items: center;
+}
+
+.m-composer-overflow-control > * {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+html[data-compact-layout] .poracode-pr-rows {
+  border-color: color-mix(in oklab, var(--foreground) 7%, transparent);
+  background: color-mix(in oklab, var(--surface-secondary) 45%, transparent);
+}
+
+html[data-compact-layout] .poracode-pr-row {
+  min-height: 4.75rem;
+  align-items: flex-start;
+  padding-block: 0.875rem;
+  touch-action: manipulation;
+}
+
+html[data-compact-layout] .poracode-pr-row-meta {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+html[data-compact-layout] .poracode-pr-author {
+  display: none;
 }
 
 /* Model and effort are the two parameters that need to remain legible on a

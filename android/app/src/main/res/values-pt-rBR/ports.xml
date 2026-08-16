@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Encaminhamento de portas</string>
+    <string name="ports_back">Voltar</string>
+    <string name="ports_refresh">Atualizar portas</string>
+    <string name="ports_target_port">Porta de destino</string>
+    <string name="ports_start_open">Iniciar e abrir</string>
+    <string name="ports_dismiss">Fechar</string>
+    <string name="ports_detected">Portas detectadas</string>
+    <string name="ports_no_detected">Nenhuma porta em escuta foi detectada.</string>
+    <string name="ports_active">Encaminhamentos ativos</string>
+    <string name="ports_no_active">Nenhum encaminhamento de porta está ativo.</string>
+    <string name="ports_port_number">Porta %1$d</string>
+    <string name="ports_protocol_http">Serviço HTTP</string>
+    <string name="ports_protocol_unknown">Protocolo desconhecido</string>
+    <string name="ports_forward_port">Encaminhar</string>
+    <string name="ports_forward_summary">Porta %1$d → %2$d</string>
+    <string name="ports_open">Abrir</string>
+    <string name="ports_busy">Processando…</string>
+    <string name="ports_stop">Parar</string>
+    <string name="ports_failure_offline">Reconecte-se ao host para gerenciar encaminhamentos de portas.</string>
+    <string name="ports_failure_scope">Esta conexão não concede acesso ao encaminhamento de portas.</string>
+    <string name="ports_failure_auth">A sessão do host expirou. Reconecte-se e tente novamente.</string>
+    <string name="ports_failure_not_found">Esse encaminhamento de porta não existe mais.</string>
+    <string name="ports_failure_input">Digite uma porta válida entre 1 e 65535.</string>
+    <string name="ports_failure_response">O host retornou uma resposta de encaminhamento de portas inválida.</string>
+    <string name="ports_failure_ambiguous">A solicitação pode ter sido concluída. A lista foi atualizada.</string>
+    <string name="ports_failure_unavailable">O encaminhamento de portas não está disponível no momento.</string>
+</resources>

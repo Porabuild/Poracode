@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">Đang khởi động Poracode…</string>
+    <string name="reconnecting_stored_session">Đang kết nối lại với máy tính của bạn…</string>
+    <string name="session_expired_title">Phiên đã hết hạn</string>
+    <string name="session_expired_message">Phiên truy cập từ xa của bạn đã hết hạn. Ứng dụng sẽ tự động thử lại. Bạn cũng có thể ghép nối lại.</string>
+    <string name="session_expired_forget">Quên máy tính này</string>
+    <string name="protocol_incompatible_title">Máy tính không tương thích</string>
+    <string name="protocol_incompatible_message">Phiên bản ứng dụng này không tương thích với máy chủ đó. Cập nhật cả hai lên cùng phiên bản. Việc ghép nối đã lưu của bạn được giữ lại.</string>
+    <string name="send_missing_thread_config">Luồng này chưa sẵn sàng để gửi. Hãy đợi bản ghi trò chuyện tải hoặc mở lại luồng.</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">Quét mã ghép nối hiển thị trong Truy cập từ xa trên máy tính của bạn.</string>
+    <string name="pairing_link_label">Liên kết ghép nối</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">hoặc</string>
+    <string name="manual_connection">Kết nối thủ công</string>
+    <string name="server_base_url">URL cơ sở của máy chủ</string>
+    <string name="one_time_pairing_token">Mã thông báo ghép nối dùng một lần</string>
+    <string name="connect_button">Kết nối</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">Quét mã ghép nối</string>
+    <string name="pair_scan_card_message">Mở Cài đặt → Truy cập từ xa trên máy tính để hiển thị mã.</string>
+    <string name="pair_scan_card_action">Quét mã ghép nối của máy tính bằng camera</string>
+    <string name="pair_other_ways">Cách kết nối khác</string>
+    <string name="pair_link_paste">Dán</string>
+    <string name="pair_link_clipboard_empty">Không có liên kết ghép nối nào trong khay nhớ tạm.</string>
+    <string name="pair_cleartext_warning">Kết nối này sử dụng HTTP không mã hóa trên mạng cục bộ của bạn.</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">Quét mã ghép nối</string>
+    <string name="scan_close">Đóng trình quét</string>
+    <string name="scan_frame_hint">Căn giữa mã QR trong khung hình</string>
+    <string name="scan_desktop_caption">Mở Cài đặt → Truy cập từ xa trên ứng dụng máy tính để hiển thị mã ghép nối.</string>
+    <string name="scan_starting">Đang khởi động máy ảnh…</string>
+    <string name="scan_preview_description">Khung ngắm máy ảnh để ghép nối bằng mã QR</string>
+    <string name="scan_invalid_code">Mã đó không phải là liên kết ghép nối của Poracode. Hãy giữ máy ảnh hướng vào mã trong Cài đặt → Truy cập từ xa.</string>
+    <string name="scan_use_link_instead">Dán liên kết thay vào đó</string>
+    <string name="scan_camera_permission_title">Cần quyền truy cập máy ảnh</string>
+    <string name="scan_camera_permission_message">Poracode chỉ sử dụng máy ảnh để đọc mã QR ghép nối từ máy tính của bạn.</string>
+    <string name="scan_camera_permission_allow">Cho phép máy ảnh</string>
+    <string name="scan_camera_permission_denied_title">Quyền truy cập máy ảnh bị từ chối</string>
+    <string name="scan_camera_permission_denied_message">Quyền truy cập máy ảnh đã bị từ chối. Bạn có thể yêu cầu lại hoặc ghép nối bằng cách dán liên kết.</string>
+    <string name="scan_camera_permission_blocked_title">Máy ảnh bị chặn trong cài đặt</string>
+    <string name="scan_camera_permission_blocked_message">Quyền truy cập máy ảnh cho Poracode đang tắt. Hãy bật trong cài đặt hệ thống, hoặc ghép nối bằng cách dán liên kết.</string>
+    <string name="scan_camera_open_settings">Mở cài đặt</string>
+    <string name="scan_camera_try_again">Thử lại</string>
+    <string name="scan_no_camera_title">Không có máy ảnh khả dụng</string>
+    <string name="scan_no_camera_message">Thiết bị này không có máy ảnh sử dụng được. Hãy ghép nối bằng cách dán liên kết hoặc nhập thông tin thủ công.</string>
+    <string name="scan_camera_failed_title">Máy ảnh không khả dụng</string>
+    <string name="scan_camera_failed_message">Không thể khởi động máy ảnh. Hãy thử lại hoặc ghép nối bằng cách dán liên kết.</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">Chọn một luồng</string>
+    <string name="select_thread_message">Chọn một luồng dự án để mở bản ghi trò chuyện.</string>
+    <string name="refresh_projects">Làm mới dự án</string>
+    <string name="disconnect">Ngắt kết nối</string>
+    <string name="loading_projects">Đang tải dự án…</string>
+    <string name="loading_conversations">Đang tải cuộc trò chuyện…</string>
+    <string name="no_conversations_title">Chưa có cuộc trò chuyện nào</string>
+    <string name="no_conversations_message">Cuộc trò chuyện từ tất cả máy tính đã ghép đôi sẽ xuất hiện tại đây.</string>
+    <string name="no_projects_title">Không có dự án</string>
+    <string name="no_projects_message">Máy tính này chưa có dự án nào.</string>
+    <string name="failed_load_projects">Không thể tải dự án</string>
+    <string name="no_open_threads">Không có luồng nào mở</string>
+    <string name="untitled_thread">Luồng không tiêu đề</string>
+    <string name="starred">đã gắn sao</string>
+    <string name="project_expanded">đã mở rộng</string>
+    <string name="project_collapsed">đã thu gọn</string>
+    <string name="project_content_description">Dự án %1$s, %2$s</string>
+    <string name="thread_content_description">Luồng %1$s, %2$s, %3$s</string>
+    <string name="error_prefix">Lỗi: %1$s</string>
+    <string name="home_filter_projects">Lọc dự án</string>
+    <string name="home_all_projects">Tất cả dự án</string>
+    <string name="home_search_threads">Tìm luồng</string>
+    <string name="home_no_matching_threads">Không có luồng phù hợp</string>
+    <string name="home_no_matching_threads_message">Hãy điều chỉnh tìm kiếm hoặc bộ lọc dự án.</string>
+    <string name="home_quick_compose_prompt">Lập kế hoạch, hỏi, xây dựng…</string>
+    <string name="home_more">Thêm</string>
+    <string name="home_new_thread">Luồng mới</string>
+    <string name="home_project">Dự án</string>
+    <string name="home_agent_value">Tác nhân: %1$s</string>
+    <string name="home_model_value">Mô hình: %1$s</string>
+    <string name="home_start">Bắt đầu</string>
+    <string name="home_quick_compose_defaults_description">Dùng cài đặt tác nhân và mô hình gần nhất của dự án này.</string>
+    <string name="home_quick_compose_unavailable">Chưa có dự án nào có cài đặt khởi chạy. Hãy bắt đầu một luồng trên máy tính trước.</string>
+    <string name="home_new_thread_failed">Không thể bắt đầu luồng mới.</string>
+    <string name="home_expand_worktree">Mở rộng cây làm việc</string>
+    <string name="home_collapse_worktree">Thu gọn cây làm việc</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">Chờ</string>
+    <string name="socket_connecting">Đang kết nối…</string>
+    <string name="socket_online">Trực tiếp</string>
+    <string name="socket_reconnecting">Đang kết nối lại…</string>
+    <string name="socket_suspended">Tạm dừng trong nền</string>
+    <string name="socket_failed">Ngoại tuyến</string>
+    <string name="socket_session_expired">Phiên đã hết hạn</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">Luồng</string>
+    <string name="back">Quay lại</string>
+    <string name="interrupt_thread">Gián đoạn luồng</string>
+    <string name="loading_transcript">Đang tải bản ghi trò chuyện…</string>
+    <string name="failed_load_transcript">Không thể tải bản ghi trò chuyện</string>
+    <string name="empty_transcript_title">Bản ghi trò chuyện trống</string>
+    <string name="empty_transcript_message">Gửi một tin nhắn để bắt đầu luồng này.</string>
+    <string name="thread_transcript">Bản ghi trò chuyện của luồng</string>
+    <string name="load_older_messages">Tải tin nhắn cũ hơn</string>
+    <string name="loading_older">Đang tải cũ hơn…</string>
+    <string name="message_input">Trường nhập tin nhắn</string>
+    <string name="message_placeholder">Tin nhắn…</string>
+    <string name="send_message">Gửi tin nhắn</string>
+    <string name="stop_generation">Dừng tạo</string>
+    <string name="stop">Dừng</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">Thử lại</string>
+    <string name="pairing_failed">Ghép nối thất bại</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">Xác nhận ghép nối máy tính</string>
+    <string name="confirm_pair_message">Ghép nối với máy tính tại %1$s?</string>
+    <string name="confirm_pair_replace_warning">Thao tác này sẽ thay thế kết nối máy tính hiện tại của bạn.</string>
+    <string name="confirm_pair_button">Xác nhận</string>
+    <string name="cancel_pair_button">Hủy</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">Lỗi kho thông tin xác thực</string>
+    <string name="local_store_inconsistent_message">Kho thông tin xác thực cục bộ không nhất quán. Hãy quên máy tính này và ghép nối lại.</string>
+</resources>

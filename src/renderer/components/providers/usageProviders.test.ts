@@ -7,6 +7,7 @@ import {
   needsBrowserSessionForUsage,
   pickUsageRings,
   resolveDisplayedProviders,
+  separateCurrentUsageProvider,
   supportsApiKeyLogin,
   supportsBrowserLogin,
   usageProvidersForAgentInstances,
@@ -36,6 +37,20 @@ const agentInstances: AgentInstanceConfigMap = {
 };
 
 describe("usageProviders", () => {
+  it("separates the current provider without mutating the saved order", () => {
+    const providers = [
+      { id: "codex", label: "Codex" },
+      { id: "gemini", label: "Gemini" },
+      { id: "claude", label: "Claude" },
+    ];
+
+    const separated = separateCurrentUsageProvider(providers, "claude");
+
+    expect(separated.current?.id).toBe("claude");
+    expect(separated.rest.map((provider) => provider.id)).toEqual(["codex", "gemini"]);
+    expect(providers.map((provider) => provider.id)).toEqual(["codex", "gemini", "claude"]);
+  });
+
   it("recognizes base Claude and Claude profile usage providers", () => {
     expect(isClaudeUsageProvider("claude")).toBe(true);
     expect(isClaudeUsageProvider("claude:work")).toBe(true);

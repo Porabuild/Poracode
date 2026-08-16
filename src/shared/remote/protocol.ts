@@ -108,6 +108,138 @@ export const remoteClientMetadataSchema = z.object({
 });
 export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
 
+/**
+ * Additive, capability-gated remote features. Keep this object optional so
+ * protocol-v3 clients that never opted into new capabilities stay byte-compatible
+ * with older servers. Unknown capability keys from a newer server are stripped
+ * by Zod (and ignored by older clients).
+ */
+export const TERMINAL_CURSOR_SYNC_VERSION = 1 as const;
+
+/** Positive capability version integers; unknown future versions are accepted. */
+export const remoteCapabilityVersionsSchema = z.array(z.number().int().positive()).min(1);
+
+export const remoteTerminalCursorSyncCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteTerminalCursorSyncCapability = z.infer<
+  typeof remoteTerminalCursorSyncCapabilitySchema
+>;
+
+/**
+ * Versioned native-push routing. Version 1 binds one mobile host-registry entry
+ * to a stable client-generated UUID. `desktopId` remains part of the route for
+ * validation and display, but is not unique enough to be the routing key.
+ */
+export const REMOTE_PUSH_ROUTING_VERSION = 1 as const;
+
+export const remotePushRoutingCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemotePushRoutingCapability = z.infer<typeof remotePushRoutingCapabilitySchema>;
+
+export const remoteEnvironmentCapabilitiesSchema = z.object({
+  terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
+  pushRouting: remotePushRoutingCapabilitySchema.optional(),
+});
+export type RemoteEnvironmentCapabilities = z.infer<typeof remoteEnvironmentCapabilitiesSchema>;
+
+/** Opaque JS-string-unit absolute terminal cursor (safe nonnegative integer). */
+export const remoteTerminalCursorSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(Number.MAX_SAFE_INTEGER);
+export type RemoteTerminalCursor = z.infer<typeof remoteTerminalCursorSchema>;
+
+/**
+ * Client opt-in on `terminal-watch`. Accepts any positive version so unsupported
+ * future values are explicit server errors rather than silent schema drops.
+ * Servers advertise supported versions via environment capabilities (currently [1]).
+ */
+export const remoteTerminalCursorSyncRequestSchema = z.object({
+  version: z.number().int().positive(),
+  watchId: z.string().min(1),
+});
+export type RemoteTerminalCursorSyncRequest = z.infer<typeof remoteTerminalCursorSyncRequestSchema>;
+
+/** @deprecated Prefer {@link remoteTerminalCursorSyncRequestSchema}; kept as v1 alias. */
+export const remoteTerminalCursorSyncV1Schema = remoteTerminalCursorSyncRequestSchema;
+export type RemoteTerminalCursorSyncV1 = RemoteTerminalCursorSyncRequest;
+
+/**
+ * Ready snapshot for a cursor-sync watch.
+ *
+ * `generation: null` is **snapshot/replace-only**: it is never append-compatible
+ * with prior or subsequent ranges (including another null). Clients and helpers
+ * must reset/replace on null rather than inventing a durable generation id.
+ *
+ * Range invariant (JS UTF-16 code units / `String.length`):
+ * `fromCursor <= toCursor` and `toCursor - fromCursor === data.length`.
+ */
+export const remoteTerminalWatchResultReadySchema = z
+  .object({
+    status: z.literal("ready"),
+    generation: z.string().min(1).nullable(),
+    fromCursor: remoteTerminalCursorSchema,
+    toCursor: remoteTerminalCursorSchema,
+    data: z.string(),
+    processState: z.enum(["running", "exited"]),
+    terminalSize: terminalSizeSchema.nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.fromCursor > value.toCursor) {
+      ctx.addIssue({
+        code: "custom",
+        message: "fromCursor must be <= toCursor",
+        path: ["fromCursor"],
+      });
+    }
+    if (value.toCursor - value.fromCursor !== value.data.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "toCursor - fromCursor must equal data.length (JS UTF-16 code units)",
+        path: ["data"],
+      });
+    }
+  });
+export type RemoteTerminalWatchResultReady = z.infer<typeof remoteTerminalWatchResultReadySchema>;
+
+export const remoteTerminalWatchResultErrorSchema = z.object({
+  status: z.literal("error"),
+  code: z.enum(["forbidden", "not-found", "unavailable"]),
+  retryable: z.boolean(),
+});
+export type RemoteTerminalWatchResultError = z.infer<typeof remoteTerminalWatchResultErrorSchema>;
+
+export const remoteTerminalWatchResultSchema = z.discriminatedUnion("status", [
+  remoteTerminalWatchResultReadySchema,
+  remoteTerminalWatchResultErrorSchema,
+]);
+export type RemoteTerminalWatchResult = z.infer<typeof remoteTerminalWatchResultSchema>;
+
+/** Live `terminal-output` cursor metadata (server always emits supported version). */
+export const remoteTerminalOutputCursorSyncV1Schema = z
+  .object({
+    version: z.literal(TERMINAL_CURSOR_SYNC_VERSION),
+    watchId: z.string().min(1),
+    generation: z.string().min(1),
+    fromCursor: remoteTerminalCursorSchema,
+    toCursor: remoteTerminalCursorSchema,
+  })
+  .superRefine((value, ctx) => {
+    if (value.fromCursor > value.toCursor) {
+      ctx.addIssue({
+        code: "custom",
+        message: "fromCursor must be <= toCursor",
+        path: ["fromCursor"],
+      });
+    }
+  });
+export type RemoteTerminalOutputCursorSyncV1 = z.infer<
+  typeof remoteTerminalOutputCursorSyncV1Schema
+>;
+
 export const remoteEnvironmentDescriptorSchema = z.object({
   protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
   /**
@@ -137,6 +269,13 @@ export const remoteEnvironmentDescriptorSchema = z.object({
     httpBaseUrl: z.string().url(),
     wsBaseUrl: z.string().url(),
   }),
+  /**
+   * Optional additive capabilities. `terminalCursorSync` version 1 is the
+   * compatibility boundary for reliable terminal snapshot/live cursor sync —
+   * emitted only by servers that implement it; clients must not opt in unless
+   * version 1 is listed.
+   */
+  capabilities: remoteEnvironmentCapabilitiesSchema.optional(),
 });
 export type RemoteEnvironmentDescriptor = z.infer<typeof remoteEnvironmentDescriptorSchema>;
 
@@ -437,6 +576,41 @@ export const remoteWebPushSubscriptionSchema = z.object({
 });
 export type RemoteWebPushSubscription = z.infer<typeof remoteWebPushSubscriptionSchema>;
 
+function containsAsciiControl(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit < 0x20 || codeUnit === 0x7f) return true;
+  }
+  return false;
+}
+
+const remotePushRouteIdentifierSchema = z
+  .string()
+  .min(1)
+  .max(512)
+  .refine((value) => !containsAsciiControl(value), "identifier contains control characters");
+
+/**
+ * Client-to-host binding for multihost native push. This object is optional so
+ * registrations from released single-host clients keep their original shape.
+ * A client that sends it must provide the complete v1 identity.
+ */
+export const remotePushRegistrationRoutingSchema = z.object({
+  version: z.literal(REMOTE_PUSH_ROUTING_VERSION),
+  clientConnectionId: z
+    .string()
+    .uuid()
+    .transform((value) => value.toLowerCase()),
+  desktopId: remotePushRouteIdentifierSchema,
+});
+export type RemotePushRegistrationRouting = z.infer<typeof remotePushRegistrationRoutingSchema>;
+
+/** Custom routing data delivered with a native notification. */
+export const remotePushPayloadRoutingSchema = remotePushRegistrationRoutingSchema.extend({
+  threadId: remotePushRouteIdentifierSchema,
+});
+export type RemotePushPayloadRouting = z.infer<typeof remotePushPayloadRoutingSchema>;
+
 export const remotePushRegistrationSchema = z
   .object({
     /** Stable per-device identity (survives token rotation); the upsert key. */
@@ -456,6 +630,8 @@ export const remotePushRegistrationSchema = z
       .regex(/^\/(?!\/)(?:[^?#]*)$/)
       .optional(),
     appVersion: z.string().min(1).optional(),
+    /** Present only for native clients that negotiated push-routing v1. */
+    routing: remotePushRegistrationRoutingSchema.optional(),
   })
   .superRefine((registration, ctx) => {
     if (registration.platform === "android") {
@@ -491,6 +667,13 @@ export const remotePushRegistrationSchema = z
       }
       return;
     }
+    if (registration.routing !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["routing"],
+        message: "routing is native-only",
+      });
+    }
     if (!registration.webPushSubscription) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -519,11 +702,21 @@ export type RemotePushRegistration = z.infer<typeof remotePushRegistrationSchema
 
 export const remotePushUnregisterSchema = z.object({
   deviceId: z.string().min(1),
+  /** Exact registry entry to remove. Omitted by legacy clients. */
+  routing: remotePushRegistrationRoutingSchema.optional(),
 });
+export type RemotePushUnregister = z.infer<typeof remotePushUnregisterSchema>;
 
 export const remotePushRegistrationResultSchema = z.object({
   ok: z.literal(true),
+  /** Echoed only when the server accepted and bound versioned routing. */
+  routing: z
+    .object({
+      version: z.literal(REMOTE_PUSH_ROUTING_VERSION),
+    })
+    .optional(),
 });
+export type RemotePushRegistrationResult = z.infer<typeof remotePushRegistrationResultSchema>;
 
 export const remoteWebPushConfigResultSchema = z.object({
   publicKey: z.string().min(1),
@@ -613,14 +806,17 @@ export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema
  * enablement. Deliberately excludes secrets (providerConfigs and custom MCP
  * definitions) and device-local preferences (theme, fonts, audio, …).
  */
-const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform((settings) =>
-  Object.fromEntries(
-    Object.entries(settings).map(([agentKind, values]) => {
-      const next = { ...values };
-      for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
-      return [agentKind, next];
-    }),
-  ),
+/** Exported solely so the remote-v3 generator can bind this security transform
+ * to its portable native implementation. */
+export const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform(
+  (settings) =>
+    Object.fromEntries(
+      Object.entries(settings).map(([agentKind, values]) => {
+        const next = { ...values };
+        for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
+        return [agentKind, next];
+      }),
+    ),
 );
 
 export const remoteSettingsSchema = sharedSettingsSchema
@@ -837,7 +1033,17 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   // Start/stop receiving live `terminal-output` for a terminal (a CLI thread or
   // a dev shell), keyed by its supervisor id. PTY bytes are high-volume, so
   // they only stream to clients that opted in via terminal-watch.
-  z.object({ type: z.literal("terminal-watch"), id: z.string().min(1) }),
+  //
+  // Legacy clients send `{type:"terminal-watch",id}` only. Opt-in cursor-sync
+  // clients may add `cursorSync` when the environment advertises the capability;
+  // the server then replies with `terminal-watch-result` and tags subsequent
+  // `terminal-output` frames for that watch. Request `version` is any positive
+  // integer; unsupported versions get an explicit non-retryable error and no watch.
+  z.object({
+    type: z.literal("terminal-watch"),
+    id: z.string().min(1),
+    cursorSync: remoteTerminalCursorSyncRequestSchema.optional(),
+  }),
   z.object({ type: z.literal("terminal-unwatch"), id: z.string().min(1) }),
   z.object({
     type: z.literal("git-state-interests"),
@@ -899,10 +1105,39 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
   // Live PTY bytes for a watched terminal. Out-of-band from the replayable
   // `event` stream — never buffered (replaying terminal bytes would garble the
   // screen; scrollback re-hydrates on reconnect instead).
+  //
+  // Legacy watchers receive the exact three-field frame. Opt-in cursor-sync
+  // watches receive the same envelope plus `cursorSync` metadata.
+  // When cursorSync is present: toCursor - fromCursor === data.length (UTF-16 units).
+  z
+    .object({
+      type: z.literal("terminal-output"),
+      id: z.string().min(1),
+      data: z.string(),
+      cursorSync: remoteTerminalOutputCursorSyncV1Schema.optional(),
+    })
+    .superRefine((value, ctx) => {
+      const cursorSync = value.cursorSync;
+      if (!cursorSync) return;
+      if (cursorSync.toCursor - cursorSync.fromCursor !== value.data.length) {
+        ctx.addIssue({
+          code: "custom",
+          message: "toCursor - fromCursor must equal data.length (JS UTF-16 code units)",
+          path: ["data"],
+        });
+      }
+    }),
+  // Authoritative snapshot/error for an opt-in `terminal-watch` with cursorSync.
+  // Not sent for legacy watches. Clients buffer live output until this arrives
+  // and reconcile by cursor ranges.
   z.object({
-    type: z.literal("terminal-output"),
+    type: z.literal("terminal-watch-result"),
     id: z.string().min(1),
-    data: z.string(),
+    cursorSync: z.object({
+      version: z.literal(TERMINAL_CURSOR_SYNC_VERSION),
+      watchId: z.string().min(1),
+      result: remoteTerminalWatchResultSchema,
+    }),
   }),
 ]);
 export type RemoteWebSocketServerMessage = z.infer<typeof remoteWebSocketServerMessageSchema>;

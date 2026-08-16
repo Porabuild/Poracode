@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">Poracodeを起動しています…</string>
+    <string name="reconnecting_stored_session">デスクトップに再接続しています…</string>
+    <string name="session_expired_title">セッションの有効期限切れ</string>
+    <string name="session_expired_message">リモートアクセスセッションの有効期限が切れました。アプリが自動的に再試行します。もう一度ペアリングすることもできます。</string>
+    <string name="session_expired_forget">このデスクトップを忘れる</string>
+    <string name="protocol_incompatible_title">互換性のないデスクトップ</string>
+    <string name="protocol_incompatible_message">このアプリのバージョンはそのサーバーと互換性がありません。両方を同じバージョンに更新してください。保存したペアリング設定は維持されます。</string>
+    <string name="send_missing_thread_config">このスレッドはまだ送信できません。会話の読み込みが完了するまで待つか、スレッドを開き直してください。</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">デスクトップのリモートアクセスに表示されるペアリングコードをスキャンしてください。</string>
+    <string name="pairing_link_label">ペアリングリンク</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">または</string>
+    <string name="manual_connection">手動接続</string>
+    <string name="server_base_url">サーバーのベースURL</string>
+    <string name="one_time_pairing_token">ワンタイムペアリングトークン</string>
+    <string name="connect_button">接続</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">ペアリングコードをスキャン</string>
+    <string name="pair_scan_card_message">デスクトップで設定 → リモートアクセスを開いてコードを表示してください。</string>
+    <string name="pair_scan_card_action">カメラでデスクトップのペアリングコードをスキャン</string>
+    <string name="pair_other_ways">その他の接続方法</string>
+    <string name="pair_link_paste">貼り付け</string>
+    <string name="pair_link_clipboard_empty">クリップボードにペアリングリンクがありません。</string>
+    <string name="pair_cleartext_warning">この接続はローカルネットワーク上で暗号化されていないHTTPを使用しています。</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">ペアリングコードをスキャン</string>
+    <string name="scan_close">スキャナーを閉じる</string>
+    <string name="scan_frame_hint">QRコードをフレームの中央に合わせてください</string>
+    <string name="scan_desktop_caption">デスクトップアプリで設定 → リモートアクセスを開いてペアリングコードを表示してください。</string>
+    <string name="scan_starting">カメラを起動しています…</string>
+    <string name="scan_preview_description">ペアリング用QRコードのカメラビューファインダー</string>
+    <string name="scan_invalid_code">そのコードはPoracodeのペアリングリンクではありません。設定 → リモートアクセスのコードにカメラを向け続けてください。</string>
+    <string name="scan_use_link_instead">代わりにリンクを貼り付ける</string>
+    <string name="scan_camera_permission_title">カメラへのアクセスが必要です</string>
+    <string name="scan_camera_permission_message">Poracodeはデスクトップからペアリング用QRコードを読み取るためだけにカメラを使用します。</string>
+    <string name="scan_camera_permission_allow">カメラを許可</string>
+    <string name="scan_camera_permission_denied_title">カメラへのアクセスが拒否されました</string>
+    <string name="scan_camera_permission_denied_message">カメラの権限が拒否されました。再度依頼するか、リンクを貼り付けてペアリングできます。</string>
+    <string name="scan_camera_permission_blocked_title">設定でカメラがブロックされています</string>
+    <string name="scan_camera_permission_blocked_message">Poracodeのカメラアクセスがオフになっています。システム設定でオンにするか、リンクを貼り付けてペアリングしてください。</string>
+    <string name="scan_camera_open_settings">設定を開く</string>
+    <string name="scan_camera_try_again">再試行</string>
+    <string name="scan_no_camera_title">利用可能なカメラがありません</string>
+    <string name="scan_no_camera_message">この端末には使用可能なカメラがありません。リンクを貼り付けるか、詳細を手動で入力してペアリングしてください。</string>
+    <string name="scan_camera_failed_title">カメラを利用できません</string>
+    <string name="scan_camera_failed_message">カメラを起動できませんでした。再試行するか、リンクを貼り付けてペアリングしてください。</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">スレッドを選択</string>
+    <string name="select_thread_message">会話を開くプロジェクトスレッドを選択してください。</string>
+    <string name="refresh_projects">プロジェクトを更新</string>
+    <string name="disconnect">切断</string>
+    <string name="loading_projects">プロジェクトを読み込んでいます…</string>
+    <string name="loading_conversations">会話を読み込んでいます…</string>
+    <string name="no_conversations_title">まだ会話はありません</string>
+    <string name="no_conversations_message">ペアリング済みのすべてのデスクトップの会話がここに表示されます。</string>
+    <string name="no_projects_title">プロジェクトなし</string>
+    <string name="no_projects_message">このデスクトップにはまだプロジェクトがありません。</string>
+    <string name="failed_load_projects">プロジェクトの読み込みに失敗しました</string>
+    <string name="no_open_threads">開いているスレッドなし</string>
+    <string name="untitled_thread">無題のスレッド</string>
+    <string name="starred">お気に入り</string>
+    <string name="project_expanded">展開済み</string>
+    <string name="project_collapsed">折りたたみ済み</string>
+    <string name="project_content_description">プロジェクト %1$s、%2$s</string>
+    <string name="thread_content_description">スレッド %1$s、%2$s、%3$s</string>
+    <string name="error_prefix">エラー: %1$s</string>
+    <string name="home_filter_projects">プロジェクトを絞り込む</string>
+    <string name="home_all_projects">すべてのプロジェクト</string>
+    <string name="home_search_threads">スレッドを検索</string>
+    <string name="home_no_matching_threads">一致するスレッドはありません</string>
+    <string name="home_no_matching_threads_message">検索またはプロジェクトフィルターを調整してください。</string>
+    <string name="home_quick_compose_prompt">計画、質問、作成…</string>
+    <string name="home_more">その他</string>
+    <string name="home_new_thread">新しいスレッド</string>
+    <string name="home_project">プロジェクト</string>
+    <string name="home_agent_value">エージェント：%1$s</string>
+    <string name="home_model_value">モデル：%1$s</string>
+    <string name="home_start">開始</string>
+    <string name="home_quick_compose_defaults_description">このプロジェクトで最近使用したエージェントとモデルの設定を使います。</string>
+    <string name="home_quick_compose_unavailable">起動設定のあるプロジェクトがまだありません。先にデスクトップからスレッドを開始してください。</string>
+    <string name="home_new_thread_failed">新しいスレッドを開始できませんでした。</string>
+    <string name="home_expand_worktree">ワークツリーを展開</string>
+    <string name="home_collapse_worktree">ワークツリーを折りたたむ</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">アイドル</string>
+    <string name="socket_connecting">接続中…</string>
+    <string name="socket_online">ライブ</string>
+    <string name="socket_reconnecting">再接続中…</string>
+    <string name="socket_suspended">バックグラウンドで一時停止</string>
+    <string name="socket_failed">オフライン</string>
+    <string name="socket_session_expired">セッションの有効期限切れ</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">スレッド</string>
+    <string name="back">戻る</string>
+    <string name="interrupt_thread">スレッドを中断</string>
+    <string name="loading_transcript">会話を読み込んでいます…</string>
+    <string name="failed_load_transcript">会話の読み込みに失敗しました</string>
+    <string name="empty_transcript_title">空の会話</string>
+    <string name="empty_transcript_message">メッセージを送信してこのスレッドを開始してください。</string>
+    <string name="thread_transcript">スレッドの会話</string>
+    <string name="load_older_messages">過去のメッセージを読み込む</string>
+    <string name="loading_older">過去のメッセージを読み込んでいます…</string>
+    <string name="message_input">メッセージ入力</string>
+    <string name="message_placeholder">メッセージ…</string>
+    <string name="send_message">メッセージを送信</string>
+    <string name="stop_generation">生成を停止</string>
+    <string name="stop">停止</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">再試行</string>
+    <string name="pairing_failed">ペアリングに失敗しました</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">デスクトップのペアリングを確認</string>
+    <string name="confirm_pair_message">%1$s のデスクトップとペアリングしますか？</string>
+    <string name="confirm_pair_replace_warning">現在のデスクトップ接続が置き換えられます。</string>
+    <string name="confirm_pair_button">確認</string>
+    <string name="cancel_pair_button">キャンセル</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">認証情報ストアのエラー</string>
+    <string name="local_store_inconsistent_message">ローカルの認証情報ストアに不整合があります。このデスクトップを忘れて、もう一度ペアリングしてください。</string>
+</resources>

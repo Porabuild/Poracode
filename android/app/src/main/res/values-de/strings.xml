@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">Poracode wird gestartet…</string>
+    <string name="reconnecting_stored_session">Verbindung mit deinem Computer wird wiederhergestellt…</string>
+    <string name="session_expired_title">Sitzung abgelaufen</string>
+    <string name="session_expired_message">Deine Fernzugriffssitzung ist abgelaufen. Die App versucht es automatisch erneut. Du kannst auch neu koppeln.</string>
+    <string name="session_expired_forget">Diesen Computer vergessen</string>
+    <string name="protocol_incompatible_title">Inkompatibler Computer</string>
+    <string name="protocol_incompatible_message">Diese App-Version ist mit diesem Server inkompatibel. Aktualisiere beide auf dieselbe Version. Deine gespeicherte Kopplung bleibt erhalten.</string>
+    <string name="send_missing_thread_config">Dieser Thread ist noch nicht sendebereit. Warte, bis die Unterhaltung geladen ist, oder öffne den Thread erneut.</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">Scanne den Kopplungscode, der auf deinem Computer unter Fernzugriff angezeigt wird.</string>
+    <string name="pairing_link_label">Kopplungslink</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">oder</string>
+    <string name="manual_connection">Manuelle Verbindung</string>
+    <string name="server_base_url">Server-Basis-URL</string>
+    <string name="one_time_pairing_token">Einmaliges Kopplungstoken</string>
+    <string name="connect_button">Verbinden</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">Kopplungscode scannen</string>
+    <string name="pair_scan_card_message">Öffne Einstellungen → Fernzugriff auf deinem Computer, um den Code anzuzeigen.</string>
+    <string name="pair_scan_card_action">Kopplungscode des Computers mit der Kamera scannen</string>
+    <string name="pair_other_ways">Andere Verbindungswege</string>
+    <string name="pair_link_paste">Einfügen</string>
+    <string name="pair_link_clipboard_empty">Kein Kopplungslink in der Zwischenablage.</string>
+    <string name="pair_cleartext_warning">Diese Verbindung verwendet unverschlüsseltes HTTP in deinem lokalen Netzwerk.</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">Kopplungscode scannen</string>
+    <string name="scan_close">Scanner schließen</string>
+    <string name="scan_frame_hint">Zentriere den QR-Code im Rahmen</string>
+    <string name="scan_desktop_caption">Öffne Einstellungen → Fernzugriff in der Desktop-App, um den Kopplungscode anzuzeigen.</string>
+    <string name="scan_starting">Kamera wird gestartet…</string>
+    <string name="scan_preview_description">Kamerasucher zum Koppeln per QR-Code</string>
+    <string name="scan_invalid_code">Dieser Code ist kein Poracode-Kopplungslink. Richte die Kamera auf den Code aus Einstellungen → Fernzugriff.</string>
+    <string name="scan_use_link_instead">Stattdessen Link einfügen</string>
+    <string name="scan_camera_permission_title">Kamerazugriff erforderlich</string>
+    <string name="scan_camera_permission_message">Poracode verwendet die Kamera nur, um den Kopplungs-QR-Code von deinem Computer zu lesen.</string>
+    <string name="scan_camera_permission_allow">Kamera erlauben</string>
+    <string name="scan_camera_permission_denied_title">Kamerazugriff verweigert</string>
+    <string name="scan_camera_permission_denied_message">Die Kameraberechtigung wurde verweigert. Du kannst erneut fragen oder per Link koppeln.</string>
+    <string name="scan_camera_permission_blocked_title">Kamera in den Einstellungen blockiert</string>
+    <string name="scan_camera_permission_blocked_message">Der Kamerazugriff ist für Poracode deaktiviert. Aktiviere ihn in den Systemeinstellungen oder kopple per Link.</string>
+    <string name="scan_camera_open_settings">Einstellungen öffnen</string>
+    <string name="scan_camera_try_again">Erneut versuchen</string>
+    <string name="scan_no_camera_title">Keine Kamera verfügbar</string>
+    <string name="scan_no_camera_message">Dieses Gerät hat keine nutzbare Kamera. Kopple per Link oder gib die Details manuell ein.</string>
+    <string name="scan_camera_failed_title">Kamera nicht verfügbar</string>
+    <string name="scan_camera_failed_message">Die Kamera konnte nicht gestartet werden. Versuche es erneut oder kopple per Link.</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">Thread auswählen</string>
+    <string name="select_thread_message">Wähle einen Projekt-Thread, um die Unterhaltung zu öffnen.</string>
+    <string name="refresh_projects">Projekte aktualisieren</string>
+    <string name="disconnect">Trennen</string>
+    <string name="loading_projects">Projekte werden geladen…</string>
+    <string name="loading_conversations">Unterhaltungen werden geladen…</string>
+    <string name="no_conversations_title">Noch keine Unterhaltungen</string>
+    <string name="no_conversations_message">Unterhaltungen von allen gekoppelten Desktops werden hier angezeigt.</string>
+    <string name="no_projects_title">Keine Projekte</string>
+    <string name="no_projects_message">Dieser Computer hat noch keine Projekte.</string>
+    <string name="failed_load_projects">Projekte konnten nicht geladen werden</string>
+    <string name="no_open_threads">Keine offenen Threads</string>
+    <string name="untitled_thread">Unbenannter Thread</string>
+    <string name="starred">mit Stern</string>
+    <string name="project_expanded">ausgeklappt</string>
+    <string name="project_collapsed">eingeklappt</string>
+    <string name="project_content_description">Projekt %1$s, %2$s</string>
+    <string name="thread_content_description">Thread %1$s, %2$s, %3$s</string>
+    <string name="error_prefix">Fehler: %1$s</string>
+    <string name="home_filter_projects">Projekte filtern</string>
+    <string name="home_all_projects">Alle Projekte</string>
+    <string name="home_search_threads">Threads durchsuchen</string>
+    <string name="home_no_matching_threads">Keine passenden Threads</string>
+    <string name="home_no_matching_threads_message">Passe die Suche oder den Projektfilter an.</string>
+    <string name="home_quick_compose_prompt">Planen, fragen, entwickeln…</string>
+    <string name="home_more">Mehr</string>
+    <string name="home_new_thread">Neuer Thread</string>
+    <string name="home_project">Projekt</string>
+    <string name="home_agent_value">Agent: %1$s</string>
+    <string name="home_model_value">Modell: %1$s</string>
+    <string name="home_start">Starten</string>
+    <string name="home_quick_compose_defaults_description">Verwendet die zuletzt gewählten Agent- und Modelleinstellungen dieses Projekts.</string>
+    <string name="home_quick_compose_unavailable">Noch kein Projekt hat Starteinstellungen. Starte zuerst einen Thread am Desktop.</string>
+    <string name="home_new_thread_failed">Der neue Thread konnte nicht gestartet werden.</string>
+    <string name="home_expand_worktree">Worktree ausklappen</string>
+    <string name="home_collapse_worktree">Worktree einklappen</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">Leerlauf</string>
+    <string name="socket_connecting">Verbindung wird hergestellt…</string>
+    <string name="socket_online">Online</string>
+    <string name="socket_reconnecting">Verbindung wird wiederhergestellt…</string>
+    <string name="socket_suspended">Im Hintergrund pausiert</string>
+    <string name="socket_failed">Nicht verbunden</string>
+    <string name="socket_session_expired">Sitzung abgelaufen</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">Thread</string>
+    <string name="back">Zurück</string>
+    <string name="interrupt_thread">Thread abbrechen</string>
+    <string name="loading_transcript">Unterhaltung wird geladen…</string>
+    <string name="failed_load_transcript">Unterhaltung konnte nicht geladen werden</string>
+    <string name="empty_transcript_title">Leere Unterhaltung</string>
+    <string name="empty_transcript_message">Sende eine Nachricht, um diesen Thread zu starten.</string>
+    <string name="thread_transcript">Thread-Unterhaltung</string>
+    <string name="load_older_messages">Ältere Nachrichten laden</string>
+    <string name="loading_older">Ältere werden geladen…</string>
+    <string name="message_input">Nachrichteneingabe</string>
+    <string name="message_placeholder">Nachricht…</string>
+    <string name="send_message">Nachricht senden</string>
+    <string name="stop_generation">Generierung stoppen</string>
+    <string name="stop">Stopp</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">Erneut versuchen</string>
+    <string name="pairing_failed">Kopplung fehlgeschlagen</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">Computerkopplung bestätigen</string>
+    <string name="confirm_pair_message">Mit Computer unter %1$s koppeln?</string>
+    <string name="confirm_pair_replace_warning">Dies ersetzt deine aktuelle Computerverbindung.</string>
+    <string name="confirm_pair_button">Bestätigen</string>
+    <string name="cancel_pair_button">Abbrechen</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">Fehler im Anmeldedatenspeicher</string>
+    <string name="local_store_inconsistent_message">Der lokale Anmeldedatenspeicher ist inkonsistent. Vergiss diesen Computer und kopple ihn neu.</string>
+</resources>

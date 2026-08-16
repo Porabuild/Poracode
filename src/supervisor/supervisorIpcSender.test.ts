@@ -5,8 +5,13 @@ import { SupervisorIpcSender } from "./supervisorIpcSender";
 type OutboundMessage = SupervisorEvent | SupervisorReply;
 type SendCallback = (error: Error | null) => void;
 
-function output(threadId: string, data: string, outputLength: number): SupervisorEvent {
-  return { type: "thread-output", threadId, data, outputLength };
+function output(
+  threadId: string,
+  data: string,
+  outputLength: number,
+  terminalInstanceId = "gen-1",
+): SupervisorEvent {
+  return { type: "thread-output", threadId, data, outputLength, terminalInstanceId };
 }
 
 describe("SupervisorIpcSender", () => {
@@ -32,6 +37,26 @@ describe("SupervisorIpcSender", () => {
     vi.advanceTimersByTime(8);
 
     expect(sent).toEqual([output("one", "ab", 2), output("two", "c", 1)]);
+  });
+
+  it("does not coalesce terminal output across generation changes", () => {
+    vi.useFakeTimers();
+    const sent: OutboundMessage[] = [];
+    const sender = new SupervisorIpcSender({
+      send: (message, callback) => {
+        sent.push(message);
+        callback(null);
+        return true;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+    });
+
+    sender.emit(output("one", "old", 3, "gen-a"));
+    sender.emit(output("one", "new", 3, "gen-b"));
+    expect(sent).toEqual([output("one", "old", 3, "gen-a")]);
+
+    vi.advanceTimersByTime(8);
+    expect(sent).toEqual([output("one", "old", 3, "gen-a"), output("one", "new", 3, "gen-b")]);
   });
 
   it("flushes terminal bytes before a following event", () => {

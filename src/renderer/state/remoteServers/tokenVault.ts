@@ -1,7 +1,3 @@
-import { SecureStorage } from "@aparajita/capacitor-secure-storage";
-import { isNativeApp } from "@/renderer/pwa/install";
-
-const KEY_PREFIX = "remoteDesktopToken.";
 const DATABASE_NAME = "lightcode-mobile-vault";
 const STORE_NAME = "entries";
 const VAULT_KEY_RECORD_KEY = "cryptoKey";
@@ -18,10 +14,6 @@ const tokenCache = new Map<string, string>();
 let databasePromise: Promise<IDBDatabase> | null = null;
 let cryptoKeyPromise: Promise<CryptoKey> | null = null;
 let warned = false;
-
-function nativeKey(desktopId: string): string {
-  return `${KEY_PREFIX}${desktopId}`;
-}
 
 function vaultKey(desktopId: string): string {
   return `${VAULT_TOKEN_PREFIX}${desktopId}`;
@@ -153,9 +145,7 @@ export async function getDesktopToken(desktopId: string): Promise<string | null>
   if (cached !== undefined) return cached;
   let token: string | null;
   try {
-    token = isNativeApp()
-      ? ((await SecureStorage.get(nativeKey(desktopId))) as string | null)
-      : await readWebToken(desktopId);
+    token = await readWebToken(desktopId);
   } catch (error) {
     warnOnce(error);
     return null;
@@ -167,9 +157,7 @@ export async function getDesktopToken(desktopId: string): Promise<string | null>
 
 export async function setDesktopToken(desktopId: string, token: string): Promise<boolean> {
   try {
-    const persisted = isNativeApp()
-      ? await SecureStorage.set(nativeKey(desktopId), token).then(() => true)
-      : await writeWebToken(desktopId, token);
+    const persisted = await writeWebToken(desktopId, token);
     if (persisted) tokenCache.set(desktopId, token);
     return persisted;
   } catch (error) {
@@ -181,9 +169,7 @@ export async function setDesktopToken(desktopId: string, token: string): Promise
 export async function deleteDesktopToken(desktopId: string): Promise<void> {
   tokenCache.delete(desktopId);
   try {
-    if (isNativeApp()) {
-      await SecureStorage.remove(nativeKey(desktopId));
-    } else if (typeof indexedDB !== "undefined") {
+    if (typeof indexedDB !== "undefined") {
       await deleteRecord(vaultKey(desktopId));
     }
   } catch (error) {

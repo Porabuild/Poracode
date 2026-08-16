@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string><string name="github_unavailable">GitHub CLI недоступен для этого проекта.</string>
+    <string name="github_pull_requests">Запросы на слияние</string><string name="github_actions">Действия</string><string name="github_repositories">Репозитории</string>
+    <string name="github_confirm_title">Подтвердите действие GitHub</string><string name="github_confirm_message">Это действие может удалить или навсегда изменить удалённые данные GitHub.</string><string name="github_confirm">Продолжить</string>
+    <string name="github_refresh">Обновить GitHub</string><string name="github_no_pull_requests">Запросы на слияние не найдены.</string>
+    <string name="github_pr_title">Заголовок запроса</string><string name="github_head_branch">Исходная ветка</string><string name="github_base_branch">Базовая ветка</string><string name="github_create_pr">Создать запрос на слияние</string>
+    <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Выберите запрос на слияние для просмотра.</string><string name="github_pr_number">Запрос на слияние #%1$d</string>
+    <string name="github_ready">Отметить готовым</string><string name="github_update_branch">Обновить ветку</string><string name="github_reopen">Открыть снова</string><string name="github_close">Закрыть</string><string name="github_merge">Слить</string><string name="github_approve">Одобрить</string>
+    <string name="github_comment">Комментарий</string><string name="github_post_comment">Опубликовать комментарий</string><string name="github_details">Сведения</string><string name="github_checks">Проверки</string><string name="github_files">Файлы</string><string name="github_reviews">Рецензии</string><string name="github_diff">Различия</string>
+    <string name="github_dispatch">Запустить процесс</string><string name="github_rerun">Запустить повторно</string><string name="github_cancel_run">Отменить запуск</string><string name="github_delete_run">Удалить запуск</string><string name="github_workflow_definition">Описание процесса</string><string name="github_run_details">Сведения о запуске</string>
+    <string name="github_discover_accounts">Найти учётные записи GitHub</string><string name="github_account">%1$s на %2$s</string>
+    <string name="github_change_reconciled">Результат был неопределённым. Poracode не повторял действие и один раз запросил последнее состояние GitHub.</string>
+</resources>

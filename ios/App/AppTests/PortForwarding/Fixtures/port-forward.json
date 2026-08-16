@@ -1,0 +1,9 @@
+{
+  "forward": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "targetPort": 3000,
+    "listenPort": 43000,
+    "createdAt": 1720000001000
+  },
+  "enterPath": "/forward/22222222-2222-4222-8222-222222222222/enter?fwt=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+}

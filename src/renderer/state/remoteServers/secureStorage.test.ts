@@ -3,26 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StorageValue } from "zustand/middleware";
 import type { RemoteServerRecord } from "./types";
 
-const nativeVault = vi.hoisted(() => {
-  const values = new Map<string, string>();
-  return {
-    values,
-    get: vi.fn<(key: string) => Promise<string | null>>(async (key) => values.get(key) ?? null),
-    set: vi.fn<(key: string, storedValue: unknown) => Promise<void>>(async (key, storedValue) => {
-      values.set(key, String(storedValue));
-    }),
-    remove: vi.fn<(key: string) => Promise<boolean>>(async (key) => values.delete(key)),
-  };
-});
-
-vi.mock("@aparajita/capacitor-secure-storage", () => ({
-  SecureStorage: {
-    get: nativeVault.get,
-    set: nativeVault.set,
-    remove: nativeVault.remove,
-  },
-}));
-
 import { createSecureRemoteServersStorage } from "./secureStorage";
 import { __resetTokenVaultForTest, deleteDesktopToken } from "./tokenVault";
 
@@ -30,10 +10,6 @@ interface PersistedState {
   servers: RemoteServerRecord[];
   marker: string;
 }
-
-const globalWithCapacitor = globalThis as typeof globalThis & {
-  Capacitor?: { isNativePlatform: () => boolean };
-};
 
 function server(desktopId: string, accessToken: string): RemoteServerRecord {
   return {
@@ -78,10 +54,8 @@ async function writeLegacyDesktop(record: RemoteServerRecord): Promise<void> {
 
 beforeEach(() => {
   localStorage.clear();
-  nativeVault.values.clear();
   vi.clearAllMocks();
   __resetTokenVaultForTest();
-  globalWithCapacitor.Capacitor = { isNativePlatform: () => false };
 });
 
 afterEach(async () => {
@@ -90,7 +64,7 @@ afterEach(async () => {
     deleteDesktopToken("legacy-1"),
     deleteDesktopToken("legacy-db-1"),
   ]);
-  delete globalWithCapacitor.Capacitor;
+  vi.restoreAllMocks();
 });
 
 describe("secure remote-server persistence", () => {
@@ -129,19 +103,29 @@ describe("secure remote-server persistence", () => {
   });
 
   it("retries plaintext migration after the secure vault becomes available", async () => {
-    globalWithCapacitor.Capacitor = { isNativePlatform: () => true };
-    nativeVault.set.mockRejectedValueOnce(new Error("keystore unavailable"));
+    const indexedDbDescriptor = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
+    Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined });
+    __resetTokenVaultForTest();
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const storage = createSecureRemoteServersStorage<PersistedState>();
     localStorage.setItem("servers", JSON.stringify(value(server("legacy-1", "legacy-secret"))));
 
+    // Vault unavailable: the token still resolves for this session, but the
+    // plaintext copy must stay put rather than being dropped on the floor.
     expect((await storage.getItem("servers"))?.state.servers[0]?.accessToken).toBe("legacy-secret");
     expect(localStorage.getItem("servers")).toContain("legacy-secret");
 
+    if (indexedDbDescriptor) {
+      Object.defineProperty(globalThis, "indexedDB", indexedDbDescriptor);
+    }
+    __resetTokenVaultForTest();
+
+    expect((await storage.getItem("servers"))?.state.servers[0]?.accessToken).toBe("legacy-secret");
+    expect(localStorage.getItem("servers")).not.toContain("legacy-secret");
+
+    // The retry actually landed in the vault, not just in the live snapshot.
     __resetTokenVaultForTest();
     expect((await storage.getItem("servers"))?.state.servers[0]?.accessToken).toBe("legacy-secret");
-    expect(nativeVault.values.get("remoteDesktopToken.legacy-1")).toBe("legacy-secret");
-    expect(localStorage.getItem("servers")).not.toContain("legacy-secret");
   });
 
   it("imports pairings from the retired mobile IndexedDB on first launch", async () => {
@@ -157,16 +141,6 @@ describe("secure remote-server persistence", () => {
     expect(restored?.state.servers[0]?.accessToken).toBe("legacy-database-secret");
     expect(restored?.state.marker).toBe("migrated");
     expect(localStorage.getItem("servers")).not.toContain("legacy-database-secret");
-  });
-
-  it("uses the native OS keystore inside Capacitor", async () => {
-    globalWithCapacitor.Capacitor = { isNativePlatform: () => true };
-    const storage = createSecureRemoteServersStorage<PersistedState>();
-    await storage.setItem("servers", value(server("native-1", "native-secret")));
-
-    expect(nativeVault.values.get("remoteDesktopToken.native-1")).toBe("native-secret");
-    expect(localStorage.getItem("servers")).not.toContain("native-secret");
-    expect((await storage.getItem("servers"))?.state.servers[0]?.accessToken).toBe("native-secret");
   });
 
   it("never falls back to plaintext localStorage when the secure vault is unavailable", async () => {

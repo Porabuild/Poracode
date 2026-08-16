@@ -1,0 +1,15 @@
+{
+  "type": "event",
+  "seq": 43,
+  "event": {
+    "type": "thread-runtime-event",
+    "threadId": "thread-fixture-001",
+    "event": {
+      "type": "content.delta",
+      "threadId": "thread-fixture-001",
+      "itemId": "item-fixture-assistant",
+      "stream": "assistant_text",
+      "delta": " live"
+    }
+  }
+}

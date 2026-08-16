@@ -1,0 +1,1851 @@
+{
+  "builtTestProducts": [
+    {
+      "binaryPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.xctest/Contents/MacOS/BrowserMirrorIsolationPackageTests",
+      "packagePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror",
+      "productName": "BrowserMirrorIsolationPackageTests"
+    }
+  ],
+  "copyCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolation_BrowserMirror.bundle/BrowserMirror.xcstrings": {
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirror.xcstrings"
+        }
+      ],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolation_BrowserMirror.bundle/BrowserMirror.xcstrings"
+        }
+      ]
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolation_BrowserMirror.bundle/Info.plist": {
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Info.plist"
+        }
+      ],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolation_BrowserMirror.bundle/Info.plist"
+        }
+      ]
+    }
+  },
+  "explicitTargetDependencyImportCheckingMode": {
+    "none": {}
+  },
+  "generatedSourceTargetSet": [],
+  "pluginDescriptions": [],
+  "swiftCommands": {
+    "C.BrowserMirror-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorActions.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorChrome.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorController.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGeometry.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGlass.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorInput.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorKeyboardProxy.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorPresentation.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStateViews.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorViewport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Metadata001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models009.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models010.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models011.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models012.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models013.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models014.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models015.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models016.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models017.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models018.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models019.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models020.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models021.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models022.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models023.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models024.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models025.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models026.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models027.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Runtime.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/RemoteMutationClassification.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorHTTPClient.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteAPI.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteV3Adapter.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSelectedGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketMultiplexer.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "virtual",
+          "name": "<BrowserMirror-arm64-apple-macosx-debug.module-resources>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "BrowserMirror",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirror.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorActions.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorChrome.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorController.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorGeometry.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorGlass.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorInput.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorKeyboardProxy.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorModels.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorPresentation.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorStateViews.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorStrings.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorView.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorViewport.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Metadata001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models004.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models005.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models006.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models007.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models008.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models009.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models010.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models011.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models012.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models013.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models014.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models015.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models016.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models017.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models018.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models019.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models020.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models021.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models022.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models023.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models024.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models025.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models026.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models027.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Runtime.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation004.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation005.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation006.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation007.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation008.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RemoteMutationClassification.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorHTTPClient.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorRemoteAPI.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorRemoteV3Adapter.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSelectedGateway.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSocketGateway.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSocketMultiplexer.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/include/BrowserMirror-Swift.h",
+        "-swift-version",
+        "6",
+        "-strict-concurrency=complete",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "browsermirror"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorActions.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorChrome.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorController.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorGeometry.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorGlass.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorInput.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorKeyboardProxy.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorPresentation.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorStateViews.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorViewport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Metadata001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models009.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models010.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models011.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models012.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models013.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models014.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models015.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models016.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models017.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models018.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models019.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models020.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models021.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models022.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models023.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models024.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models025.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models026.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models027.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Runtime.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RemoteMutationClassification.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorHTTPClient.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorRemoteAPI.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorRemoteV3Adapter.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSelectedGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSocketGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSocketMultiplexer.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirror.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorActions.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorChrome.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorController.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGeometry.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGlass.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorInput.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorKeyboardProxy.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorModels.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorPresentation.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStateViews.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStrings.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorView.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorViewport.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Metadata001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models004.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models005.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models006.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models007.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models008.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models009.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models010.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models011.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models012.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models013.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models014.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models015.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models016.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models017.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models018.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models019.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models020.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models021.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models022.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models023.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models024.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models025.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models026.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models027.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Runtime.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation004.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation005.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation006.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation007.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation008.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/RemoteMutationClassification.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorHTTPClient.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteAPI.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteV3Adapter.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSelectedGateway.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketGateway.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketMultiplexer.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/DerivedSources/resource_bundle_accessor.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build",
+      "wholeModuleOptimization": false
+    },
+    "C.BrowserMirrorIsolationPackageTests-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirrorTests.swiftmodule"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "BrowserMirrorIsolationPackageTests",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirrorIsolationPackageTests.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/include/BrowserMirrorIsolationPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "browsermirror"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirrorIsolationPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build",
+      "wholeModuleOptimization": false
+    },
+    "C.BrowserMirrorTests-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorContractTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorControllerTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorHTTPTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorInputGeometryTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorQualityTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorTestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirror.swiftmodule"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "BrowserMirrorTests",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirrorTests.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-strict-concurrency=complete",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "browsermirror"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules/BrowserMirrorTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorContractTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorControllerTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorHTTPTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorInputGeometryTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorQualityTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorTestSupport.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build",
+      "wholeModuleOptimization": false
+    }
+  },
+  "swiftFrontendCommands": {},
+  "swiftTargetScanArgs": {
+    "BrowserMirror": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "BrowserMirror",
+      "-package-name",
+      "browsermirror",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorActions.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorChrome.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorController.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGeometry.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGlass.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorInput.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorKeyboardProxy.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorModels.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorPresentation.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStateViews.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStrings.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorView.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorViewport.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Metadata001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models004.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models005.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models006.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models007.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models008.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models009.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models010.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models011.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models012.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models013.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models014.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models015.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models016.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models017.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models018.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models019.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models020.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models021.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models022.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models023.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models024.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models025.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models026.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models027.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Runtime.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation004.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation005.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation006.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation007.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation008.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/RemoteMutationClassification.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorHTTPClient.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteAPI.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteV3Adapter.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSelectedGateway.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketGateway.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketMultiplexer.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/include/BrowserMirror-Swift.h",
+      "-swift-version",
+      "6",
+      "-strict-concurrency=complete",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "browsermirror",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "BrowserMirrorIsolationPackageTests": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "BrowserMirrorIsolationPackageTests",
+      "-package-name",
+      "browsermirror",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/include/BrowserMirrorIsolationPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "browsermirror",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "BrowserMirrorTests": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "BrowserMirrorTests",
+      "-package-name",
+      "browsermirror",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorContractTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorControllerTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorHTTPTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorInputGeometryTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorQualityTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorTestSupport.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-strict-concurrency=complete",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "browsermirror",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap": {
+    "BrowserMirror": [],
+    "BrowserMirrorIsolationPackageTests": ["BrowserMirrorTests", "BrowserMirror"],
+    "BrowserMirrorTests": ["BrowserMirror"]
+  },
+  "testDiscoveryCommands": {},
+  "testEntryPointCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift": {
+      "inputs": [],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration": {
+    "default": {}
+  },
+  "writeCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorActions.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorChrome.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorController.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGeometry.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorGlass.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorInput.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorKeyboardProxy.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorPresentation.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStateViews.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Feature/BrowserMirrorViewport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Metadata001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models009.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models010.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models011.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models012.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models013.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models014.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models015.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models016.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models017.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models018.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models019.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models020.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models021.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models022.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models023.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models024.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models025.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models026.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Models027.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/RootCodecs003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Runtime.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Generated/Validation008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/RemoteMutationClassification.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorHTTPClient.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteAPI.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorRemoteV3Adapter.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSelectedGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/PackageSources/BrowserMirror/Transport/BrowserMirrorSocketMultiplexer.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/DerivedSources/resource_bundle_accessor.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.product/Objects.LinkFileList": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<link-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorActions.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorChrome.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorController.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorGeometry.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorGlass.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorHTTPClient.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorInput.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorKeyboardProxy.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorPresentation.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorRemoteAPI.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorRemoteV3Adapter.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSelectedGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSocketGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorSocketMultiplexer.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorStateViews.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/BrowserMirrorViewport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Metadata001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models009.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models010.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models011.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models012.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models013.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models014.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models015.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models016.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models017.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models018.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models019.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models020.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models021.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models022.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models023.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models024.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models025.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models026.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Models027.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RemoteMutationClassification.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/RootCodecs003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Runtime.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/Validation008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirror.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorContractTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorControllerTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorHTTPTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorInputGeometryTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorQualityTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/BrowserMirrorTestSupport.swift.o"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorIsolationPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorContractTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorControllerTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorHTTPTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorInputGeometryTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorQualityTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/BrowserMirrorTestSupport.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/BrowserMirrorTests.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt": {
+      "alwaysOutOfDate": true,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<swift-get-version>"
+        },
+        {
+          "kind": "file",
+          "name": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/BrowserMirror/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

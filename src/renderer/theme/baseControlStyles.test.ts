@@ -62,11 +62,74 @@ describe("base control styles", () => {
     expect(mobilePoracode).toContain("--content-background: #000");
   });
 
+  it("uses one safe-zone token for compact headers and under-header page scrolling", () => {
+    expect(styles).toContain("--m-header-height: 48px");
+    expect(styles).toContain("--m-header-content-gap: 12px");
+    expect(styles).toContain(
+      "--m-page-header-safe-zone: calc(var(--m-header-height) + env(safe-area-inset-top))",
+    );
+    expect(ruleFor("html[data-compact-layout] .poracode-overlay-header")).toContain(
+      "height: var(--m-page-header-safe-zone) !important",
+    );
+    const scrollSurface = ruleFor("html[data-compact-layout] .m-page-scroll-surface");
+    expect(scrollSurface).toContain(
+      "padding-top: calc(var(--m-page-header-safe-zone) + var(--m-header-content-gap))",
+    );
+    expect(scrollSurface).toContain("scroll-padding-top: var(--m-page-header-safe-zone)");
+    expect(styles).toMatch(
+      /\[data-poracode-shell-content\]:has\(\.m-page-scroll-surface\)\s*> \.poracode-overlay-header\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 0 auto;/s,
+    );
+  });
+
+  it("vertically centers compact headers and keeps dark page chrome translucent", () => {
+    const mobileHeader = ruleFor("html[data-compact-layout] .poracode-mobile-header");
+    expect(mobileHeader).toContain("align-items: center");
+    expect(mobileHeader).not.toContain("transform:");
+    expect(mobileHeader).not.toContain("padding-bottom:");
+    expect(styles).toMatch(
+      /\.poracode-shell\[data-mobile-navigation\]\[data-mobile-home\][^{]*\.poracode-overlay-header\s*\{[^}]*margin-bottom:\s*var\(--m-header-content-gap\);/s,
+    );
+    expect(styles).toMatch(
+      /html\[data-compact-layout\]\[data-theme="dark"\][^{]*\.poracode-shell\[data-mobile-navigation\]:not\(\[data-mobile-home\]\)[^{]*\.poracode-overlay-header\s*\{[^}]*background:\s*color-mix\(in oklab, var\(--background\) 78%, transparent\) !important;/s,
+    );
+  });
+
+  it("gives compact PWA menu rows a touch-friendly minimum height", () => {
+    expect(styles).toContain("html[data-compact-layout] .menu-item,");
+    expect(styles).toContain("html[data-compact-layout] .list-box-item,");
+    expect(styles).toContain("html[data-compact-layout] .poracode-menu-item,");
+    expect(ruleFor("html[data-compact-layout] .poracode-menu-action")).toContain(
+      "min-height: var(--m-tap-min)",
+    );
+  });
+
   it("keeps bottom-sheet actions compact without sticky touch hover", () => {
     expect(ruleFor(".m-sheet-action")).toContain(
       "border-radius: var(--m-list-row-radius, 0.625rem)",
     );
     expect(ruleFor(".m-sheet-action:active")).toContain("background: var(--row-hover)");
     expect(styles).toMatch(/@media \(hover: hover\)\s*\{\s*\.m-sheet-action:hover\s*\{/);
+  });
+
+  it("keeps bottom-sheet safe-area clearance inside menu scroll ranges", () => {
+    expect(ruleFor(".m-sheet:has(.m-sheet-list)")).toContain("padding-bottom: 0");
+    expect(ruleFor(".m-sheet-list")).toContain(
+      "scroll-padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))",
+    );
+    expect(ruleFor(".m-sheet-list::after")).toContain(
+      "flex: 0 0 calc(0.375rem + env(safe-area-inset-bottom))",
+    );
+  });
+
+  it("uses shared translucent chrome for bottom-sheet headers", () => {
+    const header = ruleFor(".m-sheet-head");
+    expect(header).toContain("var(--sidebar-background, var(--background)) 78%");
+    expect(header).toContain("backdrop-filter: blur(16px) saturate(130%)");
+    expect(ruleFor(".m-sheet-scroll")).toContain("overflow-y: auto");
+    expect(ruleFor(".m-sheet-scroll > .m-sheet-head")).toContain("position: sticky");
+    expect(ruleFor(".m-sheet-scroll > .m-sheet-list")).toContain("overflow-y: visible");
+    expect(ruleFor(".m-sheet-grabber")).toContain(
+      "var(--sidebar-background, var(--background)) 78%",
+    );
   });
 });

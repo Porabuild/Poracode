@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">Saída do terminal</string>
+    <string name="terminal_input_label">Entrada do terminal</string>
+    <string name="terminal_input_placeholder">Digite um comando</string>
+    <string name="terminal_send">Enviar</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Tab</string>
+    <string name="terminal_close">Fechar terminal</string>
+    <string name="terminal_reconnect">Reconectar</string>
+    <string name="terminal_start">Iniciar terminal</string>
+    <string name="terminal_start_description">Iniciar um terminal de desenvolvimento para este projeto</string>
+    <string name="terminal_status_authentication">O acesso ao terminal expirou</string>
+    <string name="terminal_status_permission">O acesso ao terminal não é permitido</string>
+    <string name="terminal_status_unsupported">A transmissão confiável do terminal não está disponível neste host</string>
+    <string name="terminal_status_protocol">O terminal enviou uma resposta inválida</string>
+    <string name="terminal_status_offline">Terminal não encontrado</string>
+    <string name="terminal_status_reconnecting">Reconectando o terminal…</string>
+    <string name="terminal_status_connecting">Conectando o terminal…</string>
+    <string name="terminal_status_synchronizing">Sincronizando o terminal…</string>
+    <string name="terminal_status_suspended">Terminal pausado em segundo plano</string>
+    <string name="terminal_status_failed">Falha na conexão do terminal</string>
+    <string name="terminal_status_exited">O processo do terminal foi encerrado</string>
+    <string name="terminal_status_live">Terminal conectado</string>
+    <string name="terminal_status_idle">Terminal ocioso</string>
+</resources>

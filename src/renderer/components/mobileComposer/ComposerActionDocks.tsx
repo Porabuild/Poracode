@@ -1,17 +1,12 @@
-import type { AgentStatus, Project, Thread } from "@/shared/contracts";
+import type { AgentStatus, Thread } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
   resolveThreadServerRequest,
 } from "@/renderer/actions/threadRuntimeActions";
-import { ThreadAuthRequiredDock } from "@/renderer/components/thread/ThreadAuthRequiredDock";
 import { ThreadPendingSteerStrip } from "@/renderer/components/thread/ThreadPendingSteerStrip";
 import { ThreadRuntimeRequestPanel } from "@/renderer/components/thread/ThreadRuntimeRequestPanel";
-import {
-  resolveThreadAuthState,
-  type ThreadErrorDockState,
-} from "@/renderer/components/thread/threadErrorState";
 import { useDelayedPendingSteer } from "@/renderer/components/thread/useDelayedPendingSteer";
 import { useAppStore } from "@/renderer/state/appStore";
 
@@ -19,11 +14,9 @@ import { useAppStore } from "@/renderer/state/appStore";
 export function ComposerActionDocks(props: {
   readonly thread: Thread;
   readonly agentStatus: AgentStatus | undefined;
-  readonly project: Project | undefined;
-  readonly errorDockStates: ThreadErrorDockState[];
   readonly onOpenPlanFile?: ((path: string) => void) | undefined;
 }) {
-  const { thread, agentStatus, project } = props;
+  const { thread, agentStatus } = props;
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const effectiveAgentStatus = agentStatus
@@ -33,21 +26,10 @@ export function ComposerActionDocks(props: {
   const pendingSteer = useDelayedPendingSteer(
     useAppStore((state) => state.pendingSteerByThreadId[thread.id]),
   );
-  const { authRequired } = resolveThreadAuthState({
-    authState: effectiveAgentStatus?.authState,
-    errorDockStates: props.errorDockStates,
-  });
-  const showAuthDock = authRequired && effectiveAgentStatus !== undefined;
-  if (!showAuthDock && !pendingSteer && !request) return null;
+  if (!pendingSteer && !request) return null;
 
   return (
     <div className="m-thread-action-docks">
-      {showAuthDock ? (
-        <ThreadAuthRequiredDock
-          agentStatus={effectiveAgentStatus}
-          {...(project ? { project } : {})}
-        />
-      ) : null}
       {pendingSteer ? (
         <ThreadPendingSteerStrip
           pending={pendingSteer}

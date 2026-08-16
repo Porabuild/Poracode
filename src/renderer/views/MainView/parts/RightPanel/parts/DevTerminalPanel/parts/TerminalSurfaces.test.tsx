@@ -16,6 +16,10 @@ const { state } = vi.hoisted(() => ({
         outputSource?: (listener: TerminalFeedListener) => () => void;
         initialScrollback?: string;
         preferDomRenderer?: boolean;
+        resizeTerminalOnFit?: boolean;
+        suppressTouchKeyboard?: boolean;
+        themeBackgroundVar?: string;
+        touchScrollEnabled?: boolean;
       }
     >(),
   },
@@ -42,6 +46,10 @@ vi.mock("@/renderer/components/terminal/XTermSurface", async () => {
         outputSource?: (listener: TerminalFeedListener) => () => void;
         initialScrollback?: string;
         preferDomRenderer?: boolean;
+        resizeTerminalOnFit?: boolean;
+        suppressTouchKeyboard?: boolean;
+        themeBackgroundVar?: string;
+        touchScrollEnabled?: boolean;
       }
     >(function MockXTermSurface(props, ref) {
       state.surfaceProps.set(props.terminalId, props);
@@ -201,5 +209,28 @@ describe("TerminalSurfaces", () => {
     );
 
     expect(state.surfaceProps.get(actionTab.id)?.initialScrollback).toBe("finished output\r\n");
+  });
+
+  it("uses touch-safe xterm behavior on the compact terminal page", () => {
+    render(
+      <TerminalSurfaces
+        tabs={[tabA]}
+        selectedTabId={tabA.id}
+        activeTab={tabA}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+        mobile
+        allowSplit={false}
+      />,
+    );
+
+    expect(state.surfaceProps.get(tabA.id)).toMatchObject({
+      preferDomRenderer: true,
+      resizeTerminalOnFit: true,
+      suppressTouchKeyboard: true,
+      themeBackgroundVar: "--background",
+      touchScrollEnabled: true,
+    });
   });
 });

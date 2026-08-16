@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "@heroui/react";
-import { ChevronLeft, House } from "lucide-react";
-import { useLingui } from "@lingui/react/macro";
+import { House } from "lucide-react";
 import { isMac, isWindows } from "@/renderer/bridge";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -12,7 +11,7 @@ import {
   SidebarContext,
   useSidebar,
 } from "@/renderer/views/MainView/parts/AppShell/AppShell";
-import { expandSidebar } from "@/renderer/state/sidebarOverlayStore";
+import { MobilePageHeader } from "./MobilePageHeader";
 
 const alwaysExpandedSidebar = {
   isCollapsed: false,
@@ -151,45 +150,6 @@ function SidebarHeaderRow(props: {
   );
 }
 
-function CompactContentHeader(props: {
-  title: string;
-  titleNode?: ReactNode | undefined;
-  children?: ReactNode;
-  onTitleClick?: () => void;
-  onBack?: (() => void) | undefined;
-}) {
-  const { t } = useLingui();
-  return (
-    <div className="poracode-compact-content-header flex min-w-0 flex-1 items-center">
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        aria-label={props.onBack ? t`Return to app` : t`Back`}
-        className="m-back min-w-0 shrink-0"
-        onPress={props.onBack ?? expandSidebar}
-      >
-        <ChevronLeft className="size-5" />
-      </Button>
-      {props.children ? (
-        props.children
-      ) : props.onTitleClick ? (
-        <button
-          type="button"
-          className="min-w-0 truncate text-left text-sm font-semibold"
-          onClick={props.onTitleClick}
-        >
-          {props.titleNode ?? props.title}
-        </button>
-      ) : (
-        <div className="min-w-0 truncate text-sm font-semibold">
-          {props.titleNode ?? props.title}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /**
  * Shared page layout: split header (sidebar + content) + AppShell body.
  * Used by the main app, git review overlay, settings overlay, and file editor.
@@ -212,6 +172,7 @@ export function PageLayout(props: {
   onDismissRightOverlay?: () => void;
   compactHome?: boolean;
   compactTitle?: string;
+  compactBackLabel?: string;
   compactHeaderChildren?: ReactNode;
   onCompactBack?: () => void;
   mobileNavigation?: boolean;
@@ -235,20 +196,30 @@ export function PageLayout(props: {
     onDismissRightOverlay,
     compactHome = false,
     compactTitle,
+    compactBackLabel,
     compactHeaderChildren,
     onCompactBack,
     mobileNavigation = false,
   } = props;
 
-  const sidebarHeader = (
-    <SidebarHeaderRow
-      title={title}
-      titleNode={titleNode}
-      {...(onTitleClick != null ? { onTitleClick } : {})}
-    >
-      {sidebarHeaderChildren}
-    </SidebarHeaderRow>
-  );
+  const sidebarHeader =
+    compactLayout && compactHome ? (
+      <MobilePageHeader
+        variant="home"
+        title={title}
+        {...(titleNode !== undefined ? { titleNode } : {})}
+        {...(onTitleClick !== undefined ? { onTitleClick } : {})}
+        {...(sidebarHeaderChildren !== undefined ? { trailing: sidebarHeaderChildren } : {})}
+      />
+    ) : (
+      <SidebarHeaderRow
+        title={title}
+        titleNode={titleNode}
+        {...(onTitleClick != null ? { onTitleClick } : {})}
+      >
+        {sidebarHeaderChildren}
+      </SidebarHeaderRow>
+    );
 
   // macOS and desktop browser: drop the empty center `poracode-overlay-header` when there is no
   // content so main + the right column reclaim the titlebar row. Other native platforms keep the
@@ -256,14 +227,16 @@ export function PageLayout(props: {
   // would suppress it everywhere). Compact browser layouts retain their explicit mobile header.
   const contentHeader =
     compactLayout && !compactHome ? (
-      <CompactContentHeader
+      <MobilePageHeader
+        variant="page"
         title={compactTitle ?? title}
         {...(compactTitle === undefined && titleNode !== undefined ? { titleNode } : {})}
         {...(compactTitle === undefined && onTitleClick !== undefined ? { onTitleClick } : {})}
         {...(onCompactBack !== undefined ? { onBack: onCompactBack } : {})}
+        {...(compactBackLabel !== undefined ? { backLabel: compactBackLabel } : {})}
       >
         {compactHeaderChildren}
-      </CompactContentHeader>
+      </MobilePageHeader>
     ) : (
       (contentHeaderChildren ?? (isMac() || isBrowserClientRuntime() ? null : <></>))
     );

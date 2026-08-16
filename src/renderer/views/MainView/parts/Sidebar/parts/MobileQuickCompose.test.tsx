@@ -85,6 +85,7 @@ describe("MobileQuickCompose", () => {
     expect(screen.getByLabelText("quick-composer")).toHaveTextContent("undefined");
     expect(screen.getByLabelText("submit-on-enter")).toHaveTextContent("false");
     expect(screen.getByLabelText("autofocus-composer")).toHaveTextContent("false");
+    expect(screen.getByText("Plan, ask, build…")).toHaveClass("m-draft-collapsed-placeholder");
     expect(screen.getByTestId("dock")).not.toHaveAttribute("data-expanded");
 
     fireEvent.click(screen.getByRole("button", { name: "New thread" }));

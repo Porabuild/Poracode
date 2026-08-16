@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Действия с веткой</string>
+    <string name="thread_lifecycle_rename">Переименовать</string>
+    <string name="thread_lifecycle_rename_prompt">Новое название ветки</string>
+    <string name="thread_lifecycle_relaunch">Перезапустить</string>
+    <string name="thread_lifecycle_relaunch_prompt">Что агент должен сделать дальше?</string>
+    <string name="thread_lifecycle_pin">Закрепить</string>
+    <string name="thread_lifecycle_unpin">Открепить</string>
+    <string name="thread_lifecycle_done">Отметить выполненной</string>
+    <string name="thread_lifecycle_not_done">Отметить невыполненной</string>
+    <string name="thread_lifecycle_acknowledge">Подтвердить</string>
+    <string name="thread_lifecycle_archive">Архивировать</string>
+    <string name="thread_lifecycle_unarchive">Разархивировать</string>
+    <string name="thread_lifecycle_delete">Удалить</string>
+    <string name="thread_lifecycle_cancel">Отмена</string>
+    <string name="thread_lifecycle_submit">Отправить</string>
+    <string name="thread_lifecycle_archive_confirmation">Архивировать эту ветку?</string>
+    <string name="thread_lifecycle_delete_confirmation">Удалить эту ветку навсегда?</string>
+    <string name="thread_lifecycle_failed">Не удалось выполнить действие</string>
+    <string name="thread_lifecycle_close">Закрыть</string>
+    <string name="thread_lifecycle_failure_ambiguous">Результат неясен. Список веток обновляется.</string>
+    <string name="thread_lifecycle_failure_generic">Не удалось выполнить действие. Обновите список и повторите попытку.</string>
+</resources>

@@ -1,0 +1,5 @@
+---
+triple: "arm64-apple-darwin"
+binary-path: "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperationsIsolationPackageTests.xctest/Contents/MacOS/GitHubOperationsIsolationPackageTests"
+relocations: []
+...

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Reenvío de puertos</string>
+    <string name="ports_back">Atrás</string>
+    <string name="ports_refresh">Actualizar puertos</string>
+    <string name="ports_target_port">Puerto de destino</string>
+    <string name="ports_start_open">Iniciar y abrir</string>
+    <string name="ports_dismiss">Cerrar</string>
+    <string name="ports_detected">Puertos detectados</string>
+    <string name="ports_no_detected">No se detectaron puertos en escucha.</string>
+    <string name="ports_active">Reenvíos activos</string>
+    <string name="ports_no_active">No hay reenvíos de puertos activos.</string>
+    <string name="ports_port_number">Puerto %1$d</string>
+    <string name="ports_protocol_http">Servicio HTTP</string>
+    <string name="ports_protocol_unknown">Protocolo desconocido</string>
+    <string name="ports_forward_port">Reenviar</string>
+    <string name="ports_forward_summary">Puerto %1$d → %2$d</string>
+    <string name="ports_open">Abrir</string>
+    <string name="ports_busy">Procesando…</string>
+    <string name="ports_stop">Detener</string>
+    <string name="ports_failure_offline">Vuelve a conectarte al host para gestionar los reenvíos de puertos.</string>
+    <string name="ports_failure_scope">Esta conexión no concede acceso al reenvío de puertos.</string>
+    <string name="ports_failure_auth">La sesión del host caducó. Vuelve a conectarte e inténtalo de nuevo.</string>
+    <string name="ports_failure_not_found">Ese reenvío de puerto ya no existe.</string>
+    <string name="ports_failure_input">Introduce un puerto válido entre 1 y 65535.</string>
+    <string name="ports_failure_response">El host devolvió una respuesta de reenvío de puertos no válida.</string>
+    <string name="ports_failure_ambiguous">Es posible que la solicitud se completara. La lista se actualizó.</string>
+    <string name="ports_failure_unavailable">El reenvío de puertos no está disponible en este momento.</string>
+</resources>

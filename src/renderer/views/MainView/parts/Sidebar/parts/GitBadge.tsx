@@ -11,6 +11,7 @@ import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { coalesceByKey } from "@/shared/coalesce";
 import { useShallow } from "zustand/shallow";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   aggregatePrChecksStatus,
   combineChecksStatus,
@@ -66,8 +67,11 @@ export function GitBadge(props: {
    * otherwise). The `projectName` is used as the branch name in its tooltip.
    */
   fallbackToWorktreeIcon?: boolean;
+  /** Inline compact metadata keeps the badge inside its 18px description row. */
+  compact?: boolean;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
   useDraggable({
@@ -187,7 +191,7 @@ export function GitBadge(props: {
             role="button"
             tabIndex={0}
             aria-label={t`Git status for ${props.projectName}: not a Git repository`}
-            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${props.compact ? "poracode-compact-git-badge" : ""} ${
               props.isActive ? activeGitBadgeClass : ""
             }`}
             onClick={(e) => {
@@ -220,7 +224,7 @@ export function GitBadge(props: {
             role="button"
             tabIndex={0}
             aria-label={t`Git status for ${props.projectName}`}
-            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${props.compact ? "poracode-compact-git-badge" : ""} ${
               props.isActive ? activeGitBadgeClass : hiddenGitBadgeClass
             }`}
             onClick={(e) => {
@@ -260,7 +264,7 @@ export function GitBadge(props: {
       aria-label={t`Git status for ${props.projectName}`}
       className={`${gitBadgeButtonClass} ${
         hasChanges ? gitBadgeTextPaddingClass : gitBadgeIconPaddingClass
-      } ${props.isActive ? activeGitBadgeClass : ""}`}
+      } ${props.compact ? "poracode-compact-git-badge" : ""} ${props.isActive ? activeGitBadgeClass : ""}`}
       onClick={(e) => {
         e.stopPropagation();
         props.onPress?.();
@@ -270,7 +274,7 @@ export function GitBadge(props: {
       <span className="flex items-center gap-1 text-[10px] font-medium">
         {hasChanges && (
           <DiffStat
-            animated
+            animated={!compactLayout}
             className="flex items-center gap-0.5"
             insertions={totalInsertions}
             deletions={totalDeletions}

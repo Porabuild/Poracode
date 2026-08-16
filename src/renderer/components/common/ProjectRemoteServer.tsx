@@ -1,4 +1,4 @@
-import { FolderOpen, House, Monitor, Server } from "lucide-react";
+import { FolderOpen, House, Monitor } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
@@ -7,7 +7,7 @@ import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRecord, RemoteServerStatus } from "@/renderer/state/remoteServers/types";
-import { RemoteServerStatusDot } from "./RemoteServerStatusDot";
+import { RemoteServerIcon } from "./RemoteServerIcon";
 import { TuxIcon } from "./TuxIcon";
 
 /** What a surface needs to show that a project lives on another machine. */
@@ -100,16 +100,11 @@ export function ProjectRemoteServerIcon(props: {
   const { info } = props;
   if (!info.isRemote && !info.serverName) return null;
   return (
-    <span className="relative flex shrink-0">
-      <Server className={props.className ?? "size-3 text-muted/60"} />
-      {info.serverName ? (
-        <RemoteServerStatusDot
-          status={info.status ?? "offline"}
-          {...(props.dotClassName ? { sizeClassName: props.dotClassName } : {})}
-          className="absolute -right-0.5 -bottom-0.5"
-        />
-      ) : null}
-    </span>
+    <RemoteServerIcon
+      status={info.serverName ? (info.status ?? "offline") : null}
+      className={props.className ?? "size-3 text-muted/60"}
+      {...(props.dotClassName ? { dotClassName: props.dotClassName } : {})}
+    />
   );
 }
 

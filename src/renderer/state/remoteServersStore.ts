@@ -142,7 +142,14 @@ export function selectBrowserBridgeServer(
   const currentServer = onlineServers.find(
     (server) => server.desktopId === desktopBrowserBridgeServerId,
   );
-  return sameOriginServer ?? currentServer ?? onlineServers[0];
+  return currentServer ?? sameOriginServer ?? onlineServers[0];
+}
+
+/** Explicitly scope browser-backed machine settings and shared remote RPCs. */
+export function selectBrowserBridgeDesktop(desktopId: string): void {
+  desktopBrowserBridgeServerId = desktopId;
+  desktopBrowserBridgeClientKey = null;
+  syncDesktopBrowserBridgeClient(useRemoteServersStore.getState());
 }
 
 function selectBrowserBridgeClientServer(
@@ -533,15 +540,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       };
 
       /** Resolve the paired server and build a client for it, or throw the
-       * shared "not found" error the action callers already surface. */
+       * shared "not found" error the action callers already surface. An
+       * offline runtime is deliberately still probeable: explicit refresh and
+       * retry actions are how a paired server proves it has recovered. */
       const requireClient = (desktopId: string): RemoteDesktopClient => {
         const state = get();
         const server = state.servers.find((entry) => entry.desktopId === desktopId);
         if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-        const status = state.runtime[desktopId]?.status;
-        if (status !== "online" && status !== "error") {
-          throw new RemoteClientError(sharedMsg("remote.server.unreachable"), 0, "offline");
-        }
         return state.clientFactory(server.endpoint, server.accessToken);
       };
 
@@ -551,10 +556,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       ): Promise<Result> => {
         try {
           const result = await invoke(requireClient(desktopId));
-          if (get().runtime[desktopId]?.status === "error") {
+          const status = get().runtime[desktopId]?.status;
+          if (status === "error" || status === "offline") {
             set((state) => {
               const current = state.runtime[desktopId];
-              if (current?.status !== "error") return {};
+              if (current?.status !== "error" && current?.status !== "offline") return {};
               return {
                 runtime: {
                   ...state.runtime,

@@ -5,6 +5,11 @@ import {
   remotePushRegistrationSchema,
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,
+  remoteTerminalCursorSchema,
+  remoteTerminalOutputCursorSyncV1Schema,
+  remoteTerminalWatchResultReadySchema,
+  remoteWebSocketServerMessageSchema,
+  TERMINAL_CURSOR_SYNC_VERSION,
 } from "./protocol";
 
 describe("remote push registrations", () => {
@@ -40,6 +45,65 @@ describe("remote push registrations", () => {
         deviceId: "native-1234",
         platform: "ios",
         webPushSubscription: subscription,
+      }).success,
+    ).toBe(false);
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "native-1234",
+        platform: "ios",
+        routing: {
+          version: 1,
+          clientConnectionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          desktopId: "bad\u0000desktop",
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts complete native push-routing v1 and normalizes its UUID", () => {
+    expect(
+      remotePushRegistrationSchema.parse({
+        deviceId: "native-1234",
+        platform: "ios",
+        routing: {
+          version: 1,
+          clientConnectionId: "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+          desktopId: "desktop-1",
+        },
+      }).routing,
+    ).toEqual({
+      version: 1,
+      clientConnectionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      desktopId: "desktop-1",
+    });
+  });
+
+  it("rejects malformed, incomplete, and web push-routing identities", () => {
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "native-1234",
+        platform: "android",
+        routing: { version: 1, clientConnectionId: "not-a-uuid", desktopId: "desktop-1" },
+      }).success,
+    ).toBe(false);
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "native-1234",
+        platform: "android",
+        routing: { version: 1, desktopId: "desktop-1" },
+      }).success,
+    ).toBe(false);
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "browser-1234",
+        platform: "web",
+        webPushSubscription: subscription,
+        webAppBasePath: "/",
+        routing: {
+          version: 1,
+          clientConnectionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          desktopId: "desktop-1",
+        },
       }).success,
     ).toBe(false);
   });
@@ -189,5 +253,132 @@ describe("remote settings", () => {
         },
       }).agentSettings?.cursor,
     ).toEqual({ structuredRuntime: "acp" });
+  });
+});
+
+describe("remote terminal cursor-sync schemas", () => {
+  const validReady = {
+    status: "ready" as const,
+    generation: "gen-1",
+    fromCursor: 0,
+    toCursor: 5,
+    data: "hello",
+    processState: "running" as const,
+    terminalSize: { cols: 80, rows: 24 },
+  };
+
+  it("accepts ready ranges with matching UTF-16 data length and generation null", () => {
+    expect(remoteTerminalWatchResultReadySchema.parse(validReady)).toEqual(validReady);
+    const nullGen = {
+      ...validReady,
+      generation: null,
+      fromCursor: 10,
+      toCursor: 10,
+      data: "",
+      processState: "exited" as const,
+      terminalSize: null,
+    };
+    expect(remoteTerminalWatchResultReadySchema.parse(nullGen)).toEqual(nullGen);
+
+    const unicode = "a\u{1F600}e\u0301";
+    expect(unicode.length).toBe(5);
+    expect(
+      remoteTerminalWatchResultReadySchema.parse({
+        ...validReady,
+        fromCursor: 100,
+        toCursor: 100 + unicode.length,
+        data: unicode,
+      }).data.length,
+    ).toBe(5);
+  });
+
+  it("rejects reversed, mismatched, fractional, and unsafe cursors on ready results", () => {
+    expect(
+      remoteTerminalWatchResultReadySchema.safeParse({
+        ...validReady,
+        fromCursor: 6,
+        toCursor: 5,
+      }).success,
+    ).toBe(false);
+    expect(
+      remoteTerminalWatchResultReadySchema.safeParse({
+        ...validReady,
+        fromCursor: 0,
+        toCursor: 4,
+        data: "hello",
+      }).success,
+    ).toBe(false);
+    expect(remoteTerminalCursorSchema.safeParse(1.5).success).toBe(false);
+    expect(remoteTerminalCursorSchema.safeParse(-1).success).toBe(false);
+    expect(remoteTerminalCursorSchema.safeParse(Number.MAX_SAFE_INTEGER + 1).success).toBe(false);
+    expect(
+      remoteTerminalWatchResultReadySchema.safeParse({
+        ...validReady,
+        fromCursor: 1.5,
+        toCursor: 6.5,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects reversed/mismatched output cursorSync while preserving legacy frames", () => {
+    expect(
+      remoteTerminalOutputCursorSyncV1Schema.parse({
+        version: TERMINAL_CURSOR_SYNC_VERSION,
+        watchId: "w1",
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 3,
+      }),
+    ).toMatchObject({ fromCursor: 0, toCursor: 3 });
+
+    expect(
+      remoteTerminalOutputCursorSyncV1Schema.safeParse({
+        version: TERMINAL_CURSOR_SYNC_VERSION,
+        watchId: "w1",
+        generation: "g1",
+        fromCursor: 5,
+        toCursor: 3,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      remoteWebSocketServerMessageSchema.safeParse({
+        type: "terminal-output",
+        id: "t1",
+        data: "hi",
+        cursorSync: {
+          version: TERMINAL_CURSOR_SYNC_VERSION,
+          watchId: "w1",
+          generation: "g1",
+          fromCursor: 0,
+          toCursor: 5,
+        },
+      }).success,
+    ).toBe(false);
+
+    const legacy = remoteWebSocketServerMessageSchema.parse({
+      type: "terminal-output",
+      id: "t1",
+      data: "legacy frame",
+    });
+    expect(legacy).toEqual({ type: "terminal-output", id: "t1", data: "legacy frame" });
+    expect(legacy).not.toHaveProperty("cursorSync");
+
+    const matched = remoteWebSocketServerMessageSchema.parse({
+      type: "terminal-output",
+      id: "t1",
+      data: "abc",
+      cursorSync: {
+        version: TERMINAL_CURSOR_SYNC_VERSION,
+        watchId: "w1",
+        generation: "g1",
+        fromCursor: 10,
+        toCursor: 13,
+      },
+    });
+    expect(matched).toMatchObject({
+      data: "abc",
+      cursorSync: { fromCursor: 10, toCursor: 13 },
+    });
   });
 });

@@ -40,7 +40,11 @@ function preventFocusSteal(event: React.MouseEvent<HTMLElement>): void {
   event.preventDefault();
 }
 
-export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; project?: Project }) {
+export function ThreadAuthRequiredDock(props: {
+  agentStatus: AgentStatus;
+  project?: Project;
+  multilineDescription?: boolean;
+}) {
   const { agentStatus, project } = props;
   const { t } = useLingui();
   const isRemote = isRemoteSession();
@@ -137,6 +141,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
         icon={KeyRound}
         iconClassName="text-warning"
         title={t`Sign in required`}
+        {...(props.multilineDescription ? { stackedContent: true } : {})}
         actions={
           <div className="flex shrink-0 items-center gap-1">
             {!isRemote && hasDirectLogin ? (
@@ -176,7 +181,11 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
           </div>
         }
       >
-        <span className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]">
+        <span
+          className={`min-w-0 flex-1 leading-5 text-[color:var(--muted)] ${
+            props.multilineDescription ? "line-clamp-2 whitespace-normal" : "truncate"
+          }`}
+        >
           {agentStatus.label}: {description}
         </span>
       </ThreadDockHeader>

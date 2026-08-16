@@ -25,7 +25,11 @@ export interface LongPressHandlers {
  * the pointer release is swallowed in the capture phase so the hold never
  * also activates links or buttons inside the pressed element. The native
  * touch-hold behavior is suppressed too — otherwise mobile browsers can start
- * text selection or open their own callout before our sheet appears.
+ * text selection or open their own callout before our sheet appears. The
+ * selection guard lives on `document` so it continues to cover a drawer that
+ * mounts beneath the held pointer. Pointer down deliberately stays
+ * uncancelled: React Aria buttons need the native pointer sequence to
+ * synthesize `onPress` for an ordinary tap.
  *
  * Pass `null` to disable: no handlers are attached and the element behaves
  * exactly as before.
@@ -35,6 +39,7 @@ export function useLongPress(onLongPress: (() => void) | null): Partial<LongPres
   const originRef = useRef<{ x: number; y: number } | null>(null);
   const firedRef = useRef(false);
   const onLongPressRef = useRef(onLongPress);
+  const selectionGuardCleanupRef = useRef<(() => void) | null>(null);
 
   useLayoutEffect(() => {
     onLongPressRef.current = onLongPress;
@@ -46,14 +51,10 @@ export function useLongPress(onLongPress: (() => void) | null): Partial<LongPres
     onLongPressRef.current?.();
   };
 
-  useLayoutEffect(
-    () => () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    },
-    [],
-  );
-
-  if (!onLongPress) return {};
+  const clearSelectionGuard = () => {
+    selectionGuardCleanupRef.current?.();
+    selectionGuardCleanupRef.current = null;
+  };
 
   const cancelPending = () => {
     if (timerRef.current !== null) {
@@ -61,7 +62,29 @@ export function useLongPress(onLongPress: (() => void) | null): Partial<LongPres
       timerRef.current = null;
     }
     originRef.current = null;
+    clearSelectionGuard();
   };
+
+  const armSelectionGuard = () => {
+    clearSelectionGuard();
+
+    const preventNativeHold = (event: Event) => event.preventDefault();
+    const finishPointerSequence = () => cancelPending();
+    document.addEventListener("selectstart", preventNativeHold, true);
+    document.addEventListener("contextmenu", preventNativeHold, true);
+    window.addEventListener("pointerup", finishPointerSequence, true);
+    window.addEventListener("pointercancel", finishPointerSequence, true);
+    selectionGuardCleanupRef.current = () => {
+      document.removeEventListener("selectstart", preventNativeHold, true);
+      document.removeEventListener("contextmenu", preventNativeHold, true);
+      window.removeEventListener("pointerup", finishPointerSequence, true);
+      window.removeEventListener("pointercancel", finishPointerSequence, true);
+    };
+  };
+
+  useLayoutEffect(() => () => cancelPending(), []);
+
+  if (!onLongPress) return {};
 
   return {
     onPointerDown: (event) => {
@@ -69,10 +92,8 @@ export function useLongPress(onLongPress: (() => void) | null): Partial<LongPres
         cancelPending();
         return;
       }
-      if (isTouchLikePointer(event.pointerType)) {
-        event.preventDefault();
-      }
       firedRef.current = false;
+      if (isTouchLikePointer(event.pointerType)) armSelectionGuard();
       originRef.current = { x: event.clientX, y: event.clientY };
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(fire, LONG_PRESS_MS);

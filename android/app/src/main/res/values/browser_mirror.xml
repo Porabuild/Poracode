@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">Browser mirror</string>
+    <string name="browser_mirror_back_nav">Back</string>
+    <string name="browser_mirror_create_tab">Create tab</string>
+    <string name="browser_mirror_start">Start mirror</string>
+    <string name="browser_mirror_stop">Stop mirror</string>
+    <string name="browser_mirror_close_tab">Close tab</string>
+    <string name="browser_mirror_selected_tab">Selected tab</string>
+    <string name="browser_mirror_untitled_tab">Untitled tab</string>
+    <string name="browser_mirror_back">Back</string>
+    <string name="browser_mirror_forward">Forward</string>
+    <string name="browser_mirror_reload">Reload</string>
+    <string name="browser_mirror_address">Address</string>
+    <string name="browser_mirror_loading">Loading browser state…</string>
+    <string name="browser_mirror_empty">No browser tabs are open.</string>
+    <string name="browser_mirror_stopped">Browser mirror is stopped.</string>
+    <string name="browser_mirror_starting">Starting browser mirror…</string>
+    <string name="browser_mirror_unavailable">Browser mirror is unavailable.</string>
+    <string name="browser_mirror_waiting_frame">Waiting for the browser image…</string>
+    <string name="browser_mirror_retry">Retry</string>
+    <string name="browser_mirror_no_session">No remote session is selected.</string>
+    <string name="browser_mirror_offline">The remote session is offline.</string>
+    <string name="browser_mirror_not_ready">The remote session is not ready.</string>
+    <string name="browser_mirror_permission_denied">This session does not allow browser control.</string>
+    <string name="browser_mirror_remote_error">Browser mirroring failed.</string>
+    <string name="browser_mirror_refreshing_after_command">The command result is uncertain. Refreshing browser state…</string>
+    <string name="browser_mirror_frame_description">Mirrored browser page</string>
+    <string name="browser_mirror_type_on_page">Type on page</string>
+    <string name="browser_mirror_key_enter">Enter</string>
+    <string name="browser_mirror_key_backspace">Backspace</string>
+    <string name="browser_mirror_key_tab">Tab</string>
+    <string name="browser_mirror_key_escape">Escape</string>
+    <string name="browser_mirror_key_up">Up</string>
+    <string name="browser_mirror_key_down">Down</string>
+    <string name="browser_mirror_key_left">Left</string>
+    <string name="browser_mirror_key_right">Right</string>
+</resources>

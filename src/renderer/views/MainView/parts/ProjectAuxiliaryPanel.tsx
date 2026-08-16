@@ -77,7 +77,11 @@ function scopeFromFilesContext(context: FileEditorRootContext | null): PanelProj
   };
 }
 
-export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible: boolean }) {
+export function ProjectAuxiliaryPanel(props: {
+  includeTerminal: boolean;
+  visible: boolean;
+  onClose?: () => void;
+}) {
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -354,6 +358,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       useDevTerminalStore.getState().closePanel();
     }
     closeAllPanels();
+    props.onClose?.();
   }
 
   function handleCloseSubAgent() {

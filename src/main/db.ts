@@ -53,6 +53,7 @@ export type { PersistedRuntimeItem, PersistedCompletedTurn } from "./db/runtimeI
 
 export {
   dbGetThreadTerminalScrollback,
+  dbGetThreadTerminalScrollbackRecord,
   dbAppendThreadTerminalOutput,
   dbClearThreadTerminalScrollback,
 } from "./db/terminalScrollback";

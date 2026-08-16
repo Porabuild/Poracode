@@ -2,7 +2,8 @@ import { CircleCheck, GitFork, Loader2, Play, Plus, Square, Trash2 } from "lucid
 import { useLingui } from "@lingui/react/macro";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
-import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
+import type { ContextMenuItem } from "@/renderer/components/common/ContextMenu";
+import { ResponsiveContextMenu } from "@/renderer/components/common/ResponsiveContextMenu";
 import { useDragSource, useIsDraggingWorktreeGroup, type DragSourceData } from "@/renderer/dnd";
 import {
   useIsWorktreeFilesPanelActive,
@@ -28,7 +29,11 @@ import {
   stopProjectAction,
 } from "@/renderer/actions/terminalActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
-import { markThreadDone, openNewThreadInWorktree } from "@/renderer/actions/threadActions";
+import {
+  markThreadDone,
+  openNewThreadInWorktree,
+  openThread,
+} from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -116,10 +121,26 @@ export function SidebarWorktreeGroup(props: {
 
   const source = useDragSource();
   const isDragging = useIsDraggingWorktreeGroup(group.worktreePath);
+  const revealCompactProjectPanel = () => {
+    if (!compactLayout) return;
+    const app = useAppStore.getState();
+    const targetThread =
+      group.threads.find((thread) => thread.id === app.focusedPaneId) ?? group.threads[0];
+    if (targetThread) openThread(targetThread.id, { focusComposer: false });
+  };
+  const openWorktreeFiles = () => {
+    openFilesPanel(project.id, group.worktreePath);
+    revealCompactProjectPanel();
+  };
+  const openWorktreeGit = () => {
+    openGitReview(project.id, group.worktreePath);
+    revealCompactProjectPanel();
+  };
 
   return (
     <div ref={ref} className={`relative space-y-0.5 ${isDragging ? "opacity-60" : ""}`}>
-      <ContextMenu
+      <ResponsiveContextMenu
+        label={group.worktreeBranch}
         items={[
           {
             id: "new-thread-in-worktree",
@@ -166,7 +187,7 @@ export function SidebarWorktreeGroup(props: {
                 resolveWorktreeBranch(project.id, group.worktreePath, group.worktreeBranch) ??
                 group.worktreeBranch,
             });
-          if (key === "git-review") openGitReview(project.id, group.worktreePath);
+          if (key === "git-review") openWorktreeGit();
           if (key === "github-actions") useAppStore.getState().openGitHubActions(project.id);
           if (key === "delete-worktree")
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
@@ -185,7 +206,7 @@ export function SidebarWorktreeGroup(props: {
             const pr = useGitStore.getState().prData[group.worktreePath];
             if (pr?.url) void readBridge().openExternal(pr.url);
           }
-          if (key === "create-pr") openGitReview(project.id, group.worktreePath);
+          if (key === "create-pr") openWorktreeGit();
           if (key.startsWith("action:")) {
             runProjectAction(project.id, key.slice("action:".length), group.worktreePath);
           }
@@ -205,8 +226,8 @@ export function SidebarWorktreeGroup(props: {
           isActiveFiles={isActiveFiles}
           isActiveGit={isActiveGit}
           onToggleCollapse={() => toggleWorktreeCollapsed(group.worktreePath)}
-          onOpenFiles={() => openFilesPanel(project.id, group.worktreePath)}
-          onOpenGitReview={() => openGitReview(project.id, group.worktreePath)}
+          onOpenFiles={openWorktreeFiles}
+          onOpenGitReview={openWorktreeGit}
           onOpenTerminal={() => openWorktreeTerminal(project.id, group.worktreePath)}
           onDeleteWorktree={() =>
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds)
@@ -218,7 +239,7 @@ export function SidebarWorktreeGroup(props: {
           {...(collapsedStatusTone !== undefined ? { collapsedStatusTone } : {})}
           {...(props.projectTag !== undefined ? { projectTag: props.projectTag } : {})}
         />
-      </ContextMenu>
+      </ResponsiveContextMenu>
     </div>
   );
 }

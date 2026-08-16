@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 
 /**
  * Filesystem containment used to enforce the Agent Plugins package boundary.
@@ -31,6 +31,27 @@ export function relativePathInside(root: string, target: string): string | undef
 }
 
 /**
+ * Canonicalize a path that may not exist yet by resolving its nearest existing
+ * ancestor and then restoring the missing suffix. This preserves filesystem
+ * aliases (for example macOS `/var` -> `/private/var`) and, critically,
+ * resolves any symlinked ancestor before containment is decided.
+ */
+function realPathThroughExistingAncestor(path: string): string | undefined {
+  const suffix: string[] = [];
+  let cursor = resolve(path);
+  while (true) {
+    try {
+      return resolve(realpathSync.native(cursor), ...suffix.reverse());
+    } catch {
+      const parent = dirname(cursor);
+      if (parent === cursor) return undefined;
+      suffix.push(basename(cursor));
+      cursor = parent;
+    }
+  }
+}
+
+/**
  * Real-path containment. Returns the relative path when `target` resolves inside
  * `root`, or `undefined` when it escapes.
  *
@@ -48,6 +69,15 @@ export function relativePolicyPath(root: string, target: string): string | undef
     );
   } catch {
     // Fall through to the normalized aliases for non-existent paths.
+  }
+
+  try {
+    const realRoot = resolve(realpathSync.native(normalizedRoot));
+    const realTarget = realPathThroughExistingAncestor(normalizedTarget);
+    if (realTarget) return relativePathInside(realRoot, realTarget);
+  } catch {
+    // A configured root may not exist yet; lexical containment remains useful
+    // in that case and is handled below.
   }
   const direct = relativePathInside(normalizedRoot, normalizedTarget);
   if (direct) return direct;

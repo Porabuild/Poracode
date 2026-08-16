@@ -346,6 +346,7 @@ describe("XTermSurface", () => {
         threadId: "test-1",
         data: "hello world",
         outputLength: 11,
+        terminalInstanceId: "gen-test",
       });
     });
     await flushFrame();
@@ -362,6 +363,7 @@ describe("XTermSurface", () => {
         threadId: "other",
         data: "nope",
         outputLength: 4,
+        terminalInstanceId: "gen-test",
       });
     });
     await flushFrame();
@@ -474,6 +476,7 @@ describe("XTermSurface", () => {
         threadId: "test-1",
         data: "after reset",
         outputLength: 11,
+        terminalInstanceId: "gen-test",
       });
     });
     await flushFrame();

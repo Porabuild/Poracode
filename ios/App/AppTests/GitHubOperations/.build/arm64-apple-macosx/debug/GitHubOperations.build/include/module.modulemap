@@ -1,0 +1,3 @@
+module GitHubOperations {
+    header "/Users/svecherenko/work/lightcode/ios/App/AppTests/GitHubOperations/.build/arm64-apple-macosx/debug/GitHubOperations.build/include/GitHubOperations-Swift.h"
+}

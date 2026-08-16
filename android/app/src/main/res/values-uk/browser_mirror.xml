@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">Віддзеркалення браузера</string>
+    <string name="browser_mirror_create_tab">Створити вкладку</string>
+    <string name="browser_mirror_close_tab">Закрити вкладку</string>
+    <string name="browser_mirror_selected_tab">Вибрана вкладка</string>
+    <string name="browser_mirror_untitled_tab">Вкладка без назви</string>
+    <string name="browser_mirror_back">Назад</string>
+    <string name="browser_mirror_forward">Уперед</string>
+    <string name="browser_mirror_reload">Оновити</string>
+    <string name="browser_mirror_address">Адреса</string>
+    <string name="browser_mirror_loading">Завантаження стану браузера…</string>
+    <string name="browser_mirror_starting">Запуск віддзеркалення браузера…</string>
+    <string name="browser_mirror_unavailable">Віддзеркалення браузера недоступне.</string>
+    <string name="browser_mirror_waiting_frame">Очікування зображення браузера…</string>
+    <string name="browser_mirror_retry">Повторити</string>
+    <string name="browser_mirror_no_session">Віддалений сеанс не вибрано.</string>
+    <string name="browser_mirror_offline">Віддалений сеанс не в мережі.</string>
+    <string name="browser_mirror_not_ready">Віддалений сеанс не готовий.</string>
+    <string name="browser_mirror_permission_denied">Цей сеанс не дозволяє керувати браузером.</string>
+    <string name="browser_mirror_remote_error">Не вдалося віддзеркалити браузер.</string>
+    <string name="browser_mirror_refreshing_after_command">Результат команди невідомий. Стан браузера оновлюється…</string>
+    <string name="browser_mirror_frame_description">Віддзеркалена сторінка браузера</string>
+    <string name="browser_mirror_type_on_page">Введіть текст на сторінці</string>
+    <string name="browser_mirror_key_enter">Enter</string>
+    <string name="browser_mirror_key_backspace">Backspace</string>
+    <string name="browser_mirror_key_tab">Tab</string>
+    <string name="browser_mirror_key_escape">Escape</string>
+    <string name="browser_mirror_key_up">Угору</string>
+    <string name="browser_mirror_key_down">Униз</string>
+    <string name="browser_mirror_key_left">Ліворуч</string>
+    <string name="browser_mirror_key_right">Праворуч</string>
+    <string name="browser_mirror_back_nav">Назад</string>
+    <string name="browser_mirror_start">Запустити віддзеркалення</string>
+    <string name="browser_mirror_stop">Зупинити віддзеркалення</string>
+    <string name="browser_mirror_empty">Відкритих вкладок браузера немає.</string>
+    <string name="browser_mirror_stopped">Віддзеркалення браузера зупинено.</string>
+</resources>

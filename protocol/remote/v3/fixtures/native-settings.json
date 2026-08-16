@@ -1,0 +1,174 @@
+{
+  "statsRequest": {
+    "utcOffsetMinutes": -420,
+    "scope": "device",
+    "window": "7d"
+  },
+  "agentStatuses": {
+    "updatedAt": "2026-08-12T12:00:00.000Z",
+    "windows": [],
+    "wsl": [],
+    "futureTopLevel": "strip-me"
+  },
+  "providerUsage": {
+    "snapshots": [],
+    "fromCache": false
+  },
+  "profileDevices": {
+    "devices": [
+      {
+        "id": "device-1",
+        "label": "Fixture Host",
+        "platform": "darwin",
+        "isCurrent": true
+      }
+    ],
+    "currentDeviceId": "device-1"
+  },
+  "profileCoreStats": {
+    "scope": "device",
+    "device": {
+      "id": "device-1",
+      "label": "Fixture Host",
+      "platform": "darwin",
+      "isCurrent": true
+    },
+    "generatedAt": 1786555200000,
+    "timezoneOffsetMinutes": -420,
+    "identity": {
+      "name": "Fixture User",
+      "handle": "fixture",
+      "avatarColor": "#663399"
+    },
+    "totals": {
+      "totalThreads": 1,
+      "totalPrompts": 2,
+      "messagesSent": 2,
+      "goalsSet": 0,
+      "longestTaskMs": 1000,
+      "currentStreakDays": 1,
+      "longestStreakDays": 1,
+      "activeDays": 1
+    },
+    "promptHeatmap": {
+      "metric": "prompts",
+      "windowDays": 7,
+      "cells": [],
+      "max": 0
+    },
+    "insights": {
+      "fastModePercent": 0,
+      "skillsExplored": 0,
+      "totalSkillsUsed": 0,
+      "workflowRuns": 0,
+      "subagentRuns": 0,
+      "mcpToolCalls": 0
+    },
+    "providers": [],
+    "accounts": [],
+    "models": [],
+    "modes": [],
+    "skills": [],
+    "mcps": [],
+    "aiActions": [],
+    "availableAccounts": []
+  },
+  "profileTokenStats": {
+    "available": false,
+    "scope": "device",
+    "device": {
+      "id": "device-1",
+      "label": "Fixture Host",
+      "platform": "darwin"
+    },
+    "generatedAt": 1786555200000,
+    "timezoneOffsetMinutes": -420,
+    "windowDays": 7,
+    "lifetimeTokens": 0,
+    "peakDayTokens": 0,
+    "providers": [],
+    "accounts": [],
+    "models": [],
+    "tokenHeatmap": {
+      "metric": "tokens",
+      "windowDays": 7,
+      "cells": [],
+      "max": 0
+    },
+    "unavailableProviders": []
+  },
+  "profileIdentityRequest": {
+    "name": "Fixture User",
+    "handle": "fixture",
+    "avatarColor": "#663399"
+  },
+  "profileIdentityResponse": {
+    "identity": {
+      "name": "Fixture User",
+      "handle": "fixture",
+      "avatarColor": "#663399"
+    },
+    "device": {
+      "id": "device-1",
+      "label": "Fixture Host",
+      "platform": "darwin"
+    }
+  },
+  "settingsPatch": {
+    "titleGenFast": true,
+    "agentSettings": {
+      "cursor": {
+        "structuredRuntime": "acp",
+        "sdkApiKey": "fixture-secret-never-surface"
+      }
+    }
+  },
+  "settingsResponse": {
+    "settings": {
+      "agentSettings": {
+        "cursor": {
+          "structuredRuntime": "acp",
+          "sdkApiKey": "fixture-secret-never-surface"
+        }
+      },
+      "hiddenModels": {},
+      "disabledAgents": [],
+      "providerOrder": [],
+      "enabledMcpServers": {
+        "crossagents": true
+      },
+      "disabledBuiltInMcpServers": {},
+      "titleGenProvider": "auto",
+      "titleGenModel": "",
+      "titleGenEffort": "",
+      "titleGenFast": false,
+      "commitGenProvider": "auto",
+      "commitGenModel": "",
+      "commitGenEffort": "",
+      "commitGenFast": false,
+      "conflictResolverProvider": "auto",
+      "conflictResolverModel": "",
+      "conflictResolverEffort": "",
+      "conflictResolverFast": false,
+      "conflictResolverPresentationMode": "gui",
+      "wslTitleGenProvider": "auto",
+      "wslTitleGenModel": "",
+      "wslTitleGenEffort": "",
+      "wslTitleGenFast": false,
+      "wslCommitGenProvider": "auto",
+      "wslCommitGenModel": "",
+      "wslCommitGenEffort": "",
+      "wslCommitGenFast": false,
+      "wslConflictResolverProvider": "auto",
+      "wslConflictResolverModel": "",
+      "wslConflictResolverEffort": "",
+      "wslConflictResolverFast": false,
+      "wslConflictResolverPresentationMode": "gui",
+      "worktreeStorageMode": "global",
+      "worktreeBasePath": "",
+      "wslWorktreeBasePath": "",
+      "prAutomationDefault": "off",
+      "prMergeMethod": "squash"
+    }
+  }
+}

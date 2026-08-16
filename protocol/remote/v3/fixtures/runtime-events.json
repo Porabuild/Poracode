@@ -1,0 +1,122 @@
+[
+  {
+    "type": "session.started",
+    "threadId": "thread-fixture-001",
+    "turnId": "turn-fixture-001"
+  },
+  {
+    "type": "session.exited",
+    "threadId": "thread-fixture-001",
+    "reason": "completed"
+  },
+  {
+    "type": "turn.started",
+    "threadId": "thread-fixture-001",
+    "turnId": "turn-fixture-001"
+  },
+  {
+    "type": "turn.completed",
+    "threadId": "thread-fixture-001",
+    "turnId": "turn-fixture-001",
+    "state": "completed"
+  },
+  {
+    "type": "turn.completed",
+    "threadId": "thread-fixture-001",
+    "turnId": "turn-fixture-failed",
+    "state": "failed"
+  },
+  {
+    "type": "item.started",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-assistant",
+    "itemType": "assistant_message",
+    "payload": {
+      "content": []
+    }
+  },
+  {
+    "type": "item.updated",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-assistant",
+    "payload": {
+      "content": [
+        {
+          "kind": "text",
+          "text": "Fixture"
+        }
+      ]
+    }
+  },
+  {
+    "type": "item.completed",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-assistant",
+    "payload": {
+      "content": [
+        {
+          "kind": "text",
+          "text": "Fixture response"
+        }
+      ]
+    }
+  },
+  {
+    "type": "content.delta",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-assistant",
+    "stream": "assistant_text",
+    "delta": "Fixture response"
+  },
+  {
+    "type": "context.updated",
+    "threadId": "thread-fixture-001",
+    "usage": {
+      "usedTokens": 128,
+      "maxTokens": 8192
+    }
+  },
+  {
+    "type": "usage.spent",
+    "threadId": "thread-fixture-001",
+    "usage": {
+      "counterKind": "per-call",
+      "counter": 128,
+      "scopeId": "provider-session-fixture-001",
+      "epoch": 0,
+      "sampleId": "usage-fixture-001",
+      "turnId": "turn-fixture-001"
+    }
+  },
+  {
+    "type": "request.opened",
+    "threadId": "thread-fixture-001",
+    "requestId": "request-fixture-001",
+    "requestType": "command_execution_approval",
+    "payload": {
+      "summary": "Allow the fixture command?",
+      "details": {
+        "toolName": "shell",
+        "input": {
+          "command": "echo fixture"
+        }
+      }
+    }
+  },
+  {
+    "type": "request.resolved",
+    "threadId": "thread-fixture-001",
+    "requestId": "request-fixture-001",
+    "outcome": "accepted"
+  },
+  {
+    "type": "warning",
+    "threadId": "thread-fixture-001",
+    "message": "Fixture warning"
+  },
+  {
+    "type": "error",
+    "threadId": "thread-fixture-001",
+    "message": "Fixture error"
+  }
+]

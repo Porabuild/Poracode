@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">Browser-Spiegelung</string>
+    <string name="browser_mirror_create_tab">Tab erstellen</string>
+    <string name="browser_mirror_close_tab">Tab schließen</string>
+    <string name="browser_mirror_selected_tab">Ausgewählter Tab</string>
+    <string name="browser_mirror_untitled_tab">Unbenannter Tab</string>
+    <string name="browser_mirror_back">Zurück</string>
+    <string name="browser_mirror_forward">Vor</string>
+    <string name="browser_mirror_reload">Neu laden</string>
+    <string name="browser_mirror_address">Adresse</string>
+    <string name="browser_mirror_loading">Browserstatus wird geladen…</string>
+    <string name="browser_mirror_starting">Browser-Spiegelung wird gestartet…</string>
+    <string name="browser_mirror_unavailable">Die Browser-Spiegelung ist nicht verfügbar.</string>
+    <string name="browser_mirror_waiting_frame">Warten auf das Browserbild…</string>
+    <string name="browser_mirror_retry">Erneut versuchen</string>
+    <string name="browser_mirror_no_session">Keine Remote-Sitzung ausgewählt.</string>
+    <string name="browser_mirror_offline">Die Remote-Sitzung ist offline.</string>
+    <string name="browser_mirror_not_ready">Die Remote-Sitzung ist nicht bereit.</string>
+    <string name="browser_mirror_permission_denied">Diese Sitzung erlaubt keine Browsersteuerung.</string>
+    <string name="browser_mirror_remote_error">Die Browser-Spiegelung ist fehlgeschlagen.</string>
+    <string name="browser_mirror_refreshing_after_command">Das Befehlsergebnis ist ungewiss. Browserstatus wird aktualisiert…</string>
+    <string name="browser_mirror_frame_description">Gespiegelte Browserseite</string>
+    <string name="browser_mirror_type_on_page">Auf der Seite eingeben</string>
+    <string name="browser_mirror_key_enter">Eingabe</string>
+    <string name="browser_mirror_key_backspace">Rücktaste</string>
+    <string name="browser_mirror_key_tab">Tabulator</string>
+    <string name="browser_mirror_key_escape">Escape</string>
+    <string name="browser_mirror_key_up">Nach oben</string>
+    <string name="browser_mirror_key_down">Nach unten</string>
+    <string name="browser_mirror_key_left">Nach links</string>
+    <string name="browser_mirror_key_right">Nach rechts</string>
+    <string name="browser_mirror_back_nav">Zurück</string>
+    <string name="browser_mirror_start">Spiegelung starten</string>
+    <string name="browser_mirror_stop">Spiegelung stoppen</string>
+    <string name="browser_mirror_empty">Es sind keine Browser-Tabs geöffnet.</string>
+    <string name="browser_mirror_stopped">Die Browser-Spiegelung ist gestoppt.</string>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Thao tác luồng</string>
+    <string name="thread_lifecycle_rename">Đổi tên</string>
+    <string name="thread_lifecycle_rename_prompt">Tiêu đề luồng mới</string>
+    <string name="thread_lifecycle_relaunch">Khởi chạy lại</string>
+    <string name="thread_lifecycle_relaunch_prompt">Tác nhân nên làm gì tiếp theo?</string>
+    <string name="thread_lifecycle_pin">Ghim</string>
+    <string name="thread_lifecycle_unpin">Bỏ ghim</string>
+    <string name="thread_lifecycle_done">Đánh dấu hoàn tất</string>
+    <string name="thread_lifecycle_not_done">Đánh dấu chưa hoàn tất</string>
+    <string name="thread_lifecycle_acknowledge">Xác nhận</string>
+    <string name="thread_lifecycle_archive">Lưu trữ</string>
+    <string name="thread_lifecycle_unarchive">Bỏ lưu trữ</string>
+    <string name="thread_lifecycle_delete">Xóa</string>
+    <string name="thread_lifecycle_cancel">Hủy</string>
+    <string name="thread_lifecycle_submit">Gửi</string>
+    <string name="thread_lifecycle_archive_confirmation">Lưu trữ luồng này?</string>
+    <string name="thread_lifecycle_delete_confirmation">Xóa vĩnh viễn luồng này?</string>
+    <string name="thread_lifecycle_failed">Thao tác luồng thất bại</string>
+    <string name="thread_lifecycle_close">Đóng</string>
+    <string name="thread_lifecycle_failure_ambiguous">Chưa xác định được kết quả. Danh sách luồng đang được làm mới.</string>
+    <string name="thread_lifecycle_failure_generic">Không thể hoàn tất thao tác luồng. Hãy làm mới danh sách và thử lại.</string>
+</resources>

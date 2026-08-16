@@ -26,7 +26,6 @@ import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 import { ThreadToolRail } from "./ThreadToolRail";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { CompactThreadWorkspaceBar } from "./CompactThreadWorkspaceBar";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -277,7 +276,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       <div
         ref={droppableRef}
         data-poracode-thread-pane=""
-        className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative h-full ${isDragging ? "opacity-50" : ""}`}
+        className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {dropIndicator === "replace" && (
           <div
@@ -458,10 +457,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             </div>
           </div>
         </div>
-
-        {compactLayout && !awaitingWorktree ? (
-          <CompactThreadWorkspaceBar thread={thread} projectLabel={projectName ?? ""} />
-        ) : null}
 
         <div className={contentShellClass}>
           <div className={contentBodyClass}>

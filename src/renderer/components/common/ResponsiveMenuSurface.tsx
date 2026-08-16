@@ -1,21 +1,12 @@
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
-import { Modal, Popover, useMediaQuery } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
+import type { ComponentProps, ReactNode } from "react";
+import { Popover, useMediaQuery } from "@heroui/react";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isRemoteSession } from "@/renderer/bridge";
-import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
-import { lockMobileSheetViewport } from "./mobileSheetViewportLock";
+import { BottomSheet } from "./BottomSheet";
 
 /** The placement union HeroUI's popover accepts, derived from the component. */
 type Placement = ComponentProps<typeof Popover.Content>["placement"];
 
-/**
- * How long the drawer's slide-out runs before it unmounts. Must match the
- * `m-sheet-out` / `m-sheet-backdrop-out` animation duration in
- * `src/renderer/styles.css`. The timer — not `animationend` — drives the unmount so it
- * still fires under reduced motion, where the animation is disabled.
- */
-const SHEET_EXIT_MS = 200;
 const DESKTOP_POINTER_QUERY = "(min-width: 768px) and (hover: hover) and (pointer: fine)";
 
 function useCompactMenuSurface(): boolean {
@@ -52,88 +43,14 @@ export function ResponsiveMenuSurface(props: {
   readonly contentClassName?: string;
   /** Desktop `Popover.Dialog` className. */
   readonly dialogClassName?: string;
+  /** Additional class for the compact bottom sheet. */
+  readonly sheetClassName?: string;
   /** Applied to `Popover.Trigger` (desktop) / the trigger wrapper (mobile). */
   readonly triggerClassName?: string;
 }) {
-  const { t } = useLingui();
   const mobile = useCompactMenuSurface();
-
-  // Keep the drawer mounted through its slide-out. `rendered` stays true for
-  // SHEET_EXIT_MS after `isOpen` goes false; `closing` toggles `data-closing`
-  // so the CSS exit keyframes run before React unmounts the portal (without
-  // this, closing the drawer unmounts it synchronously and no animation plays).
-  const [rendered, setRendered] = useState(props.isOpen);
-  const [closing, setClosing] = useState(false);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openerRef = useRef<HTMLElement | null>(null);
-  const { sheetRef, expanded, dragging, grabberHandlers } = useSheetGrabber({
-    expandable: true,
-    closing,
-    onClose: () => props.onOpenChange(false),
-    resetOnOpen: mobile && props.isOpen,
-  });
-  const body =
-    typeof props.children === "function"
-      ? props.children({ expanded: mobile ? expanded : false })
-      : props.children;
-  const mobilePortalTarget = mobile
-    ? (document.querySelector<HTMLElement>(".poracode-shell") ??
-      document.querySelector<HTMLElement>(".m-shell") ??
-      document.body)
-    : null;
-
-  useEffect(() => {
-    if (!mobile) return;
-    if (props.isOpen) {
-      if (!rendered) {
-        openerRef.current =
-          document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      }
-      if (exitTimer.current) {
-        clearTimeout(exitTimer.current);
-        exitTimer.current = null;
-      }
-      setClosing(false);
-      setRendered(true);
-    } else if (rendered && !exitTimer.current) {
-      setClosing(true);
-      exitTimer.current = setTimeout(() => {
-        exitTimer.current = null;
-        setClosing(false);
-        setRendered(false);
-      }, SHEET_EXIT_MS);
-    }
-    return () => {
-      if (exitTimer.current) {
-        clearTimeout(exitTimer.current);
-        exitTimer.current = null;
-      }
-    };
-  }, [mobile, props.isOpen, rendered]);
-
-  useEffect(() => {
-    if (rendered || !mobile) return;
-    const opener = openerRef.current;
-    openerRef.current = null;
-    requestAnimationFrame(() => {
-      if (opener?.isConnected) opener.focus();
-    });
-  }, [mobile, rendered]);
-
-  // iOS can pan the layout document when an input inside a fixed sheet gains
-  // focus. Blur before the sheet disappears, then keep restoring the opening
-  // offset while the keyboard's delayed dismissal geometry settles.
-  useEffect(() => {
-    if (!mobile || !props.isOpen) return;
-    const unlockViewport = lockMobileSheetViewport();
-    return () => {
-      const activeElement = document.activeElement;
-      if (activeElement instanceof HTMLElement && activeElement.closest(".m-sheet-backdrop")) {
-        activeElement.blur();
-      }
-      unlockViewport();
-    };
-  }, [mobile, props.isOpen]);
+  const desktopBody =
+    typeof props.children === "function" ? props.children({ expanded: false }) : props.children;
 
   if (!mobile) {
     return (
@@ -149,7 +66,7 @@ export function ResponsiveMenuSurface(props: {
             <Popover.Dialog
               {...(props.dialogClassName ? { className: props.dialogClassName } : {})}
             >
-              {body}
+              {desktopBody}
             </Popover.Dialog>
           </Popover.Content>
         ) : null}
@@ -164,39 +81,23 @@ export function ResponsiveMenuSurface(props: {
       ) : (
         props.trigger
       )}
-      {rendered && mobilePortalTarget ? (
-        // Portal to the top-level mobile shell, outside the transformed
-        // composer. Keeping the sheet in the page compositor preserves
-        // Safari's transparent floating toolbar; tests/non-shell consumers
-        // fall back to <body> above.
-        <Modal.Backdrop
-          isOpen={rendered}
-          className="m-sheet-backdrop"
-          data-closing={closing || undefined}
-          UNSTABLE_portalContainer={mobilePortalTarget}
-          onOpenChange={(open) => {
-            if (!open) props.onOpenChange(false);
-          }}
-        >
-          <Modal.Container className="contents">
-            <Modal.Dialog className="contents" aria-label={props.label}>
-              <div
-                ref={sheetRef}
-                className="m-sheet"
-                data-expanded={expanded || undefined}
-                data-dragging={dragging || undefined}
-              >
-                <Modal.CloseTrigger aria-label={t`Close`} className="sr-only" />
-                <SheetGrabber handlers={grabberHandlers} />
-                <div className="m-sheet-head">
-                  <span className="truncate">{props.label}</span>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col">{body}</div>
-              </div>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      ) : null}
+      <BottomSheet
+        isOpen={props.isOpen}
+        label={props.label}
+        {...(props.sheetClassName ? { sheetClassName: props.sheetClassName } : {})}
+        onClose={() => props.onOpenChange(false)}
+      >
+        {({ expanded }) => (
+          <>
+            <div className="m-sheet-head">
+              <span className="truncate">{props.label}</span>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              {typeof props.children === "function" ? props.children({ expanded }) : props.children}
+            </div>
+          </>
+        )}
+      </BottomSheet>
     </>
   );
 }

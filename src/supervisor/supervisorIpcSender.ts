@@ -94,8 +94,15 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     if (this.failed) return;
     const pending = this.pendingTerminalOutput.get(event.threadId);
     if (pending) {
-      pending.data += event.data;
-      pending.outputLength = event.outputLength;
+      // Never coalesce across terminal generations — a restart must not splice
+      // old instance bytes onto a new cursor space.
+      if (pending.terminalInstanceId !== event.terminalInstanceId) {
+        this.flushTerminalOutputForThread(event.threadId);
+        this.pendingTerminalOutput.set(event.threadId, { ...event });
+      } else {
+        pending.data += event.data;
+        pending.outputLength = event.outputLength;
+      }
     } else {
       this.pendingTerminalOutput.set(event.threadId, { ...event });
     }
@@ -110,6 +117,13 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       this.terminalTimer = setTimeout(() => this.flushTerminalOutput(), TERMINAL_OUTPUT_BATCH_MS);
       this.terminalTimer.unref?.();
     }
+  }
+
+  private flushTerminalOutputForThread(threadId: string): void {
+    const pending = this.pendingTerminalOutput.get(threadId);
+    if (!pending) return;
+    this.pendingTerminalOutput.delete(threadId);
+    this.enqueue(pending);
   }
 
   private flushTerminalOutput(): void {

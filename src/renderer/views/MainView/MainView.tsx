@@ -21,6 +21,8 @@ import { useRightPanelThreadLock } from "@/renderer/hooks/useRightPanelThreadLoc
 import { useThreadLifecycle } from "@/renderer/hooks/useThreadLifecycle";
 import { useDndHandlers } from "@/renderer/hooks/useDndHandlers";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { usePanelStore } from "@/renderer/state/panelStore";
 
 import { AppOverlays } from "@/renderer/views/MainView/parts/AppOverlays";
 import { WorktreeDeleteDialogs } from "@/renderer/views/MainView/parts/WorktreeDeleteDialogs";
@@ -31,6 +33,8 @@ import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/Bro
 import { ThreadSearchOverlayHost } from "@/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay";
 import { ThreadLiveWorkflowTracker } from "@/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile";
 import { RendererRuntimeDiagnosticContextSync } from "@/renderer/diagnostics/runtimeContext";
+import { MobileTopLevelPage } from "./parts/MobileTopLevelPage";
+import { useMobilePageHistory } from "./parts/mobilePageHistory";
 
 function findMissingWslDistro(distros: readonly string[], statuses: readonly AgentStatus[]) {
   const cachedDistros = new Set(
@@ -51,6 +55,16 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
   const [browserConnectionChecked, setBrowserConnectionChecked] = useState(
     () => !isBrowserClientRuntime(),
   );
+  const compactLayout = useCompactLayout();
+  const mobilePage = usePanelStore((state) => state.mobileUtilityPage);
+  const mobileTopLevelPage =
+    compactLayout &&
+    (mobilePage === "settings" ||
+      mobilePage === "githubActions" ||
+      mobilePage === "projectSettings" ||
+      mobilePage === "workspace");
+
+  useMobilePageHistory(compactLayout);
 
   useThreadLifecycle(storeHydrated && runtimeSnapshotsReady);
   useKeyboardShortcuts();
@@ -136,26 +150,30 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
   return (
     <>
       <RendererRuntimeDiagnosticContextSync />
-      <BrowserRemoteConnectionGate
-        allowOffline
-        checkingConnection={!browserConnectionChecked}
-        fallback={<BrowserConnectionPage />}
-      >
-        <AppDndProvider
-          onSidebarSortEnd={handleSortEnd}
-          onPaneDrop={handlePaneDrop}
-          onMainPanelDrop={handleMainPanelDrop}
-          onPanelDockDrop={handlePanelDockDrop}
-          paneLayout={
-            view.kind === "thread"
-              ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))
-              : buildPaneLayoutFromLegacy(["__placeholder__"])
-          }
+      {mobileTopLevelPage ? (
+        <MobileTopLevelPage />
+      ) : (
+        <BrowserRemoteConnectionGate
+          allowOffline
+          checkingConnection={!browserConnectionChecked}
+          fallback={<BrowserConnectionPage />}
         >
-          <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
-          <ThreadSearchOverlayHost />
-        </AppDndProvider>
-      </BrowserRemoteConnectionGate>
+          <AppDndProvider
+            onSidebarSortEnd={handleSortEnd}
+            onPaneDrop={handlePaneDrop}
+            onMainPanelDrop={handleMainPanelDrop}
+            onPanelDockDrop={handlePanelDockDrop}
+            paneLayout={
+              view.kind === "thread"
+                ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))
+                : buildPaneLayoutFromLegacy(["__placeholder__"])
+            }
+          >
+            <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
+            <ThreadSearchOverlayHost />
+          </AppDndProvider>
+        </BrowserRemoteConnectionGate>
+      )}
       <StalePanelCleanup />
       <AppOverlays />
       <WorktreeDeleteDialogs />

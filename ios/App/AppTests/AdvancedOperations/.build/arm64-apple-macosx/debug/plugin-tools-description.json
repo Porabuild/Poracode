@@ -1,0 +1,2376 @@
+{
+  "builtTestProducts": [
+    {
+      "binaryPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.xctest/Contents/MacOS/AdvancedOperationsIsolationPackageTests",
+      "packagePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations",
+      "productName": "AdvancedOperationsIsolationPackageTests"
+    }
+  ],
+  "copyCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolation_AdvancedOperations.bundle/AdvancedOperations.xcstrings": {
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperations.xcstrings"
+        }
+      ],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolation_AdvancedOperations.bundle/AdvancedOperations.xcstrings"
+        }
+      ]
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolation_AdvancedOperations.bundle/Info.plist": {
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Info.plist"
+        }
+      ],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolation_AdvancedOperations.bundle/Info.plist"
+        }
+      ]
+    }
+  },
+  "explicitTargetDependencyImportCheckingMode": {
+    "none": {}
+  },
+  "generatedSourceTargetSet": [],
+  "pluginDescriptions": [],
+  "swiftCommands": {
+    "C.AdvancedOperations-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ClientConnectionID.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedJSONValue.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationDraft.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationFormView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcome.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcomeView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOwnership.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationProcedure.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRedaction.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequest.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequestModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationResults.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationSegmentDraft.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsChrome.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsComposition.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsController.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFailureStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFormFields.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInputParsing.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInteraction.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsPresentation.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsRequestBuilder.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreen.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreenModel.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSelectionSource.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionComposition.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedSegmentsSection.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Metadata001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models009.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models010.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models011.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models012.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models013.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models014.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models015.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models016.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models017.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models018.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models019.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models020.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models021.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models022.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models023.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models024.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models025.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models026.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models027.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Runtime.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/HarnessShims.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/JSONDecoding.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectDomain.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectSettingsModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/RemoteMutationClassification.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHTTPClient.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHostTransportSource.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteTransport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteV3Contract.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/SelectedAdvancedOperationsGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "virtual",
+          "name": "<AdvancedOperations-arm64-apple-macosx-debug.module-resources>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "AdvancedOperations",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperations.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ClientConnectionID.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedJSONValue.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationDraft.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationFormView.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOutcome.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOutcomeView.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOwnership.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationProcedure.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRedaction.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRequest.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRequestModels.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationResults.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationSegmentDraft.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsChrome.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsComposition.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsController.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsFailureStrings.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsFormFields.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsGateway.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsInputParsing.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsInteraction.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsPresentation.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRequestBuilder.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsScreen.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsScreenModel.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSelectionSource.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSessionComposition.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSessionView.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsStrings.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedSegmentsSection.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Metadata001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models004.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models005.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models006.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models007.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models008.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models009.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models010.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models011.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models012.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models013.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models014.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models015.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models016.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models017.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models018.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models019.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models020.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models021.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models022.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models023.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models024.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models025.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models026.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models027.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Runtime.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation001.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation002.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation003.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation004.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation005.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation006.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation007.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation008.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/HarnessShims.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/JSONDecoding.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ProjectDomain.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ProjectSettingsModels.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RemoteMutationClassification.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsHTTPClient.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsHostTransportSource.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRemoteTransport.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRemoteV3Contract.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/SelectedAdvancedOperationsGateway.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/include/AdvancedOperations-Swift.h",
+        "-swift-version",
+        "6",
+        "-strict-concurrency=complete",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-target",
+        "arm64-apple-ios26.5-simulator",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "advancedoperations"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ClientConnectionID.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedJSONValue.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationDraft.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationFormView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOutcome.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOutcomeView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOwnership.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationProcedure.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRedaction.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRequest.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRequestModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationResults.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationSegmentDraft.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsChrome.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsComposition.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsController.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsFailureStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsFormFields.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsInputParsing.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsInteraction.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsPresentation.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRequestBuilder.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsScreen.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsScreenModel.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSelectionSource.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSessionComposition.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSessionView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedSegmentsSection.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Metadata001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models009.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models010.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models011.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models012.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models013.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models014.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models015.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models016.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models017.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models018.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models019.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models020.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models021.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models022.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models023.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models024.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models025.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models026.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models027.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Runtime.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/HarnessShims.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/JSONDecoding.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ProjectDomain.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ProjectSettingsModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RemoteMutationClassification.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsHTTPClient.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsHostTransportSource.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRemoteTransport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRemoteV3Contract.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/SelectedAdvancedOperationsGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperations.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ClientConnectionID.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedJSONValue.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationDraft.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationFormView.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcome.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcomeView.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOwnership.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationProcedure.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRedaction.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequest.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequestModels.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationResults.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationSegmentDraft.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsChrome.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsComposition.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsController.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFailureStrings.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFormFields.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsGateway.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInputParsing.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInteraction.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsPresentation.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsRequestBuilder.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreen.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreenModel.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSelectionSource.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionComposition.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionView.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsStrings.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedSegmentsSection.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Metadata001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models004.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models005.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models006.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models007.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models008.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models009.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models010.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models011.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models012.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models013.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models014.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models015.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models016.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models017.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models018.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models019.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models020.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models021.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models022.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models023.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models024.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models025.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models026.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models027.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Runtime.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation001.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation002.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation003.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation004.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation005.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation006.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation007.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation008.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/HarnessShims.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/JSONDecoding.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectDomain.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectSettingsModels.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/RemoteMutationClassification.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHTTPClient.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHostTransportSource.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteTransport.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteV3Contract.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/SelectedAdvancedOperationsGateway.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/DerivedSources/resource_bundle_accessor.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build",
+      "wholeModuleOptimization": false
+    },
+    "C.AdvancedOperationsIsolationPackageTests-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperationsTests.swiftmodule"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "AdvancedOperationsIsolationPackageTests",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperationsIsolationPackageTests.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/include/AdvancedOperationsIsolationPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-target",
+        "arm64-apple-ios26.5-simulator",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "advancedoperations"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperationsIsolationPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build",
+      "wholeModuleOptimization": false
+    },
+    "C.AdvancedOperationsTests-arm64-apple-macosx-debug.module": {
+      "executable": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/sources",
+      "importPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules",
+      "inputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsCatalogTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsContractTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsControllerTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsFormTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsOutcomeTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsPresentationTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsQualityGatesTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsScreenModelTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsSourceGateTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTransportTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsUITestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/SelectedAdvancedOperationsGatewayTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperations.swiftmodule"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/sources"
+        }
+      ],
+      "isLibrary": true,
+      "moduleName": "AdvancedOperationsTests",
+      "moduleOutputPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperationsTests.swiftmodule",
+      "objects": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.swift.o",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.swift.o"
+      ],
+      "otherArguments": [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j18",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-strict-concurrency=complete",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-target",
+        "arm64-apple-ios26.5-simulator",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "advancedoperations"
+      ],
+      "outputFileMapPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/output-file-map.json",
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules/AdvancedOperationsTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing": false,
+      "sources": [
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsCatalogTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsContractTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsControllerTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsFormTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsOutcomeTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsPresentationTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsQualityGatesTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsScreenModelTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsSourceGateTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTestSupport.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTransportTests.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsUITestSupport.swift",
+        "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/SelectedAdvancedOperationsGatewayTests.swift"
+      ],
+      "tempsPath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build",
+      "wholeModuleOptimization": false
+    }
+  },
+  "swiftFrontendCommands": {},
+  "swiftTargetScanArgs": {
+    "AdvancedOperations": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AdvancedOperations",
+      "-package-name",
+      "advancedoperations",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ClientConnectionID.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedJSONValue.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationDraft.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationFormView.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcome.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcomeView.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOwnership.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationProcedure.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRedaction.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequest.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequestModels.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationResults.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationSegmentDraft.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsChrome.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsComposition.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsController.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFailureStrings.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFormFields.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsGateway.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInputParsing.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInteraction.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsPresentation.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsRequestBuilder.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreen.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreenModel.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSelectionSource.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionComposition.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionView.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsStrings.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedSegmentsSection.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Metadata001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models004.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models005.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models006.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models007.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models008.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models009.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models010.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models011.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models012.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models013.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models014.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models015.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models016.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models017.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models018.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models019.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models020.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models021.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models022.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models023.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models024.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models025.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models026.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models027.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Runtime.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation001.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation002.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation003.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation004.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation005.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation006.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation007.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation008.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/HarnessShims.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/JSONDecoding.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectDomain.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectSettingsModels.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/RemoteMutationClassification.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHTTPClient.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHostTransportSource.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteTransport.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteV3Contract.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/SelectedAdvancedOperationsGateway.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/include/AdvancedOperations-Swift.h",
+      "-swift-version",
+      "6",
+      "-strict-concurrency=complete",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-target",
+      "arm64-apple-ios26.5-simulator",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "advancedoperations",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "AdvancedOperationsIsolationPackageTests": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AdvancedOperationsIsolationPackageTests",
+      "-package-name",
+      "advancedoperations",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/include/AdvancedOperationsIsolationPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-target",
+      "arm64-apple-ios26.5-simulator",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "advancedoperations",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "AdvancedOperationsTests": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AdvancedOperationsTests",
+      "-package-name",
+      "advancedoperations",
+      "-c",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsCatalogTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsContractTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsControllerTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsFormTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsOutcomeTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsPresentationTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsQualityGatesTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsScreenModelTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsSourceGateTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTestSupport.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTransportTests.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsUITestSupport.swift",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/SelectedAdvancedOperationsGatewayTests.swift",
+      "-I",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j18",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-strict-concurrency=complete",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-target",
+      "arm64-apple-ios26.5-simulator",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "advancedoperations",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap": {
+    "AdvancedOperations": [],
+    "AdvancedOperationsIsolationPackageTests": ["AdvancedOperationsTests", "AdvancedOperations"],
+    "AdvancedOperationsTests": ["AdvancedOperations"]
+  },
+  "testDiscoveryCommands": {},
+  "testEntryPointCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift": {
+      "inputs": [],
+      "outputs": [
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration": {
+    "default": {}
+  },
+  "writeCommands": {
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ClientConnectionID.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedJSONValue.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationDraft.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationFormView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcome.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOutcomeView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationOwnership.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationProcedure.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRedaction.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequest.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationRequestModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationResults.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationSegmentDraft.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsChrome.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsComposition.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsController.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFailureStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsFormFields.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInputParsing.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsInteraction.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsPresentation.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsRequestBuilder.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreen.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsScreenModel.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSelectionSource.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionComposition.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsSessionView.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedOperationsStrings.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Feature/AdvancedSegmentsSection.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Metadata001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models009.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models010.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models011.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models012.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models013.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models014.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models015.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models016.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models017.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models018.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models019.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models020.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models021.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models022.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models023.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models024.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models025.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models026.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Models027.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/RootCodecs003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Runtime.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation001.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation002.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation003.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation004.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation005.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation006.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation007.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Generated/Validation008.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/HarnessShims.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/JSONDecoding.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectDomain.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/ProjectSettingsModels.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/RemoteMutationClassification.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHTTPClient.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsHostTransportSource.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteTransport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/AdvancedOperationsRemoteV3Contract.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/PackageSources/AdvancedOperations/Transport/SelectedAdvancedOperationsGateway.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/DerivedSources/resource_bundle_accessor.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.product/Objects.LinkFileList": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<link-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedJSONValue.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationDraft.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationFormView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOutcome.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOutcomeView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationOwnership.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationProcedure.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRedaction.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRequest.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationRequestModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationResults.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationSegmentDraft.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsChrome.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsComposition.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsController.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsFailureStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsFormFields.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsHTTPClient.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsHostTransportSource.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsInputParsing.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsInteraction.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsPresentation.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRemoteTransport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRemoteV3Contract.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsRequestBuilder.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsScreen.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsScreenModel.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSelectionSource.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSessionComposition.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsSessionView.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedOperationsStrings.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/AdvancedSegmentsSection.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ClientConnectionID.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/HarnessShims.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/JSONDecoding.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Metadata001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models009.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models010.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models011.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models012.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models013.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models014.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models015.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models016.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models017.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models018.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models019.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models020.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models021.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models022.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models023.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models024.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models025.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models026.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Models027.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ProjectDomain.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/ProjectSettingsModels.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RemoteMutationClassification.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/RootCodecs003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Runtime.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/SelectedAdvancedOperationsGateway.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation001.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation002.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation003.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation004.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation005.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation006.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation007.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/Validation008.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperations.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsCatalogTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsContractTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsControllerTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsFormTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsOutcomeTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsPresentationTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsQualityGatesTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsScreenModelTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsSourceGateTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsTransportTests.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/AdvancedOperationsUITestSupport.swift.o"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/SelectedAdvancedOperationsGatewayTests.swift.o"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/sources": {
+      "alwaysOutOfDate": false,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<sources-file-list>"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsCatalogTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsContractTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsControllerTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsFormTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsOutcomeTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsPresentationTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsQualityGatesTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsScreenModelTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsSourceGateTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsTransportTests.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/AdvancedOperationsUITestSupport.swift"
+        },
+        {
+          "kind": "file",
+          "name": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/SelectedAdvancedOperationsGatewayTests.swift"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsTests.build/sources"
+    },
+    "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt": {
+      "alwaysOutOfDate": true,
+      "inputs": [
+        {
+          "kind": "virtual",
+          "name": "<swift-get-version>"
+        },
+        {
+          "kind": "file",
+          "name": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

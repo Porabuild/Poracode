@@ -11,6 +11,7 @@ import {
   type RemoteHostMode,
   type RemoteHostUpdateStatus,
   type RemotePushRegistration,
+  type RemotePushRegistrationRouting,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteWebSocketServerMessage,
@@ -29,6 +30,7 @@ import type {
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
+  SupervisorEvent,
   SupervisorProcedureName,
 } from "@/shared/ipc";
 import { buildPairingUrl } from "@/shared/remote/pairingUrl";
@@ -60,6 +62,10 @@ import {
   maxBroadcastEventBytes,
   trimEventBuffer,
 } from "./server/eventSizeGuard";
+import {
+  buildCursorTaggedTerminalOutput,
+  TerminalCursorSyncRegistry,
+} from "./server/terminalCursorSync";
 
 const EVENT_BUFFER_LIMIT = 500;
 const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
@@ -134,8 +140,12 @@ export interface RemoteAccessServerOptions {
    * desktop servers opt out because the desktop backend host persists first.
    */
   readonly ownsSupervisorPersistence?: boolean;
-  /** Aggregate live-stream demand from all authenticated WebSocket clients. */
-  readonly onEventInterestsChanged?: (interests: LiveEventInterests) => void;
+  /**
+   * Aggregate live-stream demand from all authenticated WebSocket clients.
+   * May return a Promise; reliable terminal watches await it as the interest
+   * activation barrier before reading a snapshot.
+   */
+  readonly onEventInterestsChanged?: (interests: LiveEventInterests) => void | Promise<void>;
   /**
    * Notified when an event could not be shrunk enough to ride the live stream
    * and clients were told to resync instead. Diagnostics only — the transport
@@ -229,7 +239,7 @@ export interface RemoteAccessServerOptions {
   readonly pushRegistrations?: {
     webPublicKey(): Promise<string>;
     upsert(registration: RemotePushRegistration): void;
-    remove(deviceId: string): void;
+    remove(deviceId: string, routing?: RemotePushRegistrationRouting): void;
   };
   /** Notifies the desktop shell after the active pairing code rotates. */
   readonly onPairingChanged?: () => void;
@@ -288,6 +298,8 @@ export class RemoteAccessServer {
   private readonly clientLiveness = new Map<WebSocket, boolean>();
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
+  /** Opt-in reliable (cursor-sync) watch state, keyed per connection/terminal. */
+  private readonly terminalCursorSync = new TerminalCursorSyncRegistry();
   /** Per-connection Git interests, so PR bodies only reach clients that asked. */
   private readonly gitStateInterests = new Map<WebSocket, readonly GitStateInterest[]>();
   /** Per-connection transcript-content scoping; absent = receives everything. */
@@ -335,6 +347,7 @@ export class RemoteAccessServer {
       clients: this.clients,
       clientLiveness: this.clientLiveness,
       terminalWatches: this.terminalWatches,
+      terminalCursorSync: this.terminalCursorSync,
       gitStateInterests: this.gitStateInterests,
       itemInterests: this.itemInterests,
       eventBuffer: this.eventBuffer,
@@ -358,7 +371,7 @@ export class RemoteAccessServer {
     };
   }
 
-  private notifyEventInterestsChanged(): void {
+  private notifyEventInterestsChanged(): void | Promise<void> {
     const terminalThreadIds = new Set<string>();
     for (const watched of this.terminalWatches.values()) {
       for (const threadId of watched) terminalThreadIds.add(threadId);
@@ -375,7 +388,7 @@ export class RemoteAccessServer {
       }
       for (const threadId of interests) runtimeThreadIds.add(threadId);
     }
-    this.options.onEventInterestsChanged?.({
+    return this.options.onEventInterestsChanged?.({
       terminalThreadIds: [...terminalThreadIds].sort(),
       runtimeThreadIds: [...runtimeThreadIds].sort(),
       allRuntimeEvents,
@@ -455,9 +468,10 @@ export class RemoteAccessServer {
     this.clients.clear();
     this.clientLiveness.clear();
     this.terminalWatches.clear();
+    this.terminalCursorSync.clearAll();
     this.gitStateInterests.clear();
     this.itemInterests.clear();
-    this.notifyEventInterestsChanged();
+    void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
     this.wss.close();
     // Drop idle keep-alive connections so close() doesn't wait on them, but let
     // any in-flight request complete (up to the grace timeout).
@@ -507,7 +521,7 @@ export class RemoteAccessServer {
     // event stream (replaying PTY bytes would garble the screen) and only send
     // it to clients that opted into that terminal via `terminal-watch`.
     if (event.type === "thread-output") {
-      this.broadcastTerminalOutput(event.threadId, event.data);
+      this.broadcastTerminalOutput(event);
       return;
     }
     // Only buffer + broadcast events a remote client actually consumes; chatty
@@ -601,16 +615,43 @@ export class RemoteAccessServer {
     });
   }
 
-  /** Streams PTY bytes to watching clients, dropping them on a congested socket
-   * (the terminal self-heals on the next write; back-buffering would lag). */
-  private broadcastTerminalOutput(id: string, data: string): void {
-    let serialized: string | null = null;
+  /**
+   * Streams PTY bytes to watching clients.
+   *
+   * - Legacy watchers: lossy 1.5MB skip (terminal self-heals; keeps old clients
+   *   compatible with silent backpressure drops).
+   * - Reliable cursor-sync watchers: hard outbound-limit path only — congestion
+   *   disconnects rather than silently gapping the cursor stream. Frames are
+   *   tagged with generation/fromCursor/toCursor for the active watchId.
+   */
+  private broadcastTerminalOutput(
+    event: Extract<SupervisorEvent, { type: "thread-output" }>,
+  ): void {
+    const id = event.threadId;
+    const data = event.data;
+    let legacySerialized: string | null = null;
     for (const [client, watched] of this.terminalWatches) {
       if (!watched.has(id)) continue;
       if (client.readyState !== client.OPEN) continue;
+
+      const reliable = this.terminalCursorSync.getReliable(client, id);
+      if (reliable) {
+        // Reliable path: never silently skip. sendRaw disconnects on hard limit.
+        const tagged = buildCursorTaggedTerminalOutput(
+          id,
+          data,
+          reliable.watchId,
+          event.terminalInstanceId,
+          event.outputLength,
+        );
+        this.sendRaw(client, JSON.stringify(tagged));
+        continue;
+      }
+
+      // Legacy path: drop frames on a congested socket.
       if (client.bufferedAmount > 1_500_000) continue;
-      serialized ??= JSON.stringify({ type: "terminal-output", id, data });
-      this.sendRaw(client, serialized);
+      legacySerialized ??= JSON.stringify({ type: "terminal-output", id, data });
+      this.sendRaw(client, legacySerialized);
     }
   }
 
@@ -766,9 +807,10 @@ export class RemoteAccessServer {
     this.clients.delete(ws);
     this.clientLiveness.delete(ws);
     this.terminalWatches.delete(ws);
+    this.terminalCursorSync.clearConnection(ws);
     this.gitStateInterests.delete(ws);
     this.itemInterests.delete(ws);
-    this.notifyEventInterestsChanged();
+    void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
     try {
       ws.terminate();
     } catch {

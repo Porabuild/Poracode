@@ -245,6 +245,18 @@ function browserToolbarScrollClearance(): number {
   return height;
 }
 
+function safeAreaBottomScrollClearance(): number {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;width:0;" +
+    "height:env(safe-area-inset-bottom,0px);";
+  document.body.append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+}
+
 function refsForPresentation(
   refs: readonly ModelRef[],
   presentationMode: ThreadPresentationMode | undefined,
@@ -509,6 +521,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       placement="top start"
       contentClassName="w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
+      sheetClassName="m-sheet--model-picker"
     >
       {renderContent}
     </ResponsiveMenuSurface>
@@ -555,6 +568,7 @@ function WindowedProviderModelList(props: {
       initialMeta.firstModelId
     );
   });
+  const [showMobileKeyboardHighlight, setShowMobileKeyboardHighlight] = useState(false);
   const shouldAutoScrollRef = useRef(true);
   const shouldCenterActiveRef = useRef(true);
   const ignorePointerRef = useRef(true);
@@ -579,9 +593,11 @@ function WindowedProviderModelList(props: {
   }, [activeIndex, initialActiveRowId, meta]);
 
   const totalHeight = meta.totalHeight;
-  const [browserToolbarClearance] = useState(() => (mobile ? browserToolbarScrollClearance() : 0));
+  const [mobileBottomClearance] = useState(() =>
+    mobile ? browserToolbarScrollClearance() + safeAreaBottomScrollClearance() : 0,
+  );
   const scrollEndGapHeight = mobile
-    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + browserToolbarClearance
+    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + mobileBottomClearance
     : MODEL_MENU_LISTBOX_PADDING_BOTTOM;
   const totalScrollHeight = totalHeight + scrollEndGapHeight;
   const maxViewportHeight = mobileExpanded
@@ -676,6 +692,7 @@ function WindowedProviderModelList(props: {
 
   function moveActive(delta: number) {
     if (modelRowIndices.length === 0) return;
+    if (mobile) setShowMobileKeyboardHighlight(true);
     shouldAutoScrollRef.current = true;
     const currentPosition = meta.modelPositionByIndex.get(activeIndex) ?? -1;
     const basePosition = currentPosition < 0 ? (delta > 0 ? -1 : 0) : currentPosition;
@@ -697,6 +714,7 @@ function WindowedProviderModelList(props: {
       className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto outline-none ${
         mobileExpanded ? "max-h-none" : "max-h-72"
       }`}
+      data-mobile={mobile ? "true" : undefined}
       style={{ height: viewportHeight }}
       tabIndex={0}
       onScroll={(event) => {
@@ -733,6 +751,7 @@ function WindowedProviderModelList(props: {
         }
         if (event.key === "Home") {
           event.preventDefault();
+          if (mobile) setShowMobileKeyboardHighlight(true);
           shouldAutoScrollRef.current = true;
           const firstIndex = modelRowIndices[0];
           if (firstIndex !== undefined) {
@@ -742,6 +761,7 @@ function WindowedProviderModelList(props: {
         }
         if (event.key === "End") {
           event.preventDefault();
+          if (mobile) setShowMobileKeyboardHighlight(true);
           shouldAutoScrollRef.current = true;
           const lastIndex = modelRowIndices[modelRowIndices.length - 1];
           if (lastIndex !== undefined) {
@@ -791,10 +811,11 @@ function WindowedProviderModelList(props: {
             id={`${domIdPrefix}-${item.id}`}
             role="option"
             aria-selected={isSelected}
-            data-active={isActive ? "true" : undefined}
+            data-active={isActive && (!mobile || showMobileKeyboardHighlight) ? "true" : undefined}
             className="poracode-menu-item group mx-1.5 flex cursor-default items-center text-foreground"
             style={{ height: modelRowHeight }}
             onPointerMove={(event) => {
+              if (mobile) return;
               if (ignorePointerRef.current) return;
               if (event.movementX === 0 && event.movementY === 0) return;
               if (isActive) return;
@@ -945,7 +966,7 @@ function HeaderPlain(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--plain flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
       {t(item.label)}
     </div>
@@ -961,14 +982,16 @@ function HeaderProvider(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--provider flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
-      <ProviderIcon
-        kind={item.providerKind}
-        {...(item.providerIcon ? { icon: item.providerIcon } : {})}
-        tone="active"
-        className="size-3"
-      />
+      <span className="poracode-model-menu-provider-mark contents">
+        <ProviderIcon
+          kind={item.providerKind}
+          {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+          tone="active"
+          className="size-3"
+        />
+      </span>
       <span className="min-w-0 truncate">{item.label}</span>
       {subProviderLabel ? (
         <>
@@ -988,7 +1011,7 @@ function HeaderSub(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--sub flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
       {item.label}
     </div>

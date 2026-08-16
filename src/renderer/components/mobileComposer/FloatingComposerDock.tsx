@@ -29,8 +29,8 @@ export function FloatingComposerDock(props: {
   /**
    * Content pinned above the composer bubble, inside the dock. The bubble clips
    * its own overflow to the collapsed control line, so chrome that must stay
-   * visible while collapsed (the action docks: auth, pending steer, runtime
-   * requests) lives here — still inside the dock, so it rides the same keyboard
+   * visible while collapsed (info chips, pending steer, runtime requests) lives
+   * here — still inside the dock, so it rides the same keyboard
    * lift and sits above the collapse scrim.
    */
   readonly aboveBubble?: ReactNode | undefined;
@@ -338,6 +338,13 @@ export function FloatingComposerDock(props: {
           style={bubbleStyle}
           data-height-animating={bubblePin !== null || undefined}
           onFocusCapture={handleFocusCapture}
+          onPointerDownCapture={(event) => {
+            if (!props.collapsedTapLabel || visuallyExpanded || expansionLocked) return;
+            event.preventDefault();
+            event.stopPropagation();
+            expandAndFocus(event.pointerType);
+            if (isTouchLikePointerEvent(event.nativeEvent)) suppressNextGhostTap();
+          }}
         >
           {props.children}
           {props.collapsedTapLabel && !visuallyExpanded ? (

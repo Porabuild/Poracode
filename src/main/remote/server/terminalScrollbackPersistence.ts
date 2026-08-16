@@ -7,6 +7,8 @@ const FLUSH_BATCH_CHARS = 64 * 1024;
 interface PendingOutput {
   data: string;
   outputLength: number;
+  /** Terminal instance/generation id; never coalesce across this. */
+  terminalInstanceId: string;
 }
 
 export interface TerminalScrollbackPersistenceOptions {
@@ -19,6 +21,10 @@ export interface TerminalScrollbackPersistenceOptions {
  * Coalesces PTY output before SQLite so terminal-heavy agents cannot turn the
  * backend event loop into a per-chunk database writer. Shutdown and terminal
  * exit flush synchronously because the underlying database API is synchronous.
+ *
+ * Mirrors {@link SupervisorIpcSender}: pending entries carry
+ * `terminalInstanceId`, and a generation change flushes the old batch before
+ * starting a new one so two PTY instances never concatenate in one append.
  */
 export class TerminalScrollbackPersistence {
   private readonly pending = new Map<string, PendingOutput>();
@@ -38,12 +44,24 @@ export class TerminalScrollbackPersistence {
       if (event.threadId.startsWith("shell:")) return;
       const existing = this.pending.get(event.threadId);
       if (existing) {
-        existing.data += event.data;
-        existing.outputLength = event.outputLength;
+        // Never coalesce across terminal generations — a restart must not splice
+        // old instance bytes onto a new cursor space (matches SupervisorIpcSender).
+        if (existing.terminalInstanceId !== event.terminalInstanceId) {
+          this.flushThread(event.threadId);
+          this.pending.set(event.threadId, {
+            data: event.data,
+            outputLength: event.outputLength,
+            terminalInstanceId: event.terminalInstanceId,
+          });
+        } else {
+          existing.data += event.data;
+          existing.outputLength = event.outputLength;
+        }
       } else {
         this.pending.set(event.threadId, {
           data: event.data,
           outputLength: event.outputLength,
+          terminalInstanceId: event.terminalInstanceId,
         });
       }
       if (this.pending.get(event.threadId)!.data.length >= FLUSH_BATCH_CHARS) {

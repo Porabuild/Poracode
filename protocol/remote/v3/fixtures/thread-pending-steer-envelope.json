@@ -1,0 +1,31 @@
+{
+  "authority": {
+    "routeBodies": "remote route registry Zod schemas",
+    "broadcastEnvelope": "SupervisorEvent TypeScript shape mirrored by the focused fixture test"
+  },
+  "setBody": {
+    "prompt": "Please include the attachment.",
+    "segments": [
+      { "kind": "text", "content": "Please include " },
+      { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" }
+    ],
+    "config": { "model": "gpt-5" }
+  },
+  "clearBody": {},
+  "broadcasts": [
+    {
+      "type": "thread-pending-steer",
+      "threadId": "thread-rich",
+      "pending": {
+        "id": "steer-rich-1",
+        "prompt": "Please include the attachment.",
+        "segments": [
+          { "kind": "text", "content": "Please include " },
+          { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" }
+        ],
+        "stagedAt": 1786557600000
+      }
+    },
+    { "type": "thread-pending-steer", "threadId": "thread-rich", "pending": null }
+  ]
+}

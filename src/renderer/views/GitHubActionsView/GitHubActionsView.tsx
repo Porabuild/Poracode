@@ -4,8 +4,11 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Play, RefreshCw, Workflow } from "lucide-react";
 import { ConfirmDialog } from "@/renderer/components/common";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { GitHubActionsDispatchPopover } from "./GitHubActionsDispatchPopover";
+import { GitHubActionsMobileWorkflowList } from "./GitHubActionsMobileWorkflowList";
 import { GitHubActionsRunDetail } from "./GitHubActionsRunDetail";
 import { GitHubActionsRunList } from "./GitHubActionsRunList";
 import { GitHubActionsSidebar } from "./GitHubActionsSidebar";
@@ -13,6 +16,7 @@ import { useGitHubActionsViewModel } from "./useGitHubActionsViewModel";
 
 const EMPTY_PINNED_WORKFLOWS: number[] = [];
 const RUN_PANEL_EXIT_MS = 200;
+type CompactActionsPage = "workflows" | "runs" | "run";
 
 export function GitHubActionsView(props: {
   projectId?: string;
@@ -20,6 +24,7 @@ export function GitHubActionsView(props: {
   onClose: () => void;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const {
     activeProjects,
     definition,
@@ -58,6 +63,9 @@ export function GitHubActionsView(props: {
     : EMPTY_PINNED_WORKFLOWS;
   const [dispatchWorkflowId, setDispatchWorkflowId] = useState<number | null>(null);
   const [displayedRun, setDisplayedRun] = useState(selectedRun);
+  const [compactPage, setCompactPage] = useState<CompactActionsPage>(
+    props.runId ? "run" : "workflows",
+  );
   const selectedDefinition = definition?.workflowId === selectedWorkflowId ? definition : null;
   const dispatchOpen = dispatchWorkflowId !== null && dispatchWorkflowId === selectedWorkflowId;
 
@@ -75,6 +83,10 @@ export function GitHubActionsView(props: {
   }, [selectedProject?.id]);
 
   useEffect(() => {
+    setCompactPage(props.runId ? "run" : "workflows");
+  }, [props.runId, selectedProject?.id]);
+
+  useEffect(() => {
     if (dispatchWorkflowId === null) return;
     if (dispatchWorkflowId !== selectedWorkflowId) {
       setDispatchWorkflowId(null);
@@ -88,6 +100,25 @@ export function GitHubActionsView(props: {
   function selectWorkflowPage(workflowId: number) {
     setDispatchWorkflowId(null);
     selectWorkflow(workflowId);
+    if (compactLayout) setCompactPage("runs");
+  }
+
+  function selectRunPage(runId: number | null) {
+    selectRun(runId);
+    if (compactLayout && runId !== null) setCompactPage("run");
+  }
+
+  function compactBack() {
+    if (compactPage === "run") {
+      selectRun(null);
+      setCompactPage("runs");
+      return;
+    }
+    if (compactPage === "runs") {
+      setCompactPage("workflows");
+      return;
+    }
+    props.onClose();
   }
 
   function requestWorkflowDispatch(workflowId: number) {
@@ -97,6 +128,10 @@ export function GitHubActionsView(props: {
     }
     setDispatchWorkflowId(workflowId);
     if (workflowId !== selectedWorkflowId) selectWorkflow(workflowId);
+  }
+
+  function toggleWorkflowPin(workflowId: number) {
+    if (selectedProject) togglePinnedWorkflow(selectedProject.id, workflowId);
   }
 
   const sidebar = (
@@ -111,18 +146,16 @@ export function GitHubActionsView(props: {
       onSelectProject={openGitHubActions}
       onSelect={selectWorkflowPage}
       onRun={requestWorkflowDispatch}
-      onTogglePin={(workflowId) => {
-        if (selectedProject) togglePinnedWorkflow(selectedProject.id, workflowId);
-      }}
+      onTogglePin={toggleWorkflowPin}
     />
   );
 
   const content = (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+    <div className="relative flex h-full min-h-0 flex-col bg-[var(--content-background)]">
       {loadError ? (
         <div
           role="alert"
-          className="shrink-0 border-b border-danger/25 bg-danger/5 px-4 py-2 text-xs text-danger"
+          className="m-page-content shrink-0 border-b border-danger/25 bg-danger/5 px-4 py-2 text-xs text-danger"
         >
           {loadError}
         </div>
@@ -139,21 +172,29 @@ export function GitHubActionsView(props: {
         </div>
       ) : selectedWorkflow ? (
         <>
-          <header className="flex min-h-[76px] shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[var(--hairline)] px-5 py-4">
+          <header
+            className={`m-page-content flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[var(--hairline)] px-5 ${compactLayout ? "pb-3 pt-0" : "min-h-[76px] py-4"}`}
+          >
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold text-foreground">
-                {selectedWorkflow.name}
-              </h1>
-              <p className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap font-mono text-[11px] text-muted">
+              {!compactLayout ? (
+                <h1 className="truncate text-base font-semibold text-foreground">
+                  {selectedWorkflow.name}
+                </h1>
+              ) : null}
+              <p
+                className={`${compactLayout ? "" : "mt-1"} flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap font-mono text-[11px] text-muted`}
+              >
                 <span className="min-w-0 truncate">{selectedWorkflow.path}</span>
-                {definition?.triggers.length ? (
+                {selectedDefinition?.triggers.length ? (
                   <span className="min-w-0 truncate border-l border-[var(--hairline)] pl-2">
-                    <Trans>Triggers:</Trans> {definition.triggers.join(", ")}
+                    <Trans>Triggers:</Trans> {selectedDefinition.triggers.join(", ")}
                   </span>
                 ) : null}
               </p>
             </div>
-            {selectedProject && (selectedDefinition?.dispatchable || dispatchOpen) ? (
+            {!compactLayout &&
+            selectedProject &&
+            (selectedDefinition?.dispatchable || dispatchOpen) ? (
               <GitHubActionsDispatchPopover
                 workflow={selectedWorkflow}
                 definition={selectedDefinition}
@@ -167,19 +208,21 @@ export function GitHubActionsView(props: {
                 onRefChange={selectDefinitionRef}
                 onRun={dispatchWorkflow}
               />
-            ) : loadingDefinition || !selectedDefinition ? (
+            ) : !compactLayout && (loadingDefinition || !selectedDefinition) ? (
               <Button variant="primary" isDisabled>
                 <Play className="size-4" />
                 <Trans>Run workflow</Trans>
               </Button>
-            ) : (
+            ) : selectedDefinition && !selectedDefinition.dispatchable ? (
               <p className="text-xs text-muted">
                 <Trans>This workflow cannot be started manually.</Trans>
               </p>
-            )}
+            ) : null}
           </header>
 
-          <section className="@container min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4 [scrollbar-gutter:stable]">
+          <section
+            className={`m-page-content @container min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pt-4 [scrollbar-gutter:stable] ${compactLayout ? "pb-[calc(var(--m-floating-control-height)+1.75rem+env(safe-area-inset-bottom))]" : "pb-4"}`}
+          >
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">
@@ -189,31 +232,81 @@ export function GitHubActionsView(props: {
                   {runs.length === 1 ? <Trans>1 run</Trans> : <Trans>{runs.length} runs</Trans>}
                 </p>
               </div>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="size-8 min-w-0"
-                isDisabled={loadingRuns}
-                aria-label={t`Refresh workflow runs`}
-                onPress={refreshRuns}
-              >
-                <RefreshCw
-                  className={`size-3.5 ${loadingRuns && runs.length > 0 ? "animate-spin" : ""}`}
-                />
-              </Button>
+              {!compactLayout ? (
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  className="size-8 min-w-0"
+                  isDisabled={loadingRuns}
+                  aria-label={t`Refresh workflow runs`}
+                  onPress={refreshRuns}
+                >
+                  <RefreshCw
+                    className={`size-3.5 ${loadingRuns && runs.length > 0 ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              ) : null}
             </div>
             <GitHubActionsRunList
               runs={runs}
               selectedRunId={selectedRunId}
               loading={loadingRuns}
               pendingRunId={pendingRunId}
-              onSelectRun={selectRun}
+              onSelectRun={selectRunPage}
               onRerun={(run, failedOnly) => void rerunWorkflow(run, failedOnly)}
               onCancel={(run) => void cancelWorkflow(run)}
               onDelete={setDeleteRun}
             />
           </section>
+          {compactLayout && selectedProject ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-10 flex justify-between gap-[var(--m-floating-control-gap)] px-[var(--m-page-inline)]">
+              <MobileCircleButton
+                className="pointer-events-auto"
+                aria-label={t`Refresh workflow runs`}
+                isDisabled={loadingRuns}
+                onPress={refreshRuns}
+              >
+                <RefreshCw
+                  className={`size-4 ${loadingRuns && runs.length > 0 ? "animate-spin" : ""}`}
+                />
+              </MobileCircleButton>
+              {selectedDefinition?.dispatchable || dispatchOpen ? (
+                <GitHubActionsDispatchPopover
+                  workflow={selectedWorkflow}
+                  definition={selectedDefinition}
+                  projectId={selectedProject.id}
+                  isOpen={dispatchOpen}
+                  isDefinitionLoading={
+                    !selectedDefinition || (loadingDefinition && !selectedDefinition.dispatchable)
+                  }
+                  isPending={dispatching}
+                  trigger={
+                    <MobileCircleButton
+                      className="pointer-events-auto"
+                      aria-label={t`Run workflow`}
+                      onPress={() => setDispatchWorkflowId(selectedWorkflowId)}
+                    >
+                      <Play className="size-4" />
+                    </MobileCircleButton>
+                  }
+                  onOpenChange={(isOpen) =>
+                    setDispatchWorkflowId(isOpen ? selectedWorkflowId : null)
+                  }
+                  onRefChange={selectDefinitionRef}
+                  onRun={dispatchWorkflow}
+                />
+              ) : loadingDefinition || !selectedDefinition ? (
+                <MobileCircleButton
+                  className="pointer-events-auto"
+                  aria-label={t`Run workflow`}
+                  isDisabled
+                >
+                  <Play className="size-4" />
+                </MobileCircleButton>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
@@ -228,10 +321,98 @@ export function GitHubActionsView(props: {
     </div>
   );
 
+  const mobileContent = (
+    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+      {loadError && compactPage !== "runs" ? (
+        <div
+          role="alert"
+          className="m-page-content shrink-0 border-b border-danger/25 bg-danger/5 px-4 py-2 text-xs text-danger"
+        >
+          {loadError}
+        </div>
+      ) : null}
+
+      {compactPage === "workflows" ? (
+        activeProjects.length === 0 ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
+            <div className="text-muted">
+              <Workflow className="mx-auto mb-3 size-8" />
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Add a project to use GitHub Actions.</Trans>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <GitHubActionsMobileWorkflowList
+              projects={activeProjects}
+              selectedProjectId={selectedProject?.id ?? null}
+              workflows={workflows}
+              pinnedWorkflowIds={pinnedWorkflowIds}
+              loading={loadingWorkflows}
+              onSelectProject={openGitHubActions}
+              onSelectWorkflow={selectWorkflowPage}
+              onRunWorkflow={requestWorkflowDispatch}
+              onTogglePin={toggleWorkflowPin}
+            />
+            {dispatchOpen && selectedProject && selectedWorkflow ? (
+              <GitHubActionsDispatchPopover
+                workflow={selectedWorkflow}
+                definition={selectedDefinition}
+                projectId={selectedProject.id}
+                isOpen
+                isDefinitionLoading={
+                  !selectedDefinition || (loadingDefinition && !selectedDefinition.dispatchable)
+                }
+                isPending={dispatching}
+                trigger={null}
+                onOpenChange={(isOpen) => setDispatchWorkflowId(isOpen ? selectedWorkflowId : null)}
+                onRefChange={selectDefinitionRef}
+                onRun={dispatchWorkflow}
+              />
+            ) : null}
+          </>
+        )
+      ) : compactPage === "run" ? (
+        displayedRun ? (
+          <GitHubActionsRunDetail
+            run={displayedRun}
+            loading={loadingRun}
+            isPending={pendingRunId === displayedRun.id}
+            onClose={compactBack}
+            onRefresh={refreshRun}
+            onRerun={(failedOnly) => void rerunWorkflow(displayedRun, failedOnly)}
+            onCancel={() => void cancelWorkflow(displayedRun)}
+            onDelete={() => setDeleteRun(displayedRun)}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center text-muted">
+            <Workflow className="size-8" />
+          </div>
+        )
+      ) : (
+        content
+      )}
+    </div>
+  );
+
+  const compactTitle =
+    compactPage === "runs"
+      ? (selectedWorkflow?.name ?? t`GitHub Actions`)
+      : compactPage === "run"
+        ? displayedRun
+          ? `#${displayedRun.number}`
+          : t`Workflow run`
+        : t`CI Actions: Workflows`;
+
   return (
     <>
       <PageLayout
         title={t`GitHub Actions`}
+        compactTitle={compactTitle}
+        compactBackLabel={compactPage === "workflows" ? t`Return to app` : t`Back`}
+        onCompactBack={compactBack}
+        mobileNavigation
         sidebarHeaderChildren={
           <div className="poracode-overlay-header__controls flex items-center">
             <Tooltip delay={150}>
@@ -255,14 +436,14 @@ export function GitHubActionsView(props: {
           </div>
         }
         sidebar={sidebar}
-        content={content}
+        content={compactLayout ? mobileContent : content}
         rightPanel={
-          displayedRun ? (
+          !compactLayout && displayedRun ? (
             <GitHubActionsRunDetail
               run={displayedRun}
               loading={loadingRun}
               isPending={pendingRunId === displayedRun.id}
-              onClose={() => selectRun(null)}
+              onClose={() => selectRunPage(null)}
               onRefresh={refreshRun}
               onRerun={(failedOnly) => void rerunWorkflow(displayedRun, failedOnly)}
               onCancel={() => void cancelWorkflow(displayedRun)}
@@ -270,10 +451,10 @@ export function GitHubActionsView(props: {
             />
           ) : null
         }
-        rightPanelOpen={selectedRun !== null}
+        rightPanelOpen={!compactLayout && selectedRun !== null}
         rightPanelPlacement="right"
         rightPanelResizeLabel={t`Resize run details`}
-        onRequestClosePanels={() => selectRun(null)}
+        onRequestClosePanels={() => selectRunPage(null)}
       />
 
       <ConfirmDialog

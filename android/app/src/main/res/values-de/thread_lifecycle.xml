@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Thread-Aktionen</string>
+    <string name="thread_lifecycle_rename">Umbenennen</string>
+    <string name="thread_lifecycle_rename_prompt">Neuer Thread-Titel</string>
+    <string name="thread_lifecycle_relaunch">Neu starten</string>
+    <string name="thread_lifecycle_relaunch_prompt">Was soll der Agent als Nächstes tun?</string>
+    <string name="thread_lifecycle_pin">Anheften</string>
+    <string name="thread_lifecycle_unpin">Lösen</string>
+    <string name="thread_lifecycle_done">Als erledigt markieren</string>
+    <string name="thread_lifecycle_not_done">Als nicht erledigt markieren</string>
+    <string name="thread_lifecycle_acknowledge">Bestätigen</string>
+    <string name="thread_lifecycle_archive">Archivieren</string>
+    <string name="thread_lifecycle_unarchive">Aus Archiv holen</string>
+    <string name="thread_lifecycle_delete">Löschen</string>
+    <string name="thread_lifecycle_cancel">Abbrechen</string>
+    <string name="thread_lifecycle_submit">Senden</string>
+    <string name="thread_lifecycle_archive_confirmation">Diesen Thread archivieren?</string>
+    <string name="thread_lifecycle_delete_confirmation">Diesen Thread endgültig löschen?</string>
+    <string name="thread_lifecycle_failed">Thread-Aktion fehlgeschlagen</string>
+    <string name="thread_lifecycle_close">Schließen</string>
+    <string name="thread_lifecycle_failure_ambiguous">Das Ergebnis ist ungewiss. Die Thread-Liste wird aktualisiert.</string>
+    <string name="thread_lifecycle_failure_generic">Die Thread-Aktion konnte nicht abgeschlossen werden. Aktualisiere die Liste und versuche es erneut.</string>
+</resources>

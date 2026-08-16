@@ -1,0 +1,21 @@
+{
+  "accepted": [
+    {
+      "id": "non-void-result-wrapper",
+      "procedure": "detectSetupScript",
+      "envelope": { "result": { "setupScript": "pnpm install" } }
+    },
+    {
+      "id": "void-exact-empty-object",
+      "procedure": "createProjectEntry",
+      "envelope": {}
+    }
+  ],
+  "rejected": [
+    {
+      "id": "void-result-null",
+      "procedure": "createProjectEntry",
+      "envelope": { "result": null }
+    }
+  ]
+}

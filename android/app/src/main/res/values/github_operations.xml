@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string>
+    <string name="github_unavailable">GitHub CLI is unavailable for this project.</string>
+    <string name="github_pull_requests">Pull requests</string>
+    <string name="github_actions">Actions</string>
+    <string name="github_repositories">Repositories</string>
+    <string name="github_confirm_title">Confirm GitHub action</string>
+    <string name="github_confirm_message">This action can remove or permanently change remote GitHub data.</string>
+    <string name="github_confirm">Continue</string>
+    <string name="github_refresh">Refresh GitHub</string>
+    <string name="github_no_pull_requests">No pull requests found.</string>
+    <string name="github_pr_title">Pull request title</string>
+    <string name="github_head_branch">Head branch</string>
+    <string name="github_base_branch">Base branch</string>
+    <string name="github_create_pr">Create pull request</string>
+    <string name="github_pr_summary">#%1$d · %2$s · %3$s</string>
+    <string name="github_select_pr">Select a pull request to inspect it.</string>
+    <string name="github_pr_number">Pull request #%1$d</string>
+    <string name="github_ready">Mark ready</string>
+    <string name="github_update_branch">Update branch</string>
+    <string name="github_reopen">Reopen</string>
+    <string name="github_close">Close</string>
+    <string name="github_merge">Merge</string>
+    <string name="github_approve">Approve</string>
+    <string name="github_comment">Comment</string>
+    <string name="github_post_comment">Post comment</string>
+    <string name="github_details">Details</string>
+    <string name="github_checks">Checks</string>
+    <string name="github_files">Files</string>
+    <string name="github_reviews">Reviews</string>
+    <string name="github_diff">Diff</string>
+    <string name="github_dispatch">Run workflow</string>
+    <string name="github_rerun">Rerun</string>
+    <string name="github_cancel_run">Cancel run</string>
+    <string name="github_delete_run">Delete run</string>
+    <string name="github_workflow_definition">Workflow definition</string>
+    <string name="github_run_details">Run details</string>
+    <string name="github_discover_accounts">Discover GitHub accounts</string>
+    <string name="github_account">%1$s on %2$s</string>
+    <string name="github_change_reconciled">The result was uncertain. Poracode did not retry it and fetched the latest GitHub state once.</string>
+</resources>

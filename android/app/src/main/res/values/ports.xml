@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Port forwarding</string>
+    <string name="ports_back">Back</string>
+    <string name="ports_refresh">Refresh ports</string>
+    <string name="ports_target_port">Target port</string>
+    <string name="ports_start_open">Start and open</string>
+    <string name="ports_dismiss">Dismiss</string>
+    <string name="ports_detected">Detected ports</string>
+    <string name="ports_no_detected">No listening ports were detected.</string>
+    <string name="ports_active">Active forwards</string>
+    <string name="ports_no_active">No port forwards are active.</string>
+    <string name="ports_port_number">Port %1$d</string>
+    <string name="ports_protocol_http">HTTP service</string>
+    <string name="ports_protocol_unknown">Unknown protocol</string>
+    <string name="ports_forward_port">Forward</string>
+    <string name="ports_forward_summary">Port %1$d → %2$d</string>
+    <string name="ports_open">Open</string>
+    <string name="ports_busy">Working…</string>
+    <string name="ports_stop">Stop</string>
+    <string name="ports_failure_offline">Reconnect to the host to manage port forwards.</string>
+    <string name="ports_failure_scope">This connection does not grant port-forwarding access.</string>
+    <string name="ports_failure_auth">The host session expired. Reconnect and try again.</string>
+    <string name="ports_failure_not_found">That port forward no longer exists.</string>
+    <string name="ports_failure_input">Enter a valid port from 1 to 65535.</string>
+    <string name="ports_failure_response">The host returned an invalid port-forwarding response.</string>
+    <string name="ports_failure_ambiguous">The request may have completed. The list was refreshed.</string>
+    <string name="ports_failure_unavailable">Port forwarding is currently unavailable.</string>
+</resources>

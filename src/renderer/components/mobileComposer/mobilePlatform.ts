@@ -1,17 +1,6 @@
 export type MobileRuntimePlatform = "android" | "ios" | "macos" | "web" | "windows";
 
-type CapacitorGlobal = {
-  readonly Capacitor?: {
-    readonly getPlatform?: () => string;
-    readonly isNativePlatform?: () => boolean;
-  };
-};
-
 export function getMobileRuntimePlatform(): MobileRuntimePlatform {
-  const cap = (globalThis as CapacitorGlobal).Capacitor;
-  const platform = cap?.getPlatform?.();
-  if (platform === "android" || platform === "ios") return platform;
-
   if (typeof navigator !== "undefined") {
     if (/Windows/i.test(navigator.userAgent)) return "windows";
     if (/Android/i.test(navigator.userAgent)) return "android";

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Działania wątku</string>
+    <string name="thread_lifecycle_rename">Zmień nazwę</string>
+    <string name="thread_lifecycle_rename_prompt">Nowy tytuł wątku</string>
+    <string name="thread_lifecycle_relaunch">Uruchom ponownie</string>
+    <string name="thread_lifecycle_relaunch_prompt">Co agent powinien zrobić dalej?</string>
+    <string name="thread_lifecycle_pin">Przypnij</string>
+    <string name="thread_lifecycle_unpin">Odepnij</string>
+    <string name="thread_lifecycle_done">Oznacz jako gotowe</string>
+    <string name="thread_lifecycle_not_done">Oznacz jako niewykonane</string>
+    <string name="thread_lifecycle_acknowledge">Potwierdź</string>
+    <string name="thread_lifecycle_archive">Archiwizuj</string>
+    <string name="thread_lifecycle_unarchive">Przywróć z archiwum</string>
+    <string name="thread_lifecycle_delete">Usuń</string>
+    <string name="thread_lifecycle_cancel">Anuluj</string>
+    <string name="thread_lifecycle_submit">Wyślij</string>
+    <string name="thread_lifecycle_archive_confirmation">Zarchiwizować ten wątek?</string>
+    <string name="thread_lifecycle_delete_confirmation">Trwale usunąć ten wątek?</string>
+    <string name="thread_lifecycle_failed">Działanie wątku nie powiodło się</string>
+    <string name="thread_lifecycle_close">Zamknij</string>
+    <string name="thread_lifecycle_failure_ambiguous">Wynik jest niepewny. Lista wątków jest odświeżana.</string>
+    <string name="thread_lifecycle_failure_generic">Nie udało się wykonać działania wątku. Odśwież listę i spróbuj ponownie.</string>
+</resources>

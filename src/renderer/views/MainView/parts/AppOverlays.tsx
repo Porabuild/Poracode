@@ -38,6 +38,7 @@ import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { BrowserRemoteConnectionGate } from "./BrowserRemoteConnectionGate";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
@@ -48,9 +49,13 @@ function useEverEnabled(active: boolean): boolean {
 }
 
 export function AppOverlays() {
+  const compactLayout = useCompactLayout();
+  const mobileUtilityPage = usePanelStore((s) => s.mobileUtilityPage);
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
+  const projectSettingsOverlayVisible =
+    projectSettingsId !== null && !(compactLayout && mobileUtilityPage === "projectSettings");
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
@@ -73,7 +78,8 @@ export function AppOverlays() {
     : undefined;
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
   const githubActionsContext = usePanelStore((s) => s.githubActionsContext);
-  const githubActionsVisible = githubActionsContext !== null;
+  const githubActionsVisible =
+    githubActionsContext !== null && !(compactLayout && mobileUtilityPage === "githubActions");
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
   const trackedOverlaySurface =
@@ -110,11 +116,11 @@ export function AppOverlays() {
           project as it mounts, so fading it in over the hidden base app just
           shows full-screen acrylic until the content lands. */}
       <OverlayShell
-        open={!!projectSettingsId}
+        open={projectSettingsOverlayVisible}
         instantEnter
         onExited={() => usePanelStore.getState().closeProjectSettings()}
       >
-        {projectSettingsId && (
+        {projectSettingsOverlayVisible && projectSettingsId && (
           <Suspense fallback={<OverlayLoader />}>
             <DeferredProjectSettingsOverlay
               projectId={projectSettingsId}

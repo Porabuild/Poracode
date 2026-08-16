@@ -25,6 +25,7 @@ const bridgeMock = vi.hoisted(() => ({
   refreshAgentStatuses: vi
     .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
     .mockResolvedValue({ windows: [], wsl: [] }),
+  getProviderUsage: vi.fn<() => Promise<undefined>>().mockResolvedValue(undefined),
 }));
 
 const runtimeActions = vi.hoisted(() => ({
@@ -75,6 +76,7 @@ vi.mock("../../bridge", () => ({
     setPendingSteer: bridgeMock.setPendingSteer,
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
+    getProviderUsage: bridgeMock.getProviderUsage,
   }),
 }));
 
@@ -1055,6 +1057,41 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByText("send"));
 
     expect(onSubmitInput).not.toHaveBeenCalled();
+  });
+
+  it("shows compact authentication as a key bubble that opens the sign-in card", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    renderComposer({
+      agentStatus: { ...codexGuiStatus, authState: "missing", loginCommand: "codex login" },
+    });
+
+    const authBubble = screen.getByRole("button", { name: "Sign in required" });
+    expect(authBubble.parentElement).toHaveClass("m-chip-row__trailing");
+    expect(authBubble.parentElement?.lastElementChild).toBe(authBubble);
+    expect(screen.queryByText("Codex: Run codex login before this thread can run.")).toBeNull();
+
+    fireEvent.click(authBubble);
+
+    expect(authBubble).toHaveAttribute("aria-expanded", "true");
+    const description = screen.getByText("Codex: Run codex login before this thread can run.");
+    expect(description).toBeVisible();
+    expect(description).toHaveClass("line-clamp-2", "whitespace-normal");
+    expect(description).not.toHaveClass("truncate");
+    expect(description.parentElement).toHaveAttribute("data-stacked", "true");
+    expect(screen.getByRole("button", { name: "Login" })).toBeVisible();
   });
 
   it("keeps remote auth docks actionable without desktop-only login controls", async () => {

@@ -7,6 +7,12 @@ import type { Project, PullRequestSummary } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { BottomSheet } from "@/renderer/components/common/BottomSheet";
+import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
+import { useProjectRemoteServerLookup } from "@/renderer/components/common/ProjectRemoteServer";
+import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -42,15 +48,26 @@ interface PullRequestEntry {
   summary: PullRequestSummary;
 }
 
-export function PullRequestsView() {
+export function PullRequestsView(
+  props: {
+    readonly remoteDesktopId?: string;
+    readonly onRemoteDesktopChange?: (desktopId: string | null) => void;
+  } = {},
+) {
   const { t } = useLingui();
+  const compact = useCompactLayout();
+  const remoteServerFor = useProjectRemoteServerLookup();
   // Scoped to the active workspace, so this view agrees with the sidebar about
   // which projects exist right now.
   const isInWorkspace = useWorkspaceProjectFilter();
   const activeProjects = useAppStore(
     useShallow((state) =>
       state.projects.filter(
-        (project) => !project.disabled && !isHomeProject(project) && isInWorkspace(project),
+        (project) =>
+          !project.disabled &&
+          !isHomeProject(project) &&
+          isInWorkspace(project) &&
+          (!props.remoteDesktopId || project.remoteServerId === props.remoteDesktopId),
       ),
     ),
   );
@@ -73,6 +90,8 @@ export function PullRequestsView() {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [hiddenProjectIds, setHiddenProjectIds] = useState<Set<string>>(() => new Set());
   const [hiddenAccounts, setHiddenAccounts] = useState<Set<string>>(() => new Set());
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     if (prReviewOpen) return;
@@ -173,6 +192,67 @@ export function PullRequestsView() {
     0,
   );
   const hasActiveFilters = hiddenProjectIds.size > 0 || hiddenAccounts.size > 0;
+  const filterControls = (
+    <div className="max-h-[55dvh] space-y-3 overflow-y-auto px-1 py-2">
+      <FilterGroup title={<Trans>Projects</Trans>}>
+        {prProjects.map((project) => (
+          <Checkbox
+            key={project.id}
+            className="block"
+            isSelected={!hiddenProjectIds.has(project.id)}
+            onChange={(visible) =>
+              setHiddenProjectIds((current) => {
+                const next = new Set(current);
+                if (visible) next.delete(project.id);
+                else next.add(project.id);
+                return next;
+              })
+            }
+          >
+            <Checkbox.Content className="w-full min-w-0">
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs text-foreground">{project.name}</span>
+                {remoteServerFor(project).serverName ? (
+                  <span className="truncate text-[10px] text-muted/60">
+                    {remoteServerFor(project).serverName}
+                  </span>
+                ) : null}
+              </span>
+            </Checkbox.Content>
+          </Checkbox>
+        ))}
+      </FilterGroup>
+      {accountLogins.length > 0 ? (
+        <FilterGroup title={<Trans>Accounts</Trans>}>
+          {accountLogins.map((login) => (
+            <Checkbox
+              key={login}
+              className="block"
+              isSelected={!hiddenAccounts.has(login)}
+              onChange={(visible) =>
+                setHiddenAccounts((current) => {
+                  const next = new Set(current);
+                  if (visible) next.delete(login);
+                  else next.add(login);
+                  return next;
+                })
+              }
+            >
+              <Checkbox.Content className="w-full min-w-0">
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <span className="truncate text-xs text-foreground">{login}</span>
+              </Checkbox.Content>
+            </Checkbox>
+          ))}
+        </FilterGroup>
+      ) : null}
+    </div>
+  );
 
   function openPullRequest(entry: PullRequestEntry) {
     const { project, summary } = entry;
@@ -200,7 +280,7 @@ export function PullRequestsView() {
       bodyClassName="space-y-5"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative min-w-0 flex-1">
+        <div className={`relative min-w-0 flex-1 ${compact ? "hidden" : ""}`}>
           <Search
             className="pointer-events-none absolute top-1/2 left-3 z-10 size-3.5 -translate-y-1/2 text-muted"
             aria-hidden
@@ -220,108 +300,128 @@ export function PullRequestsView() {
             onChange={setFilter}
             ariaLabel={t`Pull request category`}
           />
-          <Button
-            isIconOnly
-            size="sm"
-            variant="tertiary"
-            isDisabled={loading}
-            aria-label={t`Refresh`}
-            className="shrink-0"
-            onPress={() => setRefreshVersion((current) => current + 1)}
-          >
-            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-          <Popover>
-            <Popover.Trigger>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="tertiary"
-                aria-label={t`Filter pull requests`}
-                className="relative shrink-0"
-              >
-                <Funnel className="size-4" />
-                {hasActiveFilters ? (
-                  <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" />
-                ) : null}
-              </Button>
-            </Popover.Trigger>
-            <Popover.Content placement="bottom end" className="w-72 p-0">
-              <Popover.Dialog className="overflow-hidden !p-0">
-                <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    <Trans>Filters</Trans>
-                  </span>
+          {!compact ? (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              isDisabled={loading}
+              aria-label={t`Refresh`}
+              className="shrink-0"
+              onPress={() => setRefreshVersion((current) => current + 1)}
+            >
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          ) : null}
+          {!compact ? (
+            <Popover>
+              <Popover.Trigger>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t`Filter pull requests`}
+                  className="relative shrink-0"
+                >
+                  <Funnel className="size-4" />
                   {hasActiveFilters ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => {
-                        setHiddenProjectIds(new Set());
-                        setHiddenAccounts(new Set());
-                      }}
-                    >
-                      <Trans>Show all</Trans>
-                    </Button>
+                    <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" />
                   ) : null}
-                </div>
-                <div className="max-h-80 space-y-3 overflow-y-auto px-3 py-3">
-                  <FilterGroup title={<Trans>Projects</Trans>}>
-                    {prProjects.map((project) => (
-                      <Checkbox
-                        key={project.id}
-                        className="block"
-                        isSelected={!hiddenProjectIds.has(project.id)}
-                        onChange={(visible) =>
-                          setHiddenProjectIds((current) => {
-                            const next = new Set(current);
-                            if (visible) next.delete(project.id);
-                            else next.add(project.id);
-                            return next;
-                          })
-                        }
+                </Button>
+              </Popover.Trigger>
+              <Popover.Content placement="bottom end" className="w-72 p-0">
+                <Popover.Dialog className="overflow-hidden !p-0">
+                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      <Trans>Filters</Trans>
+                    </span>
+                    {hasActiveFilters ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => {
+                          setHiddenProjectIds(new Set());
+                          setHiddenAccounts(new Set());
+                        }}
                       >
-                        <Checkbox.Content className="w-full min-w-0">
-                          <Checkbox.Control>
-                            <Checkbox.Indicator />
-                          </Checkbox.Control>
-                          <span className="truncate text-xs text-foreground">{project.name}</span>
-                        </Checkbox.Content>
-                      </Checkbox>
-                    ))}
-                  </FilterGroup>
-                  {accountLogins.length > 0 ? (
-                    <FilterGroup title={<Trans>Accounts</Trans>}>
-                      {accountLogins.map((login) => (
-                        <Checkbox
-                          key={login}
-                          className="block"
-                          isSelected={!hiddenAccounts.has(login)}
-                          onChange={(visible) =>
-                            setHiddenAccounts((current) => {
-                              const next = new Set(current);
-                              if (visible) next.delete(login);
-                              else next.add(login);
-                              return next;
-                            })
-                          }
-                        >
-                          <Checkbox.Content className="w-full min-w-0">
-                            <Checkbox.Control>
-                              <Checkbox.Indicator />
-                            </Checkbox.Control>
-                            <span className="truncate text-xs text-foreground">{login}</span>
-                          </Checkbox.Content>
-                        </Checkbox>
-                      ))}
-                    </FilterGroup>
-                  ) : null}
-                </div>
-              </Popover.Dialog>
-            </Popover.Content>
-          </Popover>
+                        <Trans>Show all</Trans>
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="px-3">{filterControls}</div>
+                </Popover.Dialog>
+              </Popover.Content>
+            </Popover>
+          ) : null}
         </div>
       </div>
+
+      {compact ? (
+        <>
+          <MobilePageHeaderActions>
+            <MobileCircleButton
+              aria-label={t`Search pull requests`}
+              onPress={() => setSearchOpen(true)}
+            >
+              <Search className="size-5" />
+            </MobileCircleButton>
+          </MobilePageHeaderActions>
+          {props.remoteDesktopId && props.onRemoteDesktopChange ? (
+            <MobileMachineToolbar
+              desktopId={props.remoteDesktopId}
+              onDesktopChange={props.onRemoteDesktopChange}
+              leading={
+                <MobileCircleButton
+                  aria-label={t`Filter pull requests`}
+                  onPress={() => setFiltersOpen(true)}
+                >
+                  <Funnel className="size-4" />
+                  {hasActiveFilters ? (
+                    <span className="absolute top-2 right-2 size-1.5 rounded-full bg-accent" />
+                  ) : null}
+                </MobileCircleButton>
+              }
+              trailing={
+                <MobileCircleButton
+                  aria-label={t`Refresh`}
+                  isDisabled={loading}
+                  onPress={() => setRefreshVersion((current) => current + 1)}
+                >
+                  <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                </MobileCircleButton>
+              }
+            />
+          ) : null}
+          {searchOpen ? (
+            <BottomSheet label={t`Search pull requests`} onClose={() => setSearchOpen(false)}>
+              <div className="px-1 pb-2 pt-1">
+                <TextField aria-label={t`Search pull requests`} value={query} onChange={setQuery}>
+                  <Input placeholder={t`Search pull requests`} />
+                </TextField>
+              </div>
+            </BottomSheet>
+          ) : null}
+          {filtersOpen ? (
+            <BottomSheet label={t`Filters`} onClose={() => setFiltersOpen(false)}>
+              <div className="flex items-center justify-end px-1">
+                {hasActiveFilters ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onPress={() => {
+                      setHiddenProjectIds(new Set());
+                      setHiddenAccounts(new Set());
+                    }}
+                  >
+                    <Trans>Show all</Trans>
+                  </Button>
+                ) : null}
+              </div>
+              {filterControls}
+            </BottomSheet>
+          ) : null}
+        </>
+      ) : null}
 
       {failures.map((failure) => (
         <div
@@ -413,7 +513,7 @@ function PullRequestRows(props: {
 }) {
   const { t } = useLingui();
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary/30">
+    <div className="poracode-pr-rows overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary/30">
       {props.entries.map((entry) => {
         const { project, summary } = entry;
         const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus, summary.pr);
@@ -443,7 +543,7 @@ function PullRequestRows(props: {
           <button
             key={`${project.id}:${summary.pr.number}`}
             type="button"
-            className="group flex w-full items-center gap-3 border-b border-[var(--hairline)] px-3 py-3 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60"
+            className="poracode-pr-row group flex w-full items-center gap-3 border-b border-[var(--hairline)] px-3 py-3 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60"
             onClick={() => props.onOpen(entry)}
           >
             <span className="relative shrink-0" aria-hidden>
@@ -457,22 +557,24 @@ function PullRequestRows(props: {
               <span className="block truncate text-sm font-medium text-foreground">
                 {summary.pr.title}
               </span>
-              <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+              <span className="poracode-pr-row-meta mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted">
                 {summary.author ? (
                   summary.author.avatarUrl ? (
                     <img
                       src={summary.author.avatarUrl}
                       alt=""
-                      className="size-4 shrink-0 rounded-full"
+                      className="poracode-pr-author size-4 shrink-0 rounded-full"
                     />
                   ) : (
-                    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-default-100 text-[9px] font-semibold text-foreground">
+                    <span className="poracode-pr-author flex size-4 shrink-0 items-center justify-center rounded-full bg-default-100 text-[9px] font-semibold text-foreground">
                       {summary.author.login.slice(0, 1).toUpperCase()}
                     </span>
                   )
                 ) : null}
-                {summary.author ? <span className="truncate">{summary.author.login}</span> : null}
-                <span className="text-muted/40">·</span>
+                {summary.author ? (
+                  <span className="poracode-pr-author truncate">{summary.author.login}</span>
+                ) : null}
+                <span className="poracode-pr-author text-muted/40">·</span>
                 <span className="truncate">{summary.repository}</span>
                 <span className="text-muted/40">·</span>
                 <span className="flex min-w-0 items-center gap-1 font-mono text-[11px]">

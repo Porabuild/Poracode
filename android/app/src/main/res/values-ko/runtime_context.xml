@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">컨텍스트</string>
+    <string name="runtime_context_usage">컨텍스트 사용량</string>
+    <string name="runtime_context_show_details">컨텍스트 사용량 세부 정보 표시</string>
+    <string name="runtime_context_hide_details">컨텍스트 사용량 세부 정보 숨기기</string>
+    <string name="runtime_context_percent_full">%1$d%% 사용</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s 토큰</string>
+    <string name="runtime_context_used_value">%1$s 사용됨</string>
+    <string name="runtime_context_limit_value">한도 %1$s</string>
+    <string name="runtime_context_used">사용됨</string>
+    <string name="runtime_context_unknown">알 수 없음</string>
+    <string name="runtime_context_provider_unreported">공급자가 토큰 사용량을 보고하지 않았습니다.</string>
+    <string name="runtime_context_summary">%1$s: %2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s천</string>
+    <string name="runtime_context_compact_millions">%1$s백만</string>
+</resources>

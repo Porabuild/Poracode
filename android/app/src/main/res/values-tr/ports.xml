@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Bağlantı noktası yönlendirme</string>
+    <string name="ports_back">Geri</string>
+    <string name="ports_refresh">Bağlantı noktalarını yenile</string>
+    <string name="ports_target_port">Hedef bağlantı noktası</string>
+    <string name="ports_start_open">Başlat ve aç</string>
+    <string name="ports_dismiss">Kapat</string>
+    <string name="ports_detected">Algılanan bağlantı noktaları</string>
+    <string name="ports_no_detected">Dinleyen bağlantı noktası algılanmadı.</string>
+    <string name="ports_active">Etkin yönlendirmeler</string>
+    <string name="ports_no_active">Etkin bağlantı noktası yönlendirmesi yok.</string>
+    <string name="ports_port_number">Bağlantı noktası %1$d</string>
+    <string name="ports_protocol_http">HTTP hizmeti</string>
+    <string name="ports_protocol_unknown">Bilinmeyen protokol</string>
+    <string name="ports_forward_port">Yönlendir</string>
+    <string name="ports_forward_summary">Bağlantı noktası %1$d → %2$d</string>
+    <string name="ports_open">Aç</string>
+    <string name="ports_busy">İşleniyor…</string>
+    <string name="ports_stop">Durdur</string>
+    <string name="ports_failure_offline">Bağlantı noktası yönlendirmelerini yönetmek için ana bilgisayara yeniden bağlanın.</string>
+    <string name="ports_failure_scope">Bu bağlantı, bağlantı noktası yönlendirme erişimi vermiyor.</string>
+    <string name="ports_failure_auth">Ana bilgisayar oturumu sona erdi. Yeniden bağlanıp tekrar deneyin.</string>
+    <string name="ports_failure_not_found">Bu bağlantı noktası yönlendirmesi artık mevcut değil.</string>
+    <string name="ports_failure_input">1 ile 65535 arasında geçerli bir bağlantı noktası girin.</string>
+    <string name="ports_failure_response">Ana bilgisayar geçersiz bir bağlantı noktası yönlendirme yanıtı döndürdü.</string>
+    <string name="ports_failure_ambiguous">İstek tamamlanmış olabilir. Liste yenilendi.</string>
+    <string name="ports_failure_unavailable">Bağlantı noktası yönlendirme şu anda kullanılamıyor.</string>
+</resources>

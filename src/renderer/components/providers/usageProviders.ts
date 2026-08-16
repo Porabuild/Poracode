@@ -319,3 +319,17 @@ export function resolveDisplayedProviders(
   }
   return ordered;
 }
+
+/** Pull a contextually selected provider into a separate current-provider section. */
+export function separateCurrentUsageProvider<T extends { readonly id: string }>(
+  providers: readonly T[],
+  providerId: string | null,
+): { current: T | undefined; rest: readonly T[] } {
+  if (!providerId) return { current: undefined, rest: providers };
+  const index = providers.findIndex((provider) => provider.id === providerId);
+  if (index < 0) return { current: undefined, rest: providers };
+  return {
+    current: providers[index],
+    rest: [...providers.slice(0, index), ...providers.slice(index + 1)],
+  };
+}

@@ -663,7 +663,7 @@ export const defaultSharedSettings: SharedSettings = {
   worktreeBasePath: "",
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
-  prCreateMode: "dialog",
+  prCreateMode: "auto",
   prAutomationDefault: "off",
   prMergeMethod: "squash",
   commitDefaultAction: "commit-push",

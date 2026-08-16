@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
   agentKindSchema,
   experimentSchema,
@@ -7,10 +6,14 @@ import {
   projectLocationSchema,
   projectNotesSchema,
   projectSchema,
+  runtimeEventSchema,
   threadConfigSchema,
   threadContextUsageSchema,
   threadPresentationModeSchema,
   threadSchema,
+  workflowRunSchema,
+  type RuntimeEvent,
+  type WorkflowRun,
 } from "../contracts";
 
 export const pickFilesOptionsSchema = z
@@ -99,6 +102,10 @@ export interface SubAgentSubscribeResult {
   history: RuntimeEvent[];
 }
 
+export const subAgentSubscribeResultSchema: z.ZodType<SubAgentSubscribeResult> = z.object({
+  history: z.array(runtimeEventSchema),
+});
+
 export const workflowGetRunPayloadSchema = z.object({
   manifestPath: z.string().min(1),
   /** Used to scan for in-flight `agent-*.meta.json` files before the manifest exists. */
@@ -113,6 +120,11 @@ export interface WorkflowGetRunResult {
   mtimeMs?: number;
 }
 
+export const workflowGetRunResultSchema = z.object({
+  run: workflowRunSchema.nullable(),
+  mtimeMs: z.number().finite().nonnegative().optional(),
+});
+
 export const workflowAgentChatPayloadSchema = z.object({
   /** Synthetic renderer-side thread id the returned events are keyed under. */
   threadId: z.string().min(1),
@@ -126,6 +138,10 @@ export type WorkflowAgentChatPayload = z.infer<typeof workflowAgentChatPayloadSc
 export interface WorkflowAgentChatResult {
   events: RuntimeEvent[];
 }
+
+export const workflowAgentChatResultSchema: z.ZodType<WorkflowAgentChatResult> = z.object({
+  events: z.array(runtimeEventSchema),
+});
 
 export const dbStateKeySchema = z.string().min(1);
 export const dbStatePayloadSchema = z.object({

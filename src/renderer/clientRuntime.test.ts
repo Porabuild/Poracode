@@ -31,7 +31,6 @@ describe("client runtime", () => {
     resetClientRuntimeForTest();
     Reflect.deleteProperty(window, "poracode");
     Reflect.deleteProperty(window, "poracodeHost");
-    Reflect.deleteProperty(globalThis, "Capacitor");
   });
 
   it("describes the Electron desktop host and its native capabilities", () => {
@@ -96,22 +95,6 @@ describe("client runtime", () => {
 
   it("treats an uninstalled runtime as non-browser during isolated rendering", () => {
     expect(isBrowserClientRuntime()).toBe(false);
-  });
-
-  it("exposes only the native SSH adapter inside Capacitor", () => {
-    Object.defineProperty(globalThis, "Capacitor", {
-      configurable: true,
-      value: { isNativePlatform: () => true },
-    });
-    const browserBridge = bridge("web");
-    window.poracode = browserBridge;
-    installBrowserClientRuntime(browserBridge);
-
-    expect(readClientRuntime().capabilities).toMatchObject({
-      localBackend: false,
-      nativeShell: false,
-      nativeSsh: true,
-    });
   });
 
   it("uses one adaptive surface for every browser viewport", () => {

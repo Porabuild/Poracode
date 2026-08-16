@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">ターミナル出力</string>
+    <string name="terminal_input_label">ターミナル入力</string>
+    <string name="terminal_input_placeholder">コマンドを入力</string>
+    <string name="terminal_send">送信</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">タブ</string>
+    <string name="terminal_close">ターミナルを閉じる</string>
+    <string name="terminal_reconnect">再接続</string>
+    <string name="terminal_start">ターミナルを開始</string>
+    <string name="terminal_start_description">このプロジェクトの開発ターミナルを開始する</string>
+    <string name="terminal_status_authentication">ターミナルへのアクセスが期限切れです</string>
+    <string name="terminal_status_permission">ターミナルへのアクセスは許可されていません</string>
+    <string name="terminal_status_unsupported">このホストでは信頼性の高いターミナル配信を利用できません</string>
+    <string name="terminal_status_protocol">ターミナルから無効な応答が届きました</string>
+    <string name="terminal_status_offline">ターミナルが見つかりません</string>
+    <string name="terminal_status_reconnecting">ターミナルに再接続しています…</string>
+    <string name="terminal_status_connecting">ターミナルに接続しています…</string>
+    <string name="terminal_status_synchronizing">ターミナルを同期しています…</string>
+    <string name="terminal_status_suspended">バックグラウンドでターミナルを一時停止しました</string>
+    <string name="terminal_status_failed">ターミナル接続に失敗しました</string>
+    <string name="terminal_status_exited">ターミナルプロセスは終了しました</string>
+    <string name="terminal_status_live">ターミナルに接続しました</string>
+    <string name="terminal_status_idle">ターミナルは待機中です</string>
+</resources>

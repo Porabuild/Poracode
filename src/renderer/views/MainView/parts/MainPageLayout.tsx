@@ -20,6 +20,9 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useLingui } from "@lingui/react/macro";
 import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
 import { CompactThreadHeader } from "@/renderer/components/thread/CompactThreadHeader";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 
 export function MainPageLayout(props: { onTitleClick: () => void }) {
   const { onTitleClick } = props;
@@ -32,6 +35,10 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
     .filter(Boolean)
     .join(" ");
   const view = useAppStore((state) => state.view);
+  const compactLayout = useCompactLayout();
+  const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
+  const activeMobileUtilityPage = compactLayout ? mobileUtilityPage : null;
+  const compactHome = view.kind === "home" && activeMobileUtilityPage === null;
   const compactThread = useAppStore((state) => {
     if (state.view.kind !== "thread") return undefined;
     const focusedId = state.focusedPaneId;
@@ -48,7 +55,21 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
   const compactAgentStatus = compactAgentStatuses.find(
     (status) => status.kind === compactThread?.agentKind,
   );
+  const experimentTitle = useExperimentStore((state) =>
+    view.kind === "experiment" ? (state.experiments[view.experimentId]?.title ?? null) : null,
+  );
   const compactTitle = useAppStore((state) => {
+    if (activeMobileUtilityPage === "profile") return t`Profile`;
+    if (activeMobileUtilityPage === "usage") return t`Usage`;
+    if (activeMobileUtilityPage === "projects") return t`Projects`;
+    if (activeMobileUtilityPage === "terminal") return t`Terminal`;
+    if (activeMobileUtilityPage === "browser") return t`Browser`;
+    if (activeMobileUtilityPage === "ports") return t`Ports`;
+    if (activeMobileUtilityPage === "notes") return t`Notes`;
+    if (activeMobileUtilityPage === "pullRequests") return t`Pull requests`;
+    if (activeMobileUtilityPage === "schedules") return t`Schedules`;
+    if (activeMobileUtilityPage === "githubActions") return t`GitHub Actions`;
+    if (activeMobileUtilityPage === "settings") return t`Settings`;
     if (state.view.kind === "thread") {
       const focusedId = state.focusedPaneId;
       const threadId =
@@ -58,6 +79,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       );
     }
     if (state.view.kind === "draft") return t`New thread`;
+    if (state.view.kind === "experiment") return experimentTitle ?? t`Experiment`;
     if (state.view.kind === "pullRequests") return t`Pull requests`;
     if (state.view.kind === "schedules") return t`Schedules`;
     return getAppName(channel, isDev);
@@ -79,10 +101,10 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       onTitleClick={onTitleClick}
       onRequestClosePanels={closeAllPanels}
       onDismissRightOverlay={dismissRightOverlay}
-      compactHome={view.kind === "home"}
+      compactHome={compactHome}
       compactTitle={compactTitle}
       compactHeaderChildren={
-        compactThread && compactProject ? (
+        activeMobileUtilityPage === null && compactThread && compactProject ? (
           <CompactThreadHeader
             thread={compactThread}
             project={compactProject}
@@ -90,9 +112,18 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
           />
         ) : undefined
       }
-      onCompactBack={() => useAppStore.getState().openHome()}
+      onCompactBack={() => {
+        if (activeMobileUtilityPage !== null) {
+          if (activeMobileUtilityPage === "terminal") {
+            useDevTerminalStore.getState().closePanel();
+          }
+          usePanelStore.getState().closeMobileUtilityPage();
+          return;
+        }
+        useAppStore.getState().openHome();
+      }}
       mobileNavigation
-      sidebarHeaderChildren={<SidebarHeaderControls />}
+      sidebarHeaderChildren={compactLayout && !compactHome ? null : <SidebarHeaderControls />}
       sidebar={<Sidebar />}
       content={
         <MainPanelDropZone>
@@ -102,8 +133,8 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
           </Suspense>
         </MainPanelDropZone>
       }
-      rightPanel={<MainRightPanel />}
-      gitPanel={<MainGitPanel />}
+      rightPanel={activeMobileUtilityPage === null ? <MainRightPanel /> : undefined}
+      gitPanel={activeMobileUtilityPage === null ? <MainGitPanel /> : undefined}
     />
   );
 }

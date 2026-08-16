@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/primary.swiftdeps"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.build/runner.dia"
+  }
+}

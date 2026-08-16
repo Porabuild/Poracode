@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Thread actions</string>
+    <string name="thread_lifecycle_rename">Rename</string>
+    <string name="thread_lifecycle_rename_prompt">New thread title</string>
+    <string name="thread_lifecycle_relaunch">Relaunch</string>
+    <string name="thread_lifecycle_relaunch_prompt">What should the agent do next?</string>
+    <string name="thread_lifecycle_pin">Pin</string>
+    <string name="thread_lifecycle_unpin">Unpin</string>
+    <string name="thread_lifecycle_done">Mark Done</string>
+    <string name="thread_lifecycle_not_done">Mark Not Done</string>
+    <string name="thread_lifecycle_acknowledge">Acknowledge</string>
+    <string name="thread_lifecycle_archive">Archive</string>
+    <string name="thread_lifecycle_unarchive">Unarchive</string>
+    <string name="thread_lifecycle_delete">Delete</string>
+    <string name="thread_lifecycle_cancel">Cancel</string>
+    <string name="thread_lifecycle_submit">Submit</string>
+    <string name="thread_lifecycle_archive_confirmation">Archive this thread?</string>
+    <string name="thread_lifecycle_delete_confirmation">Delete this thread permanently?</string>
+    <string name="thread_lifecycle_failed">Thread Action Failed</string>
+    <string name="thread_lifecycle_close">Close</string>
+    <string name="thread_lifecycle_failure_ambiguous">The result is uncertain. The thread list is being refreshed.</string>
+    <string name="thread_lifecycle_failure_generic">The thread action could not be completed. Refresh the list and try again.</string>
+</resources>

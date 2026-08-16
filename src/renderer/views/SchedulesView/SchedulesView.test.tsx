@@ -105,9 +105,17 @@ function makeStatus(
   };
 }
 
+const layout = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/adaptiveLayout")>()),
+  useCompactLayout: () => layout.compact,
+}));
+
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
   isRemoteSession: () => false,
+  isCompactClientSurface: () => false,
 }));
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: (selector: (state: { agentStatuses: AgentStatus[] }) => unknown) =>
@@ -130,6 +138,8 @@ vi.mock("@/renderer/state/appStore", () => {
     openDraft: agentCreation.openDraft,
     threads: appState.threads,
     projects: appState.projects,
+    view: { kind: "home" as const },
+    focusedPaneId: null,
   });
   const useAppStore = ((selector: (state: ReturnType<typeof getState>) => unknown) =>
     selector(getState())) as unknown as {
@@ -144,6 +154,7 @@ import { SchedulesView } from "./SchedulesView";
 
 describe("SchedulesView", () => {
   beforeEach(() => {
+    layout.compact = false;
     agentState.statuses = [status];
     bridge.getSchedules.mockReset().mockResolvedValue([task]);
     bridge.createSchedule.mockReset().mockResolvedValue(task);
@@ -427,5 +438,18 @@ describe("SchedulesView", () => {
     expect(statusIcon.closest("button")).toBeNull();
     fireEvent.click(statusIcon);
     expect(nav.openThread).not.toHaveBeenCalled();
+  });
+
+  it("stacks schedule editor field rows on compact", async () => {
+    layout.compact = true;
+    render(<SchedulesView />);
+
+    await screen.findByText("Daily brief");
+    fireEvent.click(screen.getByRole("button", { name: "Edit schedule" }));
+
+    const projectLabel = screen.getByText("Project", { selector: "p" });
+    expect(projectLabel.closest(".flex-col")).not.toBeNull();
+    expect(screen.getByLabelText("Project").closest(".w-full")).not.toBeNull();
+    expect(document.querySelector(".w-\\[280px\\]")).toBeNull();
   });
 });

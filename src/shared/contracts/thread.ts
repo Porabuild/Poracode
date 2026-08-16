@@ -90,6 +90,25 @@ export interface TerminalShellSnapshot {
   outputLength: number;
 }
 
+/**
+ * Authoritative terminal transcript snapshot for remote cursor-sync watches.
+ * Cursors are opaque JS-string-unit absolute offsets (`outputLength` space).
+ * `generation` is the live/retained terminal instance id, or null for
+ * persisted-thread fallback after the process is gone.
+ *
+ * **Null generation contract:** `generation: null` is snapshot/replace-only and
+ * is never append-compatible (with a prior range or another null). Consumers
+ * must reset/replace rather than invent a durable generation id.
+ */
+export interface TerminalSnapshot {
+  generation: string | null;
+  fromCursor: number;
+  toCursor: number;
+  data: string;
+  processState: "running" | "exited";
+  terminalSize: TerminalSize | null;
+}
+
 export const terminalSizeSchema = z.object({
   cols: z.number().int().min(20).max(400),
   rows: z.number().int().min(5).max(200),
@@ -153,9 +172,10 @@ export const startThreadPayloadSchema = z.object({
 });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
 
-export interface StartThreadResult {
-  threadId: string;
-}
+export const startThreadResultSchema = z.object({
+  threadId: z.string().min(1),
+});
+export type StartThreadResult = z.infer<typeof startThreadResultSchema>;
 
 export const sendThreadInputPayloadSchema = z.object({
   threadId: z.string().min(1),

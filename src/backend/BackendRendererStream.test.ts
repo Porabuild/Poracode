@@ -26,8 +26,20 @@ describe("BackendRendererStream", () => {
     );
     await nextMessage(socket);
 
-    stream.publish({ type: "thread-output", threadId: "hidden", data: "no", outputLength: 2 });
-    stream.publish({ type: "thread-output", threadId: "wanted", data: "yes", outputLength: 3 });
+    stream.publish({
+      type: "thread-output",
+      threadId: "hidden",
+      data: "no",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
+    stream.publish({
+      type: "thread-output",
+      threadId: "wanted",
+      data: "yes",
+      outputLength: 3,
+      terminalInstanceId: "gen-test",
+    });
     await expect(nextMessage(socket)).resolves.toMatchObject({
       type: "event",
       event: { type: "thread-output", threadId: "wanted", data: "yes" },
@@ -95,6 +107,7 @@ describe("BackendRendererStream", () => {
       threadId: "terminal-starting",
       data: "first frame",
       outputLength: 11,
+      terminalInstanceId: "gen-test",
     });
 
     await expect(nextMessage(socket)).resolves.toMatchObject({

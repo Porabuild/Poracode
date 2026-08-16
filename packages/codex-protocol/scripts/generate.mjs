@@ -24,9 +24,24 @@ if (!codexBinDirectory || !pnpmCli) {
 
 rmSync(resolve(packageDir, "generated"), { recursive: true, force: true });
 
+// npm_execpath is a JS entrypoint for regular pnpm installs but a native
+// binary for the standalone @pnpm/exe distribution; only route JS files
+// through Node, or `node <binary>` dies with a SyntaxError.
+const isPnpmScript = /\.(c|m)?js$/i.test(pnpmCli);
 const result = spawnSync(
-  process.execPath,
-  [pnpmCli, "exec", "codex", "app-server", "generate-ts", "--experimental", "--out", "./generated"],
+  isPnpmScript ? process.execPath : pnpmCli,
+  isPnpmScript
+    ? [
+        pnpmCli,
+        "exec",
+        "codex",
+        "app-server",
+        "generate-ts",
+        "--experimental",
+        "--out",
+        "./generated",
+      ]
+    : ["exec", "codex", "app-server", "generate-ts", "--experimental", "--out", "./generated"],
   {
     cwd: packageDir,
     env: {

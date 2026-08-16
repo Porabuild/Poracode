@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">브라우저 미러링</string>
+    <string name="browser_mirror_create_tab">탭 만들기</string>
+    <string name="browser_mirror_close_tab">탭 닫기</string>
+    <string name="browser_mirror_selected_tab">선택한 탭</string>
+    <string name="browser_mirror_untitled_tab">제목 없는 탭</string>
+    <string name="browser_mirror_back">뒤로</string>
+    <string name="browser_mirror_forward">앞으로</string>
+    <string name="browser_mirror_reload">새로고침</string>
+    <string name="browser_mirror_address">주소</string>
+    <string name="browser_mirror_loading">브라우저 상태를 불러오는 중…</string>
+    <string name="browser_mirror_starting">브라우저 미러링을 시작하는 중…</string>
+    <string name="browser_mirror_unavailable">브라우저 미러링을 사용할 수 없습니다.</string>
+    <string name="browser_mirror_waiting_frame">브라우저 이미지를 기다리는 중…</string>
+    <string name="browser_mirror_retry">다시 시도</string>
+    <string name="browser_mirror_no_session">선택한 원격 세션이 없습니다.</string>
+    <string name="browser_mirror_offline">원격 세션이 오프라인입니다.</string>
+    <string name="browser_mirror_not_ready">원격 세션이 준비되지 않았습니다.</string>
+    <string name="browser_mirror_permission_denied">이 세션에서는 브라우저를 제어할 수 없습니다.</string>
+    <string name="browser_mirror_remote_error">브라우저 미러링에 실패했습니다.</string>
+    <string name="browser_mirror_refreshing_after_command">명령 결과가 확실하지 않습니다. 브라우저 상태를 새로고치는 중…</string>
+    <string name="browser_mirror_frame_description">미러링된 브라우저 페이지</string>
+    <string name="browser_mirror_type_on_page">페이지에 입력</string>
+    <string name="browser_mirror_key_enter">Enter</string>
+    <string name="browser_mirror_key_backspace">Backspace</string>
+    <string name="browser_mirror_key_tab">Tab</string>
+    <string name="browser_mirror_key_escape">Escape</string>
+    <string name="browser_mirror_key_up">위</string>
+    <string name="browser_mirror_key_down">아래</string>
+    <string name="browser_mirror_key_left">왼쪽</string>
+    <string name="browser_mirror_key_right">오른쪽</string>
+    <string name="browser_mirror_back_nav">뒤로</string>
+    <string name="browser_mirror_start">미러링 시작</string>
+    <string name="browser_mirror_stop">미러링 중지</string>
+    <string name="browser_mirror_empty">열려 있는 브라우저 탭이 없습니다.</string>
+    <string name="browser_mirror_stopped">브라우저 미러링이 중지되었습니다.</string>
+</resources>

@@ -274,7 +274,7 @@ export async function createHeadlessRemoteHost(
     pushRegistrations: {
       webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
       upsert: (registration) => pushStore.upsert(registration),
-      remove: (deviceId) => pushStore.remove(deviceId),
+      remove: (deviceId, routing) => pushStore.remove(deviceId, routing),
     },
     portForward: portForwarding.gateway,
     portProxy: portForwarding.proxy,

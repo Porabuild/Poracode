@@ -39,19 +39,6 @@ async function pairBrowserDesktopFromUrl(href: string, cleanCurrentUrl = false):
   }
 }
 
-async function installNativePairingListeners(): Promise<void> {
-  const capacitor = (globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-  if (capacitor?.isNativePlatform?.() !== true) return;
-  const { App } = await import("@capacitor/app");
-  const pair = (url: string | null | undefined) => {
-    if (!url) return;
-    void showBrowserPairing(url);
-  };
-  const launch = await App.getLaunchUrl();
-  pair(launch?.url);
-  await App.addListener("appUrlOpen", (event) => pair(event.url));
-}
-
 async function showBrowserPairing(href: string, cleanCurrentUrl = false): Promise<void> {
   if (!parsePairingUrlParts(href)) return;
   const [{ toast }, { i18n }] = await Promise.all([import("@heroui/react"), import("./i18n/i18n")]);
@@ -88,7 +75,6 @@ await import("./main");
 
 if (!window.poracodeHost) {
   void showBrowserPairing(window.location.href, true);
-  void installNativePairingListeners();
   void import("./pwa/registerServiceWorker").then(({ registerCanonicalServiceWorker }) => {
     registerCanonicalServiceWorker();
   });

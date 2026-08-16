@@ -4,6 +4,10 @@ import { REMOTE_COMMAND_ID_HEADER, type RemoteAccessScope } from "@/shared/remot
 import { parseBearerAuthorizationHeader, RemoteHttpError, type RemoteAuthStore } from "../auth";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 
+// Webview origins trusted for CORS. The `capacitor://` and `ionic://` schemes
+// exist solely for backward compatibility with the retired Capacitor mobile
+// shell, which may still be installed on a user's device. Capacitor itself is
+// fully removed from this repository and must not be reintroduced.
 const NATIVE_WEBVIEW_ORIGINS = new Set([
   "capacitor://localhost",
   "ionic://localhost",

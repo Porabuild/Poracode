@@ -1,4 +1,4 @@
-// Finalize the canonical index entry for hosted PWA and Capacitor delivery.
+// Finalize the canonical index entry for hosted PWA delivery.
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";

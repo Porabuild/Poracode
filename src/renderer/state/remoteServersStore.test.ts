@@ -214,6 +214,7 @@ function makeClient(opts?: {
   environmentHttpBaseUrl?: string;
   hostMode?: "desktop" | "helper";
   projectCommand?: RemoteDesktopClient["projectCommand"];
+  projectNotes?: RemoteDesktopClient["projectNotes"];
   projectSettings?: RemoteDesktopClient["projectSettings"];
   interruptThread?: RemoteDesktopClient["interruptThread"];
   closeThread?: RemoteDesktopClient["closeThread"];
@@ -270,6 +271,7 @@ function makeClient(opts?: {
       }),
     projectCommand:
       opts?.projectCommand ?? (async () => ({ projects: opts?.snapshotProjects ?? [proj] })),
+    projectNotes: opts?.projectNotes ?? (async () => null),
     projectSettings: opts?.projectSettings ?? (async () => ({})),
     interruptThread: opts?.interruptThread ?? (async () => {}),
     closeThread: opts?.closeThread ?? (async () => {}),
@@ -609,7 +611,7 @@ describe("useRemoteServersStore", () => {
     );
   });
 
-  it("rejects remote actions before dispatch when the server is offline", async () => {
+  it("probes an offline server and restores it online after a successful action", async () => {
     const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => ({}));
     useRemoteServersStore
       .getState()
@@ -633,8 +635,10 @@ describe("useRemoteServersStore", () => {
           admin: false,
         }),
       ),
-    ).rejects.toThrow("Can't reach the remote server");
-    expect(gitCall).not.toHaveBeenCalled();
+    ).resolves.toEqual({});
+    expect(gitCall).toHaveBeenCalledOnce();
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "online" });
+    expect(useRemoteServersStore.getState().runtime.d1?.message).toBeUndefined();
   });
 
   it("marks an online server unreachable when an action discovers a transport failure", async () => {
@@ -709,7 +713,7 @@ describe("useRemoteServersStore", () => {
     unsubscribe();
   });
 
-  it("keeps a reconnecting server connecting when an action is attempted", async () => {
+  it("allows a reconnecting server action without changing its connecting status", async () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
     await useRemoteServersStore
       .getState()
@@ -718,9 +722,9 @@ describe("useRemoteServersStore", () => {
       runtime: { ...state.runtime, d1: { ...state.runtime.d1!, status: "connecting" } },
     }));
 
-    await expect(
-      useRemoteServersStore.getState().withClient("d1", async () => "ok"),
-    ).rejects.toThrow("Can't reach the remote server");
+    await expect(useRemoteServersStore.getState().withClient("d1", async () => "ok")).resolves.toBe(
+      "ok",
+    );
 
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
   });
@@ -763,96 +767,29 @@ describe("useRemoteServersStore", () => {
     });
   });
 
-  it("routes every explicit remote control through the offline-aware client boundary", async () => {
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+  it("loads project notes through an offline server recovery probe", async () => {
+    const projectNotes = vi.fn<RemoteDesktopClient["projectNotes"]>(async () => ({
+      projectId: "p1",
+      doc: null,
+      todos: [],
+      updatedAt: "now",
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ projectNotes })));
     await useRemoteServersStore
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-    seedRemoteThreadOwner();
+    useRemoteServersStore.setState((state) => ({
+      runtime: { ...state.runtime, d1: { ...state.runtime.d1!, status: "offline" } },
+    }));
 
-    const actions = [
-      () =>
-        useRemoteServersStore.getState().launchRemoteThread({
-          desktopId: "d1",
-          projectId: "p1",
-          agentKind: "codex",
-          config: { model: "test-model" },
-          prompt: "test",
-          presentationMode: "gui",
-        }),
-      () =>
-        invokeRemoteRoute("sendThreadInput", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          prompt: "test",
-          config: { model: "test-model" },
-        }),
-      () =>
-        useRemoteServersStore.getState().sendThreadCommand("d1", {
-          kind: "set-starred",
-          threadId: "rt-1",
-          starred: true,
-        }),
-      () =>
-        invokeRemoteRoute("setPendingSteer", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          prompt: "test",
-          config: { model: "test-model" },
-        }),
-      () => invokeRemoteRoute("clearPendingSteer", { threadId: remoteThreadId("d1", "rt-1") }),
-      () =>
-        invokeRemoteRoute("controlThreadGoal", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          action: "pause",
-        }),
-      () =>
-        invokeRemoteRoute("writeTerminal", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          data: "x",
-        }),
-      () =>
-        invokeRemoteRoute("resizeTerminal", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          cols: 80,
-          rows: 24,
-        }),
-      () =>
-        invokeRemoteRoute("resolveThreadServerRequest", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          requestId: "request-1",
-          method: "item/tool/call",
-          response: { approved: false },
-        }),
-      () => useRemoteServersStore.getState().getHostUpdateState("d1"),
-      () => useRemoteServersStore.getState().loadProjectSettings("d1", "p1"),
-      () =>
-        useRemoteServersStore
-          .getState()
-          .runProjectCommand("d1", { kind: "remove", projectId: "p1" }),
-      () => useRemoteServersStore.getState().browseHostDirectory("d1", "/srv"),
-      () =>
-        useRemoteServersStore.getState().saveClipboardImage("d1", {
-          threadId: "rt-1",
-          data: new Uint8Array([1]),
-          extension: "png",
-        }),
-      () =>
-        invokeRemoteRoute("saveHandoffContext", {
-          threadId: remoteThreadId("d1", "rt-1"),
-          content: "context",
-        }),
-      () => useRemoteServersStore.getState().pickAndUploadFiles("d1", "rt-1"),
-      () => useRemoteServersStore.getState().checkHostUpdate("d1"),
-      () => useRemoteServersStore.getState().installHostUpdate("d1"),
-      () => invokeRemoteRoute("interruptThread", { threadId: remoteThreadId("d1", "rt-1") }),
-    ];
+    await expect(
+      invokeRemoteRoute("dbGetProjectNotes", {
+        projectId: remoteProjectId("d1", "p1"),
+      }),
+    ).resolves.toMatchObject({ projectId: remoteProjectId("d1", "p1") });
 
-    for (const action of actions) {
-      useRemoteServersStore.setState((state) => ({
-        runtime: { ...state.runtime, d1: { ...state.runtime.d1!, status: "offline" } },
-      }));
-      await expect(action()).rejects.toThrow("Can't reach the remote server");
-      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("offline");
-    }
+    expect(projectNotes).toHaveBeenCalledWith("p1");
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "online" });
   });
 
   it("persists a local name for a remote connection", async () => {

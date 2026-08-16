@@ -9,6 +9,7 @@ import {
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { toggleBrowserPanel } from "@/renderer/actions/panelActions";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import {
   type ThreadSortMode,
   listLayoutIcon,
@@ -21,6 +22,41 @@ import {
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { SidebarProjectFilter } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter";
+import { useFlatListProjectFilterModel } from "@/renderer/views/MainView/parts/Sidebar/parts/useFlatListProjectFilterModel";
+
+function MobileSidebarHeaderControls(props: { connected: boolean }) {
+  const { t } = useLingui();
+  const projectFilter = useFlatListProjectFilterModel();
+  const hasProjectFilter = projectFilter.workspaceProjects.length > 0;
+  if (!hasProjectFilter && props.connected) return null;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {hasProjectFilter ? (
+        <SidebarProjectFilter
+          projects={projectFilter.workspaceProjects}
+          filterableProjectIds={projectFilter.filterableProjectIds}
+          threadCounts={projectFilter.threadCounts}
+          value={projectFilter.activeProjectFilter}
+          onChange={projectFilter.setFlatListProjectFilter}
+          mobileIconTrigger
+        />
+      ) : null}
+      {props.connected ? null : (
+        <MobileCircleButton
+          aria-label={t`Remote Environments`}
+          className="text-muted"
+          onPress={() => {
+            usePanelStore.getState().openSettingsSection("remoteServers");
+          }}
+        >
+          <WifiOff className="size-5" />
+        </MobileCircleButton>
+      )}
+    </div>
+  );
+}
 
 export function SidebarHeaderControls() {
   const { t } = useLingui();
@@ -35,23 +71,7 @@ export function SidebarHeaderControls() {
 
   if (compactLayout) {
     const connected = !isBrowserClientRuntime() || selectedBrowserServer !== undefined;
-    if (connected) return null;
-    return (
-      <div className="poracode-mobile-home-status ml-auto flex items-center">
-        <Button
-          isIconOnly
-          aria-label={t`Remote Environments`}
-          size="sm"
-          variant="ghost"
-          className="size-9 min-w-0 text-muted"
-          onPress={() => {
-            usePanelStore.getState().openSettingsSection("remoteServers");
-          }}
-        >
-          <WifiOff className="size-4" />
-        </Button>
-      </div>
-    );
+    return <MobileSidebarHeaderControls connected={connected} />;
   }
 
   return (

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Дії з гілкою</string>
+    <string name="thread_lifecycle_rename">Перейменувати</string>
+    <string name="thread_lifecycle_rename_prompt">Нова назва гілки</string>
+    <string name="thread_lifecycle_relaunch">Перезапустити</string>
+    <string name="thread_lifecycle_relaunch_prompt">Що агент має зробити далі?</string>
+    <string name="thread_lifecycle_pin">Закріпити</string>
+    <string name="thread_lifecycle_unpin">Відкріпити</string>
+    <string name="thread_lifecycle_done">Позначити виконаною</string>
+    <string name="thread_lifecycle_not_done">Позначити невиконаною</string>
+    <string name="thread_lifecycle_acknowledge">Підтвердити</string>
+    <string name="thread_lifecycle_archive">Архівувати</string>
+    <string name="thread_lifecycle_unarchive">Розархівувати</string>
+    <string name="thread_lifecycle_delete">Видалити</string>
+    <string name="thread_lifecycle_cancel">Скасувати</string>
+    <string name="thread_lifecycle_submit">Надіслати</string>
+    <string name="thread_lifecycle_archive_confirmation">Архівувати цю гілку?</string>
+    <string name="thread_lifecycle_delete_confirmation">Видалити цю гілку назавжди?</string>
+    <string name="thread_lifecycle_failed">Не вдалося виконати дію</string>
+    <string name="thread_lifecycle_close">Закрити</string>
+    <string name="thread_lifecycle_failure_ambiguous">Результат невідомий. Список гілок оновлюється.</string>
+    <string name="thread_lifecycle_failure_generic">Не вдалося виконати дію. Оновіть список і повторіть спробу.</string>
+</resources>

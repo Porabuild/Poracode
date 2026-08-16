@@ -37,6 +37,8 @@ describe("MobileHomeActions", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "More" });
     expect(dialog.querySelector(".m-sheet")).not.toBeNull();
+    expect(dialog.querySelector(".m-sheet-scroll > .m-sheet-head")).not.toBeNull();
+    expect(dialog.querySelector(".m-sheet-scroll > .m-sheet-list")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Notes" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });

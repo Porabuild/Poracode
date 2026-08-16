@@ -15,6 +15,7 @@ import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shar
 import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import {
   useInitialProjectDraftConfig,
@@ -42,6 +43,7 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
 import { resolveResponsivePaneLayout } from "./responsivePaneLayout";
+import { MobileUtilityPage } from "../MobileUtilityPage";
 
 export function AppContent() {
   const { t } = useLingui();
@@ -60,6 +62,7 @@ export function AppContent() {
   const keepAlivePaneIds = useAppStore((state) => state.keepAlivePaneIds);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
   const compactLayout = useCompactLayout();
+  const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
   const activeGroupName = useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread" || !v.activeGroupId) return undefined;
@@ -160,6 +163,10 @@ export function AppContent() {
         ? t`Context transferred to ${targetLabel}`
         : t`Started ${targetLabel} thread`,
     );
+  }
+
+  if (compactLayout && mobileUtilityPage) {
+    return <MobileUtilityPage />;
   }
 
   if (view.kind === "experiment") {

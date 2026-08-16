@@ -347,12 +347,14 @@ msgstr "已使用 {0}"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}，空闲"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Running"
 msgstr "{0}，正在运行"
@@ -478,7 +480,7 @@ msgstr "{label} 自动刷新间隔（分钟）"
 msgid "{label} copied."
 msgstr "已复制{label}。"
 
-#: src/renderer/components/thread/CompactThreadHeader.tsx
+#: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "{label} usage"
 msgstr "{label}用量"
 
@@ -683,8 +685,8 @@ msgstr "1 次运行"
 #~ msgstr "1 个工作流"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "22"
-msgstr "22"
+#~ msgid "22"
+#~ msgstr "22"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
@@ -806,7 +808,9 @@ msgstr "操作名称"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Actions"
 msgstr "操作"
@@ -883,6 +887,7 @@ msgstr "添加项目以查看拉取请求。"
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Add a project to start"
 msgstr "添加一个项目来启动"
 
@@ -1224,6 +1229,10 @@ msgstr "允许代理读/写 cookie 和存储"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "请在浏览器设置中允许此站点访问摄像头后重试，或在下方输入端点和令牌。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
+msgstr "请在浏览器设置中允许此站点访问摄像头后重试，或改为粘贴配对链接。"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
@@ -1391,6 +1400,8 @@ msgstr "已存档的线程"
 #~ msgstr "已存档线程由桌面应用管理。尚无法从此设备恢复或删除它们。"
 
 #. placeholder {0}: file.path
+#. placeholder {0}: revertFile?.path
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Are you sure you want to revert <0>{0}</0>? This cannot be undone."
 msgstr "您确定要恢复 <0>{0}</0> 吗？此操作无法撤消。"
@@ -1400,6 +1411,7 @@ msgid "Are you sure you want to revert <0>{path}</0>? This cannot be undone."
 msgstr "您确定要恢复 <0>{path}</0> 吗？此操作无法撤消。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "您确定要恢复所有未暂存的更改吗？此操作无法撤消。"
 
@@ -1604,9 +1616,13 @@ msgstr "头像颜色{color}"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/layout/PageLayout.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/components/layout/MobilePageHeader.tsx
+#: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Back"
 msgstr "返回"
@@ -1800,6 +1816,7 @@ msgstr "在 Poracode 隔离的内置浏览器中浏览、检查并测试网站�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -1922,9 +1939,9 @@ msgstr "绕过分支保护规则（管理合并）"
 #~ msgid "Cached only"
 #~ msgstr "仅缓存"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Camera access blocked"
-#~ msgstr "摄像头访问已被阻止"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "摄像头访问已被阻止"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
@@ -1962,7 +1979,6 @@ msgstr "无法连接远程服务器。请确认其处于在线状态，然后重
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2134,8 +2150,8 @@ msgid "Checking {serverName}"
 msgstr "正在检查 {serverName}"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Checking host…"
-msgstr "正在检查主机…"
+#~ msgid "Checking host…"
+#~ msgstr "正在检查主机…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Checking Tailscale…"
@@ -2186,6 +2202,10 @@ msgstr "请选择实验使用的本地基准分支。"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Choose a parent folder"
 msgstr "选择父文件夹"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Choose a photo"
+msgstr "选择照片"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
@@ -2279,6 +2299,10 @@ msgstr "为此线程启用 Chrome MCP"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Chrome Tools"
 msgstr "Chrome 工具"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "CI Actions: Workflows"
+msgstr "CI 操作：工作流程"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2385,11 +2409,11 @@ msgid "Cloning…"
 msgstr "克隆…"
 
 #: src/renderer/components/common/BottomSheet.tsx
-#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Close"
 msgstr "关闭"
@@ -2528,9 +2552,9 @@ msgstr "关闭预览"
 msgid "Close run details"
 msgstr "关闭运行详情"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Close scanner"
-#~ msgstr "关闭扫描器"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Close scanner"
+msgstr "关闭扫描器"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -2756,8 +2780,8 @@ msgid "Compacting context"
 msgstr "压缩上下文"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Compare this fingerprint with the one shown by your server."
-msgstr "请将此指纹与服务器上显示的指纹进行比较。"
+#~ msgid "Compare this fingerprint with the one shown by your server."
+#~ msgstr "请将此指纹与服务器上显示的指纹进行比较。"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "Comparing candidates…"
@@ -2812,6 +2836,7 @@ msgid "Composer"
 msgstr "Composer"
 
 #: src/renderer/commands/composerCommands.ts
+#: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Composer 控件"
 
@@ -2877,6 +2902,7 @@ msgstr "与托管技能冲突"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2925,8 +2951,8 @@ msgstr "连接到远程服务器"
 #~ msgstr "连接到另一台 Poracode 桌面端或无界面服务器，即可在此浏览和管理其项目。请在对方设备的“设置 → 远程访问”中获取其端点和配对令牌。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Connect to Your Desktop"
-msgstr "连接到你的桌面端"
+#~ msgid "Connect to Your Desktop"
+#~ msgstr "连接到你的桌面端"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
@@ -2945,7 +2971,6 @@ msgstr "连接中..."
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
@@ -2972,6 +2997,7 @@ msgstr "连接失败。"
 msgid "Connection timed out."
 msgstr "连接超时。"
 
+#: src/renderer/components/common/RemoteServerPicker.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -3064,6 +3090,7 @@ msgid "Controls the paired desktop while the agent clicks or types"
 msgstr "代理点击或输入时控制已配对的桌面"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Conversation"
 msgstr "对话"
 
@@ -3160,6 +3187,10 @@ msgstr "复制选区"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
 msgstr "复制 Tailscale URL"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Copy the link from Remote Access settings on your desktop."
+#~ msgstr "从桌面端的“远程访问”设置中复制链接。"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -3298,9 +3329,9 @@ msgstr "无法扫描 MCP 服务器配置。"
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "无法安排 Lightcode 数据导入。"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Couldn't start the camera"
-#~ msgstr "无法启动摄像头"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "无法启动摄像头"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
@@ -3493,6 +3524,7 @@ msgstr "已选为优胜者"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "由 MCP Market 管理的精选免费和高级技能。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
 msgstr "最近"
@@ -3834,6 +3866,7 @@ msgstr "桌面端点"
 #~ msgid "Desktop is unreachable."
 #~ msgstr "无法访问桌面。"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Desktop Settings"
@@ -4319,8 +4352,8 @@ msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session to
 msgstr "启用<0>cookie</0>和<1>存储</1>。Cookie 可以包含会话令牌，并且存储通常保存身份验证状态——仅当您信任代理及其访问的站点时才启用。"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
-msgid "Endpoint"
-msgstr "端点"
+#~ msgid "Endpoint"
+#~ msgstr "端点"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:38987/"
@@ -4367,8 +4400,8 @@ msgid "Enter a valid project name."
 msgstr "请输入有效的项目名称。"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Enter a valid SSH target and port."
-msgstr "请输入有效的 SSH 目标和端口。"
+#~ msgid "Enter a valid SSH target and port."
+#~ msgstr "请输入有效的 SSH 目标和端口。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
@@ -4383,6 +4416,7 @@ msgid "Enter plan mode"
 msgstr "进入计划模式"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Enter the pairing URL shown on your desktop."
 msgstr "请输入桌面端显示的配对 URL。"
@@ -4392,8 +4426,8 @@ msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "输入桌面端某个开发服务器正在监听的端口。"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Enter the SSH password."
-msgstr "请输入 SSH 密码。"
+#~ msgid "Enter the SSH password."
+#~ msgstr "请输入 SSH 密码。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter valid JSON."
@@ -4558,6 +4592,7 @@ msgstr "预期工作树所有者为 {expected}，但实际为 {actual}"
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 msgid "Experiment"
 msgstr "实验"
 
@@ -5097,7 +5132,9 @@ msgstr "Gemini"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5185,6 +5222,7 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
@@ -5602,6 +5640,10 @@ msgstr "进行中"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "在 Safari 中点按“分享”，然后选择“添加到主屏幕”。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
+msgstr "应用内摄像头扫描仅支持 HTTPS 或 localhost。请改用手机相机应用扫描桌面上的二维码，或粘贴配对链接。"
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
@@ -6179,6 +6221,7 @@ msgid "local"
 msgstr "本地"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+#: src/renderer/components/common/RemoteServerPicker.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -6346,6 +6389,11 @@ msgstr "由提供商托管"
 #~ msgid "Managed skills"
 #~ msgstr "托管技能"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Manual connection"
+msgstr "手动连接"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "手动排序"
@@ -6359,8 +6407,8 @@ msgid "Manual routes override learned routing whenever all of their task tags ma
 msgstr "当所有任务标签均匹配时，手动路由会覆盖已学习的路由。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Manual URL"
-msgstr "手动 URL"
+#~ msgid "Manual URL"
+#~ msgstr "手动 URL"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -6498,7 +6546,9 @@ msgid "MCP servers"
 msgstr "MCP服务器"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -7157,6 +7207,7 @@ msgstr "没有活动会话"
 #~ msgid "No active workflows"
 #~ msgstr "没有活动的工作流"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "未找到活动的工作流。"
@@ -7205,9 +7256,9 @@ msgstr "未找到分支"
 msgid "No browser tab open"
 msgstr "没有打开浏览器选项卡"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "No camera found"
-#~ msgstr "未找到摄像头"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "No camera found"
+msgstr "未找到摄像头"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -7630,6 +7681,7 @@ msgstr "未同步"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Notes"
@@ -7721,6 +7773,11 @@ msgstr "每行一组 KEY=VALUE"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
 msgstr "仅一次"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "One-time pairing token"
+msgstr "一次性配对令牌"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
@@ -7869,12 +7926,14 @@ msgid "Open image preview"
 msgstr "打开图片预览"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "在浏览器中打开"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "在编辑器中打开"
@@ -7976,10 +8035,21 @@ msgstr "打开设置"
 msgid "Open Settings → Remote Access in Poracode on your desktop, then copy the pairing URL shown there."
 msgstr "在桌面端的 Poracode 中打开“设置 → 远程访问”，然后复制那里显示的配对 URL。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "在桌面端的 Poracode 中打开“设置 → 远程访问”，然后从这里扫描二维码——或手动输入端点和配对令牌。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
+#~ msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code shown there — or copy the pairing link it shows."
+#~ msgstr "在桌面端的 Poracode 中打开“设置 → 远程访问”，然后扫描那里显示的二维码——或复制其配对链接。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#~ msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code shown there — or paste its pairing link."
+#~ msgstr "在桌面端的 Poracode 中打开“设置 → 远程访问”，然后扫描那里显示的二维码——或粘贴其配对链接。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Open Settings → Remote Access on your desktop to show the code."
+msgstr "在桌面端打开“设置 → 远程访问”以显示配对码。"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -7991,6 +8061,7 @@ msgid "Open Tailscale"
 msgstr "打开 Tailscale"
 
 #: src/renderer/components/thread/CompactThreadHeader.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 msgid "Open terminal"
 msgstr "打开终端"
 
@@ -8022,8 +8093,8 @@ msgid "Opened pull request #{0} for the candidate."
 msgstr "已为候选打开拉取请求 #{0}。"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "OpenSSH private key"
-msgstr "OpenSSH 私钥"
+#~ msgid "OpenSSH private key"
+#~ msgstr "OpenSSH 私钥"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Operate desktop apps through Poracode's desktop-control tools."
@@ -8052,6 +8123,11 @@ msgstr "可选。启用后，会针对远程访问端口运行 tailscale serve�
 msgid "Options"
 msgstr "选项"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "or"
+msgstr "或"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
 msgid "Or write a custom answer"
 msgstr "或者写一个自定义答案"
@@ -8059,6 +8135,10 @@ msgstr "或者写一个自定义答案"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "其他"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Other ways to connect"
+msgstr "其他连接方式"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Other workspaces"
@@ -8117,8 +8197,8 @@ msgid "Page"
 msgstr "页面"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
-msgid "Pair"
-msgstr "配对"
+#~ msgid "Pair"
+#~ msgstr "配对"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pair a connection"
@@ -8143,7 +8223,6 @@ msgid "Pair with Poracode"
 msgstr "与 Poracode 配对"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "与桌面端的 Poracode 配对，以同步线程、项目和设置。"
 
@@ -8159,6 +8238,8 @@ msgstr "已配对设备"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "配对已过期，请重新配对以重新连接。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing link"
 msgstr "配对链接"
@@ -8167,18 +8248,17 @@ msgstr "配对链接"
 #~ msgid "Pairing link detected."
 #~ msgstr "检测到配对链接。"
 
-#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "配对令牌"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing URL"
 msgstr "配对 URL"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Pairing…"
 msgstr "正在配对…"
@@ -8214,16 +8294,18 @@ msgid "Passed"
 msgstr "已通过"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Passphrase (optional)"
-msgstr "密码短语（可选）"
+#~ msgid "Passphrase (optional)"
+#~ msgstr "密码短语（可选）"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Password"
-msgstr "密码"
+#~ msgid "Password"
+#~ msgstr "密码"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Paste"
 msgstr "粘贴"
 
@@ -8249,18 +8331,31 @@ msgstr "粘贴具名服务器对象，或以 mcpServers 键封装的对象。"
 msgid "Paste in input"
 msgstr "粘贴到输入中"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Paste link"
+msgstr "粘贴链接"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Paste pairing link"
+msgstr "粘贴配对链接"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Paste pairing URL…"
 msgstr "粘贴配对 URL…"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Paste the pairing URL from your desktop"
-msgstr "粘贴来自桌面端的配对 URL"
+#~ msgid "Paste the pairing URL from your desktop"
+#~ msgstr "粘贴来自桌面端的配对 URL"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Paste the SSH private key."
-msgstr "请粘贴 SSH 私钥。"
+#~ msgid "Paste the SSH private key."
+#~ msgstr "请粘贴 SSH 私钥。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Paste your pairing link"
+#~ msgstr "粘贴您的配对链接"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
@@ -8362,6 +8457,7 @@ msgstr "选择器未返回任何附件"
 msgid "Pin to top"
 msgstr "固定到顶部"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Pin workflow"
 msgstr "固定工作流"
@@ -8383,6 +8479,7 @@ msgid "Plan"
 msgstr "计划"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "规划、提问、构建…"
 
@@ -8427,13 +8524,17 @@ msgstr "plugin.json 指向此版本不支持的 Agent Plugins 版本。"
 msgid "Plugins"
 msgstr "插件"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Point at the QR code in Settings → Remote Access"
-#~ msgstr "对准“设置”→“远程访问”中的二维码"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "对准“设置”→“远程访问”中的二维码"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
 msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义环境变量、模型名称和思考级别。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Point your camera at the code on your desktop"
+#~ msgstr "将摄像头对准桌面上的二维码"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8479,8 +8580,8 @@ msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Poracode SSH 运行时清单缺失或无效：{path}"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
-msgstr "Poracode 将在 SSH 主机上安装或复用其服务器，并将凭据保存在此设备的安全存储中。"
+#~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
+#~ msgstr "Poracode 将在 SSH 主机上安装或复用其服务器，并将凭据保存在此设备的安全存储中。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
@@ -8495,7 +8596,6 @@ msgstr "Poracode 内置的浏览器工具。"
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
 msgid "Port"
 msgstr "端口"
 
@@ -8518,8 +8618,8 @@ msgstr "未启用端口转发"
 #~ msgstr "端口转发需要与桌面直接连接，无法通过中继或隧道使用。"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "端口"
@@ -8638,13 +8738,15 @@ msgid "Privacy Policy"
 msgstr "隐私政策"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Private key"
-msgstr "私钥"
+#~ msgid "Private key"
+#~ msgstr "私钥"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "效率"
 
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -8661,8 +8763,10 @@ msgstr "配置文件"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/MobileProjectPicker.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -8718,10 +8822,12 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "在全局搜索设置基础上的项目特定覆盖。"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -9072,6 +9178,7 @@ msgstr "隐藏通知内容"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -9600,12 +9707,16 @@ msgstr "重试清理"
 msgid "Retry with admin"
 msgstr "使用管理员重试"
 
-#: src/renderer/components/layout/PageLayout.tsx
+#: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Return to app"
 msgstr "返回应用程序"
@@ -9625,19 +9736,23 @@ msgstr "在文件树中显示"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert"
 msgstr "恢复"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Revert all"
 msgstr "全部恢复"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Revert all changes"
 msgstr "恢复所有更改"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "恢复更改"
@@ -9817,6 +9932,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "按照下方的计划自动运行此计划。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
@@ -9923,26 +10039,37 @@ msgstr "保存快捷键"
 msgid "Saved credentials are shared across all environments."
 msgstr "保存的凭据在所有环境中共享。"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Scan pairing QR code"
-#~ msgstr "扫描配对二维码"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Scan pairing code"
+msgstr "扫描配对码"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "扫描配对二维码"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Scan QR code"
 msgstr "扫描二维码"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+msgid "Scan the desktop pairing code with the camera"
+msgstr "用摄像头扫描桌面端的配对码"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
-msgid "Scan the pairing code shown on your desktop"
-msgstr "扫描桌面端显示的配对码"
+msgid "Scan the pairing code shown in Remote Access on your desktop."
+msgstr "扫描桌面端“远程访问”中显示的配对码。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
+#~ msgid "Scan the pairing code shown on your desktop"
+#~ msgstr "扫描桌面端显示的配对码"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "扫描{wslDistro}来查找已安装的 CLI。这通常需要几秒钟。"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Scanning needs a secure connection"
-#~ msgstr "扫描需要安全连接"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "扫描需要安全连接"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Scanning provider configurations…"
@@ -10044,8 +10171,10 @@ msgstr "SDK 未安装"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search"
@@ -10316,6 +10445,11 @@ msgstr "服务器 {target} 配置不正确，已跳过。"
 msgid "Server {target} runs on this computer and is unavailable for WSL projects."
 msgstr "服务器 {target} 在本机运行，WSL 项目无法使用。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Server base URL"
+msgstr "服务器基础 URL"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "此插件在 mcp.json 中声明的服务器。Poracode 会将它们传递给所有受支持的代理。"
@@ -10337,6 +10471,7 @@ msgid "Set when this session started — start a new thread to change servers"
 msgstr "在本会话启动时已固定 — 如需更改服务器，请开始新线程"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -10484,6 +10619,7 @@ msgstr "显示运行时调试面板"
 #~ msgid "Show Schedules in the sidebar footer."
 #~ msgstr "在侧边栏底部显示计划。"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -10559,6 +10695,7 @@ msgstr "需要登录"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "请在已配对的桌面端登录，然后刷新此状态。"
 
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -10661,8 +10798,10 @@ msgstr "SKILL.md 过大。"
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -10747,6 +10886,10 @@ msgstr "无法扫描某些提供商文件夹。已成功加载的技能仍会显
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "启动摄像头时出错。请改为在下方输入端点和令牌进行配对。"
 
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
+msgstr "启动摄像头时出错。请改为粘贴配对链接，或选择二维码照片。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
 msgstr "按创建排序"
@@ -10797,8 +10940,8 @@ msgstr "SSE（旧版）"
 #~ msgstr "SSH"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "SSH authentication"
-msgstr "SSH 身份验证"
+#~ msgid "SSH authentication"
+#~ msgstr "SSH 身份验证"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH config / agent"
@@ -10825,17 +10968,19 @@ msgid "SSH port (optional)"
 msgstr "SSH 端口（可选）"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "SSH target"
-msgstr "SSH 目标"
+#~ msgid "SSH target"
+#~ msgstr "SSH 目标"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Stage"
 msgstr "暂存"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Stage all"
 msgstr "全部暂存"
 
@@ -10959,9 +11104,9 @@ msgstr "开始{targetLabel}线程"
 msgid "Starting"
 msgstr "启动中"
 
-#: src/mobile/QrScanner.tsx
-#~ msgid "Starting camera…"
-#~ msgstr "正在启动摄像头…"
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "正在启动摄像头…"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Starting mirror…"
@@ -11354,6 +11499,7 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -11376,6 +11522,7 @@ msgstr "{0}的终端"
 msgid "Terminal for {projectName}"
 msgstr "{projectName} 的终端"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "终端输入"
@@ -11400,6 +11547,7 @@ msgid "Terminal scroll speed"
 msgstr "终端滚动速度"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Terminal tabs"
 msgstr "终端选项卡"
@@ -11412,6 +11560,10 @@ msgstr "测试麦克风"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "该对话已不可用。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+msgid "That isn't a Poracode pairing code."
+msgstr "这不是 Poracode 的配对码。"
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
@@ -11663,6 +11815,10 @@ msgstr "此连接可以查看项目，但不能管理项目。请重新配对以
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "此设备没有可用摄像头。请改为在下方输入端点和令牌进行配对。"
+
+#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
+msgstr "此设备没有可用摄像头。请改为粘贴配对链接，或选择二维码照片。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
@@ -12029,8 +12185,8 @@ msgid "Triggers:"
 msgstr "触发器："
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Trust and connect"
-msgstr "信任并连接"
+#~ msgid "Trust and connect"
+#~ msgstr "信任并连接"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
@@ -12461,16 +12617,19 @@ msgstr "未分阶段："
 msgid "Unpin"
 msgstr "取消固定"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "取消固定工作流"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "取消暂存"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 msgid "Unstage all"
 msgstr "全部取消暂存"
 
@@ -12616,6 +12775,7 @@ msgstr "URL 为必填项。"
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
@@ -12626,6 +12786,7 @@ msgid "Usage not supported"
 msgstr "不支持使用"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Usage settings"
 msgstr "使用设置"
 
@@ -12714,8 +12875,8 @@ msgstr "已被{conflict}使用"
 #~ msgstr "用户"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "user@example.com"
-msgstr "user@example.com"
+#~ msgid "user@example.com"
+#~ msgstr "user@example.com"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -12731,12 +12892,12 @@ msgid "value"
 msgstr "值"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Verify host key"
-msgstr "验证主机密钥"
+#~ msgid "Verify host key"
+#~ msgstr "验证主机密钥"
 
 #: src/renderer/views/SettingsOverlay/parts/NativeSshConnectionForm.tsx
-msgid "Verify SSH host key"
-msgstr "验证 SSH 主机密钥"
+#~ msgid "Verify SSH host key"
+#~ msgstr "验证 SSH 主机密钥"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -13114,6 +13275,7 @@ msgstr "工作流程结果"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflow run"
 msgstr "工作流运行"
 
@@ -13121,6 +13283,7 @@ msgstr "工作流运行"
 msgid "Workflow run deleted."
 msgstr "工作流运行已删除。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
@@ -13132,6 +13295,7 @@ msgstr "工作流程：{description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "工作流程"
@@ -13225,8 +13389,10 @@ msgstr "一旦 Poracode 检测到拉取请求已合并，工作树线程就会�
 msgid "Worktree: {0}"
 msgstr "工作树：{0}"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"

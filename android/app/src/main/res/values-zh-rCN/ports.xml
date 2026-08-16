@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">端口转发</string>
+    <string name="ports_back">返回</string>
+    <string name="ports_refresh">刷新端口</string>
+    <string name="ports_target_port">目标端口</string>
+    <string name="ports_start_open">启动并打开</string>
+    <string name="ports_dismiss">关闭</string>
+    <string name="ports_detected">检测到的端口</string>
+    <string name="ports_no_detected">未检测到正在监听的端口。</string>
+    <string name="ports_active">活动转发</string>
+    <string name="ports_no_active">没有活动的端口转发。</string>
+    <string name="ports_port_number">端口 %1$d</string>
+    <string name="ports_protocol_http">HTTP 服务</string>
+    <string name="ports_protocol_unknown">未知协议</string>
+    <string name="ports_forward_port">转发</string>
+    <string name="ports_forward_summary">端口 %1$d → %2$d</string>
+    <string name="ports_open">打开</string>
+    <string name="ports_busy">正在处理…</string>
+    <string name="ports_stop">停止</string>
+    <string name="ports_failure_offline">请重新连接主机以管理端口转发。</string>
+    <string name="ports_failure_scope">此连接未授予端口转发权限。</string>
+    <string name="ports_failure_auth">主机会话已过期。请重新连接后重试。</string>
+    <string name="ports_failure_not_found">该端口转发已不存在。</string>
+    <string name="ports_failure_input">请输入 1 到 65535 之间的有效端口。</string>
+    <string name="ports_failure_response">主机返回了无效的端口转发响应。</string>
+    <string name="ports_failure_ambiguous">请求可能已完成。列表已刷新。</string>
+    <string name="ports_failure_unavailable">端口转发当前不可用。</string>
+</resources>

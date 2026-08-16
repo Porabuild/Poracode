@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="thread_lifecycle_actions">Actions du fil</string>
+    <string name="thread_lifecycle_rename">Renommer</string>
+    <string name="thread_lifecycle_rename_prompt">Nouveau titre du fil</string>
+    <string name="thread_lifecycle_relaunch">Relancer</string>
+    <string name="thread_lifecycle_relaunch_prompt">Que doit faire l’agent ensuite ?</string>
+    <string name="thread_lifecycle_pin">Épingler</string>
+    <string name="thread_lifecycle_unpin">Désépingler</string>
+    <string name="thread_lifecycle_done">Marquer comme terminé</string>
+    <string name="thread_lifecycle_not_done">Marquer comme non terminé</string>
+    <string name="thread_lifecycle_acknowledge">Accuser réception</string>
+    <string name="thread_lifecycle_archive">Archiver</string>
+    <string name="thread_lifecycle_unarchive">Désarchiver</string>
+    <string name="thread_lifecycle_delete">Supprimer</string>
+    <string name="thread_lifecycle_cancel">Annuler</string>
+    <string name="thread_lifecycle_submit">Envoyer</string>
+    <string name="thread_lifecycle_archive_confirmation">Archiver ce fil ?</string>
+    <string name="thread_lifecycle_delete_confirmation">Supprimer définitivement ce fil ?</string>
+    <string name="thread_lifecycle_failed">Échec de l’action du fil</string>
+    <string name="thread_lifecycle_close">Fermer</string>
+    <string name="thread_lifecycle_failure_ambiguous">Le résultat est incertain. La liste des fils est actualisée.</string>
+    <string name="thread_lifecycle_failure_generic">L’action du fil n’a pas pu être effectuée. Actualisez la liste et réessayez.</string>
+</resources>

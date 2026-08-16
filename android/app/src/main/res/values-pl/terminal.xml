@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">Dane wyjściowe terminala</string>
+    <string name="terminal_input_label">Dane wejściowe terminala</string>
+    <string name="terminal_input_placeholder">Wpisz polecenie</string>
+    <string name="terminal_send">Wyślij</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Tab</string>
+    <string name="terminal_close">Zamknij terminal</string>
+    <string name="terminal_reconnect">Połącz ponownie</string>
+    <string name="terminal_start">Uruchom terminal</string>
+    <string name="terminal_start_description">Uruchom terminal programistyczny dla tego projektu</string>
+    <string name="terminal_status_authentication">Dostęp do terminala wygasł</string>
+    <string name="terminal_status_permission">Dostęp do terminala jest niedozwolony</string>
+    <string name="terminal_status_unsupported">Niezawodne strumieniowanie terminala jest niedostępne na tym hoście</string>
+    <string name="terminal_status_protocol">Terminal wysłał nieprawidłową odpowiedź</string>
+    <string name="terminal_status_offline">Nie znaleziono terminala</string>
+    <string name="terminal_status_reconnecting">Ponowne łączenie z terminalem…</string>
+    <string name="terminal_status_connecting">Łączenie z terminalem…</string>
+    <string name="terminal_status_synchronizing">Synchronizowanie terminala…</string>
+    <string name="terminal_status_suspended">Terminal wstrzymany w tle</string>
+    <string name="terminal_status_failed">Połączenie z terminalem nie powiodło się</string>
+    <string name="terminal_status_exited">Proces terminala zakończył się</string>
+    <string name="terminal_status_live">Terminal połączony</string>
+    <string name="terminal_status_idle">Terminal bezczynny</string>
+</resources>

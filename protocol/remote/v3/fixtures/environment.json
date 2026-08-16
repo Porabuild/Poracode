@@ -1,0 +1,26 @@
+{
+  "protocolVersion": 3,
+  "hostMode": "desktop",
+  "desktopId": "desktop-fixture-001",
+  "label": "Fixture Mac",
+  "appVersion": "3.0.0-fixture",
+  "platform": "darwin",
+  "auth": {
+    "policy": "remote-reachable",
+    "bootstrapMethods": ["one-time-token"],
+    "sessionMethods": ["bearer-access-token"],
+    "scopes": [
+      "session:read",
+      "session:operate",
+      "terminal:read",
+      "terminal:operate",
+      "requests:resolve",
+      "projects:manage",
+      "ports:forward"
+    ]
+  },
+  "endpoints": {
+    "httpBaseUrl": "https://poracode-host.example.test/",
+    "wsBaseUrl": "wss://poracode-host.example.test/"
+  }
+}

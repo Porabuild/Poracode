@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">终端输出</string>
+    <string name="terminal_input_label">终端输入</string>
+    <string name="terminal_input_placeholder">输入命令</string>
+    <string name="terminal_send">发送</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Tab</string>
+    <string name="terminal_close">关闭终端</string>
+    <string name="terminal_reconnect">重新连接</string>
+    <string name="terminal_start">启动终端</string>
+    <string name="terminal_start_description">为此项目启动开发终端</string>
+    <string name="terminal_status_authentication">终端访问权限已过期</string>
+    <string name="terminal_status_permission">不允许访问终端</string>
+    <string name="terminal_status_unsupported">此主机不支持可靠的终端流</string>
+    <string name="terminal_status_protocol">终端发送了无效响应</string>
+    <string name="terminal_status_offline">找不到终端</string>
+    <string name="terminal_status_reconnecting">正在重新连接终端…</string>
+    <string name="terminal_status_connecting">正在连接终端…</string>
+    <string name="terminal_status_synchronizing">正在同步终端…</string>
+    <string name="terminal_status_suspended">终端已在后台暂停</string>
+    <string name="terminal_status_failed">终端连接失败</string>
+    <string name="terminal_status_exited">终端进程已退出</string>
+    <string name="terminal_status_live">终端已连接</string>
+    <string name="terminal_status_idle">终端空闲</string>
+</resources>

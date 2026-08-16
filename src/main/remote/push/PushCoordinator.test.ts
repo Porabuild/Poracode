@@ -4,6 +4,12 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAttention, ThreadStatus } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import {
+  IOS_ALERT_BODY_LOC_KEYS,
+  IOS_ALERT_TITLE_LOC_KEY,
+  type IOSAlertBodyLocKey,
+  type IOSLocalizedAlertContent,
+} from "./payloads";
 import { PushCoordinator } from "./PushCoordinator";
 import { PushRegistrationStore } from "./PushRegistrationStore";
 import type { SendPush, SendPushResult } from "./pushGateway";
@@ -26,6 +32,10 @@ function tick(): Promise<void> {
 
 const okResult: SendPushResult = { ok: true, status: 200, unregistered: false };
 
+function localizedAlert(locKey: IOSAlertBodyLocKey): IOSLocalizedAlertContent {
+  return { "title-loc-key": IOS_ALERT_TITLE_LOC_KEY, "loc-key": locKey };
+}
+
 describe("PushCoordinator", () => {
   let dir: string;
   let store: PushRegistrationStore;
@@ -36,11 +46,11 @@ describe("PushCoordinator", () => {
   const threads = [{ id: "thread-1", title: "Release check", projectId: "project-1" }];
   const projects = [{ id: "project-1", name: "Poracode" }];
 
-  function makeCoordinator(): PushCoordinator {
+  function makeCoordinator(overrides: { threads?: typeof threads } = {}): PushCoordinator {
     return new PushCoordinator({
       store,
       sendPush,
-      getThreads: () => threads,
+      getThreads: () => overrides.threads ?? threads,
       getProjects: () => projects,
       getSettings: () => settings,
       getAttributes: () => ({ desktopId: "desk-1", desktopName: "My Mac" }),
@@ -83,6 +93,8 @@ describe("PushCoordinator", () => {
     expect(payload.aps.event).toBe("start");
     expect(payload.aps["attributes-type"]).toBe("DesktopSessionAttributes");
     expect(payload.aps["content-state"]).toMatchObject({ runningCount: 1 });
+    expect(payload.aps.alert).toEqual(localizedAlert(IOS_ALERT_BODY_LOC_KEYS.running));
+    expect(payload.aps.attributes).not.toHaveProperty("routing");
   });
 
   it("does nothing when push is disabled", async () => {
@@ -131,15 +143,16 @@ describe("PushCoordinator", () => {
     const liveActivity = sendPush.mock.calls.find(([input]) => input.pushType === "liveactivity");
     expect(liveActivity).toBeDefined();
     expect(liveActivity![0].priority).toBe(10);
-    expect((liveActivity![0].payload as ApsPayload).aps.alert).toBeDefined();
+    expect((liveActivity![0].payload as ApsPayload).aps.alert).toEqual(
+      localizedAlert(IOS_ALERT_BODY_LOC_KEYS.needsApproval),
+    );
 
     // A plain alert push also goes to the device token.
     const alert = sendPush.mock.calls.find(([input]) => input.pushType === "alert");
     expect(alert).toBeDefined();
-    expect((alert![0].payload as ApsPayload).aps.alert).toMatchObject({
-      title: "Release check",
-      body: "Needs your approval",
-    });
+    expect((alert![0].payload as ApsPayload).aps.alert).toEqual(
+      localizedAlert(IOS_ALERT_BODY_LOC_KEYS.needsApproval),
+    );
   });
 
   it("ends the activity with a dismissal-date when the last thread finishes", async () => {
@@ -168,10 +181,9 @@ describe("PushCoordinator", () => {
 
     const alertCalls = sendPush.mock.calls.filter(([input]) => input.pushType === "alert");
     expect(alertCalls).toHaveLength(1);
-    expect((alertCalls[0]![0].payload as ApsPayload).aps.alert).toMatchObject({
-      title: "Release check",
-      body: "Finished",
-    });
+    expect((alertCalls[0]![0].payload as ApsPayload).aps.alert).toEqual(
+      localizedAlert(IOS_ALERT_BODY_LOC_KEYS.finished),
+    );
   });
 
   it("updates iOS activity state without alerting for a user-forced turn close", async () => {
@@ -254,7 +266,7 @@ describe("PushCoordinator", () => {
     expect(webCalls[0]![0]).toMatchObject({
       platform: "web",
       pushType: "alert",
-      collapseId: "thread-1",
+      collapseId: expect.stringMatching(/^pc1\.[A-Za-z0-9_-]{27}$/),
       payload: {
         title: "Release check",
         body: "Finished",
@@ -289,7 +301,7 @@ describe("PushCoordinator", () => {
     return sendPush.mock.calls.filter(([input]) => input.platform === "android");
   }
 
-  it("android: working is a silent p5 status, collapsed by threadId, debounced", async () => {
+  it("android: working is a silent p5 status with bounded composite collapse, debounced", async () => {
     vi.useFakeTimers();
     store.upsert({ deviceId: "device-0001", platform: "android", deviceToken: "fcm-1" });
     const coordinator = makeCoordinator();
@@ -307,7 +319,8 @@ describe("PushCoordinator", () => {
     expect(input.pushType).toBe("alert");
     expect(input.token).toBe("fcm-1");
     expect(input.priority).toBe(5);
-    expect(input.collapseId).toBe("thread-1");
+    expect(input.collapseId).toMatch(/^pc1\.[A-Za-z0-9_-]{27}$/);
+    expect(input.collapseId).not.toContain("thread-1");
     expect(input.payload).toMatchObject({
       title: "Release check",
       body: "Running",
@@ -345,10 +358,10 @@ describe("PushCoordinator", () => {
     expect(finished[0]![0].priority).toBe(10);
   });
 
-  it("android: error truncates the message to ~120 chars, else 'Error'", async () => {
+  it("android: error uses generic text and never includes arbitrary error details", async () => {
     store.upsert({ deviceId: "device-0001", platform: "android", deviceToken: "fcm-1" });
     const coordinator = makeCoordinator();
-    const longMessage = "x".repeat(300);
+    const secret = "Bearer sk-live-super-secret /Users/alice/private/project";
 
     coordinator.handleSupervisorEvent({
       type: "thread-state",
@@ -356,17 +369,11 @@ describe("PushCoordinator", () => {
       status: "error",
       attention: "none",
       canResumeWithConfig: false,
-      errorMessage: longMessage,
+      errorMessage: secret,
     });
     await tick();
-    const withMessage = (androidCalls()[0]![0].payload as { body: string }).body;
-    expect(withMessage).toHaveLength(120);
-    expect(withMessage).toBe("x".repeat(120));
-
-    sendPush.mockClear();
-    coordinator.handleSupervisorEvent(threadState("thread-2", "error", "error"));
-    await tick();
-    expect((androidCalls()[0]![0].payload as { body: string }).body).toBe("Error");
+    expect((androidCalls()[0]![0].payload as { body: string }).body).toBe("Ended with an error");
+    expect(JSON.stringify(sendPush.mock.calls)).not.toContain(secret);
   });
 
   it("android: redacts the title when the setting is on", async () => {
@@ -445,5 +452,43 @@ describe("PushCoordinator", () => {
     expect(android).toHaveLength(1);
     expect(android[0]![0].pushType).toBe("alert");
     expect(android[0]![0].payload).toMatchObject({ body: "Running", silent: true });
+  });
+
+  it("routes identical desktop/thread ids to independent native host entries", async () => {
+    const routeA = {
+      version: 1 as const,
+      clientConnectionId: "11111111-1111-4111-8111-111111111111",
+      desktopId: "desk-1",
+    };
+    const routeB = {
+      ...routeA,
+      clientConnectionId: "22222222-2222-4222-8222-222222222222",
+    };
+    store.upsert({
+      deviceId: "device-shared",
+      platform: "android",
+      deviceToken: "fcm-a",
+      routing: routeA,
+    });
+    store.upsert({
+      deviceId: "device-shared",
+      platform: "android",
+      deviceToken: "fcm-b",
+      routing: routeB,
+    });
+
+    makeCoordinator().handleSupervisorEvent(threadState("thread-1", "needs_reply", "needs_reply"));
+    await tick();
+
+    const calls = androidCalls();
+    expect(calls).toHaveLength(2);
+    expect(calls.map(([input]) => input.collapseId)).toHaveLength(2);
+    expect(new Set(calls.map(([input]) => input.collapseId)).size).toBe(2);
+    expect(calls.map(([input]) => input.payload)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ...routeA, threadId: "thread-1" }),
+        expect.objectContaining({ ...routeB, threadId: "thread-1" }),
+      ]),
+    );
   });
 });

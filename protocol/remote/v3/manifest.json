@@ -1,0 +1,732 @@
+{
+  "formatVersion": 1,
+  "contract": "poracode.remote",
+  "protocolVersion": 3,
+  "wireFormat": {
+    "http": "application/json",
+    "webSocket": "json-text-frames",
+    "webSocketPath": "/ws",
+    "webSocketQueryParameters": ["ticket", "lastSeenSeq", "threadItemInterests"],
+    "commandIdHeader": "x-poracode-command-id"
+  },
+  "compatibility": {
+    "versionPolicy": "exact",
+    "minimumAcceptedProtocolVersion": 3,
+    "maximumAcceptedProtocolVersion": 3,
+    "unknownObjectFields": "ignore",
+    "unknownAdvertisedScopes": "filter",
+    "unknownClientRequestedScopes": "reject",
+    "unknownWebSocketEventPayloads": "accept-envelope-and-ignore-unknown-event",
+    "endpointPathPolicy": "append-to-preserved-base-path",
+    "discoveryFallback": [
+      "/.well-known/poracode/environment",
+      "/.well-known/lightcode/environment"
+    ],
+    "sequencePolicy": {
+      "snapshotSeqIsLastAppliedEvent": true,
+      "sendZeroLastSeenSeq": true,
+      "missingReplayWindow": "resync-required",
+      "serverSequenceRegression": "resync-required"
+    },
+    "terminalOutput": {
+      "replayable": false,
+      "reconnectRecovery": "fetch-thread-scrollback-then-watch",
+      "cursorSync": {
+        "capability": "terminalCursorSync",
+        "versions": [1],
+        "optIn": true,
+        "reliableCongestion": "disconnect",
+        "legacyCongestion": "lossy-skip"
+      }
+    },
+    "pairingCredential": {
+      "singleUse": true,
+      "transport": "url-fragment-or-request-body"
+    }
+  },
+  "scopes": [
+    "session:read",
+    "session:operate",
+    "terminal:read",
+    "terminal:operate",
+    "requests:resolve",
+    "projects:manage",
+    "ports:forward"
+  ],
+  "httpRoutes": [
+    {
+      "id": "environment",
+      "method": "GET",
+      "path": "/.well-known/poracode/environment",
+      "auth": "public",
+      "scopes": []
+    },
+    {
+      "id": "environment-legacy",
+      "method": "GET",
+      "path": "/.well-known/lightcode/environment",
+      "auth": "public",
+      "scopes": [],
+      "legacy": true
+    },
+    {
+      "id": "forward-enter",
+      "method": "GET",
+      "path": "/forward/{forwardId}/enter",
+      "auth": "forward-enter-token",
+      "scopes": [],
+      "queryParameters": ["fwt"]
+    },
+    {
+      "id": "token-exchange",
+      "method": "POST",
+      "path": "/oauth/token",
+      "auth": "pairing-token",
+      "scopes": []
+    },
+    {
+      "id": "websocket-ticket",
+      "method": "POST",
+      "path": "/api/auth/websocket-ticket",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "shell-snapshot",
+      "method": "GET",
+      "path": "/api/snapshot",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "agent-statuses",
+      "method": "GET",
+      "path": "/api/agent-statuses",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "host-update",
+      "method": "GET",
+      "path": "/api/host-update",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "host-update-check",
+      "method": "POST",
+      "path": "/api/host-update/check",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "host-update-install",
+      "method": "POST",
+      "path": "/api/host-update/install",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "provider-usage",
+      "method": "GET",
+      "path": "/api/provider-usage",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "project-notes-read",
+      "method": "GET",
+      "path": "/api/projects/{projectId}/notes",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "project-notes-write",
+      "method": "POST",
+      "path": "/api/projects/{projectId}/notes",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "local-image",
+      "method": "GET",
+      "path": "/api/files/image",
+      "auth": "bearer-or-query",
+      "scopes": ["session:read"],
+      "queryParameters": ["path", "access_token"]
+    },
+    {
+      "id": "runtime-image",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/items/{itemId}/image",
+      "auth": "bearer-or-query",
+      "scopes": ["session:read"],
+      "queryParameters": ["path", "access_token"]
+    },
+    {
+      "id": "attachment-upload",
+      "method": "POST",
+      "path": "/api/files/attachment",
+      "auth": "bearer",
+      "scopes": ["session:operate"],
+      "queryParameters": ["threadId", "name"]
+    },
+    {
+      "id": "profile-devices",
+      "method": "GET",
+      "path": "/api/profile/devices",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "profile-core-stats",
+      "method": "POST",
+      "path": "/api/profile/core-stats",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "profile-token-stats",
+      "method": "POST",
+      "path": "/api/profile/token-stats",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "profile-identity",
+      "method": "POST",
+      "path": "/api/profile/identity",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "settings-read",
+      "method": "GET",
+      "path": "/api/settings",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "settings-write",
+      "method": "POST",
+      "path": "/api/settings",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "schedules-read",
+      "method": "GET",
+      "path": "/api/schedules",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "schedules-command",
+      "method": "POST",
+      "path": "/api/schedules/command",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "pr-watch-read",
+      "method": "GET",
+      "path": "/api/pr-watches",
+      "auth": "bearer",
+      "scopes": ["session:read"],
+      "queryParameters": ["projectId", "prNumber"]
+    },
+    {
+      "id": "pr-watch-check",
+      "method": "POST",
+      "path": "/api/pr-watches/check",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "pr-watch-upsert",
+      "method": "POST",
+      "path": "/api/pr-watches",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "pr-watch-delete",
+      "method": "DELETE",
+      "path": "/api/pr-watches",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "browser-state",
+      "method": "GET",
+      "path": "/api/browser/state",
+      "auth": "bearer",
+      "scopes": ["session:read"]
+    },
+    {
+      "id": "browser-command",
+      "method": "POST",
+      "path": "/api/browser/command",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "ports-read",
+      "method": "GET",
+      "path": "/api/ports",
+      "auth": "bearer",
+      "scopes": ["ports:forward"]
+    },
+    {
+      "id": "port-forward",
+      "method": "POST",
+      "path": "/api/ports/forward",
+      "auth": "bearer",
+      "scopes": ["ports:forward"]
+    },
+    {
+      "id": "port-enter",
+      "method": "POST",
+      "path": "/api/ports/enter",
+      "auth": "bearer",
+      "scopes": ["ports:forward"]
+    },
+    {
+      "id": "port-unforward",
+      "method": "POST",
+      "path": "/api/ports/unforward",
+      "auth": "bearer",
+      "scopes": ["ports:forward"]
+    },
+    {
+      "id": "procedure-call",
+      "method": "POST",
+      "path": "/api/git/call",
+      "auth": "bearer",
+      "scopes": [],
+      "scopeResolution": "procedure-defined"
+    },
+    {
+      "id": "project-command",
+      "method": "POST",
+      "path": "/api/projects/command",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "project-settings",
+      "method": "GET",
+      "path": "/api/projects/{projectId}/settings",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "push-config",
+      "method": "GET",
+      "path": "/api/push/config",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "push-register",
+      "method": "POST",
+      "path": "/api/push/register",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "push-unregister",
+      "method": "POST",
+      "path": "/api/push/unregister",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-history-items",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/history/items",
+      "auth": "bearer",
+      "scopes": ["session:read"],
+      "queryParameters": ["beforePosition", "limit", "targetTimelineEntryCount"]
+    },
+    {
+      "id": "thread-history",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/history",
+      "auth": "bearer",
+      "scopes": ["session:read"],
+      "queryParameters": ["runtimePage", "targetTimelineEntryCount"]
+    },
+    {
+      "id": "thread-start-existing",
+      "method": "POST",
+      "path": "/api/threads/start",
+      "auth": "bearer",
+      "scopes": ["session:operate"],
+      "idempotency": "command-id-header"
+    },
+    {
+      "id": "terminal-start",
+      "method": "POST",
+      "path": "/api/terminal/start",
+      "auth": "bearer",
+      "scopes": ["terminal:operate"]
+    },
+    {
+      "id": "thread-runtime-truncate",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/runtime/truncate",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-command",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/command",
+      "auth": "bearer",
+      "scopes": ["session:operate"],
+      "idempotency": "command-id-header-for-start-kind"
+    },
+    {
+      "id": "thread-send",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/send",
+      "auth": "bearer",
+      "scopes": ["session:operate"],
+      "idempotency": "command-id-header"
+    },
+    {
+      "id": "thread-interrupt",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/interrupt",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-goal",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/goal",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-close",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/close",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-steer-set",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/steer/set",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-steer-clear",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/steer/clear",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "terminal-write",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/terminal/write",
+      "auth": "bearer",
+      "scopes": ["terminal:operate"]
+    },
+    {
+      "id": "terminal-resize",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/terminal/resize",
+      "auth": "bearer",
+      "scopes": ["terminal:operate"]
+    },
+    {
+      "id": "terminal-close",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/terminal/close",
+      "auth": "bearer",
+      "scopes": ["terminal:operate"]
+    },
+    {
+      "id": "request-resolve",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/requests/resolve",
+      "auth": "bearer",
+      "scopes": ["requests:resolve"]
+    }
+  ],
+  "procedures": [
+    { "name": "rollbackThreadConversation", "scope": "session:operate", "owner": "thread" },
+    { "name": "createFileCheckpoint", "scope": "session:operate", "owner": "thread" },
+    { "name": "finalizeFileCheckpoint", "scope": "session:operate", "owner": "thread" },
+    { "name": "listFileCheckpoints", "scope": "session:read", "owner": "thread" },
+    { "name": "restoreFileCheckpoint", "scope": "session:operate", "owner": "thread" },
+    { "name": "subagentSubscribe", "scope": "session:read", "owner": "thread" },
+    { "name": "subagentUnsubscribe", "scope": "session:read", "owner": "thread" },
+    { "name": "stageThreadInput", "scope": "session:operate", "owner": "thread" },
+    { "name": "workflowGetRun", "scope": "session:read", "owner": "location" },
+    { "name": "workflowAgentChat", "scope": "session:read", "owner": "location" },
+    { "name": "scanSkills", "scope": "session:read", "owner": "optionalProjectLocation" },
+    { "name": "listSkillMarketplace", "scope": "session:read", "owner": "none" },
+    { "name": "setSkillEnabled", "scope": "session:operate", "owner": "optionalProjectLocation" },
+    { "name": "deleteSkill", "scope": "session:operate", "owner": "optionalProjectLocation" },
+    { "name": "importSkills", "scope": "session:operate", "owner": "skillLocations" },
+    {
+      "name": "installMarketplaceSkill",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation"
+    },
+    {
+      "name": "discoverExternalMcpServers",
+      "scope": "session:read",
+      "owner": "optionalProjectLocation"
+    },
+    { "name": "probeMcpServer", "scope": "session:operate", "owner": "optionalProjectLocation" },
+    { "name": "getMcpOauthStatus", "scope": "session:read", "owner": "optionalProjectLocation" },
+    {
+      "name": "beginMcpServerOauth",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation"
+    },
+    {
+      "name": "waitMcpServerOauth",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "clearMcpServerOauth",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation"
+    },
+    { "name": "searchProjectFiles", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "listProjectTree", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "browseHostDirectory", "scope": "projects:manage", "owner": "none" },
+    { "name": "searchProjectTree", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "readProjectFile", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "readAbsoluteFile", "scope": "projects:manage", "owner": "projectLocation" },
+    { "name": "readExternalFile", "scope": "projects:manage", "owner": "projectLocation" },
+    { "name": "writeProjectFile", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "writeExternalFile", "scope": "projects:manage", "owner": "projectLocation" },
+    { "name": "createProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "renameProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "moveProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "deleteProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "detectSetupScript", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "getGitStatus", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "getGitDiff", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "getGitDiffBatch", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "getGitFileContent", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitListBranches", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitListWorktrees", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitProjectSnapshot", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitWorktreeStatusBatch", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitGetWorktreeSourceBranch", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitGetWorktreeOwner", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghCheckAvailable", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetPrForBranch", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghListPrs", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghListPullRequests", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetPrChecks", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetPrFiles", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetPrDiff", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetPrDetails", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetPrReviewComments", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghListAccounts", "scope": "session:read", "owner": "runtime" },
+    { "name": "ghListRepos", "scope": "session:read", "owner": "runtime" },
+    { "name": "ghListWorkflows", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghListWorkflowRuns", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetWorkflowRun", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "ghGetWorkflowDefinition", "scope": "session:read", "owner": "projectLocation" },
+    { "name": "gitStage", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitUnstage", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitRevert", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitStageAll", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitUnstageAll", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitRevertAll", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "gitCommit",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    { "name": "gitInit", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitAddRemote", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "generateCommitMessage",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "generateTitle",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "generatePrSummary",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitFetch",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitPull",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitPullRebase",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitPush",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitSync",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitSyncRebase",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    { "name": "gitSwitchBranch", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitDeleteBranch", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitAddWorktree", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitRemoveWorktree", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "gitPruneWorktrees", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "gitMergeToSource",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "gitPullFromSource",
+      "scope": "session:operate",
+      "owner": "worktreeLocation",
+      "timeout": "long"
+    },
+    { "name": "gitAbortMerge", "scope": "session:operate", "owner": "worktreeLocation" },
+    {
+      "name": "gitFinishMerge",
+      "scope": "session:operate",
+      "owner": "worktreeLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "ghCreatePr",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "ghMergePr",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    { "name": "ghClosePr", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "ghReopenPr", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "ghMarkPrReady", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "ghSubmitPrReview",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    {
+      "name": "ghUpdatePrBranch",
+      "scope": "session:operate",
+      "owner": "projectLocation",
+      "timeout": "long"
+    },
+    { "name": "ghPostPrComment", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "ghDispatchWorkflow", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "ghRerunWorkflowRun", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "ghCancelWorkflowRun", "scope": "session:operate", "owner": "projectLocation" },
+    { "name": "ghDeleteWorkflowRun", "scope": "session:operate", "owner": "projectLocation" }
+  ],
+  "webSocket": {
+    "clientMessages": [
+      "ping",
+      "browser-watch",
+      "browser-unwatch",
+      "browser-input",
+      "terminal-watch",
+      "terminal-unwatch",
+      "git-state-interests",
+      "thread-item-interests"
+    ],
+    "serverMessages": [
+      "ready",
+      "event",
+      "resync-required",
+      "pong",
+      "browser-state",
+      "browser-frame",
+      "browser-mirror-status",
+      "terminal-output",
+      "terminal-watch-result"
+    ],
+    "replayableEventTypes": [
+      "thread-runtime-event",
+      "thread-runtime-events",
+      "thread-runtime-events-multi",
+      "thread-state",
+      "thread-pending-steer",
+      "thread-reset",
+      "thread-exited",
+      "agent-status-updated",
+      "windows-agent-statuses",
+      "wsl-agent-statuses",
+      "remote-git-summaries",
+      "remote-git-state",
+      "remote-projects-changed",
+      "remote-threads-changed"
+    ],
+    "runtimeEventTypes": [
+      "session.started",
+      "session.exited",
+      "turn.started",
+      "turn.completed",
+      "item.started",
+      "item.updated",
+      "item.completed",
+      "content.delta",
+      "context.updated",
+      "usage.spent",
+      "request.opened",
+      "request.resolved",
+      "warning",
+      "error"
+    ],
+    "outOfBandMessages": [
+      "browser-state",
+      "browser-frame",
+      "browser-mirror-status",
+      "terminal-output",
+      "terminal-watch-result"
+    ]
+  }
+}

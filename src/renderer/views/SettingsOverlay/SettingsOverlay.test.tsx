@@ -192,6 +192,7 @@ vi.mock("./parts/SingleAgentSettings", () => ({
 
 import { SettingsOverlay, settingsSectionProductProperties } from "./SettingsOverlay";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 const baseCapabilities = {
   models: [],
@@ -229,6 +230,7 @@ describe("SettingsOverlay", () => {
     appState.projects = [];
     appState.openSchedules.mockReset();
     bridgeState.remote = false;
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
     beginFirstLaunchDiscoveryMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
     refreshAgentStatusesMock.mockReset();
@@ -299,6 +301,31 @@ describe("SettingsOverlay", () => {
     expect(screen.queryByRole("button", { name: /Desktop Settings/ })).not.toBeInTheDocument();
   });
 
+  it("uses the compact page history when returning from Usage settings", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const onClose = vi.fn<() => void>();
+    const onBack = vi.fn<() => void>();
+    usePanelStore.setState({ settingsSection: "usage" });
+
+    render(<SettingsOverlay onClose={onClose} onBack={onBack} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("ports the nightly Desktop Settings index and returns detail pages to it", () => {
     vi.stubGlobal(
       "matchMedia",
@@ -340,6 +367,50 @@ describe("SettingsOverlay", () => {
     expect(layout).toHaveAttribute("data-compact-title", "AI Helpers");
     fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
     expect(layout).toHaveAttribute("data-compact-title", "Desktop Settings");
+  });
+
+  it("opens remote Desktop Settings with its machine selector in the PWA", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    bridgeState.remote = true;
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Studio",
+          endpoint: "https://desktop.example.test",
+          accessToken: "token",
+          scopes: ["projects:manage"],
+        },
+      ],
+      runtime: {
+        "desktop-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+        },
+      },
+    });
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+    const main = screen.getByRole("main");
+    const desktopSettings = within(main).getByRole("button", { name: /Desktop Settings/ });
+    expect(desktopSettings).toBeEnabled();
+
+    fireEvent.click(desktopSettings);
+
+    expect(within(main).getByRole("button", { name: "Connections" })).toHaveTextContent("Studio");
   });
 
   it("opens Schedules from the compact Desktop Settings index", () => {

@@ -6,23 +6,8 @@ import { readBridge } from "@/renderer/bridge";
 import { Input } from "@/renderer/components/common";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { isNativeApp } from "@/renderer/pwa/install";
-import { NativeSshConnectionForm } from "./NativeSshConnectionForm";
 
 export function SshConnectionForm({
-  onConnected,
-  onCancel,
-}: {
-  readonly onConnected: () => void;
-  readonly onCancel: () => void;
-}) {
-  if (isNativeApp()) {
-    return <NativeSshConnectionForm onConnected={onConnected} onCancel={onCancel} />;
-  }
-  return <DesktopSshConnectionForm onConnected={onConnected} onCancel={onCancel} />;
-}
-
-function DesktopSshConnectionForm({
   onConnected,
   onCancel,
 }: {

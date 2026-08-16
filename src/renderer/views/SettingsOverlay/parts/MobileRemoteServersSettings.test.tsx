@@ -22,6 +22,7 @@ const state = vi.hoisted(() => ({
 }));
 
 const capabilities = vi.hoisted(() => ({ nativeSsh: false }));
+const clipboard = vi.hoisted(() => ({ readText: vi.fn<() => Promise<string>>() }));
 
 vi.mock("@/renderer/clientRuntime", () => ({
   hasClientCapability: (capability: string) =>
@@ -98,6 +99,11 @@ describe("MobileRemoteServersSettings", () => {
       truncated: false,
     });
     capabilities.nativeSsh = false;
+    clipboard.readText.mockReset();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText: clipboard.readText },
+    });
   });
 
   it("shows the compact empty state and keeps pairing behind the FAB", () => {
@@ -111,9 +117,39 @@ describe("MobileRemoteServersSettings", () => {
 
     expect(screen.getByRole("dialog", { name: "Pair a connection" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scan QR code" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pair" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Endpoint" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Pairing token" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Paste" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Pairing URL" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Server base URL" })).toBeInTheDocument();
+    expect(screen.getByLabelText("One-time pairing token")).toBeInTheDocument();
+  });
+
+  it("pastes and connects with the same pairing-link flow as the welcome drawer", async () => {
+    clipboard.readText.mockResolvedValue(
+      "https://app-nightly.poracode.com/?host=http%3A%2F%2F192.168.1.20%3A49152#token=lc_pair_test",
+    );
+    render(<MobileRemoteServersSettings />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
+    expect(screen.getByRole("button", { name: "Connect" })).toHaveClass(
+      "poracode-mobile-pair-connect",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Pairing URL" })).toHaveValue(
+        "https://app-nightly.poracode.com/?host=http%3A%2F%2F192.168.1.20%3A49152#token=lc_pair_test",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    await waitFor(() =>
+      expect(state.pairServer).toHaveBeenCalledWith({
+        endpoint: "http://192.168.1.20:49152",
+        token: "lc_pair_test",
+      }),
+    );
+    expect(state.connectAll).toHaveBeenCalled();
   });
 
   it("offers direct pairing and SSH when native SSH is available", async () => {

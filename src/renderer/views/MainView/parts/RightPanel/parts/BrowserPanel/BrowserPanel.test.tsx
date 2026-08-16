@@ -15,6 +15,12 @@ const bridge = vi.hoisted(() => ({
 }));
 
 const clientCapabilities = vi.hoisted(() => ({ nativeBrowserWebContents: true }));
+const layout = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/adaptiveLayout")>()),
+  useCompactLayout: () => layout.compact,
+}));
 
 vi.mock("@/renderer/clientRuntime", () => ({
   hasClientCapability: () => clientCapabilities.nativeBrowserWebContents,
@@ -55,6 +61,7 @@ vi.mock("@/renderer/bridge", () => ({
 describe("BrowserPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    layout.compact = false;
     clientCapabilities.nativeBrowserWebContents = true;
     useBrowserPanelStore.setState({
       tabs: [],
@@ -130,6 +137,32 @@ describe("BrowserPanel", () => {
 
     expect(container.querySelector("webview")).toBeNull();
     expect(getByRole("application", { name: "Browser" })).toBeTruthy();
+  });
+
+  it("moves browser controls below the viewport in compact layout", () => {
+    layout.compact = true;
+    useBrowserPanelStore.setState({
+      tabs: [
+        {
+          tabId: "tab-1",
+          url: "https://example.com/",
+          title: "Example",
+          loading: false,
+          canGoBack: false,
+          canGoForward: false,
+        },
+      ],
+      activeTabId: "tab-1",
+    });
+
+    const { container, getByTestId } = render(<BrowserPanel visible />);
+    const viewport = container.querySelector("webview")?.parentElement;
+    const controls = container.querySelector("[data-mobile-browser-chrome]");
+
+    expect(controls).toBeTruthy();
+    expect(viewport?.nextElementSibling).toBe(controls);
+    expect(controls?.contains(getByTestId("browser-toolbar"))).toBe(true);
+    expect(controls?.contains(getByTestId("browser-tab-strip"))).toBe(true);
   });
 
   it("updates tab group membership from browser state", () => {

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Redirection de ports</string>
+    <string name="ports_back">Retour</string>
+    <string name="ports_refresh">Actualiser les ports</string>
+    <string name="ports_target_port">Port cible</string>
+    <string name="ports_start_open">Démarrer et ouvrir</string>
+    <string name="ports_dismiss">Fermer</string>
+    <string name="ports_detected">Ports détectés</string>
+    <string name="ports_no_detected">Aucun port en écoute n’a été détecté.</string>
+    <string name="ports_active">Redirections actives</string>
+    <string name="ports_no_active">Aucune redirection de port n’est active.</string>
+    <string name="ports_port_number">Port %1$d</string>
+    <string name="ports_protocol_http">Service HTTP</string>
+    <string name="ports_protocol_unknown">Protocole inconnu</string>
+    <string name="ports_forward_port">Rediriger</string>
+    <string name="ports_forward_summary">Port %1$d → %2$d</string>
+    <string name="ports_open">Ouvrir</string>
+    <string name="ports_busy">Traitement…</string>
+    <string name="ports_stop">Arrêter</string>
+    <string name="ports_failure_offline">Reconnectez-vous à l’hôte pour gérer les redirections de ports.</string>
+    <string name="ports_failure_scope">Cette connexion n’accorde pas l’accès à la redirection de ports.</string>
+    <string name="ports_failure_auth">La session de l’hôte a expiré. Reconnectez-vous et réessayez.</string>
+    <string name="ports_failure_not_found">Cette redirection de port n’existe plus.</string>
+    <string name="ports_failure_input">Saisissez un port valide entre 1 et 65535.</string>
+    <string name="ports_failure_response">L’hôte a renvoyé une réponse de redirection de ports non valide.</string>
+    <string name="ports_failure_ambiguous">La requête a peut-être abouti. La liste a été actualisée.</string>
+    <string name="ports_failure_unavailable">La redirection de ports est actuellement indisponible.</string>
+</resources>

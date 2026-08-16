@@ -43,6 +43,7 @@ export function ThreadDockHeader({
   title,
   countLabel,
   actions,
+  stackedContent = false,
   children,
 }: {
   icon: React.ElementType<{ className?: string }>;
@@ -50,12 +51,18 @@ export function ThreadDockHeader({
   title: string;
   countLabel?: ReactNode;
   actions?: ReactNode;
+  stackedContent?: boolean;
   children?: ReactNode;
 }) {
   return (
     <div className="flex items-center gap-2 px-2 py-1 leading-none">
       <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />
-      <div className="flex min-w-0 flex-1 items-center gap-2 leading-none">
+      <div
+        className={`flex min-w-0 flex-1 leading-none ${
+          stackedContent ? "flex-col items-start gap-0.5" : "items-center gap-2"
+        }`}
+        data-stacked={stackedContent ? "true" : undefined}
+      >
         <span className="font-semibold text-foreground">{title}</span>
         {countLabel && (
           <span className="flex items-center gap-1 text-[0.85em] text-[color:var(--muted)]">

@@ -1,0 +1,5 @@
+---
+triple: "arm64-apple-darwin"
+binary-path: "/Users/svecherenko/work/lightcode/ios/App/AppTests/AdvancedOperations/.build/arm64-apple-macosx/debug/AdvancedOperationsIsolationPackageTests.xctest/Contents/MacOS/AdvancedOperationsIsolationPackageTests"
+relocations: []
+...

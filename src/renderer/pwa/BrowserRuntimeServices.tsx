@@ -23,7 +23,6 @@ function ConnectedBrowserRuntimeServices() {
           desktopId: server.desktopId,
           endpoint: server.endpoint,
           accessToken: server.accessToken,
-          label: server.label,
         }
       : null,
   });

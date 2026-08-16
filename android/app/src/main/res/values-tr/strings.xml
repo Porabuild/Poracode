@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">Poracode başlatılıyor…</string>
+    <string name="reconnecting_stored_session">Masaüstü bilgisayarınıza yeniden bağlanılıyor…</string>
+    <string name="session_expired_title">Oturumun süresi doldu</string>
+    <string name="session_expired_message">Uzaktan erişim oturumunuzun süresi doldu. Uygulama otomatik olarak yeniden deneyecek. Yeniden eşleştirebilirsiniz de.</string>
+    <string name="session_expired_forget">Bu masaüstü bilgisayarı unut</string>
+    <string name="protocol_incompatible_title">Uyumsuz masaüstü bilgisayar</string>
+    <string name="protocol_incompatible_message">Bu uygulama sürümü o sunucuyla uyumsuz. İkisini de aynı sürüme güncelleyin. Kaydedilen eşleştirmeniz korunur.</string>
+    <string name="send_missing_thread_config">Bu konuşma henüz gönderilmeye hazır değil. Konuşma dökümünün yüklenmesini bekleyin veya konuşmayı yeniden açın.</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">Bilgisayarınızdaki Uzaktan erişim bölümünde gösterilen eşleştirme kodunu tarayın.</string>
+    <string name="pairing_link_label">Eşleştirme bağlantısı</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">veya</string>
+    <string name="manual_connection">El ile bağlantı</string>
+    <string name="server_base_url">Sunucu temel URL\'si</string>
+    <string name="one_time_pairing_token">Tek kullanımlık eşleştirme belirteci</string>
+    <string name="connect_button">Bağlan</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">Eşleştirme kodunu tara</string>
+    <string name="pair_scan_card_message">Kodu göstermek için bilgisayarınızda Ayarlar → Uzaktan erişim\'i açın.</string>
+    <string name="pair_scan_card_action">Bilgisayarın eşleştirme kodunu kamerayla tara</string>
+    <string name="pair_other_ways">Diğer bağlanma yolları</string>
+    <string name="pair_link_paste">Yapıştır</string>
+    <string name="pair_link_clipboard_empty">Panoda eşleştirme bağlantısı yok.</string>
+    <string name="pair_cleartext_warning">Bu bağlantı, yerel ağınızda şifrelenmemiş HTTP kullanıyor.</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">Eşleştirme kodunu tara</string>
+    <string name="scan_close">Tarayıcıyı kapat</string>
+    <string name="scan_frame_hint">QR kodunu çerçevenin ortasına hizalayın</string>
+    <string name="scan_desktop_caption">Eşleştirme kodunu göstermek için masaüstü uygulamasında Ayarlar → Uzaktan erişim\'i açın.</string>
+    <string name="scan_starting">Kamera başlatılıyor…</string>
+    <string name="scan_preview_description">Eşleştirme QR kodları için kamera vizörü</string>
+    <string name="scan_invalid_code">Bu kod bir Poracode eşleştirme bağlantısı değil. Kamerayı Ayarlar → Uzaktan erişim\'teki kod üzerinde tutun.</string>
+    <string name="scan_use_link_instead">Bunun yerine bağlantı yapıştır</string>
+    <string name="scan_camera_permission_title">Kamera erişimi gerekli</string>
+    <string name="scan_camera_permission_message">Poracode, kamerayı yalnızca masaüstü bilgisayarınızdaki eşleştirme QR kodunu okumak için kullanır.</string>
+    <string name="scan_camera_permission_allow">Kameraya izin ver</string>
+    <string name="scan_camera_permission_denied_title">Kamera erişimi reddedildi</string>
+    <string name="scan_camera_permission_denied_message">Kamera izni reddedildi. Tekrar isteyebilir veya bağlantı yapıştırarak eşleştirebilirsiniz.</string>
+    <string name="scan_camera_permission_blocked_title">Kamera ayarlarda engellendi</string>
+    <string name="scan_camera_permission_blocked_message">Poracode için kamera erişimi kapalı. Sistem ayarlarından açabilir veya bağlantı yapıştırarak eşleştirebilirsiniz.</string>
+    <string name="scan_camera_open_settings">Ayarları aç</string>
+    <string name="scan_camera_try_again">Yeniden dene</string>
+    <string name="scan_no_camera_title">Kullanılabilir kamera yok</string>
+    <string name="scan_no_camera_message">Bu cihazda kullanılabilir kamera yok. Bağlantı yapıştırarak veya ayrıntıları elle girerek eşleştirebilirsiniz.</string>
+    <string name="scan_camera_failed_title">Kamera kullanılamıyor</string>
+    <string name="scan_camera_failed_message">Kamera başlatılamadı. Yeniden deneyin veya bağlantı yapıştırarak eşleştirin.</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">Konuşma seç</string>
+    <string name="select_thread_message">Konuşma dökümünü açmak için bir proje konuşması seçin.</string>
+    <string name="refresh_projects">Projeleri yenile</string>
+    <string name="disconnect">Bağlantıyı kes</string>
+    <string name="loading_projects">Projeler yükleniyor…</string>
+    <string name="loading_conversations">Konuşmalar yükleniyor…</string>
+    <string name="no_conversations_title">Henüz konuşma yok</string>
+    <string name="no_conversations_message">Eşleştirilmiş tüm masaüstü bilgisayarlardaki konuşmalar burada görünür.</string>
+    <string name="no_projects_title">Proje yok</string>
+    <string name="no_projects_message">Bu masaüstü bilgisayarda henüz proje yok.</string>
+    <string name="failed_load_projects">Projeler yüklenemedi</string>
+    <string name="no_open_threads">Açık konuşma yok</string>
+    <string name="untitled_thread">Adsız konuşma</string>
+    <string name="starred">yıldızlı</string>
+    <string name="project_expanded">genişletildi</string>
+    <string name="project_collapsed">daraltıldı</string>
+    <string name="project_content_description">Proje %1$s, %2$s</string>
+    <string name="thread_content_description">Konuşma %1$s, %2$s, %3$s</string>
+    <string name="error_prefix">Hata: %1$s</string>
+    <string name="home_filter_projects">Projeleri filtrele</string>
+    <string name="home_all_projects">Tüm projeler</string>
+    <string name="home_search_threads">İş parçacıklarında ara</string>
+    <string name="home_no_matching_threads">Eşleşen iş parçacığı yok</string>
+    <string name="home_no_matching_threads_message">Aramayı veya proje filtresini değiştirin.</string>
+    <string name="home_quick_compose_prompt">Planla, sor, geliştir…</string>
+    <string name="home_more">Daha fazla</string>
+    <string name="home_new_thread">Yeni iş parçacığı</string>
+    <string name="home_project">Proje</string>
+    <string name="home_agent_value">Aracı: %1$s</string>
+    <string name="home_model_value">Model: %1$s</string>
+    <string name="home_start">Başlat</string>
+    <string name="home_quick_compose_defaults_description">Bu projenin en son aracı ve model ayarlarını kullanır.</string>
+    <string name="home_quick_compose_unavailable">Henüz başlatma ayarı olan proje yok. Önce masaüstünden bir iş parçacığı başlatın.</string>
+    <string name="home_new_thread_failed">Yeni iş parçacığı başlatılamadı.</string>
+    <string name="home_expand_worktree">Çalışma ağacını genişlet</string>
+    <string name="home_collapse_worktree">Çalışma ağacını daralt</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">Boşta</string>
+    <string name="socket_connecting">Bağlanıyor…</string>
+    <string name="socket_online">Canlı</string>
+    <string name="socket_reconnecting">Yeniden bağlanıyor…</string>
+    <string name="socket_suspended">Arka planda duraklatıldı</string>
+    <string name="socket_failed">Çevrimdışı</string>
+    <string name="socket_session_expired">Oturumun süresi doldu</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">Konuşma</string>
+    <string name="back">Geri</string>
+    <string name="interrupt_thread">Konuşmayı kes</string>
+    <string name="loading_transcript">Konuşma dökümü yükleniyor…</string>
+    <string name="failed_load_transcript">Konuşma dökümü yüklenemedi</string>
+    <string name="empty_transcript_title">Boş döküm</string>
+    <string name="empty_transcript_message">Bu konuşmayı başlatmak için bir mesaj gönderin.</string>
+    <string name="thread_transcript">Konuşma dökümü</string>
+    <string name="load_older_messages">Eski mesajları yükle</string>
+    <string name="loading_older">Eskiler yükleniyor…</string>
+    <string name="message_input">Mesaj girişi</string>
+    <string name="message_placeholder">Mesaj…</string>
+    <string name="send_message">Mesaj gönder</string>
+    <string name="stop_generation">Üretimi durdur</string>
+    <string name="stop">Durdur</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">Yeniden dene</string>
+    <string name="pairing_failed">Eşleştirme başarısız</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">Masaüstü bilgisayar eşleştirmesini onayla</string>
+    <string name="confirm_pair_message">%1$s adresindeki masaüstü bilgisayarla eşleştirilsin mi?</string>
+    <string name="confirm_pair_replace_warning">Bu, geçerli masaüstü bilgisayar bağlantınızın yerine geçer.</string>
+    <string name="confirm_pair_button">Onayla</string>
+    <string name="cancel_pair_button">İptal</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">Kimlik bilgisi deposu hatası</string>
+    <string name="local_store_inconsistent_message">Yerel kimlik bilgisi deposu tutarsız. Bu masaüstü bilgisayarı unutun ve yeniden eşleştirin.</string>
+</resources>

@@ -22,6 +22,7 @@ import type {
   Thread,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { REMOTE_PROCEDURE_RESULT_FIXTURES } from "@/shared/remote/contract/goldens/procedureFixtures";
 import {
   isRemoteOmittedField,
   pickRemoteSettings,
@@ -50,6 +51,7 @@ import {
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
+  dbGetThreadTerminalScrollbackRecord,
   dbGetThreads,
   dbReplaceThreadRuntimeSnapshot,
   dbSetState,
@@ -96,6 +98,9 @@ vi.mock("../db", () => {
     ),
     dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
     dbGetThreadTerminalScrollback: vi.fn<() => string>(() => ""),
+    dbGetThreadTerminalScrollbackRecord: vi.fn<
+      () => { transcript: string; outputLength: number } | null
+    >(() => null),
     dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
     dbGetThreads: vi.fn<() => unknown[]>(() => []),
     dbReplaceThreadRuntimeSnapshot: vi.fn<(...args: unknown[]) => void>(),
@@ -165,6 +170,7 @@ afterEach(async () => {
     .mockReturnValue({ items: [], nextCursor: null });
   vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
   vi.mocked(dbGetThread).mockReset().mockReturnValue(null);
+  vi.mocked(dbGetThreadTerminalScrollbackRecord).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
   vi.mocked(dbReplaceThreadRuntimeSnapshot).mockReset();
   vi.mocked(dbUpsertProject).mockReset();
@@ -4854,7 +4860,9 @@ describe("RemoteAccessServer", () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
       async (name, payload) => {
         calls.push({ name, payload });
-        return { ok: name } as never;
+        return REMOTE_PROCEDURE_RESULT_FIXTURES[
+          name as keyof typeof REMOTE_PROCEDURE_RESULT_FIXTURES
+        ] as never;
       },
     );
     const server = new RemoteAccessServer({
@@ -4894,7 +4902,9 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ procedure: "getGitStatus", payload: { projectLocation } }),
     });
     expect(statusResponse.status).toBe(200);
-    await expect(statusResponse.json()).resolves.toEqual({ result: { ok: "getGitStatus" } });
+    await expect(statusResponse.json()).resolves.toEqual({
+      result: REMOTE_PROCEDURE_RESULT_FIXTURES.getGitStatus,
+    });
     expect(calls).toContainEqual({ name: "getGitStatus", payload: { projectLocation } });
 
     const dispatchPayload = {
@@ -4949,9 +4959,8 @@ describe("RemoteAccessServer", () => {
         body: JSON.stringify(call),
       });
       expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toEqual({
-        result: { ok: call.procedure },
-      });
+      const result = REMOTE_PROCEDURE_RESULT_FIXTURES[call.procedure];
+      await expect(response.json()).resolves.toEqual(result === undefined ? {} : { result });
       expect(calls).toContainEqual({ name: call.procedure, payload: call.payload });
     }
 
@@ -4967,7 +4976,7 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ procedure: "gitPush", payload: pushPayload }),
     });
     expect(pushResponse.status).toBe(200);
-    await expect(pushResponse.json()).resolves.toEqual({ result: { ok: "gitPush" } });
+    await expect(pushResponse.json()).resolves.toEqual({});
     expect(calls).toContainEqual({ name: "gitPush", payload: pushPayload });
 
     // Payload/schema errors are client errors, not hidden as 500s.
@@ -5256,7 +5265,7 @@ describe("RemoteAccessServer", () => {
     const pushRegistrations = {
       webPublicKey: vi.fn<() => Promise<string>>(async () => "vapid-public-key"),
       upsert: vi.fn<(registration: unknown) => void>(),
-      remove: vi.fn<(deviceId: string) => void>(),
+      remove: vi.fn<(deviceId: string, routing?: unknown) => void>(),
     };
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
@@ -5268,6 +5277,10 @@ describe("RemoteAccessServer", () => {
     });
     servers.push(server);
     const info = await server.start();
+    const environment = await (
+      await fetch(new URL("/.well-known/poracode/environment", info.httpBaseUrl))
+    ).json();
+    expect(environment).toMatchObject({ capabilities: { pushRouting: { versions: [1] } } });
 
     // No token → 401.
     const anonResponse = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
@@ -5315,6 +5328,11 @@ describe("RemoteAccessServer", () => {
       platform: "ios",
       deviceToken: "dev-token",
       activityTokens: { activity1: "act-token" },
+      routing: {
+        version: 1,
+        clientConnectionId: "11111111-1111-4111-8111-111111111111",
+        desktopId: "desktop-test",
+      },
     };
     const registerResponse = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
       method: "POST",
@@ -5322,16 +5340,58 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify(registration),
     });
     expect(registerResponse.status).toBe(200);
-    await expect(registerResponse.json()).resolves.toMatchObject({ ok: true });
+    await expect(registerResponse.json()).resolves.toEqual({
+      ok: true,
+      routing: { version: 1 },
+    });
     expect(pushRegistrations.upsert).toHaveBeenCalledWith(registration);
 
     const unregisterResponse = await fetch(new URL("/api/push/unregister", info.httpBaseUrl), {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ deviceId: "device-abcdef" }),
+      body: JSON.stringify({ deviceId: "device-abcdef", routing: registration.routing }),
     });
     expect(unregisterResponse.status).toBe(200);
-    expect(pushRegistrations.remove).toHaveBeenCalledWith("device-abcdef");
+    expect(pushRegistrations.remove).toHaveBeenCalledWith("device-abcdef", registration.routing);
+  });
+
+  it("rejects a routed push registration bound to another desktop", async () => {
+    const pushRegistrations = {
+      webPublicKey: vi.fn<() => Promise<string>>(async () => "vapid-public-key"),
+      upsert: vi.fn<(registration: unknown) => void>(),
+      remove: vi.fn<(deviceId: string, routing?: unknown) => void>(),
+    };
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      pushRegistrations,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+
+    const response = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        deviceId: "device-abcdef",
+        platform: "ios",
+        routing: {
+          version: 1,
+          clientConnectionId: "11111111-1111-4111-8111-111111111111",
+          desktopId: "another-desktop",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "push_routing_desktop_mismatch" },
+    });
+    expect(pushRegistrations.upsert).not.toHaveBeenCalled();
   });
 
   it("rejects push endpoints when no registration sink is configured", async () => {

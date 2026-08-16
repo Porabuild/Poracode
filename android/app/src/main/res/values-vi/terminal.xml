@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_output_description">Đầu ra thiết bị đầu cuối</string>
+    <string name="terminal_input_label">Đầu vào thiết bị đầu cuối</string>
+    <string name="terminal_input_placeholder">Nhập lệnh</string>
+    <string name="terminal_send">Gửi</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Tab</string>
+    <string name="terminal_close">Đóng thiết bị đầu cuối</string>
+    <string name="terminal_reconnect">Kết nối lại</string>
+    <string name="terminal_start">Khởi động terminal</string>
+    <string name="terminal_start_description">Khởi động terminal phát triển cho dự án này</string>
+    <string name="terminal_status_authentication">Quyền truy cập thiết bị đầu cuối đã hết hạn</string>
+    <string name="terminal_status_permission">Không được phép truy cập thiết bị đầu cuối</string>
+    <string name="terminal_status_unsupported">Máy chủ này không hỗ trợ truyền phát thiết bị đầu cuối tin cậy</string>
+    <string name="terminal_status_protocol">Thiết bị đầu cuối đã gửi phản hồi không hợp lệ</string>
+    <string name="terminal_status_offline">Không tìm thấy thiết bị đầu cuối</string>
+    <string name="terminal_status_reconnecting">Đang kết nối lại thiết bị đầu cuối…</string>
+    <string name="terminal_status_connecting">Đang kết nối thiết bị đầu cuối…</string>
+    <string name="terminal_status_synchronizing">Đang đồng bộ thiết bị đầu cuối…</string>
+    <string name="terminal_status_suspended">Thiết bị đầu cuối đã tạm dừng trong nền</string>
+    <string name="terminal_status_failed">Kết nối thiết bị đầu cuối thất bại</string>
+    <string name="terminal_status_exited">Tiến trình thiết bị đầu cuối đã thoát</string>
+    <string name="terminal_status_live">Thiết bị đầu cuối đã kết nối</string>
+    <string name="terminal_status_idle">Thiết bị đầu cuối đang chờ</string>
+</resources>

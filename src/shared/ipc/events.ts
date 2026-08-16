@@ -84,7 +84,14 @@ export type SupervisorEvent =
     }
   | { type: "thread-reset"; threadId: string }
   | { type: "thread-scrollback-resync"; threadId: string }
-  | { type: "thread-output"; threadId: string; data: string; outputLength: number }
+  | {
+      type: "thread-output";
+      threadId: string;
+      data: string;
+      outputLength: number;
+      /** Terminal instance/generation id; batching must not coalesce across this. */
+      terminalInstanceId: string;
+    }
   | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }
   | { type: "thread-runtime-events"; threadId: string; events: RuntimeEvent[] }
   | {

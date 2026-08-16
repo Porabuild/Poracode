@@ -170,8 +170,20 @@ describe("writeScriptToShell", () => {
   it("writes the normalized command on first output", () => {
     writeScriptToShell("shell:1", "npm install\nnpm run dev");
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
-    emit({ type: "thread-output", threadId: "shell:1", data: "more", outputLength: 6 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "more",
+      outputLength: 6,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
     expect(lastWrite()).toBe("npm install && npm run dev\r");
@@ -180,13 +192,25 @@ describe("writeScriptToShell", () => {
   it("re-sends the command after a thread-reset (PTY respawn)", () => {
     writeScriptToShell("shell:1", "npm run dev");
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
 
     // The terminal panel's viewport-sized respawn replaces the PTY the
     // command was written to; it must land again in the survivor.
     emit({ type: "thread-reset", threadId: "shell:1" });
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(2);
     expect(lastWrite()).toBe("npm run dev\r");
@@ -195,7 +219,13 @@ describe("writeScriptToShell", () => {
   it("stops listening once the shell exits", () => {
     writeScriptToShell("shell:1", "npm run dev");
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
     emit({ type: "thread-exited", threadId: "shell:1", exitCode: 0 });
 
     expect(supervisorHandlers).toHaveLength(0);
@@ -215,7 +245,13 @@ describe("writeScriptToShell", () => {
     writeScriptToShell("shell:1", "npm run second");
 
     expect(supervisorHandlers).toHaveLength(1);
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).toHaveBeenCalledOnce();
     expect(lastWrite()).toBe("npm run second\r");
@@ -224,7 +260,13 @@ describe("writeScriptToShell", () => {
   it("ignores events for other shells", () => {
     writeScriptToShell("shell:1", "npm run dev");
 
-    emit({ type: "thread-output", threadId: "shell:2", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:2",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).not.toHaveBeenCalled();
   });
@@ -246,7 +288,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
   it("writes the normalized chain with a posix exit tail on first output", () => {
     writeScriptToShellThenExitOnSuccess("shell:1", "npm install\nnpm run setup", "posix", () => {});
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
     expect(lastWrite()).toBe("npm install && npm run setup && exit\r");
@@ -255,7 +303,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
   it("writes a PowerShell conditional exit tail for native Windows shells", () => {
     writeScriptToShellThenExitOnSuccess("shell:1", "npm ci", "windows", () => {});
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "PS> ", outputLength: 4 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "PS> ",
+      outputLength: 4,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(lastWrite()).toBe("npm ci; if ($?) { exit }\r");
   });
@@ -268,7 +322,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       () => {},
     );
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "PS> ", outputLength: 4 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "PS> ",
+      outputLength: 4,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(lastWrite()).toBe("npm install; if ($?) { npm run setup; if ($?) { exit } }\r");
   });
@@ -276,7 +336,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
   it("strips comments and blank lines before joining", () => {
     writeScriptToShellThenExitOnSuccess("shell:1", "# bootstrap\n\nnpm ci\n", "posix", () => {});
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "ready", outputLength: 5 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "ready",
+      outputLength: 5,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(lastWrite()).toBe("npm ci && exit\r");
   });
@@ -284,8 +350,20 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
   it("only writes once per PTY, ignoring subsequent output", () => {
     writeScriptToShellThenExitOnSuccess("shell:1", "echo hi", "posix", () => {});
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
-    emit({ type: "thread-output", threadId: "shell:1", data: "more", outputLength: 6 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "more",
+      outputLength: 6,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
   });
@@ -293,12 +371,24 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
   it("re-sends the command after a thread-reset (PTY respawn)", () => {
     writeScriptToShellThenExitOnSuccess("shell:1", "echo hi", "posix", () => {});
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
 
     // A viewport-sized respawn replaces the PTY; the command must land again.
     emit({ type: "thread-reset", threadId: "shell:1" });
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(2);
     expect(lastWrite()).toBe("echo hi && exit\r");
@@ -308,7 +398,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     const onExit = vi.fn<(exitCode: number | null) => void>();
     writeScriptToShellThenExitOnSuccess("shell:1", "echo hi", "posix", onExit);
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
     emit({ type: "thread-exited", threadId: "shell:1", exitCode: 0 });
 
     expect(onExit).toHaveBeenCalledWith(0);
@@ -326,7 +422,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       onCommandComplete,
     );
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
     const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
     expect(token).toBeTruthy();
     expect(lastWrite()).toMatch(/^command bash -c /u);
@@ -341,9 +443,16 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       threadId: "shell:1",
       data: echoedCommand,
       outputLength: echoedCommand.length,
+      terminalInstanceId: "gen-test",
     });
     const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
-    emit({ type: "thread-output", threadId: "shell:1", data: marker, outputLength: marker.length });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: marker,
+      outputLength: marker.length,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(onCommandComplete).toHaveBeenCalledWith(1);
     expect(onExit).not.toHaveBeenCalled();
@@ -359,7 +468,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       () => {},
     );
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "> ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "> ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(unwrapBashScript(lastWrite())).toContain('printf "it\'s ready"');
   });
@@ -375,10 +490,22 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       onCommandComplete,
     );
 
-    emit({ type: "thread-output", threadId: "shell:1", data: "PS> ", outputLength: 4 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "PS> ",
+      outputLength: 4,
+      terminalInstanceId: "gen-test",
+    });
     const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
     const marker = `\u001B]777;poracode-shell-complete=${token}:0\u0007`;
-    emit({ type: "thread-output", threadId: "shell:1", data: marker, outputLength: marker.length });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: marker,
+      outputLength: marker.length,
+      terminalInstanceId: "gen-test",
+    });
     emit({ type: "thread-exited", threadId: "shell:1", exitCode: 0 });
 
     expect(onCommandComplete).toHaveBeenCalledTimes(1);
@@ -391,7 +518,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     const onExit = vi.fn<(exitCode: number | null) => void>();
     writeScriptToShellThenExitOnSuccess("shell:1", "echo hi", "posix", onExit);
 
-    emit({ type: "thread-output", threadId: "shell:2", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:2",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
     emit({ type: "thread-exited", threadId: "shell:2", exitCode: 0 });
 
     expect(bridge.writeTerminal).not.toHaveBeenCalled();
@@ -402,7 +535,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     const detach = writeScriptToShellThenExitOnSuccess("shell:1", "echo hi", "posix", () => {});
 
     detach();
-    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
 
     expect(bridge.writeTerminal).not.toHaveBeenCalled();
     expect(supervisorHandlers).toHaveLength(0);

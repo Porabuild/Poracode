@@ -1,0 +1,3896 @@
+{
+  "formatVersion": 1,
+  "contract": "poracode.remote.native-parity",
+  "protocolVersion": 3,
+  "entries": {
+    "httpRoutes": [
+      {
+        "id": "environment",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "environment-legacy",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "forward-enter",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
+            "ios/App/App/Transport/PortForwarding/PortForwardingEntryURL.swift",
+            "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+            "ios/App/App/Features/PortForwarding/PortForwardingSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/ports/RemoteV3PortContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/ports/PortForwardScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "token-exchange",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "websocket-ticket",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "shell-snapshot",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "agent-statuses",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "host-update",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "host-update-check",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "host-update-install",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "provider-usage",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "project-notes-read",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectNotesView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/ProjectNotesSection.kt"
+          ]
+        }
+      },
+      {
+        "id": "project-notes-write",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectNotesView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/ProjectNotesSection.kt"
+          ]
+        }
+      },
+      {
+        "id": "local-image",
+        "batch": "attachments",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatImageView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRemoteImage.kt"
+          ]
+        }
+      },
+      {
+        "id": "runtime-image",
+        "batch": "attachments",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatImageView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRemoteImage.kt"
+          ]
+        }
+      },
+      {
+        "id": "attachment-upload",
+        "batch": "attachments",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatComposer.kt"
+          ]
+        }
+      },
+      {
+        "id": "profile-devices",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsProfileViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsProfilePane.kt"
+          ]
+        }
+      },
+      {
+        "id": "profile-core-stats",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsProfileViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsProfilePane.kt"
+          ]
+        }
+      },
+      {
+        "id": "profile-token-stats",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsProfileViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsProfilePane.kt"
+          ]
+        }
+      },
+      {
+        "id": "profile-identity",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsProfileViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsProfilePane.kt"
+          ]
+        }
+      },
+      {
+        "id": "settings-read",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsPreferencesPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "settings-write",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsPreferencesPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "schedules-read",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "schedules-command",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "pr-watch-read",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "pr-watch-check",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "pr-watch-upsert",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "pr-watch-delete",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-state",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteAPI.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/browsermirror/BrowserMirrorController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-command",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteAPI.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/browsermirror/BrowserMirrorController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "ports-read",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
+            "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+            "ios/App/App/Features/Home/HomeView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/ports/PortForwardScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "port-forward",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
+            "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+            "ios/App/App/Features/Home/HomeView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/ports/PortForwardScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "port-enter",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
+            "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+            "ios/App/App/Features/Home/HomeView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/ports/PortForwardScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "port-unforward",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
+            "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+            "ios/App/App/Features/Home/HomeView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/ports/PortForwardScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "procedure-call",
+        "batch": "bindings",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "project-command",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectManagementView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/ProjectManagementScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "project-settings",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectIntegrationsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/ProjectMcpSection.kt"
+          ]
+        }
+      },
+      {
+        "id": "push-config",
+        "batch": "push-system",
+        "ios": {
+          "disposition": "unsupported-by-wire",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "unsupported-by-wire",
+          "evidence": []
+        },
+        "note": "This route returns the Web Push VAPID public key; remote v3 explicitly forbids webPushSubscription on native iOS and Android registrations, which use push-register/push-unregister with APNs or FCM tokens instead."
+      },
+      {
+        "id": "push-register",
+        "batch": "push-system",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteAPIClient.swift",
+            "ios/App/App/Features/Notifications/PushRegistrationController.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/push/PushHostClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt"
+          ]
+        }
+      },
+      {
+        "id": "push-unregister",
+        "batch": "push-system",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteAPIClient.swift",
+            "ios/App/App/Features/Notifications/PushRegistrationController.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/push/PushHostClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-history-items",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "thread-history",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "thread-start-existing",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Threads/ThreadLifecycleRemoteAPI.swift",
+            "ios/App/App/Features/Home/ProjectThreadsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleUiLogic.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/home/HomeScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-start",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/Terminal/ProjectShellTerminalSession.swift",
+            "ios/App/App/Features/Terminal/ProjectShellTerminalView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatThreadView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-runtime-truncate",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/Controllers/RichChatConversationController.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-command",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Threads/ThreadLifecycleRemoteAPI.swift",
+            "ios/App/App/Features/Home/ProjectThreadsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/threads/ThreadLifecycleRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-send",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "thread-interrupt",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": ["android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"]
+        }
+      },
+      {
+        "id": "thread-goal",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-close",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatThreadView.swift",
+            "ios/App/App/Features/Thread/ThreadDetailView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-steer-set",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-steer-clear",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-write",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-resize",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-close",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "request-resolve",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      }
+    ],
+    "procedures": [
+      {
+        "id": "rollbackThreadConversation",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichCheckpointControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "createFileCheckpoint",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "finalizeFileCheckpoint",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "listFileCheckpoints",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichCheckpointControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "restoreFileCheckpoint",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichCheckpointControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "subagentSubscribe",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "subagentUnsubscribe",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "stageThreadInput",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "workflowGetRun",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "workflowAgentChat",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "scanSkills",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "listSkillMarketplace",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "setSkillEnabled",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "deleteSkill",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "importSkills",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "installMarketplaceSkill",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "discoverExternalMcpServers",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "probeMcpServer",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "getMcpOauthStatus",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "beginMcpServerOauth",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "waitMcpServerOauth",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "clearMcpServerOauth",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/settingsintegrations/SettingsIntegrationsRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settingsintegrations/SettingsIntegrationsSessionScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "searchProjectFiles",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "listProjectTree",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browseHostDirectory",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/HostDirectoryPicker.kt"
+          ]
+        }
+      },
+      {
+        "id": "searchProjectTree",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "readProjectFile",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "readAbsoluteFile",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "readExternalFile",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "writeProjectFile",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "writeExternalFile",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "createProjectEntry",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectManagementView.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "renameProjectEntry",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectManagementView.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "moveProjectEntry",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectManagementView.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "deleteProjectEntry",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectManagementView.swift",
+            "ios/App/App/Features/Projects/ProjectDirectoryBrowser.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "detectSetupScript",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectControllerCommand.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/ProjectCatalogController.kt"
+          ]
+        }
+      },
+      {
+        "id": "getGitStatus",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "getGitDiff",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "getGitDiffBatch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "getGitFileContent",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitListBranches",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitListWorktrees",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitProjectSnapshot",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/ProjectWorkspaceRemoteAPI.swift",
+            "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectWorkspaceScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitWorktreeStatusBatch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitGetWorktreeSourceBranch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitGetWorktreeOwner",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghCheckAvailable",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetPrForBranch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghListPrs",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghListPullRequests",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetPrChecks",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetPrFiles",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetPrDiff",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetPrDetails",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetPrReviewComments",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghListAccounts",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghListRepos",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghListWorkflows",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghListWorkflowRuns",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetWorkflowRun",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghGetWorkflowDefinition",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitStage",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitUnstage",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitRevert",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitStageAll",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitUnstageAll",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitRevertAll",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitCommit",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitInit",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitAddRemote",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "generateCommitMessage",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsFormFields.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "generateTitle",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsFormFields.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "generatePrSummary",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift",
+            "ios/App/App/Features/AdvancedOperations/AdvancedOperationsFormFields.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/advancedops/AdvancedOpsContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/advancedops/AdvancedOpsTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/advancedops/AdvancedOpsProductionComposition.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/advancedops/AdvancedOperationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitFetch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitPull",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitPullRebase",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitPush",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitSync",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitSyncRebase",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitSwitchBranch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitDeleteBranch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitAddWorktree",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitRemoveWorktree",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitPruneWorktrees",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitMergeToSource",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitPullFromSource",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitAbortMerge",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "gitFinishMerge",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghCreatePr",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghMergePr",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghClosePr",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghReopenPr",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghMarkPrReady",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghSubmitPrReview",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghUpdatePrBranch",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghPostPrComment",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghDispatchWorkflow",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghRerunWorkflowRun",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghCancelWorkflowRun",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "ghDeleteWorkflowRun",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
+            "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
+            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/github/RemoteV3GithubContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt"
+          ]
+        }
+      }
+    ],
+    "webSocketClientMessages": [
+      {
+        "id": "ping",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-watch",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorSocketMultiplexer.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorSocketIngress.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-unwatch",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorSocketMultiplexer.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorSocketIngress.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-input",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorSocketMultiplexer.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorSocketIngress.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-watch",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Terminal/RichChatTerminalWebSocketTransport.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-unwatch",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Terminal/RichChatTerminalWebSocketTransport.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "git-state-interests",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Transport/RemoteSocketInterestRouter.swift",
+            "ios/App/App/Features/Session/SessionPool.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ws/WsGitInterestEncoder.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitStateRefreshCoordinator.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-item-interests",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+          ]
+        }
+      }
+    ],
+    "webSocketServerMessages": [
+      {
+        "id": "ready",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+          ]
+        }
+      },
+      {
+        "id": "event",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+          ]
+        }
+      },
+      {
+        "id": "resync-required",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+          ]
+        }
+      },
+      {
+        "id": "pong",
+        "batch": "foundation",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteWebSocketClient.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/RemoteWebSocketClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-state",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorSocketMultiplexer.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ws/WsRawFrameSink.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorSocketIngress.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-frame",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorSocketMultiplexer.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ws/WsRawFrameSink.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorSocketIngress.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "browser-mirror-status",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorSocketMultiplexer.swift",
+            "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/ws/WsRawFrameSink.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorSocketIngress.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-output",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Terminal/RichChatTerminalWebSocketTransport.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "terminal-watch-result",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Terminal/RichChatTerminalWebSocketTransport.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      }
+    ],
+    "replayableEventTypes": [
+      {
+        "id": "thread-runtime-event",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-runtime-events",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-runtime-events-multi",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-state",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-pending-steer",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichChatSessionComposition.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-reset",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SequencedReplayEvent.swift",
+            "ios/App/App/Features/Session/HostReplayState.swift",
+            "ios/App/App/Features/Session/SessionReplayEventRouter.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedEventApplier.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "thread-exited",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SequencedReplayEvent.swift",
+            "ios/App/App/Features/Session/SessionReplayEventRouter.swift",
+            "ios/App/App/Features/Terminal/RichTerminalView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedReplayController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichTerminalController.kt"
+          ]
+        }
+      },
+      {
+        "id": "agent-status-updated",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/Session/HostReplayState.swift",
+            "ios/App/App/Features/Settings/UI/SettingsUIModels.swift",
+            "ios/App/App/Features/Settings/UI/SettingsSessionComposition.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedEventApplier.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/HostReplayCacheUi.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsAgentsPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "windows-agent-statuses",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/Session/HostReplayState.swift",
+            "ios/App/App/Features/Settings/UI/SettingsUIModels.swift",
+            "ios/App/App/Features/Settings/UI/SettingsSessionComposition.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedEventApplier.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/HostReplayCacheUi.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsAgentsPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "wsl-agent-statuses",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/Session/HostReplayState.swift",
+            "ios/App/App/Features/Settings/UI/SettingsUIModels.swift",
+            "ios/App/App/Features/Settings/UI/SettingsSessionComposition.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedEventApplier.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/HostReplayCacheUi.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsAgentsPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "remote-git-summaries",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SequencedReplayEvent.swift",
+            "ios/App/App/Features/Session/HostReplayState.swift",
+            "ios/App/App/Features/Home/ProjectThreadsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedEventApplier.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/HostReplayCacheUi.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/home/HomeScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "remote-git-state",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/SequencedReplayEvent.swift",
+            "ios/App/App/Features/Session/HostReplayState.swift",
+            "ios/App/App/Features/Projects/Review/ProjectReviewDetailsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/replay/SequencedEventApplier.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/projects/GitStateRefreshCoordinator.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+          ]
+        }
+      },
+      {
+        "id": "remote-projects-changed",
+        "batch": "projects",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "remote-threads-changed",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      }
+    ],
+    "runtimeEventTypes": [
+      {
+        "id": "session.started",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "session.exited",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "turn.started",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "turn.completed",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "item.started",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "item.updated",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "item.completed",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "content.delta",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "context.updated",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
+            "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatControlPanel.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RuntimeContextUsageDock.kt"
+          ]
+        }
+      },
+      {
+        "id": "usage.spent",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
+            "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatController.kt"
+          ]
+        },
+        "note": "Android and iOS intentionally no-op this renderer event; the desktop main-process usage ledger remains authoritative and native UI exposes no usage ledger."
+      },
+      {
+        "id": "request.opened",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "request.resolved",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+          ]
+        }
+      },
+      {
+        "id": "warning",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
+            "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatController.kt"
+          ]
+        },
+        "note": "Both native clients intentionally consume warning as a sequenced no-op outside transcript/item state; status continues through the existing thread-state refresh path."
+      },
+      {
+        "id": "error",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Thread/TranscriptView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
+          ]
+        }
+      }
+    ]
+  }
+}

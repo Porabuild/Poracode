@@ -1,0 +1,190 @@
+{
+  "cases": [
+    {
+      "id": "search-files-unicode-config",
+      "procedure": "searchProjectFiles",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/Users/zoë/Projects/東京" },
+        "query": "résumé",
+        "limit": 50,
+        "searchConfig": {
+          "useIgnoreFiles": true,
+          "excludePatterns": ["dist/**", "构建/**"]
+        }
+      },
+      "result": {
+        "entries": [
+          { "path": "docs/résumé.md", "name": "résumé.md", "type": "file" },
+          { "path": "资料", "name": "资料", "type": "directory" }
+        ],
+        "totalIndexed": 2048
+      }
+    },
+    {
+      "id": "list-tree-root",
+      "procedure": "listProjectTree",
+      "payload": {
+        "projectLocation": { "kind": "windows", "path": "C:\\dev\\poracode" },
+        "directoryPath": ""
+      },
+      "result": {
+        "directoryPath": "",
+        "entries": [
+          { "path": "src", "name": "src", "type": "directory", "hasChildren": true },
+          { "path": "README.md", "name": "README.md", "type": "file" }
+        ]
+      }
+    },
+    {
+      "id": "search-tree-wsl",
+      "procedure": "searchProjectTree",
+      "payload": {
+        "projectLocation": {
+          "kind": "wsl",
+          "distro": "Ubuntu-24.04",
+          "linuxPath": "/home/zoë/项目",
+          "uncPath": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë\\项目"
+        },
+        "query": "组件",
+        "limit": 25
+      },
+      "result": {
+        "entries": [{ "path": "src/组件.ts", "name": "组件.ts", "type": "file" }]
+      }
+    },
+    {
+      "id": "read-text-fractional-mtime",
+      "procedure": "readProjectFile",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "path": "README.md"
+      },
+      "result": {
+        "path": "README.md",
+        "status": "ready",
+        "modifiedAtMs": 1786543210.625,
+        "content": "# Poracode\n",
+        "lineEnding": "lf",
+        "hasBom": false
+      }
+    },
+    {
+      "id": "read-previewable-binary",
+      "procedure": "readProjectFile",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "path": "docs/guide.pdf"
+      },
+      "result": {
+        "path": "docs/guide.pdf",
+        "status": "binary",
+        "modifiedAtMs": 1786543211.25,
+        "contentBase64": "JVBERi0xLjQK"
+      }
+    },
+    {
+      "id": "write-text-fractional-mtime",
+      "procedure": "writeProjectFile",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "path": "README.md",
+        "content": "# Updated\r\n",
+        "baseModifiedAtMs": 1786543210.625
+      },
+      "result": { "modifiedAtMs": 1786543212.875 }
+    },
+    {
+      "id": "git-status-full",
+      "procedure": "getGitStatus",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "detail": "full"
+      },
+      "result": {
+        "detail": "full",
+        "isRepo": true,
+        "branch": "feature/native",
+        "headSha": "0123456789abcdef0123456789abcdef01234567",
+        "tracking": "origin/feature/native",
+        "hasRemote": true,
+        "remoteInfo": {
+          "url": "git@github.com:acme/poracode.git",
+          "platform": "github",
+          "owner": "acme",
+          "repo": "poracode"
+        },
+        "ahead": 2,
+        "behind": 1,
+        "staged": [
+          {
+            "path": "src/new.ts",
+            "status": "added",
+            "staged": true,
+            "insertions": 12,
+            "deletions": 0
+          }
+        ],
+        "unstaged": [
+          {
+            "path": "src/renamed.ts",
+            "oldPath": "src/old.ts",
+            "status": "renamed",
+            "staged": false,
+            "insertions": 3,
+            "deletions": 2
+          }
+        ],
+        "totalInsertions": 15,
+        "totalDeletions": 2,
+        "mergeInProgress": false,
+        "conflictFiles": []
+      }
+    },
+    {
+      "id": "git-diff-file",
+      "procedure": "getGitDiff",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "filePath": "src/new.ts",
+        "staged": true
+      },
+      "result": { "diff": "@@ -0,0 +1 @@\n+export const value = 1;\n" }
+    },
+    {
+      "id": "git-diff-batch",
+      "procedure": "getGitDiffBatch",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "untrackedPaths": ["src/new.ts"]
+      },
+      "result": {
+        "staged": { "src/new.ts": "@@ -0,0 +1 @@\n+staged\n" },
+        "unstaged": { "README.md": "@@ -1 +1 @@\n-old\n+new\n" }
+      }
+    },
+    {
+      "id": "git-file-content",
+      "procedure": "getGitFileContent",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "filePath": "README.md",
+        "staged": false
+      },
+      "result": { "oldContent": "old\n", "newContent": "new\n" }
+    },
+    {
+      "id": "git-project-snapshot-empty-optionals",
+      "procedure": "gitProjectSnapshot",
+      "payload": {
+        "projectLocation": { "kind": "posix", "path": "/repo" },
+        "includeGhCheck": true
+      },
+      "result": {
+        "status": null,
+        "branches": null,
+        "worktrees": null,
+        "ghAvailable": null
+      }
+    }
+  ]
+}

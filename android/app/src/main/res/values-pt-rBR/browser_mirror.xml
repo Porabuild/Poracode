@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_mirror_title">Espelhamento do navegador</string>
+    <string name="browser_mirror_create_tab">Criar aba</string>
+    <string name="browser_mirror_close_tab">Fechar aba</string>
+    <string name="browser_mirror_selected_tab">Aba selecionada</string>
+    <string name="browser_mirror_untitled_tab">Aba sem título</string>
+    <string name="browser_mirror_back">Voltar</string>
+    <string name="browser_mirror_forward">Avançar</string>
+    <string name="browser_mirror_reload">Recarregar</string>
+    <string name="browser_mirror_address">Endereço</string>
+    <string name="browser_mirror_loading">Carregando o estado do navegador…</string>
+    <string name="browser_mirror_starting">Iniciando o espelhamento do navegador…</string>
+    <string name="browser_mirror_unavailable">O espelhamento do navegador não está disponível.</string>
+    <string name="browser_mirror_waiting_frame">Aguardando a imagem do navegador…</string>
+    <string name="browser_mirror_retry">Tentar novamente</string>
+    <string name="browser_mirror_no_session">Nenhuma sessão remota está selecionada.</string>
+    <string name="browser_mirror_offline">A sessão remota está offline.</string>
+    <string name="browser_mirror_not_ready">A sessão remota não está pronta.</string>
+    <string name="browser_mirror_permission_denied">Esta sessão não permite controlar o navegador.</string>
+    <string name="browser_mirror_remote_error">O espelhamento do navegador falhou.</string>
+    <string name="browser_mirror_refreshing_after_command">O resultado do comando é incerto. Atualizando o estado do navegador…</string>
+    <string name="browser_mirror_frame_description">Página espelhada do navegador</string>
+    <string name="browser_mirror_type_on_page">Digitar na página</string>
+    <string name="browser_mirror_key_enter">Enter</string>
+    <string name="browser_mirror_key_backspace">Backspace</string>
+    <string name="browser_mirror_key_tab">Tab</string>
+    <string name="browser_mirror_key_escape">Escape</string>
+    <string name="browser_mirror_key_up">Cima</string>
+    <string name="browser_mirror_key_down">Baixo</string>
+    <string name="browser_mirror_key_left">Esquerda</string>
+    <string name="browser_mirror_key_right">Direita</string>
+    <string name="browser_mirror_back_nav">Voltar</string>
+    <string name="browser_mirror_start">Iniciar espelhamento</string>
+    <string name="browser_mirror_stop">Parar espelhamento</string>
+    <string name="browser_mirror_empty">Nenhuma aba do navegador está aberta.</string>
+    <string name="browser_mirror_stopped">O espelhamento do navegador está parado.</string>
+</resources>

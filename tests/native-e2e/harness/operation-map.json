@@ -1,0 +1,822 @@
+{
+  "schemaVersion": 1,
+  "contract": "poracode.remote",
+  "protocolVersion": 3,
+  "bindingFormatVersion": 2,
+  "manifestHash": "sha256:6d4718bf9224ac5abce97cf23b2311607b671b9a758c99b6641c8753954f0b35",
+  "keyCount": 201,
+  "counts": {
+    "route": 56,
+    "procedure": 100,
+    "ws-client": 8,
+    "ws-server": 9,
+    "replay": 14,
+    "runtime": 14
+  },
+  "operations": {
+    "procedure:beginMcpServerOauth": {
+      "kind": "procedure",
+      "id": "beginMcpServerOauth"
+    },
+    "procedure:browseHostDirectory": {
+      "kind": "procedure",
+      "id": "browseHostDirectory"
+    },
+    "procedure:clearMcpServerOauth": {
+      "kind": "procedure",
+      "id": "clearMcpServerOauth"
+    },
+    "procedure:createFileCheckpoint": {
+      "kind": "procedure",
+      "id": "createFileCheckpoint"
+    },
+    "procedure:createProjectEntry": {
+      "kind": "procedure",
+      "id": "createProjectEntry"
+    },
+    "procedure:deleteProjectEntry": {
+      "kind": "procedure",
+      "id": "deleteProjectEntry"
+    },
+    "procedure:deleteSkill": {
+      "kind": "procedure",
+      "id": "deleteSkill"
+    },
+    "procedure:detectSetupScript": {
+      "kind": "procedure",
+      "id": "detectSetupScript"
+    },
+    "procedure:discoverExternalMcpServers": {
+      "kind": "procedure",
+      "id": "discoverExternalMcpServers"
+    },
+    "procedure:finalizeFileCheckpoint": {
+      "kind": "procedure",
+      "id": "finalizeFileCheckpoint"
+    },
+    "procedure:generateCommitMessage": {
+      "kind": "procedure",
+      "id": "generateCommitMessage"
+    },
+    "procedure:generatePrSummary": {
+      "kind": "procedure",
+      "id": "generatePrSummary"
+    },
+    "procedure:generateTitle": {
+      "kind": "procedure",
+      "id": "generateTitle"
+    },
+    "procedure:getGitDiff": {
+      "kind": "procedure",
+      "id": "getGitDiff"
+    },
+    "procedure:getGitDiffBatch": {
+      "kind": "procedure",
+      "id": "getGitDiffBatch"
+    },
+    "procedure:getGitFileContent": {
+      "kind": "procedure",
+      "id": "getGitFileContent"
+    },
+    "procedure:getGitStatus": {
+      "kind": "procedure",
+      "id": "getGitStatus"
+    },
+    "procedure:getMcpOauthStatus": {
+      "kind": "procedure",
+      "id": "getMcpOauthStatus"
+    },
+    "procedure:ghCancelWorkflowRun": {
+      "kind": "procedure",
+      "id": "ghCancelWorkflowRun"
+    },
+    "procedure:ghCheckAvailable": {
+      "kind": "procedure",
+      "id": "ghCheckAvailable"
+    },
+    "procedure:ghClosePr": {
+      "kind": "procedure",
+      "id": "ghClosePr"
+    },
+    "procedure:ghCreatePr": {
+      "kind": "procedure",
+      "id": "ghCreatePr"
+    },
+    "procedure:ghDeleteWorkflowRun": {
+      "kind": "procedure",
+      "id": "ghDeleteWorkflowRun"
+    },
+    "procedure:ghDispatchWorkflow": {
+      "kind": "procedure",
+      "id": "ghDispatchWorkflow"
+    },
+    "procedure:ghGetPrChecks": {
+      "kind": "procedure",
+      "id": "ghGetPrChecks"
+    },
+    "procedure:ghGetPrDetails": {
+      "kind": "procedure",
+      "id": "ghGetPrDetails"
+    },
+    "procedure:ghGetPrDiff": {
+      "kind": "procedure",
+      "id": "ghGetPrDiff"
+    },
+    "procedure:ghGetPrFiles": {
+      "kind": "procedure",
+      "id": "ghGetPrFiles"
+    },
+    "procedure:ghGetPrForBranch": {
+      "kind": "procedure",
+      "id": "ghGetPrForBranch"
+    },
+    "procedure:ghGetPrReviewComments": {
+      "kind": "procedure",
+      "id": "ghGetPrReviewComments"
+    },
+    "procedure:ghGetWorkflowDefinition": {
+      "kind": "procedure",
+      "id": "ghGetWorkflowDefinition"
+    },
+    "procedure:ghGetWorkflowRun": {
+      "kind": "procedure",
+      "id": "ghGetWorkflowRun"
+    },
+    "procedure:ghListAccounts": {
+      "kind": "procedure",
+      "id": "ghListAccounts"
+    },
+    "procedure:ghListPrs": {
+      "kind": "procedure",
+      "id": "ghListPrs"
+    },
+    "procedure:ghListPullRequests": {
+      "kind": "procedure",
+      "id": "ghListPullRequests"
+    },
+    "procedure:ghListRepos": {
+      "kind": "procedure",
+      "id": "ghListRepos"
+    },
+    "procedure:ghListWorkflowRuns": {
+      "kind": "procedure",
+      "id": "ghListWorkflowRuns"
+    },
+    "procedure:ghListWorkflows": {
+      "kind": "procedure",
+      "id": "ghListWorkflows"
+    },
+    "procedure:ghMarkPrReady": {
+      "kind": "procedure",
+      "id": "ghMarkPrReady"
+    },
+    "procedure:ghMergePr": {
+      "kind": "procedure",
+      "id": "ghMergePr"
+    },
+    "procedure:ghPostPrComment": {
+      "kind": "procedure",
+      "id": "ghPostPrComment"
+    },
+    "procedure:ghReopenPr": {
+      "kind": "procedure",
+      "id": "ghReopenPr"
+    },
+    "procedure:ghRerunWorkflowRun": {
+      "kind": "procedure",
+      "id": "ghRerunWorkflowRun"
+    },
+    "procedure:ghSubmitPrReview": {
+      "kind": "procedure",
+      "id": "ghSubmitPrReview"
+    },
+    "procedure:ghUpdatePrBranch": {
+      "kind": "procedure",
+      "id": "ghUpdatePrBranch"
+    },
+    "procedure:gitAbortMerge": {
+      "kind": "procedure",
+      "id": "gitAbortMerge"
+    },
+    "procedure:gitAddRemote": {
+      "kind": "procedure",
+      "id": "gitAddRemote"
+    },
+    "procedure:gitAddWorktree": {
+      "kind": "procedure",
+      "id": "gitAddWorktree"
+    },
+    "procedure:gitCommit": {
+      "kind": "procedure",
+      "id": "gitCommit"
+    },
+    "procedure:gitDeleteBranch": {
+      "kind": "procedure",
+      "id": "gitDeleteBranch"
+    },
+    "procedure:gitFetch": {
+      "kind": "procedure",
+      "id": "gitFetch"
+    },
+    "procedure:gitFinishMerge": {
+      "kind": "procedure",
+      "id": "gitFinishMerge"
+    },
+    "procedure:gitGetWorktreeOwner": {
+      "kind": "procedure",
+      "id": "gitGetWorktreeOwner"
+    },
+    "procedure:gitGetWorktreeSourceBranch": {
+      "kind": "procedure",
+      "id": "gitGetWorktreeSourceBranch"
+    },
+    "procedure:gitInit": {
+      "kind": "procedure",
+      "id": "gitInit"
+    },
+    "procedure:gitListBranches": {
+      "kind": "procedure",
+      "id": "gitListBranches"
+    },
+    "procedure:gitListWorktrees": {
+      "kind": "procedure",
+      "id": "gitListWorktrees"
+    },
+    "procedure:gitMergeToSource": {
+      "kind": "procedure",
+      "id": "gitMergeToSource"
+    },
+    "procedure:gitProjectSnapshot": {
+      "kind": "procedure",
+      "id": "gitProjectSnapshot"
+    },
+    "procedure:gitPruneWorktrees": {
+      "kind": "procedure",
+      "id": "gitPruneWorktrees"
+    },
+    "procedure:gitPull": {
+      "kind": "procedure",
+      "id": "gitPull"
+    },
+    "procedure:gitPullFromSource": {
+      "kind": "procedure",
+      "id": "gitPullFromSource"
+    },
+    "procedure:gitPullRebase": {
+      "kind": "procedure",
+      "id": "gitPullRebase"
+    },
+    "procedure:gitPush": {
+      "kind": "procedure",
+      "id": "gitPush"
+    },
+    "procedure:gitRemoveWorktree": {
+      "kind": "procedure",
+      "id": "gitRemoveWorktree"
+    },
+    "procedure:gitRevert": {
+      "kind": "procedure",
+      "id": "gitRevert"
+    },
+    "procedure:gitRevertAll": {
+      "kind": "procedure",
+      "id": "gitRevertAll"
+    },
+    "procedure:gitStage": {
+      "kind": "procedure",
+      "id": "gitStage"
+    },
+    "procedure:gitStageAll": {
+      "kind": "procedure",
+      "id": "gitStageAll"
+    },
+    "procedure:gitSwitchBranch": {
+      "kind": "procedure",
+      "id": "gitSwitchBranch"
+    },
+    "procedure:gitSync": {
+      "kind": "procedure",
+      "id": "gitSync"
+    },
+    "procedure:gitSyncRebase": {
+      "kind": "procedure",
+      "id": "gitSyncRebase"
+    },
+    "procedure:gitUnstage": {
+      "kind": "procedure",
+      "id": "gitUnstage"
+    },
+    "procedure:gitUnstageAll": {
+      "kind": "procedure",
+      "id": "gitUnstageAll"
+    },
+    "procedure:gitWorktreeStatusBatch": {
+      "kind": "procedure",
+      "id": "gitWorktreeStatusBatch"
+    },
+    "procedure:importSkills": {
+      "kind": "procedure",
+      "id": "importSkills"
+    },
+    "procedure:installMarketplaceSkill": {
+      "kind": "procedure",
+      "id": "installMarketplaceSkill"
+    },
+    "procedure:listFileCheckpoints": {
+      "kind": "procedure",
+      "id": "listFileCheckpoints"
+    },
+    "procedure:listProjectTree": {
+      "kind": "procedure",
+      "id": "listProjectTree"
+    },
+    "procedure:listSkillMarketplace": {
+      "kind": "procedure",
+      "id": "listSkillMarketplace"
+    },
+    "procedure:moveProjectEntry": {
+      "kind": "procedure",
+      "id": "moveProjectEntry"
+    },
+    "procedure:probeMcpServer": {
+      "kind": "procedure",
+      "id": "probeMcpServer"
+    },
+    "procedure:readAbsoluteFile": {
+      "kind": "procedure",
+      "id": "readAbsoluteFile"
+    },
+    "procedure:readExternalFile": {
+      "kind": "procedure",
+      "id": "readExternalFile"
+    },
+    "procedure:readProjectFile": {
+      "kind": "procedure",
+      "id": "readProjectFile"
+    },
+    "procedure:renameProjectEntry": {
+      "kind": "procedure",
+      "id": "renameProjectEntry"
+    },
+    "procedure:restoreFileCheckpoint": {
+      "kind": "procedure",
+      "id": "restoreFileCheckpoint"
+    },
+    "procedure:rollbackThreadConversation": {
+      "kind": "procedure",
+      "id": "rollbackThreadConversation"
+    },
+    "procedure:scanSkills": {
+      "kind": "procedure",
+      "id": "scanSkills"
+    },
+    "procedure:searchProjectFiles": {
+      "kind": "procedure",
+      "id": "searchProjectFiles"
+    },
+    "procedure:searchProjectTree": {
+      "kind": "procedure",
+      "id": "searchProjectTree"
+    },
+    "procedure:setSkillEnabled": {
+      "kind": "procedure",
+      "id": "setSkillEnabled"
+    },
+    "procedure:stageThreadInput": {
+      "kind": "procedure",
+      "id": "stageThreadInput"
+    },
+    "procedure:subagentSubscribe": {
+      "kind": "procedure",
+      "id": "subagentSubscribe"
+    },
+    "procedure:subagentUnsubscribe": {
+      "kind": "procedure",
+      "id": "subagentUnsubscribe"
+    },
+    "procedure:waitMcpServerOauth": {
+      "kind": "procedure",
+      "id": "waitMcpServerOauth"
+    },
+    "procedure:workflowAgentChat": {
+      "kind": "procedure",
+      "id": "workflowAgentChat"
+    },
+    "procedure:workflowGetRun": {
+      "kind": "procedure",
+      "id": "workflowGetRun"
+    },
+    "procedure:writeExternalFile": {
+      "kind": "procedure",
+      "id": "writeExternalFile"
+    },
+    "procedure:writeProjectFile": {
+      "kind": "procedure",
+      "id": "writeProjectFile"
+    },
+    "replay:agent-status-updated": {
+      "kind": "replay",
+      "id": "agent-status-updated"
+    },
+    "replay:remote-git-state": {
+      "kind": "replay",
+      "id": "remote-git-state"
+    },
+    "replay:remote-git-summaries": {
+      "kind": "replay",
+      "id": "remote-git-summaries"
+    },
+    "replay:remote-projects-changed": {
+      "kind": "replay",
+      "id": "remote-projects-changed"
+    },
+    "replay:remote-threads-changed": {
+      "kind": "replay",
+      "id": "remote-threads-changed"
+    },
+    "replay:thread-exited": {
+      "kind": "replay",
+      "id": "thread-exited"
+    },
+    "replay:thread-pending-steer": {
+      "kind": "replay",
+      "id": "thread-pending-steer"
+    },
+    "replay:thread-reset": {
+      "kind": "replay",
+      "id": "thread-reset"
+    },
+    "replay:thread-runtime-event": {
+      "kind": "replay",
+      "id": "thread-runtime-event"
+    },
+    "replay:thread-runtime-events": {
+      "kind": "replay",
+      "id": "thread-runtime-events"
+    },
+    "replay:thread-runtime-events-multi": {
+      "kind": "replay",
+      "id": "thread-runtime-events-multi"
+    },
+    "replay:thread-state": {
+      "kind": "replay",
+      "id": "thread-state"
+    },
+    "replay:windows-agent-statuses": {
+      "kind": "replay",
+      "id": "windows-agent-statuses"
+    },
+    "replay:wsl-agent-statuses": {
+      "kind": "replay",
+      "id": "wsl-agent-statuses"
+    },
+    "route:agent-statuses": {
+      "kind": "route",
+      "id": "agent-statuses"
+    },
+    "route:attachment-upload": {
+      "kind": "route",
+      "id": "attachment-upload"
+    },
+    "route:browser-command": {
+      "kind": "route",
+      "id": "browser-command"
+    },
+    "route:browser-state": {
+      "kind": "route",
+      "id": "browser-state"
+    },
+    "route:environment": {
+      "kind": "route",
+      "id": "environment"
+    },
+    "route:environment-legacy": {
+      "kind": "route",
+      "id": "environment-legacy"
+    },
+    "route:forward-enter": {
+      "kind": "route",
+      "id": "forward-enter"
+    },
+    "route:host-update": {
+      "kind": "route",
+      "id": "host-update"
+    },
+    "route:host-update-check": {
+      "kind": "route",
+      "id": "host-update-check"
+    },
+    "route:host-update-install": {
+      "kind": "route",
+      "id": "host-update-install"
+    },
+    "route:local-image": {
+      "kind": "route",
+      "id": "local-image"
+    },
+    "route:port-enter": {
+      "kind": "route",
+      "id": "port-enter"
+    },
+    "route:port-forward": {
+      "kind": "route",
+      "id": "port-forward"
+    },
+    "route:port-unforward": {
+      "kind": "route",
+      "id": "port-unforward"
+    },
+    "route:ports-read": {
+      "kind": "route",
+      "id": "ports-read"
+    },
+    "route:pr-watch-check": {
+      "kind": "route",
+      "id": "pr-watch-check"
+    },
+    "route:pr-watch-delete": {
+      "kind": "route",
+      "id": "pr-watch-delete"
+    },
+    "route:pr-watch-read": {
+      "kind": "route",
+      "id": "pr-watch-read"
+    },
+    "route:pr-watch-upsert": {
+      "kind": "route",
+      "id": "pr-watch-upsert"
+    },
+    "route:procedure-call": {
+      "kind": "route",
+      "id": "procedure-call"
+    },
+    "route:profile-core-stats": {
+      "kind": "route",
+      "id": "profile-core-stats"
+    },
+    "route:profile-devices": {
+      "kind": "route",
+      "id": "profile-devices"
+    },
+    "route:profile-identity": {
+      "kind": "route",
+      "id": "profile-identity"
+    },
+    "route:profile-token-stats": {
+      "kind": "route",
+      "id": "profile-token-stats"
+    },
+    "route:project-command": {
+      "kind": "route",
+      "id": "project-command"
+    },
+    "route:project-notes-read": {
+      "kind": "route",
+      "id": "project-notes-read"
+    },
+    "route:project-notes-write": {
+      "kind": "route",
+      "id": "project-notes-write"
+    },
+    "route:project-settings": {
+      "kind": "route",
+      "id": "project-settings"
+    },
+    "route:provider-usage": {
+      "kind": "route",
+      "id": "provider-usage"
+    },
+    "route:push-config": {
+      "kind": "route",
+      "id": "push-config"
+    },
+    "route:push-register": {
+      "kind": "route",
+      "id": "push-register"
+    },
+    "route:push-unregister": {
+      "kind": "route",
+      "id": "push-unregister"
+    },
+    "route:request-resolve": {
+      "kind": "route",
+      "id": "request-resolve"
+    },
+    "route:runtime-image": {
+      "kind": "route",
+      "id": "runtime-image"
+    },
+    "route:schedules-command": {
+      "kind": "route",
+      "id": "schedules-command"
+    },
+    "route:schedules-read": {
+      "kind": "route",
+      "id": "schedules-read"
+    },
+    "route:settings-read": {
+      "kind": "route",
+      "id": "settings-read"
+    },
+    "route:settings-write": {
+      "kind": "route",
+      "id": "settings-write"
+    },
+    "route:shell-snapshot": {
+      "kind": "route",
+      "id": "shell-snapshot"
+    },
+    "route:terminal-close": {
+      "kind": "route",
+      "id": "terminal-close"
+    },
+    "route:terminal-resize": {
+      "kind": "route",
+      "id": "terminal-resize"
+    },
+    "route:terminal-start": {
+      "kind": "route",
+      "id": "terminal-start"
+    },
+    "route:terminal-write": {
+      "kind": "route",
+      "id": "terminal-write"
+    },
+    "route:thread-close": {
+      "kind": "route",
+      "id": "thread-close"
+    },
+    "route:thread-command": {
+      "kind": "route",
+      "id": "thread-command"
+    },
+    "route:thread-goal": {
+      "kind": "route",
+      "id": "thread-goal"
+    },
+    "route:thread-history": {
+      "kind": "route",
+      "id": "thread-history"
+    },
+    "route:thread-history-items": {
+      "kind": "route",
+      "id": "thread-history-items"
+    },
+    "route:thread-interrupt": {
+      "kind": "route",
+      "id": "thread-interrupt"
+    },
+    "route:thread-runtime-truncate": {
+      "kind": "route",
+      "id": "thread-runtime-truncate"
+    },
+    "route:thread-send": {
+      "kind": "route",
+      "id": "thread-send"
+    },
+    "route:thread-start-existing": {
+      "kind": "route",
+      "id": "thread-start-existing"
+    },
+    "route:thread-steer-clear": {
+      "kind": "route",
+      "id": "thread-steer-clear"
+    },
+    "route:thread-steer-set": {
+      "kind": "route",
+      "id": "thread-steer-set"
+    },
+    "route:token-exchange": {
+      "kind": "route",
+      "id": "token-exchange"
+    },
+    "route:websocket-ticket": {
+      "kind": "route",
+      "id": "websocket-ticket"
+    },
+    "runtime:content.delta": {
+      "kind": "runtime",
+      "id": "content.delta"
+    },
+    "runtime:context.updated": {
+      "kind": "runtime",
+      "id": "context.updated"
+    },
+    "runtime:error": {
+      "kind": "runtime",
+      "id": "error"
+    },
+    "runtime:item.completed": {
+      "kind": "runtime",
+      "id": "item.completed"
+    },
+    "runtime:item.started": {
+      "kind": "runtime",
+      "id": "item.started"
+    },
+    "runtime:item.updated": {
+      "kind": "runtime",
+      "id": "item.updated"
+    },
+    "runtime:request.opened": {
+      "kind": "runtime",
+      "id": "request.opened"
+    },
+    "runtime:request.resolved": {
+      "kind": "runtime",
+      "id": "request.resolved"
+    },
+    "runtime:session.exited": {
+      "kind": "runtime",
+      "id": "session.exited"
+    },
+    "runtime:session.started": {
+      "kind": "runtime",
+      "id": "session.started"
+    },
+    "runtime:turn.completed": {
+      "kind": "runtime",
+      "id": "turn.completed"
+    },
+    "runtime:turn.started": {
+      "kind": "runtime",
+      "id": "turn.started"
+    },
+    "runtime:usage.spent": {
+      "kind": "runtime",
+      "id": "usage.spent"
+    },
+    "runtime:warning": {
+      "kind": "runtime",
+      "id": "warning"
+    },
+    "ws-client:browser-input": {
+      "kind": "ws-client",
+      "id": "browser-input"
+    },
+    "ws-client:browser-unwatch": {
+      "kind": "ws-client",
+      "id": "browser-unwatch"
+    },
+    "ws-client:browser-watch": {
+      "kind": "ws-client",
+      "id": "browser-watch"
+    },
+    "ws-client:git-state-interests": {
+      "kind": "ws-client",
+      "id": "git-state-interests"
+    },
+    "ws-client:ping": {
+      "kind": "ws-client",
+      "id": "ping"
+    },
+    "ws-client:terminal-unwatch": {
+      "kind": "ws-client",
+      "id": "terminal-unwatch"
+    },
+    "ws-client:terminal-watch": {
+      "kind": "ws-client",
+      "id": "terminal-watch"
+    },
+    "ws-client:thread-item-interests": {
+      "kind": "ws-client",
+      "id": "thread-item-interests"
+    },
+    "ws-server:browser-frame": {
+      "kind": "ws-server",
+      "id": "browser-frame"
+    },
+    "ws-server:browser-mirror-status": {
+      "kind": "ws-server",
+      "id": "browser-mirror-status"
+    },
+    "ws-server:browser-state": {
+      "kind": "ws-server",
+      "id": "browser-state"
+    },
+    "ws-server:event": {
+      "kind": "ws-server",
+      "id": "event"
+    },
+    "ws-server:pong": {
+      "kind": "ws-server",
+      "id": "pong"
+    },
+    "ws-server:ready": {
+      "kind": "ws-server",
+      "id": "ready"
+    },
+    "ws-server:resync-required": {
+      "kind": "ws-server",
+      "id": "resync-required"
+    },
+    "ws-server:terminal-output": {
+      "kind": "ws-server",
+      "id": "terminal-output"
+    },
+    "ws-server:terminal-watch-result": {
+      "kind": "ws-server",
+      "id": "terminal-watch-result"
+    }
+  }
+}

@@ -17,6 +17,7 @@ import type { RemoteBrowserGatewayLike } from "../RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerSecurity } from "./security";
+import type { TerminalCursorSyncRegistry } from "./terminalCursorSync";
 
 export type RemoteBroadcastEvent =
   | SupervisorEvent
@@ -48,6 +49,8 @@ export interface RemoteServerContext {
   readonly clients: Map<WebSocket, AuthenticatedRemoteSession>;
   readonly clientLiveness: Map<WebSocket, boolean>;
   readonly terminalWatches: Map<WebSocket, Set<string>>;
+  /** Opt-in reliable terminal watches (cursor-sync v1). */
+  readonly terminalCursorSync: TerminalCursorSyncRegistry;
   /** Git-state interests declared by each connection, so pull-request bodies are
    * only sent to the client that asked for them. */
   readonly gitStateInterests: Map<WebSocket, readonly GitStateInterest[]>;
@@ -75,5 +78,10 @@ export interface RemoteServerContext {
   publishThreadsChanged(threadIds: readonly string[]): void;
   send(ws: WebSocket, message: RemoteWebSocketServerMessage): void;
   sendRaw(ws: WebSocket, data: string): boolean;
-  notifyEventInterestsChanged(): void;
+  /**
+   * Recomputes aggregate live-stream demand and notifies the backend host.
+   * Awaitable so reliable terminal watches can establish the interest barrier
+   * before taking a snapshot.
+   */
+  notifyEventInterestsChanged(): void | Promise<void>;
 }

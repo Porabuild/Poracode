@@ -1,5 +1,12 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const layout = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/adaptiveLayout")>()),
+  useCompactLayout: () => layout.compact,
+}));
 import type { Experiment, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -47,6 +54,10 @@ const experiment: Experiment = {
 };
 
 describe("ExperimentView", () => {
+  beforeEach(() => {
+    layout.compact = false;
+  });
+
   afterEach(() => {
     act(() => {
       useExperimentStore.setState({ experiments: {} });
@@ -126,5 +137,19 @@ describe("ExperimentView", () => {
     fireEvent.click(results);
 
     expect(screen.getByText("We have a winner!")).toBeInTheDocument();
+  });
+
+  it("uses a wrapping touch toolbar instead of the desktop titlebar on compact", () => {
+    layout.compact = true;
+    act(() => {
+      useExperimentStore.setState({ experiments: { [experiment.id]: experiment } });
+    });
+
+    const { container } = render(<ExperimentView experimentId={experiment.id} />);
+
+    expect(container.querySelector("[class*='titlebar-area-height']")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close experiment" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open All" })).toHaveClass("h-11");
+    expect(screen.getByRole("button", { name: "Discard experiment" })).toHaveClass("size-11");
   });
 });

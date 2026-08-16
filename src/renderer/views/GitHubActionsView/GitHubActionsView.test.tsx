@@ -36,6 +36,12 @@ const bridge = vi.hoisted(() => ({
   ghDeleteWorkflowRun: vi.fn<(payload: GhDeleteWorkflowRunPayload) => Promise<void>>(),
   openExternal: vi.fn<() => Promise<void>>(),
 }));
+const layout = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/adaptiveLayout")>()),
+  useCompactLayout: () => layout.compact,
+}));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
@@ -122,6 +128,7 @@ describe("GitHubActionsView", () => {
     // The workflow/run/definition caches persist across mounts by design, so
     // each case has to start cold or it inherits the previous one's data.
     resetGitHubActionsCaches();
+    layout.compact = false;
     bridge.ghListWorkflows.mockReset().mockResolvedValue({
       workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
     });
@@ -210,6 +217,67 @@ describe("GitHubActionsView", () => {
     expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
       projectLocation: project.location,
     });
+  });
+
+  it("navigates workflows, runs, and run details as separate compact pages", async () => {
+    layout.compact = true;
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    const main = screen.getByRole("main");
+    expect(await within(main).findByRole("button", { name: /CI/ })).toBeInTheDocument();
+    expect(screen.getByText("CI Actions: Workflows")).toBeInTheDocument();
+    expect(within(main).queryByRole("heading", { name: "Workflows" })).not.toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: "Project" })).toHaveTextContent(project.name);
+    expect(within(main).queryByText(run.title)).not.toBeInTheDocument();
+
+    fireEvent.click(within(main).getByRole("button", { name: /CI/ }));
+    const runRow = await within(main).findByRole("button", { name: new RegExp(run.title) });
+    expect(runRow).toHaveClass("poracode-sidebar-thread-row");
+    expect(within(main).queryByRole("heading", { name: "CI" })).not.toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: "Run workflow" })).toHaveClass(
+      "m-home-compose-action",
+    );
+    expect(within(main).getByRole("button", { name: "Refresh workflow runs" })).toHaveClass(
+      "m-home-compose-action",
+    );
+
+    fireEvent.click(runRow);
+    expect(await within(main).findByText("Typecheck")).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: "Run actions" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await within(main).findByText(run.title)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await within(main).findByRole("button", { name: /CI/ })).toBeInTheDocument();
+    expect(within(main).queryByText(run.title)).not.toBeInTheDocument();
+  });
+
+  it("opens workflow pin and run actions from the compact long-press drawer", async () => {
+    layout.compact = true;
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    const main = screen.getByRole("main");
+    const workflow = await within(main).findByRole("button", { name: /CI/ });
+    expect(workflow).toHaveClass("poracode-sidebar-thread-row");
+
+    fireEvent.contextMenu(workflow);
+    const pinDrawer = await screen.findByRole("dialog", { name: "CI" });
+    fireEvent.click(within(pinDrawer).getByRole("button", { name: "Pin workflow" }));
+    expect(useSidebarUiStore.getState().pinnedGitHubWorkflows[project.id]).toEqual([11]);
+    expect(within(main).queryByText(run.title)).not.toBeInTheDocument();
+
+    fireEvent.contextMenu(workflow);
+    const runDrawer = await screen.findByRole("dialog", { name: "CI" });
+    fireEvent.click(within(runDrawer).getByRole("button", { name: "Run workflow" }));
+
+    const dispatchDrawer = await screen.findByRole("dialog", { name: "Run CI" });
+    expect(
+      within(dispatchDrawer).queryByRole("button", { name: "Cancel" }),
+    ).not.toBeInTheDocument();
+    expect(within(main).queryByText(run.title)).not.toBeInTheDocument();
   });
 
   it("shows project icons and the hosting machine in the trigger and menu", async () => {

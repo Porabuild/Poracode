@@ -1,0 +1,25 @@
+{
+  "protocolVersion": 3,
+  "hostMode": "helper",
+  "desktopId": "desktop-fixture-forward",
+  "label": "Future Fixture Host",
+  "appVersion": "3.1.0-fixture",
+  "platform": "linux",
+  "auth": {
+    "policy": "remote-reachable",
+    "bootstrapMethods": ["one-time-token"],
+    "sessionMethods": ["bearer-access-token"],
+    "scopes": ["session:read", "future:observe"],
+    "futureAuthMetadata": {
+      "rotation": "automatic"
+    }
+  },
+  "endpoints": {
+    "httpBaseUrl": "https://relay.example.test/tunnels/desktop-fixture-forward/",
+    "wsBaseUrl": "wss://relay.example.test/tunnels/desktop-fixture-forward/",
+    "futureEventsUrl": "https://relay.example.test/tunnels/desktop-fixture-forward/events"
+  },
+  "futureCapability": {
+    "name": "observe-only"
+  }
+}

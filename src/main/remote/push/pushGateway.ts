@@ -7,6 +7,7 @@
  */
 
 import type { RemoteWebPushSubscription } from "@/shared/remote";
+import { assertIOSPushPayload, type IOSPushPayload } from "./payloads";
 
 /** Production gateway origin (co-hosted with the marketing site / PWA). The
  * canonical domain is `website/src/lib/seo.ts` `SITE_URL`. */
@@ -18,25 +19,32 @@ export function resolvePushGatewayUrl(): string {
   return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_PUSH_GATEWAY_URL;
 }
 
-interface NativeSendPushInput {
+interface NativeSendPushInputBase {
   /** APNs token: device token (alert) or activity/push-to-start token (liveactivity). */
   readonly token: string;
   /**
    * Target platform. iOS payloads are raw APNs envelopes forwarded as-is;
-   * Android payloads are the `{ title, body, threadId, silent? }` status shape
-   * the gateway wraps into an FCM **notification** message. Sent explicitly on
-   * every call (gateway defaults to `"ios"` server-side).
+   * Android payloads are a status shape; routing-v1 registrations add
+   * `{ version, clientConnectionId, desktopId }`. The gateway wraps it into an
+   * FCM notification plus routing data. Sent explicitly on every call.
    */
-  readonly platform: "ios" | "android";
   readonly pushType: "liveactivity" | "alert";
-  /** JSON push payload: iOS `{ aps: { ... } }` or the Android status payload. */
-  readonly payload: unknown;
   /** APNs `apns-priority` (5 = throttled, 10 = immediate). */
   readonly priority?: number;
   /** APNs `apns-collapse-id`, for coalescing. */
   readonly collapseId?: string;
   /** APNs `apns-expiration` (epoch seconds). */
   readonly expiration?: number;
+}
+
+interface IOSSendPushInput extends NativeSendPushInputBase {
+  readonly platform: "ios";
+  readonly payload: IOSPushPayload;
+}
+
+interface AndroidSendPushInput extends NativeSendPushInputBase {
+  readonly platform: "android";
+  readonly payload: unknown;
 }
 
 interface WebSendPushInput {
@@ -50,7 +58,7 @@ interface WebSendPushInput {
   readonly expiration?: number;
 }
 
-export type SendPushInput = NativeSendPushInput | WebSendPushInput;
+export type SendPushInput = IOSSendPushInput | AndroidSendPushInput | WebSendPushInput;
 
 export interface SendPushResult {
   readonly ok: boolean;
@@ -195,6 +203,18 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
   const transport = createGatewayTransport(options);
   const reportOperationalIssue = createOperationalReporter(options);
   return async (input: SendPushInput): Promise<SendPushResult> => {
+    if (input.platform === "ios") {
+      try {
+        assertIOSPushPayload(input.payload, input.pushType);
+      } catch {
+        return {
+          ok: false,
+          status: 0,
+          unregistered: false,
+          reason: "Invalid iOS push payload.",
+        };
+      }
+    }
     try {
       const response = await transport.request({
         method: "POST",

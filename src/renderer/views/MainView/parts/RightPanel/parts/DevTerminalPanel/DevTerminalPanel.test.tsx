@@ -27,6 +27,7 @@ const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
     bottomOnTerminalResize: undefined as
       | ((terminalId: string, size: { cols: number; rows: number }) => void)
       | undefined,
+    mobileProjectTabs: [] as DevTerminalTab[],
   },
   toast: {
     danger: vi.fn<(message: string) => void>(),
@@ -79,6 +80,21 @@ vi.mock("./parts/BottomTerminalLayout", () => ({
   },
 }));
 
+vi.mock("./parts/MobileTerminalLayout", () => ({
+  MobileTerminalLayout: (props: {
+    projectTabs: DevTerminalTab[];
+    activeScopeLabel: string | undefined;
+    handleCloseTab: (tab: DevTerminalTab) => void;
+  }) => {
+    layouts.mobileProjectTabs = props.projectTabs;
+    return (
+      <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
+        close mobile tab
+      </button>
+    );
+  },
+}));
+
 const project: Project = {
   id: "project-1",
   name: "Poracode",
@@ -125,6 +141,7 @@ describe("DevTerminalPanel", () => {
     remote.watchTerminal.mockReset();
     layouts.bottomWatchTerminal = undefined;
     layouts.bottomOnTerminalResize = undefined;
+    layouts.mobileProjectTabs = [];
     toast.danger.mockReset();
     resetStores();
   });
@@ -216,5 +233,18 @@ describe("DevTerminalPanel", () => {
 
     expect(onEmpty).toHaveBeenCalledOnce();
     expect(useSharedSettings.getState().terminalPosition).toBe("bottom");
+  });
+
+  it("uses the compact terminal layout without closing unrelated desktop panels", () => {
+    const onEmpty = vi.fn<() => void>();
+    render(<DevTerminalPanel hideHeader positionOverride="mobile" onEmpty={onEmpty} />);
+
+    expect(layouts.mobileProjectTabs).toEqual([tab]);
+    fireEvent.click(screen.getByRole("button", { name: "close mobile tab" }));
+
+    expect(onEmpty).toHaveBeenCalledOnce();
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(usePanelStore.getState().gitReviewContext).toEqual({ projectId: project.id });
+    expect(usePanelStore.getState().filesPanelContext?.projectId).toBe(project.id);
   });
 });

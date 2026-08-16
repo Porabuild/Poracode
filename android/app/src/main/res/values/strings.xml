@@ -1,7 +1,185 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Poracode</string>
-    <string name="title_activity_main">Poracode</string>
-    <string name="package_name">com.lightcodeapp.mobile</string>
-    <string name="custom_url_scheme">com.lightcodeapp.mobile</string>
+    <!-- "Poracode" is an immutable brand name; identical in every locale. -->
+    <string name="app_name" translatable="false">Poracode</string>
+
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">Starting Poracode…</string>
+    <string name="reconnecting_stored_session">Reconnecting to your desktop…</string>
+    <string name="session_expired_title">Session expired</string>
+    <string name="session_expired_message">Your remote access session expired. The app will retry automatically. You can also pair again.</string>
+    <string name="session_expired_forget">Forget this desktop</string>
+    <string name="protocol_incompatible_title">Incompatible desktop</string>
+    <string name="protocol_incompatible_message">This app version is incompatible with that server. Update both to the same version. Your saved pairing is retained.</string>
+    <string name="send_missing_thread_config">This thread is not ready to send yet. Wait for the transcript to load, or reopen the thread.</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">Scan the pairing code shown in Remote Access on your desktop.</string>
+    <string name="pairing_link_label">Pairing link</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">or</string>
+    <string name="manual_connection">Manual connection</string>
+    <string name="server_base_url">Server base URL</string>
+    <string name="one_time_pairing_token">One-time pairing token</string>
+    <string name="connect_button">Connect</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">Scan pairing code</string>
+    <string name="pair_scan_card_message">Open Settings → Remote Access on your desktop to show the code.</string>
+    <string name="pair_scan_card_action">Scan the desktop pairing code with the camera</string>
+    <string name="pair_other_ways">Other ways to connect</string>
+    <string name="pair_link_paste">Paste</string>
+    <string name="pair_link_clipboard_empty">No pairing link on the clipboard.</string>
+    <string name="pair_cleartext_warning">This connection uses unencrypted HTTP on your local network.</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">Scan pairing code</string>
+    <string name="scan_close">Close scanner</string>
+    <string name="scan_frame_hint">Center the QR code in the frame</string>
+    <string name="scan_desktop_caption">Open Settings → Remote Access on the desktop app to show the pairing code.</string>
+    <string name="scan_starting">Starting camera…</string>
+    <string name="scan_preview_description">Camera viewfinder for pairing QR codes</string>
+    <string name="scan_invalid_code">That code is not a Poracode pairing link. Keep the camera on the code from Settings → Remote Access.</string>
+    <string name="scan_use_link_instead">Paste a link instead</string>
+    <string name="scan_camera_permission_title">Camera access needed</string>
+    <string name="scan_camera_permission_message">Poracode uses the camera only to read the pairing QR code from your desktop.</string>
+    <string name="scan_camera_permission_allow">Allow camera</string>
+    <string name="scan_camera_permission_denied_title">Camera access denied</string>
+    <string name="scan_camera_permission_denied_message">Camera permission was denied. You can ask again, or pair by pasting a link.</string>
+    <string name="scan_camera_permission_blocked_title">Camera blocked in settings</string>
+    <string name="scan_camera_permission_blocked_message">Camera access is turned off for Poracode. Turn it on in system settings, or pair by pasting a link.</string>
+    <string name="scan_camera_open_settings">Open settings</string>
+    <string name="scan_camera_try_again">Try again</string>
+    <string name="scan_no_camera_title">No camera available</string>
+    <string name="scan_no_camera_message">This device has no usable camera. Pair by pasting a link or entering the details manually.</string>
+    <string name="scan_camera_failed_title">Camera unavailable</string>
+    <string name="scan_camera_failed_message">The camera could not be started. Try again, or pair by pasting a link.</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">Select a thread</string>
+    <string name="select_thread_message">Choose a project thread to open the transcript.</string>
+    <string name="refresh_projects">Refresh projects</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="loading_projects">Loading projects…</string>
+    <string name="loading_conversations">Loading conversations…</string>
+    <string name="no_conversations_title">No conversations yet</string>
+    <string name="no_conversations_message">Conversations from all paired desktops will appear here.</string>
+    <string name="no_projects_title">No projects</string>
+    <string name="no_projects_message">This desktop has no projects yet.</string>
+    <string name="failed_load_projects">Failed to load projects</string>
+    <string name="no_open_threads">No open threads</string>
+    <string name="untitled_thread">Untitled thread</string>
+    <string name="starred">starred</string>
+    <string name="project_expanded">expanded</string>
+    <string name="project_collapsed">collapsed</string>
+    <string name="project_content_description">Project %1$s, %2$s</string>
+    <string name="thread_content_description">Thread %1$s, %2$s, %3$s</string>
+    <string name="error_prefix">Error: %1$s</string>
+    <string name="home_filter_projects">Filter projects</string>
+    <string name="home_all_projects">All projects</string>
+    <string name="home_search_threads">Search threads</string>
+    <string name="home_no_matching_threads">No matching threads</string>
+    <string name="home_no_matching_threads_message">Adjust your search or project filter.</string>
+    <string name="home_quick_compose_prompt">Plan, ask, build…</string>
+    <string name="home_more">More</string>
+    <string name="home_new_thread">New thread</string>
+    <string name="home_project">Project</string>
+    <string name="home_agent_value">Agent: %1$s</string>
+    <string name="home_model_value">Model: %1$s</string>
+    <string name="home_start">Start</string>
+    <string name="home_quick_compose_defaults_description">Uses this project’s most recent agent and model settings.</string>
+    <string name="home_quick_compose_unavailable">No project has launch settings yet. Start a thread from the desktop first.</string>
+    <string name="home_new_thread_failed">The new thread could not be started.</string>
+    <string name="home_expand_worktree">Expand worktree</string>
+    <string name="home_collapse_worktree">Collapse worktree</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">Idle</string>
+    <string name="socket_connecting">Connecting…</string>
+    <string name="socket_online">Live</string>
+    <string name="socket_reconnecting">Reconnecting…</string>
+    <string name="socket_suspended">Paused in background</string>
+    <string name="socket_failed">Offline</string>
+    <string name="socket_session_expired">Session expired</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">Thread</string>
+    <string name="back">Back</string>
+    <string name="interrupt_thread">Interrupt thread</string>
+    <string name="loading_transcript">Loading transcript…</string>
+    <string name="failed_load_transcript">Failed to load transcript</string>
+    <string name="empty_transcript_title">Empty transcript</string>
+    <string name="empty_transcript_message">Send a message to start this thread.</string>
+    <string name="thread_transcript">Thread transcript</string>
+    <string name="load_older_messages">Load older messages</string>
+    <string name="loading_older">Loading older…</string>
+    <string name="message_input">Message input</string>
+    <string name="message_placeholder">Message…</string>
+    <string name="send_message">Send message</string>
+    <string name="stop_generation">Stop generation</string>
+    <string name="stop">Stop</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">Retry</string>
+    <string name="pairing_failed">Pairing failed</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">Confirm desktop pairing</string>
+    <string name="confirm_pair_message">Pair with desktop at %1$s?</string>
+    <string name="confirm_pair_replace_warning">This will replace your current desktop connection.</string>
+    <string name="confirm_pair_button">Confirm</string>
+    <string name="cancel_pair_button">Cancel</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">Credential store error</string>
+    <string name="local_store_inconsistent_message">Local credential store is inconsistent. Forget this desktop and pair again.</string>
+
+    <!-- Multi-host -->
+    <string name="hosts_title">Desktops</string>
+    <string name="hosts_manage">Manage desktops</string>
+    <string name="hosts_add">Add desktop</string>
+    <string name="hosts_add_description">Paste a pairing link, or enter a direct endpoint and one-time token.</string>
+    <string name="hosts_add_action">Add desktop</string>
+    <string name="hosts_remove">Remove desktop</string>
+    <string name="hosts_remove_action">Remove</string>
+    <string name="hosts_remove_confirm_title">Remove %1$s?</string>
+    <string name="hosts_remove_confirm_message">This device will forget the desktop and delete its stored credentials. You can pair again later.</string>
+    <string name="hosts_selected">Selected</string>
+    <string name="hosts_kept_ready">Kept ready</string>
+    <string name="hosts_switch">Switch</string>
+    <string name="hosts_empty">No desktops yet</string>
+    <string name="hosts_choose_detail">Choose a desktop to see its connection details.</string>
+
+    <!-- Android 17 local-network runtime permission -->
+    <string name="local_network_permission_title">Allow local network access?</string>
+    <string name="local_network_permission_rationale">Poracode needs local network access to connect directly to %1$s. Relay and internet connections do not need this permission.</string>
+    <string name="local_network_permission_continue">Continue</string>
+    <string name="local_network_permission_not_now">Not now</string>
+    <string name="local_network_permission_denied_title">Local network access denied</string>
+    <string name="local_network_permission_denied_message">Poracode cannot connect to this LAN desktop without permission. You can try again or use a relay connection.</string>
+    <string name="local_network_permission_try_again">Try again</string>
+
+    <!-- Native push -->
+    <string name="push_channel_attention_name">Attention</string>
+    <string name="push_channel_attention_description">Conversation updates that need your attention</string>
+    <string name="push_channel_status_name">Status</string>
+    <string name="push_channel_status_description">Quiet conversation progress updates</string>
+    <string name="push_not_configured_title">Notifications unavailable</string>
+    <string name="push_not_configured_message">This build is not configured for Firebase push notifications.</string>
+    <string name="push_unavailable_title">Push notifications unavailable</string>
+    <string name="push_unavailable_message">Saved notification data could not be read safely. It was left unchanged.</string>
+    <string name="push_permission_title">Stay updated</string>
+    <string name="push_permission_message">Enable notifications to know when a desktop conversation needs attention or finishes.</string>
+    <string name="push_permission_enable">Enable</string>
+    <string name="push_permission_denied_title">Notifications denied</string>
+    <string name="push_permission_denied_message">Notification permission is off. Open system settings to enable it.</string>
+    <string name="push_permission_open_settings">Open settings</string>
+    <string name="push_notification_title">Poracode</string>
+    <string name="push_notification_body">A desktop conversation has an update.</string>
+    <string name="push_route_confirm_title">Open on another desktop?</string>
+    <string name="push_route_confirm_message">This notification belongs to %1$s. Switch to that desktop and open it?</string>
+    <string name="push_route_confirm_switch">Switch desktop</string>
+    <string name="push_route_confirm_cancel">Cancel</string>
+    <string name="push_route_confirm_description">Switch to desktop %1$s and open the notification</string>
 </resources>

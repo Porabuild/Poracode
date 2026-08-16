@@ -15,7 +15,7 @@ function Pressable(props: { readonly blocked?: boolean; readonly onLongPress?: (
 }
 
 describe("useLongPress", () => {
-  it("prevents native touch-hold behavior without cancelling mouse starts", () => {
+  it("guards selection for the full touch sequence without cancelling pointer down", () => {
     render(<Pressable />);
     const target = screen.getByRole("button", { name: "Press me" });
 
@@ -26,7 +26,16 @@ describe("useLongPress", () => {
       clientY: 0,
     });
     fireEvent(target, touchStart);
-    expect(touchStart.defaultPrevented).toBe(true);
+    expect(touchStart.defaultPrevented).toBe(false);
+
+    const selectionStart = new Event("selectstart", { bubbles: true, cancelable: true });
+    target.dispatchEvent(selectionStart);
+    expect(selectionStart.defaultPrevented).toBe(true);
+
+    fireEvent.pointerUp(target, { pointerType: "touch", isPrimary: true });
+    const selectionAfterRelease = new Event("selectstart", { bubbles: true, cancelable: true });
+    target.dispatchEvent(selectionAfterRelease);
+    expect(selectionAfterRelease.defaultPrevented).toBe(false);
 
     const mouseStart = createEvent.pointerDown(target, {
       pointerType: "mouse",
@@ -36,6 +45,37 @@ describe("useLongPress", () => {
     });
     fireEvent(target, mouseStart);
     expect(mouseStart.defaultPrevented).toBe(false);
+
+    const mouseSelectionStart = new Event("selectstart", { bubbles: true, cancelable: true });
+    target.dispatchEvent(mouseSelectionStart);
+    expect(mouseSelectionStart.defaultPrevented).toBe(false);
+  });
+
+  it("keeps guarding a drawer mounted beneath the held pointer", () => {
+    vi.useFakeTimers();
+    try {
+      render(<Pressable />);
+      const target = screen.getByRole("button", { name: "Press me" });
+
+      fireEvent.pointerDown(target, {
+        pointerType: "touch",
+        isPrimary: true,
+        clientX: 20,
+        clientY: 20,
+      });
+      act(() => vi.advanceTimersByTime(500));
+
+      const drawerSelectionStart = new Event("selectstart", {
+        bubbles: true,
+        cancelable: true,
+      });
+      document.body.dispatchEvent(drawerSelectionStart);
+      expect(drawerSelectionStart.defaultPrevented).toBe(true);
+
+      fireEvent.pointerUp(document.body, { pointerType: "touch", isPrimary: true });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("opens the long-press action from a context menu event", () => {

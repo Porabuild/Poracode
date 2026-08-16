@@ -195,9 +195,11 @@ describe("remote procedure routing registry", () => {
   it("keeps terminal snapshot reads on the remote host", () => {
     expect(REMOTE_PROCEDURE_ROUTES).not.toHaveProperty("readTerminalScrollback");
     expect(REMOTE_PROCEDURE_ROUTES).not.toHaveProperty("readTerminalSize");
+    expect(REMOTE_PROCEDURE_ROUTES).not.toHaveProperty("readTerminalSnapshot");
     expect(NON_ROUTER_PROJECT_PROCEDURES).toMatchObject({
       readTerminalScrollback: "remote-thread-snapshot-provided",
       readTerminalSize: "remote-server-internal",
+      readTerminalSnapshot: "remote-server-internal",
     });
   });
 

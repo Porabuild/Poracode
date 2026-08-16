@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
@@ -185,6 +185,21 @@ describe("SidebarProjectFilter", () => {
     expect(screen.getByText("Alpha").closest("button")).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("animates the mobile project drawer before unmounting it", async () => {
+    responsiveMenuState.mobile = true;
+    renderFilter(null);
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter by project" });
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(screen.getByRole("dialog", { name: "Filter by project" })).toBeInTheDocument();
+    expect(document.querySelector(".m-sheet-backdrop")).toHaveAttribute("data-closing", "true");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Filter by project" })).toBeNull(),
+    );
+  });
+
   it("closes when the trigger is pressed again", async () => {
     renderFilter(null);
     await openMenu();
@@ -347,6 +362,27 @@ describe("SidebarProjectFilter", () => {
         "aria-disabled",
         "true",
       );
+    });
+
+    it("offers only the local sync action for a mirrored project on mobile", async () => {
+      responsiveMenuState.mobile = true;
+      const mirrored = {
+        ...projects[1]!,
+        remoteServerId: "desktop-1",
+        remoteId: "remote-b",
+      } as Project;
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+        runtime: { "desktop-1": { status: "online", projects: [mirrored], threads: [] } },
+      } as never);
+      useAppStore.setState({ projects: [mirrored], threads: [] });
+      renderFilter(null, vi.fn(), [mirrored]);
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
+
+      expect(await screen.findByRole("button", { name: "Stop syncing" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Disable Project" })).not.toBeInTheDocument();
     });
 
     it("closes both menus once an action is picked", async () => {

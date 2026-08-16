@@ -498,9 +498,15 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   );
 }
 
-export function RemoteServersSettings() {
+export function RemoteServersSettings(props: {
+  readonly onOpenDesktopSettings?: ((desktopId: string) => void) | undefined;
+}) {
   const compactLayout = useCompactLayout();
-  return compactLayout ? <MobileRemoteServersSettings /> : <DesktopRemoteServersSettings />;
+  return compactLayout ? (
+    <MobileRemoteServersSettings onOpenDesktopSettings={props.onOpenDesktopSettings} />
+  ) : (
+    <DesktopRemoteServersSettings />
+  );
 }
 
 function DesktopRemoteServersSettings() {

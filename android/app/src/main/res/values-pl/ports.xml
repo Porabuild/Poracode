@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ports_title">Przekierowanie portów</string>
+    <string name="ports_back">Wstecz</string>
+    <string name="ports_refresh">Odśwież porty</string>
+    <string name="ports_target_port">Port docelowy</string>
+    <string name="ports_start_open">Uruchom i otwórz</string>
+    <string name="ports_dismiss">Zamknij</string>
+    <string name="ports_detected">Wykryte porty</string>
+    <string name="ports_no_detected">Nie wykryto nasłuchujących portów.</string>
+    <string name="ports_active">Aktywne przekierowania</string>
+    <string name="ports_no_active">Brak aktywnych przekierowań portów.</string>
+    <string name="ports_port_number">Port %1$d</string>
+    <string name="ports_protocol_http">Usługa HTTP</string>
+    <string name="ports_protocol_unknown">Nieznany protokół</string>
+    <string name="ports_forward_port">Przekieruj</string>
+    <string name="ports_forward_summary">Port %1$d → %2$d</string>
+    <string name="ports_open">Otwórz</string>
+    <string name="ports_busy">Przetwarzanie…</string>
+    <string name="ports_stop">Zatrzymaj</string>
+    <string name="ports_failure_offline">Połącz się ponownie z hostem, aby zarządzać przekierowaniami portów.</string>
+    <string name="ports_failure_scope">To połączenie nie przyznaje dostępu do przekierowania portów.</string>
+    <string name="ports_failure_auth">Sesja hosta wygasła. Połącz się ponownie i spróbuj jeszcze raz.</string>
+    <string name="ports_failure_not_found">To przekierowanie portu już nie istnieje.</string>
+    <string name="ports_failure_input">Wprowadź prawidłowy port od 1 do 65535.</string>
+    <string name="ports_failure_response">Host zwrócił nieprawidłową odpowiedź przekierowania portów.</string>
+    <string name="ports_failure_ambiguous">Żądanie mogło zostać wykonane. Lista została odświeżona.</string>
+    <string name="ports_failure_unavailable">Przekierowanie portów jest obecnie niedostępne.</string>
+</resources>

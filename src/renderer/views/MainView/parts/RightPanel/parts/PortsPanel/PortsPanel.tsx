@@ -1,14 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Input, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Copy, Ellipsis, Loader2, Plug, PlugZap, Plus, RefreshCw, Unplug } from "lucide-react";
+import {
+  Copy,
+  Ellipsis,
+  ExternalLink,
+  Loader2,
+  Plug,
+  PlugZap,
+  Plus,
+  RefreshCw,
+  Unplug,
+} from "lucide-react";
 import type { ActivePortForward, DetectedPort } from "@/shared/remote";
-import { RemoteClientError } from "@/shared/remote/client";
+import { isRemoteTransportFailure, RemoteClientError } from "@/shared/remote/client";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { buildEnterUrl, buildForwardUrl, isDirectEndpoint } from "@/renderer/pwa/portForward";
 import {
   selectBrowserBridgeServer,
@@ -105,7 +117,10 @@ function ActiveForwardRow(props: {
 
 export function PortsPanel() {
   const { t } = useLingui();
-  const server = useRemoteServersStore(selectBrowserBridgeServer);
+  const compact = useCompactLayout();
+  const server = useRemoteServersStore(
+    (state) => selectBrowserBridgeServer(state) ?? state.servers[0],
+  );
   const withClient = useRemoteServersStore((state) => state.withClient);
   const [detected, setDetected] = useState<readonly DetectedPort[]>([]);
   const [forwards, setForwards] = useState<readonly ActivePortForward[]>([]);
@@ -136,7 +151,7 @@ export function PortsPanel() {
     return friendlyError(error);
   }
 
-  function load() {
+  function load(attempt = 0) {
     if (!server || !canUse) return;
     const desktopId = server.desktopId;
     const generation = ++loadGeneration.current;
@@ -151,6 +166,12 @@ export function PortsPanel() {
       })
       .catch((error: unknown) => {
         if (loadGeneration.current !== generation) return;
+        if (attempt === 0 && isRemoteTransportFailure(error)) {
+          setTimeout(() => {
+            if (loadGeneration.current === generation) load(1);
+          }, 500);
+          return;
+        }
         setNotice(describeError(error));
       })
       .finally(() => {
@@ -277,31 +298,30 @@ export function PortsPanel() {
     manualPortNumber <= 65535;
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-y-auto p-3">
+    <div
+      className={`m-page-content relative flex h-full min-h-0 flex-col overflow-y-auto ${compact ? "px-3 pb-3 pt-1" : "p-3"}`}
+    >
       <div className="m-page--fab flex min-h-full flex-col gap-3">
         <div className="flex items-start justify-between gap-2">
-          <div>
-            <h1 className="text-base font-semibold text-foreground">
-              <Trans>Ports</Trans>
-            </h1>
-            <p className="mt-0.5 text-xs text-muted">
-              <Trans>Dev servers listening on your desktop's localhost.</Trans>
-            </p>
-          </div>
-          <Button
-            isIconOnly
-            aria-label={t`Refresh`}
-            size="sm"
-            variant="ghost"
-            isDisabled={!canUse || loading}
-            onPress={load}
-          >
-            {loading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
-          </Button>
+          <p className="text-xs text-muted">
+            <Trans>Dev servers listening on your desktop's localhost.</Trans>
+          </p>
+          {!compact ? (
+            <Button
+              isIconOnly
+              aria-label={t`Refresh`}
+              size="sm"
+              variant="ghost"
+              isDisabled={!canUse || loading}
+              onPress={() => load()}
+            >
+              {loading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <RefreshCw className="size-4" />
+              )}
+            </Button>
+          ) : null}
         </div>
 
         {!server ? (
@@ -322,7 +342,7 @@ export function PortsPanel() {
             title={<Trans>Can't load ports</Trans>}
             hint={notice}
             action={
-              <Button size="sm" variant="secondary" onPress={load}>
+              <Button size="sm" variant="secondary" onPress={() => load()}>
                 <Trans>Retry</Trans>
               </Button>
             }
@@ -383,16 +403,25 @@ export function PortsPanel() {
         )}
       </div>
 
+      {compact ? (
+        <MobileCircleButton
+          aria-label={t`Refresh`}
+          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-[var(--m-page-inline)] z-40"
+          isDisabled={!canUse || loading}
+          onPress={() => load()}
+        >
+          {loading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+        </MobileCircleButton>
+      ) : null}
+
       {canUse ? (
-        <Button
-          isIconOnly
+        <MobileCircleButton
           aria-label={t`Forward a port`}
-          className="m-home-compose-action fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40"
-          variant="ghost"
+          className="m-page-edge-action fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40"
           onPress={() => setManualOpen(true)}
         >
           <Plus className="size-5" />
-        </Button>
+        </MobileCircleButton>
       ) : null}
 
       {actionForward ? (
@@ -405,6 +434,16 @@ export function PortsPanel() {
             <span>{t`Port ${actionForward.targetPort}`}</span>
           </div>
           <div className="m-sheet-list">
+            <SidebarButton
+              icon={<ExternalLink className="size-4" />}
+              label={t`Open in browser`}
+              isDisabled={openingForwardId === actionForward.id}
+              onPress={() => {
+                const forward = actionForward;
+                setActionForward(null);
+                openActiveForward(forward);
+              }}
+            />
             <SidebarButton
               icon={<Copy className="size-4" />}
               label={t`Copy URL`}

@@ -1,0 +1,418 @@
+{
+  "": {
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/primary.swiftdeps"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/ClientConnectionID.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/ClientConnectionID.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingController.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingController.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGateway.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGateway.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingGlass.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingGlass.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingModels.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingModels.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingPresentation.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingPresentation.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionComposition.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionComposition.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingSessionView.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingSessionView.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingStrings.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingStrings.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Feature/PortForwardingView.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingView.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Metadata001.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Metadata001.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models001.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models001.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models002.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models002.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models003.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models003.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models004.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models004.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models005.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models005.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models006.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models006.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models007.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models007.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models008.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models008.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models009.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models009.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models010.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models010.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models011.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models011.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models012.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models012.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models013.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models013.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models014.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models014.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models015.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models015.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models016.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models016.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models017.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models017.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models018.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models018.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models019.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models019.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models020.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models020.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models021.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models021.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models022.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models022.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models023.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models023.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models024.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models024.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models025.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models025.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models026.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models026.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Models027.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Models027.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs001.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs001.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs002.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs002.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/RootCodecs003.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RootCodecs003.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Runtime.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Runtime.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation001.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation001.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation002.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation002.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation003.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation003.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation004.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation004.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation005.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation005.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation006.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation006.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation007.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation007.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Generated/Validation008.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/Validation008.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/RemoteMutationClassification.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/RemoteMutationClassification.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingEntryURL.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingEntryURL.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHTTPClient.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHTTPClient.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostCatalog.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostCatalog.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingHostTransportSource.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingHostTransportSource.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteAPI.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteAPI.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/PortForwardingRemoteV3Contract.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/PortForwardingRemoteV3Contract.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/PackageSources/PortForwarding/Transport/SelectedPortForwardingGateway.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/SelectedPortForwardingGateway.dia"
+  },
+  "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/DerivedSources/resource_bundle_accessor.swift": {
+    "dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.d",
+    "object": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.swift.o",
+    "swiftmodule": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.swiftdeps",
+    "diagnostics": "/Users/svecherenko/work/lightcode/ios/App/AppTests/PortForwarding/.build/arm64-apple-macosx/debug/PortForwarding.build/resource_bundle_accessor.dia"
+  }
+}

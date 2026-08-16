@@ -1,0 +1,124 @@
+{
+  "schemaAuthority": "runtimeEventSchema validates each event, but does not define reduction semantics",
+  "rendererConventionCases": [
+    {
+      "id": "ordered-shallow-update",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-rich",
+          "itemId": "stream-ordered",
+          "itemType": "assistant_message",
+          "payload": { "model": "fixture", "nested": { "before": true } }
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-rich",
+          "itemId": "stream-ordered",
+          "stream": "assistant_text",
+          "delta": "aws s"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-rich",
+          "itemId": "stream-ordered",
+          "stream": "assistant_text",
+          "delta": "so login"
+        },
+        {
+          "type": "item.updated",
+          "threadId": "thread-rich",
+          "itemId": "stream-ordered",
+          "payload": { "finishReason": "stop", "nested": null }
+        },
+        {
+          "type": "item.completed",
+          "threadId": "thread-rich",
+          "itemId": "stream-ordered"
+        }
+      ],
+      "expected": {
+        "state": "completed",
+        "payload": { "model": "fixture", "finishReason": "stop", "nested": null },
+        "streams": { "assistant_text": "aws sso login" }
+      }
+    },
+    {
+      "id": "null-update-replaces-payload",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-rich",
+          "itemId": "stream-null",
+          "itemType": "tool_call",
+          "payload": { "status": "running" }
+        },
+        {
+          "type": "item.updated",
+          "threadId": "thread-rich",
+          "itemId": "stream-null",
+          "payload": null
+        }
+      ],
+      "expected": { "state": "updated", "payload": null, "streams": {} }
+    },
+    {
+      "id": "late-events-keep-completed-state",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-rich",
+          "itemId": "stream-late",
+          "itemType": "assistant_message"
+        },
+        {
+          "type": "item.completed",
+          "threadId": "thread-rich",
+          "itemId": "stream-late"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-rich",
+          "itemId": "stream-late",
+          "stream": "assistant_text",
+          "delta": "late"
+        },
+        {
+          "type": "item.updated",
+          "threadId": "thread-rich",
+          "itemId": "stream-late",
+          "payload": { "late": true }
+        }
+      ],
+      "expected": {
+        "state": "completed",
+        "payload": { "late": true },
+        "streams": { "assistant_text": "late" }
+      }
+    },
+    {
+      "id": "orphan-late-events-ignored",
+      "events": [
+        {
+          "type": "item.updated",
+          "threadId": "thread-rich",
+          "itemId": "missing-item",
+          "payload": { "late": true }
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-rich",
+          "itemId": "missing-item",
+          "stream": "assistant_text",
+          "delta": "ignored"
+        },
+        {
+          "type": "item.completed",
+          "threadId": "thread-rich",
+          "itemId": "missing-item"
+        }
+      ],
+      "expected": null
+    }
+  ]
+}

@@ -46,7 +46,10 @@ export default defineConfig({
         },
         test: {
           name: "node",
-          include: ["src/**/*.test.{ts,tsx}"],
+          // Protocol conformance lives under protocol/ but needs the same node
+          // environment and `@` alias as src. Folded into this project so
+          // `pnpm run test --shard=N/4` never shards a one-file project.
+          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
           exclude: ["src/renderer/**/*.test.{ts,tsx}"],
           environment: "node",
         },

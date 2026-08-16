@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/renderer/state/remoteServers/projectSync";
 import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import type { Project } from "@/shared/contracts";
 import { MobileHostFolderPicker } from "./MobileHostFolderPicker";
 
@@ -225,12 +227,16 @@ function MobileAddProjectSheet(props: {
   );
 }
 
-export function MobileRemoteProjectsSheet(props: {
+interface MobileRemoteProjectsProps {
   readonly server: RemoteServerRecord;
   readonly projects: readonly Project[];
   readonly isOnline: boolean;
   readonly onClose: () => void;
-}) {
+}
+
+function MobileRemoteProjectsSurface(
+  props: MobileRemoteProjectsProps & { readonly presentation: "page" | "sheet" },
+) {
   const { t } = useLingui();
   const excluded = useRemoteServersStore(
     (state) => state.excludedProjectIds[props.server.desktopId],
@@ -263,6 +269,9 @@ export function MobileRemoteProjectsSheet(props: {
                 </span>
                 <span className="m-thread-row__meta">
                   <span className="m-thread-row__meta-item">{projectPath(project)}</span>
+                  <span className="m-thread-row__meta-item shrink-0">
+                    {desktopTitle(props.server.label)}
+                  </span>
                   {!synced ? (
                     <span className="m-thread-row__meta-item shrink-0">
                       <Trans>Not synced</Trans>
@@ -302,23 +311,39 @@ export function MobileRemoteProjectsSheet(props: {
 
   return (
     <>
-      <BottomSheet fullScreen label={t`Projects`} onClose={props.onClose}>
-        <div className="m-sheet-head">
-          <span>{t`Projects`}</span>
+      {props.presentation === "sheet" ? (
+        <BottomSheet fullScreen label={t`Projects`} onClose={props.onClose}>
+          <div className="m-sheet-head">
+            <span>{t`Projects`}</span>
+            {canManage && props.isOnline ? (
+              <button
+                type="button"
+                className="flex size-11 items-center justify-center rounded-full text-muted"
+                aria-label={t`Add a project`}
+                onClick={() => setAddOpen(true)}
+              >
+                <Plus className="size-5" />
+              </button>
+            ) : null}
+          </div>
+          {projectList}
+          {availabilityMessage}
+        </BottomSheet>
+      ) : (
+        <div className="m-page-content relative flex h-full min-h-0 flex-col overflow-y-auto px-2 pb-[calc(4.75rem+env(safe-area-inset-bottom))] pt-2">
+          {projectList}
+          {availabilityMessage}
           {canManage && props.isOnline ? (
-            <button
-              type="button"
-              className="flex size-11 items-center justify-center rounded-full text-muted"
+            <MobileCircleButton
+              className="m-page-edge-action fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] right-3 z-10"
               aria-label={t`Add a project`}
-              onClick={() => setAddOpen(true)}
+              onPress={() => setAddOpen(true)}
             >
               <Plus className="size-5" />
-            </button>
+            </MobileCircleButton>
           ) : null}
         </div>
-        {projectList}
-        {availabilityMessage}
-      </BottomSheet>
+      )}
 
       {actionProject ? (
         <BottomSheet label={actionProject.name} onClose={() => setActionProject(null)}>
@@ -407,4 +432,12 @@ export function MobileRemoteProjectsSheet(props: {
       ) : null}
     </>
   );
+}
+
+export function MobileRemoteProjectsSheet(props: MobileRemoteProjectsProps) {
+  return <MobileRemoteProjectsSurface {...props} presentation="sheet" />;
+}
+
+export function MobileRemoteProjectsPage(props: MobileRemoteProjectsProps) {
+  return <MobileRemoteProjectsSurface {...props} presentation="page" />;
 }

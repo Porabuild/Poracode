@@ -70,15 +70,9 @@ export function isStandaloneDisplay(): boolean {
   return iosStandalone || window.matchMedia?.("(display-mode: standalone)").matches === true;
 }
 
-/** The app is running inside the Capacitor native shell (App Store / Play). */
-export function isNativeApp(): boolean {
-  const cap = (globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-  return cap?.isNativePlatform?.() === true;
-}
-
 /** iOS Safari does not expose beforeinstallprompt; show its manual install path instead. */
 export function isIosInstallBrowser(): boolean {
-  if (typeof navigator === "undefined" || isNativeApp() || isStandaloneDisplay()) return false;
+  if (typeof navigator === "undefined" || isStandaloneDisplay()) return false;
   return (
     /iPad|iPhone|iPod/u.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)

@@ -1,40 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trans } from "@lingui/react/macro";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
+import { WelcomeAppIcon } from "@/renderer/components/common/WelcomeAppIcon";
 import { WelcomeBackdrop } from "@/renderer/components/common/WelcomeBackdrop";
 import type { Pairing } from "../usePairing";
 import { InstallRecommendation, PairingErrors, PairingUrlForm } from "./PairingChrome";
 import { PairingProgress } from "./PairingProgress";
-import appIconUrl from "../../../../../../../build/icon.png";
 
 /**
- * Pairing from a desktop browser. There is no camera to point at the desktop's
- * QR code here, so the pairing URL is the only transport: the field is the
- * primary control and submits on Enter, and no scan affordance is offered.
+ * Pairing from a desktop browser. Pasting the link is the only route here: the
+ * desktop showing the code is usually the same screen this page is open on, so
+ * pointing a webcam at it is not a real option, and copying the link is a
+ * keystroke away. The field is therefore the primary control and is shown
+ * outright rather than tucked behind a disclosure — with nothing to demote it in
+ * favour of, hiding it would only add a click.
  *
- * This is the browser client's first launch, so it wears the welcome screen —
- * same backdrop, app icon, and wordmark stage — instead of a phone layout
- * stretched across a desktop window.
+ * Same hero as every other first-launch surface — backdrop, app icon, wordmark —
+ * so the layout reads as one product across web, iOS, and Android.
  */
 export function DesktopPairing({ pairing }: { readonly pairing: Pairing }) {
   const [pairingUrl, setPairingUrl] = useState("");
+  // The icon's landing animation belongs to the first paint of this screen. Once
+  // a handshake takes over the icon slot, the intro is spent: coming back to the
+  // form after a failed attempt should show the icon already landed, not replay
+  // a 2s reveal that starts by hiding it. Held in state (not a ref) so ordinary
+  // re-renders — typing in the URL field — can't truncate the intro mid-flight.
+  const [intro, setIntro] = useState(true);
+
+  useEffect(() => {
+    if (pairing.busy) setIntro(false);
+  }, [pairing.busy]);
 
   return (
     <WelcomeBackdrop className="min-h-full">
       <div className="poracode-welcome-stage flex w-full max-w-[460px] flex-col items-center gap-8 text-center">
-        {pairing.busy ? (
-          <PairingProgress className="size-24" />
-        ) : (
-          <div className="relative flex size-24 items-center justify-center">
-            <span className="poracode-welcome-icon-glass absolute inset-2 rounded-[1.65rem]" />
-            <img
-              src={appIconUrl}
-              alt=""
-              draggable={false}
-              className="relative size-20 rounded-[1.55rem]"
-            />
-          </div>
-        )}
+        {pairing.busy ? <PairingProgress className="size-24" /> : <WelcomeAppIcon intro={intro} />}
 
         <div className="flex flex-col items-center gap-3">
           <h1 className="text-[clamp(2.25rem,4vw,3rem)] font-semibold leading-[1.15] tracking-tight">

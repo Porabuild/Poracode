@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bootstrap / phases -->
+    <string name="starting_poracode">正在启动 Poracode…</string>
+    <string name="reconnecting_stored_session">正在重新连接到您的桌面设备…</string>
+    <string name="session_expired_title">会话已过期</string>
+    <string name="session_expired_message">您的远程访问会话已过期。应用将自动重试。您也可以重新配对。</string>
+    <string name="session_expired_forget">忘记此桌面设备</string>
+    <string name="protocol_incompatible_title">不兼容的桌面设备</string>
+    <string name="protocol_incompatible_message">此应用版本与该服务器不兼容。请将两者更新到同一版本。您保存的配对信息将被保留。</string>
+    <string name="send_missing_thread_config">此线程尚未准备好发送。请等待对话加载，或重新打开该线程。</string>
+
+    <!-- Onboarding -->
+    <string name="pair_instructions">扫描桌面端“远程访问”中显示的配对码。</string>
+    <string name="pairing_link_label">配对链接</string>
+    <string name="pairing_link_placeholder">https://…/#token=…</string>
+    <string name="or_divider">或</string>
+    <string name="manual_connection">手动连接</string>
+    <string name="server_base_url">服务器基础 URL</string>
+    <string name="one_time_pairing_token">一次性配对令牌</string>
+    <string name="connect_button">连接</string>
+
+    <!-- Onboarding: scan-first pairing routes -->
+    <string name="pair_scan_card_title">扫描配对码</string>
+    <string name="pair_scan_card_message">在桌面端打开设置 → 远程访问以显示配对码。</string>
+    <string name="pair_scan_card_action">用相机扫描桌面端配对码</string>
+    <string name="pair_other_ways">其他连接方式</string>
+    <string name="pair_link_paste">粘贴</string>
+    <string name="pair_link_clipboard_empty">剪贴板中没有配对链接。</string>
+    <string name="pair_cleartext_warning">此连接在您的本地网络上使用未加密的 HTTP。</string>
+
+    <!-- Onboarding: QR pairing scanner -->
+    <string name="scan_title">扫描配对码</string>
+    <string name="scan_close">关闭扫描器</string>
+    <string name="scan_frame_hint">将二维码对准取景框中央</string>
+    <string name="scan_desktop_caption">在桌面应用中打开设置 → 远程访问以显示配对码。</string>
+    <string name="scan_starting">正在启动摄像头…</string>
+    <string name="scan_preview_description">用于配对二维码的摄像头取景器</string>
+    <string name="scan_invalid_code">该代码不是 Poracode 配对链接。请将摄像头对准设置 → 远程访问中的代码。</string>
+    <string name="scan_use_link_instead">改为粘贴链接</string>
+    <string name="scan_camera_permission_title">需要摄像头权限</string>
+    <string name="scan_camera_permission_message">Poracode 仅使用摄像头读取来自您桌面设备的配对二维码。</string>
+    <string name="scan_camera_permission_allow">允许使用摄像头</string>
+    <string name="scan_camera_permission_denied_title">摄像头权限被拒绝</string>
+    <string name="scan_camera_permission_denied_message">摄像头权限已被拒绝。您可以重新申请，或通过粘贴链接进行配对。</string>
+    <string name="scan_camera_permission_blocked_title">摄像头在设置中被屏蔽</string>
+    <string name="scan_camera_permission_blocked_message">Poracode 的摄像头权限已关闭。请在系统设置中开启，或通过粘贴链接进行配对。</string>
+    <string name="scan_camera_open_settings">打开设置</string>
+    <string name="scan_camera_try_again">重试</string>
+    <string name="scan_no_camera_title">没有可用的摄像头</string>
+    <string name="scan_no_camera_message">此设备没有可用的摄像头。请通过粘贴链接或手动输入详细信息进行配对。</string>
+    <string name="scan_camera_failed_title">摄像头不可用</string>
+    <string name="scan_camera_failed_message">无法启动摄像头。请重试，或通过粘贴链接进行配对。</string>
+
+    <!-- Home -->
+    <string name="select_a_thread">选择一个线程</string>
+    <string name="select_thread_message">选择一个项目线程以打开对话。</string>
+    <string name="refresh_projects">刷新项目</string>
+    <string name="disconnect">断开连接</string>
+    <string name="loading_projects">正在加载项目…</string>
+    <string name="loading_conversations">正在加载对话…</string>
+    <string name="no_conversations_title">暂无对话</string>
+    <string name="no_conversations_message">来自所有已配对桌面设备的对话都会显示在这里。</string>
+    <string name="no_projects_title">暂无项目</string>
+    <string name="no_projects_message">此桌面设备尚未有项目。</string>
+    <string name="failed_load_projects">加载项目失败</string>
+    <string name="no_open_threads">没有打开的线程</string>
+    <string name="untitled_thread">未命名线程</string>
+    <string name="starred">已加星标</string>
+    <string name="project_expanded">已展开</string>
+    <string name="project_collapsed">已折叠</string>
+    <string name="project_content_description">项目 %1$s，%2$s</string>
+    <string name="thread_content_description">线程 %1$s，%2$s，%3$s</string>
+    <string name="error_prefix">错误：%1$s</string>
+    <string name="home_filter_projects">筛选项目</string>
+    <string name="home_all_projects">所有项目</string>
+    <string name="home_search_threads">搜索线程</string>
+    <string name="home_no_matching_threads">没有匹配的线程</string>
+    <string name="home_no_matching_threads_message">请调整搜索内容或项目筛选条件。</string>
+    <string name="home_quick_compose_prompt">规划、提问、构建…</string>
+    <string name="home_more">更多</string>
+    <string name="home_new_thread">新线程</string>
+    <string name="home_project">项目</string>
+    <string name="home_agent_value">智能体：%1$s</string>
+    <string name="home_model_value">模型：%1$s</string>
+    <string name="home_start">开始</string>
+    <string name="home_quick_compose_defaults_description">使用此项目最近的智能体和模型设置。</string>
+    <string name="home_quick_compose_unavailable">尚无项目具备启动设置。请先从桌面端启动一个线程。</string>
+    <string name="home_new_thread_failed">无法启动新线程。</string>
+    <string name="home_expand_worktree">展开工作树</string>
+    <string name="home_collapse_worktree">折叠工作树</string>
+
+    <!-- Socket labels -->
+    <string name="socket_idle">空闲</string>
+    <string name="socket_connecting">正在连接…</string>
+    <string name="socket_online">在线</string>
+    <string name="socket_reconnecting">正在重新连接…</string>
+    <string name="socket_suspended">已在后台暂停</string>
+    <string name="socket_failed">离线</string>
+    <string name="socket_session_expired">会话已过期</string>
+
+    <!-- Thread detail -->
+    <string name="thread_fallback_title">线程</string>
+    <string name="back">返回</string>
+    <string name="interrupt_thread">中断线程</string>
+    <string name="loading_transcript">正在加载对话…</string>
+    <string name="failed_load_transcript">加载对话失败</string>
+    <string name="empty_transcript_title">空对话</string>
+    <string name="empty_transcript_message">发送一条消息以开始此线程。</string>
+    <string name="thread_transcript">线程对话</string>
+    <string name="load_older_messages">加载更早的消息</string>
+    <string name="loading_older">正在加载更早内容…</string>
+    <string name="message_input">消息输入框</string>
+    <string name="message_placeholder">消息…</string>
+    <string name="send_message">发送消息</string>
+    <string name="stop_generation">停止生成</string>
+    <string name="stop">停止</string>
+    <string name="thread_status_line">%1$s · %2$s</string>
+
+    <!-- Shared states -->
+    <string name="retry">重试</string>
+    <string name="pairing_failed">配对失败</string>
+
+    <!-- Deep-link pair confirmation (BROWSABLE) -->
+    <string name="confirm_pair_title">确认桌面设备配对</string>
+    <string name="confirm_pair_message">与位于 %1$s 的桌面设备配对？</string>
+    <string name="confirm_pair_replace_warning">这将替换您当前的桌面设备连接。</string>
+    <string name="confirm_pair_button">确认</string>
+    <string name="cancel_pair_button">取消</string>
+
+    <!-- Local store inconsistency after failed rollback -->
+    <string name="local_store_inconsistent_title">凭据存储错误</string>
+    <string name="local_store_inconsistent_message">本地凭据存储不一致。请忘记此桌面设备并重新配对。</string>
+</resources>
