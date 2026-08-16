@@ -166,8 +166,14 @@ export async function acquireCodexAppServer(
     });
   }
 
-  const snapshot = await entry.ready;
   entry.leases += 1;
+  let snapshot: ServerSnapshot;
+  try {
+    snapshot = await entry.ready;
+  } catch (error) {
+    entry.leases -= 1;
+    throw error;
+  }
   let released = false;
   return {
     connection: snapshot.connection,

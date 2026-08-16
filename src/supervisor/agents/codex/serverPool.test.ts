@@ -106,6 +106,60 @@ describe("Codex app-server pool", () => {
     expect(mocks.terminateChildProcessTree).toHaveBeenCalledOnce();
   });
 
+  it("keeps the shared process alive while two of three thread leases remain", async () => {
+    const first = await acquireCodexAppServer(input("local-a", browserServer("local-a")));
+    const second = await acquireCodexAppServer(input("local-b", browserServer("local-b")));
+    const third = await acquireCodexAppServer(input("local-c", browserServer("local-c")));
+
+    expect(mocks.spawn).toHaveBeenCalledOnce();
+    expect(second.connection).toBe(first.connection);
+    expect(third.connection).toBe(first.connection);
+
+    first.dispose();
+    expect(mocks.terminateChildProcessTree).not.toHaveBeenCalled();
+    second.dispose();
+    expect(mocks.terminateChildProcessTree).not.toHaveBeenCalled();
+    third.dispose();
+    expect(mocks.terminateChildProcessTree).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the shared process alive when its final established lease overlaps an acquisition", async () => {
+    const launch = input("local-a", browserServer("local-a"));
+    const established = await acquireCodexAppServer(launch);
+    const acquiring = acquireCodexAppServer(input("local-b", browserServer("local-b")));
+
+    established.dispose();
+    const replacement = await acquiring;
+
+    expect(mocks.spawn).toHaveBeenCalledOnce();
+    expect(mocks.terminateChildProcessTree).not.toHaveBeenCalled();
+
+    replacement.dispose();
+    expect(mocks.terminateChildProcessTree).toHaveBeenCalledOnce();
+  });
+
+  it("survives repeated waves of concurrent thread acquisition and removal", async () => {
+    let established = await acquireCodexAppServer(input("seed", browserServer("seed")));
+
+    for (let wave = 0; wave < 100; wave += 1) {
+      const acquiring = Array.from({ length: 10 }, (_, index) => {
+        const threadId = `wave-${wave}-thread-${index}`;
+        return acquireCodexAppServer(input(threadId, browserServer(threadId)));
+      });
+
+      established.dispose();
+      const acquired = await Promise.all(acquiring);
+      for (const lease of acquired.slice(0, -1)) lease.dispose();
+      established = acquired.at(-1)!;
+
+      expect(mocks.spawn).toHaveBeenCalledOnce();
+      expect(mocks.terminateChildProcessTree).not.toHaveBeenCalled();
+    }
+
+    established.dispose();
+    expect(mocks.terminateChildProcessTree).toHaveBeenCalledOnce();
+  });
+
   it("starts a fresh process after the final lease is released", async () => {
     const launch = input("local-a", browserServer("local-a"));
     const first = await acquireCodexAppServer(launch);
