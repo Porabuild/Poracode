@@ -3,7 +3,12 @@ import { Tooltip } from "@heroui/react";
 import { GitFork, GitPullRequest } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { getBasename } from "@/shared/pathUtils";
-import { closeAllPanels, showGitReviewPanel } from "@/renderer/actions/panelActions";
+import {
+  closeAllPanels,
+  showGitReviewPage,
+  showGitReviewPanel,
+} from "@/renderer/actions/panelActions";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { DiffStat } from "@/renderer/components/common";
 import {
   floatingGlassActiveClass,
@@ -31,6 +36,7 @@ export function ThreadChangesBubble(props: {
   worktreeName?: string | undefined;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const {
     insertions,
     deletions,
@@ -62,14 +68,15 @@ export function ThreadChangesBubble(props: {
       };
     }),
   );
-  // Active only when the docked Git panel is showing *this* thread's scope.
-  const isOpen = usePanelStore(
-    (s) =>
-      s.rightPanelTab === "git" &&
-      s.gitReviewAsPanel &&
+  // Active only when the current Git surface is showing this thread's scope.
+  const isOpen = usePanelStore((s) => {
+    const sameContext =
       s.gitReviewContext?.projectId === props.projectId &&
-      s.gitReviewContext?.worktreePath === props.worktreePath,
-  );
+      s.gitReviewContext?.worktreePath === props.worktreePath;
+    return compactLayout
+      ? sameContext && s.gitOverlayOpen && !s.gitReviewAsPanel
+      : sameContext && s.rightPanelTab === "git" && s.gitReviewAsPanel;
+  });
 
   const hasChanges = insertions > 0 || deletions > 0;
   const hasVisiblePr =
@@ -97,7 +104,11 @@ export function ThreadChangesBubble(props: {
           closeAllPanels();
           return;
         }
-        showGitReviewPanel(props.projectId, props.worktreePath);
+        if (compactLayout) {
+          showGitReviewPage(props.projectId, props.worktreePath);
+        } else {
+          showGitReviewPanel(props.projectId, props.worktreePath);
+        }
       }}
     >
       {hasVisiblePr ? (

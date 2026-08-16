@@ -1,7 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { Folder, GitBranch, GitPullRequest } from "lucide-react";
 import type { Thread } from "@/shared/contracts";
-import { openFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
+import { openFilesPanel, showGitReviewPage } from "@/renderer/actions/panelActions";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
@@ -28,7 +28,7 @@ export function CompactThreadWorkspaceBar(props: { thread: Thread; projectLabel:
         className="m-ws-chip"
         onClick={() => {
           if (isRepo) {
-            showGitReviewPanel(thread.projectId, thread.worktreePath);
+            showGitReviewPage(thread.projectId, thread.worktreePath);
           } else {
             openFilesPanel(thread.projectId, thread.worktreePath);
           }
