@@ -10,6 +10,11 @@ import {
   type StatusProbeResult,
 } from "../base";
 import { getAgentProbeCwd } from "../probeCwd";
+import {
+  buildCodexContextSizeCapabilities,
+  DEFAULT_CODEX_CONTEXT_WINDOWS,
+  resolveCodexContextWindows,
+} from "@/shared/agents/codexContextWindows";
 import { probeCodexAccount, probeCodexCapabilities, type CodexProbeResult } from "./probe";
 import { codexAuthPath } from "./sessionFiles";
 
@@ -215,6 +220,7 @@ export const codexDefaultCapabilities: AgentCapability = {
   // Codex delivers its enabled skills through the ACP session (`skills/list`),
   // so its GUI catalog is authoritative even when it reports zero skills.
   reportsSkillCatalog: true,
+  ...buildCodexContextSizeCapabilities([], DEFAULT_CODEX_CONTEXT_WINDOWS),
 };
 
 export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial<AgentCapability> {
@@ -378,6 +384,10 @@ export const codexDetectionSpec: DetectionSpec = {
     // `buildAcpLogoutCommand` to invoke `codex logout`. Mirrors Claude.
     return {
       ...(probe ? probeResultToCapabilityPartial(probe) : {}),
+      ...buildCodexContextSizeCapabilities(
+        probe?.models?.map((model) => model.id) ?? [],
+        resolveCodexContextWindows(ctx.agentSettings),
+      ),
       authMethods: [CODEX_TERMINAL_AUTH_METHOD],
       authLogoutSupported: true,
     };

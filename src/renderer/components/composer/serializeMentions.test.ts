@@ -216,7 +216,10 @@ describe("serializeComposerContent", () => {
     });
     container.appendChild(chip);
 
-    expect(chip.textContent).toBe("/simplify");
+    expect(chip.textContent).toBe("simplify");
+    expect(chip.querySelector("svg")).not.toBeNull();
+    expect(chip.dataset.skillName).toBe("simplify");
+    expect(chip.getAttribute("aria-label")).toBe("Skill: simplify");
     expect(serializeComposerContent(container)).toBe("/skill:simplify");
   });
 

@@ -19,7 +19,12 @@ import {
   getWindowsPathOverrideEnv,
   quotePosixShellArg,
 } from "../base";
-import { resolveAcpHostFsPath, resolveAcpProjectPath } from "./sessionPaths";
+import {
+  isAcpHomeScopeLocation,
+  resolveAcpHostFsPath,
+  resolveAcpProjectPath,
+  resolveAcpResourcePath,
+} from "./sessionPaths";
 import type { AcpTerminalRecord } from "./sessionTerminal";
 
 export function buildTerminalCommandLine(command: string, args: string[]): string {
@@ -94,6 +99,9 @@ export function acpTerminalEnvEntries(
 }
 
 export function resolveAcpTerminalCwd(location: ProjectLocation, cwd: string): string {
+  if (isAcpHomeScopeLocation(location)) {
+    return resolveAcpResourcePath(location, cwd);
+  }
   return location.kind === "wsl"
     ? resolveAcpProjectPath(location, cwd)
     : resolveAcpHostFsPath(location, cwd);

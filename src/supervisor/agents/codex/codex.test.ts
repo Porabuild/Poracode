@@ -1298,6 +1298,8 @@ describe("CodexStructuredSession", () => {
           config: {
             model_reasoning_effort: "high",
             model_reasoning_summary: "auto",
+            model_context_window: 400_000,
+            model_auto_compact_token_limit: 360_000,
           },
           threadId: "provider-thread",
           lastTurnId: "turn-2",
@@ -2837,6 +2839,15 @@ describe("mapCodexSlashCommands", () => {
     expect(codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id)).toEqual(
       expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
     );
+  });
+
+  it("advertises 272k, 400k, and 1M context windows with a 400k default", () => {
+    expect(codexDefaultCapabilities.defaultContextSize).toBe("400k");
+    expect(codexDefaultCapabilities.contextSizes?.map((size) => size.id)).toEqual([
+      "272k",
+      "400k",
+      "1m",
+    ]);
   });
 
   it("normalizes Codex app-server command metadata", () => {

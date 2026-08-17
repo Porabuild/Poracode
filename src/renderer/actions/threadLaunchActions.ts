@@ -1,6 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import type {
   Project,
   ProjectLocation,
@@ -461,11 +462,17 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
         }
       : undefined;
 
+  const agentStatus = projectAgentStatuses.find((status) => status.kind === launch.agentKind);
+  const config =
+    isHomeProject(launch.project) && agentStatus
+      ? applyHomeScopePermissions(launch.project.location, launch.config, agentStatus.capabilities)
+      : launch.config;
+
   const thread = store.createThread({
     ...(launch.threadId ? { threadId: launch.threadId } : {}),
     projectId: launch.project.id,
     agentKind: launch.agentKind,
-    config: launch.config,
+    config,
     prompt: titlePrompt,
     ...(launch.presentationMode ? { presentationMode: launch.presentationMode } : {}),
     ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),

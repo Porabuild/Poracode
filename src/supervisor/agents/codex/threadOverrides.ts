@@ -1,3 +1,4 @@
+import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
 import { getProjectPosixPath } from "@/shared/wsl";
 import { buildCodexMcp } from "../userMcp";
@@ -38,6 +39,7 @@ export function buildCodexThreadOverrides(
     config: {
       ...(config.effort ? { model_reasoning_effort: config.effort } : {}),
       model_reasoning_summary: "auto",
+      ...codexContextWindowOverrides(config.contextSize),
       ...mcpConfig,
     },
   };

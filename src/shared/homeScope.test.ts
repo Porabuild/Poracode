@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { HOME_PROJECT_ID, HOME_PROJECT_NAME, isHomeProjectId, isHomeProject } from "./homeScope";
+import {
+  HOME_PROJECT_ID,
+  HOME_PROJECT_NAME,
+  isHomeProjectId,
+  isHomeProject,
+  isHomeScopeLocation,
+} from "./homeScope";
 
 describe("homeScope constants", () => {
   it("HOME_PROJECT_ID has expected value", () => {
@@ -36,5 +42,26 @@ describe("isHomeProject", () => {
 
   it("returns false for undefined", () => {
     expect(isHomeProject(undefined)).toBe(false);
+  });
+});
+
+describe("isHomeScopeLocation", () => {
+  it("treats the user home directory as Home scope", () => {
+    expect(isHomeScopeLocation({ kind: "windows", path: "C:\\Users\\me" })).toBe(true);
+    expect(isHomeScopeLocation({ kind: "posix", path: "/home/me" })).toBe(true);
+    expect(
+      isHomeScopeLocation({
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/me",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not treat a repo under home as Home scope", () => {
+    expect(isHomeScopeLocation({ kind: "windows", path: "C:\\Users\\me\\Documents" })).toBe(false);
+    expect(isHomeScopeLocation({ kind: "windows", path: "C:\\repo" })).toBe(false);
+    expect(isHomeScopeLocation({ kind: "posix", path: "/home/me/src/app" })).toBe(false);
   });
 });

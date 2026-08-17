@@ -40,6 +40,42 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
+  it("invalidates v10 caches produced before Codex context-window capabilities", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 10,
+        windows: [
+          {
+            kind: "codex",
+            label: "Codex",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [{ id: "gpt-5.6-sol", label: "GPT-5.6 Sol" }] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("invalidates v9 caches produced without the Grok login-shell environment", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;

@@ -262,7 +262,7 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/browser");
 
-    expect(screen.getByText("/browser-control")).toBeInTheDocument();
+    expect(screen.getByText("browser-control")).toBeInTheDocument();
     expect(
       screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
     ).toBeInTheDocument();
@@ -465,8 +465,8 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/");
 
     expect(await screen.findByText("Skills")).toBeInTheDocument();
-    expect(screen.getByText("/review-code")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("/review-code"));
+    expect(screen.getByText("review-code")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("review-code"));
     fireEvent.keyDown(editor, { key: "Enter" });
 
     expect(onStart).toHaveBeenCalledWith(
@@ -762,11 +762,15 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/sim");
 
-    expect(screen.getByText("/simplify")).toBeInTheDocument();
+    const option = screen.getByRole("option", { name: "Skill: simplify" });
+    expect(option).toBeInTheDocument();
+    expect(option.querySelector("svg.lucide-sparkles")).not.toBeNull();
+    expect(screen.getByText("simplify")).toBeInTheDocument();
     expect(screen.queryByText("/skill:simplify")).not.toBeInTheDocument();
 
     fireEvent.keyDown(editor, { key: "Enter" });
-    expect(editor.textContent).toBe("/simplify ");
+    expect(editor.textContent).toBe("simplify ");
+    expect(editor.querySelector("svg")).not.toBeNull();
 
     fireEvent.keyDown(editor, { key: "Enter" });
     expect(onStart).toHaveBeenCalledWith(

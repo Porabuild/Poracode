@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Terminal } from "lucide-react";
+import { Sparkles, Terminal } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentSlashCommand } from "@/shared/contracts";
 import { slashCommandDisplayId } from "./threadSlashCommands";
@@ -65,6 +65,8 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                 </div>
                 {group.items.map(({ command: cmd, index }) => {
                   const isActive = index === activeIndex;
+                  const displayId = slashCommandDisplayId(cmd);
+                  const skill = displayId;
                   const key =
                     cmd.section === "skills" ? `skill:${cmd.skillPath ?? cmd.id}` : cmd.id;
                   return (
@@ -79,11 +81,17 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                         role="option"
                         tabIndex={-1}
                         type="button"
+                        {...(cmd.section === "skills" ? { "aria-label": t`Skill: ${skill}` } : {})}
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => onSelect(cmd)}
                       >
-                        <span className="shrink-0 font-bold text-foreground">
-                          /{slashCommandDisplayId(cmd)}
+                        <span className="flex shrink-0 items-center gap-1 font-bold text-foreground">
+                          {cmd.section === "skills" ? (
+                            <Sparkles aria-hidden="true" className="size-3" />
+                          ) : (
+                            "/"
+                          )}
+                          {displayId}
                         </span>
                         {cmd.description && (
                           <span className="min-w-0 flex-1 truncate font-normal text-[color:var(--muted)]">
