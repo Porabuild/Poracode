@@ -531,6 +531,88 @@ describe("ThreadDraftView", () => {
     expect(container.querySelector("[data-draft-worktree-row]")).toBeInTheDocument();
   });
 
+  it("defaults a new worktree to the tracking branch when local is in sync", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+  });
+
+  it("keeps the origin worktree base after selecting the matching local branch", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "main",
+          branches: [
+            { name: "main", current: true, commit: "abc", isRemote: false },
+            { name: "develop", current: false, commit: "ghi", isRemote: false },
+            { name: "main", current: false, commit: "def", isRemote: true, remote: "origin" },
+            { name: "develop", current: false, commit: "jkl", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+    fireEvent.click(await screen.findByRole("option", { name: "develop" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(
+      "origin/develop",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+    fireEvent.click(await screen.findByRole("option", { name: "main" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "origin/main",
+        worktreeIsNewBranch: true,
+      }),
+    );
+  });
+
   it("defaults a new worktree to the tracking branch when the local branch is behind", () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
@@ -597,6 +679,62 @@ describe("ThreadDraftView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
     fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "main",
+        worktreeIsNewBranch: true,
+        worktreeTransferUncommitted: true,
+      }),
+    );
+  });
+
+  it("keeps the local checkout after selecting the branch in worktree + changes", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [
+            { path: "src/file.ts", status: "M", staged: false, insertions: 1, deletions: 0 },
+          ],
+          totalInsertions: 1,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "main",
+          branches: [
+            { name: "main", current: true, commit: "abc", isRemote: false },
+            { name: "main", current: false, commit: "def", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+    const localMain = await screen.findByRole("option", { name: "main" });
+    expect(localMain).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(localMain);
+    fireEvent.keyDown(screen.getByPlaceholderText("Search branches..."), { key: "Escape" });
     expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
 
     fireEvent.click(screen.getByText("set-prompt"));
