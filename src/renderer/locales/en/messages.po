@@ -2977,7 +2977,9 @@ msgstr "Connecting..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Connecting…"
@@ -4946,6 +4948,10 @@ msgstr "First-class Grok Build CLI integration using Poracode's native runtime."
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "First-class Kimi Code CLI integration using Poracode's native runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+msgstr "First-class Muse Code CLI integration using Poracode's native terminal runtime."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -6965,6 +6971,10 @@ msgstr "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBra
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Moving changes…"
+
+#: src/renderer/components/providers/muse/manifest.ts
+msgid "Muse Code"
+msgstr "Muse Code"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"

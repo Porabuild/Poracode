@@ -2,6 +2,15 @@ import type { ProjectLocation, TerminalSize, Thread } from "./contracts";
 import type { StartRemoteThreadInput } from "./remote/client";
 
 /**
+ * True when a supervisor call was rejected because the thread has no live
+ * session. Every caller that can revive a thread (the renderer composer, the
+ * `send_to_thread` MCP tool) branches on this to resume instead of failing.
+ */
+export function isUnknownThreadSessionError(error: unknown): boolean {
+  return error instanceof Error && /unknown thread session/i.test(error.message);
+}
+
+/**
  * Reopening a thread on its host relaunches it with an empty prompt. Only an
  * INACTIVE thread qualifies: every other status means the host session is
  * either alive (`launching`/`idle`/`working`/`finished` — and host-side

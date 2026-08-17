@@ -237,6 +237,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
 
     launchRequestRef.current = launchKey;
     onLaunchConsumed?.();
+    const connectionToken = useAppStore.getState().connectingThreadIds[thread.id];
 
     void (async () => {
       await performInitialThreadLaunch({
@@ -249,10 +250,16 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           : {}),
         initialSize: launchTerminalSize,
       });
-    })().catch((error) => {
-      launchRequestRef.current = null;
-      onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
-    });
+    })()
+      .catch((error) => {
+        launchRequestRef.current = null;
+        onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
+      })
+      .finally(() => {
+        if (connectionToken) {
+          useAppStore.getState().finishThreadConnecting(thread.id, connectionToken);
+        }
+      });
   }, [
     t,
     onLaunchConsumed,

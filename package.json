@@ -1,6 +1,6 @@
 {
   "name": "poracode",
-  "version": "1.6.2",
+  "version": "1.6.4",
   "private": true,
   "description": "The universal desktop orchestrator for AI agents. Run terminal-native and structured chat agents side-by-side.",
   "homepage": "https://poracode.com/",
@@ -80,7 +80,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^1.2.1",
-    "@anthropic-ai/claude-agent-sdk": "^0.3.219",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.233",
     "@chenglou/pretext": "^0.0.8",
     "@dnd-kit/abstract": "^0.5.0",
     "@dnd-kit/collision": "^0.5.0",

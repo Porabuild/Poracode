@@ -230,6 +230,7 @@ describe("ThreadComposerSection", () => {
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
       pendingSteerByThreadId: {},
+      connectingThreadIds: {},
       pendingComposerFocusThreadId: null,
       threadDraftContents: {},
       provisioningWorktreeThreadIds: {},
@@ -1059,6 +1060,24 @@ describe("ThreadComposerSection", () => {
       [{ kind: "text", content: "change direction" }],
       "pending_steer",
     );
+  });
+
+  it("does not submit or steer while a stored GUI session is reconnecting", async () => {
+    useAppStore.setState({ connectingThreadIds: { [guiThread.id]: "connection-1" } });
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    renderComposer({ onSubmitInput });
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("wait for connection"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+    await act(async () => Promise.resolve());
+
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    expect(input).toHaveTextContent("wait for connection");
   });
 
   it("restores approval requests and composer text when auto-deny before submit fails", async () => {

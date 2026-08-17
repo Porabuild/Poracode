@@ -21,16 +21,13 @@ export function createSlashCommandChipElement(
   const chip = document.createElement("span");
   chip.contentEditable = "false";
   chip.dataset.slashCommand = command.id;
+  // `skillPath` is optional: provider-native skills carry no SKILL.md path.
   const isSkill = Boolean(
-    command.skillName &&
-    command.skillPath &&
-    command.skillInvocation &&
-    command.skillProvider &&
-    command.skillScope,
+    command.skillName && command.skillInvocation && command.skillProvider && command.skillScope,
   );
   if (isSkill) {
     chip.dataset.skillName = command.skillName;
-    chip.dataset.skillPath = command.skillPath;
+    if (command.skillPath) chip.dataset.skillPath = command.skillPath;
     chip.dataset.skillInvocation = command.skillInvocation;
     chip.dataset.skillProvider = command.skillProvider;
     chip.dataset.skillScope = command.skillScope;

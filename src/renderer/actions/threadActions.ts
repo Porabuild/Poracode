@@ -340,6 +340,7 @@ export function reopenStoredThread(threadId: string): void {
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
       canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
     });
+    if (isGuiReconnect) store.beginThreadConnecting(thread.id);
   });
   // Local and remote share this queue; performInitialThreadLaunch picks the
   // host (local bridge vs remote client.startThread).

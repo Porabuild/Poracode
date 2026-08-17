@@ -521,9 +521,10 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = this.sessions.get(payload.threadId);
+    const session = await this.findSessionAfterPendingStart(payload.threadId);
     if (!session) {
-      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      // Never swallow a full user prompt, even for a just-removed thread —
+      // callers (renderer composer, `send_to_thread`) resume on this error.
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
     if (session.status === "inactive" && !session.sessionRef) {
@@ -659,8 +660,19 @@ export class ThreadSessionManager {
         });
         return;
       }
-      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
-      throw new Error(`Unknown thread session: ${payload.threadId}`);
+      // Interrupt is idempotent "ensure this thread is not running". With no
+      // session there is nothing to stop, so emit the settled state instead of
+      // failing — this is the lever that unsticks a row whose session died
+      // while its persisted status still says `working`.
+      this.options.emit({
+        type: "thread-state",
+        threadId: payload.threadId,
+        status: "inactive",
+        attention: "none",
+        canResumeWithConfig: false,
+        forceCloseActiveTurn: true,
+      });
+      return;
     }
     this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
@@ -879,7 +891,10 @@ export class ThreadSessionManager {
    * Drain is automatic on cancelled-stopReason via `maybeDrainPendingSteer`.
    */
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
-    const session = this.requireSession(payload.threadId);
+    const session = await this.findSessionAfterPendingStart(payload.threadId);
+    if (!session) {
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
     if (payload.segments === undefined) {
       await this.steerCoordinator.setPendingSteer(session, payload);
       return;
@@ -924,6 +939,12 @@ export class ThreadSessionManager {
     this.outputPipeline.clearSessionTimers(existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
+    // Final state before the session disappears: without it a working thread
+    // freezes at `working` in the DB and in every renderer, with nothing left
+    // running to ever move it.
+    this.outputPipeline.updateState(existing, "inactive", "none", undefined, {
+      forceCloseActiveTurn: true,
+    });
     this.sessions.delete(payload.threadId);
     if (existing.sessionRef?.providerSessionId) {
       this.sessionsBySessionId.delete(existing.sessionRef.providerSessionId);
@@ -1175,6 +1196,23 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${threadId}`);
     }
     return session;
+  }
+
+  /**
+   * Input can race an in-progress reconnect before `spawnPipeline` publishes
+   * the new SessionRuntime. Wait for that thread's serialized start instead of
+   * surfacing a false "Unknown thread session" error. Callers still decide
+   * normal-turn vs steer from the authoritative session status after startup.
+   */
+  private async findSessionAfterPendingStart(
+    threadId: string,
+  ): Promise<SessionRuntime | undefined> {
+    const live = this.sessions.get(threadId);
+    if (live) return live;
+    const pendingStart = this.startLocks.get(threadId);
+    if (!pendingStart) return undefined;
+    await pendingStart;
+    return this.sessions.get(threadId);
   }
 
   private rememberRemovedThread(threadId: string): void {

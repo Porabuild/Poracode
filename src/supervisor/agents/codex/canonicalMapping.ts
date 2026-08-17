@@ -23,6 +23,7 @@
 export { createCodexMapperState, type CodexMapperState } from "./canonicalMappingState";
 
 export { mapCodexNotification } from "./canonicalMapping/dispatch";
+export { readTurnId } from "./canonicalMapping/readers";
 export {
   mapCodexServerRequest,
   translateCodexCanonicalResponse,

@@ -264,6 +264,7 @@ describe("ChatPane", () => {
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
       provisioningWorktreeThreadIds: {},
+      connectingThreadIds: {},
     }));
   });
 
@@ -292,6 +293,20 @@ describe("ChatPane", () => {
     );
 
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
+  });
+
+  it("shows connecting without starting a working timer during GUI reconnect", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      connectingThreadIds: { [thread.id]: "connection-1" },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
+    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
   it("loads the next persisted page when LegendList reaches the start", async () => {

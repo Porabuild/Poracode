@@ -34,6 +34,7 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 import {
+  ChatConnectingFooter,
   ChatTurnElapsedFooter,
   ChatWorktreeProvisioningFooter,
   type TurnTiming,
@@ -307,6 +308,7 @@ export function ChatPane(props: ChatPaneProps) {
   const isWorktreeProvisioning = useAppStore(
     (s) => s.provisioningWorktreeThreadIds[threadId] === true && status === "launching",
   );
+  const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -347,7 +349,7 @@ export function ChatPane(props: ChatPaneProps) {
   // request before that round-trip completes, leaving status stuck at
   // `needs_approval` even though the user has already answered.
   const isTurnPaused = hasOpenRuntimeRequest;
-  const showEmptyHint = isEmpty && !isLive;
+  const showEmptyHint = isEmpty && !isLive && !isConnecting;
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -413,6 +415,8 @@ export function ChatPane(props: ChatPaneProps) {
             footer={
               isWorktreeProvisioning ? (
                 <ChatWorktreeProvisioningFooter />
+              ) : isConnecting ? (
+                <ChatConnectingFooter />
               ) : showTailLoader && tailTurn ? (
                 <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
               ) : null
@@ -470,7 +474,7 @@ export function ChatPane(props: ChatPaneProps) {
             layoutChangeToken={layoutChangeToken}
             tailEntryId={timelineEntries.at(-1)?.id ?? null}
             threadId={threadId}
-            tailLoaderVisible={isWorktreeProvisioning || showTailLoader}
+            tailLoaderVisible={isWorktreeProvisioning || isConnecting || showTailLoader}
             initialScrollSettled={isInitialScrollSettled}
             initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
             virtualScrollToBottomRef={virtualScrollToBottomRef}

@@ -214,7 +214,7 @@ function placeCaretAtEnd(editor: HTMLDivElement): Range | null {
 function skillChipDataset(segment: Extract<PromptSegment, { kind: "skill" }>) {
   return {
     skillName: segment.name,
-    skillPath: segment.path,
+    ...(segment.path ? { skillPath: segment.path } : {}),
     skillInvocation: segment.invocation,
     skillProvider: segment.provider,
     skillScope: segment.scope,

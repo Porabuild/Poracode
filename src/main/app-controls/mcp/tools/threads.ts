@@ -14,6 +14,7 @@ import {
   DEFAULT_TERMINAL_SIZE,
   resolveMcpLaunchSnapshot,
 } from "@/shared/contracts";
+import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { dbGetThreadRuntimeItemsPage } from "../../../db";
 import {
@@ -418,7 +419,7 @@ export const threadTools: ToolDomain = {
         await ctx.supervisor.sendThreadInput({ threadId, prompt: message, config: thread.config });
         return { threadId, delivered: true, interruptedFirst: interruptFirst === true };
       } catch (error) {
-        if (!isUnknownSessionError(error)) throw error;
+        if (!isUnknownThreadSessionError(error)) throw error;
       }
       // No live session — resume the thread the same way the app revives an
       // inactive thread (startThread with the persisted config + sessionRef),
@@ -614,11 +615,6 @@ export const threadTools: ToolDomain = {
     },
   },
 };
-
-/** True when the supervisor rejected a call because the thread has no live session. */
-function isUnknownSessionError(error: unknown): boolean {
-  return error instanceof Error && /unknown thread session/i.test(error.message);
-}
 
 /**
  * Build the `startThread` payload that resumes an inactive thread, mirroring the

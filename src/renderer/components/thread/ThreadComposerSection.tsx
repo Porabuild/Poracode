@@ -211,6 +211,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (state) =>
       state.provisioningWorktreeThreadIds[thread.id] === true && thread.status === "launching",
   );
+  const isConnecting = useAppStore((state) => state.connectingThreadIds[thread.id] !== undefined);
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
@@ -395,6 +396,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.status === "working";
   const canSubmitServerInput =
     isServerControlled &&
+    !isConnecting &&
     thread.sessionRef !== undefined &&
     (thread.status === "idle" ||
       thread.status === "needs_reply" ||
@@ -474,7 +476,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
   const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
-  const usesPendingSteerPath = !usesTerminalPresentation && thread.status === "working";
+  const usesPendingSteerPath =
+    !isConnecting && !usesTerminalPresentation && thread.status === "working";
   const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
   const activeRuntimeRequest = canShowRuntimeChrome ? runtimeRequests?.[0] : undefined;
   const approvalDenyOption = activeRuntimeRequest

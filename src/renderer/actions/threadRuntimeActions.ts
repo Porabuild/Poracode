@@ -8,8 +8,10 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import { toast } from "@heroui/react";
+import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
+import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
@@ -21,6 +23,7 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { performInitialThreadLaunch } from "./threadLaunchActions";
 
 /** Resolve a thread and its on-disk project location from the store. */
 function resolveThreadProjectLocation(
@@ -58,6 +61,16 @@ export async function performThreadInputSubmit(input: {
   transport: ThreadInputTransport;
   /** Desktop-only: capture a file checkpoint keyed to the optimistic user message. */
   captureCheckpoint?: (checkpointItemId: string) => Promise<void>;
+  /**
+   * Relaunch the thread and deliver this prompt as the resumed session's first
+   * input. Called only when the host has no session left for a thread that is
+   * still resumable, so the prompt is never dropped.
+   */
+  resumeLaunch?: (args: {
+    prompt: string;
+    segments?: PromptSegment[];
+    userMessageItemId?: string;
+  }) => Promise<void>;
 }): Promise<void> {
   const { thread, prompt, segments, transport } = input;
 
@@ -95,6 +108,16 @@ export async function performThreadInputSubmit(input: {
       await input.captureCheckpoint(optimisticUserMessageItemId);
     }
   }
+  const rollbackOptimisticWorking = (): void => {
+    if (!markedWorking) return;
+    store.updateThreadRuntime(thread.id, {
+      status: thread.status,
+      attention: thread.attention,
+      canResumeWithConfig: thread.canResumeWithConfig,
+      forceCloseActiveTurn: true,
+      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+    });
+  };
   try {
     await transport.sendThreadInput({
       threadId: thread.id,
@@ -104,15 +127,31 @@ export async function performThreadInputSubmit(input: {
       ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
     });
   } catch (error) {
-    if (markedWorking) {
-      store.updateThreadRuntime(thread.id, {
-        status: thread.status,
-        attention: thread.attention,
-        canResumeWithConfig: thread.canResumeWithConfig,
-        forceCloseActiveTurn: true,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      });
+    // The host session is gone (thread unloaded, supervisor restarted) but the
+    // thread can still be resumed: relaunch it with this prompt instead of
+    // dropping it. The optimistic paint stays — the relaunch reuses its item id.
+    if (
+      input.resumeLaunch &&
+      isUnknownThreadSessionError(error) &&
+      (thread.sessionRef || thread.canResumeWithConfig)
+    ) {
+      try {
+        await input.resumeLaunch({
+          prompt,
+          ...(segments ? { segments } : {}),
+          ...(optimisticUserMessageItemId
+            ? { userMessageItemId: optimisticUserMessageItemId }
+            : {}),
+        });
+      } catch (resumeError) {
+        rollbackOptimisticWorking();
+        throw resumeError;
+      }
+      // The relaunch captures its own prompt-submitted event.
+      store.touchThread(thread.id);
+      return;
     }
+    rollbackOptimisticWorking();
     throw error;
   }
   captureThreadPromptSubmitted(thread, prompt, segments);
@@ -140,6 +179,19 @@ export async function submitThreadInput(
     prompt,
     ...(segments ? { segments } : {}),
     transport: readBridge(),
+    resumeLaunch: async (resume) => {
+      // Re-resolve the thread: the pre-send snapshot can miss a sessionRef
+      // discovered since, and the resume payload must carry the latest one.
+      const latest = resolveThreadProjectLocation(threadId);
+      await performInitialThreadLaunch({
+        thread: latest?.thread ?? thread,
+        projectLocation: latest?.projectLocation ?? projectLocation,
+        prompt: resume.prompt,
+        ...(resume.segments ? { segments: resume.segments } : {}),
+        ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),
+        initialSize: DEFAULT_TERMINAL_SIZE,
+      });
+    },
     ...(!owner
       ? {
           captureCheckpoint: async (checkpointItemId: string) => {

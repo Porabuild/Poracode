@@ -154,9 +154,10 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
 export function skillSegmentFromSlashCommand(
   command: AgentSlashCommand | undefined,
 ): Extract<PromptSegment, { kind: "skill" }> | undefined {
+  // `skillPath` is intentionally not required: provider-native skills (resolved
+  // by the agent from its own catalog) have no SKILL.md the app can point at.
   if (
     !command?.skillName ||
-    !command.skillPath ||
     !command.skillInvocation ||
     !command.skillProvider ||
     !command.skillScope
@@ -166,7 +167,7 @@ export function skillSegmentFromSlashCommand(
   return {
     kind: "skill",
     name: command.skillName,
-    path: command.skillPath,
+    ...(command.skillPath ? { path: command.skillPath } : {}),
     invocation: command.skillInvocation,
     provider: command.skillProvider,
     scope: command.skillScope,

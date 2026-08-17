@@ -120,7 +120,6 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
     if (el.dataset.slashCommand) {
       if (
         el.dataset.skillName &&
-        el.dataset.skillPath &&
         el.dataset.skillInvocation &&
         el.dataset.skillProvider &&
         (el.dataset.skillScope === "global" || el.dataset.skillScope === "project")
@@ -129,7 +128,8 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
         segments.push({
           kind: "skill",
           name: el.dataset.skillName,
-          path: el.dataset.skillPath,
+          // Absent for provider-native skills (no SKILL.md on disk).
+          ...(el.dataset.skillPath ? { path: el.dataset.skillPath } : {}),
           invocation: el.dataset.skillInvocation,
           provider: el.dataset.skillProvider,
           scope: el.dataset.skillScope,

@@ -53,18 +53,19 @@ Model/effort lists below are the **statically declared defaults**. Several provi
 
 The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
 
-| Provider     | Models                                                                   | Efforts                                  | Live Input            | Structured Session     |
-| ------------ | ------------------------------------------------------------------------ | ---------------------------------------- | --------------------- | ---------------------- |
-| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                     | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)              |
-| Codex        | (probed dynamically via app-server)                                      | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server) |
-| Gemini       | (probed dynamically via ACP)                                             | (probed dynamically)                     | terminal              | Yes (ACP)              |
-| Copilot      | (probed via ACP)                                                         | (probed via ACP)                         | terminal              | Yes (ACP)              |
-| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)              |
-| Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)              |
-| OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)       |
-| Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)       |
-| Antigravity  | auto (managed by `agy`)                                                  | (none)                                   | terminal              | No                     |
-| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                     |
+| Provider     | Models                                                                   | Efforts                                  | Live Input            | Structured Session                 |
+| ------------ | ------------------------------------------------------------------------ | ---------------------------------------- | --------------------- | ---------------------------------- |
+| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                     | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                          |
+| Codex        | (probed dynamically via app-server)                                      | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)             |
+| Gemini       | (probed dynamically via ACP)                                             | (probed dynamically)                     | terminal              | Yes (ACP)                          |
+| Copilot      | (probed via ACP)                                                         | (probed via ACP)                         | terminal              | Yes (ACP)                          |
+| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)                          |
+| Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)                          |
+| OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                   |
+| Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                   |
+| Antigravity  | auto (managed by `agy`)                                                  | (none)                                   | terminal              | No                                 |
+| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                                 |
+| Muse Code    | muse-spark-1.2 / 1.1 / 1.2-contributor                                   | none…ultra                               | terminal              | No (no ACP mode yet; GUI deferred) |
 
 ## Adding a New Provider — Full Checklist
 

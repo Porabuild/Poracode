@@ -3,6 +3,7 @@ import { createFakeHost, FAKE_NOW_MS } from "../testHost";
 import {
   collectGrok,
   GROK_BILLING_ENDPOINT,
+  GROK_CREDITS_ENDPOINT,
   GROK_OAUTH_TOKEN_ENDPOINT,
   GROK_SETTINGS_ENDPOINT,
   parseGrokRefreshResponse,
@@ -64,6 +65,32 @@ describe("parseGrokUsage", () => {
     expect(w.limit).toBe(60_000);
     expect(w.usedPercent).toBeCloseTo((4277 / 60_000) * 100);
     expect(w.resetsAt).toBe(Date.parse("2026-06-01T00:00:00+00:00"));
+  });
+
+  it("maps the unified credits percentage and weekly period", () => {
+    const snap = parseGrokUsage(
+      {
+        config: {
+          currentPeriod: {
+            start: "2026-08-06T12:11:31.068747-07:00",
+            end: "2026-08-13T12:11:31.068747-07:00",
+          },
+          creditUsagePercent: 63,
+          monthlyLimit: { val: 0 },
+          used: { val: 0 },
+        },
+      },
+      undefined,
+      NOW,
+    );
+
+    expect(snap.windows[0]).toMatchObject({
+      label: "Weekly credits",
+      usedPercent: 63,
+      resetsAt: Date.parse("2026-08-13T12:11:31.068747-07:00"),
+    });
+    expect(snap.windows[0]!.used).toBeUndefined();
+    expect(snap.windows[0]!.limit).toBeUndefined();
   });
 
   it("handles a missing config without throwing", () => {
@@ -220,6 +247,37 @@ const BILLING_BODY = JSON.stringify({
 });
 
 describe("collectGrok token path", () => {
+  it("prefers the unified credits percentage over the legacy 0/0 placeholder", async () => {
+    const urls: string[] = [];
+    const host = createFakeHost({
+      nowMs: NOW,
+      tokens: { grok: { accessToken: "cli-token" } },
+      routes: {
+        [GROK_CREDITS_ENDPOINT]: {
+          body: JSON.stringify({
+            config: {
+              creditUsagePercent: 63,
+              billingPeriodStart: "2026-08-06T12:11:31.068747-07:00",
+              billingPeriodEnd: "2026-08-13T12:11:31.068747-07:00",
+            },
+          }),
+        },
+        [GROK_BILLING_ENDPOINT]: {
+          body: JSON.stringify({
+            config: { monthlyLimit: { val: 0 }, used: { val: 0 } },
+          }),
+        },
+        [GROK_SETTINGS_ENDPOINT]: { body: "{}" },
+      },
+      onRequest: (req) => urls.push(req.url),
+    });
+
+    const snap = await collectGrok(host);
+
+    expect(snap.windows[0]).toMatchObject({ label: "Weekly credits", usedPercent: 63 });
+    expect(urls).not.toContain(GROK_BILLING_ENDPOINT);
+  });
+
   it("prefers the CLI proxy over the cookie and reports plan plus credit amounts", async () => {
     const urls: string[] = [];
     const host = createFakeHost({

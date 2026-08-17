@@ -82,19 +82,39 @@ function dedupeBaseCommands(
   });
 }
 
+/**
+ * Collapses skill entries reported by several sources to one per name. Earlier
+ * sources win, so a provider's own entry beats the locally scanned one (an ACP
+ * agent must be handed back its own wire id).
+ *
+ * The one exception: when *both* entries carry complete skill metadata and only
+ * the later one knows the skill's SKILL.md path, the path-bearing entry wins.
+ * A provider reporting a skill it also loads from disk (Claude's SDK lists the
+ * skills Poracode projected into `.claude/skills`) would otherwise erase the
+ * plugin identity and the on-disk path the supervisor's plugin policy and
+ * portable-skill fallback depend on. Position follows first sighting.
+ */
 function mergeSkillCommands(
   ...sources: (readonly AgentSlashCommand[] | undefined)[]
 ): AgentSlashCommand[] {
-  const seen = new Set<string>();
-  return sources.flatMap((commands) =>
-    (commands ?? []).flatMap((command) => {
-      if (!isSkillCommand(command)) return [];
+  const byName = new Map<string, AgentSlashCommand>();
+  for (const commands of sources) {
+    for (const command of commands ?? []) {
+      if (!isSkillCommand(command)) continue;
       const name = (command.skillName ?? command.id).toLowerCase();
-      if (seen.has(name)) return [];
-      seen.add(name);
-      return [command];
-    }),
-  );
+      const existing = byName.get(name);
+      if (existing) {
+        const upgradesPath =
+          command.skillPath !== undefined &&
+          existing.skillPath === undefined &&
+          skillSegmentFromSlashCommand(existing) !== undefined &&
+          skillSegmentFromSlashCommand(command) !== undefined;
+        if (!upgradesPath) continue;
+      }
+      byName.set(name, command);
+    }
+  }
+  return [...byName.values()];
 }
 
 function resolveSkillCommands(
