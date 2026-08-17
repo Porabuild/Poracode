@@ -561,10 +561,32 @@ describe("subagent tool registration", () => {
     });
   });
 
-  it("documents background runs as an explicit join that never injects a message", () => {
+  it("documents background runs as an explicit join that keeps working across wait timeouts", () => {
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("never injects a new message");
-    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("call wait_for_agent once");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "keep waiting across as many wait_for_agent calls as necessary",
+    );
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "Never cancel or abandon a run solely because 180 seconds",
+    );
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).not.toContain("delivered back automatically");
+  });
+
+  it("does not describe an elapsed wait as a reason to cancel an active run", () => {
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
+      properties: {
+        timeout_s: {
+          description: expect.stringContaining("leaves the subagent running"),
+        },
+      },
+    });
+    expect(byName.get("wait_for_agent")!.description).toContain(
+      "wait call timed out while the child stayed active",
+    );
+    expect(byName.get("cancel")!.description).toContain(
+      "Never cancel solely because a wait timed out",
+    );
   });
 
   it("requires an explicit user ask in the thread before delegating", () => {

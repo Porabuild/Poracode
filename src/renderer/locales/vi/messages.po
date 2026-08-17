@@ -10685,8 +10685,8 @@ msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm mới khi nó kết thúc."
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
-msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
-msgstr "Các kích thước hiện trong Composer của Codex. Việc nén tự động bắt đầu ở 90% cửa sổ đã chọn. Các cuộc trò chuyện mới mặc định dùng 400k khi kích thước đó có trong danh sách."
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Các kích thước hiện trong Composer của Codex. Việc nén tự động bắt đầu ở 95% cửa sổ đã chọn. Các cuộc trò chuyện mới mặc định dùng 400k khi kích thước đó có trong danh sách."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"

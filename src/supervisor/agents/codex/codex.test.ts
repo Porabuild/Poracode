@@ -1299,7 +1299,7 @@ describe("CodexStructuredSession", () => {
             model_reasoning_effort: "high",
             model_reasoning_summary: "auto",
             model_context_window: 400_000,
-            model_auto_compact_token_limit: 360_000,
+            model_auto_compact_token_limit: 380_000,
           },
           threadId: "provider-thread",
           lastTurnId: "turn-2",

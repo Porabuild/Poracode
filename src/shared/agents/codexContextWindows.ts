@@ -8,7 +8,7 @@ export const DEFAULT_CODEX_CONTEXT_SIZE = "400k";
 
 const MIN_CONTEXT_WINDOW_TOKENS = 1_000;
 const MAX_CONTEXT_WINDOW_TOKENS = 10_000_000;
-const AUTO_COMPACT_RATIO = 0.9;
+const AUTO_COMPACT_RATIO = 0.95;
 
 export interface CodexContextWindow {
   id: string;
@@ -113,7 +113,7 @@ export function contextWindowsEqual(
 
 /**
  * Compaction starts below the window so Codex has headroom to summarize.
- * Matches the documented 1M → 900k pairing (90%).
+ * Codex reserves the final 5% of the selected window for compaction.
  */
 export function autoCompactTokenLimit(windowTokens: number): number {
   if (windowTokens <= 1) return 1;

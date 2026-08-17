@@ -28,7 +28,7 @@ describe("buildCodexThreadOverrides", () => {
     expect(overrides.config).toMatchObject({
       model_reasoning_effort: "high",
       model_context_window: 400_000,
-      model_auto_compact_token_limit: 360_000,
+      model_auto_compact_token_limit: 380_000,
       "mcp_servers.browser": {
         url: "http://127.0.0.1:9000/mcp?thread=local-thread",
         bearer_token_env_var: codexMcpTokenEnvVar(browser),
@@ -38,12 +38,12 @@ describe("buildCodexThreadOverrides", () => {
     expect(JSON.stringify(overrides.config)).not.toContain("secret-token");
   });
 
-  it("maps a selected context size to the window and 90% compact limit", () => {
+  it("maps a selected context size to the window and 95% compact limit", () => {
     const overrides = buildCodexThreadOverrides({ model: "gpt-5.6-sol", contextSize: "1m" });
 
     expect(overrides.config).toMatchObject({
       model_context_window: 1_000_000,
-      model_auto_compact_token_limit: 900_000,
+      model_auto_compact_token_limit: 950_000,
     });
   });
 });

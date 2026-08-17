@@ -69,16 +69,16 @@ describe("stored Codex context windows", () => {
 });
 
 describe("Codex context-window launch overrides", () => {
-  it("defaults to 400k with compaction at 90%", () => {
+  it("defaults to 400k with compaction at 95%", () => {
     expect(codexContextWindowOverrides()).toEqual({
       model_context_window: 400_000,
-      model_auto_compact_token_limit: 360_000,
+      model_auto_compact_token_limit: 380_000,
     });
     expect(codexContextWindowOverrides("1m")).toEqual({
       model_context_window: 1_000_000,
-      model_auto_compact_token_limit: 900_000,
+      model_auto_compact_token_limit: 950_000,
     });
-    expect(autoCompactTokenLimit(272_000)).toBe(244_800);
+    expect(autoCompactTokenLimit(272_000)).toBe(258_400);
   });
 });
 

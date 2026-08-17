@@ -10684,8 +10684,8 @@ msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "正在退出。检测到的代理将在完成后刷新。"
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
-msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
-msgstr "显示在 Codex Composer 中的大小。压缩会在所选窗口的 90% 时自动开始。当列表中包含 400k 时，新对话默认使用 400k。"
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "显示在 Codex Composer 中的大小。压缩会在所选窗口的 95% 时自动开始。当列表中包含 400k 时，新对话默认使用 400k。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"

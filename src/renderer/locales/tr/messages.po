@@ -10685,8 +10685,8 @@ msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Çıkış yapılıyor. Algılanan aracılar tamamlandığında yenilenecektir."
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
-msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
-msgstr "Codex Composer’da gösterilen boyutlar. Sıkıştırma, seçilen pencerenin %90’ında otomatik başlar. Bu boyut listede olduğunda yeni Konular varsayılan olarak 400k kullanır."
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Codex Composer’da gösterilen boyutlar. Sıkıştırma, seçilen pencerenin %95’inde otomatik başlar. Bu boyut listede olduğunda yeni Konular varsayılan olarak 400k kullanır."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"

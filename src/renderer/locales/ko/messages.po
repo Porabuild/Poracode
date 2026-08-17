@@ -10685,8 +10685,8 @@ msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
-msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
-msgstr "Codex 작성기에 표시되는 크기입니다. 선택한 창의 90%에서 자동으로 압축이 시작됩니다. 목록에 400k가 있으면 새 채팅의 기본값은 400k입니다."
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Codex 작성기에 표시되는 크기입니다. 선택한 창의 95%에서 자동으로 압축이 시작됩니다. 목록에 400k가 있으면 새 채팅의 기본값은 400k입니다."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"

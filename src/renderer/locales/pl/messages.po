@@ -10685,8 +10685,8 @@ msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Wylogowanie. Wykryci agenci zostaną odświeżeni po zakończeniu."
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
-msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
-msgstr "Rozmiary wyświetlane w kompozytorze Codex. Kompaktowanie zaczyna się automatycznie przy 90% wybranego okna. Nowe wątki domyślnie używają 400k, jeśli ten rozmiar jest na liście."
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Rozmiary wyświetlane w kompozytorze Codex. Kompaktowanie zaczyna się automatycznie przy 95% wybranego okna. Nowe wątki domyślnie używają 400k, jeśli ten rozmiar jest na liście."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"

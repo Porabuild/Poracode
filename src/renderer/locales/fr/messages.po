@@ -10684,8 +10684,8 @@ msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Déconnexion. Les agents détectés seront actualisés une fois l'opération terminée."
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
-msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
-msgstr "Tailles affichées dans le Composer Codex. La compaction démarre automatiquement à 90 % de la fenêtre sélectionnée. Les nouveaux fils de discussion utilisent 400k par défaut lorsque cette taille figure dans la liste."
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Tailles affichées dans le Composer Codex. La compaction démarre automatiquement à 95 % de la fenêtre sélectionnée. Les nouveaux fils de discussion utilisent 400k par défaut lorsque cette taille figure dans la liste."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"
