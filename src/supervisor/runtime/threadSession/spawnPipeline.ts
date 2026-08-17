@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
+import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import {
   type AgentKind,
   type CloseThreadPayload,
@@ -128,6 +129,25 @@ export function effectiveLaunchConfig(
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
   if (disabledBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = false;
   return next;
+}
+
+/**
+ * Launch config for a workspace: MCP flag gating plus Home-scope unrestricted
+ * approval/sandbox so every agent (not just ACP) can read and write anywhere
+ * when the session is the projectless Home folder.
+ */
+export function workspaceLaunchConfig(
+  location: ProjectLocation,
+  config: ThreadConfig,
+  adapter: Pick<AgentAdapter, "capabilities">,
+  disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+  pluginBuiltInMcpServerIds: readonly BuiltInMcpServerId[] = [],
+): ThreadConfig {
+  return applyHomeScopePermissions(
+    location,
+    effectiveLaunchConfig(config, disabledBuiltInMcpServerIds, pluginBuiltInMcpServerIds),
+    adapter.capabilities,
+  );
 }
 
 /**
@@ -343,8 +363,10 @@ export class SpawnPipeline {
             payload.userMessageItemId,
           )
         : undefined;
-    const optimisticLaunchConfig = effectiveLaunchConfig(
+    const optimisticLaunchConfig = workspaceLaunchConfig(
+      payload.projectLocation,
       payload.config,
+      adapter,
       payload.disabledBuiltInMcpServerIds ?? [],
       pluginContributions.builtInMcpServerIds,
     );
@@ -392,8 +414,10 @@ export class SpawnPipeline {
       disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
       pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
     };
-    const launchConfig = effectiveLaunchConfig(
+    const launchConfig = workspaceLaunchConfig(
+      payload.projectLocation,
       payload.config,
+      adapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -686,8 +710,10 @@ export class SpawnPipeline {
     }
 
     const mcpIdentity = { threadId: session.threadId };
-    const launchConfig = effectiveLaunchConfig(
+    const launchConfig = workspaceLaunchConfig(
+      session.projectLocation,
       config,
+      session.adapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -955,8 +981,10 @@ export class SpawnPipeline {
       ...(input.nativePlugins ? { nativePlugins: input.nativePlugins } : {}),
       launchConfig:
         input.launchConfig ??
-        effectiveLaunchConfig(
+        workspaceLaunchConfig(
+          input.projectLocation,
           input.config,
+          input.adapter,
           mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
           mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
         ),
