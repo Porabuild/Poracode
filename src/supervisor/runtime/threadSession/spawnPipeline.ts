@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
-import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
+import {
+  applyHomeScopePermissions,
+  type UnrestrictedPermissionCapabilities,
+} from "@/shared/agents/unrestrictedPermissions";
 import {
   type AgentKind,
   type CloseThreadPayload,
@@ -139,7 +142,7 @@ export function effectiveLaunchConfig(
 export function workspaceLaunchConfig(
   location: ProjectLocation,
   config: ThreadConfig,
-  adapter: Pick<AgentAdapter, "capabilities">,
+  adapter: { capabilities: UnrestrictedPermissionCapabilities },
   disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
   pluginBuiltInMcpServerIds: readonly BuiltInMcpServerId[] = [],
 ): ThreadConfig {
