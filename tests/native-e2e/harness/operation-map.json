@@ -3,14 +3,14 @@
   "contract": "poracode.remote",
   "protocolVersion": 3,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:6d4718bf9224ac5abce97cf23b2311607b671b9a758c99b6641c8753954f0b35",
-  "keyCount": 201,
+  "manifestHash": "sha256:528f75b022068abdae26febfb6e7e088b869ac99db57af2828e1a506f191958f",
+  "keyCount": 202,
   "counts": {
     "route": 56,
     "procedure": 100,
     "ws-client": 8,
     "ws-server": 9,
-    "replay": 14,
+    "replay": 15,
     "runtime": 14
   },
   "operations": {
@@ -433,6 +433,10 @@
     "replay:remote-threads-changed": {
       "kind": "replay",
       "id": "remote-threads-changed"
+    },
+    "replay:remote-user-notification": {
+      "kind": "replay",
+      "id": "remote-user-notification"
     },
     "replay:thread-exited": {
       "kind": "replay",

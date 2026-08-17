@@ -3611,6 +3611,19 @@
             "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadDetailScreen.kt"
           ]
         }
+      },
+      {
+        "id": "remote-user-notification",
+        "batch": "push-system",
+        "note": "Host-owned toast/notification replay. Native shells still present local and push notifications; they do not yet apply this sequenced event.",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
       }
     ],
     "runtimeEventTypes": [

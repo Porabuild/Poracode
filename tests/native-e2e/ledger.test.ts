@@ -35,7 +35,7 @@ describe("coverage ledger exactness", () => {
     expect(snapshot.expected.runtimeEventTypes).toEqual(
       sortCodePoints(manifest.webSocket.runtimeEventTypes),
     );
-    expect(snapshot.keyCount).toBe(201);
+    expect(snapshot.keyCount).toBe(202);
     expect(snapshot.complete).toBe(false);
     expect(
       Object.values(snapshot.operations).every((record) => record.status === "unexercised"),

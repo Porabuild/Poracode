@@ -146,6 +146,7 @@ describe.runIf(process.platform === "darwin" && SYSTEM_PI !== undefined)("Pi CLI
       PI_CODING_AGENT_DIR: agentDir,
       TERM: "xterm-256color",
     };
+    delete env.FORCE_COLOR;
   });
 
   afterEach(async () => {

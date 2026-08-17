@@ -31,7 +31,7 @@ const EXPECTED_COUNTS = {
   procedures: 100,
   webSocketClientMessages: 8,
   webSocketServerMessages: 9,
-  replayableEventTypes: 14,
+  replayableEventTypes: 15,
   runtimeEventTypes: 14,
 } as const;
 

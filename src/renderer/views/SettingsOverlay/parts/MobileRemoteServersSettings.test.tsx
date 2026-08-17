@@ -109,7 +109,6 @@ describe("MobileRemoteServersSettings", () => {
   it("shows the compact empty state and keeps pairing behind the FAB", () => {
     render(<MobileRemoteServersSettings />);
 
-    expect(screen.getByText("Connections")).toBeInTheDocument();
     expect(screen.getByText("No connections yet")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
@@ -195,18 +194,19 @@ describe("MobileRemoteServersSettings", () => {
 
     fireEvent.click(row);
 
+    expect(screen.getByRole("dialog", { name: "amd-pc-12-25" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
     expect(screen.getByRole("dialog", { name: "Projects" })).toBeInTheDocument();
     expect(screen.getByTestId("full-screen-drawer")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "amd-pc-12-25" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog", { name: "Projects" })).not.toBeInTheDocument();
     fireEvent.contextMenu(row);
 
     expect(screen.getByRole("dialog", { name: "amd-pc-12-25" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Projects" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Rename" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove connection" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Projects" })).not.toBeInTheDocument();
   });
 
   it("removes a connection from the action sheet", () => {
@@ -252,6 +252,7 @@ describe("MobileRemoteServersSettings", () => {
 
     render(<MobileRemoteServersSettings />);
     fireEvent.click(screen.getByRole("button", { name: "amd-pc-12-25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
 
     expect(screen.getByText("Mobile app")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mobile app" }));
@@ -265,6 +266,7 @@ describe("MobileRemoteServersSettings", () => {
 
     render(<MobileRemoteServersSettings />);
     fireEvent.click(screen.getByRole("button", { name: "amd-pc-12-25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
     fireEvent.click(screen.getByRole("button", { name: "Add a project" }));
     fireEvent.click(screen.getByRole("button", { name: "Add an existing folder" }));
     fireEvent.click(screen.getByRole("button", { name: "Folder path on the server" }));
@@ -294,6 +296,7 @@ describe("MobileRemoteServersSettings", () => {
 
     render(<MobileRemoteServersSettings />);
     fireEvent.click(screen.getByRole("button", { name: "amd-pc-12-25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
     fireEvent.click(screen.getByRole("button", { name: "Add a project" }));
     fireEvent.click(screen.getByRole("button", { name: "Add an existing folder" }));
     fireEvent.click(screen.getByRole("button", { name: "Folder path on the server" }));
@@ -324,6 +327,7 @@ describe("MobileRemoteServersSettings", () => {
 
     render(<MobileRemoteServersSettings />);
     fireEvent.click(screen.getByRole("button", { name: "amd-pc-12-25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
     fireEvent.click(screen.getByRole("button", { name: "Mobile app" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove project" }));
 

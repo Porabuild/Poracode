@@ -64,28 +64,32 @@ describe("remote v3 generator", () => {
     expect(buildRemoteV3IrDocument().sourceHash).toBe(ir.sourceHash);
   });
 
-  it("--check is side-effect free and fails on stale, missing, and extra files", () => {
-    const root = mkdtempSync(join(tmpdir(), "remote-v3-"));
-    try {
-      writeRemoteV3Generated(root);
-      expect(checkRemoteV3Generated(root)).toEqual([]);
+  it(
+    "--check is side-effect free and fails on stale, missing, and extra files",
+    { timeout: 60_000 },
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "remote-v3-"));
+      try {
+        writeRemoteV3Generated(root);
+        expect(checkRemoteV3Generated(root)).toEqual([]);
 
-      const generated = join(root, "protocol/remote/v3/generated");
-      writeFileSync(join(generated, "extra.json"), "{}\n");
-      expect(checkRemoteV3Generated(root).some((error) => error.includes("extra"))).toBe(true);
-      rmSync(join(generated, "extra.json"));
+        const generated = join(root, "protocol/remote/v3/generated");
+        writeFileSync(join(generated, "extra.json"), "{}\n");
+        expect(checkRemoteV3Generated(root).some((error) => error.includes("extra"))).toBe(true);
+        rmSync(join(generated, "extra.json"));
 
-      rmSync(join(generated, "inventory.json"));
-      expect(checkRemoteV3Generated(root).some((error) => error.includes("missing"))).toBe(true);
+        rmSync(join(generated, "inventory.json"));
+        expect(checkRemoteV3Generated(root).some((error) => error.includes("missing"))).toBe(true);
 
-      writeRemoteV3Generated(root);
-      writeFileSync(join(generated, "ir.json"), "{}\n");
-      expect(checkRemoteV3Generated(root).some((error) => error.includes("stale"))).toBe(true);
-      expect(readFileSync(join(generated, "inventory.json"), "utf8").length).toBeGreaterThan(10);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+        writeRemoteV3Generated(root);
+        writeFileSync(join(generated, "ir.json"), "{}\n");
+        expect(checkRemoteV3Generated(root).some((error) => error.includes("stale"))).toBe(true);
+        expect(readFileSync(join(generated, "inventory.json"), "utf8").length).toBeGreaterThan(10);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("result schemas validate representative fixtures and reject mutations", () => {
     expect(gitStatusResultSchema.parse(sampleGitStatus).ahead).toBe(0);

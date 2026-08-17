@@ -32,6 +32,6 @@ describe("MobilePageHeader", () => {
     expect(title.closest("button")).toBe(back);
     fireEvent.click(title);
     expect(onBack).toHaveBeenCalledOnce();
-    expect(document.getElementById("poracode-mobile-page-header-actions")).not.toBeNull();
+    expect(document.querySelector("[data-poracode-mobile-page-header-actions]")).not.toBeNull();
   });
 });

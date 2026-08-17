@@ -46,6 +46,7 @@ const { bridge } = vi.hoisted(() => ({
 vi.mock("../../bridge", () => ({
   readBridge: () => bridge,
   isRemoteSession: () => false,
+  isCompactClientSurface: () => false,
   isDevApp: () => false,
 }));
 

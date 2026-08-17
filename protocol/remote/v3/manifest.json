@@ -703,7 +703,8 @@
       "remote-git-summaries",
       "remote-git-state",
       "remote-projects-changed",
-      "remote-threads-changed"
+      "remote-threads-changed",
+      "remote-user-notification"
     ],
     "runtimeEventTypes": [
       "session.started",

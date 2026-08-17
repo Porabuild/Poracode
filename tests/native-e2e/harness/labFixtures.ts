@@ -149,6 +149,15 @@ export function buildReplayableEvent(
     }
     case "remote-threads-changed":
       return { type, threadIds: [threadId] };
+    case "remote-user-notification":
+      return {
+        type,
+        threadId,
+        category: "done",
+        projectName: "Poracode",
+        threadTitle: "Fixture thread",
+        status: "idle",
+      };
     default:
       return { type, threadId };
   }

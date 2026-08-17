@@ -128,11 +128,11 @@ describe("ProjectTreeView compact search", () => {
     renderCompactTree();
     fireEvent.click(screen.getByRole("button", { name: "Search files" }));
 
-    await act(() => {
+    act(() => {
       viewport.height = 500;
       viewport.dispatchResize();
     });
-    await act(() => {
+    act(() => {
       viewport.height = 900;
       viewport.dispatchResize();
     });

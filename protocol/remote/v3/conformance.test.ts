@@ -288,7 +288,10 @@ describe("language-neutral remote protocol v3 contract", () => {
     );
 
     const serverSource = readSource("src/main/remote/RemoteAccessServer.ts");
-    const replayableStart = serverSource.indexOf("const REMOTELY_CONSUMED_EVENT_TYPES");
+    const replayableStart = serverSource.indexOf(
+      "new Set([",
+      serverSource.indexOf("const REMOTELY_CONSUMED_EVENT_TYPES"),
+    );
     const replayableEnd = serverSource.indexOf("]);", replayableStart);
     expect(replayableStart).toBeGreaterThanOrEqual(0);
     expect(replayableEnd).toBeGreaterThan(replayableStart);

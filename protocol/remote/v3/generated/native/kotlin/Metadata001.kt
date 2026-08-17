@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 3
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:fd97919f4fa392197c997551be975fefeeb405bd719914f4ea840e16b134a38c"
-    const val manifestHash = "sha256:076d11d2c46d85582230c294b563411dd427ea9bcc8062149dde796eaa867f91"
+    const val sourceHash = "sha256:319c87047967c1f985ee38f91e7c59b9e8bdd248b1515563512dd29d2b5215ef"
+    const val manifestHash = "sha256:d3ccda151ea70b78c25f8b952eb85d6e90b32ed8137d64f1ef0e82c3565d6f6c"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")

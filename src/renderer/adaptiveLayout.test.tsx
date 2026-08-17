@@ -76,7 +76,9 @@ describe("adaptive layout", () => {
     expect(document.documentElement).toHaveAttribute("data-compact-layout");
 
     setMatches(false, false);
-    act(() => window.dispatchEvent(new PageTransitionEvent("pageshow")));
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent("pageshow"));
+    });
 
     expect(result.current).toBe(false);
     expect(document.documentElement).not.toHaveAttribute("data-compact-layout");
@@ -90,12 +92,16 @@ describe("adaptive layout", () => {
 
     setMatches(false, false);
     visibility.mockReturnValue("hidden");
-    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     expect(result.current).toBe(true);
     expect(document.documentElement).toHaveAttribute("data-compact-layout");
 
     visibility.mockReturnValue("visible");
-    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     expect(result.current).toBe(false);
     expect(document.documentElement).not.toHaveAttribute("data-compact-layout");
 

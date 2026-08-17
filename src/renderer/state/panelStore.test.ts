@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
 
@@ -36,27 +37,34 @@ it("defaults the thread list to the flat layout", () => {
   expect(initialPanelState.threadListLayout).toBe("flat");
 });
 
+function stubMatchMedia(matches: (query: string) => boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      media: query,
+      matches: matches(query),
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => true,
+    })),
+  );
+}
+
 describe("compact project settings navigation", () => {
   beforeEach(() => {
     resetPanelStore();
+    resetAdaptiveLayoutForTest();
     Reflect.deleteProperty(window, "poracodeHost");
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        media: query,
-        matches: query === "(max-width: 767px)",
-        onchange: null,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-        addListener: () => undefined,
-        removeListener: () => undefined,
-        dispatchEvent: () => true,
-      })),
-    );
+    stubMatchMedia((query) => query === "(max-width: 767px)");
+    initializeAdaptiveLayout();
   });
 
   afterEach(() => {
     resetPanelStore();
+    resetAdaptiveLayoutForTest();
     vi.unstubAllGlobals();
   });
 
@@ -80,19 +88,9 @@ describe("compact project settings navigation", () => {
   });
 
   it("keeps the desktop project settings overlay route unchanged", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        media: query,
-        matches: false,
-        onchange: null,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-        addListener: () => undefined,
-        removeListener: () => undefined,
-        dispatchEvent: () => true,
-      })),
-    );
+    resetAdaptiveLayoutForTest();
+    stubMatchMedia(() => false);
+    initializeAdaptiveLayout();
 
     usePanelStore.getState().openProjectSettings("proj-1");
 

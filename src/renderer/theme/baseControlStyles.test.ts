@@ -70,15 +70,16 @@ describe("base control styles", () => {
 
   it("keeps home and thread composer collapse choreography in one 200ms motion", () => {
     expect(styles).toContain("@keyframes m-compose-content-collapse");
+    expect(styles).toContain("@keyframes m-thread-compose-content-collapse");
     expect(styles).toMatch(
-      /\.m-thread-compose-dock\[data-collapsing\][^{]*\.poracode-composer-shell\s*\{\s*animation: m-compose-content-collapse 0\.2s linear both;/s,
+      /\.m-thread-compose-dock\[data-collapsing\][\s\S]*?\.poracode-composer-shell\s*\{\s*animation: m-thread-compose-content-collapse 0\.2s linear both;/,
     );
     expect(styles).toContain(
       ".m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])",
     );
     expect(styles).toContain(".m-thread-compose-dock[data-expanded]:not([data-collapsing]),");
     expect(styles).toMatch(
-      /\.m-thread-compose-dock\[data-collapsing\]\[data-compact-content\][^{]*\.poracode-composer-shell[^{]*\{\s*transition-duration: 0\.1s;/s,
+      /\.m-thread-compose-dock\[data-collapsing\]\[data-compact-content\][\s\S]*?\.poracode-composer-shell,[\s\S]*?\{\s*transition-duration: 0\.1s;/,
     );
     expect(styles).toContain("[data-input-has-content]");
     expect(styles).not.toContain("[contenteditable]:not(:empty)");

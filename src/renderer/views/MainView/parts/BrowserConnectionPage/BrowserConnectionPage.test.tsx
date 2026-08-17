@@ -211,8 +211,9 @@ describe("BrowserConnectionPage", () => {
     const drawer = screen.getByRole("dialog", { name: "Other ways to connect" });
     expect(within(drawer).getByRole("textbox", { name: "Pairing URL" })).toBeInTheDocument();
 
-    fireEvent.click(within(drawer).getByRole("button", { name: "Close" }));
+    fireEvent.keyDown(drawer, { key: "Escape" });
 
+    expect(screen.queryByRole("dialog", { name: "Other ways to connect" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: SCAN_CARD })).toBeInTheDocument();
   });
 

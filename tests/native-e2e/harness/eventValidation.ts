@@ -5,6 +5,7 @@ import {
   remoteGitSummariesEventSchema,
   remoteProjectsChangedEventSchema,
   remoteThreadsChangedEventSchema,
+  remoteUserNotificationEventSchema,
 } from "../../../src/shared/remote/protocol.ts";
 import { allReplayableEventFixtures, allRuntimeEventFixtures } from "./labFixtures.ts";
 import { loadProtocolManifest } from "./manifest.ts";
@@ -44,6 +45,9 @@ export function validateReplayableEvent(event: Record<string, unknown>): void {
       break;
     case "remote-threads-changed":
       remoteThreadsChangedEventSchema.parse(event);
+      break;
+    case "remote-user-notification":
+      remoteUserNotificationEventSchema.parse(event);
       break;
   }
 }

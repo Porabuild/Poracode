@@ -49,7 +49,7 @@ describe("remote WS/runtime inventory goldens", () => {
       manifest.webSocket.replayableEventTypes.length,
     );
     expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(runtime.length);
-    expect(REMOTE_CONTRACT_INVENTORY.replayableEventTypes).toBe(14);
+    expect(REMOTE_CONTRACT_INVENTORY.replayableEventTypes).toBe(15);
     expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(14);
     expect(REMOTE_CONTRACT_INVENTORY.webSocketClientMessages).toBe(8);
     expect(REMOTE_CONTRACT_INVENTORY.webSocketServerMessages).toBe(9);

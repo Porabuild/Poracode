@@ -63,7 +63,9 @@ describe("useLongPress", () => {
         clientX: 20,
         clientY: 20,
       });
-      act(() => vi.advanceTimersByTime(500));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
 
       const drawerSelectionStart = new Event("selectstart", {
         bubbles: true,
