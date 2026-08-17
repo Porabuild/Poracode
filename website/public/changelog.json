@@ -1,6 +1,39 @@
 {
   "releases": [
     {
+      "version": "1.6.4",
+      "date": "2026-08-17",
+      "title": "Codex context windows, Home permissions & project terminals",
+      "summary": "Poracode adds configurable context windows and compaction thresholds for Codex, enables unrestricted agent sessions in your Home directory, and adds direct terminal access to project menus. Branch tracking in worktrees and ACP skill badges in the composer also get useful fixes.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Codex",
+          "text": "You can now customize the context window sizes available in the Codex composer under Settings, defaulting new chats to 400k with automatic compaction starting at 95% of your chosen window."
+        },
+        {
+          "kind": "added",
+          "label": "Projects",
+          "text": "You can now open a project's terminal directly from the project menu in both the grouped sidebar and flat project filter."
+        },
+        {
+          "kind": "improved",
+          "label": "Home",
+          "text": "Agent sessions started in the projectless Home folder now run with unrestricted permissions across all providers, allowing full read and write access across your home directory."
+        },
+        {
+          "kind": "improved",
+          "label": "Composer",
+          "text": "Skills invoked with slash commands in the composer and chat messages now display with a dedicated sparkles icon and accessible badge instead of generic slash-command text."
+        },
+        {
+          "kind": "fixed",
+          "label": "Worktrees",
+          "text": "Creating a new worktree branch no longer accidentally inherits origin/main as its remote tracking upstream, preventing new worktrees from falsely reporting behind commits."
+        }
+      ]
+    },
+    {
       "version": "1.6.3",
       "date": "2026-08-16",
       "title": "Muse Code, Claude skills & sturdier sessions",
