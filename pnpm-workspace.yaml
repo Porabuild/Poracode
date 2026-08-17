@@ -66,62 +66,27 @@ nodeLinker: isolated
 
 minimumReleaseAgeExclude:
   # The OpenCode connector tracks the current SDK used by Desktop's compatibility path.
-  - "@opencode-ai/sdk@1.18.10"
-  # Claude steering relies on the current official SDK lifecycle controls.
-  - "@anthropic-ai/claude-agent-sdk@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.233"
-  - "@anthropic-ai/claude-agent-sdk@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.219"
-  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.219"
-  # Retain the previous release while pnpm validates the pre-update lockfile.
-  - "@anthropic-ai/claude-agent-sdk@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.218"
-  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.218"
-  # OpenCode v2 runtime-pooling integration requires the current official SDK.
-  - "@opencode-ai/sdk@1.18.3"
-  # 2026-07-21 Next.js security release and its platform binaries.
-  - "next@16.2.11"
-  - "@next/env@16.2.11"
-  - "@next/swc-darwin-x64@16.2.11"
-  - "@next/swc-darwin-arm64@16.2.11"
-  - "@next/swc-linux-x64-gnu@16.2.11"
-  - "@next/swc-linux-x64-musl@16.2.11"
-  - "@next/swc-linux-arm64-gnu@16.2.11"
-  - "@next/swc-linux-arm64-musl@16.2.11"
-  - "@next/swc-win32-x64-msvc@16.2.11"
-  - "@next/swc-win32-arm64-msvc@16.2.11"
-  # 2026-08-03 Next.js 16.3 release and its platform binaries.
-  - "next@16.3.0"
-  - "@next/env@16.3.0"
-  - "@next/swc-darwin-x64@16.3.0"
-  - "@next/swc-darwin-arm64@16.3.0"
-  - "@next/swc-linux-x64-gnu@16.3.0"
-  - "@next/swc-linux-x64-musl@16.3.0"
-  - "@next/swc-linux-arm64-gnu@16.3.0"
-  - "@next/swc-linux-arm64-musl@16.3.0"
-  - "@next/swc-win32-x64-msvc@16.3.0"
-  - "@next/swc-win32-arm64-msvc@16.3.0"
-  # 2026-07-19 fast-uri authority-parsing security release.
-  - "fast-uri@3.1.4"
+  - '@opencode-ai/sdk@1.18.3 || 1.18.10'
+  - '@anthropic-ai/claude-agent-sdk@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233'
+  - next@16.2.11 || 16.3.0 || 16.3.1
+  - '@next/env@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-darwin-x64@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-darwin-arm64@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-linux-x64-gnu@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-linux-x64-musl@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-linux-arm64-gnu@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-linux-arm64-musl@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-win32-x64-msvc@16.2.11 || 16.3.0 || 16.3.1'
+  - '@next/swc-win32-arm64-msvc@16.2.11 || 16.3.0 || 16.3.1'
+  - fast-uri@3.1.4 || 3.1.5
   # LegendList 3.3.3 contains the web anchoring and batched measurement fixes
   # required by the chat transcript virtualizer migration.
   - "@legendapp/list@3.3.3"
@@ -170,7 +135,6 @@ minimumReleaseAgeExclude:
   - "@hono/node-server@2.0.10"
   - "brace-expansion@1.1.18 || 2.1.4 || 5.0.9"
   - "dompurify@3.4.13"
-  - "fast-uri@3.1.5"
   - "hono@4.12.34"
   - "ip-address@10.3.1"
   - "js-yaml@4.3.1"
@@ -207,15 +171,6 @@ minimumReleaseAgeExclude:
   # 2026-07-08 dependency refresh: explicitly bypass the 7-day age guard for
   # reviewed package updates and their native/optional platform artifacts.
   - "@agentclientprotocol/sdk@1.2.1"
-  - "@anthropic-ai/claude-agent-sdk@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.205"
-  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.205"
   - "@heroui/react@3.2.2"
   - "@heroui/styles@3.2.2"
   - "@oxfmt/binding-android-arm-eabi@0.58.0"
