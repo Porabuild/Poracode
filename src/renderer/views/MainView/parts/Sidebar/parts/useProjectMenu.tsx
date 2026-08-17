@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Settings2,
   Square,
+  SquareTerminal,
   Trash2,
   Workflow,
 } from "lucide-react";
@@ -19,7 +20,11 @@ import type { ContextMenuEntry, ContextMenuItem } from "@/renderer/components/co
 import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
 import { openGitReview, openProjectSettings } from "@/renderer/actions/panelActions";
 import { gitSync } from "@/renderer/actions/gitActions";
-import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
+import {
+  runProjectAction,
+  showTerminalPanel,
+  stopProjectAction,
+} from "@/renderer/actions/terminalActions";
 import {
   WORKSPACE_UNFILED_KEY,
   parseWorkspaceMenuKey,
@@ -37,7 +42,7 @@ import { useRunningProjectActionIds } from "@/renderer/hooks/uiSelectors";
  * every surface that offers project actions — the grouped sidebar's project
  * header (right-click) and the flat list's project filter rows (overflow
  * button). `isUnreachable` greys out entries that execute on the project's
- * host (git, run-scripts, removal) while a mirrored project's server is down.
+ * host (terminal, git, run-scripts, removal) while a mirrored project's server is down.
  */
 export function useProjectMenu(
   project: Project,
@@ -84,6 +89,12 @@ export function useProjectMenu(
     ...(isDisabled
       ? []
       : [
+          {
+            id: "open-terminal",
+            label: t`Open terminal`,
+            icon: <SquareTerminal className="size-3.5" />,
+            isDisabled: isUnreachable,
+          },
           {
             type: "submenu" as const,
             id: "git",
@@ -174,6 +185,7 @@ export function useProjectMenu(
 
   const onAction = (key: string) => {
     if (key === "project-settings") openProjectSettings(project.id);
+    if (key === "open-terminal") showTerminalPanel(project.id);
     if (key === "stop-syncing" && project.remoteServerId && project.remoteId) {
       setRemoteProjectSynced(project.remoteServerId, project.remoteId, false);
     }
