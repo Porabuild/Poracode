@@ -106,7 +106,7 @@ export function CodexProviderSettings(props: { agentKind: string; wslDistros: st
         {windows.map((window) => (
           <span
             key={window.id}
-            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-secondary px-2 py-0.5 text-xs text-foreground"
+            className="inline-flex items-center gap-1 rounded-full bg-foreground/10 px-2.5 py-0.5 text-xs text-foreground"
           >
             {window.label}
             <Button
