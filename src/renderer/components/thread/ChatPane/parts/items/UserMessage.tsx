@@ -84,11 +84,11 @@ export const UserMessage = memo(function UserMessage({
   const content = payload?.content ?? [];
   const rawText = buildUserPromptText(content);
   const { slashCommand, body } = extractLeadingSlashCommand(rawText);
-  const displaySlashCommand = slashCommand?.startsWith("skill:")
-    ? slashCommand.slice("skill:".length)
-    : slashCommand;
+  const acpSkillName = parseAcpSkillCommand(slashCommand);
+  const displaySlashCommand = acpSkillName ?? slashCommand;
   const text = body;
   const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
+  const leadingSlashFromSkill = firstInlineContentBlock(content)?.kind === "skill";
   const hasInlineContent = content.some(
     (block) =>
       block.kind === "skill" ||
@@ -228,11 +228,20 @@ export const UserMessage = memo(function UserMessage({
 
   let bodyContent: ReactNode = null;
   let bodyClass = baseBodyClass;
-  if (slashCommand) {
+  // Slash-invocation skills (`/code-review`) flatten to the same leading
+  // token as a real slash command. Prefer the structured skill chip only
+  // when that leading token came from the skill block itself, so a later
+  // skill cannot swallow `/goal`.
+  if (slashCommand && !leadingSlashFromSkill) {
+    const skill = acpSkillName;
     bodyClass = inlineBodyClass;
     bodyContent = (
       <>
-        <UserMessageSlashChip icon="/" label={displaySlashCommand ?? slashCommand} />
+        <UserMessageSlashChip
+          icon={skill ? <Sparkles aria-hidden="true" /> : "/"}
+          label={displaySlashCommand ?? slashCommand}
+          {...(skill ? { skillName: skill } : {})}
+        />
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
@@ -312,11 +321,32 @@ export const UserMessage = memo(function UserMessage({
 });
 
 const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_.:-]*)(\s+|$)/;
+const ACP_SKILL_PREFIX_RE = /^skill:/iu;
 
 function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
   const match = text.match(LEADING_SLASH_COMMAND_RE);
   if (!match) return { slashCommand: null, body: text };
   return { slashCommand: match[1]!, body: text.slice(match[0].length) };
+}
+
+function parseAcpSkillCommand(slashCommand: string | null): string | undefined {
+  if (!slashCommand || !ACP_SKILL_PREFIX_RE.test(slashCommand)) return undefined;
+  const name = slashCommand.slice(slashCommand.indexOf(":") + 1);
+  return name.length > 0 ? name : undefined;
+}
+
+function firstInlineContentBlock(
+  content: CanonicalContentBlock[],
+): CanonicalContentBlock | undefined {
+  return content.find((block) => {
+    if (block.kind === "text") return block.text.length > 0;
+    return (
+      block.kind === "skill" ||
+      block.kind === "diff_comment" ||
+      block.kind === "mcp" ||
+      (block.kind === "file" && block.source !== "attachment")
+    );
+  });
 }
 
 function buildUserPromptText(content: CanonicalContentBlock[]): string {
@@ -448,10 +478,14 @@ function UserMessageSlashChip({
   mcpName?: string;
   pluginId?: string;
 }) {
+  const { t } = useLingui();
+  const skill = label;
+  const resolvedAriaLabel = skillName ? t`Skill: ${skill}` : undefined;
   return (
     <span
       className="poracode-slash-chip mr-1.5"
       title={title}
+      {...(resolvedAriaLabel ? { "aria-label": resolvedAriaLabel } : {})}
       {...(skillName ? { "data-skill-name": skillName } : {})}
       {...(mcpName ? { "data-mcp-name": mcpName } : {})}
       {...(pluginId ? { "data-plugin-id": pluginId } : {})}
