@@ -8050,6 +8050,7 @@ msgstr "Tailscaleを開く"
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Open terminal"
 msgstr "ターミナルを開く"
 
