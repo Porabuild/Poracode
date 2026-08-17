@@ -1,7 +1,6 @@
-import { statSync } from "node:fs";
-import { join } from "node:path";
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { isHomeScopeLocation } from "@/shared/homeScope";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
@@ -37,15 +36,6 @@ export { detectAntigravityInvalidSessionRef } from "./session";
 
 export function shouldUseAntigravityPrintPty(version: string | undefined): boolean {
   return !version || compareVersions(version, "1.1.1") < 0;
-}
-
-function isLinkedGitWorktree(location: ProjectLocation): boolean {
-  const root = location.kind === "wsl" ? location.uncPath : location.path;
-  try {
-    return statSync(join(root, ".git")).isFile();
-  } catch {
-    return false;
-  }
 }
 
 export function createAntigravityAdapter(): AgentAdapter {
@@ -150,9 +140,9 @@ export function createAntigravityAdapter(): AgentAdapter {
         supportsSeparateModelEffort,
         defaultModel,
       );
-      // agy's default project loses linked-worktree scope when its Git watcher
-      // rejects worktreeConfig; an explicit project keeps file tools in this cwd.
-      if (isLinkedGitWorktree(location)) args.unshift("--new-project");
+      // Keep file tools in the selected project. Home remains projectless so it
+      // can continue to serve as an OS-level session spanning user folders.
+      if (!isHomeScopeLocation(location)) args.unshift("--new-project");
       return { binary: "agy", args };
     },
 
@@ -301,7 +291,7 @@ export function createAntigravityAdapter(): AgentAdapter {
       return {
         command: "agy",
         args: [
-          ...(isLinkedGitWorktree(location) ? ["--new-project"] : []),
+          ...(!isHomeScopeLocation(location) ? ["--new-project"] : []),
           ...buildAntigravityModelArgs(model, effort, supportsSeparateModelEffort, defaultModel),
           "--dangerously-skip-permissions",
           "-p",
