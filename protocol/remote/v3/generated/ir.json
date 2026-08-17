@@ -14888,7 +14888,6 @@
                   "required": [
                     "kind",
                     "name",
-                    "path",
                     "invocation",
                     "provider",
                     "scope"
@@ -27190,7 +27189,6 @@
                         "required": [
                           "kind",
                           "name",
-                          "path",
                           "invocation",
                           "provider",
                           "scope"
@@ -28629,7 +28627,6 @@
                     "required": [
                       "kind",
                       "name",
-                      "path",
                       "invocation",
                       "provider",
                       "scope"
@@ -29283,7 +29280,6 @@
                     "required": [
                       "kind",
                       "name",
-                      "path",
                       "invocation",
                       "provider",
                       "scope"
@@ -29654,7 +29650,6 @@
                     "required": [
                       "kind",
                       "name",
-                      "path",
                       "invocation",
                       "provider",
                       "scope"
@@ -29899,7 +29894,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:319c87047967c1f985ee38f91e7c59b9e8bdd248b1515563512dd29d2b5215ef",
+  "sourceHash": "sha256:0b791cbd8af119c9e7f49975c3c625f5f1bb03f1938ca74923567ddffa24947f",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

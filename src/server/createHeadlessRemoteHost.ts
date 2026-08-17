@@ -1,5 +1,11 @@
 import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
-import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads } from "@/main/db";
+import {
+  dbGetProject,
+  dbGetProjects,
+  dbGetThread,
+  dbGetThreads,
+  dbMarkLiveThreadsInactive,
+} from "@/main/db";
 import { BackendHostCore } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
@@ -28,7 +34,7 @@ import {
   resolveRemoteAccessPort,
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
-import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { pickRemoteSettings, remoteProjectCommandResultSchema } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
@@ -167,9 +173,25 @@ export async function createHeadlessRemoteHost(
       threadNotifications?.handleSupervisorEvent(event);
     },
     onReset: () => {
-      // Supervisor restarted/exited: in-flight requests are already rejected by
-      // the client. Connected remote clients self-heal on their next request or
-      // WebSocket reconnect (the replay window covers transient drops).
+      // Match the desktop backend: a supervisor crash leaves durable rows
+      // `working`, and without a renderer launch sweep those statuses stay
+      // live. Clients then try to steer a session that no longer exists.
+      const interrupted = dbGetThreads().filter((thread) => isThreadTurnActive(thread.status));
+      dbMarkLiveThreadsInactive();
+      for (const thread of interrupted) {
+        const event = {
+          type: "thread-state" as const,
+          threadId: thread.id,
+          status: "inactive" as const,
+          attention: "none" as const,
+          canResumeWithConfig: thread.canResumeWithConfig,
+        };
+        options.onSupervisorEvent?.(event);
+        durableServices?.observeSupervisorEvent(event);
+        serverRef?.publishSupervisorEvent(event);
+        pushCoordinator?.handleSupervisorEvent(event);
+        threadNotifications?.handleSupervisorEvent(event);
+      }
     },
   });
   const supervisorClient = backendHost.supervisorClient;

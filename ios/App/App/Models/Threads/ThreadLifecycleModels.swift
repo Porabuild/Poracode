@@ -220,7 +220,7 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
   case diffComment(path: String, lineNumber: Int, side: Side, staged: Bool, body: String)
   case skill(
     name: String,
-    path: String,
+    path: String?,
     invocation: String,
     provider: String,
     scope: Scope,
@@ -281,7 +281,7 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
       let name, let path, let invocation, let provider, let scope, let pluginID, let pluginName):
       try values.encode("skill", forKey: .kind)
       try values.encode(name, forKey: .name)
-      try values.encode(path, forKey: .path)
+      try values.encodeIfPresent(path, forKey: .path)
       try values.encode(invocation, forKey: .invocation)
       try values.encode(provider, forKey: .provider)
       try values.encode(scope, forKey: .scope)

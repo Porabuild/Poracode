@@ -435,6 +435,38 @@ describe("RemoteDesktopClient", () => {
     expect(commandId).toBe("user-message-1");
   });
 
+  it("uses a distinct start command id so unknown-session resume is not a receipt conflict", async () => {
+    const commandIds: string[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        commandIds.push(init?.headers?.["x-poracode-command-id"] ?? "");
+        return new Response(JSON.stringify({ ok: true, threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.sendThreadInput({
+      threadId: "thread-1",
+      prompt: "continue",
+      config: { model: "gpt-5" },
+      userMessageItemId: "user-message-1",
+    });
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "continue",
+      userMessageItemId: "user-message-1",
+    });
+
+    expect(commandIds).toEqual(["user-message-1", "thread-start-item:user-message-1"]);
+  });
+
   it("forwards a preallocated thread and optimistic message id when starting remotely", async () => {
     let requestUrl = "";
     let requestBody: unknown;

@@ -313,11 +313,11 @@ public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKi
   case skill = "skill"
 }
 
-public struct ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_aa2e4e9d65: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0: Codable, Sendable, RemoteModelMetadata {
   public var invocation: String
   public var kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKind_2a65cef1bc
   public var name: String
-  public var path: String
+  public var path: RemoteField<String> = .missing
   public var pluginId: RemoteField<String> = .missing
   public var pluginName: RemoteField<String> = .missing
   public var provider: String
@@ -327,7 +327,7 @@ public struct ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_aa
     .init(wireName: "invocation", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "kind", typeName: "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKind_2a65cef1bc", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "name", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "path", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "path", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "pluginId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "pluginName", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "provider", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -368,16 +368,16 @@ public struct ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_50
   }
 }
 
-public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81: Codable, Sendable {
+public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00: Codable, Sendable {
   case option1(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782)
   case option2(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc)
   case option3(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac)
   case option4(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da)
-  case option5(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_aa2e4e9d65)
+  case option5(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0)
   case option6(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81)] = []
+    var matches: [(Int, ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("text")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782.self) {
       matches.append((1, .option1(value)))
     }
@@ -390,15 +390,15 @@ public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81: Codab
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("diff_comment")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da.self) {
       matches.append((4, .option4(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("skill")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_aa2e4e9d65.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("skill")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0.self) {
       matches.append((5, .option5(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("mcp")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb.self) {
       matches.append((6, .option6(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81" : "Ambiguous union ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00" : "Ambiguous union ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -415,14 +415,14 @@ public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81: Codab
   }
 }
 
-public struct ProcedurestageThreadInputRequest_77f4b98720: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurestageThreadInputRequest_03ea8730a2: Codable, Sendable, RemoteModelMetadata {
   public var prompt: String
-  public var segments: RemoteField<[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81]> = .missing
+  public var segments: RemoteField<[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00]> = .missing
   public var threadId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "prompt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "segments", typeName: "[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "segments", typeName: "[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []

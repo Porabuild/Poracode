@@ -182,10 +182,13 @@ export async function submitThreadInput(
     resumeLaunch: async (resume) => {
       // Re-resolve the thread: the pre-send snapshot can miss a sessionRef
       // discovered since, and the resume payload must carry the latest one.
+      // Abort if the thread or project disappeared (or changed ownership)
+      // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
+      if (!latest || Boolean(remoteOwner(latest.thread)) !== Boolean(owner)) return;
       await performInitialThreadLaunch({
-        thread: latest?.thread ?? thread,
-        projectLocation: latest?.projectLocation ?? projectLocation,
+        thread: latest.thread,
+        projectLocation: latest.projectLocation,
         prompt: resume.prompt,
         ...(resume.segments ? { segments: resume.segments } : {}),
         ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),

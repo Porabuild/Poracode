@@ -631,7 +631,14 @@ export class RemoteDesktopClient {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
       headers: {
-        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId ?? crypto.randomUUID(),
+        // Never reuse a send-path userMessageItemId: receipts reject the same
+        // command id across routes, and a failed /send must still be able to
+        // fall back to /start for unknown-session resume.
+        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId
+          ? `thread-start-item:${input.userMessageItemId}`
+          : input.threadId
+            ? `thread-start:${input.threadId}`
+            : crypto.randomUUID(),
       },
       body: {
         ...(input.threadId ? { threadId: input.threadId } : {}),

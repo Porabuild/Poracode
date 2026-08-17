@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 3
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:319c87047967c1f985ee38f91e7c59b9e8bdd248b1515563512dd29d2b5215ef"
+    const val sourceHash = "sha256:0b791cbd8af119c9e7f49975c3c625f5f1bb03f1938ca74923567ddffa24947f"
     const val manifestHash = "sha256:d3ccda151ea70b78c25f8b952eb85d6e90b32ed8137d64f1ef0e82c3565d6f6c"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -63,16 +63,16 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("terminal-start", "POST", "/api/terminal/start", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DStartRequest_142a10f7fa", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-write", "POST", "/api/threads/{threadId}/terminal/write", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DWriteRequest_6c6fca7050", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-close", "POST", "/api/threads/{threadId}/close", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-command", "POST", "/api/threads/{threadId}/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DCommandRequest_3376a05db1", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
+        RemoteRouteDescriptor("thread-command", "POST", "/api/threads/{threadId}/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DCommandRequest_f1212b1a87", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-goal", "POST", "/api/threads/{threadId}/goal", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DGoalRequest_54c8350637", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-history", "GET", "/api/threads/{threadId}/history", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DHistoryResponse_ad47ba9b42", listOf(RemoteQueryParameterDescriptor("runtimePage", "string", true, false), RemoteQueryParameterDescriptor("targetTimelineEntryCount", "int", true, false))),
         RemoteRouteDescriptor("thread-history-items", "GET", "/api/threads/{threadId}/history/items", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DHistoryU2DItemsResponse_57033b19c3", listOf(RemoteQueryParameterDescriptor("beforePosition", "int", true, false), RemoteQueryParameterDescriptor("limit", "int", false, false), RemoteQueryParameterDescriptor("targetTimelineEntryCount", "int", true, false))),
         RemoteRouteDescriptor("thread-interrupt", "POST", "/api/threads/{threadId}/interrupt", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-runtime-truncate", "POST", "/api/threads/{threadId}/runtime/truncate", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DRuntimeU2DTruncateRequest_228757711c", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-send", "POST", "/api/threads/{threadId}/send", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSendRequest_986c4c7218", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-start-existing", "POST", "/api/threads/start", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DStartU2DExistingRequest_3e2157eda4", "RouterequestU2DResolvePath_09b78d9c1d", listOf()),
+        RemoteRouteDescriptor("thread-send", "POST", "/api/threads/{threadId}/send", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSendRequest_db6663ca69", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
+        RemoteRouteDescriptor("thread-start-existing", "POST", "/api/threads/start", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DStartU2DExistingRequest_0f80dbfbe7", "RouterequestU2DResolvePath_09b78d9c1d", listOf()),
         RemoteRouteDescriptor("thread-steer-clear", "POST", "/api/threads/{threadId}/steer/clear", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-steer-set", "POST", "/api/threads/{threadId}/steer/set", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSteerU2DSetRequest_923edf9fd3", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
+        RemoteRouteDescriptor("thread-steer-set", "POST", "/api/threads/{threadId}/steer/set", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSteerU2DSetRequest_f4e369f502", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("token-exchange", "POST", "/oauth/token", "pairing-token", listOf(), "json", "json", 200, "RoutetokenU2DExchangeRequest_8dfe4ead4e", "RoutetokenU2DExchangeResponse_d15a69227c", listOf()),
         RemoteRouteDescriptor("websocket-ticket", "POST", "/api/auth/websocket-ticket", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutewebsocketU2DTicketResponse_b9dfb5a053", listOf()),
     )
@@ -169,7 +169,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("searchProjectFiles", "session:read", "projectLocation", "json", "ProceduresearchProjectFilesRequest_c4ad1400e2", "ProceduresearchProjectFilesResult_2465ffaaf2"),
         RemoteProcedureDescriptor("searchProjectTree", "session:read", "projectLocation", "json", "ProceduresearchProjectFilesRequest_c4ad1400e2", "ProceduresearchProjectTreeResult_ed3d977334"),
         RemoteProcedureDescriptor("setSkillEnabled", "session:operate", "optionalProjectLocation", "omitted", "ProceduresetSkillEnabledRequest_38462ff398", "RemoteUnit"),
-        RemoteProcedureDescriptor("stageThreadInput", "session:operate", "thread", "omitted", "ProcedurestageThreadInputRequest_77f4b98720", "RemoteUnit"),
+        RemoteProcedureDescriptor("stageThreadInput", "session:operate", "thread", "omitted", "ProcedurestageThreadInputRequest_03ea8730a2", "RemoteUnit"),
         RemoteProcedureDescriptor("subagentSubscribe", "session:read", "thread", "json", "ProceduresubagentSubscribeRequest_ff495aee3e", "ProceduresubagentSubscribeResult_0f71d438c1"),
         RemoteProcedureDescriptor("subagentUnsubscribe", "session:read", "thread", "omitted", "ProceduresubagentSubscribeRequest_ff495aee3e", "RemoteUnit"),
         RemoteProcedureDescriptor("waitMcpServerOauth", "session:operate", "optionalProjectLocation", "json", "ProcedurewaitMcpServerOauthRequest_e9df8b4f3d", "ProcedurewaitMcpServerOauthResult_51cc694dc5"),

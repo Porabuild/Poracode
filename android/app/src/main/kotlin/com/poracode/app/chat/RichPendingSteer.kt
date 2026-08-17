@@ -21,7 +21,7 @@ sealed interface RichPromptSegment {
 
     data class Skill(
         val name: String,
-        val path: String,
+        val path: String? = null,
         val invocation: String,
         val provider: String,
         val scope: String,
@@ -129,17 +129,19 @@ object RichPendingSteerDecoder {
 
     private fun decodeSkill(value: JsonObject): RichPromptSegment? {
         val name = value.requiredString("name", allowEmpty = false) ?: return null
-        val path = value.requiredString("path", allowEmpty = false) ?: return null
+        val path = value.optionalString("path", allowEmpty = false)
         val invocation = value.requiredString("invocation", allowEmpty = false) ?: return null
         val provider = value.requiredString("provider", allowEmpty = false) ?: return null
         val scope = value.requiredString("scope")?.takeIf { it == "global" || it == "project" }
             ?: return null
         val pluginId = value.optionalString("pluginId", allowEmpty = false)
         val pluginName = value.optionalString("pluginName", allowEmpty = false)
-        if (pluginId is RichField.Invalid || pluginName is RichField.Invalid) return null
+        if (path is RichField.Invalid || pluginId is RichField.Invalid || pluginName is RichField.Invalid) {
+            return null
+        }
         return RichPromptSegment.Skill(
             name,
-            path,
+            path.valueOrNull(),
             invocation,
             provider,
             scope,

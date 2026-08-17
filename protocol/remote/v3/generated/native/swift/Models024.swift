@@ -1,6 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public struct RoutethreadU2DCommandRequestU2DOptionU2D2_6efd374b59: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DCommandRequestU2DOptionU2D2_1abd482e22: Codable, Sendable, RemoteModelMetadata {
   public var agentInstanceId: RemoteField<String> = .missing
   public var agentKind: String
   public var config: ProcedurerollbackThreadConversationRequestU2DConfig_03b0262a8a
@@ -15,7 +15,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D2_6efd374b59: Codable, Sen
   public var presentationMode: RemoteField<ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6> = .missing
   public var projectId: String
   public var prompt: String
-  public var segments: RemoteField<[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81]> = .missing
+  public var segments: RemoteField<[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00]> = .missing
   public var title: RemoteField<String> = .missing
   public var userMessageItemId: RemoteField<String> = .missing
   public var worktreeBranch: RemoteField<String> = .missing
@@ -36,7 +36,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D2_6efd374b59: Codable, Sen
     .init(wireName: "presentationMode", typeName: "ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prompt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "segments", typeName: "[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_e957595c81]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "segments", typeName: "[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "title", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "userMessageItemId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "worktreeBranch", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -211,9 +211,9 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D9_09765c7778: Codable, Sen
   }
 }
 
-public enum RoutethreadU2DCommandRequest_3376a05db1: Codable, Sendable {
+public enum RoutethreadU2DCommandRequest_f1212b1a87: Codable, Sendable {
   case option1(RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043)
-  case option2(RoutethreadU2DCommandRequestU2DOptionU2D2_6efd374b59)
+  case option2(RoutethreadU2DCommandRequestU2DOptionU2D2_1abd482e22)
   case option3(RoutethreadU2DCommandRequestU2DOptionU2D3_a656e9f996)
   case option4(RoutethreadU2DCommandRequestU2DOptionU2D4_2e4d2aaed0)
   case option5(RoutethreadU2DCommandRequestU2DOptionU2D5_c3363423bb)
@@ -226,11 +226,11 @@ public enum RoutethreadU2DCommandRequest_3376a05db1: Codable, Sendable {
   case option12(RoutethreadU2DCommandRequestU2DOptionU2D12_370ff0ec0a)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RoutethreadU2DCommandRequest_3376a05db1)] = []
+    var matches: [(Int, RoutethreadU2DCommandRequest_f1212b1a87)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("prepare-worktree")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043.self) {
       matches.append((1, .option1(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("start")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D2_6efd374b59.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("start")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D2_1abd482e22.self) {
       matches.append((2, .option2(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-group")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D3_a656e9f996.self) {
@@ -264,8 +264,8 @@ public enum RoutethreadU2DCommandRequest_3376a05db1: Codable, Sendable {
       matches.append((12, .option12(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DCommandRequest_3376a05db1" : "Ambiguous union RoutethreadU2DCommandRequest_3376a05db1 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RoutethreadU2DCommandRequest_3376a05db1.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DCommandRequest_f1212b1a87" : "Ambiguous union RoutethreadU2DCommandRequest_f1212b1a87 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RoutethreadU2DCommandRequest_f1212b1a87.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }

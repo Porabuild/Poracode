@@ -118,11 +118,11 @@ extension RichPromptSegment {
       var value: [String: RichJSON] = [
         "kind": .string("skill"),
         "name": .string(name),
-        "path": .string(path),
         "invocation": .string(invocation),
         "provider": .string(provider),
         "scope": .string(scope),
       ]
+      if let path { value["path"] = .string(path) }
       if let pluginID { value["pluginId"] = .string(pluginID) }
       if let pluginName { value["pluginName"] = .string(pluginName) }
       return .object(value)

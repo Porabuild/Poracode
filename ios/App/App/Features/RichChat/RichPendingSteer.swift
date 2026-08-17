@@ -7,7 +7,7 @@ enum RichPromptSegment: Sendable, Equatable {
   case diffComment(path: String, lineNumber: Int64, side: RichDiffSide, staged: Bool, body: String)
   case skill(
     name: String,
-    path: String,
+    path: String?,
     invocation: String,
     provider: String,
     scope: String,
@@ -104,18 +104,18 @@ enum RichPendingSteerDecoder {
       return .diffComment(path: path, lineNumber: line, side: side, staged: staged, body: body)
     case "skill":
       guard let name = RichDecoding.requiredString(object, "name", allowEmpty: false),
-        let path = RichDecoding.requiredString(object, "path", allowEmpty: false),
         let invocation = RichDecoding.requiredString(object, "invocation", allowEmpty: false),
         let provider = RichDecoding.requiredString(object, "provider", allowEmpty: false),
         let scope = RichDecoding.requiredString(object, "scope"),
         scope == "global" || scope == "project"
       else { break }
+      let path = RichDecoding.optionalString(object, "path", allowEmpty: false)
       let pluginID = RichDecoding.optionalString(object, "pluginId", allowEmpty: false)
       let pluginName = RichDecoding.optionalString(object, "pluginName", allowEmpty: false)
-      guard pluginID != .invalid, pluginName != .invalid else { break }
+      guard path != .invalid, pluginID != .invalid, pluginName != .invalid else { break }
       return .skill(
         name: name,
-        path: path,
+        path: path.value,
         invocation: invocation,
         provider: provider,
         scope: scope,
