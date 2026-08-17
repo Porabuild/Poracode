@@ -5,6 +5,7 @@ import {
   dbAppendThreadCompletedTurn,
   dbGetThread,
   dbGetLatestThreadRuntimeAnchorItemId,
+  dbGetThreadCompletedTurns,
   dbGetThreads,
   dbUpsertThread,
   type PersistedCompletedTurn,
@@ -104,10 +105,21 @@ function appendCompletedTurnIfClosed(
     return;
   }
 
+  const startedAtIso = new Date(startedAt).toISOString();
+  const endedAtIso = new Date(endedAt).toISOString();
+  const existing = dbGetThreadCompletedTurns(threadId);
+  if (existing.some((turn) => turn.startedAt === startedAtIso && turn.endedAt === endedAtIso)) {
+    return;
+  }
+  const anchorItemId = dbGetLatestThreadRuntimeAnchorItemId(threadId);
+  if (anchorItemId !== null && existing.some((turn) => turn.anchorItemId === anchorItemId)) {
+    return;
+  }
+
   const record: PersistedCompletedTurn = {
-    startedAt: new Date(startedAt).toISOString(),
-    endedAt: new Date(endedAt).toISOString(),
-    anchorItemId: dbGetLatestThreadRuntimeAnchorItemId(threadId),
+    startedAt: startedAtIso,
+    endedAt: endedAtIso,
+    anchorItemId,
   };
   dbAppendThreadCompletedTurn(threadId, record);
 }

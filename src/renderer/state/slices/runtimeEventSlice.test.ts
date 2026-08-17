@@ -654,6 +654,21 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     ]);
   });
 
+  it("collapses the same completed-turn window stored under two anchors", () => {
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [
+        { startedAt: 20, endedAt: 42, anchorItemId: "assistant-1" },
+      ]);
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [{ startedAt: 20, endedAt: 42, anchorItemId: "goal-1" }]);
+
+    expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
+      { startedAt: 20, endedAt: 42, anchorItemId: "assistant-1" },
+    ]);
+  });
+
   it("flags live-streamed items as observedLive for session-scoped liveness", () => {
     apply("t1", {
       type: "item.started",

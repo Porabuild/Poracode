@@ -1,3 +1,4 @@
+import { mergeCompletedTurns } from "@/renderer/state/slices/runtimeEventReducer";
 import {
   getRuntimeItemPayload,
   type CompletedTurnRecord,
@@ -511,8 +512,9 @@ function buildResolvedCompletedTurns(
   const itemIds = state.runtimeItemIdsByThread[threadId] ?? EMPTY_THREAD_ITEM_IDS;
   const items = state.runtimeItemsByIdByThread[threadId];
   const visible = new Set(visibleItemIds);
+  const recordsToResolve = mergeCompletedTurns([], sourceRecords);
   const rawAnchors = new Set<string>();
-  for (const record of sourceRecords) {
+  for (const record of recordsToResolve) {
     if (record.anchorItemId) rawAnchors.add(record.anchorItemId);
   }
 
@@ -532,7 +534,7 @@ function buildResolvedCompletedTurns(
   // earlier duration and misattribute the later one. It falls back to `null`
   // and still reaches the tail footer when it is the most recent turn.
   const claimedAnchors = new Set<string>();
-  const records = sourceRecords.map((record) => {
+  const records = recordsToResolve.map((record) => {
     // A sub-second turn renders nothing, so it neither needs nor claims a row.
     if (!record.anchorItemId || !isDisplayableCompletedTurn(record)) return record;
     // Anchors older than the hydrated window are left untouched — their row is

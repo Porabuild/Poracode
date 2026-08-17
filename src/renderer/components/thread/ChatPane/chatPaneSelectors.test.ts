@@ -1188,10 +1188,25 @@ describe("chatPaneSelectors", () => {
       expect(selectCompletedTurnsByAnchorItem(state, "t1").get("assistant-1")).toMatchObject({
         endedAt: 76_000,
       });
-      // The goal-only turn has no row of its own; the tail footer shows it.
+      // The goal-only turn has no row of its own; the tail footer shows it
+      // only when that last row is not already hosting an earlier duration.
       expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
         anchorItemId: null,
         endedAt: 100_000,
+      });
+    });
+
+    it("collapses the same timing window stored under two anchors into one record", () => {
+      const state = stateWithGoalTail([
+        { startedAt: 1_000, endedAt: 23_000, anchorItemId: "assistant-1" },
+        { startedAt: 1_000, endedAt: 23_000, anchorItemId: "goal-1" },
+      ]);
+
+      expect([...selectCompletedTurnsByAnchorItem(state, "t1").keys()]).toEqual(["assistant-1"]);
+      expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
+        startedAt: 1_000,
+        endedAt: 23_000,
+        anchorItemId: "assistant-1",
       });
     });
 

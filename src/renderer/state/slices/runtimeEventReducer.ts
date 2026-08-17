@@ -526,22 +526,46 @@ export function mergeCompletedTurns(
 ): ReadonlyArray<CompletedTurnRecord> {
   if (incoming.length === 0) return existing;
   const byWindow = new Map<string, CompletedTurnRecord>();
-  for (const turn of existing) {
-    byWindow.set(completedTurnKey(turn), turn);
-  }
   let changed = false;
-  for (const turn of incoming) {
-    const key = completedTurnKey(turn);
-    if (byWindow.has(key)) continue;
-    byWindow.set(key, turn);
+  for (const turn of existing) {
+    const key = completedTurnWindowKey(turn);
+    const current = byWindow.get(key);
+    if (!current) {
+      byWindow.set(key, turn);
+      continue;
+    }
     changed = true;
+    const preferred = preferCompletedTurn(current, turn);
+    if (preferred !== current) byWindow.set(key, preferred);
+  }
+  for (const turn of incoming) {
+    const key = completedTurnWindowKey(turn);
+    const current = byWindow.get(key);
+    if (!current) {
+      byWindow.set(key, turn);
+      changed = true;
+      continue;
+    }
+    const preferred = preferCompletedTurn(current, turn);
+    if (preferred !== current) {
+      byWindow.set(key, preferred);
+      changed = true;
+    }
   }
   if (!changed) return existing;
   return [...byWindow.values()].sort((a, b) => a.startedAt - b.startedAt || a.endedAt - b.endedAt);
 }
 
-function completedTurnKey(turn: CompletedTurnRecord): string {
-  return `${turn.startedAt}:${turn.endedAt}:${turn.anchorItemId ?? ""}`;
+function completedTurnWindowKey(turn: CompletedTurnRecord): string {
+  return `${turn.startedAt}:${turn.endedAt}`;
+}
+
+function preferCompletedTurn(
+  current: CompletedTurnRecord,
+  incoming: CompletedTurnRecord,
+): CompletedTurnRecord {
+  if (!current.anchorItemId && incoming.anchorItemId) return incoming;
+  return current;
 }
 
 /** Shallow-merge two payloads so item.updated layers on top of started. */

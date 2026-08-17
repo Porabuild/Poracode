@@ -1790,6 +1790,70 @@ describe("ChatPane", () => {
     expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
   });
 
+  it("renders one worked-for line when the same turn is stored under two anchors", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:00:22.000Z",
+    };
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    const startedAt = new Date("2026-05-01T12:00:00.000Z").getTime();
+    const endedAt = new Date("2026-05-01T12:00:22.000Z").getTime();
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      { startedAt, endedAt, anchorItemId: ASSISTANT_ITEM_ID },
+      { startedAt, endedAt, anchorItemId: "goal-1" },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 22s")).toHaveLength(1);
+  });
+
+  it("does not stack a later no-row turn on the previous turn's worked-for line", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:10:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:10:22.000Z",
+    };
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:22.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+      {
+        startedAt: new Date("2026-05-01T12:10:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:10:22.000Z").getTime(),
+        anchorItemId: "goal-1",
+      },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 22s")).toHaveLength(1);
+  });
+
   it("keeps a completed turn anchored before an optimistic follow-up prompt", async () => {
     const thread = {
       ...makeThread(),

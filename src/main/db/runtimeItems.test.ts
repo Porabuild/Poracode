@@ -298,6 +298,26 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
+  it("does not use a goal item as a completed-turn anchor", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Visible answer" },
+      },
+      {
+        id: "goal-1",
+        type: "goal",
+        state: "completed",
+        payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+        streams: {},
+      },
+    ]);
+
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
+  });
+
   it("retires a still-open request item when the turn completes", () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {

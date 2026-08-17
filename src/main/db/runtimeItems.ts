@@ -709,6 +709,15 @@ export function dbAppendThreadCompletedTurn(threadId: string, turn: PersistedCom
   sqlite
     .transaction(() => {
       if (!threadExistsInSqlite(sqlite, threadId)) return;
+      const duplicate = sqlite
+        .prepare(
+          `SELECT 1 AS ok
+           FROM thread_completed_turns
+           WHERE thread_id = ? AND started_at = ? AND ended_at = ?
+           LIMIT 1`,
+        )
+        .get(threadId, turn.startedAt, turn.endedAt) as { ok: number } | undefined;
+      if (duplicate) return;
       const row = sqlite
         .prepare(
           "SELECT COALESCE(MAX(idx), -1) + 1 AS idx FROM thread_completed_turns WHERE thread_id = ?",
@@ -731,8 +740,9 @@ export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string |
       `SELECT item_id
        FROM thread_runtime_items
        WHERE thread_id = ?
-         AND type NOT IN ('user_message', 'plan', 'error')
+         AND type NOT IN ('user_message', 'plan', 'goal', 'error')
          AND type != ?
+         AND parent_item_id IS NULL
        ORDER BY position DESC
        LIMIT 1`,
     )

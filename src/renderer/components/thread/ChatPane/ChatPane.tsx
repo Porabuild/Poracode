@@ -40,6 +40,7 @@ import {
   type TurnTiming,
 } from "./ChatTurnElapsed";
 import {
+  selectCompletedTurnsByAnchorItem,
   selectMostRecentDisplayableCompletedTurn,
   selectVisibleThreadTimelineEntries,
   type ChatTimelineEntry,
@@ -326,15 +327,23 @@ export function ChatPane(props: ChatPaneProps) {
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
     selectMostRecentDisplayableCompletedTurn(s, threadId),
   );
+  const completedTurnsByAnchor = useAppStore((s) => selectCompletedTurnsByAnchorItem(s, threadId));
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
     mostRecentCompletedTurnAnchor,
     timelineEntries,
   );
+  // A later turn that could not claim a row (goal-only close, status blip)
+  // keeps `anchorItemId: null` and would otherwise share the tail with the
+  // previous turn's inline duration — two stacked "Worked for" lines.
+  const lastRowAlreadyShowsATurn =
+    mostRecentCompletedTurnAnchor === null &&
+    lastTimelineEntryHasCompletedTurn(timelineEntries, completedTurnsByAnchor);
   const completedTurnCanRenderInTail =
     !showWorkingTimer &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
-    completedTurnAnchorAtTail;
+    completedTurnAnchorAtTail &&
+    !lastRowAlreadyShowsATurn;
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn
@@ -573,6 +582,17 @@ function isCompletedTurnAnchorAtTimelineTail(
   return lastEntry.kind === "item"
     ? lastEntry.id === anchorItemId
     : lastEntry.itemIds.includes(anchorItemId);
+}
+
+function lastTimelineEntryHasCompletedTurn(
+  entries: readonly ChatTimelineEntry[],
+  byAnchor: ReadonlyMap<string, unknown>,
+): boolean {
+  const lastEntry = entries[entries.length - 1];
+  if (!lastEntry) return false;
+  return lastEntry.kind === "item"
+    ? byAnchor.has(lastEntry.id)
+    : lastEntry.itemIds.some((itemId) => byAnchor.has(itemId));
 }
 
 type CheckpointGuard = {
