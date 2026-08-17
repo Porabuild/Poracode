@@ -28,6 +28,7 @@ import {
   numstatFromBatchResult,
   parseDiffNumstat,
   parseRemoteInfo,
+  isInheritedStartPointUpstream,
   parseStatusPorcelainV2,
   sumChangeTotals,
   type ParsedPorcelainStatus,
@@ -128,6 +129,7 @@ export class GitStatusService {
     ]);
 
     const parsed = parseStatusPorcelainV2(statusOutput);
+    await this.clearInheritedStartPointUpstream(location, parsed);
     const { hasRemote, remoteInfo } = parseRemoteInfo(remoteOutput);
     applyNumstatCounts(parsed, stagedNumstat, unstagedNumstat);
 
@@ -163,9 +165,13 @@ export class GitStatusService {
       );
       const result = results[0];
       const untracked = results[1];
-      return result?.ok
-        ? buildGitStatusSummaryFromOutput(result.stdout, untracked?.ok ? untracked.stdout : "")
-        : nonRepoSummaryStatus();
+      if (!result?.ok) return nonRepoSummaryStatus();
+      const summary = buildGitStatusSummaryFromOutput(
+        result.stdout,
+        untracked?.ok ? untracked.stdout : "",
+      );
+      await this.clearInheritedStartPointUpstream(location, summary);
+      return summary;
     }
 
     try {
@@ -178,7 +184,9 @@ export class GitStatusService {
           },
         ),
       ]);
-      return buildGitStatusSummaryFromOutput(statusOutput, untrackedOutput);
+      const summary = buildGitStatusSummaryFromOutput(statusOutput, untrackedOutput);
+      await this.clearInheritedStartPointUpstream(location, summary);
+      return summary;
     } catch (error) {
       console.warn("[git] status summary failed, treating as non-repo:", error);
       return nonRepoSummaryStatus();
@@ -208,6 +216,44 @@ export class GitStatusService {
   ): Promise<GitStatusResult> {
     if (!base.isRepo) return base;
     return this.applyParsedMergeState(location, parseStatusPorcelainV2(statusOutput), base);
+  }
+
+  private async clearInheritedStartPointUpstream(
+    location: ProjectLocation,
+    status: { branch: string; tracking: string; ahead: number; behind: number },
+  ): Promise<void> {
+    if (!status.branch || !status.tracking) return;
+    const slash = status.tracking.indexOf("/");
+    if (slash <= 0 || status.tracking.slice(slash + 1) === status.branch) return;
+    let poracodeSource: string | null = null;
+    try {
+      const result = await execGit(location, [
+        "config",
+        "--get",
+        `branch.${status.branch}.poracodeSource`,
+      ]);
+      poracodeSource = result.trim() || null;
+    } catch {
+      return;
+    }
+    if (
+      !isInheritedStartPointUpstream({
+        branch: status.branch,
+        tracking: status.tracking,
+        poracodeSource,
+      })
+    ) {
+      return;
+    }
+    try {
+      await execGit(location, ["branch", "--unset-upstream", status.branch]);
+    } catch (error) {
+      console.warn("[git] failed to unset inherited worktree upstream:", error);
+      return;
+    }
+    status.tracking = "";
+    status.ahead = 0;
+    status.behind = 0;
   }
 
   private async applyParsedMergeState(
@@ -398,10 +444,14 @@ export class GitStatusService {
       conflictFiles: [],
       mergeInProgress: false,
     };
+    await this.clearInheritedStartPointUpstream(location, parsed);
     await this.replaceUntrackedEntries(location, parsed);
     const { totalInsertions, totalDeletions } = sumChangeTotals(parsed);
     return {
       ...base,
+      tracking: parsed.tracking,
+      ahead: parsed.ahead,
+      behind: parsed.behind,
       staged: parsed.staged,
       unstaged: parsed.unstaged,
       totalInsertions,

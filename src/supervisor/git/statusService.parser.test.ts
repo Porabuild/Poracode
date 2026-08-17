@@ -13,6 +13,7 @@ import {
   buildGitStatusResultFromOutputs,
   buildGitStatusSummaryFromOutput,
   expandUntrackedEntries,
+  isInheritedStartPointUpstream,
   parseDiffNumstat,
   parseStatusPorcelainV2,
   unquoteGitPath,
@@ -22,6 +23,38 @@ import {
 // `файл.txt` → ф=\321\204 а=\320\260 й=\320\271 л=\320\273 then `.txt`.
 const QUOTED_CYRILLIC = '"\\321\\204\\320\\260\\320\\271\\320\\273.txt"';
 const DECODED_CYRILLIC = "файл.txt";
+
+describe("isInheritedStartPointUpstream", () => {
+  it("detects a worktree branch that inherited origin/master as upstream", () => {
+    expect(
+      isInheritedStartPointUpstream({
+        branch: "poracode/clever-falcon-2541f8a0",
+        tracking: "origin/master",
+        poracodeSource: "origin/master",
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps a same-named remote tracking branch", () => {
+    expect(
+      isInheritedStartPointUpstream({
+        branch: "feature/x",
+        tracking: "origin/feature/x",
+        poracodeSource: "origin/master",
+      }),
+    ).toBe(false);
+  });
+
+  it("ignores tracking that is not the recorded fork base", () => {
+    expect(
+      isInheritedStartPointUpstream({
+        branch: "poracode/clever-falcon-2541f8a0",
+        tracking: "origin/master",
+        poracodeSource: "origin/develop",
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("parseStatusPorcelainV2", () => {
   it("captures branch, upstream, ahead/behind from the header lines", () => {
