@@ -4,6 +4,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
 import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { CodexProviderSettings } from "./CodexProviderSettings";
 import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
@@ -129,6 +130,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command powershell -ErrorAction SilentlyContinue) { powershell -ExecutionPolicy ByPass -c \"irm https://chatgpt.com/codex/install.ps1 | iex\" } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @openai/codex } else { Write-Host 'No supported installer found. Install Windows PowerShell or Node.js/npm first, then refresh detected agents.' }",
       }),
+    settingsPanel: CodexProviderSettings,
   },
   {
     id: "claude",

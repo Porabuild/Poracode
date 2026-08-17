@@ -45,9 +45,34 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
+  it("invalidates v7 statuses cached before Codex context-window capabilities", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(8);
+    const staleCodex = makeStatus({
+      kind: "codex",
+      label: "Codex",
+      capabilities: { ...makeStatus().capabilities },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleCodex],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      7,
+    );
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(7);
+    expect(options.version).toBe(8);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -96,6 +121,38 @@ describe("setAgentStatuses", () => {
     useAgentStatusesStore.getState().setAgentStatuses([fresh]);
     expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.slashCommands).toEqual(
       fresh.capabilities.slashCommands,
+    );
+  });
+
+  it("replaces the array when only Codex context-window capabilities change", () => {
+    const cached = makeStatus({
+      kind: "codex",
+      capabilities: {
+        ...makeStatus().capabilities,
+        contextSizes: [
+          { id: "272k", label: "272k" },
+          { id: "400k", label: "400k" },
+          { id: "1m", label: "1M" },
+        ],
+        defaultContextSize: "400k",
+      },
+    });
+    const fresh = makeStatus({
+      kind: "codex",
+      capabilities: {
+        ...cached.capabilities,
+        contextSizes: [
+          { id: "400k", label: "400k" },
+          { id: "512k", label: "512k" },
+        ],
+        defaultContextSize: "400k",
+        modelContextSizes: { "gpt-5.6-sol": ["400k", "512k"] },
+      },
+    });
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.contextSizes).toEqual(
+      fresh.capabilities.contextSizes,
     );
   });
 

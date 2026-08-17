@@ -218,6 +218,11 @@ msgstr "{0} hooks removidos para {envName}."
 #~ msgid "{0} install targets"
 #~ msgstr "{0} destinos de instalação"
 
+#. placeholder {0}: parsed.label
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "{0} is already in the list."
+msgstr "{0} já está na lista."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} is already up to date."
@@ -848,6 +853,7 @@ msgstr "Métrica de atividade"
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
@@ -924,6 +930,10 @@ msgstr "Adicionar candidato"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add Claude profile"
 msgstr "Adicionar perfil do Claude"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Add context window"
+msgstr "Adicionar janela de contexto"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
@@ -3045,6 +3055,10 @@ msgstr "Contexto transferido para {targetLabel}"
 msgid "Context usage"
 msgstr "Uso de contexto"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Context windows"
+msgstr "Janelas de contexto"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Continue"
 msgstr "Continuar"
@@ -3601,6 +3615,10 @@ msgstr "Personalizado"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Comandos personalizados disponíveis no menu de contexto do projeto (clique com o botão direito)."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Custom context window"
+msgstr "Janela de contexto personalizada"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
@@ -4183,6 +4201,10 @@ msgstr "Descarta envelopes de gancho recebidos no supervisor para que os agentes
 msgid "Duplicate server name in scan"
 msgstr "Nome de servidor duplicado na verificação"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "e.g. 512k or 1m"
+msgstr "ex.: 512k ou 1m"
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "ex.: Codex GPT-5.5 fast para consultas rápidas, OpenCode GLM para refatorações em massa, Claude Opus para qualquer coisa sutil."
@@ -4381,6 +4403,10 @@ msgstr "Insira um URL do repositório."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "Insira uma URL de repositório segura usando HTTPS, HTTP, SSH, Git, FTP, FTPS ou a sintaxe scp."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Enter a size like 512k or 1m."
+msgstr "Digite um tamanho como 512k ou 1m."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -9257,8 +9283,10 @@ msgstr "Remover"
 
 #. placeholder {0}: att.name
 #. placeholder {0}: removeConfirm.target.name
+#. placeholder {0}: window.label
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Remove {0}"
 msgstr "Remover {0}"
 
@@ -9490,6 +9518,14 @@ msgstr "Avaliações, conversas ou verificações de status necessárias não at
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "redefinir"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Reset"
+msgstr "Redefinir"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Reset context windows"
+msgstr "Redefinir janelas de contexto"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -10646,6 +10682,10 @@ msgstr "Saindo de {env}. Os agentes detectados serão atualizados quando termina
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Saindo. Os agentes detectados serão atualizados quando terminar."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Tamanhos mostrados no Composer do Codex. A compactação começa automaticamente em 90% da janela selecionada. Novos tópicos usam 400k por padrão quando esse tamanho está na lista."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"

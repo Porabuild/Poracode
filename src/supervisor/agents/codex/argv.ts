@@ -19,6 +19,7 @@ import {
   probeCodexCliSemver,
 } from "./plugin/install";
 import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
+import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import { buildCodexMcp } from "../userMcp";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
 
@@ -65,6 +66,13 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
       // Codex's `service_tier="fast"` selects the priority lane on supported models.
       args.push("-c", 'service_tier="fast"');
     }
+    const contextWindow = codexContextWindowOverrides(config.contextSize);
+    args.push(
+      "-c",
+      `model_context_window=${contextWindow.model_context_window}`,
+      "-c",
+      `model_auto_compact_token_limit=${contextWindow.model_auto_compact_token_limit}`,
+    );
     if (config.approvalPolicy) {
       args.push("-a", config.approvalPolicy);
     }

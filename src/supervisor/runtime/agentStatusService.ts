@@ -49,8 +49,10 @@ const execFileAsync = promisify(execFile);
  * lists advertised through initialize metadata (used by Grok 0.2.x). v10
  * invalidates v9 results whose macOS Grok probe could not find Node because
  * the login-shell environment was not forwarded to the ACP child process.
+ * v11 adds Codex context-window sizes (272k/400k/1m plus a user-editable list)
+ * so cached statuses without those capability fields are not reused.
  */
-export const STATUS_CACHE_VERSION = 10;
+export const STATUS_CACHE_VERSION = 11;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

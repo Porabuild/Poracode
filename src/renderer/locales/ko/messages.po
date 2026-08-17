@@ -218,6 +218,11 @@ msgstr "{envName}에 대한 {0} 후크가 제거되었습니다."
 #~ msgid "{0} install targets"
 #~ msgstr "{0} 설치 대상"
 
+#. placeholder {0}: parsed.label
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "{0} is already in the list."
+msgstr "{0}은(는) 이미 목록에 있습니다."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} is already up to date."
@@ -848,6 +853,7 @@ msgstr "활동 지표"
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
@@ -924,6 +930,10 @@ msgstr "후보 추가"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add Claude profile"
 msgstr "Claude 프로필 추가"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Add context window"
+msgstr "컨텍스트 창 추가"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
@@ -3045,6 +3055,10 @@ msgstr "컨텍스트가 {targetLabel}(으)로 전송되었습니다."
 msgid "Context usage"
 msgstr "컨텍스트 사용량"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Context windows"
+msgstr "컨텍스트 창"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Continue"
 msgstr "계속"
@@ -3601,6 +3615,10 @@ msgstr "맞춤"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "프로젝트 상황에 맞는 메뉴(오른쪽 클릭)에서 사용할 수 있는 사용자 정의 명령."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Custom context window"
+msgstr "사용자 지정 컨텍스트 창"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
@@ -4183,6 +4201,10 @@ msgstr "에이전트가 설치 또는 iTerm2 알림을 건드리지 않고 L2(OS
 msgid "Duplicate server name in scan"
 msgstr "스캔에 중복된 서버 이름이 있습니다"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "e.g. 512k or 1m"
+msgstr "예: 512k 또는 1m"
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "예: 빠른 조회에는 Codex GPT-5.5 fast, 대규모 리팩터링에는 OpenCode GLM, 미묘한 작업에는 Claude Opus."
@@ -4381,6 +4403,10 @@ msgstr "저장소 URL을 입력하세요."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "HTTPS, HTTP, SSH, Git, FTP, FTPS 또는 scp 구문을 사용하는 안전한 저장소 URL을 입력하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Enter a size like 512k or 1m."
+msgstr "512k 또는 1m과 같은 크기를 입력하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -9257,8 +9283,10 @@ msgstr "제거"
 
 #. placeholder {0}: att.name
 #. placeholder {0}: removeConfirm.target.name
+#. placeholder {0}: window.label
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Remove {0}"
 msgstr "{0} 제거"
 
@@ -9490,6 +9518,14 @@ msgstr "필수 검토, 대화 또는 상태 확인이 충족되지 않았습니�
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "재설정"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Reset"
+msgstr "재설정"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Reset context windows"
+msgstr "컨텍스트 창 재설정"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -10646,6 +10682,10 @@ msgstr "{env} 로그아웃 중입니다. 감지된 에이전트는 완료되면 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+msgid "Sizes shown in the Codex composer. Compaction starts automatically at 90% of the selected window. New chats default to 400k when that size is in the list."
+msgstr "Codex 작성기에 표시되는 크기입니다. 선택한 창의 90%에서 자동으로 압축이 시작됩니다. 목록에 400k가 있으면 새 채팅의 기본값은 400k입니다."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Skill"
