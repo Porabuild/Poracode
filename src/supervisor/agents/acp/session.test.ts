@@ -1,5 +1,5 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -11,6 +11,8 @@ import type { CreateStructuredSessionInput } from "../base";
 import type { ThreadConfig } from "@/shared/contracts";
 import {
   AcpStructuredSession,
+  isAcpHomeScopeLocation,
+  resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveAcpWritableHostFsPath,
@@ -616,6 +618,50 @@ describe("ACP resource path helpers", () => {
     ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\.agents\\skills\\agent-browser\\SKILL.md");
   });
 
+  it("allows read-only access to Grok bundled and vendor skill files outside the project", () => {
+    const grokBundled = "C:\\Users\\me\\.grok\\bundled\\skills\\review\\SKILL.md";
+    const grokUser = "C:\\Users\\me\\.grok\\skills\\commit\\SKILL.md";
+    const claude = "C:\\Users\\me\\.claude\\skills\\review\\SKILL.md";
+    const cursor = "C:\\Users\\me\\.cursor\\skills\\review\\SKILL.md";
+    expect(resolveAcpReadableHostFsPath(WINDOWS_LOCATION, grokBundled)).toBe(grokBundled);
+    expect(resolveAcpReadableHostFsPath(WINDOWS_LOCATION, grokUser)).toBe(grokUser);
+    expect(resolveAcpReadableHostFsPath(WINDOWS_LOCATION, claude)).toBe(claude);
+    expect(resolveAcpReadableHostFsPath(WINDOWS_LOCATION, cursor)).toBe(cursor);
+    expect(
+      resolveAcpReadableHostFsPath(WSL_LOCATION, "/home/me/.grok/bundled/skills/review/SKILL.md"),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\.grok\\bundled\\skills\\review\\SKILL.md");
+    expect(() => resolveAcpWritableHostFsPath(WINDOWS_LOCATION, grokBundled)).toThrow(
+      "Invalid params",
+    );
+    expect(() =>
+      resolveAcpReadableHostFsPath(WINDOWS_LOCATION, "C:\\Users\\me\\.grok\\auth.json"),
+    ).toThrow("Invalid params");
+  });
+
+  it("maps a missing project skill path to the matching user-global skill file", () => {
+    expect(
+      resolveAcpGlobalSkillFallbackHostFsPath(
+        WSL_LOCATION,
+        "/home/me/repo/.agents/skills/code-review/SKILL.md",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\.agents\\skills\\code-review\\SKILL.md");
+    expect(
+      resolveAcpGlobalSkillFallbackHostFsPath(
+        WSL_LOCATION,
+        "/home/me/repo/.grok/skills/commit/SKILL.md",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\.grok\\skills\\commit\\SKILL.md");
+    expect(resolveAcpGlobalSkillFallbackHostFsPath(WSL_LOCATION, "/home/me/repo/src/main.ts")).toBe(
+      undefined,
+    );
+    expect(
+      resolveAcpGlobalSkillFallbackHostFsPath(
+        WSL_LOCATION,
+        "/home/me/.agents/skills/code-review/SKILL.md",
+      ),
+    ).toBe(undefined);
+  });
+
   it("rejects user agent skill paths that escape through parent segments", () => {
     expect(() =>
       resolveAcpReadableHostFsPath(
@@ -646,6 +692,13 @@ describe("ACP resource path helpers", () => {
     );
     expect(resolveAcpWritableHostFsPath(WINDOWS_LOCATION, KIMI_PLAN_WINDOWS, [".kimi-code"])).toBe(
       KIMI_PLAN_WINDOWS,
+    );
+    const grokBundled = "C:\\Users\\me\\.grok\\bundled\\skills\\review\\SKILL.md";
+    expect(resolveAcpReadableHostFsPath(WINDOWS_LOCATION, grokBundled, [".grok"])).toBe(
+      grokBundled,
+    );
+    expect(resolveAcpWritableHostFsPath(WINDOWS_LOCATION, grokBundled, [".grok"])).toBe(
+      grokBundled,
     );
   });
 
@@ -690,6 +743,40 @@ describe("ACP resource path helpers", () => {
     expect(() =>
       resolveAcpWritableHostFsPath(WSL_LOCATION, "/home/me/.kimi-code", [".kimi-code"]),
     ).toThrow("Invalid params");
+  });
+
+  const HOME_WINDOWS = { kind: "windows", path: "C:\\Users\\me" } as const;
+  const HOME_WSL = {
+    kind: "wsl",
+    distro: "Ubuntu",
+    linuxPath: "/home/me",
+    uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me",
+  } as const;
+
+  it("treats a workspace that is the user home as the Home scope", () => {
+    expect(isAcpHomeScopeLocation(HOME_WINDOWS)).toBe(true);
+    expect(isAcpHomeScopeLocation(HOME_WSL)).toBe(true);
+    expect(isAcpHomeScopeLocation({ kind: "posix", path: "/home/me" })).toBe(true);
+    expect(isAcpHomeScopeLocation(WINDOWS_LOCATION)).toBe(false);
+    expect(isAcpHomeScopeLocation(WSL_LOCATION)).toBe(false);
+    expect(isAcpHomeScopeLocation({ kind: "windows", path: "C:\\Users\\me\\Documents" })).toBe(
+      false,
+    );
+  });
+
+  it("does not confine Home-scope reads or writes to the home folder", () => {
+    expect(resolveAcpReadableHostFsPath(HOME_WINDOWS, "E:\\work\\repo\\file.ts")).toBe(
+      "E:\\work\\repo\\file.ts",
+    );
+    expect(resolveAcpWritableHostFsPath(HOME_WINDOWS, "E:\\work\\repo\\file.ts")).toBe(
+      "E:\\work\\repo\\file.ts",
+    );
+    expect(resolveAcpReadableHostFsPath(HOME_WSL, "/tmp/notes.md")).toBe(
+      "\\\\wsl.localhost\\Ubuntu\\tmp\\notes.md",
+    );
+    expect(resolveAcpWritableHostFsPath(HOME_WSL, "/tmp/notes.md")).toBe(
+      "\\\\wsl.localhost\\Ubuntu\\tmp\\notes.md",
+    );
   });
 });
 
@@ -740,6 +827,59 @@ describe("ACP client protocol helpers", () => {
     );
 
     await expect(read({ sessionId: "session-1", path: outside })).rejects.toThrow("Invalid params");
+  });
+
+  it("serves ACP fs reads and writes anywhere when the workspace is Home", async () => {
+    const outsideRoot = makePosixProject();
+    writeFileSync(join(outsideRoot, "notes.txt"), "from-outside", "utf8");
+    const { session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] =
+      HOST_KIND === "windows"
+        ? { kind: "windows", path: "C:\\Users\\me" }
+        : { kind: "posix", path: "/home/me" };
+
+    const read = (session as unknown as { handleReadTextFile: Function }).handleReadTextFile.bind(
+      session,
+    );
+    const write = (
+      session as unknown as { handleWriteTextFile: Function }
+    ).handleWriteTextFile.bind(session);
+
+    await expect(
+      read({ sessionId: "session-1", path: join(outsideRoot, "notes.txt") }),
+    ).resolves.toEqual({ content: "from-outside" });
+    await write({
+      sessionId: "session-1",
+      path: join(outsideRoot, "out.txt"),
+      content: "ok",
+    });
+    expect(readFileSync(join(outsideRoot, "out.txt"), "utf8")).toBe("ok");
+  });
+
+  it("falls back to the user-global skill when the project copy is missing", async () => {
+    const projectRoot = makePosixProject();
+    const folder = `poracode-acp-skill-fallback-${Date.now()}`;
+    const globalDir = join(homedir(), ".agents", "skills", folder);
+    mkdirSync(globalDir, { recursive: true });
+    writeFileSync(join(globalDir, "SKILL.md"), "global-body", "utf8");
+    try {
+      const { session } = makeConfigSyncSession();
+      (session as unknown as Record<string, unknown>)["projectLocation"] = {
+        kind: HOST_KIND,
+        path: projectRoot,
+      };
+      const read = (session as unknown as { handleReadTextFile: Function }).handleReadTextFile.bind(
+        session,
+      );
+      await expect(
+        read({
+          sessionId: "session-1",
+          path: join(projectRoot, ".agents", "skills", folder, "SKILL.md"),
+        }),
+      ).resolves.toEqual({ content: "global-body" });
+    } finally {
+      rmSync(globalDir, { recursive: true, force: true });
+    }
   });
 
   it("advertises the fs text capabilities by default", async () => {

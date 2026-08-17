@@ -30,6 +30,7 @@ import {
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
 } from "@/shared/contracts";
+import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
   type AgentAdapter,
@@ -65,7 +66,7 @@ import { SteerCoordinator, clearPendingSteerSlot } from "./threadSession/steerCo
 import { buildShellCommand } from "./threadSession/shellCommand";
 import {
   SpawnPipeline,
-  effectiveLaunchConfig,
+  workspaceLaunchConfig,
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
@@ -310,8 +311,10 @@ export class ThreadSessionManager {
     if (!session) return undefined;
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
-    const effectiveConfig = effectiveLaunchConfig(
+    const effectiveConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      session.adapter,
       disabledIds,
       session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -333,8 +336,10 @@ export class ThreadSessionManager {
     const targetAdapter = this.options.adapters.get(targetAgentKind);
     if (!targetAdapter) return {};
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
-    const launchConfig = effectiveLaunchConfig(
+    const launchConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      targetAdapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -370,8 +375,10 @@ export class ThreadSessionManager {
       reloads.push(
         (async () => {
           try {
-            const launchConfig = effectiveLaunchConfig(
+            const launchConfig = workspaceLaunchConfig(
+              session.projectLocation,
               session.config,
+              session.adapter,
               session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
               session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
             );
@@ -525,12 +532,17 @@ export class ThreadSessionManager {
     const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
-    const effectiveConfig =
+    const turnConfig =
       session.presentationMode !== "gui" &&
       payload.config.mode === "plan" &&
       session.config.mode === undefined
         ? { ...payload.config, mode: undefined }
         : payload.config;
+    const effectiveConfig = applyHomeScopePermissions(
+      session.projectLocation,
+      turnConfig,
+      session.adapter.capabilities,
+    );
 
     session.config = effectiveConfig;
     const inlineInstructions = usesStructuredFlow

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { getWslCommand } from "../base";
-import { buildAcpTerminalLaunch } from "./sessionTerminalLaunch";
+import { buildAcpTerminalLaunch, resolveAcpTerminalCwd } from "./sessionTerminalLaunch";
 
 const wslProject: ProjectLocation = {
   kind: "wsl",
@@ -33,5 +33,28 @@ describe.skipIf(process.platform !== "win32")("buildAcpTerminalLaunch", () => {
       "-c",
       "export TERM='xterm-256color'; exec 'node' '-p' 'line1\nline2 `$(ignored)` '\\''single'\\'' \"double\"'",
     ]);
+  });
+});
+
+describe("resolveAcpTerminalCwd", () => {
+  it("rejects a cwd outside a regular project", () => {
+    expect(() => resolveAcpTerminalCwd(wslProject, "/tmp/elsewhere")).toThrow("Invalid params");
+  });
+
+  it("allows any cwd when the workspace is Home", () => {
+    expect(
+      resolveAcpTerminalCwd(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo",
+        },
+        "/tmp/elsewhere",
+      ),
+    ).toBe("/tmp/elsewhere");
+    expect(
+      resolveAcpTerminalCwd({ kind: "windows", path: "C:\\Users\\me" }, "E:\\work\\repo"),
+    ).toBe("E:\\work\\repo");
   });
 });

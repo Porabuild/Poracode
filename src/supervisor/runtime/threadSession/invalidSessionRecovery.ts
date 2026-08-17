@@ -5,7 +5,7 @@ import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookAr
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { PtyLifecycle } from "./ptyLifecycle";
-import { effectiveLaunchConfig, type SpawnPipeline } from "./spawnPipeline";
+import { workspaceLaunchConfig, type SpawnPipeline } from "./spawnPipeline";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
@@ -73,8 +73,10 @@ export class InvalidSessionRecoveryCoordinator {
       return;
     }
 
-    const launchConfig = effectiveLaunchConfig(
+    const launchConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      session.adapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
