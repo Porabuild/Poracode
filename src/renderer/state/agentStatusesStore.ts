@@ -80,6 +80,14 @@ function capabilitiesEqual(
   // gets replaced — otherwise the one-shot AI selectors would keep hiding
   // one-shot-capable providers for the whole first post-upgrade session.
   if ((a.supportsOneShot ?? false) !== (b.supportsOneShot ?? false)) return false;
+  // Codex context-window lists are user-editable. A detection that only
+  // changes those fields must replace the cached status or the composer keeps
+  // the previous picker after settings save / next launch.
+  if (JSON.stringify(a.contextSizes ?? []) !== JSON.stringify(b.contextSizes ?? [])) return false;
+  if (JSON.stringify(a.modelContextSizes ?? {}) !== JSON.stringify(b.modelContextSizes ?? {})) {
+    return false;
+  }
+  if ((a.defaultContextSize ?? "") !== (b.defaultContextSize ?? "")) return false;
   return true;
 }
 
@@ -246,12 +254,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 7,
-      // v7 drops the v6 status written when the macOS Grok ACP probe lost the
-      // login-shell PATH and could not start its Node-backed executable. This
-      // prevents the UI from hydrating that stale 0/0 before detection reruns.
-      // This mirrors the supervisor STATUS_CACHE_VERSION=10 bump, which only
-      // invalidates the supervisor's on-disk cache, not this localStorage copy.
+      version: 8,
+      // v8 drops statuses cached before Codex advertised selectable context
+      // windows. This mirrors the supervisor STATUS_CACHE_VERSION=11 bump, which
+      // only invalidates the supervisor's on-disk cache, not this localStorage
+      // copy.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

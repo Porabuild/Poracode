@@ -195,6 +195,20 @@ describe("agent command builders", () => {
     expect(spec.args).toContain('approvals_reviewer="auto_review"');
   });
 
+  it("passes the Codex context window and compact limit to terminal sessions", () => {
+    const spec = buildCodexArgvFor(windowsProject, { ...config, contextSize: "1m" }, "hello");
+
+    expect(spec.args).toContain("model_context_window=1000000");
+    expect(spec.args).toContain("model_auto_compact_token_limit=900000");
+  });
+
+  it("defaults Codex terminal sessions to a 400k context window", () => {
+    const spec = buildCodexArgvFor(windowsProject, config, "hello");
+
+    expect(spec.args).toContain("model_context_window=400000");
+    expect(spec.args).toContain("model_auto_compact_token_limit=360000");
+  });
+
   it("injects Codex browser MCP config when enabled, using a token env var", () => {
     const spec = buildCodexAppServerCommand(windowsProject, {
       mcpServers: [
