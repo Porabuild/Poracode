@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { win32 } from "node:path";
 import type { AvailableWindowsShell, SharedSettings, WindowsShellKind } from "@/shared/settings";
 import { WINDOWS_SHELL_AUTO } from "@/shared/settings";
 import { getWindowsSystemCommand } from "./agents/base/shellBasics";
@@ -78,17 +78,17 @@ export function windowsPwshWellKnownPaths(): string[] {
   const localAppData = process.env.LOCALAPPDATA;
   const chocolatey = process.env.ChocolateyInstall ?? "C:\\ProgramData\\chocolatey";
   const paths = windowsProgramFilesDirs().flatMap((programFiles) => [
-    join(programFiles, "PowerShell", "7", "pwsh.exe"),
-    join(programFiles, "PowerShell", "7-preview", "pwsh.exe"),
+    win32.join(programFiles, "PowerShell", "7", "pwsh.exe"),
+    win32.join(programFiles, "PowerShell", "7-preview", "pwsh.exe"),
   ]);
   paths.push(
-    join(home, "scoop", "apps", "pwsh", "current", "pwsh.exe"),
-    join(chocolatey, "bin", "pwsh.exe"),
+    win32.join(home, "scoop", "apps", "pwsh", "current", "pwsh.exe"),
+    win32.join(chocolatey, "bin", "pwsh.exe"),
   );
   if (localAppData) {
     paths.push(
-      join(localAppData, "Microsoft", "WinGet", "Links", "pwsh.exe"),
-      join(localAppData, "Microsoft", "powershell", "pwsh.exe"),
+      win32.join(localAppData, "Microsoft", "WinGet", "Links", "pwsh.exe"),
+      win32.join(localAppData, "Microsoft", "powershell", "pwsh.exe"),
     );
   }
   return paths;
@@ -99,7 +99,7 @@ function listPwshInChildFolders(root: string, pathExists: (path: string) => bool
     const found: string[] = [];
     for (const name of readdirSync(root)) {
       if (name.toLowerCase() === "current") continue;
-      const candidate = join(root, name, "pwsh.exe");
+      const candidate = win32.join(root, name, "pwsh.exe");
       if (pathExists(candidate)) found.push(candidate);
     }
     return found;
@@ -113,15 +113,15 @@ function listPwshUnderPackageRoot(root: string, pathExists: (path: string) => bo
     const found: string[] = [];
     for (const name of readdirSync(root)) {
       if (!/^Microsoft\.PowerShell/i.test(name)) continue;
-      const packageDir = join(root, name);
-      const direct = join(packageDir, "pwsh.exe");
+      const packageDir = win32.join(root, name);
+      const direct = win32.join(packageDir, "pwsh.exe");
       if (pathExists(direct)) {
         found.push(direct);
         continue;
       }
       try {
         for (const child of readdirSync(packageDir)) {
-          const nested = join(packageDir, child, "pwsh.exe");
+          const nested = win32.join(packageDir, child, "pwsh.exe");
           if (pathExists(nested)) found.push(nested);
         }
       } catch {
@@ -155,7 +155,7 @@ function listMsixPwshFromAppx(pathExists: (path: string) => boolean): string[] {
   );
   if (result.error || result.status !== 0) return [];
   return parseAppxInstallLocations(`${result.stdout ?? ""}`)
-    .map((dir) => join(dir, "pwsh.exe"))
+    .map((dir) => win32.join(dir, "pwsh.exe"))
     .filter(pathExists);
 }
 
@@ -169,18 +169,21 @@ export function findInstalledWindowsPwsh(
   options?: { probeAppx?: boolean },
 ): string[] {
   const localAppData = process.env.LOCALAPPDATA;
-  const scoopRoot = join(homedir(), "scoop", "apps", "pwsh");
+  const scoopRoot = win32.join(homedir(), "scoop", "apps", "pwsh");
   const msixFromFs = [
     ...(localAppData
-      ? listPwshUnderPackageRoot(join(localAppData, "Microsoft", "WinGet", "Packages"), pathExists)
+      ? listPwshUnderPackageRoot(
+          win32.join(localAppData, "Microsoft", "WinGet", "Packages"),
+          pathExists,
+        )
       : []),
     ...windowsProgramFilesDirs().flatMap((programFiles) =>
-      listPwshUnderPackageRoot(join(programFiles, "WindowsApps"), pathExists),
+      listPwshUnderPackageRoot(win32.join(programFiles, "WindowsApps"), pathExists),
     ),
   ];
   const found = [
     ...windowsProgramFilesDirs().flatMap((programFiles) =>
-      listPwshInChildFolders(join(programFiles, "PowerShell"), pathExists),
+      listPwshInChildFolders(win32.join(programFiles, "PowerShell"), pathExists),
     ),
     ...windowsPwshWellKnownPaths().filter(pathExists),
     ...listPwshInChildFolders(scoopRoot, pathExists),
@@ -268,7 +271,7 @@ function collectLaunchablePwsh(
 }
 
 export function inferWindowsShellKind(path: string): WindowsShellKind {
-  const name = basename(path).toLowerCase();
+  const name = win32.basename(path).toLowerCase();
   if (name === "pwsh" || name === "pwsh.exe") return "pwsh";
   if (name === "powershell" || name === "powershell.exe") return "powershell";
   return "cmd";

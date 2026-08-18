@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { win32 } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WINDOWS_SHELL_AUTO } from "@/shared/settings";
 import {
@@ -180,7 +180,7 @@ describe("Windows shell preference", () => {
         expect.arrayContaining([
           "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
           "C:\\Program Files\\PowerShell\\7-preview\\pwsh.exe",
-          join(homedir(), "scoop", "apps", "pwsh", "current", "pwsh.exe"),
+          win32.join(homedir(), "scoop", "apps", "pwsh", "current", "pwsh.exe"),
           "C:\\ProgramData\\chocolatey\\bin\\pwsh.exe",
           "C:\\Users\\a\\AppData\\Local\\Microsoft\\WinGet\\Links\\pwsh.exe",
         ]),
