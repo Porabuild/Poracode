@@ -866,6 +866,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     threadId: string,
     turnId: string,
     timeoutMs?: number,
+    canRetry: () => boolean = () => true,
   ): Promise<void> {
     try {
       await this.rpc.request("turn/interrupt", { threadId, turnId }, timeoutMs);
@@ -873,6 +874,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       const retryTurnId = nextCodexInterruptTurnId(turnId, error);
       if (!retryTurnId) {
         throw error;
+      }
+      if (!canRetry()) {
+        return;
       }
       this.activeTurnIds.delete(turnId);
       this.activeTurnIds.add(retryTurnId);
@@ -1003,12 +1007,35 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.isDisposed = true;
 
     this.clearPendingSystemErrorFallback();
-    if (this.remoteThreadId) {
+    const remoteThreadId = this.remoteThreadId;
+    if (remoteThreadId) {
+      const activeTurnIds = new Set(this.activeTurnIds);
       if (this.activeTurnId) {
+        activeTurnIds.add(this.activeTurnId);
+      }
+      if (this.currentThreadStatus.type === "active") {
+        const result = await this.rpc
+          .request(
+            "thread/read",
+            { threadId: remoteThreadId, includeTurns: true },
+            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          )
+          .catch(() => undefined);
+        for (const turn of result?.thread?.turns ?? []) {
+          if (turn.status === "inProgress") {
+            activeTurnIds.add(turn.id);
+          }
+        }
+      }
+      for (const activeTurnId of activeTurnIds) {
+        if (!this.rpc.ownsThread(remoteThreadId)) {
+          break;
+        }
         await this.interruptActiveTurn(
-          this.remoteThreadId,
-          this.activeTurnId,
+          remoteThreadId,
+          activeTurnId,
           CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          () => this.rpc.ownsThread(remoteThreadId),
         ).catch(() => undefined);
       }
       // Re-check ownership *after* the interrupt round-trip: a force-stopped
@@ -1016,11 +1043,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       // resubscribes to the same provider thread on the shared app-server.
       // Unsubscribing then would silence the live session's notifications and
       // strand it on "working" with no output.
-      if (this.rpc.ownsThread(this.remoteThreadId)) {
+      if (this.rpc.ownsThread(remoteThreadId)) {
         await this.rpc
           .request(
             "thread/unsubscribe",
-            { threadId: this.remoteThreadId },
+            { threadId: remoteThreadId },
             CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
           )
           .catch(() => undefined);
