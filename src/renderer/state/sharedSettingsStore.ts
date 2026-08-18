@@ -4,6 +4,7 @@ import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
+  WINDOWS_SHELL_ARGUMENTS_MAX,
   type CliPickerTarget,
   type PreventSleep,
   type SidebarShortcutId,
@@ -51,6 +52,9 @@ interface SharedSettingsState extends SharedSettings {
   setLocale: (locale: LocaleSetting) => void;
   setGitTextLanguage: (value: AiContentLanguage) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
+  setWindowsShellPath: (path: string) => void;
+  setWindowsInternalShellPath: (path: string) => void;
+  setWindowsShellArguments: (args: string) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setConflictResolverConfig: (
@@ -218,6 +222,7 @@ function loadFallbackSettings(): SharedSettings {
  * clobber the file with default values before the real settings are loaded.
  */
 let initialLoadDone = !hasBridge();
+let pendingSharedSettingsWrite: Promise<void> | undefined;
 
 function persistSettings(settings: SharedSettingsInput): void {
   if (typeof window === "undefined") {
@@ -227,8 +232,20 @@ function persistSettings(settings: SharedSettingsInput): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
   if (hasBridge() && initialLoadDone) {
-    void readBridge().setSharedSettings(settings);
+    const write = readBridge().setSharedSettings(settings);
+    pendingSharedSettingsWrite = write;
+    void write
+      .catch(() => undefined)
+      .then(() => {
+        if (pendingSharedSettingsWrite === write) {
+          pendingSharedSettingsWrite = undefined;
+        }
+      });
   }
+}
+
+export async function waitForPendingSharedSettings(): Promise<void> {
+  await pendingSharedSettingsWrite;
 }
 
 /**
@@ -240,6 +257,10 @@ function persistSettings(settings: SharedSettingsInput): void {
  */
 export async function flushSharedSettings(): Promise<void> {
   if (!hasBridge() || !initialLoadDone) {
+    return;
+  }
+  if (pendingSharedSettingsWrite) {
+    await pendingSharedSettingsWrite;
     return;
   }
   await readBridge().setSharedSettings(selectSharedSettings(useSharedSettings.getState()));
@@ -297,6 +318,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setTerminalPosition: (terminalPosition) => {
     set({ terminalPosition });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWindowsShellPath: (windowsShellPath) => {
+    set({ windowsShellPath });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWindowsInternalShellPath: (windowsInternalShellPath) => {
+    set({ windowsInternalShellPath });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWindowsShellArguments: (windowsShellArguments) => {
+    set({ windowsShellArguments: windowsShellArguments.slice(0, WINDOWS_SHELL_ARGUMENTS_MAX) });
     persistSettings(selectSharedSettings(get()));
   },
   setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort, commitGenFast) => {
@@ -911,6 +944,9 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     locale: state.locale,
     gitTextLanguage: state.gitTextLanguage,
     terminalPosition: state.terminalPosition,
+    windowsShellPath: state.windowsShellPath,
+    windowsInternalShellPath: state.windowsInternalShellPath,
+    windowsShellArguments: state.windowsShellArguments,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
     commitGenEffort: state.commitGenEffort,

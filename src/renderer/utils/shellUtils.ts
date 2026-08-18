@@ -1,20 +1,15 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { ProjectLocation, StartShellPayload } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
+import { waitForPendingSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   createRoutedShellSession,
   disposeRoutedShellSession,
 } from "@/renderer/utils/routedShellSession";
 
 export { disposeRoutedShellSession } from "@/renderer/utils/routedShellSession";
-
-interface StartShellPayload {
-  shellId: string;
-  projectLocation: ProjectLocation;
-  worktreePath?: string;
-}
 
 /**
  * Shell ids started eagerly (outside the terminal panel) — run actions,
@@ -36,12 +31,16 @@ export function clearEagerShellStart(shellId: string): void {
   disposeRoutedShellSession(shellId);
 }
 
+export async function startShellWithCurrentSettings(payload: StartShellPayload): Promise<void> {
+  await waitForPendingSharedSettings().catch(() => undefined);
+  await readBridge().startShell(payload);
+}
+
 export function startShellWithToast(payload: StartShellPayload, label: string): Promise<boolean> {
   const startToken = Symbol(payload.shellId);
   eagerlyStartedShells.add(payload.shellId);
   eagerStartTokens.set(payload.shellId, startToken);
-  return readBridge()
-    .startShell(payload)
+  return startShellWithCurrentSettings(payload)
     .then(() => {
       if (eagerStartTokens.get(payload.shellId) === startToken) {
         eagerStartTokens.delete(payload.shellId);
@@ -295,9 +294,9 @@ export async function runShellScriptToCompletion(
       onExited: () => settle(resolve),
       onWriteError: (error) => settle(() => reject(error)),
     });
-    void readBridge()
-      .startShell({ shellId, projectLocation })
-      .catch((error) => settle(() => reject(error)));
+    void startShellWithCurrentSettings({ shellId, projectLocation }).catch((error) =>
+      settle(() => reject(error)),
+    );
   });
 }
 

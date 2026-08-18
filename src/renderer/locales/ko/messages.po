@@ -1028,6 +1028,16 @@ msgstr "할 일 추가"
 msgid "Add workspace"
 msgstr "작업 영역 추가"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Additional arguments passed to each new Terminal-panel shell. Quote values containing spaces."
+msgstr "새 터미널 패널 셸마다 전달할 추가 인수입니다. 공백이 포함된 값은 따옴표로 묶으세요."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
+#~ msgstr "새 Windows 셸마다 전달할 추가 인수입니다. 공백이 포함된 값은 따옴표로 묶으세요."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
@@ -1517,6 +1527,11 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "자동"
 
+#. placeholder {0}: shellName(automaticShell)
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Auto ({0})"
+#~ msgstr "자동 ({0})"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "자동 승인"
@@ -1581,6 +1596,15 @@ msgstr "자동 선택"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "터미널 패널 자동 표시"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Automatic"
+#~ msgstr "자동"
+
+#. placeholder {0}: shellName(automaticShell)
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Automatic ({0})"
+#~ msgstr "자동 ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2223,6 +2247,11 @@ msgstr "상위 폴더 선택"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "후보를 두 개 이상 선택하고 프롬프트를 입력하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Choose automatically or override with a detected shell for new terminals."
+#~ msgstr "자동으로 선택하거나 새 터미널에 사용할 감지된 셸을 지정합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -2239,6 +2268,10 @@ msgstr "로그인 방법을 선택하세요."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "가져오기 대상 선택"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Choose shells for the Terminal panel and Poracode's internal commands."
+msgstr "터미널 패널과 Poracode 내부 명령에 사용할 셸을 선택합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -2712,6 +2745,10 @@ msgstr "명령을 입력해야 합니다."
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Command not found."
 msgstr "명령을 찾을 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Command Prompt"
+msgstr "명령 프롬프트"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3698,6 +3735,11 @@ msgstr "기본 PR 자동화"
 msgid "Default thread removal"
 msgstr "기본 스레드 제거"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Default Windows shell"
+#~ msgstr "기본 Windows 셸"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "설치된 다른 에이전트에 작업을 위임하고 결과를 조율합니다."
@@ -4200,6 +4242,10 @@ msgstr "에이전트가 설치 또는 iTerm2 알림을 건드리지 않고 L2(OS
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "스캔에 중복된 서버 이름이 있습니다"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "e.g. -NoProfile"
+msgstr "예: -NoProfile"
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "e.g. 512k or 1m"
@@ -5890,6 +5936,11 @@ msgstr "지침"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "에이전트가 어떤 에이전트나 모델에 위임할지 선택할 때 따르는 지침입니다."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Internal commands and agents"
+msgstr "내부 명령 및 에이전트"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -8575,6 +8626,22 @@ msgstr "포트 포워딩이 활성화되지 않았습니다"
 msgid "Ports"
 msgstr "포트"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "PowerShell {version}"
+msgstr "PowerShell {version}"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "PowerShell {version} (recommended)"
+msgstr "PowerShell {version}(권장)"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "PowerShell 7"
+#~ msgstr "PowerShell 7"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "PowerShell 7 (recommended)"
+#~ msgstr "PowerShell 7(권장)"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
 msgstr "PR 작업"
@@ -9987,6 +10054,10 @@ msgstr "단축키 저장"
 msgid "Saved credentials are shared across all environments."
 msgstr "저장된 자격 증명은 모든 환경에서 공유됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Saved shell"
+msgstr "저장된 셸"
+
 #: src/mobile/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "페어링 QR 코드 스캔"
@@ -10424,6 +10495,11 @@ msgstr "활동 공유하기"
 msgid "Shared"
 msgstr "공유"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Shell arguments"
+#~ msgstr "셸 인수"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
@@ -10705,7 +10781,10 @@ msgstr "스킬 마켓플레이스 소스"
 msgid "Skill runs"
 msgstr "스킬 실행"
 
+#: src/renderer/components/composer/SlashCommandChip.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Skill: {skill}"
 msgstr "스킬: {skill}"
 
@@ -11466,6 +11545,11 @@ msgstr "터미널 패널 글꼴 크기"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal panel shell"
+msgstr "터미널 패널 셸"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "터미널 위치"
 
@@ -11473,6 +11557,11 @@ msgstr "터미널 위치"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "터미널 스크롤 속도"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal shell arguments"
+msgstr "터미널 셸 인수"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
@@ -12793,6 +12882,16 @@ msgstr "사용됨"
 msgid "Used by {conflict}"
 msgstr "{conflict}에서 사용 중"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Used for agents, authentication, installs, and Poracode's internal commands."
+msgstr "에이전트, 인증, 설치 및 Poracode 내부 명령에 사용됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Used for new interactive Terminal-panel sessions."
+msgstr "새 대화형 터미널 패널 세션에 사용됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Used when no provider is specified. Explicit Crossagents usage ranks first, followed by favorites, normal agent usage, and built-in order."
 #~ msgstr "제공자를 지정하지 않았을 때 사용합니다. 명시적인 Crossagents 사용, 즐겨찾기, 일반 에이전트 사용, 기본 제공 순서 순으로 우선합니다."
@@ -13145,6 +13244,14 @@ msgstr "윈도우"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "윈도우는 아직 지원되지 않습니다. WSL 내부 또는 macOS/Linux에 설치합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Windows PowerShell 5.1"
+msgstr "Windows PowerShell 5.1"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Windows shells"
+msgstr "Windows 셸"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."

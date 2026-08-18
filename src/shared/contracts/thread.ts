@@ -399,5 +399,11 @@ export const startShellPayloadSchema = z.object({
    * ephemeral) worktree.
    */
   startInHome: z.boolean().optional(),
+  /**
+   * Native Windows shells default to the user's interactive preference.
+   * Login/install overlays emit PowerShell, so they request a PowerShell host
+   * even when the preferred interactive shell is cmd.
+   */
+  windowsShellRuntime: z.enum(["preferred", "powershell"]).optional(),
 });
 export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;

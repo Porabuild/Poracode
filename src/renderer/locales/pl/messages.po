@@ -1028,6 +1028,16 @@ msgstr "Dodaj zadanie"
 msgid "Add workspace"
 msgstr "Dodaj obszar roboczy"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Additional arguments passed to each new Terminal-panel shell. Quote values containing spaces."
+msgstr "Dodatkowe argumenty przekazywane do każdej nowej powłoki panelu terminala. Wartości zawierające spacje ujmij w cudzysłowy."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
+#~ msgstr "Dodatkowe argumenty przekazywane do każdej nowej powłoki Windows. Wartości zawierające spacje ujmij w cudzysłowy."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Ustaw niestandardowy bazowy URL, np. reverse proxy lub tunel. Pozostaw puste, aby ustawić automatycznie."
@@ -1517,6 +1527,11 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "Auto"
 
+#. placeholder {0}: shellName(automaticShell)
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Auto ({0})"
+#~ msgstr "Automatycznie ({0})"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "Automatyczne zatwierdzanie"
@@ -1581,6 +1596,15 @@ msgstr "Wybór automatyczny"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "Automatyczne wyświetlanie panelu terminali"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Automatic"
+#~ msgstr "Automatycznie"
+
+#. placeholder {0}: shellName(automaticShell)
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Automatic ({0})"
+#~ msgstr "Automatycznie ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2223,6 +2247,11 @@ msgstr "Wybierz folder nadrzędny"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "Wybierz co najmniej dwóch kandydatów i wpisz prompt."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Choose automatically or override with a detected shell for new terminals."
+#~ msgstr "Wybierz automatycznie lub ustaw wykrytą powłokę dla nowych terminali."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -2239,6 +2268,10 @@ msgstr "Wybierz sposób logowania."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "Wybierz miejsce importu"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Choose shells for the Terminal panel and Poracode's internal commands."
+msgstr "Wybierz powłoki dla panelu terminala i poleceń wewnętrznych Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -2712,6 +2745,10 @@ msgstr "Polecenie jest wymagane."
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Command not found."
 msgstr "Nie znaleziono polecenia."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Command Prompt"
+msgstr "Wiersz polecenia"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3698,6 +3735,11 @@ msgstr "Domyślna automatyzacja PR"
 msgid "Default thread removal"
 msgstr "Domyślne usuwanie wątku"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Default Windows shell"
+#~ msgstr "Domyślna powłoka Windows"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "Deleguj konkretne zadania innym zainstalowanym agentom i koordynuj wyniki."
@@ -4200,6 +4242,10 @@ msgstr "Upuszcza przychodzące koperty haków na nadzorcę, dzięki czemu agenci
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "Powtórzona nazwa serwera w wynikach skanowania"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "e.g. -NoProfile"
+msgstr "np. -NoProfile"
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "e.g. 512k or 1m"
@@ -5890,6 +5936,11 @@ msgstr "Instrukcje"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Instrukcje, którymi kierują się agenci przy wyborze agenta lub modelu, któremu delegują zadanie."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Internal commands and agents"
+msgstr "Polecenia wewnętrzne i agenci"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -8575,6 +8626,22 @@ msgstr "Przekierowywanie portów nie jest włączone"
 msgid "Ports"
 msgstr "Porty"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "PowerShell {version}"
+msgstr "PowerShell {version}"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "PowerShell {version} (recommended)"
+msgstr "PowerShell {version} (zalecany)"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "PowerShell 7"
+#~ msgstr "PowerShell 7"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "PowerShell 7 (recommended)"
+#~ msgstr "PowerShell 7 (zalecane)"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
 msgstr "Działania PR"
@@ -9987,6 +10054,10 @@ msgstr "Zapisz skrót"
 msgid "Saved credentials are shared across all environments."
 msgstr "Zapisane poświadczenia są udostępniane we wszystkich środowiskach."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Saved shell"
+msgstr "Zapisana powłoka"
+
 #: src/mobile/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Skanuj kod QR parowania"
@@ -10424,6 +10495,11 @@ msgstr "Udostępnij swoją aktywność"
 msgid "Shared"
 msgstr "Współdzielone"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Shell arguments"
+#~ msgstr "Argumenty powłoki"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
@@ -10705,7 +10781,10 @@ msgstr "Źródło marketplace skilli"
 msgid "Skill runs"
 msgstr "Uruchomienia skills"
 
+#: src/renderer/components/composer/SlashCommandChip.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Skill: {skill}"
 msgstr "Umiejętność: {skill}"
 
@@ -11466,6 +11545,11 @@ msgstr "Rozmiar czcionki panelu terminala"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal panel shell"
+msgstr "Powłoka panelu terminala"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "Pozycja terminala"
 
@@ -11473,6 +11557,11 @@ msgstr "Pozycja terminala"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "Szybkość przewijania terminala"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal shell arguments"
+msgstr "Argumenty powłoki terminala"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
@@ -12793,6 +12882,16 @@ msgstr "Używany"
 msgid "Used by {conflict}"
 msgstr "Używany przez {conflict}"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Used for agents, authentication, installs, and Poracode's internal commands."
+msgstr "Używana przez agentów, uwierzytelnianie, instalacje i polecenia wewnętrzne Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Used for new interactive Terminal-panel sessions."
+msgstr "Używana w nowych interaktywnych sesjach panelu terminala."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Used when no provider is specified. Explicit Crossagents usage ranks first, followed by favorites, normal agent usage, and built-in order."
 #~ msgstr "Używane, gdy nie określono dostawcy. Najpierw brane jest pod uwagę jawne użycie Crossagents, następnie ulubione, zwykłe użycie agentów i kolejność wbudowana."
@@ -13145,6 +13244,14 @@ msgstr "Windows"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "System Windows nie jest jeszcze obsługiwany. Zainstaluj w WSL lub na macOS/Linux."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Windows PowerShell 5.1"
+msgstr "Windows PowerShell 5.1"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Windows shells"
+msgstr "Powłoki Windows"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."

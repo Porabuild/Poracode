@@ -34,6 +34,8 @@ export interface SettingsSearchEntry {
   devOnly?: boolean;
   /** Only rendered in the desktop app, not remote/PWA sessions. */
   desktopOnly?: boolean;
+  /** Renders only in the native Windows desktop app. */
+  windowsOnly?: boolean;
   /** Renders only under a runtime/platform condition; the drift test skips it. */
   conditional?: boolean;
 }
@@ -219,6 +221,37 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     description: msg`Automatically show the terminal panel when running commands or creating worktrees.`,
     keywords: "auto open reveal terminal panel commands worktree automatic",
     desktopOnly: true,
+  },
+  {
+    section: "terminal",
+    anchor: "terminal.windowsShell",
+    title: msg`Terminal panel shell`,
+    description: msg`Used for new interactive Terminal-panel sessions.`,
+    keywords: "windows terminal shell pwsh powershell command prompt cmd version executable",
+    desktopOnly: true,
+    windowsOnly: true,
+    conditional: true,
+  },
+  {
+    section: "terminal",
+    anchor: "terminal.windowsInternalShell",
+    title: msg`Internal commands and agents`,
+    description: msg`Used for agents, authentication, installs, and Poracode's internal commands.`,
+    keywords:
+      "windows terminal shell internal commands agents authentication install pwsh powershell executable",
+    desktopOnly: true,
+    windowsOnly: true,
+    conditional: true,
+  },
+  {
+    section: "terminal",
+    anchor: "terminal.windowsShellArguments",
+    title: msg`Terminal shell arguments`,
+    description: msg`Additional arguments passed to each new Terminal-panel shell. Quote values containing spaces.`,
+    keywords: "windows terminal shell arguments argv flags options profile logo",
+    desktopOnly: true,
+    windowsOnly: true,
+    conditional: true,
   },
   {
     section: "terminal",
@@ -587,7 +620,12 @@ function truncate(text: string, max = SNIPPET_MAX): string {
 export function searchSettings(
   query: string,
   t: Translate,
-  opts?: { devMode?: boolean; remoteSession?: boolean; index?: readonly SettingsSearchEntry[] },
+  opts?: {
+    devMode?: boolean;
+    remoteSession?: boolean;
+    windows?: boolean;
+    index?: readonly SettingsSearchEntry[];
+  },
 ): SettingsSearchResult[] {
   const needle = query.trim().toLowerCase();
   if (needle === "") return [];
@@ -596,6 +634,7 @@ export function searchSettings(
   for (const entry of index) {
     if (entry.devOnly && !opts?.devMode) continue;
     if (entry.desktopOnly && opts?.remoteSession) continue;
+    if (entry.windowsOnly && !opts?.windows) continue;
     const title = t(entry.title);
     const description = entry.description ? t(entry.description) : "";
     const titleMatch = title.toLowerCase().includes(needle);

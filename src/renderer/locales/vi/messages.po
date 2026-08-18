@@ -1028,6 +1028,16 @@ msgstr "Thêm việc cần làm"
 msgid "Add workspace"
 msgstr "Thêm không gian làm việc"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Additional arguments passed to each new Terminal-panel shell. Quote values containing spaces."
+msgstr "Các đối số bổ sung được truyền cho mỗi shell mới của bảng terminal. Hãy đặt giá trị có khoảng trắng trong dấu ngoặc kép."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
+#~ msgstr "Các đối số bổ sung được truyền cho mỗi shell Windows mới. Đặt các giá trị có khoảng trắng trong dấu ngoặc kép."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
@@ -1517,6 +1527,11 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "Tự động"
 
+#. placeholder {0}: shellName(automaticShell)
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Auto ({0})"
+#~ msgstr "Tự động ({0})"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "Tự động phê duyệt"
@@ -1581,6 +1596,15 @@ msgstr "Tự động chọn"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "Tự động hiển thị bảng điều khiển thiết bị đầu cuối"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Automatic"
+#~ msgstr "Tự động"
+
+#. placeholder {0}: shellName(automaticShell)
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Automatic ({0})"
+#~ msgstr "Tự động ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2223,6 +2247,11 @@ msgstr "Chọn một thư mục cha"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "Chọn ít nhất hai ứng viên và nhập lời nhắc."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Choose automatically or override with a detected shell for new terminals."
+#~ msgstr "Tự động chọn hoặc chỉ định một shell đã phát hiện cho các terminal mới."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -2239,6 +2268,10 @@ msgstr "Chọn cách đăng nhập."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "Chọn đích nhập"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Choose shells for the Terminal panel and Poracode's internal commands."
+msgstr "Chọn shell cho bảng terminal và các lệnh nội bộ của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -2712,6 +2745,10 @@ msgstr "Bắt buộc phải có lệnh."
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Command not found."
 msgstr "Không tìm thấy lệnh."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Command Prompt"
+msgstr "Dấu nhắc Lệnh"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3698,6 +3735,11 @@ msgstr "Tự động hóa PR mặc định"
 msgid "Default thread removal"
 msgstr "Hành vi xóa chủ đề mặc định"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Default Windows shell"
+#~ msgstr "Shell Windows mặc định"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "Giao việc cụ thể cho các agent đã cài khác và điều phối kết quả."
@@ -4200,6 +4242,10 @@ msgstr "Loại bỏ các gói hook đến tại trình giám sát để các tá
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "Tên máy chủ bị trùng trong kết quả quét"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "e.g. -NoProfile"
+msgstr "vd. -NoProfile"
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "e.g. 512k or 1m"
@@ -5890,6 +5936,11 @@ msgstr "Hướng dẫn"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân hoặc mô hình để ủy thác."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Internal commands and agents"
+msgstr "Lệnh nội bộ và tác nhân"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -8575,6 +8626,22 @@ msgstr "Chưa bật chuyển tiếp cổng"
 msgid "Ports"
 msgstr "Cổng"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "PowerShell {version}"
+msgstr "PowerShell {version}"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "PowerShell {version} (recommended)"
+msgstr "PowerShell {version} (đề xuất)"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "PowerShell 7"
+#~ msgstr "PowerShell 7"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "PowerShell 7 (recommended)"
+#~ msgstr "PowerShell 7 (khuyên dùng)"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
 msgstr "hoạt động PR"
@@ -9987,6 +10054,10 @@ msgstr "Lưu phím tắt"
 msgid "Saved credentials are shared across all environments."
 msgstr "Thông tin đăng nhập đã lưu được chia sẻ trên tất cả các môi trường."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Saved shell"
+msgstr "Shell đã lưu"
+
 #: src/mobile/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Quét mã QR ghép đôi"
@@ -10424,6 +10495,11 @@ msgstr "Chia sẻ hoạt động của bạn"
 msgid "Shared"
 msgstr "Dùng chung"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+#~ msgid "Shell arguments"
+#~ msgstr "Đối số shell"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
@@ -10705,7 +10781,10 @@ msgstr "Nguồn marketplace skill"
 msgid "Skill runs"
 msgstr "Lượt chạy skill"
 
+#: src/renderer/components/composer/SlashCommandChip.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Skill: {skill}"
 msgstr "Kỹ năng: {skill}"
 
@@ -11466,6 +11545,11 @@ msgstr "Kích thước phông chữ của bảng điều khiển thiết bị đ
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal panel shell"
+msgstr "Shell của bảng terminal"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "Vị trí đầu cuối"
 
@@ -11473,6 +11557,11 @@ msgstr "Vị trí đầu cuối"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "Tốc độ cuộn thiết bị đầu cuối"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal shell arguments"
+msgstr "Đối số shell terminal"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
@@ -12793,6 +12882,16 @@ msgstr "Đã dùng"
 msgid "Used by {conflict}"
 msgstr "Đã được dùng bởi {conflict}"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Used for agents, authentication, installs, and Poracode's internal commands."
+msgstr "Dùng cho tác nhân, xác thực, cài đặt và các lệnh nội bộ của Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Used for new interactive Terminal-panel sessions."
+msgstr "Dùng cho các phiên tương tác mới trong bảng terminal."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Used when no provider is specified. Explicit Crossagents usage ranks first, followed by favorites, normal agent usage, and built-in order."
 #~ msgstr "Được dùng khi không chỉ định nhà cung cấp. Mức sử dụng Crossagents rõ ràng được ưu tiên trước, tiếp theo là mục yêu thích, mức sử dụng tác nhân thông thường và thứ tự tích hợp."
@@ -13145,6 +13244,14 @@ msgstr "cửa sổ"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "Windows chưa được hỗ trợ. Cài đặt bên trong WSL hoặc trên macOS/Linux."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Windows PowerShell 5.1"
+msgstr "Windows PowerShell 5.1"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Windows shells"
+msgstr "Shell Windows"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."

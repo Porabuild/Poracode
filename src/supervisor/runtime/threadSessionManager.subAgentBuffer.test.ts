@@ -20,7 +20,7 @@ function makeManager() {
     settingsPath: "",
     readDisableCliHookPlugin: () => false,
     adapters: new Map(),
-    windowsShell: { shell: "cmd", kind: "cmd", args: [] },
+    resolveWindowsShell: () => ({ shell: "cmd", kind: "cmd", args: [] }),
   });
   return { manager, emit };
 }

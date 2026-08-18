@@ -26,6 +26,17 @@ import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
 
+export const WINDOWS_SHELL_AUTO = "auto";
+export const WINDOWS_SHELL_ARGUMENTS_MAX = 8_192;
+export type WindowsShellKind = "pwsh" | "powershell" | "cmd";
+
+export interface AvailableWindowsShell {
+  path: string;
+  kind: WindowsShellKind;
+  /** Product/folder version when known, e.g. "7.2" or "7.6.1". */
+  version?: string;
+}
+
 const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
   modelId: z.string().min(1),
@@ -246,6 +257,12 @@ export const sharedSettingsSchema = z.object({
    */
   gitTextLanguage: z.enum(AI_LANGUAGE_VALUES).default("en"),
   terminalPosition: terminalPositionSchema,
+  /** Absolute detected executable path, or "auto" for preferred-shell detection. */
+  windowsShellPath: z.string(),
+  /** PowerShell host used for internal commands and agent launch wrappers. */
+  windowsInternalShellPath: z.string(),
+  /** Additional argv passed directly to each interactive Windows shell. */
+  windowsShellArguments: z.string().max(WINDOWS_SHELL_ARGUMENTS_MAX),
   commitGenProvider: z.string(),
   commitGenModel: z.string(),
   commitGenEffort: z.string(),
@@ -599,6 +616,9 @@ export const defaultSharedSettings: SharedSettings = {
   locale: "system",
   gitTextLanguage: "en",
   terminalPosition: "bottom",
+  windowsShellPath: WINDOWS_SHELL_AUTO,
+  windowsInternalShellPath: WINDOWS_SHELL_AUTO,
+  windowsShellArguments: "",
   commitGenProvider: "auto",
   commitGenModel: "",
   commitGenEffort: "",

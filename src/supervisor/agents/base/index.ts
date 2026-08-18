@@ -31,6 +31,7 @@ import {
   quotePosixShellArg,
   quotePowerShellLiteral,
 } from "./shellBasics";
+import { detectPowerShell, type DetectedPowerShell } from "../../shellPreference";
 import type {
   AgentArgvSpec,
   AgentEnvContext,
@@ -92,6 +93,7 @@ export * from "./expectedRuntimeError";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
+export type { DetectedPowerShell } from "../../shellPreference";
 export * from "./sessionFs";
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
   return {
@@ -170,12 +172,6 @@ function isWindowsDirectExecutable(command: string): boolean {
   return /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(command) && /\.(?:exe|com)$/i.test(command);
 }
 
-/** A resolved Windows PowerShell host: modern pwsh 7+ or legacy 5.1. */
-export interface DetectedPowerShell {
-  path: string;
-  kind: "pwsh" | "powershell";
-}
-
 /**
  * Detect the best available PowerShell host, preserving which one matched
  * (pwsh > powershell). Callers fall back to the platform shell when none resolves.
@@ -183,12 +179,7 @@ export interface DetectedPowerShell {
 export function detectShell(
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
 ): DetectedPowerShell | undefined {
-  if (process.platform !== "win32") return undefined;
-  const pwsh = resolvePath("pwsh.exe") ?? resolvePath("pwsh");
-  if (pwsh) return { path: pwsh, kind: "pwsh" };
-  const powershell = resolvePath("powershell.exe") ?? resolvePath("powershell");
-  if (powershell) return { path: powershell, kind: "powershell" };
-  return undefined;
+  return detectPowerShell(resolvePath);
 }
 
 /**

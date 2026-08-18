@@ -12,6 +12,7 @@ import {
   quotePosixShellArg,
 } from "./shellBasics";
 import type { WslBridgeClient, WslLocation, WslProcessExecResult } from "../../wsl/bridge/client";
+import { detectPowerShell, isWindowsAppExecutionAlias } from "../../shellPreference";
 
 const execFileAsync = promisify(execFile);
 
@@ -284,8 +285,11 @@ function parseWindowsExecutablePath(stdout: string): string | undefined {
     .split(/\r?\n/g)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
+  const executables = lines.filter((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line));
   const resolved =
-    lines.findLast((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line)) ?? lines.at(-1);
+    executables.findLast((line) => !isWindowsAppExecutionAlias(line)) ??
+    executables.at(-1) ??
+    lines.at(-1);
   return (
     resolveWindowsScoopShimTarget(resolved) ?? resolveWindowsCmdExeTarget(resolved) ?? resolved
   );
@@ -540,11 +544,11 @@ function encodePowerShellCommand(script: string): string {
 }
 
 function resolveWindowsProfileShellPath(): string {
+  const resolveProfileShell = (name: string) =>
+    resolveWindowsExecutablePath(name) ??
+    resolveWindowsExecutablePath(name, buildWindowsPathOverride());
   return (
-    resolveWindowsExecutablePath("pwsh.exe") ??
-    resolveWindowsExecutablePath("pwsh", buildWindowsPathOverride()) ??
-    resolveWindowsExecutablePath("powershell.exe") ??
-    resolveWindowsExecutablePath("powershell", buildWindowsPathOverride()) ??
+    detectPowerShell(resolveProfileShell)?.path ??
     getWindowsSystemCommand("WindowsPowerShell\\v1.0\\powershell.exe")
   );
 }
