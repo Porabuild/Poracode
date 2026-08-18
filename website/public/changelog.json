@@ -1,6 +1,58 @@
 {
   "releases": [
     {
+      "version": "1.6.5",
+      "date": "2026-08-18",
+      "title": "Windows shell preferences, sturdier ACP agents & smarter PR targets",
+      "summary": "You can now choose which Windows shell runs your terminals and which one Poracode uses behind the scenes. Removing an ACP agent, opening a pull request from a worktree, and closing the app all behave the way you expect.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Windows",
+          "text": "You can now choose which shell the Terminal panel opens — PowerShell 7, Windows PowerShell 5.1, or Command Prompt — pick a separate PowerShell host for agents, logins, installs, and Poracode's internal commands, and pass extra arguments such as -NoProfile to every new terminal session."
+        },
+        {
+          "kind": "improved",
+          "label": "ACP agents",
+          "text": "Session modes reported by ACP agents now read as prose in the approval picker, so goose shows Smart approve instead of smart_approve."
+        },
+        {
+          "kind": "improved",
+          "label": "Codex",
+          "text": "New chats now start with the context window you saved for the provider, and changing a thread's context window reuses the running app server instead of spawning a second one."
+        },
+        {
+          "kind": "improved",
+          "text": "An agent that reports a successful sign-in Poracode cannot confirm now explains how to finish setup instead of showing a raw error, and an environment with a working session no longer asks you to log in again."
+        },
+        {
+          "kind": "fixed",
+          "label": "ACP agents",
+          "text": "Removing an installed agent now stops its running threads first and clears the install folder even while Windows still holds the binary, so a stale copy no longer blocks the next install."
+        },
+        {
+          "kind": "fixed",
+          "label": "Pull requests",
+          "text": "Creating a pull request from a worktree now resolves the base branch against your local branches, so the target branch is prefilled correctly, keeps its exact name when it collides with a remote ref, and stays selectable in the target list."
+        },
+        {
+          "kind": "fixed",
+          "label": "Windows",
+          "text": "Closing the main window now quits Poracode when close-to-tray is off, instead of leaving the app running with nothing on screen."
+        },
+        {
+          "kind": "fixed",
+          "label": "Codex",
+          "text": "Closing a Codex thread while a turn is still running now interrupts that turn instead of leaving it working against the shared app server."
+        },
+        {
+          "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Antigravity sessions started from a project now bind to that project so its file tools stay scoped to the folder you opened, while Home sessions stay projectless."
+        }
+      ]
+    },
+    {
       "version": "1.6.4",
       "date": "2026-08-17",
       "title": "Codex context windows, Home permissions & project terminals",
