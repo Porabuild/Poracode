@@ -106,6 +106,23 @@ describe("Codex app-server pool", () => {
     expect(mocks.terminateChildProcessTree).toHaveBeenCalledOnce();
   });
 
+  it("reuses one process when thread context windows differ", async () => {
+    const first = await acquireCodexAppServer({
+      ...input("local-a", browserServer("local-a")),
+      config: { model: "gpt-5.6-sol", contextSize: "400k" },
+    });
+    const second = await acquireCodexAppServer({
+      ...input("local-b", browserServer("local-b")),
+      config: { model: "gpt-5.6-sol", contextSize: "272k" },
+    });
+
+    expect(mocks.spawn).toHaveBeenCalledOnce();
+    expect(second.connection).toBe(first.connection);
+
+    first.dispose();
+    second.dispose();
+  });
+
   it("keeps the shared process alive while two of three thread leases remain", async () => {
     const first = await acquireCodexAppServer(input("local-a", browserServer("local-a")));
     const second = await acquireCodexAppServer(input("local-b", browserServer("local-b")));
