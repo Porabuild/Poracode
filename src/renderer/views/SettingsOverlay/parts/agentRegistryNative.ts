@@ -4,6 +4,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
 import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { CodexProviderSettings } from "./CodexProviderSettings";
 import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
@@ -129,6 +130,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command powershell -ErrorAction SilentlyContinue) { powershell -ExecutionPolicy ByPass -c \"irm https://chatgpt.com/codex/install.ps1 | iex\" } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @openai/codex } else { Write-Host 'No supported installer found. Install Windows PowerShell or Node.js/npm first, then refresh detected agents.' }",
       }),
+    settingsPanel: CodexProviderSettings,
   },
   {
     id: "claude",
@@ -223,6 +225,21 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         "if command -v curl >/dev/null 2>&1; then curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash; " +
           "else printf 'curl is required to install Kimi Code. Install curl, then refresh detected agents.\\n'; fi",
         "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://code.kimi.com/kimi-code/install.ps1 | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
+      ),
+  },
+  {
+    id: "muse",
+    description: msg`First-class Muse Code CLI integration using Poracode's native terminal runtime.`,
+    docsUrl: "https://dev.meta.ai/docs/muse-code",
+    // Muse Code has no native Windows build. WSL projects get the posix curl
+    // installer (run inside the distro); a native Windows project gets a clear
+    // unsupported message pointing users at WSL or macOS/Linux.
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://dev.meta.ai/install.sh | sh; " +
+          "else printf 'curl is required to install Muse Code. Install curl, then refresh detected agents.\\n'; fi",
+        "Write-Host 'Muse Code is not available on native Windows. Open a WSL project and install with: curl -fsSL https://dev.meta.ai/install.sh | sh'",
       ),
   },
   {

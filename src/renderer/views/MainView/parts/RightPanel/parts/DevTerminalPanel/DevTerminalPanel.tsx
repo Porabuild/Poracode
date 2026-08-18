@@ -12,7 +12,11 @@ import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTe
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
-import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
+import {
+  clearEagerShellStart,
+  startShellWithCurrentSettings,
+  wasShellStartedEagerly,
+} from "@/renderer/utils/shellUtils";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import type { TerminalSize } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -117,17 +121,15 @@ export function DevTerminalPanel(props: {
       ? buildWorktreeLocation(project.location, owningTab.worktreePath)
       : project.location;
     spawnedRef.current.add(terminalId);
-    void readBridge()
-      .startShell({
-        shellId: terminalId,
-        projectLocation: location,
-        ...(owningTab.worktreePath ? { worktreePath: owningTab.worktreePath } : {}),
-        initialSize: size,
-      })
-      .catch((error) => {
-        spawnedRef.current.delete(terminalId);
-        toast.danger(friendlyError(error));
-      });
+    void startShellWithCurrentSettings({
+      shellId: terminalId,
+      projectLocation: location,
+      ...(owningTab.worktreePath ? { worktreePath: owningTab.worktreePath } : {}),
+      initialSize: size,
+    }).catch((error) => {
+      spawnedRef.current.delete(terminalId);
+      toast.danger(friendlyError(error));
+    });
   }
 
   function handleCloseTab(tab: DevTerminalTab) {

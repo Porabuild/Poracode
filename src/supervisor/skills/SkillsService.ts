@@ -1184,19 +1184,23 @@ export class SkillsService {
     if (pending.length === 0) return undefined;
     const sources = [];
     for (const segment of pending) {
+      // `selectSkillSegmentsForInjection` already dropped pathless
+      // (provider-native) segments; this only narrows the optional field.
+      const segmentPath = segment.path;
+      if (!segmentPath) continue;
       // Segment paths are display paths (Linux form inside WSL environments);
       // bundled skills keep host paths even there, so only rewrite
       // posix-absolute paths through the distro's UNC mapping.
       const fsPath =
-        environment.wsl && environment.distro && segment.path.startsWith("/")
-          ? this.wslFsPath(environment.distro, segment.path)
-          : segment.path;
+        environment.wsl && environment.distro && segmentPath.startsWith("/")
+          ? this.wslFsPath(environment.distro, segmentPath)
+          : segmentPath;
       try {
         const buffer = await readFile(fsPath);
         if (buffer.length > MAX_SKILL_FILE_BYTES) continue;
         sources.push({
           name: segment.name,
-          directory: posix.dirname(segment.path.replace(/\\/gu, "/")),
+          directory: posix.dirname(segmentPath.replace(/\\/gu, "/")),
           content: buffer.toString("utf8"),
         });
       } catch {
@@ -1248,20 +1252,24 @@ export class SkillsService {
     const rewritten = segments.map<PromptSegment>((segment) => {
       if (segment.kind !== "skill") return segment;
       if (this.nativePluginReplacement(segment, input.nativePlugins)) return segment;
-      if (isPathUnderAny(segment.path, nativeRootPaths)) return segment;
+      // No SKILL.md path — the agent resolves this skill from its own catalog,
+      // so the invocation text is already the right thing to type.
+      const segmentPath = segment.path;
+      if (!segmentPath) return segment;
+      if (isPathUnderAny(segmentPath, nativeRootPaths)) return segment;
       const managedDisplay = managedDisplayFor(segment.scope);
       // Managed skills this adapter projects into its own folders resolve
       // natively in the CLI (e.g. `.agents` skills copied to `.claude/skills`).
       if (
         managedDisplay &&
-        isPathUnderAny(segment.path, [managedDisplay]) &&
+        isPathUnderAny(segmentPath, [managedDisplay]) &&
         projectsScope(segment.scope)
       ) {
         return segment;
       }
-      const normalized = segment.path.replace(/\\/gu, "/");
+      const normalized = segmentPath.replace(/\\/gu, "/");
       const hintPath =
-        bundledRoot && bundledHintRoot && isPathUnderAny(segment.path, [bundledRoot.displayPath])
+        bundledRoot && bundledHintRoot && isPathUnderAny(segmentPath, [bundledRoot.displayPath])
           ? posix.join(
               bundledHintRoot,
               posix.relative(bundledRoot.displayPath.replace(/\\/gu, "/"), normalized),

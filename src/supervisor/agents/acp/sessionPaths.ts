@@ -1,8 +1,31 @@
+import { homedir } from "node:os";
 import { posix, win32 } from "node:path";
 import { pathToFileURL } from "node:url";
 import { RequestError } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
+import { isHomeScopeLocation } from "@/shared/homeScope";
 import { toWslUncPath } from "@/shared/wsl";
+
+/**
+ * Home-relative directories ACP agents may *read* even though they sit
+ * outside the project. Grok (and other CLIs that speak ACP) discover
+ * skills from these roots, then load `SKILL.md` through the client fs
+ * bridge — without the carve-out the read is rejected as
+ * "Path is outside the project" and the skill cannot run.
+ *
+ * Write stays denied: skill bodies are instructions, not session state.
+ */
+const ACP_SKILL_READ_DIRS = [
+  ".agents/skills",
+  ".agents/commands",
+  ".grok/skills",
+  ".grok/commands",
+  ".grok/bundled/skills",
+  ".claude/skills",
+  ".claude/commands",
+  ".cursor/skills",
+  ".cursor/commands",
+] as const;
 
 /** CWD to pass into the ACP session (the agent's working directory). */
 export function resolveSessionCwd(location: ProjectLocation): string {
@@ -88,6 +111,10 @@ export function resolveAcpHostFsPath(location: ProjectLocation, rawPath: string)
     : win32.join(location.uncPath, ...relative.split("/").filter(Boolean));
 }
 
+export function isAcpHomeScopeLocation(location: ProjectLocation): boolean {
+  return isHomeScopeLocation(location);
+}
+
 export function resolveAcpReadableHostFsPath(
   location: ProjectLocation,
   rawPath: string,
@@ -99,6 +126,7 @@ export function resolveAcpReadableHostFsPath(
   }
   const normalizedPath = normalizeAcpPath(location, absolutePath);
   if (
+    !isAcpHomeScopeLocation(location) &&
     !isAgentSkillReadPath(location, normalizedPath) &&
     !isAgentHomeDirPath(location, normalizedPath, agentHomeDirs)
   ) {
@@ -108,10 +136,45 @@ export function resolveAcpReadableHostFsPath(
 }
 
 /**
+ * When an ACP agent asks for a project-relative skill path that is not
+ * on disk (Grok stores `~/.agents/skills/foo` as `{cwd}/.agents/skills/foo`
+ * after joining the catalog's relative root against the session cwd), map
+ * it to the matching user-global skill file. Only well-known skill roots
+ * are rewritten; regular project files are left alone.
+ */
+export function resolveAcpGlobalSkillFallbackHostFsPath(
+  location: ProjectLocation,
+  rawPath: string,
+): string | undefined {
+  const absolutePath = normalizeAcpPath(location, resolveAcpResourcePath(location, rawPath));
+  if (!isProjectRelativePath(location, absolutePath)) return undefined;
+
+  const projectRoot = location.kind === "wsl" ? location.linuxPath : location.path;
+  const relative =
+    location.kind === "windows"
+      ? win32.relative(projectRoot, absolutePath)
+      : posix.relative(projectRoot, absolutePath);
+  const posixRelative = relative.replace(/\\/gu, "/");
+  const matched = ACP_SKILL_READ_DIRS.find(
+    (dir) => posixRelative === dir || posixRelative.startsWith(`${dir}/`),
+  );
+  if (!matched || posixRelative === matched) return undefined;
+
+  const home = userHomePrefix(location);
+  if (!home) return undefined;
+
+  const fallback =
+    location.kind === "windows"
+      ? win32.join(home, ...posixRelative.split("/"))
+      : posix.join(home, posixRelative);
+  return toHostFsPathOutsideProject(location, fallback);
+}
+
+/**
  * Like {@link resolveAcpHostFsPath}, but with the provider's declared
  * home-relative carve-outs (`agentHomeDirs`) writable in addition to the
- * project root. `~/.agents/skills` stays read-only — it is deliberately NOT
- * honored here.
+ * project root. Global skill directories stay read-only — they are
+ * deliberately NOT honored here.
  */
 export function resolveAcpWritableHostFsPath(
   location: ProjectLocation,
@@ -123,7 +186,10 @@ export function resolveAcpWritableHostFsPath(
     return resolveAcpHostFsPath(location, rawPath);
   }
   const normalizedPath = normalizeAcpPath(location, absolutePath);
-  if (!isAgentHomeDirPath(location, normalizedPath, agentHomeDirs)) {
+  if (
+    !isAcpHomeScopeLocation(location) &&
+    !isAgentHomeDirPath(location, normalizedPath, agentHomeDirs)
+  ) {
     throw RequestError.invalidParams({ message: `Path is outside the project: ${rawPath}` });
   }
   return toHostFsPathOutsideProject(location, normalizedPath);
@@ -193,7 +259,24 @@ export function sliceTextFileContent(
 }
 
 function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): boolean {
-  return isUserHomeRelativePath(location, absolutePath, ".agents/skills");
+  return ACP_SKILL_READ_DIRS.some((dir) => isUserHomeRelativePath(location, absolutePath, dir));
+}
+
+function userHomePrefix(location: ProjectLocation): string | undefined {
+  switch (location.kind) {
+    case "windows": {
+      const match = /^([A-Za-z]:[\\/]Users[\\/][^\\/]+)/i.exec(homedir());
+      return match?.[1];
+    }
+    case "posix": {
+      const home = homedir();
+      return /^\/(?:home\/[^/]+|Users\/[^/]+|root)$/.test(home) ? home : undefined;
+    }
+    case "wsl": {
+      const match = /^(\/(?:home\/[^/]+|Users\/[^/]+|root))(?:\/|$)/.exec(location.linuxPath);
+      return match?.[1];
+    }
+  }
 }
 
 function isAgentHomeDirPath(

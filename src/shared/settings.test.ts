@@ -25,6 +25,16 @@ describe("shared settings defaults", () => {
     expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
   });
 
+  it("adds automatic Windows shell settings to a previous settings shape", () => {
+    const normalized = normalizeSharedSettings({ terminalPosition: "right" });
+    expect(normalized).toMatchObject({
+      terminalPosition: "right",
+      windowsShellPath: "auto",
+      windowsInternalShellPath: "auto",
+      windowsShellArguments: "",
+    });
+  });
+
   it("migrates legacy sleep booleans into preventSleep", () => {
     expect(
       normalizeSharedSettings({

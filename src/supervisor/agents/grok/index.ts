@@ -181,6 +181,11 @@ export function createGrokAdapter(): AgentAdapter {
       );
       return createAcpStructuredSession(command, {
         ...input,
+        // Grok ACP proxies ReadFile through the client, including SKILL.md
+        // loads from ~/.grok/bundled/skills and ~/.grok/skills. Without a
+        // home-dir carve-out the shared fs bridge rejects those paths as
+        // outside the project and every global/bundled skill fails.
+        acpFsAgentHomeDirs: [".grok"],
         acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
       });
     },

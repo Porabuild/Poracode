@@ -29,6 +29,7 @@ import {
   createCodexMapperState,
   CodexUsageScopeTracker,
   mapCodexNotification,
+  readTurnId,
   type CodexMapperState,
 } from "./canonicalMapping";
 import {
@@ -46,7 +47,11 @@ import {
   parseCodexGoalCommand,
   type CodexGoalCommand,
 } from "./acpTurn";
-import { CodexAppServerRpc, isUnsupportedCodexRequestError } from "./appServerRpc";
+import {
+  CodexAppServerRpc,
+  isCodexSteerRejectedError,
+  isUnsupportedCodexRequestError,
+} from "./appServerRpc";
 import type { CodexClientRequestMap } from "./protocol";
 import { acquireCodexAppServer } from "./serverPool";
 import { buildCodexThreadOverrides } from "./threadOverrides";
@@ -56,6 +61,7 @@ import {
   readCodexInitCommands,
 } from "./probe";
 import { CodexSubAgentRouter } from "./subAgentRouting";
+import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
@@ -174,6 +180,16 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
   private currentConfig: ThreadConfig | undefined;
   private activeTurnId: string | undefined;
+  /**
+   * Turn ids currently running on the remote thread. The app-server accepts a
+   * `turn/start` while another turn is still active (verified against
+   * 0.147.0), and auto-compaction runs internal turns around the user's turn.
+   * A `turn/completed` for one of several concurrent turns must not settle
+   * the whole thread idle — the surviving turn's items would stream with the
+   * visible turn closed ("message sent, no answer"). Cleared whenever the
+   * server reports an authoritative idle status.
+   */
+  private readonly activeTurnIds = new Set<string>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private currentBaseSlashCommands: AgentSlashCommand[] = [];
   private currentSkillSlashCommands: AgentSlashCommand[] = [];
@@ -673,30 +689,29 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     if (goalCommand) {
       const canStartModelTurn = goalCommand.kind === "set" || goalCommand.kind === "resume";
       const expectsModelTurn = canStartModelTurn && config.mode !== "plan";
-      this.emitRuntimeEvents([
-        { type: "turn.started", threadId: this.threadId, turnId },
-        ...userEvents,
-      ]);
+      // Only the user message is emitted locally: the turn lifecycle comes from
+      // the server's own `turn/started` for the auto-started goal turn. A
+      // locally-minted `turn.started` would be orphaned (no matching
+      // `turn.completed`) whenever the server does not start a model turn —
+      // plan mode, an already-complete goal, or `resume` with a turn already
+      // running — leaving the renderer's turn open forever.
+      this.emitRuntimeEvents(userEvents);
       try {
         await this.dispatchCodexGoalCommand(threadId, goalCommand);
       } catch (error) {
         this.pendingTurnInterrupt = false;
         const message = error instanceof Error ? error.message : String(error);
-        this.emitRuntimeEvents([
-          { type: "error", threadId: this.threadId, message },
-          { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
-        ]);
-        this.emitUpdate({ status: "idle", attention: "none" });
+        this.emitRuntimeEvents([{ type: "error", threadId: this.threadId, message }]);
+        this.settleGoalCommandStatus();
         return;
       }
       if (expectsModelTurn || (canStartModelTurn && this.activeTurnId)) {
+        // The server owns the turn lifecycle from here: `turn/started` (or the
+        // already-running turn) drives status, `turn/completed` settles it.
         return;
       }
       this.pendingTurnInterrupt = false;
-      this.emitRuntimeEvents([
-        { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
-      ]);
-      this.emitUpdate({ status: "idle", attention: "none" });
+      this.settleGoalCommandStatus();
       return;
     }
 
@@ -738,13 +753,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         serviceTier: config.fast === true ? "fast" : null,
       });
       this.activeTurnId = extractTurnField(result, "id");
-      if (this.pendingTurnInterrupt && this.activeTurnId) {
-        this.pendingTurnInterrupt = false;
-        await this.rpc.request("turn/interrupt", {
-          threadId,
-          turnId: this.activeTurnId,
-        });
+      if (this.activeTurnId) {
+        this.activeTurnIds.add(this.activeTurnId);
       }
+      await this.flushPendingTurnInterrupt(threadId);
     } catch (error) {
       this.pendingTurnInterrupt = false;
       if (this.isDisposed) return;
@@ -752,6 +764,77 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       this.errorSticky = true;
       this.emitUpdate({ status: "error", attention: "error", errorMessage: message });
       this.emitRuntimeEvents([{ type: "error", threadId: this.threadId, message }]);
+      throw error;
+    }
+  }
+
+  /**
+   * Steer the in-flight turn via the app-server's `turn/steer`: the message is
+   * appended to the running turn without interrupting it (no subagent churn,
+   * no interrupt-and-resume cycle — critical on goal threads, where an
+   * interrupted turn is auto-resumed by the server as a fresh turn).
+   *
+   * Per the protocol, `turn/steer` emits no `turn/started`; the accepted turn
+   * keeps its lifecycle, so this only paints the user message locally. The
+   * mapper drops the server's `userMessage` echo, keeping a single row.
+   */
+  async steerTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    // Goal slash-commands keep their control-flow semantics (goal RPC +
+    // settle accounting); delivering them as literal steer text would hand
+    // "/goal pause" to the model instead of pausing the goal.
+    if (parseCodexGoalCommand(prompt)) {
+      return this.startTurn(prompt, config, segments, options);
+    }
+    const expectedTurnId = this.activeTurnId;
+    if (!expectedTurnId) {
+      // Documented fallback (StructuredSessionHandle): no turn in flight →
+      // normal turn accounting through `startTurn`.
+      return this.startTurn(prompt, config, segments, options);
+    }
+
+    // Paint the user message before the round-trip; keep the id stable so a
+    // fallback to `startTurn` re-emits the same (deduped) row.
+    const userItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
+    this.emitRuntimeEvents([
+      {
+        type: "item.started",
+        threadId: this.threadId,
+        itemId: userItemId,
+        itemType: "user_message",
+        payload: { content: buildPromptContentBlocks(prompt, segments) },
+      },
+      { type: "item.completed", threadId: this.threadId, itemId: userItemId },
+    ]);
+
+    const threadId = await this.waitForRemoteThreadId();
+    const input = buildCodexTurnInput(prompt, segments, options?.inlineInstructions);
+    try {
+      const result = await this.rpc.request("turn/steer", {
+        threadId,
+        input,
+        expectedTurnId,
+        ...(options?.userMessageItemId ? { clientUserMessageId: options.userMessageItemId } : {}),
+      });
+      const acceptedTurnId = typeof result?.turnId === "string" ? result.turnId : undefined;
+      if (acceptedTurnId && acceptedTurnId !== expectedTurnId) {
+        this.activeTurnId = acceptedTurnId;
+        this.activeTurnIds.add(acceptedTurnId);
+      }
+    } catch (error) {
+      if (this.isDisposed) return;
+      if (isCodexSteerRejectedError(error)) {
+        // The expected turn ended (or is not steerable) between our tracking
+        // and the request — deliver the message as a fresh turn instead.
+        return this.startTurn(prompt, config, segments, {
+          ...options,
+          userMessageItemId: userItemId,
+        });
+      }
       throw error;
     }
   }
@@ -767,10 +850,39 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
-    await this.rpc.request("turn/interrupt", {
-      threadId,
-      turnId: this.activeTurnId,
-    });
+    await this.interruptActiveTurn(threadId, this.activeTurnId);
+  }
+
+  private flushPendingTurnInterrupt(threadId: string | undefined): Promise<void> {
+    if (!this.pendingTurnInterrupt || !this.activeTurnId || !threadId) {
+      return Promise.resolve();
+    }
+    const turnId = this.activeTurnId;
+    this.pendingTurnInterrupt = false;
+    return this.interruptActiveTurn(threadId, turnId);
+  }
+
+  private async interruptActiveTurn(
+    threadId: string,
+    turnId: string,
+    timeoutMs?: number,
+    canRetry: () => boolean = () => true,
+  ): Promise<void> {
+    try {
+      await this.rpc.request("turn/interrupt", { threadId, turnId }, timeoutMs);
+    } catch (error) {
+      const retryTurnId = nextCodexInterruptTurnId(turnId, error);
+      if (!retryTurnId) {
+        throw error;
+      }
+      if (!canRetry()) {
+        return;
+      }
+      this.activeTurnIds.delete(turnId);
+      this.activeTurnIds.add(retryTurnId);
+      this.activeTurnId = retryTurnId;
+      await this.rpc.request("turn/interrupt", { threadId, turnId: retryTurnId }, timeoutMs);
+    }
   }
 
   async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
@@ -799,6 +911,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
       this.pendingTurnInterrupt = false;
       this.activeTurnId = undefined;
+      this.activeTurnIds.clear();
       await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
       return {
         providerSessionId: threadId,
@@ -871,6 +984,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       });
     this.pendingTurnInterrupt = false;
     this.activeTurnId = undefined;
+    this.activeTurnIds.clear();
     await this.syncRemoteThreadState(newThreadId, toSessionRef(newThreadId));
     return {
       providerSessionId: newThreadId,
@@ -893,29 +1007,47 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.isDisposed = true;
 
     this.clearPendingSystemErrorFallback();
-    if (this.remoteThreadId) {
+    const remoteThreadId = this.remoteThreadId;
+    if (remoteThreadId) {
+      const activeTurnIds = new Set(this.activeTurnIds);
       if (this.activeTurnId) {
-        await this.rpc
+        activeTurnIds.add(this.activeTurnId);
+      }
+      if (this.currentThreadStatus.type === "active") {
+        const result = await this.rpc
           .request(
-            "turn/interrupt",
-            {
-              threadId: this.remoteThreadId,
-              turnId: this.activeTurnId,
-            },
+            "thread/read",
+            { threadId: remoteThreadId, includeTurns: true },
             CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
           )
           .catch(() => undefined);
+        for (const turn of result?.thread?.turns ?? []) {
+          if (turn.status === "inProgress") {
+            activeTurnIds.add(turn.id);
+          }
+        }
+      }
+      for (const activeTurnId of activeTurnIds) {
+        if (!this.rpc.ownsThread(remoteThreadId)) {
+          break;
+        }
+        await this.interruptActiveTurn(
+          remoteThreadId,
+          activeTurnId,
+          CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          () => this.rpc.ownsThread(remoteThreadId),
+        ).catch(() => undefined);
       }
       // Re-check ownership *after* the interrupt round-trip: a force-stopped
       // session is replaced while this teardown drains, and the replacement
       // resubscribes to the same provider thread on the shared app-server.
       // Unsubscribing then would silence the live session's notifications and
       // strand it on "working" with no output.
-      if (this.rpc.ownsThread(this.remoteThreadId)) {
+      if (this.rpc.ownsThread(remoteThreadId)) {
         await this.rpc
           .request(
             "thread/unsubscribe",
-            { threadId: this.remoteThreadId },
+            { threadId: remoteThreadId },
             CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
           )
           .catch(() => undefined);
@@ -979,13 +1111,32 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     ) {
       return;
     }
+    const completedTurnId = readTurnId(params);
+    const isTrackedConcurrentCompletion =
+      completedTurnId !== undefined && this.activeTurnIds.has(completedTurnId);
+    if (
+      (method === "turn/completed" || method === "turn/aborted") &&
+      isStaleCodexTurnCompletion(params, this.activeTurnId) &&
+      !isTrackedConcurrentCompletion
+    ) {
+      // A late completion for an earlier turn must not drop the live turn id
+      // or settle the session while Codex is still working. That is what
+      // strands Stop/Steer on "expected active turn id … but found …".
+      return;
+    }
 
     // Translate to canonical chat events for chat-mode renderers. Runs
     // alongside the existing status-derivation logic below — terminal mode
-    // is unaffected.
+    // is unaffected. A `turn/completed` arriving while a sibling turn still
+    // runs must not purge the mapper's per-turn item state.
+    const turnWillSettleThread =
+      (method !== "turn/completed" && method !== "turn/aborted") ||
+      this.willTurnCompletionSettleThread(completedTurnId);
     const mappedRuntimeEvents = suppressResumeReplay
       ? []
-      : mapCodexNotification(method, params, this.ensureMapperState(), this.wslDistro);
+      : mapCodexNotification(method, params, this.ensureMapperState(), this.wslDistro, {
+          turnSettled: turnWillSettleThread,
+        });
     const runtimeEvents = this.ensureSubAgentRouter().observeMainNotification(
       method,
       params,
@@ -1051,6 +1202,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         return;
       }
       this.currentThreadStatus = nextStatus;
+      if (nextStatus.type === "idle" || nextStatus.type === "systemError") {
+        // The server's own idle is authoritative: no turn on this thread is
+        // running anymore, so drop any turn ids we never saw complete (e.g.
+        // internal compact turns that never sent `turn/completed`).
+        this.activeTurnIds.clear();
+      }
       this.emitDerivedUpdate();
       if (shouldFallbackEmit) {
         this.errorSticky = true;
@@ -1059,43 +1216,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
-    if (method === "turn/started" && params) {
-      if (suppressResumeReplay) {
-        return;
-      }
-      const incomingThreadId = "threadId" in params ? String(params.threadId) : this.remoteThreadId;
-      if (incomingThreadId && !this.isCurrentThreadNotification(incomingThreadId)) {
-        return;
-      }
-
-      this.activeTurnId =
-        extractTurnField(params, "id") ??
-        (typeof params.turnId === "string" ? params.turnId : this.activeTurnId);
-      this.currentThreadStatus = { type: "active", activeFlags: [] };
-      this.emitUpdate({
-        status: "working",
-        attention: "working",
-      });
-      return;
-    }
-
-    // `turn/aborted` is retained only for older app-server compatibility.
-    if (method === "turn/completed" || method === "turn/aborted") {
-      if (suppressResumeReplay) {
-        return;
-      }
-      const incomingThreadId = readNotificationThreadId(params, this.remoteThreadId);
-      if (!incomingThreadId) return;
-      if (!this.isCurrentThreadNotification(incomingThreadId)) {
-        return;
-      }
-
-      this.pendingTurnInterrupt = false;
-      this.activeTurnId = undefined;
-      this.currentThreadStatus = { type: "idle" };
-      if (!this.errorSticky) {
-        this.emitUpdate({ status: "idle", attention: "none" });
-      }
+    if (this.applyMainTurnLifecycle(method, params, suppressResumeReplay)) {
       return;
     }
 
@@ -1106,6 +1227,70 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     if (method === "thread/closed") {
       this.listener?.onClose();
     }
+  }
+
+  private applyMainTurnLifecycle(
+    method: string,
+    params: Record<string, unknown> | undefined,
+    suppressResumeReplay: boolean,
+  ): boolean {
+    if (method === "turn/started") {
+      if (!params || suppressResumeReplay) return true;
+      const incomingThreadId = "threadId" in params ? String(params.threadId) : this.remoteThreadId;
+      if (incomingThreadId && !this.isCurrentThreadNotification(incomingThreadId)) {
+        return true;
+      }
+      this.activeTurnId = readTurnId(params) ?? this.activeTurnId;
+      if (this.activeTurnId) {
+        this.activeTurnIds.add(this.activeTurnId);
+      }
+      this.currentThreadStatus = { type: "active", activeFlags: [] };
+      this.emitUpdate({ status: "working", attention: "working" });
+      void this.flushPendingTurnInterrupt(incomingThreadId ?? this.remoteThreadId).catch(
+        (error) => {
+          if (!this.isDisposed) {
+            console.error("[codex] failed to interrupt newly started turn:", error);
+          }
+        },
+      );
+      return true;
+    }
+
+    // `turn/aborted` is retained only for older app-server compatibility.
+    if (method !== "turn/completed" && method !== "turn/aborted") {
+      return false;
+    }
+    if (suppressResumeReplay) return true;
+    const incomingThreadId = readNotificationThreadId(params, this.remoteThreadId);
+    if (!incomingThreadId || !this.isCurrentThreadNotification(incomingThreadId)) {
+      return true;
+    }
+
+    const completedTurnId = readTurnId(params);
+    if (completedTurnId) {
+      this.activeTurnIds.delete(completedTurnId);
+    } else {
+      this.activeTurnIds.clear();
+    }
+    if (this.activeTurnIds.size > 0) {
+      // A sibling turn (auto-compact continuation, or an earlier
+      // `turn/start` the server accepted concurrently) is still running.
+      // Keep the thread working and hold per-turn mapper state so the live
+      // turn keeps resolving its items.
+      this.pendingTurnInterrupt = false;
+      if (this.activeTurnId === completedTurnId) {
+        this.activeTurnId = [...this.activeTurnIds].at(-1);
+      }
+      return true;
+    }
+
+    this.pendingTurnInterrupt = false;
+    this.activeTurnId = undefined;
+    this.currentThreadStatus = { type: "idle" };
+    if (!this.errorSticky) {
+      this.emitUpdate({ status: "idle", attention: "none" });
+    }
+    return true;
   }
 
   private async initialize(): Promise<void> {
@@ -1140,6 +1325,31 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
   private isCurrentThreadNotification(threadId: string): boolean {
     return this.remoteThreadId === undefined || this.remoteThreadId === threadId;
+  }
+
+  /**
+   * True when this `turn/completed` settles the whole thread: either no turn
+   * is considered active, or the completing turn is the only one left. Runs
+   * BEFORE the set is updated, so it predicts the post-completion state.
+   */
+  private willTurnCompletionSettleThread(turnId: string | undefined): boolean {
+    if (this.activeTurnIds.size === 0) return true;
+    return turnId !== undefined && this.activeTurnIds.size === 1 && this.activeTurnIds.has(turnId);
+  }
+
+  /**
+   * Settle the thread after a goal command that runs no model turn
+   * (`view`/`pause`/`clear`, or a failed dispatch). A goal turn that is still
+   * running keeps the thread in its current status — forcing idle here would
+   * close the visible turn while the agent keeps streaming, and the renderer
+   * deliberately cannot reopen a turn its `turn.completed` already closed.
+   */
+  private settleGoalCommandStatus(): void {
+    if (this.activeTurnIds.size > 0) return;
+    this.currentThreadStatus = { type: "idle" };
+    if (!this.errorSticky) {
+      this.emitUpdate({ status: "idle", attention: "none" });
+    }
   }
 
   private replayForkNotifications(threadId: string): void {
@@ -1207,6 +1417,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       if ("status" in thread && thread.status && typeof thread.status === "object") {
         confirmedStatus = thread.status as CodexThreadStatus;
         this.currentThreadStatus = confirmedStatus;
+        if (confirmedStatus.type === "idle" || confirmedStatus.type === "systemError") {
+          this.activeTurnIds.clear();
+        }
       }
       this.emitDerivedUpdate(sessionRef);
     } catch {

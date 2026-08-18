@@ -386,7 +386,6 @@ export function buildCodexMcp(servers: readonly ResolvedMcpServer[]): CodexMcp {
   const args: string[] = [];
   const env: Record<string, string> = {};
   const config: Record<string, unknown> = {};
-  let remoteClientEnabled = false;
 
   for (const server of servers) {
     const transport = server.transport;
@@ -408,11 +407,6 @@ export function buildCodexMcp(servers: readonly ResolvedMcpServer[]): CodexMcp {
         serverConfig.cwd = transport.cwd;
       }
     } else {
-      if (!remoteClientEnabled) {
-        args.push("-c", "experimental_use_rmcp_client=true");
-        config.experimental_use_rmcp_client = true;
-        remoteClientEnabled = true;
-      }
       args.push("-c", `${key}.url=${tomlString(transport.url)}`);
       serverConfig.url = transport.url;
       const token = bearerToken(transport.headers);

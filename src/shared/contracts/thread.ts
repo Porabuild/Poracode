@@ -83,6 +83,13 @@ export interface ThreadRuntimeSnapshot {
   slashCommands?: z.infer<typeof agentSlashCommandSchema>[];
 }
 
+export interface TerminalShellSnapshot {
+  terminalId: string;
+  projectLocation: z.infer<typeof projectLocationSchema>;
+  worktreePath?: string;
+  outputLength: number;
+}
+
 export const terminalSizeSchema = z.object({
   cols: z.number().int().min(20).max(400),
   rows: z.number().int().min(5).max(200),
@@ -107,7 +114,13 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("skill"),
     name: z.string().min(1),
-    path: z.string().min(1),
+    /**
+     * Absolute path to the skill's SKILL.md. Absent for provider-native skills
+     * the agent resolves by name (e.g. Claude's bundled skills reported through
+     * the SDK), which have no on-disk file the app can read. Consumers must
+     * treat a missing path as "nothing to read/inline/policy-match".
+     */
+    path: z.string().min(1).optional(),
     invocation: z.string().min(1),
     provider: z.string().min(1),
     scope: z.enum(["global", "project"]),
@@ -386,5 +399,11 @@ export const startShellPayloadSchema = z.object({
    * ephemeral) worktree.
    */
   startInHome: z.boolean().optional(),
+  /**
+   * Native Windows shells default to the user's interactive preference.
+   * Login/install overlays emit PowerShell, so they request a PowerShell host
+   * even when the preferred interactive shell is cmd.
+   */
+  windowsShellRuntime: z.enum(["preferred", "powershell"]).optional(),
 });
 export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;

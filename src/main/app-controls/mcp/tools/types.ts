@@ -93,6 +93,7 @@ import type {
   StartThreadResult,
   Thread,
   ThreadRuntimeSnapshot,
+  TerminalShellSnapshot,
 } from "@/shared/contracts";
 import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
@@ -111,6 +112,7 @@ import type { ThreadStateBroker } from "../../../threads/threadStateBroker";
  */
 export interface AppControlsSupervisorCaller {
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
+  getTerminalShellSnapshots(): Promise<TerminalShellSnapshot[]>;
   /** Start (or resume) a thread's runtime session. Used to revive a thread with no live session. */
   startThread(payload: StartThreadPayload): Promise<StartThreadResult>;
   sendThreadInput(payload: SendThreadInputPayload): Promise<void>;
@@ -119,7 +121,7 @@ export interface AppControlsSupervisorCaller {
   getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse>;
   refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
-  /** Read a terminal-native thread's PTY scrollback (empty string when none). */
+  /** Read a terminal PTY's scrollback (empty string when none). */
   readTerminalScrollback(payload: { threadId: string }): Promise<string>;
   /** Queue steer guidance injected when the running agent next yields. */
   setPendingSteer(payload: SetPendingSteerPayload): Promise<void>;

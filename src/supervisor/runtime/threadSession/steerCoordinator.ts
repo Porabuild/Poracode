@@ -214,7 +214,11 @@ export class SteerCoordinator {
     };
     // Capability-based: non-interrupting steer enqueues onto the running turn
     // (subagents survive, no watchdog); others use the interrupt-drain path.
-    if (session.structuredSession.steerTurn) {
+    // A renderer can request this path from optimistic `working` state while
+    // the supervisor is still reconnecting. Native steering is valid only for
+    // an authoritatively live turn; idle/needs-reply/error must drain as a
+    // normal turn instead.
+    if (session.status === "working" && session.structuredSession.steerTurn) {
       this.steerStructuredTurn(session, turn);
       return;
     }

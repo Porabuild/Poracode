@@ -29,6 +29,7 @@ import {
 import { PixelLoader } from "../../PixelLoader";
 import { useResponsiveMenu } from "../../ResponsiveMenuSurface";
 import type { BranchListItem } from "./useBranchList";
+import { localBranchNameFromRef } from "./worktreeBaseRef";
 
 const STATUS_DOT_CLASS: Record<StatusTone, string> = {
   inactive: "bg-muted/40",
@@ -101,7 +102,11 @@ export function BranchListBox(props: {
     );
   }
 
-  const selectedKey = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
+  const selectedRef = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
+  const listedBranches = items.flatMap((item) => (item.type === "branch" ? [item.branch] : []));
+  const selectedKey = items.some((item) => item.type === "branch" && item.id === selectedRef)
+    ? selectedRef
+    : localBranchNameFromRef(selectedRef, listedBranches);
 
   return (
     <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight, padding: 8 }}>
@@ -109,9 +114,7 @@ export function BranchListBox(props: {
         aria-label={t`Branches`}
         className={`poracode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
         items={items}
-        selectedKeys={
-          isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])
-        }
+        selectedKeys={new Set([selectedKey])}
         selectionMode="single"
         disallowEmptySelection
         onSelectionChange={(keys) => {

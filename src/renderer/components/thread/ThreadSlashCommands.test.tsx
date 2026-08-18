@@ -262,7 +262,7 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/browser");
 
-    expect(screen.getByText("/browser-control")).toBeInTheDocument();
+    expect(screen.getByText("browser-control")).toBeInTheDocument();
     expect(
       screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
     ).toBeInTheDocument();
@@ -465,8 +465,8 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/");
 
     expect(await screen.findByText("Skills")).toBeInTheDocument();
-    expect(screen.getByText("/review-code")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("/review-code"));
+    expect(screen.getByText("review-code")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("review-code"));
     fireEvent.keyDown(editor, { key: "Enter" });
 
     expect(onStart).toHaveBeenCalledWith(
@@ -684,6 +684,42 @@ describe("ThreadSlashCommands", () => {
     ]);
   });
 
+  it("keeps the SKILL.md path when a provider reports a locally scanned skill", () => {
+    const local = {
+      id: "browser-control",
+      label: "browser-control — Drive the browser",
+      description: "Drive the browser",
+      section: "skills" as const,
+      skillName: "browser-control",
+      skillPath: "/plugins/browser-tools/skills/browser-control/SKILL.md",
+      skillInvocation: "Use the browser-control skill.",
+      skillProvider: "Browser Tools",
+      skillScope: "global" as const,
+      pluginId: "browser-tools",
+      pluginName: "Browser Tools",
+    };
+
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          // Provider-native entry for the same skill: no SKILL.md path.
+          id: "browser-control",
+          label: "browser-control — Drive the browser",
+          description: "Drive the browser",
+          section: "skills",
+          skillName: "browser-control",
+          skillInvocation: "Use the browser-control skill.",
+          skillProvider: "Claude",
+          skillScope: "global",
+        },
+      ],
+      undefined,
+      { skillCommands: [local] },
+    );
+
+    expect(commands).toEqual([local]);
+  });
+
   it("finds ACP skill commands by their short display name", () => {
     const command = {
       id: "skill:simplify",
@@ -726,11 +762,15 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/sim");
 
-    expect(screen.getByText("/simplify")).toBeInTheDocument();
+    const option = screen.getByRole("option", { name: "Skill: simplify" });
+    expect(option).toBeInTheDocument();
+    expect(option.querySelector("svg.lucide-sparkles")).not.toBeNull();
+    expect(screen.getByText("simplify")).toBeInTheDocument();
     expect(screen.queryByText("/skill:simplify")).not.toBeInTheDocument();
 
     fireEvent.keyDown(editor, { key: "Enter" });
-    expect(editor.textContent).toBe("/simplify ");
+    expect(editor.textContent).toBe("simplify ");
+    expect(editor.querySelector("svg")).not.toBeNull();
 
     fireEvent.keyDown(editor, { key: "Enter" });
     expect(onStart).toHaveBeenCalledWith(

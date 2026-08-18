@@ -253,6 +253,7 @@ describe("ChatPane", () => {
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
       provisioningWorktreeThreadIds: {},
+      connectingThreadIds: {},
     }));
   });
 
@@ -281,6 +282,20 @@ describe("ChatPane", () => {
     );
 
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
+  });
+
+  it("shows connecting without starting a working timer during GUI reconnect", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      connectingThreadIds: { [thread.id]: "connection-1" },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
+    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
   it("loads the next persisted page when LegendList reaches the start", async () => {
@@ -1335,6 +1350,41 @@ describe("ChatPane", () => {
     expect(screen.queryByText("$simplify")).not.toBeInTheDocument();
   });
 
+  it("renders slash-invoked skills as skill badges instead of command chips", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "skill", name: "code-review", invocation: "/code-review" },
+      { kind: "text", text: " check the diff" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-skill-name="code-review"]');
+    expect(badge).toHaveTextContent("code-review");
+    expect(badge).toHaveAttribute("aria-label", "Skill: code-review");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(badge?.querySelector(".poracode-slash-chip__slash")?.textContent).not.toBe("/");
+    expect(screen.getByText(/check the diff/)).toBeInTheDocument();
+  });
+
+  it("keeps a leading slash command when a later skill chip is present", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "text", text: "/goal plan this " },
+      { kind: "skill", name: "code-review", invocation: "/code-review" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
+    expect(screen.getByText("goal").previousElementSibling).toHaveTextContent("/");
+    const skill = container.querySelector('[data-skill-name="code-review"]');
+    expect(skill).toHaveTextContent("code-review");
+    expect(skill?.querySelector("svg")).toBeInTheDocument();
+  });
+
   it("renders MCP mentions in user messages as badges", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [{ kind: "mcp", name: "Browser" }]);
@@ -1431,8 +1481,25 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    expect(screen.getByText("simplify").parentElement).toHaveClass("poracode-slash-chip");
+    const badge = screen.getByText("simplify").parentElement;
+    expect(badge).toHaveClass("poracode-slash-chip");
+    expect(badge).toHaveAttribute("data-skill-name", "simplify");
+    expect(badge).toHaveAttribute("aria-label", "Skill: simplify");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
     expect(screen.queryByText("skill:simplify")).not.toBeInTheDocument();
+  });
+
+  it("renders mixed-case ACP skill commands with the skill icon", async () => {
+    const thread = makeThread();
+    seedUserMessage(thread.id, "/Skill:simplify review these changes");
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = screen.getByText("simplify").parentElement;
+    expect(badge).toHaveAttribute("data-skill-name", "simplify");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("Skill:simplify")).not.toBeInTheDocument();
   });
 
   it("reports failed user message link opens", async () => {

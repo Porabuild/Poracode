@@ -54,7 +54,7 @@ describe("runProjectAction", () => {
     });
   });
 
-  it("restarts an action in its existing tracked terminal", () => {
+  it("restarts an action in its existing tracked terminal", async () => {
     runProjectAction(project.id, "dev");
     const firstTab = useDevTerminalStore.getState().tabs[0]!;
 
@@ -65,7 +65,7 @@ describe("runProjectAction", () => {
       id: firstTab.id,
       runActionId: "dev",
     });
-    expect(bridge.startShell).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
     expect(bridge.startShell).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ shellId: firstTab.id }),
@@ -142,14 +142,16 @@ describe("runProjectAction", () => {
     expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toBe("");
   });
 
-  it("stops an action without removing its terminal tab", async () => {
+  it("stops an action by removing and killing its terminal", async () => {
     runProjectAction(project.id, "dev");
     const tab = useDevTerminalStore.getState().tabs[0]!;
+    useThreadOutputStore.getState().appendOutput(tab.id, "running");
 
     stopProjectAction(project.id, "dev");
 
     expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
-    expect(useDevTerminalStore.getState().tabs).toContainEqual(tab);
+    expect(useDevTerminalStore.getState().tabs).not.toContainEqual(tab);
+    expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toBe("");
     await vi.waitFor(() => {
       expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: tab.id });
     });
@@ -175,6 +177,7 @@ describe("runProjectAction", () => {
     runProjectAction(project.id, "dev");
     const tab = useDevTerminalStore.getState().tabs[0]!;
     runProjectAction(project.id, "dev");
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
     resolveSecond();
     rejectFirst(new Error("old start failed"));
 

@@ -12,6 +12,7 @@ import {
   canonicalTypeFor,
   type CodexMapperState,
   newItemId,
+  normalizeItemType,
   streamForType,
 } from "../canonicalMappingState";
 import { isNewCodexGoal, readCodexGoal, updateCodexGoalIdentity } from "./goal";
@@ -22,6 +23,7 @@ import {
   contentStreamForMethod,
 } from "./payloads";
 import {
+  type CodexItemPayload,
   extractMessageText,
   readCodexErrorMessage,
   readCodexPlanSteps,
@@ -39,11 +41,36 @@ import {
   readCodexCumulativeTotalTokens,
 } from "./usage";
 
+export interface MapCodexNotificationOptions {
+  /**
+   * False while another turn on the same Codex thread is still running (the
+   * app-server accepts concurrent `turn/start`s, and auto-compaction runs
+   * internal turns). A non-settling `turn/completed` must not purge per-turn
+   * mapper state — the live turn's items still resolve through it.
+   */
+  turnSettled?: boolean;
+}
+
+/** Internal Codex item kinds that carry no chat row of their own. */
+function isInternalCodexItem(item: unknown): boolean {
+  if (!item || typeof item !== "object") return false;
+  const kind = normalizeItemType(
+    (item as CodexItemPayload).type ?? (item as CodexItemPayload).kind,
+  );
+  return (
+    kind === "context compaction" ||
+    kind === "compaction" ||
+    kind === "compaction trigger" ||
+    kind === "sleep"
+  );
+}
+
 export function mapCodexNotification(
   method: string,
   params: Record<string, unknown> | undefined,
   state: CodexMapperState,
   wslDistro?: string,
+  options?: MapCodexNotificationOptions,
 ): RuntimeEvent[] {
   const { threadId } = state;
 
@@ -72,6 +99,7 @@ export function mapCodexNotification(
   // `turn/aborted` is a legacy-only compatibility path; 0.144.5 reports
   // interruption through `turn/completed` with `turn.status: "interrupted"`.
   if (method === "turn/completed" || method === "turn/aborted") {
+    const turnSettled = options?.turnSettled !== false;
     const events: RuntimeEvent[] = [];
     const usageEvent = createCodexContextUsageEvent(threadId, params);
     if (usageEvent) events.push(usageEvent);
@@ -91,7 +119,9 @@ export function mapCodexNotification(
       });
       delete state.turnPlanItemId;
     }
-    const turnId = state.currentTurnId ?? readTurnId(params) ?? `t-${Date.now()}`;
+    // Report the completing notification's own turn id — with concurrent turns
+    // the server's completion order need not match `currentTurnId`.
+    const turnId = readTurnId(params) ?? state.currentTurnId ?? `t-${Date.now()}`;
     const turnState = readTurnState(method, params);
     const errorMessage = turnState === "failed" ? readCodexErrorMessage(params) : undefined;
     if (errorMessage) {
@@ -103,18 +133,20 @@ export function mapCodexNotification(
       turnId,
       state: turnState,
     });
-    delete state.currentTurnId;
-    // Unified exec commands can keep running after the model turn finishes.
-    // Preserve those mappings so late output and completion notifications
-    // continue updating the original row instead of opening a blank command.
-    for (const [codexItemId, itemType] of state.itemTypeMap) {
-      if (itemType === "command_execution") continue;
-      state.itemIdMap.delete(codexItemId);
-      state.itemTypeMap.delete(codexItemId);
+    if (turnSettled) {
+      delete state.currentTurnId;
+      // Unified exec commands can keep running after the model turn finishes.
+      // Preserve those mappings so late output and completion notifications
+      // continue updating the original row instead of opening a blank command.
+      for (const [codexItemId, itemType] of state.itemTypeMap) {
+        if (itemType === "command_execution") continue;
+        state.itemIdMap.delete(codexItemId);
+        state.itemTypeMap.delete(codexItemId);
+      }
+      state.fileChangeOutputMap.clear();
+      state.fileChangePathMap.clear();
+      state.reasoningSummaryIndexMap.clear();
     }
-    state.fileChangeOutputMap.clear();
-    state.fileChangePathMap.clear();
-    state.reasoningSummaryIndexMap.clear();
     return events;
   }
 
@@ -200,6 +232,9 @@ export function mapCodexNotification(
     const item = readItem(params);
     const codexItemId = readItemId(params, item);
     if (!item || !codexItemId) return [];
+    // Internal lifecycle items (auto-compaction, `clock.sleep`) render no row
+    // and must not occupy per-item mapper state.
+    if (isInternalCodexItem(item)) return [];
     if (state.itemIdMap.has(codexItemId)) return [];
     const itemType = canonicalTypeFor(item.type ?? item.kind);
     // `CodexStructuredSession.startTurn` emits the user bubble before `turn/start`;
@@ -236,6 +271,10 @@ export function mapCodexNotification(
     const item = readItem(params);
     const codexItemId = readItemId(params, item);
     if (!item || !codexItemId) return [];
+    // Same internal lifecycle items as `item/started` — skip without
+    // synthesizing a row (the completed-without-started path would otherwise
+    // recreate one).
+    if (isInternalCodexItem(item)) return [];
     const internalId = state.itemIdMap.get(codexItemId);
     if (!internalId) {
       // Item completed without us seeing started — synthesize both so the chat

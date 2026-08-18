@@ -8,7 +8,7 @@ export function CreatePrModal(props: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   effectiveBranch: string | undefined;
-  sourceBranch: string | null;
+  defaultTargetBranch: string | null;
   prTitle: string;
   setPrTitle: (title: string) => void;
   prBody: string;
@@ -26,7 +26,7 @@ export function CreatePrModal(props: {
     isOpen,
     onOpenChange,
     effectiveBranch,
-    sourceBranch,
+    defaultTargetBranch,
     prTitle,
     setPrTitle,
     prBody,
@@ -41,6 +41,16 @@ export function CreatePrModal(props: {
     handleGeneratePrSummary,
   } = props;
   const { t } = useLingui();
+  const targetBranches = Array.from(
+    new Set([
+      ...(defaultTargetBranch && defaultTargetBranch !== effectiveBranch
+        ? [defaultTargetBranch]
+        : []),
+      ...branchList
+        .filter((branch) => !branch.isRemote && branch.name !== effectiveBranch)
+        .map((branch) => branch.name),
+    ]),
+  );
 
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
@@ -56,26 +66,24 @@ export function CreatePrModal(props: {
               <span className="shrink-0">→</span>
               <Dropdown>
                 <Button variant="tertiary" className="h-5 min-w-0 px-1.5 text-xs">
-                  {prTargetBranch || sourceBranch || "..."}
+                  {prTargetBranch || defaultTargetBranch || "..."}
                   <ChevronDown className="size-3 text-muted/60" />
                 </Button>
                 <Dropdown.Popover placement="bottom start" className="max-h-60">
                   <Dropdown.Menu
                     aria-label={t`Target branch`}
                     selectionMode="single"
-                    selectedKeys={new Set([prTargetBranch || sourceBranch || ""])}
+                    selectedKeys={new Set([prTargetBranch || defaultTargetBranch || ""])}
                     onSelectionChange={(keys) => {
                       const key = Array.from(keys)[0] as string;
-                      setPrTargetBranch(key === sourceBranch ? null : key);
+                      setPrTargetBranch(key === defaultTargetBranch ? null : key);
                     }}
                   >
-                    {branchList
-                      .filter((b) => !b.isRemote && b.name !== effectiveBranch)
-                      .map((b) => (
-                        <Dropdown.Item key={b.name} id={b.name} textValue={b.name}>
-                          <Label>{b.name}</Label>
-                        </Dropdown.Item>
-                      ))}
+                    {targetBranches.map((branch) => (
+                      <Dropdown.Item key={branch} id={branch} textValue={branch}>
+                        <Label>{branch}</Label>
+                      </Dropdown.Item>
+                    ))}
                   </Dropdown.Menu>
                 </Dropdown.Popover>
               </Dropdown>

@@ -370,6 +370,7 @@ describe("threadActions", () => {
     const reopened = useAppStore.getState().threads[0];
     expect(reopened?.status).toBe("launching");
     expect(reopened?.attention).toBe("none");
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toBeUndefined();
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });
 
@@ -389,6 +390,7 @@ describe("threadActions", () => {
     const reopened = useAppStore.getState().threads[0];
     expect(reopened?.status).toBe("idle");
     expect(reopened?.attention).toBe("none");
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });
 
@@ -409,6 +411,7 @@ describe("threadActions", () => {
 
     // Transport split is in performInitialThreadLaunch (remote client vs bridge).
     expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });
 

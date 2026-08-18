@@ -14,6 +14,11 @@ import { RequestError } from "@agentclientprotocol/sdk";
 /** Node errnos that mean "this path does not resolve to a file". */
 const NOT_FOUND_CODES = new Set(["ENOENT", "ENOTDIR"]);
 
+export function isMissingPathError(error: unknown): boolean {
+  const code = errnoOf(error);
+  return code !== undefined && NOT_FOUND_CODES.has(code);
+}
+
 function errnoOf(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
   const code = (error as { code?: unknown }).code;

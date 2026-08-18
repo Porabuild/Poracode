@@ -22,6 +22,7 @@ import {
   type StartThreadPayload,
   type StartThreadResult,
   type TerminalSize,
+  type TerminalShellSnapshot,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
   type WriteTerminalPayload,
@@ -29,6 +30,8 @@ import {
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
 } from "@/shared/contracts";
+import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
+import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
   type AgentAdapter,
   createKnownSessionRef,
@@ -63,7 +66,7 @@ import { SteerCoordinator, clearPendingSteerSlot } from "./threadSession/steerCo
 import { buildShellCommand } from "./threadSession/shellCommand";
 import {
   SpawnPipeline,
-  effectiveLaunchConfig,
+  workspaceLaunchConfig,
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
@@ -233,6 +236,15 @@ export class ThreadSessionManager {
     }));
   }
 
+  getTerminalShellSnapshots(): TerminalShellSnapshot[] {
+    return [...this.shellSessions.values()].map((session) => ({
+      terminalId: session.shellId,
+      projectLocation: session.projectLocation,
+      ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
+      outputLength: session.outputLength,
+    }));
+  }
+
   /**
    * Surface a structured-session failure on both axes: status (so the icon
    * goes red) and a runtime `error` event (so `ThreadErrorDock` and the chat
@@ -299,8 +311,10 @@ export class ThreadSessionManager {
     if (!session) return undefined;
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
-    const effectiveConfig = effectiveLaunchConfig(
+    const effectiveConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      session.adapter,
       disabledIds,
       session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -322,8 +336,10 @@ export class ThreadSessionManager {
     const targetAdapter = this.options.adapters.get(targetAgentKind);
     if (!targetAdapter) return {};
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
-    const launchConfig = effectiveLaunchConfig(
+    const launchConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      targetAdapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -359,8 +375,10 @@ export class ThreadSessionManager {
       reloads.push(
         (async () => {
           try {
-            const launchConfig = effectiveLaunchConfig(
+            const launchConfig = workspaceLaunchConfig(
+              session.projectLocation,
               session.config,
+              session.adapter,
               session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
               session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
             );
@@ -493,9 +511,10 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = this.sessions.get(payload.threadId);
+    const session = await this.findSessionAfterPendingStart(payload.threadId);
     if (!session) {
-      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      // Never swallow a full user prompt, even for a just-removed thread —
+      // callers (renderer composer, `send_to_thread`) resume on this error.
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
     if (session.status === "inactive" && !session.sessionRef) {
@@ -513,12 +532,17 @@ export class ThreadSessionManager {
     const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
-    const effectiveConfig =
+    const turnConfig =
       session.presentationMode !== "gui" &&
       payload.config.mode === "plan" &&
       session.config.mode === undefined
         ? { ...payload.config, mode: undefined }
         : payload.config;
+    const effectiveConfig = applyHomeScopePermissions(
+      session.projectLocation,
+      turnConfig,
+      session.adapter.capabilities,
+    );
 
     session.config = effectiveConfig;
     const inlineInstructions = usesStructuredFlow
@@ -631,8 +655,19 @@ export class ThreadSessionManager {
         });
         return;
       }
-      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
-      throw new Error(`Unknown thread session: ${payload.threadId}`);
+      // Interrupt is idempotent "ensure this thread is not running". With no
+      // session there is nothing to stop, so emit the settled state instead of
+      // failing — this is the lever that unsticks a row whose session died
+      // while its persisted status still says `working`.
+      this.options.emit({
+        type: "thread-state",
+        threadId: payload.threadId,
+        status: "inactive",
+        attention: "none",
+        canResumeWithConfig: false,
+        forceCloseActiveTurn: true,
+      });
+      return;
     }
     this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
@@ -851,7 +886,10 @@ export class ThreadSessionManager {
    * Drain is automatic on cancelled-stopReason via `maybeDrainPendingSteer`.
    */
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
-    const session = this.requireSession(payload.threadId);
+    const session = await this.findSessionAfterPendingStart(payload.threadId);
+    if (!session) {
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
     if (payload.segments === undefined) {
       await this.steerCoordinator.setPendingSteer(session, payload);
       return;
@@ -895,6 +933,12 @@ export class ThreadSessionManager {
     this.outputPipeline.clearSessionTimers(existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
+    // Final state before the session disappears: without it a working thread
+    // freezes at `working` in the DB and in every renderer, with nothing left
+    // running to ever move it.
+    this.outputPipeline.updateState(existing, "inactive", "none", undefined, {
+      forceCloseActiveTurn: true,
+    });
     this.sessions.delete(payload.threadId);
     if (existing.sessionRef?.providerSessionId) {
       this.sessionsBySessionId.delete(existing.sessionRef.providerSessionId);
@@ -927,7 +971,13 @@ export class ThreadSessionManager {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
 
-    const shellCommand = buildShellCommand(payload.projectLocation, this.options.windowsShell, {
+    const windowsShell =
+      process.platform === "win32" && payload.projectLocation.kind === "windows"
+        ? this.options.resolveWindowsShell(
+            payload.windowsShellRuntime === "powershell" ? "powershell" : "preferred",
+          )
+        : { shell: "", kind: "cmd" as const, args: [] };
+    const shellCommand = buildShellCommand(payload.projectLocation, windowsShell, {
       startInHome: payload.startInHome === true,
     });
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });
@@ -988,7 +1038,9 @@ export class ThreadSessionManager {
       instanceId: randomUUID(),
       shellId: payload.shellId,
       pty,
+      projectLocation: payload.projectLocation,
       outputLength: 0,
+      outputTranscript: new TranscriptBuffer(200_000),
       ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
     };
 
@@ -999,6 +1051,7 @@ export class ThreadSessionManager {
         return;
       }
       session.outputLength += data.length;
+      session.outputTranscript.append(data);
       if (this.options.isDev) {
         this.logWriter.append(this.resolveLogPath(payload.shellId.replace(/:/g, "_")), data);
       }
@@ -1040,7 +1093,9 @@ export class ThreadSessionManager {
   }
 
   readTerminalScrollback(threadId: string): string {
-    return this.outputPipeline.readTerminalScrollback(this.sessions.get(threadId));
+    return this.outputPipeline.readTerminalScrollback(
+      this.sessions.get(threadId) ?? this.shellSessions.get(threadId),
+    );
   }
 
   readTerminalSize(threadId: string): TerminalSize | null {
@@ -1089,6 +1144,23 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${threadId}`);
     }
     return session;
+  }
+
+  /**
+   * Input can race an in-progress reconnect before `spawnPipeline` publishes
+   * the new SessionRuntime. Wait for that thread's serialized start instead of
+   * surfacing a false "Unknown thread session" error. Callers still decide
+   * normal-turn vs steer from the authoritative session status after startup.
+   */
+  private async findSessionAfterPendingStart(
+    threadId: string,
+  ): Promise<SessionRuntime | undefined> {
+    const live = this.sessions.get(threadId);
+    if (live) return live;
+    const pendingStart = this.startLocks.get(threadId);
+    if (!pendingStart) return undefined;
+    await pendingStart;
+    return this.sessions.get(threadId);
   }
 
   private rememberRemovedThread(threadId: string): void {

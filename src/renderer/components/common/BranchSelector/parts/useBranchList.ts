@@ -69,12 +69,27 @@ export function useBranchList(params: { projectId: string; search: string }) {
       }
     }
 
+    const remoteQualifiedNames = new Set(
+      allBranches
+        .filter((branch) => branch.isRemote && branch.remote)
+        .map((branch) => `${branch.remote}/${branch.name}`),
+    );
     const normalizedSearch = search.trim().toLowerCase();
     const allLocal: GitBranchInfo[] = [];
     const allRemote: GitBranchInfo[] = [];
     for (const branch of deduped) {
-      if (normalizedSearch && !branch.name.toLowerCase().includes(normalizedSearch)) {
-        continue;
+      if (normalizedSearch) {
+        const qualified =
+          branch.isRemote && branch.remote ? `${branch.remote}/${branch.name}` : undefined;
+        const originAlias =
+          !branch.isRemote && remoteQualifiedNames.has(`origin/${branch.name}`)
+            ? `origin/${branch.name}`
+            : undefined;
+        const haystack = [branch.name, qualified, originAlias]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(normalizedSearch)) continue;
       }
       if (branch.isRemote) {
         allRemote.push(branch);

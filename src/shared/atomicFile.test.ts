@@ -4,19 +4,47 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "./atomicFile";
+
+/**
+ * Drives `renameSync` failures without touching the ESM namespace (which is
+ * non-configurable and can't be `vi.spyOn`'d). `failCodes` is a queue of error
+ * codes to throw — one per call, in order — before delegating to the real fs.
+ */
+const renameControl = vi.hoisted(() => ({
+  failCodes: [] as string[],
+  realRename: (() => {}) as (from: string, to: string) => void,
+}));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  renameControl.realRename = actual.renameSync;
+  return {
+    ...actual,
+    renameSync: vi.fn<(from: string, to: string) => void>((from, to) => {
+      const code = renameControl.failCodes.shift();
+      if (code) {
+        throw Object.assign(new Error(`${code}: operation on file`), { code });
+      }
+      return renameControl.realRename(from, to);
+    }),
+  };
+});
 
 describe("writeFileAtomic", () => {
   let dir: string;
 
   beforeEach(() => {
+    renameControl.failCodes = [];
+    vi.mocked(renameSync).mockClear();
     dir = mkdtempSync(join(tmpdir(), "atomic-test-"));
   });
 
@@ -80,5 +108,38 @@ describe("writeFileAtomic", () => {
     writeFileAtomic(target, buf);
     expect(readFileSync(target).equals(buf)).toBe(true);
     expect(existsSync(`${target}.${process.pid}.tmp`)).toBe(false);
+  });
+
+  it("retries a transient EPERM lock on the rename and succeeds", () => {
+    renameControl.failCodes = ["EPERM", "EPERM"];
+
+    const target = join(dir, "settings.json");
+    writeFileAtomic(target, '{"a":1}', { encoding: "utf8" });
+
+    // Two failed attempts + one successful call.
+    expect(vi.mocked(renameSync)).toHaveBeenCalledTimes(3);
+    expect(readFileSync(target, "utf8")).toBe('{"a":1}');
+  });
+
+  it("throws and cleans up the temp file when the lock does not clear", () => {
+    // Exceed the retry budget so the write still fails.
+    renameControl.failCodes = ["EPERM", "EPERM", "EPERM", "EPERM", "EPERM", "EPERM"];
+
+    const target = join(dir, "settings.json");
+    expect(() => writeFileAtomic(target, "data", { encoding: "utf8" })).toThrow(/EPERM/);
+
+    // Temp file cleaned up rather than orphaned.
+    const leftovers = readdirSync(dir).filter((name) => name.includes(".tmp"));
+    expect(leftovers).toEqual([]);
+  });
+
+  it("does not retry a non-retryable rename error", () => {
+    renameControl.failCodes = ["EISDIR"];
+
+    const target = join(dir, "settings.json");
+    expect(() => writeFileAtomic(target, "data", { encoding: "utf8" })).toThrow(/EISDIR/);
+
+    // A non-retryable code aborts immediately after a single attempt.
+    expect(vi.mocked(renameSync)).toHaveBeenCalledTimes(1);
   });
 });

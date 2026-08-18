@@ -61,7 +61,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
   "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
   "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
-  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent once for every background result the task requires. Use a bounded timeout and do not repeatedly poll a stalled run; cancel it or continue without it.",
+  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent for every background result the task requires. Each wait is bounded only to stay below the MCP client's transport timeout: status=running means the server kept the child active, and the elapsed wait does not by itself mean the run stalled. When its result is required, keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because 180 seconds or any other wait duration elapsed, it has not produced a final answer yet, or it is still investigating. Cancel only when the user explicitly asks or the task is no longer needed for a reason unrelated to elapsed time.",
   "Pass tasks=[...] to the same spawn_agent call to launch up to four independent agents in parallel.",
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
@@ -236,7 +236,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "wait_for_agent",
     description:
-      "Wait for one background run_id or several run_ids concurrently, returning their status and output.",
+      'Wait for one background run_id or several run_ids concurrently, returning their status and output. A "running" result means the wait call timed out while the child stayed active; keep waiting when its result is required.',
     inputSchema: {
       type: "object",
       properties: {
@@ -277,7 +277,8 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "cancel",
-    description: "Interrupt and dispose a running subagent by run_id.",
+    description:
+      "Interrupt and dispose a running subagent by run_id. Never cancel solely because a wait timed out, no final answer exists yet, or the subagent is still investigating; cancel only at the user's request or when the task became unnecessary for a reason unrelated to elapsed time.",
     inputSchema: {
       type: "object",
       required: ["run_id"],

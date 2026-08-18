@@ -3,7 +3,7 @@ import type { McpToolResult } from "./types";
 
 /** Shared `timeout_s` schema description for the blocking wait tools. */
 export const TIMEOUT_S_DESCRIPTION =
-  'Max seconds to wait (capped at 240). On timeout, status is "running" — call wait_for_agent again to keep waiting.';
+  'Max seconds for this wait call (capped at 240). A timeout leaves the subagent running; status "running" means call wait_for_agent again when its result is still required, not cancel it because time elapsed.';
 
 export function jsonResult(value: unknown): McpToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };

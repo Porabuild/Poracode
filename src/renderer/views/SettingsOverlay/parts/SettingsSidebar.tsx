@@ -46,7 +46,7 @@ import {
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
-import { isDevApp, isRemoteSession } from "@/renderer/bridge";
+import { isDevApp, isRemoteSession, isWindows } from "@/renderer/bridge";
 import { searchSettings } from "./settingsSearchIndex";
 import type { SettingsSection } from "./types";
 
@@ -330,7 +330,8 @@ export function SettingsSidebar(props: {
         ]
       : group.sections,
   );
-  const settingMatches = query === "" ? [] : searchSettings(query, t, { devMode, remoteSession });
+  const settingMatches =
+    query === "" ? [] : searchSettings(query, t, { devMode, remoteSession, windows: isWindows() });
   const matchesBySection = new Map<string, typeof settingMatches>();
   for (const match of settingMatches) {
     const list = matchesBySection.get(match.section) ?? [];

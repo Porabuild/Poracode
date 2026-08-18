@@ -150,6 +150,25 @@ describe("searchSettings", () => {
     ).not.toContain("browser.allowDataAccess");
   });
 
+  it("hides Windows-only settings on other desktop platforms", () => {
+    const nonWindows = searchSettings("windows terminal shell", t, { windows: false }).map(
+      (result) => result.anchor,
+    );
+    const windows = searchSettings("windows terminal shell", t, { windows: true }).map(
+      (result) => result.anchor,
+    );
+
+    expect(nonWindows).not.toContain("terminal.windowsShell");
+    expect(nonWindows).not.toContain("terminal.windowsInternalShell");
+    expect(nonWindows).not.toContain("terminal.windowsShellArguments");
+    expect(windows).toContain("terminal.windowsShell");
+    expect(windows).toContain("terminal.windowsInternalShell");
+    expect(windows).toContain("terminal.windowsShellArguments");
+    expect(searchSettings("powershell", t).map((result) => result.anchor)).not.toContain(
+      "terminal.windowsShell",
+    );
+  });
+
   it("truncates long description snippets", () => {
     const results = searchSettings("subscription plans", t);
     const hit = results.find((r) => r.anchor === "usage.showEstimatedCost");

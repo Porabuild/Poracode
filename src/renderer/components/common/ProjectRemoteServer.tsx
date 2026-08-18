@@ -120,10 +120,10 @@ export function ProjectLocationIcon(props: {
   if (props.location.kind === "wsl") {
     return (
       <span
-        className={`${props.className ?? "size-3.5"} relative shrink-0 text-muted`}
+        className={`${props.className ?? "size-4"} relative inline-flex shrink-0 items-center justify-center text-muted`}
         aria-hidden="true"
       >
-        <TuxIcon className="absolute left-1/2 top-1/2 h-3.5 w-6 -translate-x-1/2 -translate-y-1/2" />
+        <TuxIcon className="size-full" />
       </span>
     );
   }

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import type { ProjectLocation } from "@/shared/contracts";
+import { toast } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
+import type { GitBranchInfo, ProjectLocation } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { getProjectPosixPath } from "@/shared/wsl";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -14,6 +17,7 @@ export function useSourceBranchData(params: {
   preferredSourceBranch?: string | undefined;
   refreshKey: number;
 }) {
+  const { t } = useLingui();
   const {
     project,
     effectiveBranch,
@@ -31,10 +35,13 @@ export function useSourceBranchData(params: {
   const projectRemoteServerId = project.location.remoteServerId;
 
   const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
+  const [sourceBranches, setSourceBranches] = useState<readonly GitBranchInfo[] | null>(null);
+  const [sourceBranchesRetryKey, setSourceBranchesRetryKey] = useState(0);
 
   useEffect(() => {
     if (!effectiveBranch || !effectivePrKey) {
       setSourceBranchLoading(false);
+      setSourceBranches(null);
       return;
     }
     let isActive = true;
@@ -59,14 +66,39 @@ export function useSourceBranchData(params: {
               ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
             };
     setSourceBranchLoading(true);
+    setSourceBranches(null);
+    const sourceBranchesRequest =
+      isGitHub && ghAvailable
+        ? readBridge()
+            .gitListBranches({
+              projectLocation: sourceProjectLocation,
+              includeRemote: true,
+            })
+            .then((result) => result.branches)
+            .catch((error) => {
+              if (isActive) {
+                toast.danger(friendlyError(error), {
+                  actionProps: {
+                    children: t`Retry`,
+                    onPress: () => {
+                      if (isActive) setSourceBranchesRetryKey((key) => key + 1);
+                    },
+                  },
+                });
+              }
+              return null;
+            })
+        : Promise.resolve(null);
     readBridge()
       .gitGetWorktreeSourceBranch({
         projectLocation: sourceProjectLocation,
         branch: effectiveBranch,
         ...(preferredSourceBranch ? { sourceBranchOverride: preferredSourceBranch } : {}),
       })
-      .then((result) => {
+      .then(async (result) => {
+        const branches = await sourceBranchesRequest;
         if (!isActive) return;
+        setSourceBranches(branches);
         useGitStore.getState().setWorktreeSourceInfo(effectivePrKey, {
           sourceBranch: result.sourceBranch,
           commitsAhead: result.commitsAhead,
@@ -75,6 +107,7 @@ export function useSourceBranchData(params: {
       })
       .catch(() => {
         if (!isActive) return;
+        setSourceBranches(null);
         useGitStore.getState().setWorktreeSourceInfo(effectivePrKey, {
           sourceBranch: null,
           commitsAhead: 0,
@@ -92,6 +125,8 @@ export function useSourceBranchData(params: {
   }, [
     effectiveBranch,
     effectivePrKey,
+    ghAvailable,
+    isGitHub,
     preferredSourceBranch,
     projectLocationDistro,
     projectLocationKind,
@@ -99,6 +134,8 @@ export function useSourceBranchData(params: {
     projectRemoteServerId,
     projectLocationUncPath,
     refreshKey,
+    sourceBranchesRetryKey,
+    t,
   ]);
 
   // Fetch PR data on mount / refreshKey change for both worktree and
@@ -121,5 +158,5 @@ export function useSourceBranchData(params: {
     };
   }, [isGitHub, ghAvailable, effectiveBranch, effectivePrKey, project.location, refreshKey]);
 
-  return { sourceBranchLoading };
+  return { sourceBranchLoading, sourceBranches };
 }

@@ -5,6 +5,7 @@ import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import {
   resolveFastValue,
   resolveProviderDraftConfig,
+  resolveSavedProviderDraftConfig,
   resolveThinkingValue,
 } from "./threadDraftViewHelpers";
 
@@ -97,5 +98,39 @@ describe("resolveProviderDraftConfig thinking mode", () => {
 describe("resolveThinkingValue", () => {
   it("stays off without an explicit preference outside composer default resolution", () => {
     expect(resolveThinkingValue(agentWith({ thinkingModels: ["plain"] }), "plain")).toBe(false);
+  });
+});
+
+describe("resolveSavedProviderDraftConfig", () => {
+  it("fills an omitted context window from the app-wide provider preset", () => {
+    const resolved = resolveSavedProviderDraftConfig(
+      "codex",
+      { agentKind: "codex", model: "gpt-5.6-sol", effort: "high" },
+      {
+        codex: {
+          model: "gpt-5.6-sol",
+          contextSize: "400k",
+          effort: "medium",
+          fast: false,
+        },
+      },
+    );
+
+    expect(resolved).toMatchObject({
+      model: "gpt-5.6-sol",
+      effort: "high",
+      contextSize: "400k",
+    });
+    expect(resolved?.fast).toBeUndefined();
+  });
+
+  it("keeps an explicit last-draft context size over the provider preset", () => {
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        { agentKind: "codex", model: "gpt-5.6-sol", contextSize: "1m" },
+        { codex: { model: "gpt-5.6-sol", contextSize: "400k" } },
+      ),
+    ).toMatchObject({ contextSize: "1m" });
   });
 });

@@ -81,9 +81,11 @@ import { AcpSessionConfigSync } from "./sessionConfigSync";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-import { toAcpFsRequestError } from "./sessionFsErrors";
+import { isMissingPathError, toAcpFsRequestError } from "./sessionFsErrors";
 import { AcpPlanModeToolTracker } from "./sessionPlanMode";
 import {
+  isAcpHomeScopeLocation,
+  resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveAcpWritableHostFsPath,
@@ -94,6 +96,8 @@ import {
 } from "./sessionPaths";
 
 export {
+  isAcpHomeScopeLocation,
+  resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveAcpWritableHostFsPath,
@@ -1202,11 +1206,25 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       params.path,
       this.fsAgentHomeDirs,
     );
-    const fullContent = await readFile(path, "utf8").catch((error: unknown) => {
+    try {
+      const fullContent = await readFile(path, "utf8");
+      return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
+    } catch (error: unknown) {
+      const fallbackPath = resolveAcpGlobalSkillFallbackHostFsPath(
+        this.projectLocation,
+        params.path,
+      );
+      if (fallbackPath && fallbackPath !== path && isMissingPathError(error)) {
+        try {
+          const fullContent = await readFile(fallbackPath, "utf8");
+          return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
+        } catch {
+          // Keep the original project-path error so a missing skill stays
+          // resource-not-found for the path the agent asked about.
+        }
+      }
       throw toAcpFsRequestError(error, params.path);
-    });
-    const content = sliceTextFileContent(fullContent, params.line, params.limit);
-    return { content };
+    }
   }
 
   private async handleWriteTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {

@@ -1,5 +1,6 @@
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { isHomeScopeLocation } from "@/shared/homeScope";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
@@ -139,6 +140,9 @@ export function createAntigravityAdapter(): AgentAdapter {
         supportsSeparateModelEffort,
         defaultModel,
       );
+      // Keep file tools in the selected project. Home remains projectless so it
+      // can continue to serve as an OS-level session spanning user folders.
+      if (!isHomeScopeLocation(location)) args.unshift("--new-project");
       return { binary: "agy", args };
     },
 
@@ -283,10 +287,11 @@ export function createAntigravityAdapter(): AgentAdapter {
     // so it can actually read/edit the repo. Since agy 1.1.3, headless mode
     // soft-denies tools requiring confirmation, so subagents need the explicit
     // bypass to perform their assigned project work.
-    buildSubagentOneShotCommand({ model, effort, prompt }) {
+    buildSubagentOneShotCommand({ model, effort, prompt, location }) {
       return {
         command: "agy",
         args: [
+          ...(!isHomeScopeLocation(location) ? ["--new-project"] : []),
           ...buildAntigravityModelArgs(model, effort, supportsSeparateModelEffort, defaultModel),
           "--dangerously-skip-permissions",
           "-p",

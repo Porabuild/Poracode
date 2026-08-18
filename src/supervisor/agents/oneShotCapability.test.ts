@@ -45,7 +45,7 @@ describe("supportsOneShot capability", () => {
     expect(supported).toEqual(["claude", "pi"]);
   });
 
-  it("marks every first-class adapter as one-shot capable (they are all CLIs)", () => {
+  it("marks every first-class adapter as one-shot capable", () => {
     // First-class providers are CLIs with a headless prompt path, so each must
     // expose one-shot support. Only runtime-registered ACP-registry generics
     // outside this built-in registry may lack it.
@@ -60,5 +60,13 @@ describe("supportsOneShot capability", () => {
     expect(grok).toBeDefined();
     expect(grok?.capabilities.supportsOneShot).toBe(true);
     expect(typeof grok?.buildOneShotCommand).toBe("function");
+  });
+
+  it("includes Muse through its positional muse exec prompt path", () => {
+    const muse = adapters.find((adapter) => adapter.kind === "muse");
+    expect(muse).toBeDefined();
+    expect(muse?.capabilities.supportsOneShot).toBe(true);
+    expect(muse?.runOneShot).toBeUndefined();
+    expect(typeof muse?.buildOneShotCommand).toBe("function");
   });
 });

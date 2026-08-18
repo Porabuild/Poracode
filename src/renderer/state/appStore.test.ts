@@ -19,9 +19,23 @@ describe("appStore runtime config sync", () => {
       threads: [],
       pendingLaunchUserMessageItemIds: {},
       provisioningWorktreeThreadIds: {},
+      connectingThreadIds: {},
       view: { kind: "home" },
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
+  });
+
+  it("keeps a newer reconnect marker when an older launch finishes", () => {
+    const firstToken = useAppStore.getState().beginThreadConnecting("thread-1");
+    const secondToken = useAppStore.getState().beginThreadConnecting("thread-1");
+
+    useAppStore.getState().finishThreadConnecting("thread-1", firstToken);
+
+    expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBe(secondToken);
+
+    useAppStore.getState().finishThreadConnecting("thread-1", secondToken);
+
+    expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBeUndefined();
   });
 
   it("applies resolved runtime config onto the stored thread", () => {
@@ -881,6 +895,37 @@ describe("appStore runtime config sync", () => {
 
     expect(useAppStore.getState().threads[0]?.status).toBe("working");
     expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBe("2026-05-02T08:57:00.000Z");
+  });
+
+  it("does not reconcile a thread created after the snapshot request began", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const existingThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "existing",
+    });
+    const requestedThreadIds = new Set([existingThread.id]);
+    const newThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "new",
+    });
+    useAppStore.getState().updateThreadRuntime(newThread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+
+    useAppStore.getState().reconcileRuntimeSnapshots([], requestedThreadIds);
+
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.id === newThread.id)?.status,
+    ).toBe("working");
   });
 
   it("markThreadExited finalizes an active turn", () => {

@@ -3,6 +3,7 @@ import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import {
   ProjectRemoteServerChip,
+  ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
@@ -94,6 +95,11 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     if (!project.remoteServerId) return true;
     return remoteServerFor(project).status === "online";
   });
+  const newThreadProjects = [...visibleProjects].sort((a, b) => {
+    const rank = (project: Project) =>
+      isHomeProject(project) ? 0 : project.remoteServerId ? 2 : 1;
+    return rank(a) - rank(b);
+  });
   const projectsById = new Map(visibleProjects.map((project) => [project.id, project]));
   const filterableProjectIds = new Set(projectsById.keys());
 
@@ -157,7 +163,17 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         isActive={isDraftActive}
         isDraggingAnything={!!source}
         canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
+        projectOptions={newThreadProjects.map((project) => {
+          const remote = remoteServerFor(project);
+          return {
+            id: project.id,
+            name: project.name,
+            icon: <ProjectSelectorIcon project={project} remote={remote} />,
+            ...(remote.serverName ? { description: remote.serverName } : {}),
+          };
+        })}
         onPress={() => openNewThread(latestProjectId)}
+        onSelectProject={openNewThread}
         onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}
       />
     ) : null;

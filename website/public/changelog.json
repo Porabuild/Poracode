@@ -1,11 +1,90 @@
 {
   "releases": [
     {
-      "version": "1.6.2",
-      "date": "2026-08-10",
-      "title": "Merged PR sync, stoppable actions & clearer subagents",
-      "summary": "Poracode now pulls a merged pull request's base branch into your checkout and lets you stop any running project action from a context menu. Subagent work is easier to follow, and starting a worktree thread no longer leaves you staring at a blank chat.",
+      "version": "1.6.4",
+      "date": "2026-08-17",
+      "title": "Codex context windows, Home permissions & project terminals",
+      "summary": "Poracode adds configurable context windows and compaction thresholds for Codex, enables unrestricted agent sessions in your Home directory, and adds direct terminal access to project menus. Branch tracking in worktrees and ACP skill badges in the composer also get useful fixes.",
       "changes": [
+        {
+          "kind": "added",
+          "label": "Codex",
+          "text": "You can now customize the context window sizes available in the Codex composer under Settings, defaulting new chats to 400k with automatic compaction starting at 95% of your chosen window."
+        },
+        {
+          "kind": "added",
+          "label": "Projects",
+          "text": "You can now open a project's terminal directly from the project menu in both the grouped sidebar and flat project filter."
+        },
+        {
+          "kind": "improved",
+          "label": "Home",
+          "text": "Agent sessions started in the projectless Home folder now run with unrestricted permissions across all providers, allowing full read and write access across your home directory."
+        },
+        {
+          "kind": "improved",
+          "label": "Composer",
+          "text": "Skills invoked with slash commands in the composer and chat messages now display with a dedicated sparkles icon and accessible badge instead of generic slash-command text."
+        },
+        {
+          "kind": "fixed",
+          "label": "Worktrees",
+          "text": "Creating a new worktree branch no longer accidentally inherits origin/main as its remote tracking upstream, preventing new worktrees from falsely reporting behind commits."
+        }
+      ]
+    },
+    {
+      "version": "1.6.3",
+      "date": "2026-08-16",
+      "title": "Muse Code, Claude skills & sturdier sessions",
+      "summary": "Poracode adds Muse Code as a first-class terminal agent, surfaces Claude's own skills in the composer, and keeps launches and follow-ups alive when you switch panes or a session disappears.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Muse Code",
+          "text": "You can now run Meta's Muse Code CLI as a terminal session in Poracode — pick Muse Spark models and reasoning effort, sign in from Settings, and resume where you left off. On Windows, install it through WSL."
+        },
+        {
+          "kind": "improved",
+          "label": "Claude",
+          "text": "Claude's own skills — the ones the CLI ships, not just files on disk — now appear in the composer slash menu and run as streaming skills instead of silent local commands."
+        },
+        {
+          "kind": "improved",
+          "label": "Threads",
+          "text": "Threads show a Connecting… state in the header and chat while the session is starting, so a launch no longer looks idle."
+        },
+        {
+          "kind": "fixed",
+          "text": "Starting a thread and switching or closing the pane no longer leaves the agent silently never started; launch failures now show as an error on the thread."
+        },
+        {
+          "kind": "fixed",
+          "text": "If a session is gone when you send a message — after a restart or unload — Poracode relaunches it and delivers the prompt instead of dropping it, including from the send_to_thread MCP tool. Interrupting a thread whose session already died now settles it to Inactive instead of leaving it stuck Working."
+        },
+        {
+          "kind": "fixed",
+          "label": "Codex",
+          "text": "Steering a running Codex turn now lands on the in-flight work instead of starting a conflicting turn, answers no longer vanish while Codex is compacting or running concurrent turns, and app-server sessions no longer stall when acquiring a server fails or two launches race."
+        }
+      ]
+    },
+    {
+      "version": "1.6.2",
+      "date": "2026-08-11",
+      "title": "Agent Plugins, merged PR sync & stoppable actions",
+      "summary": "A big feature release: Poracode adds a standards-based Agent Plugins marketplace, syncs merged pull request branches automatically, and lets you stop running project actions from context menus. Worktree launches, pane placement, subagent status, usage reporting, and provider reliability all get substantial polish.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Agent Plugins",
+          "text": "Browse, install, and manage Agent Plugins in Settings, with bundled Browser Tools, Chrome Tools, Computer Use, GitHub, Outlook, and Subagent Delegation packages."
+        },
+        {
+          "kind": "added",
+          "label": "Agent Plugins",
+          "text": "Plugin skills and MCP servers work across supported agents, can be enabled individually or invoked from composer mentions, and carry through restarts, recovery, WSL, and remote sessions."
+        },
         {
           "kind": "added",
           "label": "Worktrees",
@@ -23,7 +102,7 @@
         {
           "kind": "added",
           "label": "MCP",
-          "text": "The Poracode MCP server gains a get_current_thread tool, and you can @-mention Terminal in the composer to hand the agent a terminal when app controls are enabled."
+          "text": "The Poracode MCP server can identify the current thread and list or read live terminal panes with worktree-scoped scrollback, and you can @-mention Terminal in the composer when app controls are enabled."
         },
         {
           "kind": "added",
@@ -34,6 +113,11 @@
           "kind": "added",
           "label": "Command Code",
           "text": "Usage now shows Command Code's rolling 5-hour and weekly dollar limits alongside monthly credits, with reset countdowns, matching Studio and the CLI."
+        },
+        {
+          "kind": "added",
+          "label": "Panes",
+          "text": "The New thread menu lists your projects, and you can drag any of them straight onto a pane or the gap between two panes to start that project's draft exactly where you want it."
         },
         {
           "kind": "improved",
@@ -62,6 +146,11 @@
         },
         {
           "kind": "fixed",
+          "label": "Panes",
+          "text": "Opening a pane now splits the space evenly instead of squeezing the newest one, existing panes keep their relative widths, and the insert line lights up as soon as you drag near the edge between two panes."
+        },
+        {
+          "kind": "fixed",
           "text": "Renaming a thread no longer bumps it to the top of the list, completed turns stay closed when trailing plan or goal updates arrive, and the turn timer stops ticking as soon as the turn ends."
         },
         {
@@ -79,8 +168,28 @@
         },
         {
           "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Every reasoning level reported by agy now appears in the model picker, including High for Gemini 3.6 Flash."
+        },
+        {
+          "kind": "fixed",
+          "label": "Antigravity",
+          "text": "Threads created in linked Git worktrees now keep agy's file tools bound to that exact worktree instead of falling back to the main checkout."
+        },
+        {
+          "kind": "fixed",
           "label": "OpenCode",
-          "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, so the meters match the console instead of undercounting headroom."
+          "text": "Go plan usage now comes from your live opencode.ai subscription instead of local CLI spend, and sign-in remains available when CLI authentication has no meters, so empty local snapshots no longer strand you."
+        },
+        {
+          "kind": "fixed",
+          "label": "Grok",
+          "text": "An explicit request to push now runs without a redundant confirmation, while force pushes, merges, and destructive actions remain guarded."
+        },
+        {
+          "kind": "fixed",
+          "label": "Windows",
+          "text": "Settings saves now retry brief file locks from antivirus, indexing, or another app instance instead of failing immediately."
         },
         {
           "kind": "fixed",

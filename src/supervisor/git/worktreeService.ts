@@ -588,7 +588,19 @@ export class GitWorktreeService {
 
     const args = ["worktree", "add"];
     if (createBranch && branch && !ownedBranchPrepared) {
-      args.push("-b", branch, resolvedPath, ...(resolvedStartPoint ? [resolvedStartPoint] : []));
+      // `--no-track` is required when the start-point is a remote-tracking
+      // ref (`origin/master`). Without it git's default autoSetupMerge wires
+      // the new branch's upstream to that start-point, so the worktree
+      // `poracode/clever-falcon-…` reports as tracking origin/master and
+      // shows "behind" whenever master moves. The fork base is recorded
+      // separately in `branch.<name>.poracodeSource`.
+      args.push(
+        "--no-track",
+        "-b",
+        branch,
+        resolvedPath,
+        ...(resolvedStartPoint ? [resolvedStartPoint] : []),
+      );
     } else {
       args.push(resolvedPath, ...(branch ? [branch] : []));
     }
@@ -678,6 +690,9 @@ export class GitWorktreeService {
           await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
         }
       }
+      // `--no-track` covers current git; unset in case an older git still
+      // wired the remote-tracking start-point as upstream.
+      await execGit(location, ["branch", "--unset-upstream", branch]).catch(() => undefined);
     }
 
     if (copyIgnoredPatterns?.length) {

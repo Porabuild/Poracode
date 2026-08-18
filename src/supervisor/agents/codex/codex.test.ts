@@ -955,6 +955,7 @@ describe("CodexStructuredSession", () => {
     session["currentThreadStatus"] = { type: "idle" };
     session["currentConfig"] = { model: "gpt-5.4" };
     session["seenErrorMessages"] = new Set<string>();
+    session["activeTurnIds"] = new Set<string>();
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
       claimThread: () => {},
@@ -1041,6 +1042,103 @@ describe("CodexStructuredSession", () => {
     expect(releaseAppServer).toHaveBeenCalledOnce();
   });
 
+  it("merges tracked and authoritative active provider turns during dispose", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{
+      method: string;
+      params: Record<string, unknown>;
+      timeoutMs?: number;
+    }> = [];
+    (structuredSession as unknown as Record<string, unknown>)["currentThreadStatus"] = {
+      type: "active",
+      activeFlags: [],
+    };
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-live-1";
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnIds"] = new Set([
+      "turn-live-1",
+    ]);
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
+        if (method === "thread/read") {
+          return Promise.resolve({
+            thread: {
+              turns: [
+                { id: "turn-complete", status: "completed" },
+                { id: "turn-live-1", status: "inProgress" },
+                { id: "turn-live-2", status: "inProgress" },
+              ],
+            },
+          });
+        }
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    await structuredSession.dispose();
+
+    expect(requests).toEqual([
+      {
+        method: "thread/read",
+        params: { threadId: "provider-thread", includeTurns: true },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live-1" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live-2" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/unsubscribe",
+        params: { threadId: "provider-thread" },
+        timeoutMs: 2_000,
+      },
+    ]);
+  });
+
+  it("does not interrupt a replacement that claims the thread during the active-turn read", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    let ownsThread = true;
+    let resolveRead!: (result: unknown) => void;
+    (structuredSession as unknown as Record<string, unknown>)["currentThreadStatus"] = {
+      type: "active",
+      activeFlags: [],
+    };
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => ownsThread,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read") {
+          return new Promise((resolve) => {
+            resolveRead = resolve;
+          });
+        }
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    const dispose = structuredSession.dispose();
+    await vi.waitFor(() =>
+      expect(requests.map((request) => request.method)).toEqual(["thread/read"]),
+    );
+    ownsThread = false;
+    resolveRead({ thread: { turns: [{ id: "replacement-turn", status: "inProgress" }] } });
+    await dispose;
+
+    expect(requests.map((request) => request.method)).toEqual(["thread/read"]);
+  });
+
   it("keeps a replacement session subscribed when a superseded session disposes", async () => {
     const structuredSession = makeStructuredSession([]);
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
@@ -1060,6 +1158,43 @@ describe("CodexStructuredSession", () => {
     await structuredSession.dispose();
 
     expect(requests.map((request) => request.method)).toEqual(["turn/interrupt"]);
+  });
+
+  it("does not retry an interrupt after a replacement claims the thread", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    let ownsThread = true;
+    let rejectInterrupt!: (error: Error) => void;
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-stale";
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => ownsThread,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/interrupt") {
+          return new Promise((_, reject) => {
+            rejectInterrupt = reject;
+          });
+        }
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    const dispose = structuredSession.dispose();
+    await vi.waitFor(() =>
+      expect(requests.map((request) => request.method)).toEqual(["turn/interrupt"]),
+    );
+    ownsThread = false;
+    rejectInterrupt(new Error("expected active turn id replacement-turn but found turn-stale"));
+    await dispose;
+
+    expect(requests).toEqual([
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-stale" },
+      },
+    ]);
   });
 
   it("interrupts the active Codex app-server turn", async () => {
@@ -1089,6 +1224,94 @@ describe("CodexStructuredSession", () => {
     expect(requests.at(-1)?.params).toEqual({
       threadId: "provider-thread",
       turnId: "turn-1",
+    });
+  });
+
+  it("retries turn/interrupt with the live id after a stale-id mismatch", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-stale";
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/interrupt" && params.turnId === "turn-stale") {
+          return Promise.reject(
+            new Error("expected active turn id turn-live but found turn-stale"),
+          );
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(requests).toEqual([
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-stale" },
+      },
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live" },
+      },
+    ]);
+    expect((structuredSession as unknown as Record<string, unknown>)["activeTurnId"]).toBe(
+      "turn-live",
+    );
+  });
+
+  it("does not drop the live turn id when a previous turn completes late", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-live";
+    const updates: StructuredSessionUpdate[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onUpdate: (update: StructuredSessionUpdate) => updates.push(update),
+    };
+
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-old", status: "completed" },
+      },
+    });
+
+    expect((structuredSession as unknown as Record<string, unknown>)["activeTurnId"]).toBe(
+      "turn-live",
+    );
+    expect(updates).toEqual([]);
+
+    await structuredSession.interruptTurn();
+
+    expect(requests.at(-1)).toEqual({
+      method: "turn/interrupt",
+      params: { threadId: "provider-thread", turnId: "turn-live" },
+    });
+  });
+
+  it("interrupts a turn that starts after stop was requested without a known id", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.interruptTurn();
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", items: [], status: "inProgress" },
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(requests).toContainEqual({
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live" },
+      });
     });
   });
 
@@ -1209,6 +1432,8 @@ describe("CodexStructuredSession", () => {
           config: {
             model_reasoning_effort: "high",
             model_reasoning_summary: "auto",
+            model_context_window: 400_000,
+            model_auto_compact_token_limit: 380_000,
           },
           threadId: "provider-thread",
           lastTurnId: "turn-2",
@@ -1509,6 +1734,131 @@ describe("CodexStructuredSession", () => {
     expect(requests[2]?.params?.serviceTier).toBeNull();
   });
 
+  it("steers the active turn without interrupting it", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+      onUpdate: () => {},
+    };
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", threadId: "provider-thread" },
+      },
+    });
+    runtimeEvents.length = 0;
+
+    await structuredSession.steerTurn("focus on tests first", { model: "gpt-5.4" }, undefined, {
+      userMessageItemId: "user-steer",
+    });
+
+    expect(requests).toEqual([
+      {
+        method: "turn/steer",
+        params: {
+          threadId: "provider-thread",
+          input: [
+            {
+              type: "text",
+              text: "focus on tests first",
+              text_elements: [],
+            },
+          ],
+          expectedTurnId: "turn-live",
+          clientUserMessageId: "user-steer",
+        },
+      },
+    ]);
+    // Only the local user-message paint: no turn lifecycle, no status change —
+    // the steered turn keeps its own lifecycle.
+    expect(runtimeEvents.map((event) => event.type)).toEqual(["item.started", "item.completed"]);
+    const userStart = runtimeEvents.find(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started",
+    );
+    expect(userStart).toMatchObject({ itemId: "user-steer" });
+  });
+
+  it("falls back to a fresh turn when the steered turn is no longer active", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+      onUpdate: () => {},
+    };
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-ended", threadId: "provider-thread" },
+      },
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/steer") {
+          return Promise.reject(
+            new CodexRpcResponseError("Invalid request: no active turn", -32600),
+          );
+        }
+        if (method === "turn/start") {
+          return Promise.resolve({ turn: { id: "turn-fresh", items: [], status: "inProgress" } });
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.steerTurn("still relevant?", { model: "gpt-5.4" }, undefined, {
+      userMessageItemId: "user-steer",
+    });
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/steer", "turn/start"]);
+    // Exactly one user row: the fallback reuses the id painted before the RPC.
+    const userStarts = runtimeEvents.filter(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "user_message",
+    );
+    expect(userStarts).toHaveLength(2); // steer paint + startTurn echo (deduped by id downstream)
+    expect(new Set(userStarts.map((event) => event.itemId))).toEqual(new Set(["user-steer"]));
+  });
+
+  it("steerTurn with no active turn routes through startTurn", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.steerTurn("hello", { model: "gpt-5.4" });
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/start"]);
+  });
+
+  it("keeps goal slash-commands on the goal dispatch path when steering", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", threadId: "provider-thread" },
+      },
+    });
+
+    await structuredSession.steerTurn("/goal pause", { model: "gpt-5.4" });
+
+    expect(requests).toEqual([
+      { method: "thread/goal/set", params: { threadId: "provider-thread", status: "paused" } },
+    ]);
+    expect(requests.map((request) => request.method)).not.toContain("turn/steer");
+  });
+
   it("keeps /goal <objective> working until the model turn completes", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -1546,10 +1896,10 @@ describe("CodexStructuredSession", () => {
       },
     ]);
     // The goal item itself is produced by the canonical mapper from the
-    // `thread/goal/updated` notification. `thread/goal/set` starts a real
-    // model turn, so its native completion notification must settle the turn.
+    // `thread/goal/updated` notification. Only the user message is emitted
+    // locally — the turn lifecycle comes from the server's own `turn/started`
+    // for the auto-started goal turn, so nothing local can be orphaned.
     expect(runtimeEvents.map((event) => event.type)).toEqual([
-      "turn.started",
       "item.started",
       "item.completed",
       "turn.started",
@@ -1628,11 +1978,42 @@ describe("CodexStructuredSession", () => {
       mode: "plan",
     });
 
-    expect(runtimeEvents.at(-1)).toMatchObject({
-      type: "turn.completed",
-      state: "completed",
-    });
+    // No local turn lifecycle is emitted for a goal command without a model
+    // turn — a locally-minted turn.started would be orphaned.
+    expect(runtimeEvents.map((event) => event.type)).toEqual(["item.started", "item.completed"]);
     expect(updates.at(-1)).toEqual({ status: "idle", attention: "none" });
+  });
+
+  it("does not force idle when a goal command runs while a turn is still active", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: unknown[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+      onUpdate: (update: unknown) => updates.push(update),
+    };
+
+    // A goal turn is already running when the user runs /goal pause.
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "goal-turn", threadId: "provider-thread" },
+      },
+    });
+    updates.length = 0;
+
+    await structuredSession.startTurn("/goal pause", { model: "gpt-5.4" });
+
+    expect(requests).toEqual([
+      { method: "thread/goal/set", params: { threadId: "provider-thread", status: "paused" } },
+    ]);
+    // Status must stay working: the goal turn is still running, and a forced
+    // idle would close the visible turn while the agent keeps streaming.
+    expect(updates).toEqual([]);
+    expect(runtimeEvents.filter((event) => event.type === "turn.completed")).toEqual([]);
   });
 
   it("maps /goal clear to thread/goal/clear", async () => {
@@ -1935,14 +2316,17 @@ describe("CodexStructuredSession", () => {
   function makeNotificationSession(): {
     onMessage: (message: unknown) => void;
     runtimeEvents: RuntimeEvent[];
+    updates: Array<Record<string, unknown>>;
   } {
     const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
     const runtimeEvents: RuntimeEvent[] = [];
+    const updates: Array<Record<string, unknown>> = [];
     session["threadId"] = "local-thread";
     session["remoteThreadId"] = "provider-thread";
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
+    session["activeTurnIds"] = new Set<string>();
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["bufferedRuntimeEvents"] = [];
     const subAgentRouter = new CodexSubAgentRouter("local-thread");
@@ -1950,18 +2334,146 @@ describe("CodexStructuredSession", () => {
     session["subAgentRouter"] = subAgentRouter;
     session["listener"] = {
       onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
-      onUpdate: () => {},
+      onUpdate: (update: Record<string, unknown>) => updates.push(update),
     };
     const structuredSession = session as unknown as CodexStructuredSession;
     return {
       onMessage: (message) => dispatchNotification(structuredSession, message),
       runtimeEvents,
+      updates,
     };
   }
 
-  it("keeps Codex child-thread messages out of the main timeline", () => {
+  it("does not settle idle while a concurrent sibling turn is still running", () => {
+    const { onMessage, runtimeEvents, updates } = makeNotificationSession();
+
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: { threadId: "provider-thread", turn: { id: "turn-a", status: "inProgress" } },
+    });
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: { threadId: "provider-thread", turn: { id: "turn-b", status: "inProgress" } },
+    });
+    updates.length = 0;
+
+    // The server accepts concurrent turn/starts; the first completion (e.g.
+    // the auto-compact task's turn) must not settle the visible turn.
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-a", status: "completed", items: [] },
+      },
+    });
+
+    expect(updates).toEqual([]);
+    const completed = runtimeEvents.filter((event) => event.type === "turn.completed");
+    expect(completed).toHaveLength(1);
+    expect(completed[0]).toMatchObject({ turnId: "turn-a", state: "completed" });
+
+    // The surviving turn keeps streaming items with mapper state intact.
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/started",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-b",
+        item: { id: "msg-b", type: "agentMessage", text: "" },
+      },
+    });
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/agentMessage/delta",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-b",
+        itemId: "msg-b",
+        delta: "partial answer",
+      },
+    });
+    // A late completion for an already-completed turn id must not settle the
+    // thread while turn-b is live either.
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-a", status: "completed", items: [] },
+      },
+    });
+    expect(updates).toEqual([]);
+
+    // The final completion settles the thread idle.
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-b", status: "completed", items: [] },
+      },
+    });
+    expect(updates).toContainEqual({ status: "idle", attention: "none" });
+  });
+
+  it("settles idle on a server-authoritative idle status even if a completion was missed", () => {
+    const { onMessage, updates } = makeNotificationSession();
+
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: { threadId: "provider-thread", turn: { id: "stuck-turn", status: "inProgress" } },
+    });
+    updates.length = 0;
+
+    onMessage({
+      jsonrpc: "2.0",
+      method: "thread/status/changed",
+      params: { threadId: "provider-thread", status: { type: "idle" } },
+    });
+
+    expect(updates).toContainEqual({ status: "idle", attention: "none" });
+  });
+
+  it("skips internal compaction and sleep items without synthesizing rows", () => {
     const { onMessage, runtimeEvents } = makeNotificationSession();
 
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/started",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-a",
+        item: { id: "compact-1", type: "contextCompaction" },
+      },
+    });
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/completed",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-a",
+        item: { id: "compact-1", type: "contextCompaction" },
+      },
+    });
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/completed",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-a",
+        item: { id: "sleep-1", type: "sleep", durationMs: 30_000 },
+      },
+    });
+
+    expect(runtimeEvents.filter((event) => event.type.startsWith("item."))).toEqual([]);
+  });
+
+  it("keeps Codex child-thread messages out of the main timeline", () => {
+    const { onMessage, runtimeEvents } = makeNotificationSession();
     onMessage({
       jsonrpc: "2.0",
       method: "item/started",
@@ -2121,6 +2633,7 @@ describe("CodexStructuredSession", () => {
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
+    session["activeTurnIds"] = new Set<string>();
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
@@ -2238,6 +2751,7 @@ describe("CodexStructuredSession", () => {
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
+    session["activeTurnIds"] = new Set<string>();
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
@@ -2319,6 +2833,7 @@ describe("CodexStructuredSession", () => {
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "active", activeFlags: [] };
     session["seenErrorMessages"] = new Set<string>();
+    session["activeTurnIds"] = new Set<string>();
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["listener"] = {
@@ -2365,6 +2880,7 @@ describe("CodexStructuredSession", () => {
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "active", activeFlags: [] };
     session["seenErrorMessages"] = new Set<string>();
+    session["activeTurnIds"] = new Set<string>();
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["listener"] = {
@@ -2457,6 +2973,15 @@ describe("mapCodexSlashCommands", () => {
     expect(codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id)).toEqual(
       expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
     );
+  });
+
+  it("advertises 272k, 400k, and 1M context windows with a 400k default", () => {
+    expect(codexDefaultCapabilities.defaultContextSize).toBe("400k");
+    expect(codexDefaultCapabilities.contextSizes?.map((size) => size.id)).toEqual([
+      "272k",
+      "400k",
+      "1m",
+    ]);
   });
 
   it("normalizes Codex app-server command metadata", () => {

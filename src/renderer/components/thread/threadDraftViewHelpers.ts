@@ -34,11 +34,16 @@ export function resolveSavedProviderDraftConfig(
   lastDraftConfig: ProjectDraftConfig | undefined,
   providerConfigs: Record<string, ProviderDraftConfig>,
 ): Partial<ProviderDraftConfig> | undefined {
+  const providerConfig = providerConfigs[agentKind];
   if (lastDraftConfig?.agentKind === agentKind && lastDraftConfig.model.trim()) {
-    return lastDraftConfig;
+    // Older project drafts predate context-window persistence. Preserve their
+    // other choices while filling only that missing field from the provider preset.
+    return !lastDraftConfig.contextSize && providerConfig?.contextSize
+      ? { ...lastDraftConfig, contextSize: providerConfig.contextSize }
+      : lastDraftConfig;
   }
 
-  return providerConfigs[agentKind];
+  return providerConfig;
 }
 
 export function resolveModelValue(agent: AgentStatus, preferred?: string): string {

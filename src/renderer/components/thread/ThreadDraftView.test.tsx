@@ -1,4 +1,10 @@
-import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
+import {
+  Children,
+  isValidElement,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -50,6 +56,19 @@ const project: Project = {
     path: "C:\\repo",
   },
   createdAt: "2026-03-28T00:00:00.000Z",
+};
+
+const legacyCodexProject: Project = {
+  ...project,
+  lastDraftConfig: {
+    agentKind: "codex",
+    model: "gpt-5.4",
+    effort: "high",
+    mode: "agent",
+    approvalPolicy: "on-request",
+    approvalsReviewer: "auto_review",
+    sandboxMode: "workspace-write",
+  },
 };
 
 const remoteProject: Project = {
@@ -122,6 +141,22 @@ const dualModeCodexStatus: AgentStatus = {
   capabilities: {
     ...codexStatus.capabilities,
     presentationModes: ["terminal", "gui"],
+  },
+};
+
+const contextualCodexStatus: AgentStatus = {
+  ...dualModeCodexStatus,
+  capabilities: {
+    ...dualModeCodexStatus.capabilities,
+    contextSizes: [
+      { id: "272k", label: "272k" },
+      { id: "400k", label: "400k" },
+      { id: "1m", label: "1M" },
+    ],
+    modelContextSizes: {
+      "gpt-5.4": ["272k", "400k", "1m"],
+    },
+    defaultContextSize: "272k",
   },
 };
 
@@ -292,6 +327,23 @@ const acpGenericStatus: AgentStatus = {
     settingDefs: [],
   },
 };
+
+function StoreBackedThreadDraftView(props: {
+  onStart: ComponentProps<typeof ThreadDraftView>["onStart"];
+}) {
+  const storedProject = useAppStore((state) =>
+    state.projects.find((candidate) => candidate.id === project.id),
+  );
+  if (!storedProject) return null;
+  return (
+    <ThreadDraftView
+      project={storedProject}
+      agentStatuses={[contextualCodexStatus]}
+      {...(storedProject.lastDraftConfig ? { lastDraftConfig: storedProject.lastDraftConfig } : {})}
+      onStart={props.onStart}
+    />
+  );
+}
 
 function classNameIncludes(element: HTMLElement, value: string): boolean {
   return typeof element.className === "string" && element.className.includes(value);
@@ -531,6 +583,88 @@ describe("ThreadDraftView", () => {
     expect(container.querySelector("[data-draft-worktree-row]")).toBeInTheDocument();
   });
 
+  it("defaults a new worktree to the tracking branch when local is in sync", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+  });
+
+  it("keeps the origin worktree base after selecting the matching local branch", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "main",
+          branches: [
+            { name: "main", current: true, commit: "abc", isRemote: false },
+            { name: "develop", current: false, commit: "ghi", isRemote: false },
+            { name: "main", current: false, commit: "def", isRemote: true, remote: "origin" },
+            { name: "develop", current: false, commit: "jkl", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+    fireEvent.click(await screen.findByRole("option", { name: "develop" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(
+      "origin/develop",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+    fireEvent.click(await screen.findByRole("option", { name: "main" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "origin/main",
+        worktreeIsNewBranch: true,
+      }),
+    );
+  });
+
   it("defaults a new worktree to the tracking branch when the local branch is behind", () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
@@ -597,6 +731,62 @@ describe("ThreadDraftView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
     fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "main",
+        worktreeIsNewBranch: true,
+        worktreeTransferUncommitted: true,
+      }),
+    );
+  });
+
+  it("keeps the local checkout after selecting the branch in worktree + changes", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 4,
+          staged: [],
+          unstaged: [
+            { path: "src/file.ts", status: "M", staged: false, insertions: 1, deletions: 0 },
+          ],
+          totalInsertions: 1,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "main",
+          branches: [
+            { name: "main", current: true, commit: "abc", isRemote: false },
+            { name: "main", current: false, commit: "def", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+    const localMain = await screen.findByRole("option", { name: "main" });
+    expect(localMain).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(localMain);
+    fireEvent.keyDown(screen.getByPlaceholderText("Search branches..."), { key: "Escape" });
     expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -958,6 +1148,165 @@ describe("ThreadDraftView", () => {
       presentationMode: "gui",
       prompt: "hello world",
     });
+  });
+
+  it("inherits the saved Codex context window when the project draft predates it", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({ sharedSettingsHydrated: false, providerConfigs: {} });
+    useAppStore.setState({ projects: [legacyCodexProject] });
+
+    render(<StoreBackedThreadDraftView onStart={onStart} />);
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; contextValue?: string }>;
+      };
+      const effortContext = props.controls.find((control) => control.kind === "effort-context");
+      expect(effortContext?.contextValue).toBe("272k");
+    });
+
+    const initialProps = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{ kind?: string; onEffortChange?: (value: string) => void }>;
+    };
+    const initialEffortContext = initialProps.controls.find(
+      (control) => control.kind === "effort-context",
+    );
+    act(() => initialEffortContext?.onEffortChange?.("xhigh"));
+
+    act(() => {
+      useSharedSettings.setState({
+        providerConfigs: {
+          codex: {
+            model: "gpt-5.4",
+            effort: "medium",
+            contextSize: "400k",
+            mode: "agent",
+            approvalPolicy: "on-request",
+            approvalsReviewer: "auto_review",
+            sandboxMode: "workspace-write",
+          },
+        },
+        sharedSettingsHydrated: true,
+      });
+    });
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; contextValue?: string; effortValue?: string }>;
+      };
+      const effortContext = props.controls.find((control) => control.kind === "effort-context");
+      expect(effortContext?.contextValue).toBe("400k");
+      expect(effortContext?.effortValue).toBe("xhigh");
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ contextSize: "400k", effort: "xhigh" }),
+      }),
+    );
+  });
+
+  it("keeps an explicit Codex context choice made before settings hydrate", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({ sharedSettingsHydrated: false, providerConfigs: {} });
+    useAppStore.setState({ projects: [legacyCodexProject] });
+
+    render(<StoreBackedThreadDraftView onStart={onStart} />);
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; contextValue?: string }>;
+      };
+      const effortContext = props.controls.find((control) => control.kind === "effort-context");
+      expect(effortContext?.contextValue).toBe("272k");
+    });
+
+    const initialProps = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{ kind?: string; onContextChange?: (value: string) => void }>;
+    };
+    const initialEffortContext = initialProps.controls.find(
+      (control) => control.kind === "effort-context",
+    );
+    act(() => initialEffortContext?.onContextChange?.("1m"));
+
+    act(() => {
+      useSharedSettings.setState({
+        providerConfigs: {
+          codex: {
+            model: "gpt-5.4",
+            effort: "medium",
+            contextSize: "400k",
+            mode: "agent",
+            approvalPolicy: "on-request",
+            approvalsReviewer: "auto_review",
+            sandboxMode: "workspace-write",
+          },
+        },
+        sharedSettingsHydrated: true,
+      });
+    });
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; contextValue?: string }>;
+      };
+      const effortContext = props.controls.find((control) => control.kind === "effort-context");
+      expect(effortContext?.contextValue).toBe("1m");
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ contextSize: "1m" }),
+      }),
+    );
+  });
+
+  it("submits an explicit Fast-off selection in the launch config", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[cursorStatus]}
+        lastDraftConfig={{
+          agentKind: "cursor",
+          model: "composer-2",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+          worktreeMode: false,
+        }}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; currentModel?: string }>;
+      };
+      expect(
+        props.controls.some(
+          (control) => control.kind === "provider-model" && control.currentModel === "composer-2",
+        ),
+      ).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ fast: false }),
+      }),
+    );
   });
 
   it("keeps a globally disabled built-in out of the composer and launch config", async () => {

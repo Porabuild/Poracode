@@ -156,6 +156,7 @@ export function stopProjectAction(
   if (!tab) return;
 
   actionRunTokens.delete(tab.id);
-  store.markShellExited(tab.id);
+  store.removeTab(tab.id);
+  useThreadOutputStore.getState().clearOutput(tab.id);
   void closeThreads([tab.id]);
 }

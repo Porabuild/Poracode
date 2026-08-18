@@ -35,12 +35,12 @@ describe("Select rich options", () => {
     responsiveMenuState.mobile = false;
   });
 
-  it("renders icon and detail in the desktop trigger and selects a rich option", async () => {
+  it("renders icon in the desktop trigger and selects a rich option with detail", async () => {
     const onChange = vi.fn<(value: string) => void>();
     render(<Select aria-label="Project" options={options} value="alpha" onChange={onChange} />);
 
     const trigger = screen.getByLabelText("Project");
-    expect(trigger).toHaveTextContent("AlphaC:\\Alpha");
+    expect(trigger).toHaveTextContent("Alpha");
     expect(trigger.querySelector('[data-testid="alpha-icon"]')).not.toBeNull();
 
     fireEvent.click(trigger);
@@ -58,7 +58,7 @@ describe("Select rich options", () => {
     render(<Select aria-label="Project" options={options} value="alpha" onChange={onChange} />);
 
     const trigger = screen.getByRole("button", { name: "Project" });
-    expect(trigger).toHaveTextContent("AlphaC:\\Alpha");
+    expect(trigger).toHaveTextContent("Alpha");
     fireEvent.click(trigger);
 
     const beta = await screen.findByRole("button", { name: /Beta/u });

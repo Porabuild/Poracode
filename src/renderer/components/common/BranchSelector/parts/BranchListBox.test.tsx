@@ -116,6 +116,33 @@ describe("BranchListBox", () => {
     expect(props.onSelect).not.toHaveBeenCalled();
   });
 
+  it("highlights the local row when the worktree base is the origin ref", () => {
+    const props = baseProps();
+    const branch = {
+      name: "main",
+      current: true,
+      commit: "abc123",
+      isRemote: false,
+    };
+
+    render(
+      <BranchListBox
+        {...props}
+        hasLocal
+        hasRemote={false}
+        worktreeMode
+        value="origin/main"
+        baseBranch="origin/main"
+        items={[
+          { type: "header", id: "header-local", name: msg`Local` },
+          { type: "branch", id: branch.name, branch },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("option", { name: "main" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("marks worktree branches with a fork icon and a thread-count badge", () => {
     const props = baseProps();
     const branch = {

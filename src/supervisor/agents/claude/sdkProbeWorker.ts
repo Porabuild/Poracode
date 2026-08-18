@@ -14,13 +14,40 @@ import { resolveFastAvailability } from "./fastModeProbe";
 import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
 import { claudeCapabilitiesFromSdkModels } from "./models";
 
-function mapCommands(commands: SlashCommand[]) {
-  return commands.map((c) => ({
-    id: c.name,
-    label: c.description?.trim() ? `${c.name} — ${c.description}` : c.name,
-    ...(c.description?.trim() ? { description: c.description } : {}),
-    ...(c.argumentHint ? { argumentHint: c.argumentHint } : {}),
-  }));
+/**
+ * Mirrors `mapClaudeSlashCommands` / `readClaudeSkillNames` from `probe.ts`.
+ * Kept local so this worker stays a self-contained bundle for in-distro `node`
+ * (importing `probe.ts` would drag the supervisor's WSL/base helpers in).
+ */
+function mapCommands(commands: SlashCommand[], skillNames?: ReadonlySet<string>) {
+  return commands.map((c) => {
+    const base = {
+      id: c.name,
+      label: c.description?.trim() ? `${c.name} — ${c.description}` : c.name,
+      ...(c.description?.trim() ? { description: c.description } : {}),
+      ...(c.argumentHint ? { argumentHint: c.argumentHint } : {}),
+    };
+    if (!skillNames?.has(c.name)) return base;
+    return {
+      ...base,
+      section: "skills" as const,
+      skillName: c.name,
+      skillInvocation: `Use the ${c.name} skill.`,
+      skillProvider: "Claude",
+      skillScope: "global" as const,
+    };
+  });
+}
+
+async function readSkillNames(runtime: {
+  reloadSkills: () => Promise<{ skills: readonly { name: string }[] }>;
+}): Promise<Set<string> | undefined> {
+  try {
+    const { skills } = await runtime.reloadSkills();
+    return new Set(skills.map((skill) => skill.name));
+  } catch {
+    return undefined;
+  }
 }
 
 async function main() {
@@ -54,7 +81,7 @@ async function main() {
     });
 
     const init = await q.initializationResult();
-    const slashCommands = mapCommands(init.commands);
+    const slashCommands = mapCommands(init.commands, await readSkillNames(q));
     const modelCapabilities = claudeCapabilitiesFromSdkModels(init.models);
     const fastAvailable = cachePath
       ? await resolveFastAvailability(q, queue, init.account?.email, cachePath)

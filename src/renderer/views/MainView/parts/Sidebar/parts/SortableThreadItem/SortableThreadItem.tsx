@@ -48,7 +48,7 @@ export function SortableThreadItem(props: {
   const isCurrentThread = useIsCurrentThread(thread.id);
   const hasDraft = useThreadHasDraft(thread.id);
 
-  const { ref } = useSortable({
+  const { ref, handleRef } = useSortable({
     id: `thread:${thread.id}`,
     index: props.threadIndex,
     type: "thread",
@@ -111,6 +111,7 @@ export function SortableThreadItem(props: {
         showProjectActions={stacked}
       >
         <SidebarButton
+          ref={handleRef}
           size="xs"
           density={stacked ? "compact" : "default"}
           statusTone={statusTone}

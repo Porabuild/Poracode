@@ -1,4 +1,5 @@
-import type { AgentCapability } from "@/shared/contracts";
+import type { AgentCapability, ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import { isHomeScopeLocation } from "@/shared/homeScope";
 
 /** The capability slice needed to resolve a provider's full-bypass posture. */
 export type UnrestrictedPermissionCapabilities = Pick<
@@ -36,6 +37,22 @@ export function resolveUnrestrictedPermissionConfig(
     ...(approvalPolicy ? { approvalPolicy } : {}),
     ...(sandboxMode ? { sandboxMode } : {}),
   };
+}
+
+/**
+ * Home is OS-level: every agent launches with that provider's strongest
+ * advertised approval/sandbox posture so the native CLI is not confined to
+ * the home folder. Repo workspaces are left unchanged.
+ */
+export function applyHomeScopePermissions(
+  location: ProjectLocation,
+  config: ThreadConfig,
+  capabilities: UnrestrictedPermissionCapabilities,
+): ThreadConfig {
+  if (!isHomeScopeLocation(location)) return config;
+  const unrestricted = resolveUnrestrictedPermissionConfig(capabilities);
+  if (!unrestricted.approvalPolicy && !unrestricted.sandboxMode) return config;
+  return { ...config, ...unrestricted };
 }
 
 function resolveUnrestrictedOption(

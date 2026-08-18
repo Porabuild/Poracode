@@ -8,6 +8,7 @@ import type {
   PermissionUpdate,
   Query,
   SDKMessage,
+  SlashCommand,
   SpawnOptions,
   SpawnedProcess,
 } from "@anthropic-ai/claude-agent-sdk";
@@ -115,6 +116,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private currentStatus: ThreadStatus = "idle";
   private currentAttention: ThreadAttention = "none";
   private currentSlashCommands: AgentSlashCommand[] | undefined;
+  /** Raw SDK command list, kept so a later skill-name update can re-flavor it. */
+  private lastSdkCommands: readonly SlashCommand[] | undefined;
+  /** Skill names last reported by the CLI (`skills` on the `system` init message). */
+  private lastSkillNames: ReadonlySet<string> | undefined;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private completedTurns: CompletedClaudeTurn[] = [];
   private currentTurnAssistantUuid: string | undefined;
@@ -201,12 +206,39 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     });
   }
 
+  /**
+   * Re-maps the last raw SDK command list against the last-seen skill names.
+   * Commands and skill names arrive on independent paths (control response vs.
+   * the `system` init stream message), so either side re-applies on arrival and
+   * `updateSlashCommands` swallows the no-op.
+   */
+  private applySdkSlashCommands(commands?: readonly SlashCommand[]): void {
+    if (commands) this.lastSdkCommands = commands;
+    const raw = this.lastSdkCommands;
+    if (!raw || raw.length === 0) return;
+    this.updateSlashCommands(mapClaudeSlashCommands(raw, this.lastSkillNames));
+  }
+
+  /** Skill names from the CLI's `system` init message; ignored on older CLIs. */
+  private captureSkillNames(names: unknown): void {
+    if (!Array.isArray(names)) return;
+    const skillNames = new Set(names.filter((name): name is string => typeof name === "string"));
+    if (
+      this.lastSkillNames &&
+      this.lastSkillNames.size === skillNames.size &&
+      [...skillNames].every((name) => this.lastSkillNames?.has(name))
+    ) {
+      return;
+    }
+    this.lastSkillNames = skillNames;
+    this.applySdkSlashCommands();
+  }
+
   private async refreshSlashCommands(runtime: Query): Promise<void> {
     try {
       const init = await runtime.initializationResult();
-      const commands = mapClaudeSlashCommands(init.commands);
-      if (commands.length > 0) {
-        this.updateSlashCommands(commands);
+      if (init.commands.length > 0) {
+        this.applySdkSlashCommands(init.commands);
         return;
       }
     } catch {
@@ -215,9 +247,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
     try {
       const supported = await runtime.supportedCommands();
-      const commands = mapClaudeSlashCommands(supported);
-      if (commands.length > 0) {
-        this.updateSlashCommands(commands);
+      if (supported.length > 0) {
+        // Reuses the last-seen skill set, so the fallback list is split the
+        // same way as the init list.
+        this.applySdkSlashCommands(supported);
       }
     } catch {
       // Install-time/default capabilities still provide the static fallback.
@@ -873,6 +906,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
 
     this.beginResumedTurnIfNeeded(message);
+
+    if (message.type === "system" && message.subtype === "init") {
+      // Bundled skills are reported both here and in the slash-command list;
+      // this set is what splits them out as model-invoked (streaming) skills.
+      this.captureSkillNames(message.skills);
+    }
 
     if (message.type === "system" && message.subtype === "session_state_changed") {
       const mapped = mapSessionState(message.state);

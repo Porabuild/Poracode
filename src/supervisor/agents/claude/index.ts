@@ -277,7 +277,11 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           linkProjectionFromVersion: "2.1.203",
         },
       ],
-      invocation: "slash",
+      // Skills are model-invoked through the SDK's Skill tool, which streams
+      // normally. Typing `/name` instead makes the CLI run an opaque local
+      // command that emits no stream events until it finishes (blank working
+      // turn). Projection is unchanged so the Skill tool still discovers them.
+      invocation: "prompt",
       precedence: {
         scopeOrder: ["global", "project"],
         global: ["claude", "agents"],

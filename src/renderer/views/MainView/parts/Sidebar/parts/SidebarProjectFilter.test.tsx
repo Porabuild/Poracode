@@ -4,6 +4,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
@@ -186,11 +187,31 @@ describe("SidebarProjectFilter", () => {
 
       // The overflow menu opens while the filter menu stays open beneath it.
       expect(await screen.findByRole("menuitem", { name: "Project Settings" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Open terminal" })).toBeInTheDocument();
       expect(screen.getByRole("menuitem", { name: "Disable Project" })).toBeInTheDocument();
       expect(screen.getByRole("menuitem", { name: "Remove Project" })).toBeInTheDocument();
       expect(screen.getByRole("menuitemcheckbox", { name: "All projects" })).toBeInTheDocument();
       expect(screen.getByRole("menuitemcheckbox", { name: /Beta/ })).toBeInTheDocument();
       expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("opens the project terminal from the overflow menu", async () => {
+      useDevTerminalStore.setState({
+        isOpen: false,
+        explicitlyOpened: false,
+        activeProjectId: null,
+        activeWorktreePath: null,
+        tabs: [],
+        activeTabId: null,
+      });
+      renderFilter(null);
+      await openMenu();
+
+      fireEvent.click(screen.getByRole("button", { name: "Project actions for Beta" }));
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Open terminal" }));
+
+      expect(useDevTerminalStore.getState().isOpen).toBe(true);
+      expect(useDevTerminalStore.getState().activeProjectId).toBe("b");
     });
 
     it("keeps a disabled project available for re-enabling", async () => {
@@ -214,6 +235,26 @@ describe("SidebarProjectFilter", () => {
       expect(
         useAppStore.getState().projects.find((candidate) => candidate.id === "b")?.disabled,
       ).toBe(undefined);
+    });
+
+    it("hides host actions while a project is disabled", async () => {
+      const disabledProject = { ...projects[1]!, disabled: true };
+      useAppStore.setState({ projects: [projects[0]!, disabledProject], threads: [] });
+      render(
+        <SidebarProjectFilter
+          projects={[projects[0]!, disabledProject]}
+          filterableProjectIds={new Set(["a"])}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+      await openMenu();
+
+      fireEvent.click(screen.getByRole("button", { name: "Project actions for Beta" }));
+
+      expect(await screen.findByRole("menuitem", { name: "Enable Project" })).toBeInTheDocument();
+      expect(screen.queryByRole("menuitem", { name: "Open terminal" })).not.toBeInTheDocument();
     });
 
     it("keeps a disabled project available for re-enabling on mobile", async () => {
@@ -264,6 +305,10 @@ describe("SidebarProjectFilter", () => {
       fireEvent.click(screen.getByRole("button", { name: "Project actions for Beta" }));
 
       expect(await screen.findByRole("menuitem", { name: "Remove Project" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByRole("menuitem", { name: "Open terminal" })).toHaveAttribute(
         "aria-disabled",
         "true",
       );

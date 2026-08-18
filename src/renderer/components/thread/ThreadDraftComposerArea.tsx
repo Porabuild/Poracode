@@ -5,6 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
   AgentStatus,
+  GitBranchInfo,
   Project,
   PromptSegment,
   ThreadConfig,
@@ -92,6 +93,13 @@ import {
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { WorktreeModeSelect, type WorktreeMode } from "./WorktreeModeSelect";
+import {
+  isCurrentCheckoutRef,
+  localBranchNameFromRef,
+  resolveWorktreeOriginRef,
+} from "@/renderer/components/common/BranchSelector/parts/worktreeBaseRef";
+
+const EMPTY_BRANCHES: GitBranchInfo[] = [];
 
 // Optional fields admit explicit `undefined` so wire shapes with
 // `prop?: T | undefined` (e.g. the zod-parsed quick-composer submission)
@@ -463,14 +471,15 @@ export function ThreadDraftComposerArea(props: {
   // changes" affordance only appears when the new worktree forks from the
   // current (dirty) checkout — the only case where transferring is meaningful.
   const projectStatus = useGitStore((s) => s.statuses[props.project.id]);
+  const projectBranches = useGitStore(
+    (s) => s.branches[props.project.id]?.branches ?? EMPTY_BRANCHES,
+  );
   const hasUncommittedChanges =
     !!projectStatus && projectStatus.staged.length + projectStatus.unstaged.length > 0;
   const trackingWorktreeBase =
     projectStatus &&
     props.gitBranch &&
     projectStatus.branch === props.gitBranch &&
-    projectStatus.behind > 0 &&
-    projectStatus.ahead === 0 &&
     projectStatus.tracking
       ? projectStatus.tracking
       : undefined;
@@ -497,6 +506,10 @@ export function ThreadDraftComposerArea(props: {
       ? "new-with-changes"
       : "new";
 
+  function resolveOriginBase(branchName: string): string {
+    return resolveWorktreeOriginRef(branchName, projectBranches, projectStatus?.tracking);
+  }
+
   function selectNewWorktree(overrides?: Partial<BranchSelection>) {
     const base = overrides?.baseBranch ?? worktreeBase ?? props.gitBranch ?? "";
     setBranchSelection({ branch: base, baseBranch: base, isWorktree: true, ...overrides });
@@ -512,10 +525,41 @@ export function ThreadDraftComposerArea(props: {
     // Keep an existing worktree selection (e.g. a worktreePath from "New thread
     // in worktree") intact rather than rebuilding it into a brand-new branch.
     if (branchSelection?.worktreePath) return;
-    const baseBranch = mode === "new-with-changes" ? props.gitBranch : defaultWorktreeBase;
+    // Worktree + changes must fork from the local checkout so uncommitted
+    // files can be copied. Plain worktree uses the origin ref (T3-style).
+    const localBase = props.gitBranch;
+    const originBase = defaultWorktreeBase ? resolveOriginBase(defaultWorktreeBase) : localBase;
+    const baseBranch = mode === "new-with-changes" ? localBase : originBase;
     selectNewWorktree({
       ...(baseBranch ? { baseBranch } : {}),
       transferUncommitted: mode === "new-with-changes",
+    });
+  }
+
+  function handleBranchSelect(selection: BranchSelection) {
+    if (selection.worktreePath || !selection.isWorktree) {
+      setBranchSelection(selection);
+      return;
+    }
+    const selected = selection.baseBranch ?? selection.branch;
+    const keepChanges =
+      (shouldTransferUncommitted || selection.transferUncommitted === true) &&
+      isCurrentCheckoutRef(selected, props.gitBranch, projectStatus?.tracking);
+    if (keepChanges) {
+      const localName = localBranchNameFromRef(selected, projectBranches);
+      setBranchSelection({
+        ...selection,
+        branch: localName,
+        baseBranch: localName,
+        transferUncommitted: true,
+      });
+      return;
+    }
+    const originBase = resolveOriginBase(selected);
+    setBranchSelection({
+      ...selection,
+      branch: originBase,
+      baseBranch: originBase,
     });
   }
 
@@ -1150,12 +1194,11 @@ export function ThreadDraftComposerArea(props: {
                     onToggle: (next: boolean) => {
                       setExperimentMode(next);
                       if (next) {
-                        setExperimentBaseBranch(
+                        const rawBase =
                           branchSelection?.baseBranch ??
-                            branchSelection?.branch ??
-                            defaultWorktreeBase ??
-                            null,
-                        );
+                          branchSelection?.branch ??
+                          defaultWorktreeBase;
+                        setExperimentBaseBranch(rawBase ? resolveOriginBase(rawBase) : null);
                       } else {
                         setExperimentCandidates([]);
                         setExperimentBaseBranch(null);
@@ -1205,8 +1248,11 @@ export function ThreadDraftComposerArea(props: {
             {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
             onSelect={
               experimentMode
-                ? (selection) => setExperimentBaseBranch(selection.baseBranch ?? selection.branch)
-                : setBranchSelection
+                ? (selection) =>
+                    setExperimentBaseBranch(
+                      resolveOriginBase(selection.baseBranch ?? selection.branch),
+                    )
+                : handleBranchSelect
             }
             onSwitchBranch={props.onSwitchBranch}
             hideWorktreeToggle
