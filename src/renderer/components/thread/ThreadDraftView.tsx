@@ -225,7 +225,17 @@ export function ThreadDraftView(props: {
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState("");
-  const [contextSize, setContextSize] = useState<string | undefined>(undefined);
+  const [contextSize, setContextSize] = useState<string | undefined>(() => {
+    if (
+      lastDraftConfig &&
+      lastDraftConfig.agentKind === preferredAgentKind &&
+      lastDraftConfig.contextSize
+    ) {
+      return lastDraftConfig.contextSize;
+    }
+    if (!preferredAgentKind || isHomeScope) return undefined;
+    return useSharedSettings.getState().providerConfigs[preferredAgentKind]?.contextSize;
+  });
   const [fast, setFast] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [mode, setMode] = useState<"agent" | "plan" | "autopilot">("agent");
@@ -511,16 +521,22 @@ export function ThreadDraftView(props: {
     if (!selectedAgentForConfig || !effectiveAgentKind) {
       return;
     }
-    if (lastDraftConfig?.agentKind === effectiveAgentKind && lastDraftConfig.model.trim()) {
+    const hasProjectDraft =
+      lastDraftConfig?.agentKind === effectiveAgentKind && Boolean(lastDraftConfig.model.trim());
+    if (hasProjectDraft && lastDraftConfig.contextSize) {
       return;
     }
 
-    const saved = useSharedSettings.getState().providerConfigs[effectiveAgentKind];
-    if (!saved) {
+    const providerConfigs = useSharedSettings.getState().providerConfigs;
+    const providerConfig = providerConfigs[effectiveAgentKind];
+    if (!providerConfig) {
       return;
     }
-    providerConfigsRef.current = { ...useSharedSettings.getState().providerConfigs };
+    providerConfigsRef.current = { ...providerConfigs };
 
+    const saved = hasProjectDraft
+      ? resolveSavedProviderDraftConfig(effectiveAgentKind, lastDraftConfig, providerConfigs)
+      : providerConfig;
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
     const nextModel = resolved.model;
     const nextEffort = resolved.effort ?? "";
@@ -558,15 +574,16 @@ export function ThreadDraftView(props: {
     lastAppliedAgentKindRef.current = effectiveAgentKind;
 
     if (
-      saved.model !== nextModel ||
-      saved.effort !== nextEffort ||
-      saved.contextSize !== nextContext ||
-      saved.fast !== nextFast ||
-      saved.thinking !== nextThinking ||
-      saved.mode !== nextMode ||
-      saved.approvalPolicy !== nextApproval ||
-      saved.approvalsReviewer !== nextReviewer ||
-      saved.sandboxMode !== nextSandbox
+      !hasProjectDraft &&
+      (providerConfig.model !== nextModel ||
+        providerConfig.effort !== nextEffort ||
+        providerConfig.contextSize !== nextContext ||
+        providerConfig.fast !== nextFast ||
+        providerConfig.thinking !== nextThinking ||
+        providerConfig.mode !== nextMode ||
+        providerConfig.approvalPolicy !== nextApproval ||
+        providerConfig.approvalsReviewer !== nextReviewer ||
+        providerConfig.sandboxMode !== nextSandbox)
     ) {
       providerConfigsRef.current[effectiveAgentKind] = resolved;
       setProviderConfig(effectiveAgentKind, resolved);

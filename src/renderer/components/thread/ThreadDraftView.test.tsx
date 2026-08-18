@@ -1098,6 +1098,82 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("inherits the saved Codex context window when the project draft predates it", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const codexWithContext: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        contextSizes: [
+          { id: "272k", label: "272k" },
+          { id: "400k", label: "400k" },
+          { id: "1m", label: "1M" },
+        ],
+        modelContextSizes: {
+          "gpt-5.4": ["272k", "400k", "1m"],
+        },
+        defaultContextSize: "272k",
+      },
+    };
+    useSharedSettings.setState({ sharedSettingsHydrated: false, providerConfigs: {} });
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexWithContext]}
+        lastDraftConfig={{
+          agentKind: "codex",
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "auto_review",
+          sandboxMode: "workspace-write",
+        }}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(composerSpy).toHaveBeenCalled();
+    });
+
+    act(() => {
+      useSharedSettings.setState({
+        providerConfigs: {
+          codex: {
+            model: "gpt-5.4",
+            effort: "medium",
+            contextSize: "400k",
+            mode: "agent",
+            approvalPolicy: "on-request",
+            approvalsReviewer: "auto_review",
+            sandboxMode: "workspace-write",
+          },
+        },
+        sharedSettingsHydrated: true,
+      });
+    });
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ kind?: string; contextValue?: string; effortValue?: string }>;
+      };
+      const effortContext = props.controls.find((control) => control.kind === "effort-context");
+      expect(effortContext?.contextValue).toBe("400k");
+      expect(effortContext?.effortValue).toBe("high");
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ contextSize: "400k", effort: "high" }),
+      }),
+    );
+  });
+
   it("submits an explicit Fast-off selection in the launch config", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
