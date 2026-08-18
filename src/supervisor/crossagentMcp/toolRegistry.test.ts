@@ -589,6 +589,13 @@ describe("subagent tool registration", () => {
     );
   });
 
+  it("tells namespacing hosts to resolve bare tool names against the crossagents server", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("crossagents__list_agents");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "never the same bare name under another server",
+    );
+  });
+
   it("requires an explicit user ask in the thread before delegating", () => {
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("in this thread");
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("rest of the thread");

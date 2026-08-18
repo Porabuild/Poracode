@@ -1000,6 +1000,34 @@ describe("AcpRegistrySettings", () => {
     await waitFor(() => expect(bridge.refreshAgentStatuses).toHaveBeenCalled());
   });
 
+  it("does not infer login is required from auth methods after ACP session setup", async () => {
+    settingsState.acpRegistryInstalledAgents = {
+      "glm-acp-agent": {
+        id: "glm-acp-agent",
+        name: "GLM Agent",
+        version: "1.1.3",
+        installedAt: new Date(0).toISOString(),
+        adapterKind: "acp-generic:glm-acp-agent",
+        installKind: "generic",
+      },
+    };
+    statusesState.agentStatuses = [
+      makeStatus("acp-generic:glm-acp-agent", {
+        label: "GLM Agent",
+        authState: "unknown",
+        acpSessionEstablished: true,
+        authMethods: [{ id: "sso", name: "SSO" }],
+      }),
+    ];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    expect(glmCard).toBeTruthy();
+    expect(within(glmCard as HTMLElement).queryByRole("button", { name: "Login" })).toBeNull();
+  });
+
   it("runs Factory agent-owned auth from its native card", async () => {
     statusesState.agentStatuses = [
       makeStatus("factory", {

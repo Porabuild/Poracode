@@ -21,6 +21,7 @@ import {
   type Project,
   type RefreshAgentScope,
 } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { msg } from "@lingui/core/macro";
 import { isWindows, readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -382,7 +383,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         }),
       )
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(err instanceof Error ? friendlyError(err) : String(err));
       })
       .finally(() => setPendingAuthAgentId(undefined));
   };

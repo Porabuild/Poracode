@@ -101,6 +101,7 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
       x.icon === b[i]!.icon &&
       x.version === b[i]!.version &&
       x.authState === b[i]!.authState &&
+      x.acpSessionEstablished === b[i]!.acpSessionEstablished &&
       areAgentPresentationRuntimeFieldsEqual(x, b[i]!) &&
       x.loginCommand === b[i]!.loginCommand &&
       x.envKind === b[i]!.envKind &&
@@ -254,11 +255,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 8,
-      // v8 drops statuses cached before Codex advertised selectable context
-      // windows. This mirrors the supervisor STATUS_CACHE_VERSION=11 bump, which
-      // only invalidates the supervisor's on-disk cache, not this localStorage
-      // copy.
+      version: 10,
+      // v10 adds ACP session readiness separately from authentication and
+      // normalized ACP approval-policy labels. This mirrors the supervisor
+      // STATUS_CACHE_VERSION=13 bump, which only invalidates the supervisor's
+      // on-disk cache, not this localStorage copy.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

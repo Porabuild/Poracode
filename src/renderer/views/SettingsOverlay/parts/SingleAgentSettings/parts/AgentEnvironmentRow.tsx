@@ -91,7 +91,8 @@ export function AgentEnvironmentRow(props: {
   const hasAnyMethod = authMethods.length > 0;
   const isAuthenticated = status.authState === "authenticated";
   const isMissing =
-    status.authState === "missing" || (status.authState === "unknown" && hasAnyMethod);
+    status.authState === "missing" ||
+    (status.authState === "unknown" && hasAnyMethod && status.acpSessionEstablished !== true);
   const env = envLabelForStatus(status);
   const canLogout = isAuthenticated && props.canLogout;
   const canReLogin = isAuthenticated && !canLogout && hasAnyMethod;

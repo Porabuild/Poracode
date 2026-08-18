@@ -15,6 +15,34 @@ import {
 } from "@/renderer/utils/acpRegistryAuth";
 
 /**
+ * Whether the status advertises an interactive (browser/CLI) sign-in, i.e. the
+ * methods a per-env auth row can offer a Login button for. Env-var credentials
+ * are excluded — they are edited in the shared block above those rows.
+ */
+export function hasInteractiveAuthMethods(status: AgentStatus): boolean {
+  return (
+    status.authMethods?.some(
+      (method) => isAgentAuthMethod(method) || isTerminalAuthMethod(method),
+    ) ?? false
+  );
+}
+
+/**
+ * Whether an env still needs a sign-in. `unknown` only counts when the agent
+ * advertises an interactive method and its ACP session setup did not succeed —
+ * a working session means the agent is usable, so prompting for login there
+ * would be a false alarm.
+ */
+export function statusNeedsInteractiveLogin(status: AgentStatus): boolean {
+  if (status.authState === "missing") return true;
+  return (
+    status.authState === "unknown" &&
+    status.acpSessionEstablished !== true &&
+    hasInteractiveAuthMethods(status)
+  );
+}
+
+/**
  * Live plan label to show instead of the one carried by `providerMetadata`.
  *
  * Detected plans are read out of provider credentials, which snapshot the plan

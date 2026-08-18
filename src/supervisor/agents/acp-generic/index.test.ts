@@ -353,11 +353,20 @@ describe("createAcpGenericAdapter", () => {
     expect(status.authMethods).toEqual([{ id: "login", name: "Login" }]);
   });
 
-  it("reports advertised agent auth as missing even when a session probe succeeds", async () => {
-    // `sessionEstablished` is not a reliable proxy for "signed in" — some
-    // agents (e.g. Cline) accept newSession unauthenticated. Until we have a
-    // positive identity signal, fall through to "missing" so the UI prompts
-    // for login instead of falsely claiming Signed in.
+  it("keeps auth unknown when newSession succeeds and auth methods remain advertised", async () => {
+    vi.mocked(probeAcpCapabilities).mockResolvedValue({
+      authState: "authenticated",
+      sessionEstablished: true,
+      authMethods: [{ id: "browser-login", name: "Browser login" }],
+    });
+    const adapter = createAcpGenericAdapter(baseInstance);
+    const status = await adapter.detectInstall();
+    expect(status.authState).toBe("unknown");
+    expect(status.acpSessionEstablished).toBe(true);
+    expect(status.authMethods).toEqual([{ id: "browser-login", name: "Browser login" }]);
+  });
+
+  it("reports advertised agent auth as missing when the probe has no explicit auth state", async () => {
     vi.mocked(probeAcpCapabilities).mockResolvedValue({
       sessionEstablished: true,
       authMethods: [{ id: "browser-login", name: "Browser login" }],

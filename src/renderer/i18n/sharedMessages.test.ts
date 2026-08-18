@@ -54,6 +54,19 @@ describe("shared message i18n integration", () => {
     expect(summary.length).toBeGreaterThan(0);
   });
 
+  it("translates wrapped ACP authentication verification errors", async () => {
+    await dynamicActivate("es");
+    const summary = friendlyError(
+      new Error(
+        "Error invoking remote method 'poracode:authenticate-acp-agent': Error: My ACP reported authentication success, but Poracode could not verify it. Configure My ACP directly, then try again.",
+      ),
+    );
+
+    expect(summary).toBe(
+      "My ACP informó que la autenticación se realizó correctamente, pero Poracode no pudo verificarla. Configura My ACP directamente y vuelve a intentarlo.",
+    );
+  });
+
   it("translates main-process SSH manifest errors and preserves their path", async () => {
     await dynamicActivate("es");
     const path = "C:\\Poracode\\server.ssh-runtime-manifest.json";

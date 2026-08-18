@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  humanizeAcpModeName,
   humanizeModelId,
   mapAcpConfigModels,
   mapAcpModels,
@@ -190,6 +191,22 @@ describe("mapAcpModes", () => {
     ]);
   });
 
+  it("normalizes raw snake_case mode names into readable labels", () => {
+    const result = mapAcpModes([
+      { id: "auto", name: "auto" },
+      { id: "approve", name: "approve" },
+      { id: "smart_approve", name: "smart_approve" },
+      { id: "chat", name: "chat" },
+    ]);
+    expect(result.modes).toEqual(["agent"]);
+    expect(result.approvalPolicies).toEqual([
+      { id: "auto", label: "Auto" },
+      { id: "approve", label: "Approve" },
+      { id: "smart_approve", label: "Smart approve" },
+      { id: "chat", label: "Chat" },
+    ]);
+  });
+
   it("maps unknown mode IDs as agent approval policies", () => {
     const result = mapAcpModes([
       { id: "default", name: "Default" },
@@ -376,5 +393,21 @@ describe("normalizeAcpModeId", () => {
     expect(
       normalizeAcpModeId("https://agentclientprotocol.com/protocol/session-modes#autopilot"),
     ).toBe("autopilot");
+  });
+});
+
+describe("humanizeAcpModeName", () => {
+  it("replaces underscores with spaces and capitalizes the first letter", () => {
+    expect(humanizeAcpModeName("smart_approve")).toBe("Smart approve");
+    expect(humanizeAcpModeName("auto")).toBe("Auto");
+  });
+
+  it("leaves prose labels untouched", () => {
+    expect(humanizeAcpModeName("Accept Edits")).toBe("Accept Edits");
+    expect(humanizeAcpModeName("YOLO")).toBe("YOLO");
+  });
+
+  it("collapses whitespace introduced by separators", () => {
+    expect(humanizeAcpModeName("  read_only  mode ")).toBe("Read only mode");
   });
 });

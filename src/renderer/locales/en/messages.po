@@ -388,6 +388,10 @@ msgstr "{0}/{1} selected"
 msgid "{0}mo ago"
 msgstr "{0}mo ago"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again."
+msgstr "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "{agentLabel} install targets"
 msgstr "{agentLabel} install targets"

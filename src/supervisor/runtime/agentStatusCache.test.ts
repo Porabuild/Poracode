@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
-  it("invalidates v10 caches produced before Codex context-window capabilities", () => {
+  it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -49,14 +49,15 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 10,
+        version: 11,
         windows: [
           {
-            kind: "codex",
-            label: "Codex",
+            kind: "acp-generic:example",
+            label: "Example ACP",
             installed: true,
-            authState: "authenticated",
-            capabilities: { models: [{ id: "gpt-5.6-sol", label: "GPT-5.6 Sol" }] },
+            authState: "missing",
+            authMethods: [{ id: "login", name: "Login" }],
+            capabilities: { models: [] },
           },
         ],
       }),

@@ -157,6 +157,71 @@ describe("ACP registry installs", () => {
     }
   });
 
+  it.runIf(process.platform === "win32")(
+    "passes Windows binary archive paths to PowerShell through the child environment",
+    async () => {
+      const dir = mkdtempSync(join(tmpdir(), "poracode acp registry-"));
+      const settingsPath = join(dir, "settings.json");
+      const registry: AcpRegistryListResult = {
+        version: "1.0.0",
+        agents: [
+          {
+            id: "binary-agent",
+            name: "Binary Agent",
+            version: "1.0.0",
+            description: "Binary agent via ACP",
+            distribution: {
+              binary: {
+                "windows-x86_64": {
+                  archive: "https://example.com/agent.zip",
+                  cmd: "agent.exe",
+                },
+              },
+            },
+          },
+        ],
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+      );
+      try {
+        await installAcpRegistryAgent({
+          agentId: "binary-agent",
+          baseDir: dir,
+          settingsPath,
+          iconsDir: join(dir, "acp-icons"),
+          registry,
+        });
+
+        expect(execFileMock).toHaveBeenCalledOnce();
+        const [command, args, options] = execFileMock.mock.calls[0] ?? [];
+        expect(command).toBe("powershell.exe");
+        expect(args).toEqual([
+          "-NoLogo",
+          "-NoProfile",
+          "-Command",
+          "Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
+        ]);
+        expect(options).toMatchObject({
+          windowsHide: true,
+          env: {
+            PORACODE_ACP_ARCHIVE_PATH: join(
+              dir,
+              "acp-registry",
+              "binary-agent",
+              "1.0.0",
+              "agent.zip",
+            ),
+            PORACODE_ACP_INSTALL_DIR: join(dir, "acp-registry", "binary-agent", "1.0.0", "bin"),
+          },
+        });
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
   it("backfills registry icons into existing generic installs and caches them locally", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-acp-registry-"));
     const settingsPath = join(dir, "settings.json");
