@@ -106,6 +106,7 @@ export function createAcpGenericAdapter(instance: AgentInstanceConfig): AgentAda
         ...(instance.icon ? { icon: instance.icon } : {}),
         ...(instance.version ? { version: instance.version } : {}),
         authState,
+        ...(probeResult?.sessionEstablished ? { acpSessionEstablished: true } : {}),
         ...(loginCommand ? { loginCommand } : {}),
         ...(providerMetadata ? { providerMetadata } : {}),
         ...(probeResult?.authMethods ? { authMethods: probeResult.authMethods } : {}),
@@ -381,6 +382,12 @@ function resolveGenericAuthState(
   // accept `newSession` without enforcing auth).
   if (isInteractiveAuthAcknowledged(instance, ctx)) {
     return "authenticated";
+  }
+  // ACP v1 exposes supported auth methods, not current auth state. A successful
+  // session/new proves the agent is ready for a prompt, but agents may defer
+  // credential validation until that prompt, so keep the state unknown.
+  if (probeResult?.authState === "authenticated") {
+    return "unknown";
   }
   if (
     probeResult?.authMethods?.some(

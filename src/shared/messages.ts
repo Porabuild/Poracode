@@ -119,6 +119,10 @@ const messages = {
   "supervisor.notRunning": "Background process is not running",
   "supervisor.proposedPlan": "Proposed plan",
 
+  // ── ACP ───────────────────────────────────────────────────
+  "acp.authenticationUnverified":
+    "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
+
   // ── Kimi Code ─────────────────────────────────────────────
   "kimi.credentialsLocked":
     "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",
@@ -223,12 +227,19 @@ export function errorDetail(err: unknown): string {
  */
 const pullDirtyWorktreePattern =
   /(?:\bgit\s+pull\b[\s\S]*(?:local changes|unstaged changes|would be overwritten)|cannot pull\b[\s\S]*(?:changes|stash)|local changes[\s\S]*(?:before|during)[\s\S]*(?:merge|pull)|please commit or stash[\s\S]*(?:merge|pull))/i;
+const acpAuthenticationUnverifiedPattern =
+  /^(.+) reported authentication success, but Poracode could not verify it\. Configure \1 directly, then try again\.$/;
 
 const errorPatterns: Array<{
   test: RegExp;
   key: MessageKey;
   params?: (raw: string) => Record<string, string>;
 }> = [
+  {
+    test: acpAuthenticationUnverifiedPattern,
+    key: "acp.authenticationUnverified",
+    params: (raw) => ({ agent: raw.slice(0, raw.indexOf(" reported authentication success")) }),
+  },
   {
     test: pullDirtyWorktreePattern,
     key: "git.pull.localChanges",

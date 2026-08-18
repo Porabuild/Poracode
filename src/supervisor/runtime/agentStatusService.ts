@@ -50,9 +50,13 @@ const execFileAsync = promisify(execFile);
  * invalidates v9 results whose macOS Grok probe could not find Node because
  * the login-shell environment was not forwarded to the ACP child process.
  * v11 adds Codex context-window sizes (272k/400k/1m plus a user-editable list)
- * so cached statuses without those capability fields are not reused.
+ * so cached statuses without those capability fields are not reused. v12
+ * records successful ACP session setup separately from authentication so
+ * advertised auth methods do not create a false Login requirement. v13
+ * normalizes ACP mode labels for display, so statuses cached with raw ids
+ * (`smart_approve`) as approval-policy labels must be re-probed.
  */
-export const STATUS_CACHE_VERSION = 11;
+export const STATUS_CACHE_VERSION = 13;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

@@ -408,6 +408,8 @@ export const agentStatusSchema = z.object({
   version: z.string().optional(),
   update: agentUpdateInfoSchema.optional(),
   authState: authStateSchema,
+  /** ACP session setup succeeded, which proves readiness but not authentication. */
+  acpSessionEstablished: z.boolean().optional(),
   /**
    * Authentication can differ between presentation runtimes even when they
    * share one provider tile. For example, Cursor's terminal/ACP surfaces use

@@ -209,6 +209,7 @@ export class SupervisorRuntime {
       sharedSettingsCache: this.sharedSettingsCache,
       getAgentStatusService: () => this.agentStatusService,
       getActiveWslProjectDistros: () => this._projectWatcher?.getWslDistros() ?? [],
+      closeThreadsForAgentKind: (agentKind) => this.closeThreadsForAgentKind(agentKind),
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });
@@ -544,6 +545,30 @@ export class SupervisorRuntime {
     // through a network round-trip on every start. No-op (no network) once all
     // icons are local. Fire-and-forget — never blocks the window from opening.
     void this.agentRegistryService.cacheLocalAcpIconsOnLaunch();
+    void this.agentRegistryService.pruneAcpRegistryLeftoversOnLaunch();
+  }
+
+  /**
+   * Stop every live thread running `agentKind`. Deleting an ACP registry agent
+   * goes through here first: the thread's process is the agent, so leaving it
+   * running would keep an uninstalled agent alive (and on Windows keep a lock on
+   * the install directory being removed). Per-thread failures are logged, never
+   * fatal — one stuck session must not block the removal.
+   */
+  private async closeThreadsForAgentKind(agentKind: AgentKind): Promise<void> {
+    const threadIds = [...this.sessions.values()]
+      .filter((session) => session.agentKind === agentKind)
+      .map((session) => session.threadId);
+    await Promise.all(
+      threadIds.map((threadId) =>
+        this.threadSessionManager.closeThread({ threadId }).catch((error) => {
+          console.warn(
+            `[supervisor] failed to close thread ${threadId} while removing ${agentKind}:`,
+            error,
+          );
+        }),
+      ),
+    );
   }
 
   getAvailableWindowsShells() {

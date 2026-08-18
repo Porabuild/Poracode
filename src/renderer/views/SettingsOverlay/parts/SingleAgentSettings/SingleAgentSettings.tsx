@@ -14,6 +14,7 @@ import {
   extractAcpGenericInstanceId,
   extractClaudeProfileInstanceId,
 } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -53,8 +54,10 @@ import {
   findEnvVarAuthMethod,
   findTerminalLoginStatus,
   formatStatusList,
+  hasInteractiveAuthMethods,
   resolveLivePlanLabel,
   statusEnvKey,
+  statusNeedsInteractiveLogin,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";
 
@@ -346,7 +349,7 @@ export function SingleAgentSettings(props: {
       .then(() => toast.success(t`${agent.label} authenticated.`))
       .catch((error: unknown) =>
         toast.danger(
-          error instanceof Error ? error.message : t`Unable to authenticate ${agent.label}.`,
+          error instanceof Error ? friendlyError(error) : t`Unable to authenticate ${agent.label}.`,
         ),
       )
       .finally(() => {
@@ -446,19 +449,14 @@ export function SingleAgentSettings(props: {
     logoutStatuses.length > 0 ||
     hasAdvertisedAuthMethods;
   const includeAuthFallbackMetadata = !hasAuthSettings;
-  const authMissing =
-    missingAuthStatuses.length > 0 ||
-    (hasAdvertisedAuthMethods &&
-      !installedStatuses.some((status) => status.authState === "authenticated"));
+  const authMissing = installedStatuses.some(statusNeedsInteractiveLogin);
   const missingAuthLabel = formatStatusList(missingAuthStatuses);
   const showEnvVarOnly = envVarAuthMethod !== undefined && !authMissing;
   // Interactive auth (browser/CLI sign-in) is per-env — Windows and each WSL
   // distro hold their own sessions. We split the auth panel into one row per
   // env so each shows its own state independently. Env-var credentials stay
   // shared (single block above the per-env rows).
-  const hasInteractiveAuth = installedStatuses.some((status) =>
-    status.authMethods?.some((method) => isAgentAuthMethod(method) || method.type === "terminal"),
-  );
+  const hasInteractiveAuth = installedStatuses.some(hasInteractiveAuthMethods);
   // When env-var credentials already satisfy every env, the user is signed in
   // via the shared key — per-env Logout rows are misleading because there is
   // no per-env session to revoke. Show just the env-var block in that case.

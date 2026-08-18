@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { KeyRound, LogIn, RefreshCw, Settings } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { openSettings } from "@/renderer/actions/panelActions";
@@ -104,7 +105,9 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
         toast.success(t`${agentStatus.label} authenticated.`);
       } catch (error) {
         toast.danger(
-          error instanceof Error ? error.message : t`Unable to authenticate ${agentStatus.label}.`,
+          error instanceof Error
+            ? friendlyError(error)
+            : t`Unable to authenticate ${agentStatus.label}.`,
         );
       } finally {
         setPendingAction(undefined);

@@ -45,22 +45,24 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
-  it("invalidates v7 statuses cached before Codex context-window capabilities", async () => {
+  it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(8);
-    const staleCodex = makeStatus({
-      kind: "codex",
-      label: "Codex",
+    expect(options.version).toBe(10);
+    const staleAcp = makeStatus({
+      kind: "acp-generic:example",
+      label: "Example ACP",
+      authState: "missing",
+      authMethods: [{ id: "login", name: "Login" }],
       capabilities: { ...makeStatus().capabilities },
     });
     const migrated = await options.migrate!(
       {
-        agentStatuses: [staleCodex],
+        agentStatuses: [staleAcp],
         wslAgentStatuses: [],
         windowsLoaded: true,
         wslLoaded: true,
       },
-      7,
+      8,
     );
     expect(migrated).toMatchObject({
       agentStatuses: [],
@@ -72,7 +74,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(8);
+    expect(options.version).toBe(10);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -154,6 +156,16 @@ describe("setAgentStatuses", () => {
     expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.contextSizes).toEqual(
       fresh.capabilities.contextSizes,
     );
+  });
+
+  it("replaces the array when ACP session readiness changes", () => {
+    const cached = makeStatus({ authState: "unknown" });
+    const fresh = makeStatus({ authState: "unknown", acpSessionEstablished: true });
+    useAgentStatusesStore.setState({ agentStatuses: [cached], windowsLoaded: true });
+
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
   });
 
   it("replaces the array when only a presentation capability catalog changes", () => {

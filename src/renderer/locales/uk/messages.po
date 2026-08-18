@@ -388,6 +388,10 @@ msgstr "Вибрано: {0}/{1}"
 msgid "{0}mo ago"
 msgstr "{0} міс. тому"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again."
+msgstr "{agent} повідомив про успішну автентифікацію, але Poracode не вдалося її перевірити. Налаштуйте {agent} безпосередньо та повторіть спробу."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "{agentLabel} install targets"
 msgstr "{agentLabel} цілей встановлення"

@@ -1167,6 +1167,52 @@ describe("SingleAgentSettings", () => {
     expect(within(row).getByRole("button", { name: "Login" })).toBeInTheDocument();
   });
 
+  it("does not request login when ACP session setup succeeded without proving auth", () => {
+    statusesState.agentStatuses = [
+      makeStatus("acp-generic:ready-agent", {
+        label: "Ready Agent",
+        authState: "unknown",
+        acpSessionEstablished: true,
+        authMethods: [{ id: "login", name: "Login" }],
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="acp-generic:ready-agent" />);
+
+    const row = envRow("Default");
+    expect(within(row).queryByRole("button", { name: "Login" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Login required")).not.toBeInTheDocument();
+  });
+
+  it("keeps login required for an unready WSL env when native ACP setup succeeded", () => {
+    statusesState.agentStatuses = [
+      makeStatus("acp-generic:ready-agent", {
+        label: "Ready Agent",
+        authState: "unknown",
+        acpSessionEstablished: true,
+        authMethods: [{ id: "login", name: "Login" }],
+        envKind: "windows",
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("acp-generic:ready-agent", {
+        label: "Ready Agent",
+        authState: "unknown",
+        authMethods: [{ id: "login", name: "Login" }],
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="acp-generic:ready-agent" />);
+
+    expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
+    expect(within(envRow("Windows")).queryByRole("button", { name: "Login" })).toBeNull();
+    expect(
+      within(envRow("WSL (Ubuntu)")).getByRole("button", { name: "Login WSL (Ubuntu)" }),
+    ).toBeVisible();
+  });
+
   it("offers logout (not re-login) for an authenticated ACP agent env", async () => {
     statusesState.agentStatuses = [
       makeStatus("acp-generic:sso-agent", {

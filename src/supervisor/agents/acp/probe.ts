@@ -58,11 +58,13 @@ export interface AcpProbeResult {
   authLogoutSupported?: boolean;
   sessionEstablished?: boolean;
   /**
-   * Auth state derived directly from the ACP handshake — `"authenticated"`
+   * Operational auth signal derived from the ACP handshake — `"authenticated"`
    * when `newSession` succeeded, `"missing"` when the agent returned the
-   * `auth_required` JSON-RPC error (code -32000). Left undefined when the
-   * probe couldn't decide (spawn / transport / non-auth errors), so callers
-   * fall back to their own heuristics.
+   * `auth_required` JSON-RPC error (code -32000). ACP does not guarantee that
+   * session setup validates credentials, so callers with advertised auth
+   * methods must not treat the success value as proof of authentication. Left
+   * undefined when the probe couldn't decide (spawn / transport / non-auth
+   * errors), so callers fall back to their own heuristics.
    */
   authState?: AuthState;
   models?: Array<{ id: string; label: string; description?: string; tooltipDescription?: string }>;
@@ -130,6 +132,7 @@ const INITIAL_SLASH_COMMANDS_TIMEOUT_MS = 2_000;
  * ACP mode ID → Poracode mode + optional approval policy ID.
  *
  * Labels come from the ACP `SessionMode.name` field, not hardcoded here.
+ * They are normalized for display by `humanizeAcpModeName`.
  */
 const MODE_MAP: Record<string, { mode: ThreadMode; approvalPolicyId?: string }> = {
   default: { mode: "agent", approvalPolicyId: "default" },
@@ -149,8 +152,20 @@ export function normalizeAcpModeId(modeId: string): string {
 }
 
 /**
+ * Normalize an ACP-provided mode label for display. Some agents (goose) return
+ * the raw mode id as `SessionMode.name` (`smart_approve`), so swap underscores
+ * for spaces and capitalize the first letter. Labels that already read as prose
+ * pass through unchanged.
+ */
+export function humanizeAcpModeName(name: string): string {
+  const spaced = name.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  if (!spaced) return name.trim();
+  return spaced[0]!.toUpperCase() + spaced.slice(1);
+}
+
+/**
  * Map ACP `SessionMode[]` to Poracode modes and approval policies.
- * Labels are taken from ACP's `SessionMode.name`.
+ * Labels are taken from ACP's `SessionMode.name`, normalized for display.
  */
 export function mapAcpModes(availableModes: SessionMode[]): {
   modes: ThreadMode[];
@@ -164,12 +179,15 @@ export function mapAcpModes(availableModes: SessionMode[]): {
     const mapped = MODE_MAP[normalizedModeId];
     if (!mapped) {
       modes.add("agent");
-      approvalPolicies.push({ id: normalizedModeId, label: acpMode.name });
+      approvalPolicies.push({ id: normalizedModeId, label: humanizeAcpModeName(acpMode.name) });
       continue;
     }
     modes.add(mapped.mode);
     if (mapped.approvalPolicyId) {
-      approvalPolicies.push({ id: mapped.approvalPolicyId, label: acpMode.name });
+      approvalPolicies.push({
+        id: mapped.approvalPolicyId,
+        label: humanizeAcpModeName(acpMode.name),
+      });
     }
   }
 

@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
-import { copyFileSync, chmodSync, existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
+import { copyFileSync, chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -29,12 +29,16 @@ import {
   clearNpxExecutionCache,
   isNpxCacheCorruptionError,
 } from "./acpRegistryNpx";
+import {
+  ACP_REGISTRY_INSTALL_DIR,
+  acpRegistryAgentInstallDir,
+  removeAcpRegistryInstallDir,
+} from "./acpRegistryInstallDir";
 import { buildAgentCommand, type AgentEnvContext } from "./base";
 
 const execFileAsync = promisify(execFile);
 
 const ACP_REGISTRY_URL = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json";
-const ACP_REGISTRY_INSTALL_DIR = "acp-registry";
 
 export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
   const response = await fetch(ACP_REGISTRY_URL);
@@ -265,11 +269,16 @@ async function extractArchive(archivePath: string, installDir: string): Promise<
           "-NoLogo",
           "-NoProfile",
           "-Command",
-          "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
-          archivePath,
-          installDir,
+          "Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
         ],
-        { windowsHide: true },
+        {
+          windowsHide: true,
+          env: {
+            ...process.env,
+            PORACODE_ACP_ARCHIVE_PATH: archivePath,
+            PORACODE_ACP_INSTALL_DIR: installDir,
+          },
+        },
       );
     } else {
       await execFileAsync("unzip", ["-q", "-o", archivePath, "-d", installDir], {
@@ -306,7 +315,7 @@ async function binaryInstance(
 
   const rootDir = join(baseDir, ACP_REGISTRY_INSTALL_DIR, agent.id, agent.version);
   const installDir = join(rootDir, "bin");
-  rmSync(installDir, { recursive: true, force: true });
+  await removeAcpRegistryInstallDir(installDir);
   mkdirSync(installDir, { recursive: true });
 
   const archiveName = archiveFileName(target.archive);
@@ -555,11 +564,11 @@ export async function autoUpdateAcpRegistryAgents(input: {
   return { updated, failed };
 }
 
-export function removeAcpRegistryAgent(input: {
+export async function removeAcpRegistryAgent(input: {
   agentId: string;
   baseDir: string;
   settingsPath: string;
-}): InstalledAcpRegistryAgent[] {
+}): Promise<InstalledAcpRegistryAgent[]> {
   const settings = readAcpRegistrySettings(input.settingsPath);
   const agentKind = acpGenericKind(input.agentId);
 
@@ -607,8 +616,7 @@ export function removeAcpRegistryAgent(input: {
 
   writeAcpRegistrySettings(input.settingsPath, settings);
 
-  const installDir = join(input.baseDir, ACP_REGISTRY_INSTALL_DIR, input.agentId);
-  rmSync(installDir, { recursive: true, force: true });
+  await removeAcpRegistryInstallDir(acpRegistryAgentInstallDir(input.baseDir, input.agentId));
 
   return Object.values(settings.acpRegistryInstalledAgents);
 }

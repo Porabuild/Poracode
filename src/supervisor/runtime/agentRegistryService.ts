@@ -19,6 +19,7 @@ import type {
   RemoveAcpRegistryAgentPayload,
 } from "@/shared/contracts";
 import { acpGenericKind, extractAcpGenericInstanceId } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { verifyAcpGenericAuthentication } from "../agents/acp-generic";
 import {
   dispatchAcpAuthenticate,
@@ -39,6 +40,7 @@ import {
   setAcpRegistryAgentAuth as setAcpRegistryAgentAuthInRegistry,
   updateAcpRegistryAgent as updateAcpRegistryAgentFromRegistry,
 } from "../agents/acpRegistry";
+import { pruneAcpRegistryPendingDeletes } from "../agents/acpRegistryInstallDir";
 import {
   detectProbeLocation,
   readDetectedVersion,
@@ -62,6 +64,8 @@ export interface AgentRegistryServiceDeps {
   sharedSettingsCache: SupervisorSharedSettingsCache;
   getAgentStatusService: () => AgentStatusService;
   getActiveWslProjectDistros: () => string[];
+  /** Stop every live thread hosting `agentKind`. */
+  closeThreadsForAgentKind: (agentKind: AgentKind) => Promise<void>;
 }
 
 /**
@@ -195,6 +199,14 @@ export class AgentRegistryService {
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
     return this.agentStatusService.refreshAgentStatuses(payload);
+  }
+
+  /**
+   * Delete install directories a previous session had to park because the agent
+   * binary was still locked (see `removeAcpRegistryInstallDir`).
+   */
+  async pruneAcpRegistryLeftoversOnLaunch(): Promise<void> {
+    await pruneAcpRegistryPendingDeletes(this.deps.baseDir);
   }
 
   async listAcpRegistry(): Promise<AcpRegistryListResult> {
@@ -355,7 +367,11 @@ export class AgentRegistryService {
   async removeAcpRegistryAgent(
     payload: RemoveAcpRegistryAgentPayload,
   ): Promise<AcpRegistryMutationResult> {
-    const installed = removeAcpRegistryAgentFromRegistry({
+    // A thread still hosting the agent keeps its process alive, and on Windows
+    // the running binary locks its own install directory — the delete would
+    // fail with EPERM after the agent was already dropped from settings.
+    await this.deps.closeThreadsForAgentKind(acpGenericKind(payload.agentId));
+    const installed = await removeAcpRegistryAgentFromRegistry({
       agentId: payload.agentId,
       baseDir: this.deps.baseDir,
       settingsPath: this.deps.settingsPath,
@@ -406,14 +422,14 @@ export class AgentRegistryService {
         this.deps.sharedSettingsCache.invalidate();
         this.refreshAgentRegistryAdapters();
         void this.refreshAffectedAgentStatus(payload.agentKind);
-        throw new Error("ACP authentication was not completed.");
+        throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
       }
       setAcpGenericAgentAuthAcknowledged(this.deps.settingsPath, instanceId, ctx, true);
     } else {
       const status = await adapter.detectInstall(ctx);
       if (status.authState === "missing") {
         void this.refreshAffectedAgentStatus(payload.agentKind);
-        throw new Error("ACP authentication was not completed.");
+        throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
       }
     }
     this.deps.sharedSettingsCache.invalidate();
