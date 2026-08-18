@@ -325,7 +325,9 @@ export function ThreadDraftView(props: {
   const setProviderConfig = useSharedSettings((s) => s.setProviderConfig);
   const effectiveAgentKindRef = useRef(effectiveAgentKind);
   const providerConfigsRef = useRef<Record<string, ProviderDraftConfig>>({});
+  const initialLastDraftConfigRef = useRef(lastDraftConfig);
   const hasLocalConfigEditRef = useRef(false);
+  const hasLocalContextEditRef = useRef(false);
   effectiveAgentKindRef.current = effectiveAgentKind;
   // Spread is required: the effects below mutate `providerConfigsRef.current[kind]`
   // in place to keep effort/model selections in sync mid-render. Assigning the
@@ -515,15 +517,22 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
-    if (isHomeScope || !sharedSettingsHydrated || hasLocalConfigEditRef.current) {
+    if (isHomeScope || !sharedSettingsHydrated) {
       return;
     }
     if (!selectedAgentForConfig || !effectiveAgentKind) {
       return;
     }
-    const hasProjectDraft =
-      lastDraftConfig?.agentKind === effectiveAgentKind && Boolean(lastDraftConfig.model.trim());
-    if (hasProjectDraft && lastDraftConfig.contextSize) {
+    const initialLastDraftConfig = initialLastDraftConfigRef.current;
+    const hasInitialProjectDraft =
+      initialLastDraftConfig?.agentKind === effectiveAgentKind &&
+      Boolean(initialLastDraftConfig.model.trim());
+    const hasInitialContext = hasInitialProjectDraft && Boolean(initialLastDraftConfig.contextSize);
+    const shouldInheritContext = !hasInitialContext && !hasLocalContextEditRef.current;
+    if (hasLocalConfigEditRef.current && !shouldInheritContext) {
+      return;
+    }
+    if (hasInitialContext) {
       return;
     }
 
@@ -534,8 +543,36 @@ export function ThreadDraftView(props: {
     }
     providerConfigsRef.current = { ...providerConfigs };
 
-    const saved = hasProjectDraft
-      ? resolveSavedProviderDraftConfig(effectiveAgentKind, lastDraftConfig, providerConfigs)
+    if (hasLocalConfigEditRef.current) {
+      const nextContext = resolveContextSizeValue(
+        selectedAgentForConfig,
+        model,
+        providerConfig.contextSize,
+      );
+      if (nextContext === contextSize) {
+        return;
+      }
+      setContextSize(nextContext);
+      updateProjectDraftConfig(project.id, {
+        agentKind: effectiveAgentKind,
+        model,
+        effort,
+        ...(nextContext ? { contextSize: nextContext } : {}),
+        ...(supportsUsableFastMode(selectedAgentForConfig.capabilities, model) ? { fast } : {}),
+        ...(selectedAgentForConfig.capabilities.thinkingModels?.includes(model)
+          ? { thinking }
+          : {}),
+        mode,
+        approvalPolicy,
+        approvalsReviewer,
+        sandboxMode,
+        worktreeMode: effectiveWorktreeMode,
+      });
+      return;
+    }
+
+    const saved = hasInitialProjectDraft
+      ? resolveSavedProviderDraftConfig(effectiveAgentKind, initialLastDraftConfig, providerConfigs)
       : providerConfig;
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
     const nextModel = resolved.model;
@@ -574,7 +611,7 @@ export function ThreadDraftView(props: {
     lastAppliedAgentKindRef.current = effectiveAgentKind;
 
     if (
-      !hasProjectDraft &&
+      !hasInitialProjectDraft &&
       (providerConfig.model !== nextModel ||
         providerConfig.effort !== nextEffort ||
         providerConfig.contextSize !== nextContext ||
@@ -686,6 +723,9 @@ export function ThreadDraftView(props: {
     }
     if (!selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
+    if ("contextSize" in patch) {
+      hasLocalContextEditRef.current = true;
+    }
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, {
       model: patch.model ?? model,
       effort: patch.effort ?? effort,
