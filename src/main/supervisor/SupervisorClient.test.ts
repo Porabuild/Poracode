@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
+const terminateChildProcessTreeMock = vi.hoisted(() => vi.fn<() => void>());
 
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
@@ -10,7 +11,7 @@ vi.mock("node:child_process", async (importOriginal) => {
 });
 
 vi.mock("@/shared/processTree", () => ({
-  terminateChildProcessTree: vi.fn<() => void>(),
+  terminateChildProcessTree: terminateChildProcessTreeMock,
 }));
 
 import { SupervisorClient, type SupervisorClientOptions } from "./SupervisorClient";
@@ -69,6 +70,7 @@ function captureSentId(child: FakeChild): () => string {
 describe("SupervisorClient.call", () => {
   beforeEach(() => {
     forkMock.mockReset();
+    terminateChildProcessTreeMock.mockReset();
   });
 
   afterEach(() => {
@@ -176,5 +178,28 @@ describe("SupervisorClient.call", () => {
     await expect(promise).resolves.toBe("ok");
     // Advancing past the timeout window must not produce a late rejection.
     await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 1);
+  });
+});
+
+describe("SupervisorClient lifecycle", () => {
+  beforeEach(() => {
+    forkMock.mockReset();
+    terminateChildProcessTreeMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("terminates the supervisor tree without restarting it when disposed", async () => {
+    vi.useFakeTimers();
+    const { client, child } = makeClient();
+
+    client.dispose();
+    child.emit("exit", 1);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(terminateChildProcessTreeMock).toHaveBeenCalledExactlyOnceWith(child);
+    expect(forkMock).toHaveBeenCalledOnce();
   });
 });
