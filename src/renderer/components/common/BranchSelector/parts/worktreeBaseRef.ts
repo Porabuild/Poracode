@@ -1,4 +1,5 @@
 import type { GitBranchInfo } from "@/shared/contracts";
+import { branchNameFromRemoteRef } from "@/shared/gitUtils";
 
 export function qualifiedRemoteName(branch: GitBranchInfo): string | undefined {
   if (!branch.isRemote || !branch.remote) return undefined;
@@ -10,8 +11,9 @@ export function localBranchNameFromRef(
   ref: string,
   branches: readonly GitBranchInfo[] = [],
 ): string {
-  const remoteMatch = branches.find((branch) => qualifiedRemoteName(branch) === ref);
-  if (remoteMatch) return remoteMatch.name;
+  if (branches.some((branch) => !branch.isRemote && branch.name === ref)) return ref;
+  const remoteName = branchNameFromRemoteRef(ref, branches);
+  if (remoteName !== ref) return remoteName;
   if (ref.startsWith("origin/")) return ref.slice("origin/".length);
   return ref;
 }

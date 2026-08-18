@@ -13,6 +13,7 @@ import {
 import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
+import { branchNameFromRemoteRef } from "@/shared/gitUtils";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
@@ -128,7 +129,6 @@ export function GitReviewSidebar(props: {
   const remotePlatform = gitStatus?.remoteInfo?.platform;
   const isGitHub = remotePlatform === "github" || remotePlatform === "unknown";
   const ghAvailable = useGitStore((s) => s.ghAvailable[project.id] ?? false);
-  const branchList = useGitStore((s) => s.branches[project.id]?.branches) ?? EMPTY_BRANCHES;
   const effectiveBranch = worktreeBranch ?? gitStatus?.branch;
   const effectivePrKey =
     worktreePath ?? (gitStatus?.branch ? buildBranchPrKey(project.id) : undefined);
@@ -145,7 +145,7 @@ export function GitReviewSidebar(props: {
   const mergeConflicting = gitStatus?.mergeInProgress ?? false;
   const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
 
-  useSourceBranchData({
+  const { sourceBranches } = useSourceBranchData({
     project,
     effectiveBranch,
     effectivePrKey,
@@ -154,6 +154,9 @@ export function GitReviewSidebar(props: {
     preferredSourceBranch: prBaseBranch,
     refreshKey,
   });
+  const prBranchList = sourceBranches ?? EMPTY_BRANCHES;
+  const defaultPrTargetBranch =
+    sourceBranch && sourceBranches ? branchNameFromRemoteRef(sourceBranch, sourceBranches) : null;
 
   const {
     commitMessage,
@@ -205,7 +208,7 @@ export function GitReviewSidebar(props: {
     effectiveBranch,
     effectivePrKey,
     sourceBranch,
-    branchList,
+    defaultPrTargetBranch,
   });
 
   const { canResolveWithAgent, handleResolveWithAgent } = useConflictResolver({
@@ -256,7 +259,12 @@ export function GitReviewSidebar(props: {
     prState !== "merged" || (gitStatus?.headSha && prHeadSha && gitStatus.headSha !== prHeadSha),
   );
   const prEligible = Boolean(
-    showPrSection && ghAvailable && sourceBranch && !isPrActive(prState) && hasCommitsAfterMergedPr,
+    showPrSection &&
+    ghAvailable &&
+    sourceBranch &&
+    defaultPrTargetBranch &&
+    !isPrActive(prState) &&
+    hasCommitsAfterMergedPr,
   );
   const showCreatePrButton = prEligible && isPushed;
   // Whether the one-click "Commit & Create PR" action is offered. Unlike
@@ -631,7 +639,7 @@ export function GitReviewSidebar(props: {
             isOpen={createPrModalOpen}
             onOpenChange={setCreatePrModalOpen}
             effectiveBranch={effectiveBranch}
-            sourceBranch={sourceBranch}
+            defaultTargetBranch={defaultPrTargetBranch}
             prTitle={prTitle}
             setPrTitle={setPrTitle}
             prBody={prBody}
@@ -641,7 +649,7 @@ export function GitReviewSidebar(props: {
             prLoading={prLoading}
             isGeneratingPr={isGeneratingPr}
             canGenerateMessage={canGenerateMessage}
-            branchList={branchList}
+            branchList={prBranchList}
             handleCreatePr={handleCreatePr}
             handleGeneratePrSummary={handleGeneratePrSummary}
           />

@@ -31,6 +31,15 @@ describe("localBranchNameFromRef", () => {
   it("leaves a local name unchanged", () => {
     expect(localBranchNameFromRef("master", [local("master")])).toBe("master");
   });
+
+  it("preserves an exact local branch when its name looks remote-qualified", () => {
+    expect(
+      localBranchNameFromRef("origin/release", [
+        local("origin/release"),
+        remote("release", "origin"),
+      ]),
+    ).toBe("origin/release");
+  });
 });
 
 describe("resolveWorktreeOriginRef", () => {

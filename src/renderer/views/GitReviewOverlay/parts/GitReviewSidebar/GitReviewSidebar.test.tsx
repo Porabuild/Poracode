@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusResult, PrData, Project } from "@/shared/contracts";
+import type { GitBranchListResult, GitStatusResult, PrData, Project } from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   gitStage: vi.fn<() => Promise<void>>(),
@@ -13,15 +13,30 @@ const bridgeMock = vi.hoisted(() => ({
   gitRevertAll: vi.fn<() => Promise<void>>(),
   gitCommit: vi.fn<() => Promise<void>>(),
   gitFetch: vi.fn<() => Promise<void>>(),
+  gitListBranches: vi.fn<() => Promise<GitBranchListResult>>(),
   gitGetWorktreeSourceBranch:
     vi.fn<
       () => Promise<{ sourceBranch: string | null; commitsAhead: number; sourceAhead: number }>
     >(),
   ghGetPrForBranch: vi.fn<() => Promise<PrData | null>>(),
+  ghCreatePr: vi.fn<() => Promise<PrData>>(),
+  ghGetPrDetails: vi.fn<() => Promise<undefined>>(),
   generateCommitMessage: vi.fn<() => Promise<{ message: string }>>(),
+  generatePrSummary: vi.fn<() => Promise<{ title: string; description: string }>>(),
 }));
 
-const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
+const toastDanger = vi.hoisted(() =>
+  vi.fn<
+    (
+      message: string,
+      options?: { actionProps?: { children?: string; onPress?: () => void } },
+    ) => void
+  >(),
+);
+const getCommitGenCandidatesMock = vi.hoisted(() => vi.fn<() => Array<{ kind: string }>>());
+const dropdownMenuHandlers = vi.hoisted(() => ({
+  targetBranch: null as ((keys: Set<string>) => void) | null,
+}));
 
 vi.mock("@heroui/react", () => {
   function Button(props: {
@@ -52,11 +67,21 @@ vi.mock("@heroui/react", () => {
   }
 
   const Tooltip = (props: { children: ReactNode }) => <div>{props.children}</div>;
+  Tooltip.Trigger = Wrapper;
   Tooltip.Content = (props: { children: ReactNode }) => <div>{props.children}</div>;
 
   const Dropdown = (props: { children: ReactNode }) => <div>{props.children}</div>;
   Dropdown.Popover = (props: { children: ReactNode }) => <div>{props.children}</div>;
-  Dropdown.Menu = (props: { children: ReactNode }) => <div>{props.children}</div>;
+  Dropdown.Menu = (props: {
+    children: ReactNode;
+    "aria-label"?: string;
+    onSelectionChange?: (keys: Set<string>) => void;
+  }) => {
+    if (props["aria-label"] === "Target branch") {
+      dropdownMenuHandlers.targetBranch = props.onSelectionChange ?? null;
+    }
+    return <div>{props.children}</div>;
+  };
   Dropdown.Item = (props: { children: ReactNode }) => <div>{props.children}</div>;
   Dropdown.ItemIndicator = () => <span />;
 
@@ -110,6 +135,7 @@ vi.mock("@heroui/react", () => {
     Separator: () => <span />,
 
     Surface: Wrapper,
+    ToggleButton: Button,
     Tooltip,
     toast: { danger: toastDanger },
   };
@@ -139,6 +165,9 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => {
     conflictResolverEffort: "",
     conflictResolverFast: false,
     conflictResolverPresentationMode: "gui" as const,
+    prAutomationDefault: "off" as const,
+    prCreateMode: "dialog" as const,
+    setPrCreateMode: vi.fn<(mode: "dialog" | "auto") => void>(),
     wslConflictResolverProvider: "auto",
     wslConflictResolverModel: "",
     wslConflictResolverEffort: "",
@@ -216,7 +245,7 @@ vi.mock("@/renderer/views/MainView/parts/AppShell/AppShell", () => ({
 
 vi.mock("@/renderer/components/providers/commitGen", () => ({
   generateCommitMessageWithFallback: vi.fn<() => Promise<string>>(),
-  getCommitGenCandidates: vi.fn<() => unknown[]>().mockReturnValue([]),
+  getCommitGenCandidates: getCommitGenCandidatesMock,
   resolveCommitGenConfig: vi
     .fn<() => { model: string; effort: string; availableEfforts: string[] }>()
     .mockReturnValue({ model: "", effort: "", availableEfforts: [] }),
@@ -240,10 +269,28 @@ describe("GitReviewSidebar", () => {
     bridgeMock.gitRevertAll.mockResolvedValue(undefined);
     bridgeMock.gitCommit.mockResolvedValue(undefined);
     bridgeMock.gitFetch.mockResolvedValue(undefined);
+    bridgeMock.gitListBranches.mockResolvedValue({ current: "", branches: [] });
     bridgeMock.gitGetWorktreeSourceBranch.mockImplementation(() => new Promise(() => {}));
     bridgeMock.ghGetPrForBranch.mockResolvedValue(null);
+    bridgeMock.ghGetPrDetails.mockResolvedValue(undefined);
+    bridgeMock.ghCreatePr.mockResolvedValue({
+      number: 581,
+      state: "open",
+      title: "feature/worktree",
+      url: "https://github.com/example/poracode/pull/581",
+      baseBranch: "master",
+      isDraft: false,
+      updatedAt: "2026-08-18T00:00:00.000Z",
+    });
     bridgeMock.generateCommitMessage.mockResolvedValue({ message: "generated" });
+    bridgeMock.generatePrSummary.mockResolvedValue({
+      title: "Generated worktree PR",
+      description: "Generated description",
+    });
+    getCommitGenCandidatesMock.mockReturnValue([]);
+    dropdownMenuHandlers.targetBranch = null;
     useGitStore.setState({
+      branches: {},
       ghAvailable: {},
       prData: {},
       worktreeSourceInfo: {},
@@ -1104,6 +1151,114 @@ describe("GitReviewSidebar", () => {
     expect(screen.getByText("Merge Worktree")).toBeInTheDocument();
     expect(screen.getByText("Merge Locally & Remove Worktree")).toBeInTheDocument();
     expect(screen.queryByText("Merge & Remove Worktree")).not.toBeInTheDocument();
+  });
+
+  it("uses the branch name instead of the remote ref as the PR base", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      tracking: "origin/feature/worktree",
+      hasRemote: true,
+      remoteInfo: {
+        url: "https://github.com/example/poracode.git",
+        platform: "github",
+        owner: "example",
+        repo: "poracode",
+      },
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "origin/master",
+      commitsAhead: 2,
+      sourceAhead: 0,
+    });
+    const branches: GitBranchListResult = {
+      current: "feature/worktree",
+      branches: [
+        {
+          name: "develop",
+          current: false,
+          commit: "alternate",
+          isRemote: false,
+        },
+        {
+          name: "master",
+          current: false,
+          commit: "base",
+          isRemote: true,
+          remote: "origin",
+        },
+      ],
+    };
+    bridgeMock.gitListBranches
+      .mockRejectedValueOnce(new Error("branch discovery failed"))
+      .mockResolvedValue(branches);
+    getCommitGenCandidatesMock.mockReturnValue([{ kind: "codex" }]);
+    useGitStore.setState({ ghAvailable: { [project.id]: true } });
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    await waitFor(() => expect(toastDanger).toHaveBeenCalled());
+    const retryAction = toastDanger.mock.calls.at(-1)?.[1]?.actionProps;
+    expect(retryAction?.children).toBe("Retry");
+    act(() => retryAction?.onPress?.());
+
+    expect(await screen.findByRole("button", { name: "master" })).toBeInTheDocument();
+    expect(screen.getAllByText("master")).toHaveLength(2);
+    act(() => dropdownMenuHandlers.targetBranch?.(new Set(["develop"])));
+    expect(screen.getByRole("button", { name: "develop" })).toBeInTheDocument();
+    act(() => dropdownMenuHandlers.targetBranch?.(new Set(["master"])));
+    expect(screen.getByRole("button", { name: "master" })).toBeInTheDocument();
+    const createButtons = screen.getAllByRole("button", { name: "Create PR" });
+    fireEvent.click(createButtons[createButtons.length - 1]!);
+
+    await waitFor(() =>
+      expect(bridgeMock.generatePrSummary).toHaveBeenCalledWith(
+        expect.objectContaining({
+          branch: "feature/worktree",
+          baseBranch: "origin/master",
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(bridgeMock.ghCreatePr).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        branch: "feature/worktree",
+        baseBranch: "master",
+        title: "Generated worktree PR",
+        body: "Generated description",
+        isDraft: false,
+      }),
+    );
+    expect(bridgeMock.gitListBranches).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      includeRemote: true,
+    });
   });
 
   it("hides Create PR when the branch still points at the latest merged PR commit", async () => {
