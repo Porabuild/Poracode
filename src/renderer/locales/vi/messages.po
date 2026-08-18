@@ -5900,7 +5900,7 @@ msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân ho�
 msgid "Interrupted"
 msgstr "Bị gián đoạn"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoàn thành."
 

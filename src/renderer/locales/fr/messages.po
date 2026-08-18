@@ -5900,7 +5900,7 @@ msgstr "Instructions que les agents suivent pour choisir à quel agent ou modèl
 msgid "Interrupted"
 msgstr "Interrompue"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Interrompu : la session de l'agent s'est terminée avant la fin."
 

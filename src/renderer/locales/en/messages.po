@@ -5900,7 +5900,7 @@ msgstr "Instructions agents follow when choosing which agent or model to delegat
 msgid "Interrupted"
 msgstr "Interrupted"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Interrupted: agent session ended before completion."
 

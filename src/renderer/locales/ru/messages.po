@@ -5900,7 +5900,7 @@ msgstr "Инструкции, которым следуют агенты при 
 msgid "Interrupted"
 msgstr "Прервано"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Прервано: сессия агента завершилась до окончания."
 

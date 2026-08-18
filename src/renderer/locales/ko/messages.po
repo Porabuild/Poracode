@@ -5900,7 +5900,7 @@ msgstr "에이전트가 어떤 에이전트나 모델에 위임할지 선택할 
 msgid "Interrupted"
 msgstr "중단됨"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
 

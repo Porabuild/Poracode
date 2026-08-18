@@ -5900,7 +5900,7 @@ msgstr "Aracıların hangi aracıya veya modele devredeceğini seçerken izledi�
 msgid "Interrupted"
 msgstr "Kesintiye uğradı"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Kesintiye uğradı: Ajan oturumu tamamlanmadan sona erdi."
 

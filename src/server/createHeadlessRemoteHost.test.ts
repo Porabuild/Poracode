@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   supervisorDispose: vi.fn<() => void>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
+  dbMarkLiveThreadsInactive: vi.fn<() => void>(),
   closeDatabase: vi.fn<() => void>(),
   projects: [] as unknown[],
   sharedSettings: {
@@ -57,7 +58,7 @@ vi.mock("@/main/db", () => ({
   dbFailRemoteCommand: vi.fn<() => void>(),
   dbReplaceThreadRuntimeSnapshot: vi.fn<() => void>(),
   dbUpsertThread: vi.fn<() => void>(),
-  dbMarkLiveThreadsInactive: vi.fn<() => void>(),
+  dbMarkLiveThreadsInactive: () => h.dbMarkLiveThreadsInactive(),
   dbDeleteThread: vi.fn<() => void>(),
   dbGetSchedules: vi.fn<() => unknown[]>(() => []),
   dbGetSchedule: vi.fn<() => unknown>(() => null),
@@ -119,6 +120,7 @@ describe("createHeadlessRemoteHost", () => {
     h.supervisorStart.mockReset();
     h.supervisorDispose.mockReset();
     h.initDatabase.mockReset();
+    h.dbMarkLiveThreadsInactive.mockReset();
     h.closeDatabase.mockReset();
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
@@ -135,6 +137,7 @@ describe("createHeadlessRemoteHost", () => {
     const info = await host.start();
 
     expect(h.initDatabase).toHaveBeenCalledWith(join(h.tmpBase, "state.sqlite"));
+    expect(h.dbMarkLiveThreadsInactive).toHaveBeenCalledOnce();
     expect(h.supervisorStart).toHaveBeenCalledWith(h.tmpBase);
     expect(info.httpBaseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
     expect(info.wsBaseUrl).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/$/);

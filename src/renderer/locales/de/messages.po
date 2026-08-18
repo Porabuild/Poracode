@@ -5900,7 +5900,7 @@ msgstr "Anweisungen, denen Agenten folgen, wenn sie auswählen, an welchen Agent
 msgid "Interrupted"
 msgstr "Unterbrochen"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Unterbrochen: Agentensitzung wurde vorzeitig beendet."
 

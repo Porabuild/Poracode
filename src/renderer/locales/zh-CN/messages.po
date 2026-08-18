@@ -5900,7 +5900,7 @@ msgstr "代理在选择要委派给哪个代理或模型时遵循的说明。"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "已中断：代理会话在完成之前结束。"
 

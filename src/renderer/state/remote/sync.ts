@@ -1,8 +1,14 @@
-import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
+import {
+  isThreadTurnActive,
+  type RuntimeEvent,
+  type Thread,
+  type ToolCallPayload,
+} from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
 import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
+import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { useAppStore } from "@/renderer/state/appStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -128,6 +134,7 @@ export function applyThreadSnapshot(
       state.reconcileStaleSubAgents(threadId);
     }
   } else if (options.fromServer) {
+    mergeAuthoritativeDelegatedAgentTerminals(threadId, snapshotItems);
     mergeMissedOlderSnapshotItems(threadId, snapshotItems);
   }
 
@@ -144,6 +151,59 @@ export function applyThreadSnapshot(
   }
 
   syncRuntimeRequestsFromSnapshot(snapshot);
+}
+
+/**
+ * A host restart durably terminates delegated runs from the prior process.
+ * Accept those terminal parent updates even when a still-active thread has
+ * newer streamed text that correctly prevents a wholesale snapshot replace.
+ */
+function mergeAuthoritativeDelegatedAgentTerminals(
+  threadId: string,
+  snapshotItems: readonly RuntimeChatItem[],
+): void {
+  useAppStore.setState((current) => {
+    const existingItems = current.runtimeItemsByIdByThread[threadId];
+    if (!existingItems) return {};
+    let nextItems: Record<string, RuntimeChatItem> | undefined;
+    for (const incoming of snapshotItems) {
+      const existing = existingItems[incoming.id];
+      if (!existing || !isDelegatedAgentTerminalTransition(existing, incoming)) continue;
+      nextItems ??= { ...existingItems };
+      nextItems[incoming.id] = incoming;
+    }
+    if (!nextItems) return {};
+    return {
+      runtimeItemsByIdByThread: {
+        ...current.runtimeItemsByIdByThread,
+        [threadId]: nextItems,
+      },
+      runtimeStructuralVersionByThread: {
+        ...current.runtimeStructuralVersionByThread,
+        [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+      },
+    };
+  });
+}
+
+function isDelegatedAgentTerminalTransition(
+  existing: RuntimeChatItem,
+  incoming: RuntimeChatItem,
+): boolean {
+  if (existing.type !== "tool_call" || incoming.type !== "tool_call") return false;
+  const existingPayload = existing.payload as ToolCallPayload | undefined;
+  const incomingPayload = incoming.payload as ToolCallPayload | undefined;
+  if (
+    !existingPayload ||
+    !incomingPayload ||
+    !isDelegatedAgentTool(existingPayload) ||
+    !isDelegatedAgentTool(incomingPayload)
+  ) {
+    return false;
+  }
+  const existingRunning = existing.state !== "completed" || existingPayload.status === "running";
+  const incomingTerminal = incoming.state === "completed" && incomingPayload.status !== "running";
+  return existingRunning && incomingTerminal;
 }
 
 /**

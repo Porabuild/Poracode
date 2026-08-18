@@ -78,3 +78,18 @@ export function isCrossagentSpawnAgentTool(payload: ToolCallPayload | undefined)
 export function isDelegatedAgentTool(payload: ToolCallPayload | undefined): boolean {
   return payload?.isCrossagent === true ? isCrossagentTool(payload) : isSubAgentTool(payload);
 }
+
+export function interruptDelegatedAgentToolPayload(
+  payload: ToolCallPayload,
+  errorMessage: string,
+): ToolCallPayload {
+  return {
+    ...payload,
+    status: "error",
+    ...(payload.isCrossagent &&
+    (payload.crossagentStatus === undefined || payload.crossagentStatus === "running")
+      ? { crossagentStatus: "failed" as const }
+      : {}),
+    ...(payload.result === undefined ? { result: { error: errorMessage } } : {}),
+  };
+}

@@ -5899,7 +5899,7 @@ msgstr "どのエージェントやモデルに委任するかを選ぶ際に、
 msgid "Interrupted"
 msgstr "中断"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "中断されました: エージェントセッションが完了前に終了しました。"
 
