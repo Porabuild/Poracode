@@ -17,6 +17,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { toWslUncPath } from "@/shared/wsl";
+import { detectPowerShell } from "../../shellPreference";
 import {
   getCachedWslHomeDirectory,
   resolveExecutablePath,
@@ -184,11 +185,8 @@ export function buildNativeHookCommandHeads(
   if (process.platform === "win32") {
     const ps1Path = join(dirname(wrapperPath), getNativeHookPowerShellWrapperFilename());
     const powershellCommand = `& ${quotePowerShellSingleQuoted(ps1Path)}`;
-    const shell =
-      (resolvePath("pwsh.exe") && "pwsh.exe") ||
-      (resolvePath("pwsh") && "pwsh") ||
-      (resolvePath("powershell.exe") && "powershell.exe") ||
-      (resolvePath("powershell") && "powershell");
+    const detectedShell = detectPowerShell(resolvePath);
+    const shell = detectedShell && quoteHookCommandArg(detectedShell.path, "native");
     if (shell) {
       return {
         command: `${shell} -NoProfile -ExecutionPolicy Bypass -File ${quoteHookCommandArg(ps1Path, "native")}`,

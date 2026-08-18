@@ -971,7 +971,13 @@ export class ThreadSessionManager {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
 
-    const shellCommand = buildShellCommand(payload.projectLocation, this.options.windowsShell, {
+    const windowsShell =
+      process.platform === "win32" && payload.projectLocation.kind === "windows"
+        ? this.options.resolveWindowsShell(
+            payload.windowsShellRuntime === "powershell" ? "powershell" : "preferred",
+          )
+        : { shell: "", kind: "cmd" as const, args: [] };
+    const shellCommand = buildShellCommand(payload.projectLocation, windowsShell, {
       startInHome: payload.startInHome === true,
     });
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });

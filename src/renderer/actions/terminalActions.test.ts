@@ -54,7 +54,7 @@ describe("runProjectAction", () => {
     });
   });
 
-  it("restarts an action in its existing tracked terminal", () => {
+  it("restarts an action in its existing tracked terminal", async () => {
     runProjectAction(project.id, "dev");
     const firstTab = useDevTerminalStore.getState().tabs[0]!;
 
@@ -65,7 +65,7 @@ describe("runProjectAction", () => {
       id: firstTab.id,
       runActionId: "dev",
     });
-    expect(bridge.startShell).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
     expect(bridge.startShell).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ shellId: firstTab.id }),
@@ -177,6 +177,7 @@ describe("runProjectAction", () => {
     runProjectAction(project.id, "dev");
     const tab = useDevTerminalStore.getState().tabs[0]!;
     runProjectAction(project.id, "dev");
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
     resolveSecond();
     rejectFirst(new Error("old start failed"));
 

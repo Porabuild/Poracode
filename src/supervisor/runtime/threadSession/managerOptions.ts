@@ -21,7 +21,7 @@ export interface ThreadSessionManagerOptions {
   settingsPath: string;
   readDisableCliHookPlugin(): boolean;
   adapters: Map<AgentKind, AgentAdapter>;
-  windowsShell: WindowsShellPreference;
+  resolveWindowsShell(runtime?: "preferred" | "powershell"): WindowsShellPreference;
   /**
    * Optional: provides CLI hook plugin ingress env vars + extra CLI args injected
    * into every agent PTY spawn. The supervisor boots a single

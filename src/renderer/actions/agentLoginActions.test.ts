@@ -3,7 +3,7 @@ import type { Project } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 const bridge = vi.hoisted(() => ({
-  startShell: vi.fn<() => Promise<void>>(),
+  startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   closeThread: vi.fn<() => Promise<void>>(),
   onSupervisorEvent: vi.fn<(handler: (event: SupervisorEvent) => void) => () => void>(),
   openExternal: vi.fn<(url: string) => Promise<void>>(),
@@ -18,6 +18,9 @@ const loginTerminalStore = vi.hoisted(() => ({
   active: undefined as { onForceClose?: () => void; shellId: string } | undefined,
 }));
 const writeScriptToShellMock = vi.hoisted(() => vi.fn<(shellId: string, script: string) => void>());
+const startShellWithCurrentSettingsMock = vi.hoisted(() =>
+  vi.fn<(payload: unknown) => Promise<void>>(),
+);
 
 vi.mock("@heroui/react", () => ({
   toast: {
@@ -62,6 +65,8 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 }));
 
 vi.mock("@/renderer/utils/shellUtils", () => ({
+  disposeRoutedShellSession: vi.fn<(shellId: string) => void>(),
+  startShellWithCurrentSettings: startShellWithCurrentSettingsMock,
   writeScriptToShell: writeScriptToShellMock,
 }));
 
@@ -133,6 +138,9 @@ describe("runAgentLoginCommand", () => {
     loginTerminalStore.markFailed.mockReset();
     loginTerminalStore.active = undefined;
     writeScriptToShellMock.mockReset();
+    startShellWithCurrentSettingsMock
+      .mockReset()
+      .mockImplementation((payload) => bridge.startShell(payload));
   });
 
   it("opens hard-wrapped WSL auth URLs in the native browser", () => {
@@ -213,6 +221,13 @@ describe("runAgentLoginCommand", () => {
       "Clear-Host; $env:CLAUDE_CONFIG_DIR = 'C:\\Users\\sdsle\\.poracode\\claude-profiles\\home'; claude auth login",
     );
     expect(script).not.toContain("CLAUDE_CONFIG_DIR=C:");
+    expect(startShellWithCurrentSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectLocation: windowsProject.location,
+        startInHome: true,
+        windowsShellRuntime: "powershell",
+      }),
+    );
   });
 
   it("sets profile env via an inline POSIX prefix on WSL", () => {
@@ -481,6 +496,15 @@ describe("runAgentLoginCommand", () => {
         purpose: "update",
         shellId: expect.stringMatching(/^update:/u),
       }),
+    );
+    expect(startShellWithCurrentSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectLocation: posixProject.location,
+        startInHome: true,
+      }),
+    );
+    expect(startShellWithCurrentSettingsMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "windowsShellRuntime",
     );
   });
 });

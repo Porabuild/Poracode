@@ -1,10 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
+import type { WindowsShellPreference } from "../shellPreference";
 import type { SessionRuntime } from "./sessionTypes";
 
 const captureSupervisorException = vi.hoisted(() =>
@@ -20,6 +21,7 @@ vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
   return {
     ...actual,
+    getRefreshedWindowsPath: vi.fn<() => string | undefined>(() => undefined),
     primeProjectShellEnv: vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(() =>
       Promise.resolve(undefined),
     ),
@@ -37,6 +39,7 @@ vi.mock("node:timers/promises", async (importActual) => {
 });
 
 import { ThreadSessionManager } from "./threadSessionManager";
+import { spawn as spawnPty } from "node-pty";
 
 vi.mock("node-pty", () => ({
   spawn: vi.fn<
@@ -74,6 +77,11 @@ function createManager(
   agentKind: AgentKind,
   adapter: AgentAdapter,
   emit: (event: SupervisorEvent) => void = vi.fn<(event: SupervisorEvent) => void>(),
+  resolveWindowsShell: () => WindowsShellPreference = () => ({
+    shell: "powershell.exe",
+    kind: "powershell" as const,
+    args: ["-NoLogo"],
+  }),
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
@@ -84,7 +92,7 @@ function createManager(
     settingsPath: join(tempDir, "settings.json"),
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
-    windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    resolveWindowsShell,
   });
   managersToDispose.push(manager);
   return manager;
@@ -202,6 +210,68 @@ describe("ThreadSessionManager provider-session routing", () => {
 
     delete adapter.capabilities.crossagentMcpRouting;
     expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
+describe("ThreadSessionManager Windows shells", () => {
+  const originalPlatform = process.platform;
+
+  beforeEach(() => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    vi.mocked(spawnPty).mockClear();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+  });
+
+  it("resolves the current shell preference for every shell launch", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const resolveWindowsShell = vi.fn<() => WindowsShellPreference>(() => ({
+      shell: "C:\\Program Files\\WindowsApps\\PowerShell\\pwsh.exe",
+      kind: "pwsh" as const,
+      args: ["-NoLogo", "-NoProfile"],
+    }));
+    const manager = createManager("codex", adapter, undefined, resolveWindowsShell);
+
+    await manager.startShell({
+      shellId: "shell:preferred",
+      projectLocation: { kind: "windows", path: process.cwd() },
+    });
+
+    expect(resolveWindowsShell).toHaveBeenCalledWith("preferred");
+    expect(spawnPty).toHaveBeenCalledWith(
+      "C:\\Program Files\\WindowsApps\\PowerShell\\pwsh.exe",
+      ["-NoLogo", "-NoProfile"],
+      expect.objectContaining({ cwd: process.cwd() }),
+    );
+  });
+
+  it("requests a PowerShell host for login and install overlays", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const resolveWindowsShell = vi.fn<
+      (runtime?: "preferred" | "powershell") => WindowsShellPreference
+    >(() => ({
+      shell: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      kind: "powershell" as const,
+      args: ["-NoLogo"],
+    }));
+    const manager = createManager("codex", adapter, undefined, resolveWindowsShell);
+
+    await manager.startShell({
+      shellId: "login:preferred",
+      projectLocation: { kind: "windows", path: process.cwd() },
+      windowsShellRuntime: "powershell",
+    });
+
+    expect(resolveWindowsShell).toHaveBeenCalledWith("powershell");
+    expect(spawnPty).toHaveBeenCalledWith(
+      "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      ["-NoLogo"],
+      expect.objectContaining({ cwd: process.cwd() }),
+    );
   });
 });
 

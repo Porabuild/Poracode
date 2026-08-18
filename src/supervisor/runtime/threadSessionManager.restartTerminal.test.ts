@@ -100,7 +100,11 @@ function createManager(
     settingsPath: join(tempDir, "settings.json"),
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[AGENT_KIND, adapter]]),
-    windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    resolveWindowsShell: () => ({
+      shell: "powershell.exe",
+      kind: "powershell",
+      args: ["-NoLogo"],
+    }),
     ...extraOptions,
   });
   managersToDispose.push(manager);

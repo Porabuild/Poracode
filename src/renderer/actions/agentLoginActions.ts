@@ -8,7 +8,11 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
-import { disposeRoutedShellSession, writeScriptToShell } from "@/renderer/utils/shellUtils";
+import {
+  disposeRoutedShellSession,
+  startShellWithCurrentSettings,
+  writeScriptToShell,
+} from "@/renderer/utils/shellUtils";
 
 function resolveLoginProject(): Project | undefined {
   const app = useAppStore.getState();
@@ -129,20 +133,23 @@ export function runAgentLoginCommand(input: {
     },
   });
 
-  void readBridge()
+  void startShellWithCurrentSettings({
     // Auth is global (writes to ~/.<agent>), so run login in the user's home
     // directory rather than the (possibly ephemeral) project worktree.
-    .startShell({ shellId, projectLocation: project.location, startInHome: true })
-    .catch((error) => {
-      // The shell never started, so the completion watcher would otherwise leak
-      // (and leave callers' pending UI stuck). Tear it down and report failure.
-      stopWatching();
-      fireOnce(-1);
-      toast.danger(
-        error instanceof Error ? error.message : i18n._(msg`Unable to open ${input.label} login.`),
-      );
-      useLoginTerminalStore.getState().close();
-    });
+    shellId,
+    projectLocation: project.location,
+    startInHome: true,
+    ...(project.location.kind === "windows" ? { windowsShellRuntime: "powershell" as const } : {}),
+  }).catch((error) => {
+    // The shell never started, so the completion watcher would otherwise leak
+    // (and leave callers' pending UI stuck). Tear it down and report failure.
+    stopWatching();
+    fireOnce(-1);
+    toast.danger(
+      error instanceof Error ? error.message : i18n._(msg`Unable to open ${input.label} login.`),
+    );
+    useLoginTerminalStore.getState().close();
+  });
   writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }
@@ -225,18 +232,21 @@ export function runAgentInstallCommand(input: {
     },
   });
 
-  void readBridge()
+  void startShellWithCurrentSettings({
     // Installers shouldn't run inside the (possibly ephemeral) project
     // worktree — launch the shell in the user's home directory instead.
-    .startShell({ shellId, projectLocation: project.location, startInHome: true })
-    .catch((error) => {
-      stopWatching();
-      fireOnce(-1);
-      toast.danger(
-        error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
-      );
-      useLoginTerminalStore.getState().close();
-    });
+    shellId,
+    projectLocation: project.location,
+    startInHome: true,
+    ...(project.location.kind === "windows" ? { windowsShellRuntime: "powershell" as const } : {}),
+  }).catch((error) => {
+    stopWatching();
+    fireOnce(-1);
+    toast.danger(
+      error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
+    );
+    useLoginTerminalStore.getState().close();
+  });
   writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }
