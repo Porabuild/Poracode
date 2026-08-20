@@ -8310,8 +8310,8 @@ msgid "Other"
 msgstr "Autres"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
-msgid "Other workspaces"
-msgstr "Autres espaces de travail"
+#~ msgid "Other workspaces"
+#~ msgstr "Autres espaces de travail"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"

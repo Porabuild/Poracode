@@ -8311,8 +8311,8 @@ msgid "Other"
 msgstr "Khác"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
-msgid "Other workspaces"
-msgstr "Không gian làm việc khác"
+#~ msgid "Other workspaces"
+#~ msgstr "Không gian làm việc khác"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"

@@ -79,8 +79,8 @@ export interface RemoteServersState {
    * to — the sidebar while its server is offline. See `projectSync.ts`.
    */
   excludedProjectIds: Record<string, readonly string[]>;
-  /** Local workspace assignments for mirrored projects, keyed by desktop and remote project id. */
-  projectWorkspaceIds: Record<string, Readonly<Record<string, string>>>;
+  /** Local workspace overrides for mirrored projects; null explicitly means unfiled. */
+  projectWorkspaceIds: Record<string, Readonly<Record<string, string | null>>>;
   /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
   /** Last discovered host projects, retained so offline servers keep their sidebar rows. */
