@@ -52,6 +52,7 @@ describe("quotePosixShellArg", () => {
 
 describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
   const originalPlatform = process.platform;
+  const originalPath = process.env.PATH;
   const tempDirs: string[] = [];
 
   beforeEach(() => {
@@ -60,6 +61,7 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
 
   afterEach(() => {
     Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+    process.env.PATH = originalPath;
     vi.restoreAllMocks();
     for (const dir of tempDirs.splice(0)) {
       rmSync(dir, { recursive: true, force: true });
@@ -88,6 +90,21 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
       args: ["app-server"],
       cwd: "C:\\repo",
     });
+  });
+
+  it("resolves bare Windows executables before spawning them", () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-direct-exe-"));
+    tempDirs.push(dir);
+    const executablePath = join(dir, "poracode-test-agent.exe");
+    writeFileSync(executablePath, "", "utf8");
+    process.env.PATH = `${dir};${originalPath ?? ""}`;
+
+    const spec = buildAgentCommand({ kind: "windows", path: "C:\\repo" }, "poracode-test-agent", [
+      "--version",
+    ]);
+
+    expect(spec.command).toBe(executablePath);
+    expect(spec.args).toEqual(["--version"]);
   });
 
   it("falls back to powershell.exe (PS 5.1) when pwsh is missing", () => {
