@@ -90,6 +90,20 @@ beforeEach(() => {
 });
 
 describe("Grok capability detection", () => {
+  it("preserves ACP thinking model capabilities", async () => {
+    probeAcpCapabilitiesMock.mockResolvedValue({
+      models: [{ id: "grok-4.6", label: "Grok 4.6" }],
+      thinkingModels: ["grok-4.6"],
+    });
+
+    const result = await grokDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/repo" },
+      executablePath: "grok",
+    });
+
+    expect(result?.thinkingModels).toEqual(["grok-4.6"]);
+  });
+
   it("forwards the login-shell environment to the ACP process", async () => {
     const location: ProjectLocation = { kind: "posix", path: "/Users/demo/project" };
 

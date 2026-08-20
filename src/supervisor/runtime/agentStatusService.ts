@@ -59,8 +59,11 @@ const execFileAsync = promisify(execFile);
  * during status assembly, so statuses cached before that derivation (e.g.
  * antigravity login without `AGY_CLI_DISABLE_AUTO_UPDATE`) must be re-probed
  * or the login command runs without the provider's base env.
+ * v15 adds ACP-derived per-model thinking toggles and normalizes provider model
+ * capability maps, so statuses cached before those capability semantics changed
+ * must be re-probed.
  */
-export const STATUS_CACHE_VERSION = 14;
+export const STATUS_CACHE_VERSION = 15;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

@@ -258,6 +258,7 @@ function mergeAcpProbeCapabilities(
     ...(probeResult.modelDefaultEfforts
       ? { modelDefaultEfforts: probeResult.modelDefaultEfforts }
       : {}),
+    ...(probeResult.thinkingModels ? { thinkingModels: probeResult.thinkingModels } : {}),
     ...(probeResult.modes ? { modes: probeResult.modes } : {}),
     ...(probeResult.approvalPolicies ? { approvalPolicies: probeResult.approvalPolicies } : {}),
     ...(probeResult.slashCommands ? { slashCommands: probeResult.slashCommands } : {}),

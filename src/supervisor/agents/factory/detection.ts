@@ -89,6 +89,7 @@ export function buildFactoryProbeCapabilities(probe: AcpProbeResult): Capabiliti
     ...(probe.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(probe.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
     ...(probe.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
+    ...(probe.thinkingModels ? { thinkingModels: probe.thinkingModels } : {}),
     ...(probe.modes?.length ? { modes: probe.modes } : {}),
     ...(probe.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),

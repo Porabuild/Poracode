@@ -336,6 +336,7 @@ async function probeCapabilities(
       ? { defaultEffort: modelEffortProbe.defaultEffort ?? probe?.defaultEffort }
       : {}),
     ...(modelEffortProbe.modelEfforts ? { modelEfforts: modelEffortProbe.modelEfforts } : {}),
+    ...(probe?.thinkingModels ? { thinkingModels: probe.thinkingModels } : {}),
     ...(probe?.modes?.length ? { modes: probe.modes } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
     approvalPolicies: [...mergedPolicies.values()],

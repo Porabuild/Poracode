@@ -74,6 +74,14 @@ function capabilitiesEqual(
   for (let i = 0; i < a.efforts.length; i++) {
     if (a.efforts[i] !== b.efforts[i]) return false;
   }
+  if ((a.defaultEffort ?? "") !== (b.defaultEffort ?? "")) return false;
+  if (JSON.stringify(a.modelEfforts) !== JSON.stringify(b.modelEfforts)) return false;
+  if (JSON.stringify(a.modelDefaultEfforts ?? {}) !== JSON.stringify(b.modelDefaultEfforts ?? {})) {
+    return false;
+  }
+  if (JSON.stringify(a.thinkingModels ?? []) !== JSON.stringify(b.thinkingModels ?? [])) {
+    return false;
+  }
   if (!areAgentSlashCommandsEqual(a.slashCommands, b.slashCommands)) return false;
   // Compared so a status persisted before `supportsOneShot` existed (flag
   // absent) is treated as different from a freshly-detected one (flag set) and
@@ -255,9 +263,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 11,
-      // v11 mirrors the supervisor STATUS_CACHE_VERSION=14 bump: terminal auth
-      // methods now carry baseSpawnEnv-derived `env`, and a persisted status
+      version: 12,
+      // v12 mirrors the supervisor STATUS_CACHE_VERSION=15 bump: ACP-derived
+      // thinking toggles and normalized per-model capability maps now need a
+      // fresh detection. v11 covered terminal auth methods now carrying
+      // baseSpawnEnv-derived `env`, and a persisted status
       // from before that derivation would build a login command without the
       // provider's base env. This mirrors the supervisor cache invalidation,
       // which only covers the supervisor's on-disk cache, not this localStorage

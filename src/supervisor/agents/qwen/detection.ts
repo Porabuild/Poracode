@@ -129,13 +129,22 @@ function normalizeQwenModel(model: NonNullable<AcpProbeResult["models"]>[number]
   };
 }
 
-function withoutRetiredPreview<T>(values: Record<string, T> | undefined): Record<string, T> {
+function normalizeQwenCapabilityMap<T>(values: Record<string, T> | undefined): Record<string, T> {
   return Object.fromEntries(
-    Object.entries(values ?? {}).filter(
-      ([modelId]) =>
-        modelId.replace(MODEL_PROVIDER_SUFFIX_RE, "") !== QWEN_RETIRED_PREVIEW_MODEL_ID,
-    ),
+    Object.entries(values ?? {})
+      .map(([modelId, value]) => [modelId.replace(MODEL_PROVIDER_SUFFIX_RE, ""), value] as const)
+      .filter(([modelId]) => modelId !== QWEN_RETIRED_PREVIEW_MODEL_ID),
   );
+}
+
+function normalizeQwenModelIds(modelIds: string[] | undefined): string[] {
+  return [
+    ...new Set(
+      (modelIds ?? [])
+        .map((modelId) => modelId.replace(MODEL_PROVIDER_SUFFIX_RE, ""))
+        .filter((modelId) => modelId !== QWEN_RETIRED_PREVIEW_MODEL_ID),
+    ),
+  ];
 }
 
 export function buildQwenProbeCapabilities(
@@ -177,8 +186,9 @@ export function buildQwenProbeCapabilities(
       contextTokens.set(normalizedModelId, contextLimit);
     }
   }
-  const modelEfforts = withoutRetiredPreview(probe?.modelEfforts);
-  const modelDefaultEfforts = withoutRetiredPreview(probe?.modelDefaultEfforts);
+  const modelEfforts = normalizeQwenCapabilityMap(probe?.modelEfforts);
+  const modelDefaultEfforts = normalizeQwenCapabilityMap(probe?.modelDefaultEfforts);
+  const thinkingModels = normalizeQwenModelIds(probe?.thinkingModels);
 
   return {
     ...qwenDefaultCapabilities,
@@ -189,6 +199,7 @@ export function buildQwenProbeCapabilities(
     ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
     ...(Object.keys(modelDefaultEfforts).length > 0 ? { modelDefaultEfforts } : {}),
+    ...(thinkingModels.length > 0 ? { thinkingModels } : {}),
     modes: [...new Set([...qwenDefaultCapabilities.modes, ...(probe?.modes ?? [])])],
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
