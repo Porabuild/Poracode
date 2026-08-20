@@ -365,7 +365,7 @@ export function buildAgentCommand(
   }
 
   if (location.kind === "windows") {
-    const commandPath = resolvedExecPath ?? command;
+    const commandPath = resolvedExecPath ?? resolveExecutablePath(command) ?? command;
     const shim = resolveWindowsNodeCmdShim(commandPath);
     const spec = shim
       ? buildWindowsCommand(location.path, shim.command, [...shim.argsPrefix, ...args])
