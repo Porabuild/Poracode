@@ -80,6 +80,28 @@ const PR_CHECK_PENDING_STATES = new Set([
   "REQUESTED",
   "WAITING",
 ]);
+// `attempt` is newer than some installed gh versions, which reject unknown
+// `--json` fields outright; GitHubService retries once without it and then
+// remembers the capability for the session.
+const RUN_LIST_JSON_FIELDS = [
+  "attempt",
+  "conclusion",
+  "createdAt",
+  "databaseId",
+  "displayTitle",
+  "event",
+  "headBranch",
+  "headSha",
+  "name",
+  "number",
+  "startedAt",
+  "status",
+  "updatedAt",
+  "url",
+  "workflowDatabaseId",
+  "workflowName",
+];
+const RUN_VIEW_JSON_FIELDS = [...RUN_LIST_JSON_FIELDS, "jobs"];
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -173,6 +195,22 @@ function isNoGitHubRepositoryError(error: unknown): boolean {
 function isWorkflowDefinitionUnavailable(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   return msg.toLowerCase().includes("could not find workflow file");
+}
+
+// gh reports unsupported `--json` fields as `Unknown JSON field: "<name>"`
+// and exits non-zero instead of ignoring them.
+function isUnknownJsonFieldError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.toLowerCase().includes("unknown json field");
+}
+
+// `gh` prints an empty body instead of `[]` when a repository has nothing to
+// list (e.g. no workflows yet), which JSON.parse rejects.
+function parseJsonListOutput(stdout: string): unknown[] {
+  const trimmed = stdout.trim();
+  if (!trimmed) return [];
+  const raw = JSON.parse(trimmed) as unknown;
+  return Array.isArray(raw) ? raw : [];
 }
 
 function classifyError(error: unknown, operation: string): Error {
@@ -453,6 +491,8 @@ export class GitHubService {
   private viewerLoginCache = new Map<string, string | null>();
   /** Detected account per location that can see the project's repository; null = detection found none. */
   private actionsAccountCache = new Map<string, GitHubAccountRef | null>();
+  /** Locations whose gh install rejects the `attempt` run field. */
+  private unsupportedRunAttemptFieldLocations = new Set<string>();
   private wslClient: WslBridgeClient | undefined;
 
   setWslClient(client: WslBridgeClient | undefined): void {
@@ -507,6 +547,33 @@ export class GitHubService {
     commands: string[][],
   ): Promise<WslProcessExecResult[]> {
     return runGhBatch(location, commands, this.wslClient);
+  }
+
+  /**
+   * `gh run {list,view} --json` with a fallback for gh builds older than the
+   * `attempt` field: they reject the whole call, so drop the field, retry
+   * once, and skip it on every later call for this session.
+   */
+  private async runGhRunsJson(
+    location: ProjectLocation,
+    baseArgs: string[],
+    fields: readonly string[],
+    options?: RunGhOptions,
+  ): Promise<string> {
+    const invoke = (list: readonly string[]) =>
+      this.runGh(location, [...baseArgs, "--json", list.join(",")], options);
+    const withoutAttempt = fields.filter((field) => field !== "attempt");
+    const locationCacheKey = locationKey(location);
+    if (this.unsupportedRunAttemptFieldLocations.has(locationCacheKey)) {
+      return invoke(withoutAttempt);
+    }
+    try {
+      return await invoke(fields);
+    } catch (error) {
+      if (!isUnknownJsonFieldError(error)) throw error;
+      this.unsupportedRunAttemptFieldLocations.add(locationCacheKey);
+      return invoke(withoutAttempt);
+    }
   }
 
   async checkGhAvailable(location: ProjectLocation): Promise<GhCheckAvailableResult> {
@@ -1248,12 +1315,9 @@ export class GitHubService {
             ],
             options,
           );
-          const raw = JSON.parse(stdout) as unknown;
-          return Array.isArray(raw)
-            ? raw
-                .map(mapGitHubActionsWorkflow)
-                .filter((workflow): workflow is NonNullable<typeof workflow> => workflow !== null)
-            : [];
+          return parseJsonListOutput(stdout)
+            .map(mapGitHubActionsWorkflow)
+            .filter((workflow): workflow is NonNullable<typeof workflow> => workflow !== null);
         },
       );
       return { workflows, ...(scope.account ? { account: scope.account } : {}) };
@@ -1269,7 +1333,7 @@ export class GitHubService {
   ): Promise<GhListWorkflowRunsResult> {
     try {
       const { result: runs } = await this.runActions(location, ghAccount, async (options) => {
-        const stdout = await this.runGh(
+        const stdout = await this.runGhRunsJson(
           location,
           [
             "run",
@@ -1277,34 +1341,13 @@ export class GitHubService {
             "--limit",
             String(WORKFLOW_RUN_LIST_LIMIT),
             ...(workflowId ? ["--workflow", String(workflowId)] : []),
-            "--json",
-            [
-              "attempt",
-              "conclusion",
-              "createdAt",
-              "databaseId",
-              "displayTitle",
-              "event",
-              "headBranch",
-              "headSha",
-              "name",
-              "number",
-              "startedAt",
-              "status",
-              "updatedAt",
-              "url",
-              "workflowDatabaseId",
-              "workflowName",
-            ].join(","),
           ],
+          RUN_LIST_JSON_FIELDS,
           options,
         );
-        const raw = JSON.parse(stdout) as unknown;
-        return Array.isArray(raw)
-          ? raw
-              .map(mapGitHubActionsRun)
-              .filter((run): run is NonNullable<typeof run> => run !== null)
-          : [];
+        return parseJsonListOutput(stdout)
+          .map(mapGitHubActionsRun)
+          .filter((run): run is NonNullable<typeof run> => run !== null);
       });
       return { runs };
     } catch (err) {
@@ -1369,33 +1412,10 @@ export class GitHubService {
   ): Promise<GhGetWorkflowRunResult> {
     try {
       const { result: run } = await this.runActions(location, ghAccount, async (options) => {
-        const stdout = await this.runGh(
+        const stdout = await this.runGhRunsJson(
           location,
-          [
-            "run",
-            "view",
-            String(runId),
-            "--json",
-            [
-              "attempt",
-              "conclusion",
-              "createdAt",
-              "databaseId",
-              "displayTitle",
-              "event",
-              "headBranch",
-              "headSha",
-              "jobs",
-              "name",
-              "number",
-              "startedAt",
-              "status",
-              "updatedAt",
-              "url",
-              "workflowDatabaseId",
-              "workflowName",
-            ].join(","),
-          ],
+          ["run", "view", String(runId)],
+          RUN_VIEW_JSON_FIELDS,
           options,
         );
         const mapped = mapGitHubActionsRun(JSON.parse(stdout));

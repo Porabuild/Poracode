@@ -60,7 +60,6 @@ export function GitHubActionsView(props: {
     selectRun,
     selectWorkflow,
     setDeleteRun,
-    setProjectGhAccount,
   } = useGitHubActionsViewModel(props);
   const pinnedByProject = useSidebarUiStore((state) => state.pinnedGitHubWorkflows);
   const togglePinnedWorkflow = useSidebarUiStore((state) => state.togglePinnedGitHubWorkflow);
@@ -130,7 +129,6 @@ export function GitHubActionsView(props: {
       loading={loadingWorkflows}
       onClose={props.onClose}
       onSelectProject={openGitHubActions}
-      onSelectAccount={setProjectGhAccount}
       onSelect={selectWorkflowPage}
       onRun={requestWorkflowDispatch}
       onTogglePin={(workflowId) => {
@@ -237,6 +235,18 @@ export function GitHubActionsView(props: {
             />
           </section>
         </>
+      ) : workflows.length === 0 && !loadingWorkflows && !loadError ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
+          <div>
+            <Workflow className="mx-auto mb-3 size-8 text-muted" />
+            <p className="text-sm font-medium text-foreground">
+              <Trans>No active workflows in this repository.</Trans>
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              <Trans>Workflows added under .github/workflows will appear here.</Trans>
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
           <div>

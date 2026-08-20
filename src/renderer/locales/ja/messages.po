@@ -1530,7 +1530,6 @@ msgstr "自分が作成"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "自動"
@@ -5380,8 +5379,8 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
-msgid "GitHub account"
-msgstr "GitHub アカウント"
+#~ msgid "GitHub account"
+#~ msgstr "GitHub アカウント"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -7396,6 +7395,10 @@ msgstr "アクティブなセッションがありません"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "有効なワークフローが見つかりません。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows in this repository."
+msgstr "このリポジトリには有効なワークフローがありません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
@@ -13537,6 +13540,10 @@ msgstr "ワークフロー:{description}"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "ワークフロー"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflows added under .github/workflows will appear here."
+msgstr ".github/workflows に追加されたワークフローはここに表示されます。"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
