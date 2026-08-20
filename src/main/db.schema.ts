@@ -3,6 +3,7 @@ import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  icon: text("icon"),
   locationKind: text("location_kind").notNull(), // "windows" | "wsl" | "posix"
   locationPath: text("location_path"), // for windows/posix
   locationDistro: text("location_distro"), // for wsl

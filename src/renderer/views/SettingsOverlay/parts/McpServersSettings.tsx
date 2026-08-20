@@ -29,6 +29,7 @@ export function McpServersSettings() {
       id: project.id,
       name: project.name,
       location: project.location,
+      ...(project.icon ? { icon: project.icon } : {}),
       servers: project.mcpServers ?? [],
       onChange: (next: McpServer[]) => updateProjectMcpServers(project.id, next),
     }));
@@ -51,6 +52,7 @@ export function McpServersSettings() {
                     projectId: workspaceProject.id,
                     projectLocation: workspaceProject.location,
                     projectName: workspaceProject.name,
+                    ...(workspaceProject.icon ? { projectIcon: workspaceProject.icon } : {}),
                     onChange: (nextServers) =>
                       updateProjectMcpServers(workspaceProject.id, nextServers),
                   },

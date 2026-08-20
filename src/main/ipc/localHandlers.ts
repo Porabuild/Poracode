@@ -37,6 +37,7 @@ import {
   writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
+import { detectProjectIconFile, listProjectIconFiles } from "../projectIconDetect";
 import { diffSyncedThreads, syncedProjectsChanged } from "./threadSyncBroadcast";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
@@ -168,12 +169,13 @@ function assertSafeExternalUrl(rawUrl: string): string {
 /** The composer "attach files" picker, shared by the main window and the quick composer. */
 export async function showAddFilesDialog(
   parent: BrowserWindow,
-  payload?: { title?: string; filters?: Electron.FileFilter[] },
+  payload?: { title?: string; filters?: Electron.FileFilter[]; defaultPath?: string },
 ): Promise<string[] | null> {
   const result = await dialog.showOpenDialog(parent, {
     properties: ["openFile", "multiSelections"],
     title: payload?.title ?? "Add files or photos",
     filters: payload?.filters ?? [{ name: "All Files", extensions: ["*"] }],
+    ...(payload?.defaultPath ? { defaultPath: payload.defaultPath } : {}),
   });
   return result.canceled ? null : result.filePaths;
 }
@@ -213,7 +215,10 @@ export function createLocalIpcHandlers(
       showAddFilesDialog(options.getMainWindow()!, {
         ...(payload?.title ? { title: payload.title } : {}),
         ...(payload?.filters ? { filters: payload.filters } : {}),
+        ...(payload?.defaultPath ? { defaultPath: payload.defaultPath } : {}),
       }),
+    detectProjectIcon: ({ projectLocation }) => detectProjectIconFile(projectLocation),
+    listProjectIconFiles: ({ projectLocation }) => listProjectIconFiles(projectLocation),
     saveClipboardImage: (payload) =>
       saveClipboardImageFile(options.requirePoracodePaths(), payload),
     saveHandoffContext: (payload) =>

@@ -8,6 +8,7 @@ import {
 } from "@/shared/createProject";
 import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/remote";
 import { msg } from "@/shared/messages";
+import { parseProjectIcon } from "@/shared/projectIcon";
 import { parseWslUncPath } from "@/shared/wsl";
 import { RemoteHttpError } from "./auth";
 
@@ -64,6 +65,18 @@ function assertValidName(name: string): void {
 function assertNoTraversal(path: string): void {
   const segments = path.split(/[\\/]+/);
   if (segments.includes("..")) {
+    throw new RemoteHttpError("invalid_project_path", msg("remote.project.invalidPath"), 400);
+  }
+}
+
+/**
+ * Reject icon values that would escape the project folder when rendered. A
+ * paired client can set a project's icon, and a `file:` icon resolves against
+ * the project root on the desktop that displays it, so traversal or absolute
+ * values from a peer are never legitimate.
+ */
+function assertValidIcon(icon: string): void {
+  if (parseProjectIcon(icon) === undefined) {
     throw new RemoteHttpError("invalid_project_path", msg("remote.project.invalidPath"), 400);
   }
 }
@@ -206,11 +219,13 @@ export async function applyRemoteProjectCommand(
         throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
       if (command.patch.name !== undefined) assertValidName(command.patch.name);
+      if (typeof command.patch.icon === "string") assertValidIcon(command.patch.icon);
       let updated: Project = {
         ...project,
         ...Object.fromEntries(Object.entries(command.patch).filter(([, value]) => value !== null)),
       };
       for (const key of [
+        "icon",
         "scripts",
         "searchSettings",
         "worktreeLocation",

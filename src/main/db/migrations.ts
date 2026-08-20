@@ -377,6 +377,11 @@ export const DATABASE_MIGRATIONS = [
     name: "project GitHub account",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "gh_account", "TEXT"),
   },
+  {
+    version: 34,
+    name: "projects.icon",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "icon", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -432,6 +437,7 @@ export function runDatabaseMigrations(sqlite: SqliteDatabase, storedVersion: num
 
 const SAFE_COLUMN_REPAIRS = [
   ["projects", "search_settings", "TEXT"],
+  ["projects", "icon", "TEXT"],
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
   ["projects", "gh_account", "TEXT"],
@@ -471,6 +477,7 @@ const REQUIRED_COLUMNS = {
   projects: [
     "id",
     "name",
+    "icon",
     "location_kind",
     "location_path",
     "location_distro",

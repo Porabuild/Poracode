@@ -9,6 +9,7 @@ import {
 } from "@/renderer/actions/projectActions";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
 import { RemoteHostFolderPicker } from "@/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker";
+import { ProjectIconPicker } from "./ProjectIconPicker";
 
 export function GeneralSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -55,6 +56,18 @@ export function GeneralSection(props: { projectId: string }) {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
             />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Project icon</Trans>
+              </p>
+              <p className="text-xs text-muted">
+                <Trans>Shown next to the project name.</Trans>
+              </p>
+            </div>
+            <ProjectIconPicker project={project} />
           </div>
 
           <div className="flex items-center justify-between gap-4">

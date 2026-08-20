@@ -1287,6 +1287,10 @@ msgstr "Zawsze"
 msgid "Always excluded"
 msgstr "Zawsze wykluczone"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Amber"
+msgstr "Bursztynowy"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "Agent naprawia ten PR."
@@ -1602,9 +1606,9 @@ msgstr "Wybór automatyczny"
 msgid "Auto-show terminal panel"
 msgstr "Automatyczne wyświetlanie panelu terminali"
 
-#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#~ msgid "Automatic"
-#~ msgstr "Automatycznie"
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Automatic"
+msgstr "Automatycznie"
 
 #. placeholder {0}: shellName(automaticShell)
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -1773,6 +1777,10 @@ msgstr "Zablokowane przez przeglądarkę. Zezwól na powiadomienia dla tej witry
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "blocked:"
 msgstr "zablokowane:"
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Blue"
+msgstr "Niebieski"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Bold"
@@ -1962,6 +1970,10 @@ msgstr "Skrót wbudowany — nie można go zmienić"
 msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
 msgstr "Pakiety umiejętności i serwerów MCP działające z każdym obsługiwanym agentem. Poracode ładuje każdy pakiet zbudowany zgodnie ze specyfikacją Agent Plugins."
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Business & finance"
+msgstr "Biznes i finanse"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "przez <0>{author}</0>"
@@ -2090,6 +2102,10 @@ msgstr "Kategoria"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Zmień folder projektu"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Change project icon"
+msgstr "Zmień ikonę projektu"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
@@ -2259,6 +2275,14 @@ msgstr "Wybierz lokalną gałąź bazową dla eksperymentu."
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Wybierz folder nadrzędny"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Choose a project icon image"
+msgstr "Wybierz obraz ikony projektu"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Choose an image inside the project folder."
+msgstr "Wybierz obraz znajdujący się w folderze projektu."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
@@ -2840,6 +2864,7 @@ msgid "Commits"
 msgstr "Commity"
 
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "Komunikacja"
 
@@ -3674,6 +3699,10 @@ msgstr "Zaktualizowano Cursor SDK do v{nextVersion}."
 msgid "Custom"
 msgstr "Niestandardowe"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Custom color"
+msgstr "Kolor własny"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Polecenia niestandardowe dostępne z menu kontekstowego projektu (kliknij prawym przyciskiem myszy)."
@@ -3727,6 +3756,8 @@ msgstr "Odmów"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Domyślne"
@@ -3940,6 +3971,10 @@ msgstr "Opis"
 msgid "Description (optional)"
 msgstr "Opis (opcjonalnie)"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Design & media"
+msgstr "Projektowanie i media"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Punkt końcowy pulpitu"
@@ -3964,6 +3999,10 @@ msgstr "odłączony HEAD"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "Szczegóły"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#~ msgid "Detect from project files"
+#~ msgstr "Wykryj z plików projektu"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Detected"
@@ -4002,6 +4041,10 @@ msgstr "Serwery deweloperskie nasłuchujące na localhost Twojego komputera."
 msgid "Developer tools"
 msgstr "Narzędzia programisty"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Development"
+msgstr "Programowanie"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Zastąpienia tylko w fazie rozwojowej. Widoczne tylko w kompilacji PORACODE DEV."
@@ -4010,6 +4053,10 @@ msgstr "Zastąpienia tylko w fazie rozwojowej. Widoczne tylko w kompilacji PORAC
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Urządzenie używane przez przycisk wprowadzania głosowego kompozytora."
+
+#: src/renderer/utils/projectIcons.ts
+msgid "Devices & tools"
+msgstr "Urządzenia i narzędzia"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
@@ -4917,6 +4964,10 @@ msgstr "Plik używa nieobsługiwanego kodowania."
 msgid "Files"
 msgstr "Pliki"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Files & folders"
+msgstr "Pliki i foldery"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.worktreeBranch
 #. placeholder {0}: thread.worktreeBranch ?? thread.title
@@ -5128,6 +5179,10 @@ msgstr "Kontynuuj..."
 msgid "Fonts and scrolling"
 msgstr "Czcionki i przewijanie"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Food & drink"
+msgstr "Jedzenie i picie"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Wymuś usunięcie"
@@ -5200,6 +5255,10 @@ msgstr "Częstotliwość"
 msgid "Friday at 4:00 PM"
 msgstr "Piątek o 16:00"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "From this project"
+msgstr "Z tego projektu"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
 msgstr "Zmatowienie paska bocznego systemowym efektem rozmycia (vibrancy), nawiązujące do nowszych wersji macOS. Tam, gdzie nie jest obsługiwane, używa półprzezroczystego odcienia."
@@ -5224,6 +5283,10 @@ msgstr "Pełna konfiguracja"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Nakładka pełnoekranowa"
+
+#: src/renderer/utils/projectIcons.ts
+msgid "Games & fun"
+msgstr "Gry i zabawa"
 
 #: src/renderer/components/providers/gemini/manifest.ts
 msgid "Gemini"
@@ -5430,6 +5493,10 @@ msgstr "Rozumiem"
 msgid "Grade {0}"
 msgstr "Ocena {0}"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Green"
+msgstr "Zielony"
+
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
 msgstr "Grok Build"
@@ -5486,6 +5553,10 @@ msgstr "Nagłówki"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Pomóż mi utworzyć harmonogram. Zapytaj o brakujące szczegóły, a następnie użyj kontrolek harmonogramu Poracode, aby go utworzyć."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Hex color"
+msgstr "Kolor hex"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -5611,6 +5682,18 @@ msgstr "HTTP (strumieniowy)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Hue"
+msgstr "Barwa"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Icon color"
+msgstr "Kolor ikony"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Icon color: {label}"
+msgstr "Kolor ikony: {label}"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -5651,6 +5734,10 @@ msgstr "Obraz"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Podgląd obrazu"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Images"
+msgstr "Obrazy"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6325,6 +6412,10 @@ msgstr "localhost:{0} na komputerze"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Lokalizacja"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Location glyph"
+msgstr "Glif lokalizacji"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Lock panel to the open thread"
@@ -7076,6 +7167,10 @@ msgstr "Dostawcy natywni"
 msgid "Native support"
 msgstr "Wsparcie natywne"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Nature & weather"
+msgstr "Natura i pogoda"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Nawiguj, sprawdzaj i testuj strony za pomocą wbudowanego MCP przeglądarki."
@@ -7468,6 +7563,10 @@ msgstr "Nie znaleziono kont GitHub CLI. Zaloguj się za pomocą <0>gh auth login
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Brak historii"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "No icons found"
+msgstr "Nie znaleziono ikon"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
@@ -8200,6 +8299,10 @@ msgstr "Opcje"
 msgid "Or write a custom answer"
 msgstr "Lub napisz niestandardową odpowiedź"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Orange"
+msgstr "Pomarańczowy"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "Inne"
@@ -8494,6 +8597,10 @@ msgstr "Przypnij do góry"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Pin workflow"
 msgstr "Przypnij przepływ pracy"
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Pink"
+msgstr "Różowy"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -8837,6 +8944,20 @@ msgstr "Folder projektu"
 #: src/renderer/actions/projectActions.ts
 msgid "Project folder updated. Reopen any terminals in this project."
 msgstr "Zaktualizowano folder projektu. Otwórz ponownie wszystkie terminale w tym projekcie."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Project icon"
+msgstr "Ikona projektu"
+
+#. placeholder {0}: projectIconDisplayName(spec.name)
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#~ msgid "Project icon: {0}"
+#~ msgstr "Ikona projektu: {0}"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconGrid.tsx
+msgid "Project icon: {label}"
+msgstr "Ikona projektu: {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "project managed"
@@ -9208,6 +9329,10 @@ msgstr "Ponowne łączenie z desktopem…"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "Zrekonstruowane z lokalnych dzienników po stawkach publicznego API — nie odzwierciedla rzeczywistego rachunku za plany subskrypcyjne. Wyświetlane tylko w panelu użytkowania."
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Red"
+msgstr "Czerwony"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
@@ -10039,6 +10164,10 @@ msgstr "Debugowanie w czasie wykonywania"
 msgid "Runtime options"
 msgstr "Opcje środowiska wykonawczego"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Saturation and brightness"
+msgstr "Nasycenie i jasność"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -10160,6 +10289,10 @@ msgstr "Harmonogramy"
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Harmonogramy, AI, agenci i zarchiwizowane wątki na sparowanym komputerze"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Science & education"
+msgstr "Nauka i edukacja"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "Zakres"
@@ -10234,6 +10367,14 @@ msgstr "Szukaj gałęzi..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Wyszukaj pliki"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Search icons"
+msgstr "Szukaj ikon"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Search icons..."
+msgstr "Szukaj ikon..."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
@@ -10522,6 +10663,10 @@ msgstr "Ustawienia"
 msgid "Setup script"
 msgstr "Skrypt instalacyjny"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Shapes & symbols"
+msgstr "Kształty i symbole"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Share"
 msgstr "Udostępnij"
@@ -10703,6 +10848,10 @@ msgstr "Wyświetlanie {0, plural, one {# umiejętności} few {# umiejętności} 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Wyświetlanie pierwszych 4000 wpisów."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Shown next to the project name."
+msgstr "Wyświetlana obok nazwy projektu."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11531,6 +11680,10 @@ msgstr "Dane wyjściowe zadania"
 msgid "Task tags"
 msgstr "Tagi zadań"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Teal"
+msgstr "Morski"
+
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -12223,6 +12376,10 @@ msgstr "Transkrypcja głosu"
 msgid "Translucent sidebar"
 msgstr "Półprzezroczysty pasek boczny"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Travel & places"
+msgstr "Podróże i miejsca"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Popularne teraz"
@@ -12861,6 +13018,10 @@ msgstr "Użyj +, aby sparować bezpośrednio lub połączyć się z maszyną zda
 msgid "Use an existing folder"
 msgstr "Użyj istniejącego folderu"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Use an image from the project folder..."
+msgstr "Użyj obrazu z folderu projektu..."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "Używaj Chrome bezpiecznie, gdy zadanie wymaga istniejącej sesji przeglądarki."
@@ -13024,6 +13185,10 @@ msgstr "Zobacz dziennik zmian"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Tylko do odczytu — to połączenie nie może zarządzać projektami."
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Violet"
+msgstr "Fioletowy"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx

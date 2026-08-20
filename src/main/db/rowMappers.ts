@@ -16,6 +16,7 @@ export function locationToRow(loc: ProjectLocation) {
 export function projectMutableRow(project: Project) {
   return {
     name: project.name,
+    icon: project.icon ?? null,
     ...locationToRow(project.location),
     lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
     scripts: project.scripts ? JSON.stringify(project.scripts) : null,
@@ -53,6 +54,7 @@ export function rowToProject(row: typeof schema.projects.$inferSelect): Project 
   return {
     id: row.id,
     name: row.name,
+    ...(row.icon ? { icon: row.icon } : {}),
     location: rowToLocation(row),
     ...(row.lastDraftConfig ? { lastDraftConfig: JSON.parse(row.lastDraftConfig) } : {}),
     ...(row.scripts ? { scripts: JSON.parse(row.scripts) } : {}),

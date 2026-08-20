@@ -25,6 +25,7 @@ export function McpSection(props: { projectId: string }) {
       id: item.id,
       name: item.name,
       location: item.location,
+      ...(item.icon ? { icon: item.icon } : {}),
       servers: item.mcpServers ?? [],
       onChange: (servers: McpServer[]) => updateProjectMcpServers(item.id, servers),
     }));
@@ -44,6 +45,7 @@ export function McpSection(props: { projectId: string }) {
               projectId: project.id,
               projectLocation: project.location,
               projectName: project.name,
+              ...(project.icon ? { projectIcon: project.icon } : {}),
               onChange: (servers) => updateProjectMcpServers(project.id, servers),
             },
           }}

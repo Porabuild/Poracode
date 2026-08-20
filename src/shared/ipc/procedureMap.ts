@@ -76,6 +76,8 @@ export type IpcProcedureResult<Name extends IpcProcedureName> =
 export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "pickFolder",
   "pickFiles",
+  "detectProjectIcon",
+  "listProjectIconFiles",
   "saveClipboardImage",
   "saveHandoffContext",
   "saveImageFile",

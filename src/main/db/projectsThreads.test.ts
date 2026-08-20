@@ -200,6 +200,28 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetProject("project-1")?.workspaceId).toBeUndefined();
   });
 
+  it("round-trips the project icon through the projects table", () => {
+    const project = {
+      id: "project-1",
+      name: "Test project",
+      location: { kind: "posix" as const, path: "/tmp/project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    // Projects created before icons existed keep the default glyph.
+    expect(dbGetProject("project-1")?.icon).toBeUndefined();
+
+    dbUpsertProject({ ...project, icon: "lucide:rocket" }, 0);
+    expect(dbGetProject("project-1")?.icon).toBe("lucide:rocket");
+
+    dbUpsertProject({ ...project, icon: "auto" }, 0);
+    expect(dbGetProject("project-1")?.icon).toBe("auto");
+
+    // Clearing the icon removes the field rather than leaving the old value.
+    dbUpsertProject(project, 0);
+    expect(dbGetProject("project-1")?.icon).toBeUndefined();
+  });
+
   it("migrates a schema-v32 project before persisting its GitHub account", () => {
     closeDatabase();
     const databasePath = join(dir, "schema-v32.sqlite");
@@ -241,7 +263,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     initDatabase(databasePath);
 
-    expect(dbGetState("schema_version")).toBe("33");
+    expect(dbGetState("schema_version")).toBe("34");
     const legacyProject = dbGetProject("legacy-project");
     expect(legacyProject).toMatchObject({
       id: "legacy-project",
@@ -423,6 +445,80 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     dbSyncAll([project], [], viewJson);
     expect(dbGetProject(project.id)?.workspaceId).toBeUndefined();
+  });
+
+  it("round-trips the project icon through the bulk renderer sync", () => {
+    const project = {
+      id: "project-bulk-icon",
+      name: "Bulk icon project",
+      location: { kind: "posix" as const, path: "/tmp/project-bulk-icon" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const viewJson = JSON.stringify({ kind: "home" });
+
+    dbSyncAll([{ ...project, icon: "lucide:rocket" }], [], viewJson);
+    expect(dbGetProject(project.id)?.icon).toBe("lucide:rocket");
+
+    dbSyncAll([{ ...project, icon: "auto" }], [], viewJson);
+    expect(dbGetProject(project.id)?.icon).toBe("auto");
+
+    dbSyncAll([project], [], viewJson);
+    expect(dbGetProject(project.id)?.icon).toBeUndefined();
+  });
+
+  it("upgrades a schema-v32 database to carry the projects.icon column", () => {
+    closeDatabase();
+    const databasePath = join(dir, "upgrade-v32.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    // The exact v32 shape: every projects column except the v33 `icon`.
+    legacy.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_kind TEXT NOT NULL,
+        location_path TEXT,
+        location_distro TEXT,
+        location_linux_path TEXT,
+        location_unc_path TEXT,
+        last_draft_config TEXT,
+        scripts TEXT,
+        search_settings TEXT,
+        worktree_location TEXT,
+        mcp_servers TEXT,
+        workspace_id TEXT,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO projects (
+        id, name, location_kind, location_path, disabled, sort_order, created_at
+      ) VALUES (
+        'v32-project', 'Pre-icon project', 'posix', '/tmp/v32-project', 0, 0,
+        '2026-01-01T00:00:00.000Z'
+      );
+      INSERT INTO app_state (key, value) VALUES ('schema_version', '32');
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const columns = getSqlite().prepare("PRAGMA table_info(projects)").all() as {
+      name: string;
+    }[];
+    expect(columns.some((column) => column.name === "icon")).toBe(true);
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+    expect(dbGetProject("v32-project")).toMatchObject({
+      id: "v32-project",
+      name: "Pre-icon project",
+      location: { kind: "posix", path: "/tmp/v32-project" },
+    });
+    expect(dbGetProject("v32-project")?.icon).toBeUndefined();
   });
 
   it("persists candidate threads and the experiment record atomically", () => {

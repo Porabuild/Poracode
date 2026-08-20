@@ -15,8 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v4 carries per-project GitHub account selection through remote Actions calls
-// and project updates, so older hosts cannot silently discard the account scope.
+// v4 carries project icon metadata and project-icon update patches, plus
+// per-project GitHub account selection through remote Actions calls and project
+// updates, so older hosts cannot silently discard either scope.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 4;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -260,6 +261,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     projectId: z.string().min(1),
     patch: z.object({
       name: projectSchema.shape.name.optional(),
+      icon: projectSchema.shape.icon.unwrap().nullable().optional(),
       scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
       searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
       worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),

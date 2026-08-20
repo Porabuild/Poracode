@@ -8,7 +8,7 @@ export function SkillsSettings() {
   const { t } = useLingui();
   const projects = useAppStore((state) => state.projects)
     .filter((project) => !isHomeProject(project))
-    .map(({ id, name, location }) => ({ id, name, location }));
+    .map(({ id, name, location, icon }) => ({ id, name, location, ...(icon ? { icon } : {}) }));
 
   return (
     <SettingsPage

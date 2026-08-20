@@ -1026,6 +1026,18 @@
     --danger-foreground: var(--snow);
     --pr-merged: oklch(0.5 0.18 292);
     --git-branch-tone: oklch(0.5 0.13 265);
+    /* Decorative palette for user-chosen project icon colours. Fixed hues
+       rather than semantic tokens (--danger, --success, …): the swatch a user
+       picks has no state meaning and must keep reading as "the red one" under
+       every theme preset. Darker here than on dark surfaces for contrast. */
+    --project-icon-red: oklch(0.55 0.19 25);
+    --project-icon-orange: oklch(0.58 0.16 55);
+    --project-icon-amber: oklch(0.6 0.14 85);
+    --project-icon-green: oklch(0.52 0.15 150);
+    --project-icon-teal: oklch(0.53 0.11 195);
+    --project-icon-blue: oklch(0.53 0.16 255);
+    --project-icon-violet: oklch(0.53 0.19 292);
+    --project-icon-pink: oklch(0.56 0.19 345);
     --field-background: oklch(0.975 0.002 286);
     --field-placeholder: oklch(0.55 0.01 286);
     --field-border: oklch(0.84 0.006 286 / 0.7);
@@ -1070,6 +1082,15 @@
     --accent-foreground: #0a0a12;
     --danger: oklch(0.64 0.2 24.63);
     --danger-foreground: var(--snow);
+    /* Same project-icon hues, lifted for dark surfaces (see the light block). */
+    --project-icon-red: oklch(0.7 0.18 25);
+    --project-icon-orange: oklch(0.75 0.15 55);
+    --project-icon-amber: oklch(0.8 0.13 85);
+    --project-icon-green: oklch(0.74 0.15 150);
+    --project-icon-teal: oklch(0.75 0.1 195);
+    --project-icon-blue: oklch(0.7 0.14 255);
+    --project-icon-violet: oklch(0.71 0.16 292);
+    --project-icon-pink: oklch(0.74 0.16 345);
     --field-background: #18181b;
     --field-placeholder: #6b6b7b;
     --field-border: oklch(0.34 0.006 286 / 0.85);

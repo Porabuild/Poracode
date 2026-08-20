@@ -1,6 +1,6 @@
 import type { AgentSlashCommand, CanonicalContentBlock, PromptSegment } from "./contracts";
 
-const IMAGE_EXTENSIONS = new Set([
+export const IMAGE_EXTENSIONS = [
   "png",
   "jpg",
   "jpeg",
@@ -10,7 +10,9 @@ const IMAGE_EXTENSIONS = new Set([
   "bmp",
   "ico",
   "avif",
-]);
+] as const;
+
+const IMAGE_EXTENSION_SET = new Set<string>(IMAGE_EXTENSIONS);
 
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
@@ -53,7 +55,7 @@ export function formatDiffCommentPrompt(comment: DiffCommentSegment): string {
 }
 
 export function isImagePath(path: string, mimeType?: string): boolean {
-  return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
+  return mimeType?.startsWith("image/") === true || IMAGE_EXTENSION_SET.has(getExtension(path));
 }
 
 /** The image MIME type implied by a path's extension, when it is a known one. */

@@ -64,6 +64,15 @@ export function renameProject(projectId: string, name: string): void {
   }
 }
 
+export function updateProjectIcon(projectId: string, icon: string | undefined): void {
+  const store = useAppStore.getState();
+  const project = store.projects.find((candidate) => candidate.id === projectId);
+  if (!project) return;
+  const apply = () => useAppStore.getState().updateProjectIcon(projectId, icon);
+  if (dispatchRemoteProjectMutation(project, { icon: icon ?? null }, apply)) return;
+  apply();
+}
+
 export function updateProjectScripts(projectId: string, scripts: ProjectScripts): void {
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);

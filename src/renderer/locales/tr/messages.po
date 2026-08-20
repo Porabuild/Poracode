@@ -1287,6 +1287,10 @@ msgstr "Her zaman"
 msgid "Always excluded"
 msgstr "Her zaman hariç tutuldu"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Amber"
+msgstr "Kehribar"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "Bir ajan bu PR'ı düzeltiyor."
@@ -1602,9 +1606,9 @@ msgstr "Otomatik seçim"
 msgid "Auto-show terminal panel"
 msgstr "Terminal panelini otomatik göster"
 
-#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#~ msgid "Automatic"
-#~ msgstr "Otomatik"
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Automatic"
+msgstr "Otomatik"
 
 #. placeholder {0}: shellName(automaticShell)
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -1773,6 +1777,10 @@ msgstr "Tarayıcı tarafından engellendi. Uygulama arka plandayken uyarı almak
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "blocked:"
 msgstr "engellendi:"
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Blue"
+msgstr "Mavi"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Bold"
@@ -1962,6 +1970,10 @@ msgstr "Yerleşik kısayol — değiştirilemez"
 msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
 msgstr "Desteklenen her ajanla çalışan beceri ve MCP sunucusu paketleri. Poracode, Agent Plugins şartnamesine göre hazırlanmış her paketi yükler."
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Business & finance"
+msgstr "İş ve finans"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "<0>{author}</0> tarafından"
@@ -2090,6 +2102,10 @@ msgstr "Kategori"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Proje klasörünü değiştir"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Change project icon"
+msgstr "Proje simgesini değiştir"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
@@ -2259,6 +2275,14 @@ msgstr "Deney için yerel bir ana şube seçin."
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Bir ana klasör seçin"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Choose a project icon image"
+msgstr "Proje simgesi görseli seçin"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Choose an image inside the project folder."
+msgstr "Proje klasörü içinden bir görsel seçin."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
@@ -2840,6 +2864,7 @@ msgid "Commits"
 msgstr "Commit'ler"
 
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "İletişim"
 
@@ -3674,6 +3699,10 @@ msgstr "Cursor SDK v{nextVersion} sürümüne güncellendi."
 msgid "Custom"
 msgstr "Özel"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Custom color"
+msgstr "Özel renk"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Proje içerik menüsünden erişilebilen özel komutlar (sağ tıklama)."
@@ -3727,6 +3756,8 @@ msgstr "Reddet"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Varsayılan"
@@ -3940,6 +3971,10 @@ msgstr "Açıklama"
 msgid "Description (optional)"
 msgstr "Açıklama (isteğe bağlı)"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Design & media"
+msgstr "Tasarım ve medya"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Masaüstü uç noktası"
@@ -3964,6 +3999,10 @@ msgstr "ayrık HEAD"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "Ayrıntılar"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#~ msgid "Detect from project files"
+#~ msgstr "Proje dosyalarından algıla"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Detected"
@@ -4002,6 +4041,10 @@ msgstr "Masaüstünüzün localhost'unda dinleyen geliştirme sunucuları."
 msgid "Developer tools"
 msgstr "Geliştirici araçları"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Development"
+msgstr "Geliştirme"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca PORACODE DEV yapısında görünür."
@@ -4010,6 +4053,10 @@ msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca PORACODE D
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Oluşturucu ses giriş düğmesi tarafından kullanılan cihaz."
+
+#: src/renderer/utils/projectIcons.ts
+msgid "Devices & tools"
+msgstr "Cihazlar ve araçlar"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
@@ -4917,6 +4964,10 @@ msgstr "Dosya desteklenmeyen bir kodlama kullanıyor."
 msgid "Files"
 msgstr "Dosyalar"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Files & folders"
+msgstr "Dosyalar ve klasörler"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.worktreeBranch
 #. placeholder {0}: thread.worktreeBranch ?? thread.title
@@ -5128,6 +5179,10 @@ msgstr "Devam et..."
 msgid "Fonts and scrolling"
 msgstr "Yazı tipleri ve kaydırma"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Food & drink"
+msgstr "Yiyecek ve içecek"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Silmeye Zorla"
@@ -5200,6 +5255,10 @@ msgstr "Sıklık"
 msgid "Friday at 4:00 PM"
 msgstr "Cuma 16:00"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "From this project"
+msgstr "Bu projeden"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
 msgstr "Kenar çubuğunu, son macOS sürümlerini andıran sistem bulanıklık materyaliyle (vibrancy) buzlu cama dönüştürün. Desteklenmediğinde yarı saydam bir tona geri döner."
@@ -5224,6 +5283,10 @@ msgstr "Tam yapılandırma"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Tam ekran yer paylaşımı"
+
+#: src/renderer/utils/projectIcons.ts
+msgid "Games & fun"
+msgstr "Oyunlar ve eğlence"
 
 #: src/renderer/components/providers/gemini/manifest.ts
 msgid "Gemini"
@@ -5430,6 +5493,10 @@ msgstr "Anladım"
 msgid "Grade {0}"
 msgstr "Derece {0}"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Green"
+msgstr "Yeşil"
+
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
 msgstr "Grok Build"
@@ -5486,6 +5553,10 @@ msgstr "Üstbilgiler"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Bir zamanlama oluşturmama yardım et. Eksik ayrıntıları sor, ardından Poracode zamanlama kontrollerini kullanarak benim için oluştur."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Hex color"
+msgstr "Hex renk"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -5611,6 +5682,18 @@ msgstr "HTTP (akış destekli)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Hue"
+msgstr "Ton"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Icon color"
+msgstr "Simge rengi"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Icon color: {label}"
+msgstr "Simge rengi: {label}"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -5651,6 +5734,10 @@ msgstr "Resim"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Resim önizlemesi"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Images"
+msgstr "Görseller"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6325,6 +6412,10 @@ msgstr "localhost:{0} masaüstünde"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Konum"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Location glyph"
+msgstr "Konum glifi"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Lock panel to the open thread"
@@ -7076,6 +7167,10 @@ msgstr "Yerel Sağlayıcılar"
 msgid "Native support"
 msgstr "Yerel destek"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Nature & weather"
+msgstr "Doğa ve hava durumu"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Uygulama içi Browser MCP ile sayfalarda gezinin, inceleyin ve test edin."
@@ -7468,6 +7563,10 @@ msgstr "GitHub CLI hesabı bulunamadı. <0>gh auth login</0> ile oturum açın v
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Henüz geçmiş yok"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "No icons found"
+msgstr "Simge bulunamadı"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
@@ -8200,6 +8299,10 @@ msgstr "Seçenekler"
 msgid "Or write a custom answer"
 msgstr "Veya özel bir cevap yazın"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Orange"
+msgstr "Turuncu"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "Diğer"
@@ -8494,6 +8597,10 @@ msgstr "En üste sabitle"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Pin workflow"
 msgstr "İş akışını sabitle"
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Pink"
+msgstr "Pembe"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -8837,6 +8944,20 @@ msgstr "Proje klasörü"
 #: src/renderer/actions/projectActions.ts
 msgid "Project folder updated. Reopen any terminals in this project."
 msgstr "Proje klasörü güncellendi. Bu projedeki terminalleri yeniden açın."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Project icon"
+msgstr "Proje simgesi"
+
+#. placeholder {0}: projectIconDisplayName(spec.name)
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#~ msgid "Project icon: {0}"
+#~ msgstr "Proje simgesi: {0}"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconGrid.tsx
+msgid "Project icon: {label}"
+msgstr "Proje simgesi: {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "project managed"
@@ -9208,6 +9329,10 @@ msgstr "Masaüstünüze yeniden bağlanılıyor…"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım panelinde gösterilir."
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Red"
+msgstr "Kırmızı"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
@@ -10039,6 +10164,10 @@ msgstr "Çalışma zamanı hata ayıklaması"
 msgid "Runtime options"
 msgstr "Çalışma zamanı seçenekleri"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Saturation and brightness"
+msgstr "Doygunluk ve parlaklık"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -10160,6 +10289,10 @@ msgstr "Zamanlamalar"
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Eşleştirilmiş masaüstündeki zamanlamalar, yapay zekâ, aracılar ve arşivlenmiş ileti dizileri"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Science & education"
+msgstr "Bilim ve eğitim"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "Kapsam"
@@ -10234,6 +10367,14 @@ msgstr "Şube ara..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Dosyaları arayın"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Search icons"
+msgstr "Simge ara"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Search icons..."
+msgstr "Simge ara..."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
@@ -10522,6 +10663,10 @@ msgstr "Ayarlar"
 msgid "Setup script"
 msgstr "Kurulum komut dosyası"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Shapes & symbols"
+msgstr "Şekiller ve semboller"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Share"
 msgstr "Paylaş"
@@ -10703,6 +10848,10 @@ msgstr "{0, plural, one {# beceri} other {# beceri}} gösteriliyor"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "İlk 4.000 giriş gösteriliyor."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Shown next to the project name."
+msgstr "Proje adının yanında gösterilir."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11531,6 +11680,10 @@ msgstr "Görev çıkışı"
 msgid "Task tags"
 msgstr "Görev etiketleri"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Teal"
+msgstr "Deniz mavisi"
+
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -12223,6 +12376,10 @@ msgstr "Sesi yazıya dökme"
 msgid "Translucent sidebar"
 msgstr "Yarı saydam kenar çubuğu"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Travel & places"
+msgstr "Seyahat ve yerler"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Şu anda trend"
@@ -12861,6 +13018,10 @@ msgstr "Doğrudan eşleştirmek veya SSH üzerinden uzak bir makineye bağlanmak
 msgid "Use an existing folder"
 msgstr "Mevcut bir klasörü kullan"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Use an image from the project folder..."
+msgstr "Proje klasöründen bir görsel kullan..."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "Bir görev mevcut tarayıcı oturumu gerektirdiğinde Chrome'u güvenle kullanın."
@@ -13024,6 +13185,10 @@ msgstr "Değişiklik günlüğünü görüntüle"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Yalnızca görüntüleme — bu bağlantı projeleri yönetemez."
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Violet"
+msgstr "Mor"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
