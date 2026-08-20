@@ -1,4 +1,5 @@
 import { webContents as webContentsModule, type WebContents } from "electron";
+import type { BrowserDeviceEmulation, BrowserFindResult, BrowserPrintResult } from "@/shared/ipc";
 import { CdpClient } from "./cdp/cdpClient";
 import { DialogController } from "./cdp/dialogController";
 import { NetworkCapture } from "./cdp/networkCapture";
@@ -17,8 +18,20 @@ export interface BrowserTabSnapshot {
   canGoBack: boolean;
   canGoForward: boolean;
   devToolsOpen: boolean;
+  zoomFactor: number;
+  deviceEmulation?: BrowserDeviceEmulation;
   faviconUrl?: string;
 }
+
+export interface BrowserFindInPageOptions {
+  forward: boolean;
+  findNext: boolean;
+  matchCase: boolean;
+}
+
+export type BrowserStopFindInPageAction = "clearSelection" | "keepSelection" | "activateSelection";
+
+export type BrowserTabFindResult = Omit<BrowserFindResult, "tabId">;
 
 export interface BrowserTabOptions {
   tabId: string;
@@ -27,6 +40,8 @@ export interface BrowserTabOptions {
   onUpdate(snapshot: BrowserTabSnapshot): void;
   onAttention(tabId: string): void;
   onPopup(tabId: string, url: string): void;
+  onFindRequested(tabId: string): void;
+  onFindResult(tabId: string, result: BrowserTabFindResult): void;
 }
 
 export interface ConsoleEntry {
@@ -57,6 +72,9 @@ export class BrowserTab {
   private initialHistoryUrl: string | null = null;
   private clearInitialHistoryTimer: ReturnType<typeof setTimeout> | null = null;
   private devToolsVisible = false;
+  private findRequestId: number | null = null;
+  private zoomFactor = 1;
+  private deviceEmulation: BrowserDeviceEmulation | undefined;
   private wcCleanups: Array<() => void> = [];
   private attachedPromise: Promise<void>;
   private resolveAttached: (() => void) | null = null;
@@ -105,8 +123,14 @@ export class BrowserTab {
       this.teardownListeners();
     }
     this._webContents = webContents;
+    this.findRequestId = null;
     webContents.setUserAgent(this.opts.userAgent);
+    webContents.setZoomFactor(this.zoomFactor);
     this._cdp = new CdpClient(webContents);
+    if (this.deviceEmulation) {
+      this.applyDeviceEmulation(webContents, this.deviceEmulation);
+      this.applyTouchEmulation(this.deviceEmulation.touch);
+    }
     installSessionPermissions(webContents.session);
     const removeNavGuards = installNavigationGuards(webContents, (popupUrl) => {
       this.opts.onPopup(this.tabId, popupUrl);
@@ -186,7 +210,29 @@ export class BrowserTab {
     wc.on("will-prevent-unload", onWillPreventUnload);
     this.wcCleanups.push(() => wc.removeListener("will-prevent-unload", onWillPreventUnload));
 
+    const onFoundInPage = (_event: Electron.Event, result: Electron.Result) => {
+      if (this.findRequestId !== result.requestId) return;
+      this.opts.onFindResult(this.tabId, {
+        requestId: result.requestId,
+        activeMatchOrdinal: result.activeMatchOrdinal,
+        matches: result.matches,
+        finalUpdate: result.finalUpdate,
+      });
+    };
+    wc.on("found-in-page", onFoundInPage);
+    this.wcCleanups.push(() => wc.removeListener("found-in-page", onFoundInPage));
+
     const onBeforeInputEvent = (event: Electron.Event, input: Electron.Input) => {
+      if (isBrowserFindKeyDown(input)) {
+        event.preventDefault();
+        this.opts.onFindRequested(this.tabId);
+        return;
+      }
+      if (isBrowserPrintKeyDown(input)) {
+        event.preventDefault();
+        void this.print();
+        return;
+      }
       if (isBrowserReloadKeyDown(input)) {
         event.preventDefault();
         if (isBrowserHardReloadKeyDown(input)) {
@@ -262,6 +308,7 @@ export class BrowserTab {
       this.teardownListeners();
       this._webContents = null;
       this._cdp = null;
+      this.findRequestId = null;
       // The tab can be unmounted when the headless browser goes idle, then
       // remounted on the next automation. Re-arm the attach promise so a later
       // whenAttached() waits for that fresh attach instead of resolving stale.
@@ -369,6 +416,8 @@ export class BrowserTab {
       canGoBack: wc?.navigationHistory.canGoBack() ?? false,
       canGoForward: wc?.navigationHistory.canGoForward() ?? false,
       devToolsOpen: this.devToolsVisible,
+      zoomFactor: this.zoomFactor,
+      ...(this.deviceEmulation ? { deviceEmulation: this.deviceEmulation } : {}),
       ...(this.faviconUrl ? { faviconUrl: this.faviconUrl } : {}),
     };
   }
@@ -382,6 +431,7 @@ export class BrowserTab {
       // initial `<webview src>` (or a later attach) reflects the request.
       this.currentUrl = url;
       this.clearInitialHistoryOnLoad = true;
+      this.initialHistoryUrl = url;
       this.emit();
       return;
     }
@@ -420,6 +470,83 @@ export class BrowserTab {
     try {
       wc.openDevTools({ mode: "detach", activate: true });
     } catch {}
+  }
+
+  findInPage(text: string, options: BrowserFindInPageOptions): number | null {
+    if (this.destroyed || !this.isAttached()) return null;
+    this.findRequestId = this.webContents.findInPage(text, options);
+    return this.findRequestId;
+  }
+
+  stopFindInPage(action: BrowserStopFindInPageAction): void {
+    if (this.destroyed || !this.isAttached()) return;
+    this.findRequestId = null;
+    this.webContents.stopFindInPage(action);
+  }
+
+  async print(): Promise<BrowserPrintResult> {
+    if (this.destroyed || !this.isAttached()) {
+      return { ok: false };
+    }
+    return await new Promise<BrowserPrintResult>((resolve) => {
+      try {
+        this.webContents.print({ silent: false }, (success, failureReason) => {
+          resolve(
+            success
+              ? { ok: true }
+              : { ok: false, ...(failureReason ? { error: failureReason } : {}) },
+          );
+        });
+      } catch (error) {
+        resolve({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+  }
+
+  setZoomFactor(zoomFactor: number): void {
+    if (this.destroyed) return;
+    if (this.isAttached()) this.webContents.setZoomFactor(zoomFactor);
+    this.zoomFactor = zoomFactor;
+    this.emit();
+  }
+
+  setDeviceEmulation(emulation: BrowserDeviceEmulation | null): void {
+    if (this.destroyed) return;
+    const next = emulation ? { ...emulation } : undefined;
+    if (deviceEmulationEqual(this.deviceEmulation, next)) return;
+    const touchChanged = this.deviceEmulation?.touch !== next?.touch;
+    if (this.isAttached()) {
+      if (next) {
+        this.applyDeviceEmulation(this.webContents, next);
+      } else {
+        this.webContents.disableDeviceEmulation();
+      }
+      if (touchChanged) this.applyTouchEmulation(next?.touch === true);
+    }
+    this.deviceEmulation = next;
+    this.emit();
+  }
+
+  private applyDeviceEmulation(wc: WebContents, emulation: BrowserDeviceEmulation): void {
+    const size = { width: emulation.width, height: emulation.height };
+    wc.enableDeviceEmulation({
+      screenPosition: emulation.mobile ? "mobile" : "desktop",
+      screenSize: size,
+      viewPosition: { x: 0, y: 0 },
+      deviceScaleFactor: emulation.deviceScaleFactor,
+      viewSize: size,
+      scale: emulation.scale,
+    });
+  }
+
+  private applyTouchEmulation(enabled: boolean): void {
+    const params: Record<string, unknown> = enabled
+      ? { enabled: true, maxTouchPoints: 5 }
+      : { enabled: false };
+    void this.cdp.send("Emulation.setTouchEmulationEnabled", params).catch(() => {});
   }
 
   clearHistory(): void {
@@ -485,7 +612,39 @@ function snapshotsEqual(a: BrowserTabSnapshot, b: BrowserTabSnapshot): boolean {
     a.canGoBack === b.canGoBack &&
     a.canGoForward === b.canGoForward &&
     a.devToolsOpen === b.devToolsOpen &&
+    a.zoomFactor === b.zoomFactor &&
+    deviceEmulationEqual(a.deviceEmulation, b.deviceEmulation) &&
     a.faviconUrl === b.faviconUrl
+  );
+}
+
+function deviceEmulationEqual(
+  a: BrowserDeviceEmulation | undefined,
+  b: BrowserDeviceEmulation | undefined,
+): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.width === b.width &&
+    a.height === b.height &&
+    a.deviceScaleFactor === b.deviceScaleFactor &&
+    a.scale === b.scale &&
+    a.mobile === b.mobile &&
+    a.touch === b.touch &&
+    a.preset === b.preset
+  );
+}
+
+function isBrowserFindKeyDown(input: Electron.Input): boolean {
+  if (input.type !== "keyDown") return false;
+  return (
+    (input.control || input.meta) && !input.shift && !input.alt && input.key.toLowerCase() === "f"
+  );
+}
+
+function isBrowserPrintKeyDown(input: Electron.Input): boolean {
+  if (input.type !== "keyDown") return false;
+  return (
+    (input.control || input.meta) && !input.shift && !input.alt && input.key.toLowerCase() === "p"
   );
 }
 

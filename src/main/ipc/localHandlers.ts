@@ -551,6 +551,8 @@ export function createLocalIpcHandlers(
         ...(payload.activate !== undefined ? { activate: payload.activate } : {}),
         ...(payload.reveal !== undefined ? { reveal: payload.reveal } : {}),
       }),
+    browserOpenInternalPage: ({ page }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).openInternalPage(page),
     browserCloseTab: ({ tabId }) =>
       requireBrowserPanel(options.getBrowserPanelManager).closeTab(tabId),
     browserActivateTab: ({ tabId }) => {
@@ -586,6 +588,23 @@ export function createLocalIpcHandlers(
       requireBrowserPanel(options.getBrowserPanelManager).hardReload(tabId),
     browserToggleDevTools: ({ tabId }) =>
       requireBrowserPanel(options.getBrowserPanelManager).toggleDevTools(tabId),
+    browserFindInPage: ({ tabId, text, forward, findNext, matchCase }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).findInPage(tabId, text, {
+        forward,
+        findNext,
+        matchCase,
+      });
+    },
+    browserStopFindInPage: ({ tabId, action }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).stopFindInPage(tabId, action);
+    },
+    browserPrint: ({ tabId }) => requireBrowserPanel(options.getBrowserPanelManager).print(tabId),
+    browserSetZoomFactor: ({ tabId, zoomFactor }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).setZoomFactor(tabId, zoomFactor);
+    },
+    browserSetDeviceEmulation: ({ tabId, emulation }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).setDeviceEmulation(tabId, emulation);
+    },
     browserClearHistory: ({ tabId }) =>
       requireBrowserPanel(options.getBrowserPanelManager).clearHistory(tabId),
     browserClearCookies: ({ tabId }) =>
@@ -629,6 +648,32 @@ export function createLocalIpcHandlers(
     },
     browserRecentHistory: ({ limit }) =>
       requireBrowserPanel(options.getBrowserPanelManager).recentHistory(limit),
+    browserGetDownloads: () => requireBrowserPanel(options.getBrowserPanelManager).getDownloads(),
+    browserDownloadAction: ({ id, action }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).downloadAction(id, action),
+    browserListCredentials: () =>
+      requireBrowserPanel(options.getBrowserPanelManager).listCredentials(),
+    browserGetCredentialPassword: ({ id }) => {
+      const password = requireBrowserPanel(options.getBrowserPanelManager).getCredentialPassword(
+        id,
+      );
+      if (password === null) throw new Error("Browser credential not found");
+      return { password };
+    },
+    browserUpsertCredential: ({ id, origin, username, password }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).upsertCredential({
+        ...(id !== undefined ? { id } : {}),
+        origin,
+        username,
+        password,
+      }),
+    browserDeleteCredential: ({ id }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).deleteCredential(id);
+    },
+    browserListImportSources: () =>
+      requireBrowserPanel(options.getBrowserPanelManager).listImportSources(),
+    browserImportData: (payload) =>
+      requireBrowserPanel(options.getBrowserPanelManager).importBrowserData(payload),
     browserExtractToWindow: () => {
       options.extractBrowserToWindow();
     },

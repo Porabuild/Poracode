@@ -16,7 +16,12 @@ import type {
   UsageLoginDeviceCode,
   UsageSnapshot,
 } from "../contracts";
-import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
+import type {
+  BrowserDownloadInfo,
+  BrowserFindResult,
+  BrowserState,
+  BrowserTabInfo,
+} from "./procedures/browser";
 import type { BrowserLinkPresentationMode, CrossagentRoutingOverride } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
 import type { MessageKey } from "../messages";
@@ -156,6 +161,11 @@ export type BrowserEvent =
   | { type: "state"; state: BrowserState }
   | { type: "tab-updated"; tab: BrowserTabInfo }
   | { type: "tab-attention"; tabId: string }
+  | { type: "find-open-requested"; tabId: string }
+  | { type: "find-result"; result: BrowserFindResult }
+  | { type: "download-updated"; download: BrowserDownloadInfo }
+  | { type: "download-removed"; downloadId: string }
+  | { type: "credentials-updated" }
   | { type: "open-panel"; mode?: BrowserLinkPresentationMode }
   | { type: "usage-login-confirmation"; request: UsageLoginConfirmationRequest }
   | { type: "usage-login-confirmation-closed"; requestId: string }

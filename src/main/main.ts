@@ -1013,6 +1013,7 @@ if (!hasSingleInstanceLock) {
       browserPanelManager = new BrowserPanelManager(paths, browserUserAgent, {
         isExtracted: () => browserExtractWindow !== null && !browserExtractWindow.isDestroyed(),
         focusExtractedWindow: focusBrowserExtractWindow,
+        browserSession,
       });
       browserMcpIngress = new BrowserMcpIngress();
       browserMcpIngress.setManagerAccessor(() => browserPanelManager);

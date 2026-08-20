@@ -1,4 +1,4 @@
-import { Globe, Plus, X } from "lucide-react";
+import { Download, Globe, KeyRound, Plus, X } from "lucide-react";
 import { useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
@@ -9,13 +9,23 @@ import type { BrowserTabGroupInfo, BrowserTabInfo } from "@/shared/ipc";
 import { BrowserTabGroupMenu } from "./BrowserTabGroupMenu";
 import { groupColor } from "./groupColors";
 
-function TabFavicon(props: { faviconUrl?: string; loading: boolean }) {
+function TabFavicon(props: {
+  faviconUrl?: string;
+  loading: boolean;
+  internalPage?: BrowserTabInfo["internalPage"];
+}) {
   if (props.loading) {
     return (
       <span className="flex size-3.5 shrink-0 items-center justify-center">
         <span className="size-2 animate-pulse rounded-full bg-accent/70" />
       </span>
     );
+  }
+  if (props.internalPage === "downloads") {
+    return <Download className="size-3.5 shrink-0 text-foreground/60" />;
+  }
+  if (props.internalPage === "passwords") {
+    return <KeyRound className="size-3.5 shrink-0 text-foreground/60" />;
   }
   if (props.faviconUrl) {
     return (
@@ -150,6 +160,12 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
   ) => {
     const active = tab.tabId === activeTabId;
     const attention = !active && tab.tabId === attentionTabId;
+    const displayTitle =
+      tab.internalPage === "downloads"
+        ? t`Download history`
+        : tab.internalPage === "passwords"
+          ? t`Password manager`
+          : tab.title || tab.url || t`New tab`;
     const activate = () => {
       if (!active) {
         readBridge()
@@ -206,8 +222,9 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
         <TabFavicon
           loading={tab.loading}
           {...(tab.faviconUrl ? { faviconUrl: tab.faviconUrl } : {})}
+          {...(tab.internalPage ? { internalPage: tab.internalPage } : {})}
         />
-        <span className="flex-1 truncate">{tab.title || tab.url || t`New tab`}</span>
+        <span className="flex-1 truncate">{displayTitle}</span>
         <button
           type="button"
           aria-label={t`Close tab`}

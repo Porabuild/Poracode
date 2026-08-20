@@ -90,10 +90,9 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
       if (idx < 0) {
         return { tabs: [...s.tabs, tab] };
       }
-      const nextTab = { ...s.tabs[idx]!, ...tab };
-      if (tabInfoEqual(s.tabs[idx]!, nextTab)) return {};
+      if (tabInfoEqual(s.tabs[idx]!, tab)) return {};
       const next = s.tabs.slice();
-      next[idx] = nextTab;
+      next[idx] = tab;
       return { tabs: next };
     }),
   setActive: (tabId) => set((state) => (state.activeTabId === tabId ? {} : { activeTabId: tabId })),
@@ -157,6 +156,26 @@ function tabInfoEqual(a: BrowserTabInfo, b: BrowserTabInfo): boolean {
     a.canGoBack === b.canGoBack &&
     a.canGoForward === b.canGoForward &&
     a.devToolsOpen === b.devToolsOpen &&
+    a.internalPage === b.internalPage &&
+    a.zoomFactor === b.zoomFactor &&
+    deviceEmulationEqual(a.deviceEmulation, b.deviceEmulation) &&
     a.groupId === b.groupId
+  );
+}
+
+function deviceEmulationEqual(
+  a: BrowserTabInfo["deviceEmulation"],
+  b: BrowserTabInfo["deviceEmulation"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.width === b.width &&
+    a.height === b.height &&
+    a.deviceScaleFactor === b.deviceScaleFactor &&
+    a.scale === b.scale &&
+    a.mobile === b.mobile &&
+    a.touch === b.touch &&
+    a.preset === b.preset
   );
 }
