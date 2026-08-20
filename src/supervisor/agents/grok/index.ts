@@ -252,9 +252,10 @@ export function createGrokAdapter(): AgentAdapter {
     // One-shot (title / commit) generation reuses Grok's documented headless
     // path: `grok -p <prompt>`. `--always-approve` keeps the non-interactive run
     // from blocking on a tool-approval prompt it cannot answer (mirrors the
-    // launch/ACP bypass in argv.ts). Grok 0.2.118 advertises grok-4.5 as its
-    // supported model, so utility runs use the same live catalog entry.
-    defaultOneShotModel: "grok-4.5",
+    // launch/ACP bypass in argv.ts). Grok 1.0.5 advertises grok-4.6 as its
+    // default model (grok-4.5 remains selectable), so utility runs use the same
+    // live catalog default.
+    defaultOneShotModel: "grok-4.6",
     buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
       const args = ["--no-auto-update", "-p", prompt];
