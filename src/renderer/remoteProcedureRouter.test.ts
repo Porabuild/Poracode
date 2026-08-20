@@ -83,6 +83,7 @@ describe("remote procedure routing registry", () => {
     lastCheckKey: null,
     activeThreadId: null,
     lastError: null,
+    blockedReason: null,
   }));
   const upsertPrWatch = vi.fn<RemoteDesktopClient["upsertPrWatch"]>(async (input) => ({
     ...input,
@@ -92,7 +93,9 @@ describe("remote procedure routing registry", () => {
     lastCheckKey: null,
     activeThreadId: null,
     lastError: null,
+    blockedReason: null,
   }));
+  const syncPrWatchAgent = vi.fn<RemoteDesktopClient["syncPrWatchAgent"]>(async () => {});
   const sendThreadInput = vi.fn<RemoteDesktopClient["sendThreadInput"]>(async () => {});
   const interruptThread = vi.fn<RemoteDesktopClient["interruptThread"]>(async () => {});
   const controlThreadGoal = vi.fn<RemoteDesktopClient["controlThreadGoal"]>(async () => {});
@@ -113,6 +116,7 @@ describe("remote procedure routing registry", () => {
     projectNotes,
     getPrWatch,
     upsertPrWatch,
+    syncPrWatchAgent,
     sendThreadInput,
     interruptThread,
     controlThreadGoal,
@@ -314,6 +318,18 @@ describe("remote procedure routing registry", () => {
     await expect(
       remoteResult(decide("getPrWatch", { projectId: "projected-project", prNumber: 465 })),
     ).resolves.toMatchObject({ projectId: "projected-project" });
+    await remoteResult(
+      decide("syncPrWatchAgent", {
+        projectId: "projected-project",
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+      }),
+    );
+    expect(syncPrWatchAgent).toHaveBeenCalledWith({
+      projectId: "remote-project",
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+    });
   });
 
   it("routes thread controls through one owner-aware dispatch seam", async () => {

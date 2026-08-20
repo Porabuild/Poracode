@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EXPERIMENT_STORE_KEY, type Thread } from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { LATEST_SCHEMA_VERSION } from "./migrations";
 import {
   dbDeleteThread,
   dbGetThread,
@@ -218,7 +219,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("31");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("repairs safe schema drift even when the database claims the latest version", () => {
@@ -264,7 +265,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("31");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
     expect(dbGetProject("legacy-project")).toMatchObject({
       id: "legacy-project",
       name: "Legacy project",
@@ -302,7 +303,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     initDatabase(join(dir, "state.sqlite"));
 
-    expect(dbGetState("schema_version")).toBe("31");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
     expect(dbGetThread("legacy-empty-model")?.config).toEqual({
       model: "auto",
       effort: "high",

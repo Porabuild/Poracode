@@ -111,6 +111,7 @@ describe("PrWatchControls", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     }));
     bridge.deletePrWatch.mockResolvedValue(undefined);
   });
@@ -132,6 +133,7 @@ describe("PrWatchControls", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     };
 
     render(
@@ -166,6 +168,7 @@ describe("PrWatchControls", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     });
 
     const { container } = render(
@@ -266,6 +269,7 @@ describe("PrWatchControls", () => {
       lastCheckKey: null,
       activeThreadId: "thread-1",
       lastError: null,
+      blockedReason: null,
     });
     const onRefreshPr = vi.fn<() => Promise<void>>(async () => undefined);
 
@@ -279,14 +283,174 @@ describe("PrWatchControls", () => {
     );
 
     await waitFor(() => expect(onRefreshPr).toHaveBeenCalledOnce());
-    expect(bridge.upsertPrWatch).toHaveBeenCalledWith({
+    // Reading the watch must not rewrite it. The helper agent is kept current by
+    // the app-scoped sync, so a stale model here is not this popover's to repair —
+    // when it was, a watch only caught up while its PR row was on screen.
+    expect(bridge.upsertPrWatch).not.toHaveBeenCalled();
+  });
+
+  it("explains why automation is holding off instead of looking watched", async () => {
+    bridge.getPrWatch.mockResolvedValue({
       projectId: project.id,
       prNumber: 42,
       headBranch: "feature/pr-watch",
       watchEnabled: true,
       autoMerge: false,
       agentKind: "codex",
-      config: { model: "gpt-5.7", effort: "high" },
+      config: { model: "gpt-5.6", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: "worktree-unavailable",
     });
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
+    const trigger = screen.getByRole("button", { name: "PR automation paused: Auto Fix" });
+    expect(trigger).toHaveClass("text-warning");
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /this PR's branch could not be checked out/,
+    );
+  });
+
+  it("describes an unavailable configured helper without assuming it is disconnected", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "custom-model", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: "agent-unavailable",
+    });
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    const trigger = await screen.findByRole("button", {
+      name: "PR automation paused: Auto Fix",
+    });
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /configured helper agent is unavailable/,
+    );
+  });
+
+  it("shows a fresh launch error instead of a stale block", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.6", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: "supervisor rejected the launch",
+      blockedReason: "agent-unavailable",
+    });
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("button", { name: "PR automation: Auto Fix" }));
+
+    expect(await screen.findByText("supervisor rejected the launch")).toBeInTheDocument();
+    expect(screen.queryByText(/configured helper agent is unavailable/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the watch's stored agent when resolution is transiently empty", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.6", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: null,
+    });
+    // A provider that resolves to nothing (agent detection gap / logged out).
+    settings.conflictResolverProvider = "grok";
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
+
+    fireEvent.click(screen.getByRole("button", { name: "PR automation: Auto Fix" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
+
+    // The toggle must not dead-end; the stored agent carries the change and the
+    // app-scoped sync repoints it once resolution recovers.
+    await waitFor(() =>
+      expect(bridge.upsertPrWatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoMerge: true,
+          agentKind: "codex",
+          config: { model: "gpt-5.6", effort: "high" },
+        }),
+      ),
+    );
+    settings.conflictResolverProvider = "codex";
+  });
+
+  it("re-resolves the current helper agent when the mode changes", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      // A watch still carrying the agent it was created with.
+      agentKind: "codex",
+      config: { model: "gpt-5.6", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: null,
+    });
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
+
+    fireEvent.click(screen.getByRole("button", { name: "PR automation: Auto Fix" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
+
+    await waitFor(() =>
+      expect(bridge.upsertPrWatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoMerge: true,
+          agentKind: "codex",
+          // The settings model, not the model stored on the watch.
+          config: { model: "gpt-5.7", effort: "high" },
+        }),
+      ),
+    );
   });
 });

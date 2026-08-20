@@ -1,4 +1,4 @@
-import { existsSync, watch } from "node:fs";
+import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -115,7 +115,11 @@ import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacy
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
 import { persistSupervisorEvent } from "./remote/server/runtimePersistence";
-import { createDevicePrWatchService, type PrWatchService } from "./prWatch";
+import {
+  buildPrWatchExecutionDeps,
+  createDevicePrWatchService,
+  type PrWatchService,
+} from "./prWatch";
 import { shouldUseMockKeychain } from "./mockKeychain";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -915,7 +919,10 @@ if (!hasSingleInstanceLock) {
           const status = dbGetThread(threadId)?.status;
           return status !== undefined && isThreadTurnActive(status);
         },
-        worktreeExists: existsSync,
+        ...buildPrWatchExecutionDeps({
+          call: (name, payload) => supervisorClient.call(name, payload),
+          getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
+        }),
       });
       gitStateService = new GitStateService({
         hostId: readOrCreateRemoteAccessIdentity(paths.baseDir).desktopId,

@@ -38,6 +38,9 @@ const details: PrDetails = {
   checks: [],
 };
 
+/** A PR whose branch is behind its base — one actionable blocker, no checks. */
+const behindPr: PrData = { ...pr, mergeStateStatus: "BEHIND" };
+
 function watch(overrides: Partial<PrWatch> = {}): PrWatch {
   return {
     projectId: project.id,
@@ -53,6 +56,7 @@ function watch(overrides: Partial<PrWatch> = {}): PrWatch {
     lastCheckKey: null,
     activeThreadId: null,
     lastError: null,
+    blockedReason: null,
     ...overrides,
   };
 }
@@ -104,7 +108,9 @@ function setup(
     onPrObserved,
     createThread,
     isThreadActive: () => false,
-    worktreeExists: () => false,
+    resolveWatchAgent: async (entry) =>
+      entry.agentKind && entry.config ? { agentKind: entry.agentKind, config: entry.config } : null,
+    ensureWorkContext: async () => ({ kind: "worktree", path: "/repo/.worktrees/pr-42" }),
     ...overrides,
   });
   return { service, store, createThread, mergePr, onPrObserved };
@@ -559,5 +565,294 @@ describe("PrWatchService", () => {
     await service.tick();
 
     expect(onPrObserved).not.toHaveBeenCalled();
+  });
+
+  it("refuses to launch without a checkout of the PR branch", async () => {
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext: async () => null,
+    });
+
+    await service.tick();
+
+    expect(createThread).not.toHaveBeenCalled();
+    const blocked = store.get(project.id, pr.number);
+    expect(blocked?.blockedReason).toBe("worktree-unavailable");
+    // The blocker is still unhandled, so the signal must stay pending.
+    expect(blocked?.lastCheckKey).toBeNull();
+  });
+
+  it("retries a failed checkout on the next poll and launches once it succeeds", async () => {
+    let checkoutAvailable = false;
+    const ensureWorkContext = vi.fn<PrWatchServiceOptions["ensureWorkContext"]>(async () =>
+      checkoutAvailable ? { kind: "worktree", path: "/repo/.worktrees/pr-42" } : null,
+    );
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext,
+    });
+
+    await service.tick();
+    expect(createThread).not.toHaveBeenCalled();
+    expect(store.get(project.id, pr.number)?.blockedReason).toBe("worktree-unavailable");
+
+    // The block is a status, not a latch: a transient git failure (index.lock,
+    // offline fetch) must self-heal on the next poll with no user gesture.
+    checkoutAvailable = true;
+    await service.tick();
+
+    expect(ensureWorkContext).toHaveBeenCalledTimes(2);
+    expect(createThread).toHaveBeenCalledOnce();
+    const launched = store.get(project.id, pr.number);
+    expect(launched?.blockedReason).toBeNull();
+    // The signal key advances only with the successful launch.
+    expect(launched?.lastCheckKey).not.toBeNull();
+  });
+
+  it("keeps the block deduplicated while the checkout keeps failing", async () => {
+    const upserts: PrWatch[] = [];
+    const { service, store } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext: async () => null,
+    });
+    const originalUpsert = store.upsert.bind(store);
+    store.upsert = (entry) => {
+      upserts.push(entry);
+      originalUpsert(entry);
+    };
+
+    await service.tick();
+    await service.tick();
+    await service.tick();
+
+    // One write records the block; repeat polls must not churn the store.
+    expect(upserts.filter((entry) => entry.blockedReason === "worktree-unavailable")).toHaveLength(
+      1,
+    );
+  });
+
+  it("refuses to launch when the helper agent can no longer run", async () => {
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      resolveWatchAgent: async () => null,
+    });
+
+    await service.tick();
+
+    expect(createThread).not.toHaveBeenCalled();
+    expect(store.get(project.id, pr.number)?.blockedReason).toBe("agent-unavailable");
+  });
+
+  it("retries an unavailable agent on the next poll and launches once it returns", async () => {
+    let available = false;
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      resolveWatchAgent: async (entry) =>
+        available ? { agentKind: entry.agentKind!, config: entry.config! } : null,
+    });
+
+    await service.tick();
+    expect(createThread).not.toHaveBeenCalled();
+
+    available = true;
+    await service.tick();
+
+    expect(createThread).toHaveBeenCalledOnce();
+    expect(store.get(project.id, pr.number)?.blockedReason).toBeNull();
+  });
+
+  it("launches with the agent resolved at launch time, not the one it was created with", async () => {
+    const { service, createThread } = setup(
+      watch({ agentKind: "grok", config: { model: "grok-4.5" } }),
+      {
+        getPrForBranch: async () => behindPr,
+        resolveWatchAgent: async () => ({
+          agentKind: "qwen",
+          config: { model: "qwen3.8-max", effort: "high" },
+        }),
+      },
+    );
+
+    await service.tick();
+
+    expect(createThread.mock.calls[0]?.[0]).toMatchObject({
+      agentKind: "qwen",
+      model: "qwen3.8-max",
+      effort: "high",
+    });
+  });
+
+  it("runs the fix in the main checkout when it already has the PR branch out", async () => {
+    const { service, store, createThread } = setup(watch({ worktreePath: "/gone" }), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext: async () => ({ kind: "main-checkout" }),
+    });
+
+    await service.tick();
+
+    expect(createThread.mock.calls[0]?.[0].existingWorktree).toBeUndefined();
+    // A stale recorded path must not be treated as this launch's checkout.
+    expect(store.get(project.id, pr.number)?.worktreePath).toBe("/gone");
+  });
+
+  it("records a re-created worktree so the next fix reuses it", async () => {
+    const { service, store } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext: async () => ({ kind: "worktree", path: "/repo/.worktrees/rebuilt" }),
+    });
+
+    await service.tick();
+
+    expect(store.get(project.id, pr.number)?.worktreePath).toBe("/repo/.worktrees/rebuilt");
+  });
+
+  it("repoints every watch at the app's current helper agent", async () => {
+    const { service, store } = setup(watch({ agentKind: "grok", config: { model: "grok-4.5" } }));
+
+    service.syncAgent({
+      projectId: project.id,
+      agentKind: "qwen",
+      config: { model: "qwen3.8-max" },
+    });
+
+    expect(store.get(project.id, pr.number)).toMatchObject({
+      agentKind: "qwen",
+      config: { model: "qwen3.8-max" },
+    });
+  });
+
+  it("re-arms a blocked watch when the synced helper agent changes", async () => {
+    const { service, store, createThread } = setup(
+      watch({
+        agentKind: "grok",
+        config: { model: "grok-4.5" },
+        blockedReason: "agent-unavailable",
+      }),
+      { getPrForBranch: async () => behindPr },
+    );
+
+    service.syncAgent({
+      projectId: project.id,
+      agentKind: "qwen",
+      config: { model: "qwen3.8-max" },
+    });
+
+    // The sync must clear the block and immediately re-check, not wait a poll.
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+    expect(createThread.mock.calls[0]?.[0]).toMatchObject({ agentKind: "qwen" });
+    expect(store.get(project.id, pr.number)?.blockedReason).toBeNull();
+  });
+
+  it("replaces a standing block with the launch error that superseded it", async () => {
+    let agentAvailable = false;
+    const createThread = vi.fn<PrWatchServiceOptions["createThread"]>(async () => {
+      throw new Error("supervisor rejected the launch");
+    });
+    const { service, store } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      createThread,
+      resolveWatchAgent: async (entry) =>
+        agentAvailable ? { agentKind: entry.agentKind!, config: entry.config! } : null,
+    });
+
+    await service.tick();
+    expect(store.get(project.id, pr.number)?.blockedReason).toBe("agent-unavailable");
+
+    agentAvailable = true;
+    await service.tick();
+
+    // The error is the newer diagnosis; a stale block must not shadow it.
+    const failed = store.get(project.id, pr.number);
+    expect(failed?.lastError).toBe("supervisor rejected the launch");
+    expect(failed?.blockedReason).toBeNull();
+  });
+
+  it("leaves watches alone when the resolved helper agent is unchanged", async () => {
+    const { service, store } = setup(watch({ blockedReason: "worktree-unavailable" }));
+
+    service.syncAgent({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+    });
+
+    // An unchanged sync must not re-arm a blocked watch, or the failed git work
+    // would be retried on every settings read.
+    expect(store.get(project.id, pr.number)?.blockedReason).toBe("worktree-unavailable");
+  });
+
+  it("does not save a stale checkout error after the watch is disabled", async () => {
+    let rejectCheckout!: (error: Error) => void;
+    const ensureWorkContext = vi.fn<PrWatchServiceOptions["ensureWorkContext"]>(
+      () => new Promise((_, reject) => (rejectCheckout = reject)),
+    );
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext,
+    });
+
+    const checking = service.tick();
+    await vi.waitFor(() => expect(ensureWorkContext).toHaveBeenCalledOnce());
+    service.upsert({
+      projectId: project.id,
+      prNumber: pr.number,
+      headBranch: details.headBranch,
+      watchEnabled: false,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+    });
+    rejectCheckout(new Error("settings unavailable"));
+    await checking;
+
+    expect(createThread).not.toHaveBeenCalled();
+    expect(store.get(project.id, pr.number)?.lastError).toBeNull();
+  });
+
+  it("does not launch after the watch is deleted during checkout", async () => {
+    let releaseCheckout!: (context: { kind: "worktree"; path: string }) => void;
+    const ensureWorkContext = vi.fn<PrWatchServiceOptions["ensureWorkContext"]>(
+      () => new Promise((resolve) => (releaseCheckout = resolve)),
+    );
+    const { service, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext,
+    });
+
+    const checking = service.tick();
+    await vi.waitFor(() => expect(ensureWorkContext).toHaveBeenCalledOnce());
+    service.delete(project.id, pr.number);
+    releaseCheckout({ kind: "worktree", path: "/repo/.worktrees/pr-42" });
+    await checking;
+
+    expect(createThread).not.toHaveBeenCalled();
+  });
+
+  it("restarts an in-flight check with a newly synced helper agent", async () => {
+    let rejectCheckout!: (error: Error) => void;
+    let contextCalls = 0;
+    const ensureWorkContext = vi.fn<PrWatchServiceOptions["ensureWorkContext"]>(() => {
+      contextCalls += 1;
+      return contextCalls === 1
+        ? new Promise((_, reject) => (rejectCheckout = reject))
+        : Promise.resolve({ kind: "worktree", path: "/repo/.worktrees/pr-42" });
+    });
+    const { service, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext,
+    });
+
+    const checking = service.tick();
+    await vi.waitFor(() => expect(ensureWorkContext).toHaveBeenCalledOnce());
+    service.syncAgent({
+      projectId: project.id,
+      agentKind: "qwen",
+      config: { model: "qwen3.8-max" },
+    });
+    rejectCheckout(new Error("old helper checkout failed"));
+    await checking;
+
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+    expect(createThread).toHaveBeenCalledWith(expect.objectContaining({ agentKind: "qwen" }));
   });
 });

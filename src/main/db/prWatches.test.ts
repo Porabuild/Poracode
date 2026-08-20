@@ -36,6 +36,7 @@ function watch(overrides: Partial<PrWatch> = {}): PrWatch {
     lastCheckKey: null,
     activeThreadId: null,
     lastError: null,
+    blockedReason: null,
     ...overrides,
   };
 }
@@ -75,5 +76,91 @@ describe.skipIf(!sqliteAvailable)("prWatches (real sqlite round-trip)", () => {
 
     dbDeletePrWatch("project-1", 42);
     expect(dbGetPrWatch("project-1", 42)).toBeNull();
+  });
+
+  it("round-trips a blocked reason", () => {
+    dbUpsertPrWatch(watch({ blockedReason: "worktree-unavailable" }));
+    expect(dbGetPrWatch("project-1", 42)?.blockedReason).toBe("worktree-unavailable");
+
+    dbUpsertPrWatch(watch({ blockedReason: null }));
+    expect(dbGetPrWatch("project-1", 42)?.blockedReason).toBeNull();
+  });
+});
+
+describe.skipIf(!sqliteAvailable)("prWatches (upgrade from a pre-blocked-reason database)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    if (nativeBindingEnv) {
+      process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
+    }
+    dir = mkdtempSync(join(tmpdir(), "poracode-pr-watch-upgrade-"));
+  });
+
+  afterEach(() => {
+    closeDatabase();
+    rmSync(dir, { recursive: true, force: true });
+    delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("adds blocked_reason to a table created before schema 32", () => {
+    const dbPath = join(dir, "state.sqlite");
+    // A schema-31 database: pr_watches exists without blocked_reason, and
+    // app_state claims the migrations are done, so `CREATE TABLE IF NOT EXISTS`
+    // will not fix the shape on its own.
+    const legacy = new Database(
+      dbPath,
+      nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {},
+    );
+    legacy.exec(`
+      CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_kind TEXT NOT NULL,
+        location_path TEXT,
+        location_distro TEXT,
+        location_linux_path TEXT,
+        location_unc_path TEXT,
+        last_draft_config TEXT,
+        scripts TEXT,
+        worktree_location TEXT,
+        workspace_id TEXT,
+        mcp_servers TEXT,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE pr_watches (
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        pr_number INTEGER NOT NULL,
+        head_branch TEXT NOT NULL,
+        worktree_path TEXT,
+        watch_enabled INTEGER NOT NULL DEFAULT 1,
+        auto_merge INTEGER NOT NULL DEFAULT 0,
+        agent_kind TEXT,
+        config TEXT,
+        last_comment_cursor TEXT,
+        last_review_comment_cursor TEXT,
+        last_review_cursor TEXT,
+        last_check_key TEXT,
+        active_thread_id TEXT,
+        last_error TEXT,
+        PRIMARY KEY (project_id, pr_number)
+      );
+      INSERT INTO app_state (key, value) VALUES ('schema_version', '31');
+      INSERT INTO projects (id, name, location_kind, location_path, created_at)
+        VALUES ('project-1', 'Poracode', 'posix', '/repo', '2026-07-25T00:00:00.000Z');
+      INSERT INTO pr_watches (project_id, pr_number, head_branch, agent_kind, config)
+        VALUES ('project-1', 42, 'feature/pr-watch', 'codex', '{"model":"gpt-5.6"}');
+    `);
+    legacy.close();
+
+    initDatabase(dbPath);
+
+    const migrated = dbGetPrWatch("project-1", 42);
+    expect(migrated?.blockedReason).toBeNull();
+    dbUpsertPrWatch({ ...migrated!, blockedReason: "agent-unavailable" });
+    expect(dbGetPrWatch("project-1", 42)?.blockedReason).toBe("agent-unavailable");
   });
 });

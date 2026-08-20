@@ -1619,6 +1619,22 @@ msgstr "명령을 실행하거나 작업 트리를 생성할 때 터미널 패�
 msgid "Automation"
 msgstr "자동화"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Automation is paused: no connected agent can fix this PR."
+#~ msgstr "자동화가 일시 중지되었습니다: 이 PR을 수정할 수 있는 연결된 에이전트가 없습니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation is paused: the configured helper agent is unavailable. Check the agent connection and helper settings."
+msgstr "자동화가 일시 중지되었습니다. 구성된 도우미 에이전트를 사용할 수 없습니다. 에이전트 연결 및 도우미 설정을 확인하세요."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation is paused: this PR's branch could not be checked out. Poracode keeps retrying automatically."
+msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크아웃할 수 없습니다. Poracode가 자동으로 계속 재시도합니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
+#~ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크아웃할 수 없습니다. 모드를 다시 선택해 재시도하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "자동 조종"
@@ -8653,6 +8669,14 @@ msgstr "PR 작업"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "PR 자동화"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused: Auto Fix"
+msgstr "PR 자동화 일시 중지: 자동 수정"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused: Auto Merge"
+msgstr "PR 자동화 일시 중지: 자동 병합"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation: Auto Fix"

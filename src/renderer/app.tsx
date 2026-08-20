@@ -44,6 +44,7 @@ import { useUpdateStore } from "./state/updateStore";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
+import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -570,6 +571,9 @@ function QuickComposerApp() {
 
 function MainApp() {
   const { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 } = useAppHydration();
+  // App-scoped, not overlay-scoped: PR watches must follow the current helper
+  // agent whether or not the user opens the Git Review sidebar.
+  usePrWatchAgentSync(!initialLoading);
   const [showStartupRecovery, setShowStartupRecovery] = useState(false);
   const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
 

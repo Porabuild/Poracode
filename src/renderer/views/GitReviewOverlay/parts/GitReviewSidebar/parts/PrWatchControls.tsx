@@ -18,6 +18,22 @@ function automationMode(watch: PrWatch | null | undefined): PrAutomationMode {
   return watch?.watchEnabled ? "fix" : "off";
 }
 
+/**
+ * Why automation is holding off. The watcher records a reason instead of
+ * launching a fix that cannot help, so the state is worth showing rather than
+ * leaving the PR looking watched when nothing will happen.
+ */
+function blockedMessage(reason: NonNullable<PrWatch["blockedReason"]>): string {
+  if (reason === "agent-unavailable") {
+    return i18n._(
+      msg`Automation is paused: the configured helper agent is unavailable. Check the agent connection and helper settings.`,
+    );
+  }
+  return i18n._(
+    msg`Automation is paused: this PR's branch could not be checked out. Poracode keeps retrying automatically.`,
+  );
+}
+
 export function PrWatchControls(props: {
   projectId: string;
   prNumber: number;
@@ -40,9 +56,13 @@ export function PrWatchControls(props: {
   const refreshPrRef = useRef(props.onRefreshPr);
   const mode = automationMode(watch);
   const enabled = mode !== "off";
+  const blocked = watch?.blockedReason != null && !watch.lastError && !watch.activeThreadId;
   const TriggerIcon = mode === "merge" ? GitMerge : mode === "fix" ? Wrench : Workflow;
-  const triggerLabel =
-    mode === "merge"
+  const triggerLabel = blocked
+    ? mode === "merge"
+      ? t`PR automation paused: Auto Merge`
+      : t`PR automation paused: Auto Fix`
+    : mode === "merge"
       ? t`PR automation: Auto Merge`
       : mode === "fix"
         ? t`PR automation: Auto Fix`
@@ -56,41 +76,18 @@ export function PrWatchControls(props: {
     if (initialWatch !== undefined) onInitialWatchUsed?.();
   }, [initialWatch, onInitialWatchUsed]);
 
+  // Read-only: the watch's helper agent is refreshed app-wide by
+  // usePrWatchAgentSync, so this popover no longer owns that resolution — it used
+  // to, which meant a watch only caught up with the user's current helper while
+  // its PR row happened to be on screen.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        let result = await readBridge().getPrWatch({
+        const result = await readBridge().getPrWatch({
           projectId: props.projectId,
           prNumber: props.prNumber,
         });
-        if ((result?.watchEnabled || result?.autoMerge) && project) {
-          const automation = resolvePrAutomationAgent(
-            project,
-            windowsAgents,
-            wslAgents,
-            useSharedSettings.getState(),
-          );
-          if (
-            automation &&
-            (!result.watchEnabled ||
-              result.agentKind !== automation.agentKind ||
-              result.config?.model !== automation.config.model ||
-              (result.config?.effort ?? "") !== (automation.config.effort ?? "") ||
-              Boolean(result.config?.fast) !== Boolean(automation.config.fast))
-          ) {
-            result = await readBridge().upsertPrWatch({
-              projectId: result.projectId,
-              prNumber: result.prNumber,
-              headBranch: result.headBranch,
-              ...(result.worktreePath ? { worktreePath: result.worktreePath } : {}),
-              watchEnabled: true,
-              autoMerge: result.autoMerge,
-              agentKind: automation.agentKind,
-              config: automation.config,
-            });
-          }
-        }
         if (cancelled) return;
         const shouldRefreshPr = result !== null || watchPresentRef.current;
         watchPresentRef.current = result !== null;
@@ -106,7 +103,7 @@ export function PrWatchControls(props: {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [project, props.prNumber, props.projectId, windowsAgents, wslAgents]);
+  }, [props.prNumber, props.projectId]);
 
   async function update(nextMode: PrAutomationMode): Promise<boolean> {
     if (busy || !project) return false;
@@ -122,15 +119,15 @@ export function PrWatchControls(props: {
         return true;
       }
 
+      // Re-resolve first: reusing the stored agent would carry a stale helper
+      // (from whenever the watch was first enabled) straight back into the row.
+      // The stored agent is only a fallback so a transient detection gap does
+      // not refuse the toggle — usePrWatchAgentSync overwrites it on recovery.
       const automation =
-        watch?.agentKind && watch.config
+        resolvePrAutomationAgent(project, windowsAgents, wslAgents, useSharedSettings.getState()) ??
+        (watch?.agentKind && watch.config
           ? { agentKind: watch.agentKind, config: watch.config }
-          : resolvePrAutomationAgent(
-              project,
-              windowsAgents,
-              wslAgents,
-              useSharedSettings.getState(),
-            );
+          : undefined);
       if (!automation) {
         toast.warning(i18n._(msg`Connect an agent before watching PRs.`));
         return false;
@@ -166,7 +163,7 @@ export function PrWatchControls(props: {
           aria-label={triggerLabel}
           title={triggerLabel}
           className={`flex items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
-            enabled ? "text-foreground" : "text-muted"
+            blocked ? "text-warning" : enabled ? "text-foreground" : "text-muted"
           }`}
         >
           <TriggerIcon className="size-3.5" />
@@ -197,6 +194,10 @@ export function PrWatchControls(props: {
               </p>
             ) : watch?.lastError ? (
               <p className="text-[11px] text-danger">{watch.lastError}</p>
+            ) : watch?.blockedReason ? (
+              <p role="status" className="text-[11px] text-warning">
+                {blockedMessage(watch.blockedReason)}
+              </p>
             ) : null}
           </div>
         </Popover.Dialog>

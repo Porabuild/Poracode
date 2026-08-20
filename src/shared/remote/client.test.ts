@@ -256,6 +256,7 @@ describe("RemoteDesktopClient", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     } as const;
     const client = new RemoteDesktopClient(
       "https://relay.example.test/s/server-1/",
@@ -294,6 +295,13 @@ describe("RemoteDesktopClient", () => {
     await expect(
       client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
     ).resolves.toBeUndefined();
+    await expect(
+      client.syncPrWatchAgent({
+        projectId: watch.projectId,
+        agentKind: watch.agentKind,
+        config: watch.config,
+      }),
+    ).resolves.toBeUndefined();
 
     expect(requests).toEqual([
       {
@@ -316,7 +324,47 @@ describe("RemoteDesktopClient", () => {
         method: "DELETE",
         body: { projectId: watch.projectId, prNumber: watch.prNumber },
       },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches/agent",
+        method: "POST",
+        body: {
+          projectId: watch.projectId,
+          agentKind: watch.agentKind,
+          config: watch.config,
+        },
+      },
     ]);
+  });
+
+  it("accepts PR automation responses from hosts that predate blocked reasons", async () => {
+    const legacyWatch = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    };
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ watch: legacyWatch }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await expect(
+      client.getPrWatch({ projectId: legacyWatch.projectId, prNumber: legacyWatch.prNumber }),
+    ).resolves.toEqual({ ...legacyWatch, blockedReason: null });
   });
 
   it("requests a tail snapshot and encodes older runtime page cursors", async () => {

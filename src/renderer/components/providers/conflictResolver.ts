@@ -35,7 +35,8 @@ export interface ConflictResolverSettings {
   presentationMode: ThreadPresentationMode;
 }
 
-type ConflictResolverSettingsSource = {
+/** The shared-settings fields conflict-resolver resolution actually reads. */
+export type ConflictResolverSettingsSource = {
   conflictResolverProvider: string;
   conflictResolverModel: string;
   conflictResolverEffort: string;

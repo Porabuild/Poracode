@@ -367,6 +367,11 @@ export const DATABASE_MIGRATIONS = [
     name: "project worktree location",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "worktree_location", "TEXT"),
   },
+  {
+    version: 32,
+    name: "pr watch blocked reason",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "blocked_reason", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -440,6 +445,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["threads", "last_turn_ended_at", "TEXT"],
   ["thread_runtime_items", "parent_item_id", "TEXT"],
   ["scheduled_tasks", "project_id", "TEXT"],
+  ["pr_watches", "blocked_reason", "TEXT"],
 ] as const;
 
 /**
@@ -532,6 +538,23 @@ const REQUIRED_COLUMNS = {
     "last_error",
     "created_at",
     "updated_at",
+  ],
+  pr_watches: [
+    "project_id",
+    "pr_number",
+    "head_branch",
+    "worktree_path",
+    "watch_enabled",
+    "auto_merge",
+    "agent_kind",
+    "config",
+    "last_comment_cursor",
+    "last_review_comment_cursor",
+    "last_review_cursor",
+    "last_check_key",
+    "active_thread_id",
+    "last_error",
+    "blocked_reason",
   ],
 } as const;
 

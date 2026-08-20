@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   Experiment,
   PrWatch,
+  PrWatchAgentSync,
   PrWatchInput,
   Project,
   ProjectNotes,
@@ -4524,6 +4525,7 @@ describe("RemoteAccessServer", () => {
         lastCheckKey: null,
         activeThreadId: null,
         lastError: null,
+        blockedReason: null,
       };
       return stored;
     });
@@ -4531,6 +4533,7 @@ describe("RemoteAccessServer", () => {
       stored = null;
     });
     const requestCheck = vi.fn<(projectId: string, prNumber: number) => void>();
+    const syncAgent = vi.fn<(agent: PrWatchAgentSync) => void>();
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
@@ -4542,6 +4545,7 @@ describe("RemoteAccessServer", () => {
         requestCheck,
         upsert,
         delete: remove,
+        syncAgent,
       },
     });
     servers.push(server);
@@ -4605,6 +4609,19 @@ describe("RemoteAccessServer", () => {
     });
     expect(checkResponse.status).toBe(200);
     expect(requestCheck).toHaveBeenCalledWith("project-1", 42);
+
+    const agent = {
+      projectId: "project-1",
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol", effort: "high" },
+    };
+    const syncResponse = await fetch(new URL("/api/pr-watches/agent", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify(agent),
+    });
+    expect(syncResponse.status).toBe(200);
+    expect(syncAgent).toHaveBeenCalledWith(agent);
 
     const deleteResponse = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
       method: "DELETE",

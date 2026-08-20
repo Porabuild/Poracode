@@ -16,6 +16,7 @@ interface PrWatchRow {
   last_check_key: string | null;
   active_thread_id: string | null;
   last_error: string | null;
+  blocked_reason: string | null;
 }
 
 function fromRow(row: PrWatchRow): PrWatch {
@@ -34,6 +35,7 @@ function fromRow(row: PrWatchRow): PrWatch {
     lastCheckKey: row.last_check_key,
     activeThreadId: row.active_thread_id,
     lastError: row.last_error,
+    blockedReason: row.blocked_reason,
   });
 }
 
@@ -60,8 +62,8 @@ export function dbUpsertPrWatch(watch: PrWatch): void {
         project_id, pr_number, head_branch, worktree_path, watch_enabled,
         auto_merge, agent_kind, config, last_comment_cursor,
         last_review_comment_cursor, last_review_cursor, last_check_key,
-        active_thread_id, last_error
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        active_thread_id, last_error, blocked_reason
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(project_id, pr_number) DO UPDATE SET
         head_branch = excluded.head_branch,
         worktree_path = excluded.worktree_path,
@@ -74,7 +76,8 @@ export function dbUpsertPrWatch(watch: PrWatch): void {
         last_review_cursor = excluded.last_review_cursor,
         last_check_key = excluded.last_check_key,
         active_thread_id = excluded.active_thread_id,
-        last_error = excluded.last_error`,
+        last_error = excluded.last_error,
+        blocked_reason = excluded.blocked_reason`,
     )
     .run(
       parsed.projectId,
@@ -91,6 +94,7 @@ export function dbUpsertPrWatch(watch: PrWatch): void {
       parsed.lastCheckKey,
       parsed.activeThreadId,
       parsed.lastError,
+      parsed.blockedReason,
     );
 }
 

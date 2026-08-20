@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
 import {
   closeDatabase,
@@ -53,7 +52,11 @@ import {
   buildSharedAppControlsIngressDeps,
   createAppControlsSupervisorCaller,
 } from "@/main/app-controls";
-import { createDevicePrWatchService, type PrWatchService } from "@/main/prWatch";
+import {
+  buildPrWatchExecutionDeps,
+  createDevicePrWatchService,
+  type PrWatchService,
+} from "@/main/prWatch";
 import { createGitStateExecutor, GitStateService } from "@/main/gitState";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
@@ -288,7 +291,10 @@ export async function createHeadlessRemoteHost(
       const status = dbGetThread(threadId)?.status;
       return status !== undefined && isThreadTurnActive(status);
     },
-    worktreeExists: existsSync,
+    ...buildPrWatchExecutionDeps({
+      call: (name, payload) => supervisorClient.call(name, payload),
+      getSharedSettings,
+    }),
   });
   gitStateService = new GitStateService({
     hostId: identity.desktopId,

@@ -540,6 +540,7 @@ export function createLocalIpcHandlers(
       options.prWatchService.requestCheck(projectId, prNumber),
     upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
     deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
+    syncPrWatchAgent: (agent) => options.prWatchService.syncAgent(agent),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),

@@ -245,6 +245,7 @@ export function initDatabase(dbPath: string) {
       last_check_key TEXT,
       active_thread_id TEXT,
       last_error TEXT,
+      blocked_reason TEXT,
       PRIMARY KEY (project_id, pr_number)
     );
     CREATE TABLE IF NOT EXISTS remote_command_receipts (
