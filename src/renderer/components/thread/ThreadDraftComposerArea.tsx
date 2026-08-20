@@ -44,6 +44,7 @@ import {
   type MentionInputHandle,
 } from "@/renderer/components/composer/MentionInput";
 import {
+  storableAttachment,
   useAttachments,
   type SaveClipboardImage,
 } from "@/renderer/components/composer/useAttachments";
@@ -955,7 +956,12 @@ export function ThreadDraftComposerArea(props: {
     return () => {
       if (submittedRef.current) return;
       if (useAppStore.getState().consumeDraftContentDiscard(pid)) return;
-      const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
+      // Stash path-only attachment copies: `previewUrl` object URLs belong to
+      // this composer's live session and are revoked when it unmounts.
+      const content = {
+        segments: latestSegmentsRef.current,
+        attachments: attachmentsRef.current.map(storableAttachment),
+      };
       if (isDraftContentNonEmpty(content)) {
         saveDraftContent(pid, content);
       }

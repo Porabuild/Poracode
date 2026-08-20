@@ -33,7 +33,11 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "../composer/MentionInput";
-import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
+import {
+  storableAttachment,
+  useAttachments,
+  type SaveClipboardImage,
+} from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
@@ -555,7 +559,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       preparedThreadIdRef.current = thread.id;
       mentionRef.current?.clear();
       latestSegmentsRef.current = [];
-      if (attachments.attachments.length > 0) attachments.clearAll();
+      attachments.clearAll();
       submittedRef.current = false;
       setPrompt("");
       setHasContent(false);
@@ -625,7 +629,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
       if (submittedRef.current) return;
-      const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
+      // Stash path-only attachment copies: `previewUrl` object URLs belong to
+      // this composer's live session and are revoked when it clears/unmounts.
+      const content = {
+        segments: latestSegmentsRef.current,
+        attachments: attachmentsRef.current.map(storableAttachment),
+      };
       if (isDraftContentNonEmpty(content)) {
         saveThreadDraftContent(tid, content);
       } else {
