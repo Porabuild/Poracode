@@ -101,9 +101,19 @@ export const DeferredInlineDiffView = preloadable(() =>
 );
 
 const prewarmTasks = [
-  // Terminal panels initialize xterm and its addons when they first mount.
-  // Warm both layouts first so that work does not compete with the panel's
-  // first-open animation.
+  // The first terminal open is visibly laggy: the surface pays xterm module
+  // evaluation, terminal-font loading, WebGL context creation and shader
+  // compilation while the panel animates in. Warm the rendering runtime with
+  // a throwaway hidden surface first, then load both terminal-layout chunks,
+  // so none of that work competes with the panel's first-open animation.
+  () => {
+    if (document.documentElement.dataset.windowKind === "quickComposer") {
+      return Promise.resolve();
+    }
+    return import("@/renderer/components/terminal/terminalPrewarm").then((module) =>
+      module.prewarmTerminalSurface(),
+    );
+  },
   DeferredDevTerminalPanel.preload,
   DeferredProjectAuxiliaryPanel.preload,
   DeferredCommandPalette.preload,

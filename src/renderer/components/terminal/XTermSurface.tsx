@@ -6,6 +6,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
+import { TERMINAL_FONT_FAMILY } from "./terminalPrewarm";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -396,7 +397,7 @@ export const XTermSurface = forwardRef<
       // renders the visible scrollbar outside the terminal content area.
       scrollbar: { width: TERMINAL_INTERNAL_SCROLLBAR_WIDTH },
       fontSize: baseFontSizeRef.current,
-      fontFamily: "'Geist Mono', 'JetBrains Mono', 'Cascadia Code', monospace",
+      fontFamily: TERMINAL_FONT_FAMILY,
       fontWeight: "normal",
       fontWeightBold: "bold",
       letterSpacing: 0,
