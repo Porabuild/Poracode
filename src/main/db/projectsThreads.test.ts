@@ -159,6 +159,24 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     });
   });
 
+  it("round-trips the project GitHub account through the projects table", () => {
+    dbUpsertProject(
+      {
+        id: "project-1",
+        name: "Test project",
+        location: { kind: "posix", path: "/tmp/project" },
+        ghAccount: { host: "github.com", login: "octocat" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+
+    expect(dbGetProject("project-1")?.ghAccount).toEqual({
+      host: "github.com",
+      login: "octocat",
+    });
+  });
+
   it("round-trips the project workspace through the projects table", () => {
     const project = {
       id: "project-1",
@@ -180,6 +198,65 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     // Unfiling clears the column rather than leaving the previous value behind.
     dbUpsertProject(project, 0);
     expect(dbGetProject("project-1")?.workspaceId).toBeUndefined();
+  });
+
+  it("migrates a schema-v32 project before persisting its GitHub account", () => {
+    closeDatabase();
+    const databasePath = join(dir, "schema-v32.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_kind TEXT NOT NULL,
+        location_path TEXT,
+        location_distro TEXT,
+        location_linux_path TEXT,
+        location_unc_path TEXT,
+        last_draft_config TEXT,
+        scripts TEXT,
+        search_settings TEXT,
+        worktree_location TEXT,
+        mcp_servers TEXT,
+        workspace_id TEXT,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO projects (
+        id, name, location_kind, location_path, disabled, sort_order, created_at
+      ) VALUES (
+        'legacy-project', 'Legacy project', 'posix', '/tmp/legacy-project', 0, 0,
+        '2026-01-01T00:00:00.000Z'
+      );
+      INSERT INTO app_state (key, value) VALUES ('schema_version', '32');
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    expect(dbGetState("schema_version")).toBe("33");
+    const legacyProject = dbGetProject("legacy-project");
+    expect(legacyProject).toMatchObject({
+      id: "legacy-project",
+      name: "Legacy project",
+      location: { kind: "posix", path: "/tmp/legacy-project" },
+    });
+    expect(legacyProject?.ghAccount).toBeUndefined();
+
+    dbUpsertProject({ ...legacyProject!, ghAccount: { host: "github.com", login: "octocat" } }, 0);
+    expect(dbGetProject("legacy-project")?.ghAccount).toEqual({
+      host: "github.com",
+      login: "octocat",
+    });
+    dbUpsertProject(legacyProject!, 0);
+    expect(dbGetProject("legacy-project")?.ghAccount).toBeUndefined();
   });
 
   it("repairs a schema-v28 database that is missing the workspace column", () => {
@@ -323,11 +400,26 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     };
     const viewJson = JSON.stringify({ kind: "home" });
 
-    dbSyncAll([{ ...project, workspaceId: "ws-work" }], [], viewJson);
+    dbSyncAll(
+      [
+        {
+          ...project,
+          workspaceId: "ws-work",
+          ghAccount: { host: "github.com", login: "octocat" },
+        },
+      ],
+      [],
+      viewJson,
+    );
     expect(dbGetProject(project.id)?.workspaceId).toBe("ws-work");
+    expect(dbGetProject(project.id)?.ghAccount).toEqual({
+      host: "github.com",
+      login: "octocat",
+    });
 
     dbSyncAll([{ ...project, workspaceId: "ws-side" }], [], viewJson);
     expect(dbGetProject(project.id)?.workspaceId).toBe("ws-side");
+    expect(dbGetProject(project.id)?.ghAccount).toBeUndefined();
 
     dbSyncAll([project], [], viewJson);
     expect(dbGetProject(project.id)?.workspaceId).toBeUndefined();

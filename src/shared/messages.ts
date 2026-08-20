@@ -10,6 +10,10 @@
 const messages = {
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
+  "github.accountUnavailable":
+    'Couldn\'t access the GitHub account "{login}". Run "gh auth login" and try again.',
+  "github.accountHostMismatch":
+    'The GitHub account "{login}" belongs to {host}, which does not match this project\'s GitHub remote.',
 
   // ── Git: branch / switch ──────────────────────────────────
   "git.switch.dirtyWorktree": "Cannot switch branches — commit or stash your changes first",

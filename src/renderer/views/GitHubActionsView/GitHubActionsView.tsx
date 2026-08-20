@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Play, RefreshCw, Workflow } from "lucide-react";
@@ -14,6 +14,13 @@ import { useGitHubActionsViewModel } from "./useGitHubActionsViewModel";
 const EMPTY_PINNED_WORKFLOWS: number[] = [];
 const RUN_PANEL_EXIT_MS = 200;
 
+function accountRefsEqual(
+  first: { host: string; login: string } | undefined,
+  second: { host: string; login: string } | undefined,
+): boolean {
+  return first?.host === second?.host && first?.login === second?.login;
+}
+
 export function GitHubActionsView(props: {
   projectId?: string;
   runId?: number;
@@ -21,6 +28,7 @@ export function GitHubActionsView(props: {
 }) {
   const { t } = useLingui();
   const {
+    accounts,
     activeProjects,
     definition,
     deleteRun,
@@ -32,7 +40,9 @@ export function GitHubActionsView(props: {
     loadingWorkflows,
     openGitHubActions,
     pendingRunId,
+    resolvedAccount,
     runs,
+    selectedAccount,
     selectedProject,
     selectedRun,
     selectedRunId,
@@ -50,6 +60,7 @@ export function GitHubActionsView(props: {
     selectRun,
     selectWorkflow,
     setDeleteRun,
+    setProjectGhAccount,
   } = useGitHubActionsViewModel(props);
   const pinnedByProject = useSidebarUiStore((state) => state.pinnedGitHubWorkflows);
   const togglePinnedWorkflow = useSidebarUiStore((state) => state.togglePinnedGitHubWorkflow);
@@ -58,6 +69,7 @@ export function GitHubActionsView(props: {
     : EMPTY_PINNED_WORKFLOWS;
   const [dispatchWorkflowId, setDispatchWorkflowId] = useState<number | null>(null);
   const [displayedRun, setDisplayedRun] = useState(selectedRun);
+  const previousAccountRef = useRef(selectedAccount);
   const selectedDefinition = definition?.workflowId === selectedWorkflowId ? definition : null;
   const dispatchOpen = dispatchWorkflowId !== null && dispatchWorkflowId === selectedWorkflowId;
 
@@ -66,9 +78,15 @@ export function GitHubActionsView(props: {
       setDisplayedRun(selectedRun);
       return;
     }
+    const accountChanged = !accountRefsEqual(previousAccountRef.current, selectedAccount);
+    previousAccountRef.current = selectedAccount;
+    if (accountChanged) {
+      setDisplayedRun(null);
+      return;
+    }
     const timeout = window.setTimeout(() => setDisplayedRun(null), RUN_PANEL_EXIT_MS);
     return () => window.clearTimeout(timeout);
-  }, [selectedRun]);
+  }, [selectedAccount, selectedRun]);
 
   useEffect(() => {
     setDispatchWorkflowId(null);
@@ -103,12 +121,16 @@ export function GitHubActionsView(props: {
     <GitHubActionsSidebar
       projects={activeProjects}
       selectedProjectId={selectedProject?.id ?? null}
+      accounts={accounts}
+      {...(selectedAccount ? { selectedAccount } : {})}
+      {...(resolvedAccount ? { resolvedAccount } : {})}
       workflows={workflows}
       selectedWorkflowId={selectedWorkflowId}
       pinnedWorkflowIds={pinnedWorkflowIds}
       loading={loadingWorkflows}
       onClose={props.onClose}
       onSelectProject={openGitHubActions}
+      onSelectAccount={setProjectGhAccount}
       onSelect={selectWorkflowPage}
       onRun={requestWorkflowDispatch}
       onTogglePin={(workflowId) => {

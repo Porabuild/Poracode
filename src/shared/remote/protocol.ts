@@ -15,9 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v3 routes live PR-watch helper-agent resolution to the host that owns the
-// project, so headless watches follow provider/model changes made by a paired app.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 3;
+// v4 carries per-project GitHub account selection through remote Actions calls
+// and project updates, so older hosts cannot silently discard the account scope.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 4;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -266,6 +266,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
       // Project values default an omitted list to [], but a patch must
       // distinguish "not supplied" from an explicit empty list.
       mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
+      ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),

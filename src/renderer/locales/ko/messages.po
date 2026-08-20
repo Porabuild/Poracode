@@ -1527,6 +1527,7 @@ msgstr "내가 작성"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "자동"
@@ -3309,6 +3310,10 @@ msgstr "{serverName}에 로그인할 수 없습니다."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "{serverName}에서 로그아웃할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "GitHub 계정 \"{login}\"에 액세스할 수 없습니다. \"gh auth login\"을 실행한 후 다시 시도하세요."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5311,6 +5316,10 @@ msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "GitHub 계정"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -11670,6 +11679,10 @@ msgstr "실험 후보의 작업 트리를 사용할 수 없습니다."
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "실험 프롬프트가 너무 깁니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "GitHub 계정 \"{login}\"은(는) {host}에 속하며 이 프로젝트의 GitHub 원격 저장소와 일치하지 않습니다."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx

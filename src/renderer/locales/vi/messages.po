@@ -1527,6 +1527,7 @@ msgstr "Do bạn tạo"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Tự động"
@@ -3309,6 +3310,10 @@ msgstr "Không thể đăng nhập vào {serverName}."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "Không thể đăng xuất khỏi {serverName}."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "Không thể truy cập tài khoản GitHub \"{login}\". Hãy chạy \"gh auth login\" rồi thử lại."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5311,6 +5316,10 @@ msgstr "Trạng thái Git cho {0}: không phải kho lưu trữ Git"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "Tài khoản GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -11670,6 +11679,10 @@ msgstr "Cây làm việc của ứng viên thử nghiệm không khả dụng."
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Lời nhắc thử nghiệm quá dài."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "Tài khoản GitHub \"{login}\" thuộc về {host}, không khớp với kho lưu trữ GitHub từ xa của dự án này."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx

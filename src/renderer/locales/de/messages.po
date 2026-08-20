@@ -1527,6 +1527,7 @@ msgstr "Erstellt"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Automatisch"
@@ -3309,6 +3310,10 @@ msgstr "Anmeldung bei {serverName} fehlgeschlagen."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "Abmeldung von {serverName} fehlgeschlagen."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "Konnte nicht auf das GitHub-Konto \"{login}\" zugreifen. Führen Sie \"gh auth login\" aus und versuchen Sie es erneut."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5311,6 +5316,10 @@ msgstr "Git-Status für {0}: kein Git-Repository"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "GitHub-Konto"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -11670,6 +11679,10 @@ msgstr "Der Worktree des Experimentkandidaten ist nicht verfügbar."
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Der Experiment-Prompt ist zu lang."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "Das GitHub-Konto \"{login}\" gehört zu {host}, was nicht mit dem GitHub-Remote dieses Projekts übereinstimmt."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx

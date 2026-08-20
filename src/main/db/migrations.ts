@@ -372,6 +372,11 @@ export const DATABASE_MIGRATIONS = [
     name: "pr watch blocked reason",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "blocked_reason", "TEXT"),
   },
+  {
+    version: 33,
+    name: "project GitHub account",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "gh_account", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -429,6 +434,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "search_settings", "TEXT"],
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
+  ["projects", "gh_account", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -475,6 +481,7 @@ const REQUIRED_COLUMNS = {
     "search_settings",
     "worktree_location",
     "mcp_servers",
+    "gh_account",
     "workspace_id",
     "disabled",
     "sort_order",

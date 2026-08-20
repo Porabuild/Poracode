@@ -1527,6 +1527,7 @@ msgstr "Utworzone przeze mnie"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Auto"
@@ -3309,6 +3310,10 @@ msgstr "Nie udało się zalogować do {serverName}."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "Nie udało się wylogować z {serverName}."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "Nie udało się uzyskać dostępu do konta GitHub \"{login}\". Uruchom \"gh auth login\" i spróbuj ponownie."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5311,6 +5316,10 @@ msgstr "Status Git dla {0}: to nie jest repozytorium Git"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "Konto GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -11670,6 +11679,10 @@ msgstr "Drzewo robocze kandydata eksperymentu jest niedostępne."
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Prompt eksperymentu jest za długi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "Konto GitHub \"{login}\" należy do hosta {host}, który nie odpowiada zdalnemu repozytorium GitHub tego projektu."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
