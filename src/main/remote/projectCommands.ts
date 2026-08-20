@@ -210,7 +210,13 @@ export async function applyRemoteProjectCommand(
         ...project,
         ...Object.fromEntries(Object.entries(command.patch).filter(([, value]) => value !== null)),
       };
-      for (const key of ["scripts", "searchSettings", "worktreeLocation", "mcpServers"] as const) {
+      for (const key of [
+        "scripts",
+        "searchSettings",
+        "worktreeLocation",
+        "mcpServers",
+        "ghAccount",
+      ] as const) {
         if (command.patch[key] !== null) continue;
         const { [key]: _, ...rest } = updated;
         updated = rest;

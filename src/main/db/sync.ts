@@ -101,12 +101,12 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
     INSERT INTO projects (
       id, name, location_kind, location_path, location_distro, location_linux_path,
       location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
-      mcp_servers, workspace_id,
+      mcp_servers, gh_account, workspace_id,
       disabled, sort_order, created_at
     ) VALUES (
       @id, @name, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
       @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
-      @mcpServers, @workspaceId,
+      @mcpServers, @ghAccount, @workspaceId,
       @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
@@ -121,6 +121,7 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
       search_settings = excluded.search_settings,
       worktree_location = excluded.worktree_location,
       mcp_servers = excluded.mcp_servers,
+      gh_account = excluded.gh_account,
       workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
       sort_order = excluded.sort_order

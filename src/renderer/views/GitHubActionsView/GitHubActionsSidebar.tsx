@@ -7,9 +7,15 @@ import {
   PanelLeftClose,
   Pin,
   Play,
+  UserRound,
   Workflow,
 } from "lucide-react";
-import type { GitHubActionsWorkflow, Project } from "@/shared/contracts";
+import type {
+  GitHubAccount,
+  GitHubAccountRef,
+  GitHubActionsWorkflow,
+  Project,
+} from "@/shared/contracts";
 import { SidebarButton } from "@/renderer/components/common";
 import {
   ProjectSelectorIcon,
@@ -30,16 +36,25 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
    wash that stays visible on both idle and active rows. */
 const workflowIconButtonHoverClass =
   "hover:bg-[color:color-mix(in_oklab,var(--foreground)_12%,transparent)]";
+const AUTO_ACCOUNT_KEY = "account:auto";
+
+function accountKey(account: GitHubAccountRef): string {
+  return `account:${encodeURIComponent(account.host)}:${encodeURIComponent(account.login)}`;
+}
 
 export function GitHubActionsSidebar(props: {
   projects: Project[];
   selectedProjectId: string | null;
+  accounts: GitHubAccount[];
+  selectedAccount?: GitHubAccountRef;
+  resolvedAccount?: GitHubAccountRef;
   workflows: GitHubActionsWorkflow[];
   selectedWorkflowId: number | null;
   pinnedWorkflowIds: number[];
   loading: boolean;
   onClose: () => void;
   onSelectProject: (projectId: string) => void;
+  onSelectAccount: (account: GitHubAccountRef | undefined) => void;
   onSelect: (workflowId: number) => void;
   onRun: (workflowId: number) => void;
   onTogglePin: (workflowId: number) => void;
@@ -141,6 +156,80 @@ export function GitHubActionsSidebar(props: {
                   </Dropdown.Menu>
                 </Dropdown.Popover>
               </Dropdown>
+
+              {props.accounts.length >= 2 || props.selectedAccount ? (
+                <Dropdown>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-full min-w-0 justify-start gap-2 rounded-3xl px-2 text-sm text-muted"
+                    aria-label={t`GitHub account`}
+                  >
+                    <UserRound className="size-4 shrink-0" />
+                    <span className="min-w-0 truncate">
+                      {props.selectedAccount?.login ?? t`Auto`}
+                    </span>
+                    {!props.selectedAccount && props.resolvedAccount ? (
+                      <span className="min-w-0 shrink truncate text-xs text-muted/60">
+                        {props.resolvedAccount.login}
+                      </span>
+                    ) : null}
+                    <ChevronsUpDown className="ms-auto size-3.5 shrink-0" />
+                  </Button>
+                  <Dropdown.Popover placement="bottom start" className="min-w-[--trigger-width]">
+                    <Dropdown.Menu
+                      aria-label={t`GitHub account`}
+                      className="poracode-menu"
+                      selectionMode="single"
+                      selectedKeys={[
+                        props.selectedAccount
+                          ? accountKey(props.selectedAccount)
+                          : AUTO_ACCOUNT_KEY,
+                      ]}
+                      onAction={(key) => {
+                        if (key === AUTO_ACCOUNT_KEY) {
+                          props.onSelectAccount(undefined);
+                          return;
+                        }
+                        const account = props.accounts.find(
+                          (item) => accountKey(item) === String(key),
+                        );
+                        if (account) {
+                          props.onSelectAccount({ host: account.host, login: account.login });
+                        }
+                      }}
+                    >
+                      <Dropdown.Item
+                        key={AUTO_ACCOUNT_KEY}
+                        id={AUTO_ACCOUNT_KEY}
+                        textValue={t`Auto`}
+                      >
+                        <Label>{t`Auto`}</Label>
+                        {props.resolvedAccount ? (
+                          <Description>{props.resolvedAccount.login}</Description>
+                        ) : null}
+                        <Dropdown.ItemIndicator />
+                      </Dropdown.Item>
+                      {props.accounts.map((account) => (
+                        <Dropdown.Item
+                          key={accountKey(account)}
+                          id={accountKey(account)}
+                          textValue={`${account.login} ${account.host}`}
+                          aria-label={`${account.login} ${account.host}`}
+                        >
+                          <Label>{account.login}</Label>
+                          {props.accounts.some(
+                            (item) => item !== account && item.login === account.login,
+                          ) ? (
+                            <Description>{account.host}</Description>
+                          ) : null}
+                          <Dropdown.ItemIndicator />
+                        </Dropdown.Item>
+                      ))}
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              ) : null}
             </div>
           ) : null}
 

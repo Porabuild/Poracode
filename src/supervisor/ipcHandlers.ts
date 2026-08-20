@@ -259,25 +259,37 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghGetPrForBranch: (payload) => github.getPrForBranch(payload.projectLocation, payload.branch),
     ghListPrs: async (payload) => ({ prs: await github.listPrs(payload.projectLocation) }),
     ghListPullRequests: (payload) => github.listPullRequests(payload.projectLocation),
-    ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation),
+    ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation, payload.ghAccount),
     ghListWorkflowRuns: (payload) =>
-      github.listWorkflowRuns(payload.projectLocation, payload.workflowId),
+      github.listWorkflowRuns(payload.projectLocation, payload.workflowId, payload.ghAccount),
     ghGetWorkflowDefinition: (payload) =>
-      github.getWorkflowDefinition(payload.projectLocation, payload.workflowId, payload.ref),
-    ghGetWorkflowRun: (payload) => github.getWorkflowRun(payload.projectLocation, payload.runId),
+      github.getWorkflowDefinition(
+        payload.projectLocation,
+        payload.workflowId,
+        payload.ref,
+        payload.ghAccount,
+      ),
+    ghGetWorkflowRun: (payload) =>
+      github.getWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
     ghDispatchWorkflow: (payload) =>
       github.dispatchWorkflow(
         payload.projectLocation,
         payload.workflowId,
         payload.ref,
         payload.inputs,
+        payload.ghAccount,
       ),
     ghRerunWorkflowRun: (payload) =>
-      github.rerunWorkflowRun(payload.projectLocation, payload.runId, payload.failedOnly),
+      github.rerunWorkflowRun(
+        payload.projectLocation,
+        payload.runId,
+        payload.failedOnly,
+        payload.ghAccount,
+      ),
     ghCancelWorkflowRun: (payload) =>
-      github.cancelWorkflowRun(payload.projectLocation, payload.runId),
+      github.cancelWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
     ghDeleteWorkflowRun: (payload) =>
-      github.deleteWorkflowRun(payload.projectLocation, payload.runId),
+      github.deleteWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
     ghMergePr: (payload) =>
       github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
     ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),
