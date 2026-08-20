@@ -150,6 +150,7 @@ describe("applyRemoteProjectCommand", () => {
         patch: {
           name: "After",
           scripts: { actions: [], setupScript: "pnpm install" },
+          ghAccount: { host: "github.com", login: "octocat" },
           disabled: true,
         },
       },
@@ -165,6 +166,7 @@ describe("applyRemoteProjectCommand", () => {
       }),
     );
     expect(result.project?.scripts?.setupScript).toBe("pnpm install");
+    expect(result.project?.ghAccount).toEqual({ host: "github.com", login: "octocat" });
   });
 
   it("clears optional project settings when the patch uses null", async () => {
@@ -177,6 +179,7 @@ describe("applyRemoteProjectCommand", () => {
       scripts: { actions: [], setupScript: "pnpm install" },
       searchSettings: { useIgnoreFiles: false },
       mcpServers: [],
+      ghAccount: { host: "github.com", login: "octocat" },
       createdAt: NOW,
     });
 
@@ -184,7 +187,13 @@ describe("applyRemoteProjectCommand", () => {
       {
         kind: "update",
         projectId: "p1",
-        patch: { icon: null, scripts: null, searchSettings: null, mcpServers: null },
+        patch: {
+          icon: null,
+          scripts: null,
+          searchSettings: null,
+          mcpServers: null,
+          ghAccount: null,
+        },
       },
       deps,
     );
@@ -199,6 +208,7 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.project).not.toHaveProperty("scripts");
     expect(result.project).not.toHaveProperty("searchSettings");
     expect(result.project).not.toHaveProperty("mcpServers");
+    expect(result.project).not.toHaveProperty("ghAccount");
   });
 
   it("sets and updates the project icon through the patch", async () => {

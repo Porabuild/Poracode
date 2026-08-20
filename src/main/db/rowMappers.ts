@@ -23,6 +23,7 @@ export function projectMutableRow(project: Project) {
     searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
     worktreeLocation: project.worktreeLocation ? JSON.stringify(project.worktreeLocation) : null,
     mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
+    ghAccount: project.ghAccount ? JSON.stringify(project.ghAccount) : null,
     workspaceId: project.workspaceId ?? null,
     disabled: !!project.disabled,
   };
@@ -60,6 +61,7 @@ export function rowToProject(row: typeof schema.projects.$inferSelect): Project 
     ...(row.searchSettings ? { searchSettings: JSON.parse(row.searchSettings) } : {}),
     ...(row.worktreeLocation ? { worktreeLocation: JSON.parse(row.worktreeLocation) } : {}),
     ...(row.mcpServers ? { mcpServers: JSON.parse(row.mcpServers) } : {}),
+    ...(row.ghAccount ? { ghAccount: JSON.parse(row.ghAccount) } : {}),
     ...(row.workspaceId ? { workspaceId: row.workspaceId } : {}),
     ...(row.disabled ? { disabled: true } : {}),
     createdAt: row.createdAt,

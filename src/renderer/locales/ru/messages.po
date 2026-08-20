@@ -1531,6 +1531,7 @@ msgstr "Созданные мной"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Авто"
@@ -3334,6 +3335,10 @@ msgstr "Не удалось войти в {serverName}."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "Не удалось выйти из {serverName}."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "Не удалось получить доступ к аккаунту GitHub \"{login}\". Выполните \"gh auth login\" и повторите попытку."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5374,6 +5379,10 @@ msgstr "Состояние Git для {0}: не репозиторий Git"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "Аккаунт GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -8494,6 +8503,7 @@ msgstr "Приостановить"
 msgid "Pause goal"
 msgstr "Приостановить цель"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -11823,6 +11833,10 @@ msgstr "Worktree кандидата эксперимента недоступе�
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Промпт эксперимента слишком длинный."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "Аккаунт GitHub \"{login}\" относится к {host}, который не совпадает с удалённым репозиторием GitHub этого проекта."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx

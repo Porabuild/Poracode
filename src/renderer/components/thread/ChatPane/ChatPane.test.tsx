@@ -1180,6 +1180,43 @@ describe("ChatPane", () => {
     expect(screen.queryByLabelText("error")).not.toBeInTheDocument();
   });
 
+  it.each([
+    { subAgentStatus: "cancelled" as const, status: "error" as const, label: "cancelled" },
+    { subAgentStatus: "paused" as const, status: "success" as const, label: "Paused" },
+  ])("shows a $subAgentStatus native subagent without an error indicator", async (terminal) => {
+    const thread = makeThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: `subagent-${terminal.subAgentStatus}`,
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        isSubAgent: true,
+        subAgentStatus: "running",
+      },
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: `subagent-${terminal.subAgentStatus}`,
+      payload: {
+        name: "Agent",
+        status: terminal.status,
+        isSubAgent: true,
+        subAgentStatus: terminal.subAgentStatus,
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const row = await screen.findByRole("button", { name: /Open subagent:/ });
+    expect(row).toHaveTextContent(terminal.label);
+    expect(screen.queryByLabelText("error")).not.toBeInTheDocument();
+  });
+
   it("separates the collapsed Agent label from its step count", async () => {
     const thread = makeThread();
     useAppStore.getState().applyRuntimeEvent(thread.id, {

@@ -12,6 +12,13 @@ import { i18n } from "./i18n";
  */
 const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "git.commandFailed": msg({ message: "Git {command} failed: {detail}" }),
+  "github.accountUnavailable": msg({
+    message: 'Couldn\'t access the GitHub account "{login}". Run "gh auth login" and try again.',
+  }),
+  "github.accountHostMismatch": msg({
+    message:
+      'The GitHub account "{login}" belongs to {host}, which does not match this project\'s GitHub remote.',
+  }),
   "git.switch.dirtyWorktree": msg({
     message: "Cannot switch branches — commit or stash your changes first",
   }),

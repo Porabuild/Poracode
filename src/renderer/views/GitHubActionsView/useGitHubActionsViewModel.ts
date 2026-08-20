@@ -3,6 +3,8 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import type {
+  GitHubAccount,
+  GitHubAccountRef,
   GitHubActionsRun,
   GitHubActionsWorkflow,
   GitHubActionsWorkflowDefinition,
@@ -10,6 +12,7 @@ import type {
 import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { updateProjectGhAccount } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 
@@ -20,12 +23,36 @@ function workflowRunIsActive(run: GitHubActionsRun): boolean {
   return run.status.toLowerCase() !== "completed";
 }
 
-function workflowCacheKey(projectId: string, workflowId: number): string {
-  return `${projectId}\0${workflowId}`;
+function accountRefsEqual(
+  first: GitHubAccountRef | undefined,
+  second: GitHubAccountRef | undefined,
+): boolean {
+  return first?.host === second?.host && first?.login === second?.login;
 }
 
-function definitionCacheKey(projectId: string, workflowId: number, ref?: string): string {
-  return `${workflowCacheKey(projectId, workflowId)}\0${ref ?? ""}`;
+function accountCacheKey(account: GitHubAccountRef): string {
+  return `${encodeURIComponent(account.host)}:${encodeURIComponent(account.login)}`;
+}
+
+function projectAccountCacheKey(projectId: string, account: GitHubAccountRef): string {
+  return `${projectId}\0account:${accountCacheKey(account)}`;
+}
+
+function workflowCacheKey(
+  projectId: string,
+  workflowId: number,
+  account: GitHubAccountRef,
+): string {
+  return `${projectAccountCacheKey(projectId, account)}\0${workflowId}`;
+}
+
+function definitionCacheKey(
+  projectId: string,
+  workflowId: number,
+  account: GitHubAccountRef,
+  ref?: string,
+): string {
+  return `${workflowCacheKey(projectId, workflowId, account)}\0${ref ?? ""}`;
 }
 
 // Module scope rather than refs: the overlay unmounts on close, so per-instance
@@ -90,24 +117,47 @@ function resolveSelectedWorkflowId(
   return firstPinnedWorkflowId ?? workflows[0]?.id ?? null;
 }
 
-function cachedWorkflowsFor(projectId: string | undefined): GitHubActionsWorkflow[] | undefined {
-  return projectId ? readCache(workflowsCache, projectId, WORKFLOWS_CACHE_TTL_MS) : undefined;
+function cachedWorkflowsFor(
+  projectId: string | undefined,
+  account: GitHubAccountRef | undefined,
+): GitHubActionsWorkflow[] | undefined {
+  return projectId && account
+    ? readCache(workflowsCache, projectAccountCacheKey(projectId, account), WORKFLOWS_CACHE_TTL_MS)
+    : undefined;
 }
 
-function cachedRunsFor(projectId: string, workflowId: number): GitHubActionsRun[] | undefined {
-  return readCache(runsCache, workflowCacheKey(projectId, workflowId), RUNS_CACHE_TTL_MS);
+function cachedWorkflowsForProject(
+  projectId: string | undefined,
+): GitHubActionsWorkflow[] | undefined {
+  const account = projectId
+    ? useAppStore.getState().projects.find((project) => project.id === projectId)?.ghAccount
+    : undefined;
+  return cachedWorkflowsFor(projectId, account);
+}
+
+function cachedRunsFor(
+  projectId: string,
+  workflowId: number,
+  account: GitHubAccountRef | undefined,
+): GitHubActionsRun[] | undefined {
+  return account
+    ? readCache(runsCache, workflowCacheKey(projectId, workflowId, account), RUNS_CACHE_TTL_MS)
+    : undefined;
 }
 
 function cachedDefinitionFor(
   projectId: string,
   workflowId: number,
+  account: GitHubAccountRef | undefined,
   ref?: string,
 ): GitHubActionsWorkflowDefinition | undefined {
-  return readCache(
-    definitionCache,
-    definitionCacheKey(projectId, workflowId, ref),
-    DEFINITION_CACHE_TTL_MS,
-  );
+  return account
+    ? readCache(
+        definitionCache,
+        definitionCacheKey(projectId, workflowId, account, ref),
+        DEFINITION_CACHE_TTL_MS,
+      )
+    : undefined;
 }
 
 /**
@@ -131,9 +181,19 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const selectedProject =
     activeProjects.find((project) => project.id === props.projectId) ?? activeProjects[0];
   const selectedProjectId = selectedProject?.id;
+  const [pendingAccountSelection, setPendingAccountSelection] = useState<{
+    projectId: string;
+    account: GitHubAccountRef | undefined;
+  } | null>(null);
+  const persistedGhAccount = selectedProject?.ghAccount;
+  const ghAccount =
+    pendingAccountSelection && pendingAccountSelection.projectId === selectedProjectId
+      ? pendingAccountSelection.account
+      : persistedGhAccount;
   // Seeded from the cross-open cache so a reopen renders the last known list on
-  // its first frame instead of an empty sidebar.
-  const seedWorkflows = cachedWorkflowsFor(selectedProjectId);
+  // its first frame instead of an empty sidebar. Auto-detected data is not
+  // seeded because the effective account is unknown until this load resolves.
+  const seedWorkflows = cachedWorkflowsFor(selectedProjectId, ghAccount);
   const [workflows, setWorkflows] = useState<GitHubActionsWorkflow[]>(
     seedWorkflows ?? EMPTY_WORKFLOWS,
   );
@@ -159,6 +219,10 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const [dispatching, setDispatching] = useState(false);
   const [pendingRunId, setPendingRunId] = useState<number | null>(null);
   const [deleteRun, setDeleteRun] = useState<GitHubActionsRun | null>(null);
+  const [accounts, setAccounts] = useState<GitHubAccount[]>([]);
+  const [resolvedAccount, setResolvedAccount] = useState<GitHubAccountRef | undefined>();
+  const accountSelectionRequestRef = useRef(0);
+  const previousGhAccountRef = useRef(ghAccount);
   // A selection derived from the cache seed is a guess, not a choice: once the
   // real list lands it must still resolve to the default (first pinned), or a
   // workflow pinned while the overlay was closed would be ignored. Only an
@@ -170,7 +234,10 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   // extra render out) instead of blanking it before the first paint.
   useEffect(() => {
     userPickedWorkflowRef.current = false;
-    const cached = cachedWorkflowsFor(selectedProjectId);
+    setPendingAccountSelection((pending) =>
+      pending?.projectId === selectedProjectId ? pending : null,
+    );
+    const cached = cachedWorkflowsForProject(selectedProjectId);
     setWorkflows(cached ?? EMPTY_WORKFLOWS);
     setRuns(EMPTY_RUNS);
     setSelectedWorkflowId(
@@ -186,7 +253,53 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     setLoadingDefinition(false);
     setLoadError(null);
     setDispatchRequestedAt(null);
+    setResolvedAccount(undefined);
   }, [props.runId, selectedProjectId]);
+
+  useEffect(() => {
+    if (accountRefsEqual(previousGhAccountRef.current, ghAccount)) return;
+    previousGhAccountRef.current = ghAccount;
+    setWorkflows(EMPTY_WORKFLOWS);
+    setRuns(EMPTY_RUNS);
+    setSelectedWorkflowId(null);
+    setSelectedRunId(null);
+    setSelectedRunDetails(null);
+    setDefinition(null);
+    setDefinitionRef(undefined);
+    setDeleteRun(null);
+    setLoadError(null);
+    setLoadingWorkflows(true);
+    setResolvedAccount(undefined);
+  }, [ghAccount]);
+
+  useEffect(() => {
+    if (
+      pendingAccountSelection &&
+      pendingAccountSelection.projectId === selectedProjectId &&
+      accountRefsEqual(selectedProject?.ghAccount, pendingAccountSelection.account)
+    ) {
+      setPendingAccountSelection(null);
+    }
+  }, [pendingAccountSelection, selectedProject?.ghAccount, selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProject) {
+      setAccounts([]);
+      return;
+    }
+    let cancelled = false;
+    void readBridge()
+      .ghListAccounts({ runtime: selectedProject.location })
+      .then((result) => {
+        if (!cancelled) setAccounts(result.accounts);
+      })
+      .catch(() => {
+        if (!cancelled) setAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProject]);
 
   useEffect(() => {
     if (!selectedProject) {
@@ -197,15 +310,25 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     setLoadingWorkflows(true);
     setLoadError(null);
     void readBridge()
-      .ghListWorkflows({ projectLocation: selectedProject.location })
+      .ghListWorkflows({
+        projectLocation: selectedProject.location,
+        ...(ghAccount ? { ghAccount } : {}),
+      })
       .then(
         (result) => {
           if (cancelled) return;
           const activeWorkflows = result.workflows.filter(
             (workflow) => workflow.state.toLowerCase() === "active",
           );
-          writeCache(workflowsCache, selectedProject.id, activeWorkflows);
+          if (ghAccount) {
+            writeCache(
+              workflowsCache,
+              projectAccountCacheKey(selectedProject.id, ghAccount),
+              activeWorkflows,
+            );
+          }
           setWorkflows(activeWorkflows);
+          setResolvedAccount(result.account);
           setSelectedWorkflowId((current) =>
             resolveSelectedWorkflowId(
               selectedProject.id,
@@ -220,7 +343,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
           // Keep whatever the cache seeded — showing a stale list beside the
           // error beats blanking the sidebar on a transient gh failure. An
           // expired entry counts as absent, so this clears once the TTL lapses.
-          if (!cachedWorkflowsFor(selectedProject.id)) setWorkflows(EMPTY_WORKFLOWS);
+          if (!cachedWorkflowsFor(selectedProject.id, ghAccount)) setWorkflows(EMPTY_WORKFLOWS);
           setLoadError(friendlyError(error));
           setLoadingWorkflows(false);
         },
@@ -228,7 +351,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [selectedProject, workflowRefreshVersion]);
+  }, [ghAccount, selectedProject, workflowRefreshVersion]);
 
   useEffect(() => {
     if (!selectedProject || !selectedWorkflowId) {
@@ -237,8 +360,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       return;
     }
     let cancelled = false;
-    const cacheKey = workflowCacheKey(selectedProject.id, selectedWorkflowId);
-    const cachedRuns = cachedRunsFor(selectedProject.id, selectedWorkflowId);
+    const cachedRuns = cachedRunsFor(selectedProject.id, selectedWorkflowId, ghAccount);
     setRuns(cachedRuns ?? EMPTY_RUNS);
     setLoadingRuns(true);
     setLoadError(null);
@@ -246,11 +368,18 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       .ghListWorkflowRuns({
         projectLocation: selectedProject.location,
         workflowId: selectedWorkflowId,
+        ...(ghAccount ? { ghAccount } : {}),
       })
       .then(
         (result) => {
           if (cancelled) return;
-          writeCache(runsCache, cacheKey, result.runs);
+          if (ghAccount) {
+            writeCache(
+              runsCache,
+              workflowCacheKey(selectedProject.id, selectedWorkflowId, ghAccount),
+              result.runs,
+            );
+          }
           setRuns(result.runs);
           if (
             dispatchRequestedAt !== null &&
@@ -274,7 +403,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [dispatchRequestedAt, runsRefreshVersion, selectedProject, selectedWorkflowId]);
+  }, [dispatchRequestedAt, ghAccount, runsRefreshVersion, selectedProject, selectedWorkflowId]);
 
   useEffect(() => {
     if (!selectedProject || !selectedWorkflowId) {
@@ -283,10 +412,10 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       return;
     }
     let cancelled = false;
-    const cacheKey = definitionCacheKey(selectedProject.id, selectedWorkflowId, definitionRef);
     const cachedDefinition = cachedDefinitionFor(
       selectedProject.id,
       selectedWorkflowId,
+      ghAccount,
       definitionRef,
     );
     setDefinition(cachedDefinition ?? null);
@@ -296,11 +425,18 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
         projectLocation: selectedProject.location,
         workflowId: selectedWorkflowId,
         ...(definitionRef ? { ref: definitionRef } : {}),
+        ...(ghAccount ? { ghAccount } : {}),
       })
       .then(
         (result) => {
           if (cancelled) return;
-          writeCache(definitionCache, cacheKey, result.definition);
+          if (ghAccount) {
+            writeCache(
+              definitionCache,
+              definitionCacheKey(selectedProject.id, selectedWorkflowId, ghAccount, definitionRef),
+              result.definition,
+            );
+          }
           setDefinition(result.definition);
           setLoadingDefinition(false);
         },
@@ -314,7 +450,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [definitionRef, selectedProject, selectedWorkflowId, workflowRefreshVersion]);
+  }, [definitionRef, ghAccount, selectedProject, selectedWorkflowId, workflowRefreshVersion]);
 
   useEffect(() => {
     if (!selectedProject || !selectedRunId) {
@@ -328,6 +464,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       .ghGetWorkflowRun({
         projectLocation: selectedProject.location,
         runId: selectedRunId,
+        ...(ghAccount ? { ghAccount } : {}),
       })
       .then(
         (result) => {
@@ -346,7 +483,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [runRefreshVersion, selectedProject, selectedRunId]);
+  }, [ghAccount, runRefreshVersion, selectedProject, selectedRunId]);
 
   const hasActiveRuns = runs.some(workflowRunIsActive);
   useEffect(() => {
@@ -376,9 +513,11 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       setSelectedRunDetails(null);
       return;
     }
-    const cachedRuns = selectedProjectId ? cachedRunsFor(selectedProjectId, workflowId) : undefined;
+    const cachedRuns = selectedProjectId
+      ? cachedRunsFor(selectedProjectId, workflowId, ghAccount)
+      : undefined;
     const cachedDefinition = selectedProjectId
-      ? cachedDefinitionFor(selectedProjectId, workflowId)
+      ? cachedDefinitionFor(selectedProjectId, workflowId, ghAccount)
       : undefined;
     setSelectedWorkflowId(workflowId);
     setSelectedRunId(null);
@@ -400,7 +539,9 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       return;
     }
     setDefinitionRef(ref);
-    setDefinition(cachedDefinitionFor(selectedProjectId, selectedWorkflowId, ref) ?? null);
+    setDefinition(
+      cachedDefinitionFor(selectedProjectId, selectedWorkflowId, ghAccount, ref) ?? null,
+    );
     setLoadingDefinition(true);
   }
 
@@ -408,6 +549,37 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     setWorkflowRefreshVersion((current) => current + 1);
     setRunsRefreshVersion((current) => current + 1);
     if (selectedRunId) setRunRefreshVersion((current) => current + 1);
+  }
+
+  function setProjectGhAccount(account: GitHubAccountRef | undefined) {
+    if (!selectedProjectId) return;
+    if (accountRefsEqual(ghAccount, account)) return;
+    const requestId = ++accountSelectionRequestRef.current;
+    setPendingAccountSelection({ projectId: selectedProjectId, account });
+    // Cached lists belong to the previous account's view of the repository.
+    for (const cache of [workflowsCache, runsCache, definitionCache]) {
+      for (const key of cache.keys()) {
+        if (key === selectedProjectId || key.startsWith(`${selectedProjectId}\0`)) {
+          cache.delete(key);
+        }
+      }
+    }
+    setWorkflows(EMPTY_WORKFLOWS);
+    setRuns(EMPTY_RUNS);
+    setSelectedWorkflowId(null);
+    setSelectedRunId(null);
+    setSelectedRunDetails(null);
+    setDefinition(null);
+    setDefinitionRef(undefined);
+    setDeleteRun(null);
+    setLoadError(null);
+    setLoadingWorkflows(true);
+    setResolvedAccount(undefined);
+    void updateProjectGhAccount(selectedProjectId, account).then((accepted) => {
+      if (!accepted && requestId === accountSelectionRequestRef.current) {
+        setPendingAccountSelection(null);
+      }
+    });
   }
 
   async function dispatchWorkflow(ref: string, inputs: Record<string, string>) {
@@ -419,6 +591,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
         workflowId: selectedWorkflow.id,
         ref,
         inputs,
+        ...(ghAccount ? { ghAccount } : {}),
       });
       setDispatchRequestedAt(Date.now());
       setRunsRefreshVersion((current) => current + 1);
@@ -440,6 +613,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
         projectLocation: selectedProject.location,
         runId: run.id,
         failedOnly,
+        ...(ghAccount ? { ghAccount } : {}),
       });
       setRunsRefreshVersion((current) => current + 1);
       setRunRefreshVersion((current) => current + 1);
@@ -460,6 +634,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       await readBridge().ghCancelWorkflowRun({
         projectLocation: selectedProject.location,
         runId: run.id,
+        ...(ghAccount ? { ghAccount } : {}),
       });
       setRunsRefreshVersion((current) => current + 1);
       setRunRefreshVersion((current) => current + 1);
@@ -479,11 +654,16 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       await readBridge().ghDeleteWorkflowRun({
         projectLocation: selectedProject.location,
         runId,
+        ...(ghAccount ? { ghAccount } : {}),
       });
       setRuns((current) => {
         const nextRuns = current.filter((run) => run.id !== runId);
-        if (selectedProjectId && selectedWorkflowId) {
-          writeCache(runsCache, workflowCacheKey(selectedProjectId, selectedWorkflowId), nextRuns);
+        if (selectedProjectId && selectedWorkflowId && ghAccount) {
+          writeCache(
+            runsCache,
+            workflowCacheKey(selectedProjectId, selectedWorkflowId, ghAccount),
+            nextRuns,
+          );
         }
         return nextRuns;
       });
@@ -501,6 +681,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   }
 
   return {
+    accounts,
     activeProjects,
     definition,
     deleteRun,
@@ -512,7 +693,9 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     loadingWorkflows,
     openGitHubActions,
     pendingRunId,
+    resolvedAccount,
     runs,
+    selectedAccount: ghAccount,
     selectedProject,
     selectedRun,
     selectedRunId,
@@ -530,5 +713,6 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     selectRun: setSelectedRunId,
     selectWorkflow,
     setDeleteRun,
+    setProjectGhAccount,
   };
 }

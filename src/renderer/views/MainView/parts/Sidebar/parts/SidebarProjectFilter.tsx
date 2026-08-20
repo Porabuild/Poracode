@@ -112,6 +112,7 @@ function useFilterDismissal(args: {
  */
 function ProjectRowMenuButton(props: {
   project: Project;
+  className?: string;
   onOpenMenu: (anchor: { x: number; y: number }) => void;
 }) {
   const { t } = useLingui();
@@ -126,7 +127,7 @@ function ProjectRowMenuButton(props: {
       role="button"
       tabIndex={0}
       aria-label={t`Project actions for ${props.project.name}`}
-      className="-mr-1 flex size-5 shrink-0 items-center justify-center rounded text-muted/60 hover:bg-[var(--row-hover)] hover:text-foreground"
+      className={`${props.className ?? ""} -mr-1 flex size-5 shrink-0 items-center justify-center rounded text-muted/60 hover:bg-[var(--row-hover)] hover:text-foreground`}
       onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -530,9 +531,15 @@ export function SidebarProjectFilter(props: {
                   {isHomeProject(project) ? null : (
                     <ProjectRowMenuButton
                       project={project}
+                      className="ms-auto"
                       onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
                     />
                   )}
+                  {/* Invisible while unselected; marks the row as having an
+                     indicator so `.menu-item` picks up the same left inset
+                     (ps-7) the selectable rows have. The button itself is
+                     right-aligned by `ms-auto`, not by this spacer. */}
+                  <Dropdown.ItemIndicator />
                 </Dropdown.Item>
               );
             })}

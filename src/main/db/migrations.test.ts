@@ -37,9 +37,10 @@ describe("database migration registry", () => {
       [30, "repair empty thread models"],
       [31, "project worktree location"],
       [32, "pr watch blocked reason"],
-      [33, "projects.icon"],
+      [33, "project GitHub account"],
+      [34, "projects.icon"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(33);
+    expect(LATEST_SCHEMA_VERSION).toBe(34);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

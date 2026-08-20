@@ -1,6 +1,7 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type {
+  GitHubAccountRef,
   McpServer,
   Project,
   ProjectLocation,
@@ -30,6 +31,8 @@ import { discardExperiment } from "./experimentActions";
 let homeScopeLocationPromise: Promise<ProjectLocation> | null = null;
 
 type RemoteProjectPatch = Extract<RemoteProjectCommand, { kind: "update" }>["patch"];
+
+const remoteGhAccountMutationQueues = new Map<string, Promise<boolean>>();
 
 function dispatchRemoteProjectMutation(
   project: Project,
@@ -120,6 +123,46 @@ export function updateProjectMcpServers(projectId: string, mcpServers: McpServer
   )
     return;
   apply();
+}
+
+export function updateProjectGhAccount(
+  projectId: string,
+  ghAccount: GitHubAccountRef | undefined,
+): Promise<boolean> {
+  const store = useAppStore.getState();
+  const project = store.projects.find((candidate) => candidate.id === projectId);
+  if (!project) return Promise.resolve(false);
+  const apply = () => useAppStore.getState().updateProjectGhAccount(projectId, ghAccount);
+  const owner = remoteOwner(project);
+  if (!owner) {
+    apply();
+    return Promise.resolve(true);
+  }
+
+  const key = `${owner.desktopId}\0${owner.remoteId}`;
+  const execute = async (): Promise<boolean> => {
+    try {
+      await useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
+        kind: "update",
+        projectId: owner.remoteId,
+        patch: { ghAccount: ghAccount ?? null },
+      });
+      apply();
+      return true;
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return false;
+    }
+  };
+  const previous = remoteGhAccountMutationQueues.get(key);
+  const current = previous ? previous.catch(() => false).then(execute) : execute();
+  remoteGhAccountMutationQueues.set(key, current);
+  void current.then(() => {
+    if (remoteGhAccountMutationQueues.get(key) === current) {
+      remoteGhAccountMutationQueues.delete(key);
+    }
+  });
+  return current;
 }
 
 export function loadHomeScopeLocation(): Promise<ProjectLocation> {

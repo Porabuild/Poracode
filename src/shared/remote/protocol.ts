@@ -15,8 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v4 carries project icon metadata and project-icon update patches across the
-// paired-client boundary.
+// v4 carries project icon metadata and project-icon update patches, plus
+// per-project GitHub account selection through remote Actions calls and project
+// updates, so older hosts cannot silently discard either scope.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 4;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -267,6 +268,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
       // Project values default an omitted list to [], but a patch must
       // distinguish "not supplied" from an explicit empty list.
       mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
+      ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),

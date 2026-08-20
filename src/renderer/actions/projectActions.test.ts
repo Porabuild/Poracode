@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { McpServer, Project, ProjectScripts } from "@/shared/contracts";
+import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   setProjectDisabled,
+  updateProjectGhAccount,
   updateProjectIcon,
   updateProjectMcpServers,
   updateProjectScripts,
@@ -107,6 +108,73 @@ describe("remote project actions", () => {
       projectId: "remote-project",
       patch: { mcpServers },
     });
+  });
+
+  it("persists the GitHub account on the remote host before applying it locally", async () => {
+    let accept: (() => void) | undefined;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const account: GitHubAccountRef = { host: "github.com", login: "octocat" };
+
+    const request = updateProjectGhAccount(project.id, account);
+
+    expect(useAppStore.getState().projects[0]?.ghAccount).toBeUndefined();
+    accept?.();
+    await expect(request).resolves.toBe(true);
+    await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.ghAccount).toEqual(account));
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { ghAccount: account },
+    });
+  });
+
+  it("serializes rapid GitHub account changes for a remote project", async () => {
+    let acceptFirst: (() => void) | undefined;
+    let acceptSecond: (() => void) | undefined;
+    runProjectCommand
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            acceptFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            acceptSecond = resolve;
+          }),
+      );
+    const first = { host: "github.com", login: "first" };
+    const second = { host: "github.com", login: "second" };
+
+    const firstRequest = updateProjectGhAccount(project.id, first);
+    const secondRequest = updateProjectGhAccount(project.id, second);
+
+    expect(runProjectCommand).toHaveBeenCalledTimes(1);
+    acceptFirst?.();
+    await vi.waitFor(() => expect(runProjectCommand).toHaveBeenCalledTimes(2));
+    expect(useAppStore.getState().projects[0]?.ghAccount).toEqual(first);
+
+    acceptSecond?.();
+    await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([true, true]);
+    expect(useAppStore.getState().projects[0]?.ghAccount).toEqual(second);
+    expect(runProjectCommand.mock.calls.map(([, command]) => command)).toEqual([
+      {
+        kind: "update",
+        projectId: "remote-project",
+        patch: { ghAccount: first },
+      },
+      {
+        kind: "update",
+        projectId: "remote-project",
+        patch: { ghAccount: second },
+      },
+    ]);
   });
 
   it("does not disable a remote project until the host accepts the command", async () => {

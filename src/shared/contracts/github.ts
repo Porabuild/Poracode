@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
 
+/** Identifies a signed-in account so the supervisor can scope `gh` to it. */
+export const gitHubAccountRefSchema = z.object({
+  host: z.string().min(1),
+  login: z.string().min(1),
+});
+export type GitHubAccountRef = z.infer<typeof gitHubAccountRefSchema>;
+
 export type PrState = "open" | "draft" | "merged" | "closed";
 export const prMergeMethodSchema = z.enum(["merge", "squash", "rebase"]);
 export type PrMergeMethod = z.infer<typeof prMergeMethodSchema>;
@@ -253,16 +260,20 @@ export interface GitHubActionsRun {
 
 export const ghListWorkflowsPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhListWorkflowsPayload = z.infer<typeof ghListWorkflowsPayloadSchema>;
 
 export interface GhListWorkflowsResult {
   workflows: GitHubActionsWorkflow[];
+  /** The account the supervisor scoped these calls to (override or detected). */
+  account?: GitHubAccountRef;
 }
 
 export const ghListWorkflowRunsPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   workflowId: z.number().int().min(1).optional(),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhListWorkflowRunsPayload = z.infer<typeof ghListWorkflowRunsPayloadSchema>;
 
@@ -274,6 +285,7 @@ export const ghGetWorkflowDefinitionPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   workflowId: z.number().int().min(1),
   ref: z.string().min(1).optional(),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhGetWorkflowDefinitionPayload = z.infer<typeof ghGetWorkflowDefinitionPayloadSchema>;
 
@@ -284,6 +296,7 @@ export interface GhGetWorkflowDefinitionResult {
 export const ghGetWorkflowRunPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   runId: z.number().int().min(1),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhGetWorkflowRunPayload = z.infer<typeof ghGetWorkflowRunPayloadSchema>;
 
@@ -296,6 +309,7 @@ export const ghDispatchWorkflowPayloadSchema = z.object({
   workflowId: z.number().int().min(1),
   ref: z.string().min(1).optional(),
   inputs: z.record(z.string().min(1), z.string()).default({}),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhDispatchWorkflowPayload = z.infer<typeof ghDispatchWorkflowPayloadSchema>;
 
@@ -303,18 +317,21 @@ export const ghRerunWorkflowRunPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   runId: z.number().int().min(1),
   failedOnly: z.boolean().default(false),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhRerunWorkflowRunPayload = z.infer<typeof ghRerunWorkflowRunPayloadSchema>;
 
 export const ghCancelWorkflowRunPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   runId: z.number().int().min(1),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhCancelWorkflowRunPayload = z.infer<typeof ghCancelWorkflowRunPayloadSchema>;
 
 export const ghDeleteWorkflowRunPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   runId: z.number().int().min(1),
+  ghAccount: gitHubAccountRefSchema.optional(),
 });
 export type GhDeleteWorkflowRunPayload = z.infer<typeof ghDeleteWorkflowRunPayloadSchema>;
 
@@ -453,13 +470,6 @@ export interface CloneRepoResult {
   /** Absolute path of the freshly cloned project folder. */
   path: string;
 }
-
-/** Identifies a signed-in account so the supervisor can scope `gh` to it. */
-const gitHubAccountRefSchema = z.object({
-  host: z.string().min(1),
-  login: z.string().min(1),
-});
-export type GitHubAccountRef = z.infer<typeof gitHubAccountRefSchema>;
 
 export const ghListAccountsPayloadSchema = z.object({
   /** Runtime context (cwd / WSL distro) the `gh` CLI should run in. */

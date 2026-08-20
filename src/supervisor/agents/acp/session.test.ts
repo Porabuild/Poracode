@@ -78,6 +78,7 @@ function makeConfigSyncSession(
       transport: { type: "http"; url: string; headers: Record<string, string> };
     }>;
     fsTextCapability?: boolean;
+    initializeMeta?: Record<string, unknown>;
   } = {},
 ) {
   const connection = {
@@ -105,6 +106,9 @@ function makeConfigSyncSession(
       .fn<(args: { sessionId: string; prompt: unknown[] }) => Promise<{ stopReason: string }>>()
       .mockResolvedValue({ stopReason: "end_turn" }),
     cancel: vi.fn<(args: { sessionId: string }) => Promise<void>>().mockResolvedValue(undefined),
+    extMethod: vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>>()
+      .mockResolvedValue({}),
     closeSession: vi
       .fn<(args: { sessionId: string }) => Promise<void>>()
       .mockResolvedValue(undefined),
@@ -185,6 +189,7 @@ function makeConfigSyncSession(
   session["acpTerminalCommandById"] = new Map();
   session["agentPromptCapabilities"] = undefined;
   session["agentSessionCapabilities"] = undefined;
+  session["initializeMeta"] = overrides.initializeMeta;
   session["cwd"] = "C:\\repo";
   session["stableSessionRef"] = undefined;
   session["usageScopeId"] = undefined;
@@ -238,6 +243,42 @@ describe("shouldSpawnAcpSession — shared resume/presentation gate for all ACP 
     expect(shouldSpawnAcpSession(makeInput({ presentationMode: "terminal" }))).toBe(true);
     expect(shouldSpawnAcpSession(makeInput())).toBe(true);
   });
+});
+
+describe("ACP async extension updates", () => {
+  it.each(["disposed", "replaying"] as const)(
+    "drops recovered updates when the session becomes %s before resolution",
+    async (state) => {
+      const { listener, session } = makeConfigSyncSession();
+      let resolveUpdate!: (notification: SessionNotification) => void;
+      const recovered = new Promise<SessionNotification>((resolve) => {
+        resolveUpdate = resolve;
+      });
+      const internal = session as unknown as Record<string, unknown>;
+      internal["extensionSessionUpdateTransform"] = () => recovered;
+
+      (
+        session as unknown as {
+          handleExtNotification(method: string, params: Record<string, unknown>): void;
+        }
+      ).handleExtNotification("vendor/status", {});
+      if (state === "disposed") internal["isDisposed"] = true;
+      else internal["isReplayingHistory"] = true;
+
+      resolveUpdate({
+        sessionId: "session-1",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "late update" },
+        },
+      });
+      await recovered;
+      await Promise.resolve();
+
+      expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
+      expect(listener.onUpdate).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("ACP external session update sources", () => {
@@ -898,6 +939,16 @@ describe("ACP client protocol helpers", () => {
     await (session as unknown as { activate(): Promise<void> }).activate();
     expect(connection.initialize.mock.calls[0]?.[0]).toMatchObject({
       clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+    });
+  });
+
+  it("includes adapter vendor metadata in the initialize request", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      initializeMeta: { "vendor.heartbeat": { v: 1 } },
+    });
+    await (session as unknown as { activate(): Promise<void> }).activate();
+    expect(connection.initialize.mock.calls[0]?.[0]).toMatchObject({
+      _meta: { "vendor.heartbeat": { v: 1 } },
     });
   });
 

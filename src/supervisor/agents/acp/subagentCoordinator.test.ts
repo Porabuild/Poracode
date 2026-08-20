@@ -47,6 +47,7 @@ describe("createAcpSubagentCoordinator", () => {
       subagentType: "Explore",
       description: "Inspect ACP mapping",
     });
+    expect(coordinator.hasBackgroundTasks()).toBe(true);
     expect(coordinator.registerBackgroundLaunch(launch)).toBeUndefined();
     expect(coordinator.resolveBackgroundToolCallId("task-1")).toBe("tool-1");
   });
@@ -109,5 +110,6 @@ describe("createAcpSubagentCoordinator", () => {
       },
     });
     expect(coordinator.resolveBackgroundToolCallId("task-1")).toBeUndefined();
+    expect(coordinator.hasBackgroundTasks()).toBe(false);
   });
 });

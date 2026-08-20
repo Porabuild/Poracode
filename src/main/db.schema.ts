@@ -14,6 +14,7 @@ export const projects = sqliteTable("projects", {
   searchSettings: text("search_settings"), // JSON
   worktreeLocation: text("worktree_location"), // JSON
   mcpServers: text("mcp_servers"), // JSON
+  ghAccount: text("gh_account"), // JSON
   workspaceId: text("workspace_id"),
   disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),

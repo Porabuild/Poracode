@@ -374,6 +374,11 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 33,
+    name: "project GitHub account",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "gh_account", "TEXT"),
+  },
+  {
+    version: 34,
     name: "projects.icon",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "icon", "TEXT"),
   },
@@ -435,6 +440,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "icon", "TEXT"],
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
+  ["projects", "gh_account", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -482,6 +488,7 @@ const REQUIRED_COLUMNS = {
     "search_settings",
     "worktree_location",
     "mcp_servers",
+    "gh_account",
     "workspace_id",
     "disabled",
     "sort_order",

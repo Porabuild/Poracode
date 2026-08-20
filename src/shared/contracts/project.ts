@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
 import { projectDraftConfigSchema } from "./config";
+import { gitHubAccountRefSchema } from "./github";
 import { mcpServerListSchema } from "./mcpServer";
 
 export const projectActionSchema = z.object({
@@ -75,6 +76,11 @@ export const projectSchema = z.object({
   worktreeLocation: projectWorktreeLocationSchema.optional(),
   /** Project MCP entries override global entries by name (case-insensitive). */
   mcpServers: mcpServerListSchema.optional(),
+  /**
+   * GitHub account to scope `gh` Actions calls to. Absent = the supervisor
+   * auto-detects the signed-in account that can see the repository.
+   */
+  ghAccount: gitHubAccountRefSchema.optional(),
   /**
    * Workspace this project belongs to (see `./workspace.ts`). Absent or dangling
    * means "unfiled" — such a project stays visible in every workspace.

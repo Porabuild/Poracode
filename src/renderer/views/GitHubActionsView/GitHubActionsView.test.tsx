@@ -9,6 +9,7 @@ import type {
   GhGetWorkflowDefinitionResult,
   GhGetWorkflowRunPayload,
   GhGetWorkflowRunResult,
+  GhListAccountsResult,
   GhListWorkflowRunsPayload,
   GhListWorkflowRunsResult,
   GhListWorkflowsPayload,
@@ -34,6 +35,7 @@ const bridge = vi.hoisted(() => ({
   ghRerunWorkflowRun: vi.fn<(payload: GhRerunWorkflowRunPayload) => Promise<void>>(),
   ghCancelWorkflowRun: vi.fn<(payload: GhCancelWorkflowRunPayload) => Promise<void>>(),
   ghDeleteWorkflowRun: vi.fn<(payload: GhDeleteWorkflowRunPayload) => Promise<void>>(),
+  ghListAccounts: vi.fn<() => Promise<GhListAccountsResult>>(),
   openExternal: vi.fn<() => Promise<void>>(),
 }));
 
@@ -153,6 +155,7 @@ describe("GitHubActionsView", () => {
     bridge.ghRerunWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.ghCancelWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.ghDeleteWorkflowRun.mockReset().mockResolvedValue(undefined);
+    bridge.ghListAccounts.mockReset().mockResolvedValue({ accounts: [] });
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useAppStore.setState({ projects: [project] });
@@ -238,6 +241,31 @@ describe("GitHubActionsView", () => {
     expect(remoteRow).toHaveTextContent("MacBook 16");
     expect(remoteRow.querySelector(".lucide-server")).not.toBeNull();
     expect(document.querySelector('[class~="min-w-[--trigger-width]"]')).toBeInTheDocument();
+  });
+
+  it("disables menu rows for projects on unreachable servers", async () => {
+    const mirrored: Project = {
+      ...project,
+      id: "remote:desktop-1:project:project-1",
+      remoteServerId: "desktop-1",
+      remoteId: project.id,
+      location: { ...project.location, remoteServerId: "desktop-1" },
+    };
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({ projects: [project, mirrored] });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+    const remoteRow = await screen.findByRole("menuitemradio", { name: /MacBook 16/ });
+    expect(remoteRow).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitemradio", { name: "Poracode" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("selects the first pinned workflow by default", async () => {
@@ -369,6 +397,9 @@ describe("GitHubActionsView", () => {
   });
 
   it("keeps cached workflow runs visible while refreshing in the background", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "octocat" } }],
+    });
     const ciRun = { ...run, title: "Cached CI run" };
     const releaseRun = {
       ...run,
@@ -439,6 +470,9 @@ describe("GitHubActionsView", () => {
   });
 
   it("renders workflows and runs from cache on the first frame after reopening", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "octocat" } }],
+    });
     const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
     expect(await screen.findByText(run.title)).toBeInTheDocument();
 
@@ -470,6 +504,9 @@ describe("GitHubActionsView", () => {
   });
 
   it("drops the cached seed once its TTL lapses", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "octocat" } }],
+    });
     const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
     expect(await screen.findByText(run.title)).toBeInTheDocument();
     unmount();
@@ -590,6 +627,131 @@ describe("GitHubActionsView", () => {
       expect(bridge.ghCancelWorkflowRun).toHaveBeenCalledWith({
         projectLocation: project.location,
         runId: run.id,
+      }),
+    );
+  });
+
+  it("clears account-scoped Actions data before the next account responds", async () => {
+    const firstAccount = { host: "github.com", login: "first" };
+    const secondAccount = { host: "github.com", login: "second" };
+    useAppStore.setState({ projects: [{ ...project, ghAccount: firstAccount }] });
+    bridge.ghListAccounts.mockResolvedValue({
+      accounts: [
+        { ...firstAccount, active: true },
+        { ...secondAccount, active: false },
+      ],
+    });
+    let resolveSecondWorkflows: ((result: GhListWorkflowsResult) => void) | undefined;
+    bridge.ghListWorkflows.mockImplementation(({ ghAccount }) =>
+      ghAccount?.login === firstAccount.login
+        ? Promise.resolve({
+            workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
+          })
+        : new Promise((resolve) => {
+            resolveSecondWorkflows = resolve;
+          }),
+    );
+
+    render(<GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />);
+    expect(await screen.findByRole("heading", { name: run.title })).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "GitHub account" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /second/ }));
+
+    expect(screen.queryByRole("heading", { name: "CI" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: run.title })).not.toBeInTheDocument();
+    expect(resolveSecondWorkflows).toBeDefined();
+
+    await act(async () => {
+      resolveSecondWorkflows!({
+        workflows: [
+          { id: 22, name: "Deploy", path: ".github/workflows/deploy.yml", state: "active" },
+        ],
+      });
+    });
+    expect(await screen.findByRole("heading", { name: "Deploy" })).toBeInTheDocument();
+  });
+
+  it("hides the account selector when fewer than two accounts are signed in", async () => {
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByRole("button", { name: "Project" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "GitHub account" })).not.toBeInTheDocument();
+  });
+
+  it("keeps a persisted account override visible and clearable when discovery returns none", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "signed-out" } }],
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    const trigger = await screen.findByRole("button", { name: "GitHub account" });
+    expect(trigger).toHaveTextContent("signed-out");
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Auto/ }));
+
+    await waitFor(() => expect(useAppStore.getState().projects[0]?.ghAccount).toBeUndefined());
+  });
+
+  it("distinguishes the same login on different GitHub hosts", async () => {
+    bridge.ghListAccounts.mockResolvedValue({
+      accounts: [
+        { host: "github.com", login: "octocat", active: true },
+        { host: "ghe.example.com", login: "octocat", active: false },
+      ],
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "GitHub account" }));
+    fireEvent.click(
+      await screen.findByRole("menuitemradio", { name: /octocat ghe\.example\.com/ }),
+    );
+
+    await waitFor(() =>
+      expect(useAppStore.getState().projects[0]?.ghAccount).toEqual({
+        host: "ghe.example.com",
+        login: "octocat",
+      }),
+    );
+  });
+
+  it("scopes Actions calls to the account picked in the selector", async () => {
+    const accounts = [
+      { host: "github.com", login: "SDSLeon", active: true },
+      { host: "github.com", login: "ym-svecherenko", active: false },
+    ];
+    bridge.ghListAccounts.mockResolvedValue({ accounts });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    const trigger = await screen.findByRole("button", { name: "GitHub account" });
+    expect(trigger).toHaveTextContent("Auto");
+
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /ym-svecherenko/ }));
+
+    await waitFor(() =>
+      expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        ghAccount: { host: "github.com", login: "ym-svecherenko" },
+      }),
+    );
+    expect(useAppStore.getState().projects[0]?.ghAccount).toEqual({
+      host: "github.com",
+      login: "ym-svecherenko",
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "GitHub account" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Auto/ }));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().projects[0]?.ghAccount).toBeUndefined();
+    });
+    await waitFor(() =>
+      expect(bridge.ghListWorkflows).toHaveBeenLastCalledWith({
+        projectLocation: project.location,
       }),
     );
   });

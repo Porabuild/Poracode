@@ -230,6 +230,7 @@ export async function applyRemoteProjectCommand(
         "searchSettings",
         "worktreeLocation",
         "mcpServers",
+        "ghAccount",
       ] as const) {
         if (command.patch[key] !== null) continue;
         const { [key]: _, ...rest } = updated;

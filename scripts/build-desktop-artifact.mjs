@@ -554,6 +554,8 @@ extraResources:
     to: app-icon.png
   - from: build/tray-icon${iconSuffix}.ico
     to: tray-icon.ico
+  - from: build/tray-icon${iconSuffix}-dark.ico
+    to: tray-icon-dark.ico
   - from: build/tray-icon-mac.png
     to: tray-icon-mac.png
   - from: build/tray-icon-mac@2x.png

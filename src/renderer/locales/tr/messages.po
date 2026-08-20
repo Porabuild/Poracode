@@ -1531,6 +1531,7 @@ msgstr "Oluşturduklarım"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Otomatik"
@@ -3334,6 +3335,10 @@ msgstr "{serverName} oturumu açılamadı."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "{serverName} oturumu kapatılamadı."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "GitHub hesabı \"{login}\" hesabına erişilemedi. \"gh auth login\" komutunu çalıştırıp yeniden deneyin."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5374,6 +5379,10 @@ msgstr "{0} için Git durumu: Git deposu değil"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "GitHub hesabı"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -8494,6 +8503,7 @@ msgstr "Duraklat"
 msgid "Pause goal"
 msgstr "Hedefi duraklat"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -11823,6 +11833,10 @@ msgstr "Deney adayının çalışma ağacı kullanılamıyor."
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Deney istemi çok uzun."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "GitHub hesabı \"{login}\", {host} ana makinesine ait ve bu projenin GitHub uzak deposuyla eşleşmiyor."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx

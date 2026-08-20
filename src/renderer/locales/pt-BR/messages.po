@@ -1531,6 +1531,7 @@ msgstr "De sua autoria"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Automático"
@@ -3334,6 +3335,10 @@ msgstr "Não foi possível entrar em {serverName}."
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "Não foi possível sair de {serverName}."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Couldn't access the GitHub account \"{login}\". Run \"gh auth login\" and try again."
+msgstr "Não foi possível acessar a conta do GitHub \"{login}\". Execute \"gh auth login\" e tente novamente."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
@@ -5374,6 +5379,10 @@ msgstr "Status do Git para {0}: não é um repositório Git"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "GitHub"
 msgstr "GitHub"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "GitHub account"
+msgstr "Conta do GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -8494,6 +8503,7 @@ msgstr "Pausar"
 msgid "Pause goal"
 msgstr "Pausar objetivo"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -11823,6 +11833,10 @@ msgstr "A árvore de trabalho do candidato do experimento está indisponível."
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "O prompt do experimento é longo demais."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
+msgstr "A conta do GitHub \"{login}\" pertence a {host}, que não corresponde ao remoto do GitHub deste projeto."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
