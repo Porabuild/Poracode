@@ -194,6 +194,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "checkPrWatch",
   "upsertPrWatch",
   "deletePrWatch",
+  "syncPrWatchAgent",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

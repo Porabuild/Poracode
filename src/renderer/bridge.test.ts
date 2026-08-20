@@ -107,6 +107,7 @@ describe("remote-aware renderer bridge", () => {
         lastCheckKey: null,
         activeThreadId: null,
         lastError: null,
+        blockedReason: null,
       };
     });
     const deletePrWatch = vi.fn<RemoteDesktopClient["deletePrWatch"]>(async () => {});

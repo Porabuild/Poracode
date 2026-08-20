@@ -15,9 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v2 requires remote start commands to preserve caller-supplied user-message
-// ids so optimistic GUI prompts reconcile without duplication across hosts.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 2;
+// v3 routes live PR-watch helper-agent resolution to the host that owns the
+// project, so headless watches follow provider/model changes made by a paired app.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 3;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

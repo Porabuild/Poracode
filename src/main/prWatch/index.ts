@@ -15,4 +15,11 @@ export function createDevicePrWatchService(options: DevicePrWatchServiceOptions)
   });
 }
 
-export { PrWatchService, type PrWatchServiceOptions, type PrWatchStore } from "./PrWatchService";
+export {
+  PrWatchService,
+  type PrWatchAgent,
+  type PrWatchServiceOptions,
+  type PrWatchStore,
+  type PrWatchWorkContext,
+} from "./PrWatchService";
+export { buildPrWatchExecutionDeps, type PrWatchExecutionParams } from "./watchExecution";

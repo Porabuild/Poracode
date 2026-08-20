@@ -1,7 +1,9 @@
 import {
+  prWatchAgentSyncSchema,
   prWatchInputSchema,
   prWatchKeySchema,
   type PrWatch,
+  type PrWatchAgentSync,
   type PrWatchInput,
   type PrWatchKey,
 } from "../../contracts";
@@ -27,5 +29,10 @@ export const prWatchProcedures = {
     "deletePrWatch",
     "main-local",
     prWatchKeySchema,
+  ),
+  syncPrWatchAgent: definePayloadProcedure<PrWatchAgentSync, void, "main-local">(
+    "syncPrWatchAgent",
+    "main-local",
+    prWatchAgentSyncSchema,
   ),
 } as const;

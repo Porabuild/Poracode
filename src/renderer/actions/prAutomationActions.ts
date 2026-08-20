@@ -3,13 +3,13 @@ import { msg } from "@lingui/core/macro";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { authStateForPresentation } from "@/shared/agentSelection";
 import type { AgentStatus, PrWatch, Project, ScheduledTaskConfig } from "@/shared/contracts";
-import type { SharedSettings } from "@/shared/settings";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import {
   getConflictResolverCandidates,
   readConflictResolverSettingsForProject,
   resolveConflictResolverLaunchConfig,
+  type ConflictResolverSettingsSource,
 } from "@/renderer/components/providers/conflictResolver";
 import {
   agentWithCapabilities,
@@ -28,7 +28,7 @@ export function resolvePrAutomationAgent(
   project: Project,
   windowsAgents: AgentStatus[],
   wslAgents: AgentStatus[],
-  settings: SharedSettings,
+  settings: ConflictResolverSettingsSource,
 ): PrAutomationAgent | undefined {
   const conflictSettings = readConflictResolverSettingsForProject(project.location.kind, settings);
   const agents = getProjectAgentStatuses(project.location, windowsAgents, wslAgents)

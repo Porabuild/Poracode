@@ -68,6 +68,7 @@ import {
   type ProfileStatsRequest,
   type ProfileTokenStats,
   type PrWatch,
+  type PrWatchAgentSync,
   type PrWatchInput,
   type PrWatchKey,
   type ProjectNotes,
@@ -504,6 +505,10 @@ export class RemoteDesktopClient {
 
   async deletePrWatch(input: PrWatchKey): Promise<void> {
     await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
+  }
+
+  async syncPrWatchAgent(input: PrWatchAgentSync): Promise<void> {
+    await this.requestJson("/api/pr-watches/agent", { method: "POST", body: input });
   }
 
   /**

@@ -1619,6 +1619,22 @@ msgstr "Komutları çalıştırırken veya çalışma ağaçları oluştururken 
 msgid "Automation"
 msgstr "Otomasyon"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Automation is paused: no connected agent can fix this PR."
+#~ msgstr "Otomasyon duraklatıldı: bu PR'ı düzeltebilecek bağlı bir ajan yok."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation is paused: the configured helper agent is unavailable. Check the agent connection and helper settings."
+msgstr "Otomasyon duraklatıldı: yapılandırılmış yardımcı ajan kullanılamıyor. Ajan bağlantısını ve yardımcı ajan ayarlarını kontrol edin."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation is paused: this PR's branch could not be checked out. Poracode keeps retrying automatically."
+msgstr "Otomasyon duraklatıldı: bu PR'ın şubesi çıkarılamadı. Poracode otomatik olarak yeniden denemeye devam ediyor."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
+#~ msgstr "Otomasyon duraklatıldı: bu PR'ın şubesi çıkarılamadı. Yeniden denemek için bir mod seçin."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "Otomatik pilot"
@@ -8653,6 +8669,14 @@ msgstr "PR eylemleri"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "PR otomasyonu"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused: Auto Fix"
+msgstr "PR otomasyonu duraklatıldı: Otomatik Düzeltme"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused: Auto Merge"
+msgstr "PR otomasyonu duraklatıldı: Otomatik Birleştirme"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation: Auto Fix"

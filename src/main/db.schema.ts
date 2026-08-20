@@ -91,6 +91,7 @@ export const prWatches = sqliteTable(
     lastCheckKey: text("last_check_key"),
     activeThreadId: text("active_thread_id"),
     lastError: text("last_error"),
+    blockedReason: text("blocked_reason"),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.projectId, table.prNumber] }),

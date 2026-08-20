@@ -1619,6 +1619,22 @@ msgstr "Afficher automatiquement le panneau de terminal lors de l'exécution de 
 msgid "Automation"
 msgstr "Automatisation"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Automation is paused: no connected agent can fix this PR."
+#~ msgstr "L'automatisation est en pause : aucun agent connecté ne peut corriger cette PR."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation is paused: the configured helper agent is unavailable. Check the agent connection and helper settings."
+msgstr "L’automatisation est en pause : l’agent assistant configuré est indisponible. Vérifiez la connexion de l’agent et les paramètres de l’agent assistant."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation is paused: this PR's branch could not be checked out. Poracode keeps retrying automatically."
+msgstr "L'automatisation est en pause : la branche de cette PR n'a pas pu être extraite. Poracode réessaie automatiquement."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
+#~ msgstr "L'automatisation est en pause : la branche de cette PR n'a pas pu être extraite. Sélectionnez à nouveau un mode pour réessayer."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "Pilote automatique"
@@ -8652,6 +8668,14 @@ msgstr "Actions de la PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "Automatisation des PR"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused: Auto Fix"
+msgstr "Automatisation de PR en pause : Correction automatique"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused: Auto Merge"
+msgstr "Automatisation de PR en pause : Fusion automatique"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation: Auto Fix"

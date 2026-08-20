@@ -24,6 +24,7 @@ import {
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
+  prWatchAgentSyncSchema,
   prWatchInputSchema,
   prWatchKeySchema,
   profileIdentitySchema,
@@ -642,6 +643,13 @@ export async function handleHttp(
       ctx.security.requireBearer(req, ["session:operate"]);
       const key = prWatchKeySchema.parse(await readJsonBody(req));
       ctx.requirePrWatchesGateway().requestCheck(key.projectId, key.prNumber);
+      writeJson(res, 200, { ok: true });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/pr-watches/agent") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const agent = prWatchAgentSyncSchema.parse(await readJsonBody(req));
+      ctx.requirePrWatchesGateway().syncAgent(agent);
       writeJson(res, 200, { ok: true });
       return;
     }

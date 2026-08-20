@@ -139,6 +139,7 @@ describe("PrSection", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     } satisfies PrWatch;
 
     render(
