@@ -1,5 +1,5 @@
 import { Surface } from "@heroui/react";
-import { Check } from "lucide-react";
+import { Check, MessageSquare } from "lucide-react";
 import type { QuestionAnswerItemPayload } from "@/shared/contracts";
 import {
   getRuntimeItemPayload,
@@ -51,8 +51,11 @@ export function QuestionAnswer({ item, checkpointRevert }: QuestionAnswerProps) 
                 </div>
               ))}
               {entry.customAnswer ? (
-                <div className="rounded border-l-2 border-foreground/30 pl-2">
-                  <ItemMarkdown text={entry.customAnswer} />
+                <div className="flex items-start gap-1.5">
+                  <MessageSquare className="mt-[3px] size-3 shrink-0 text-foreground/70" />
+                  <div className="min-w-0 flex-1">
+                    <ItemMarkdown text={entry.customAnswer} />
+                  </div>
                 </div>
               ) : null}
             </div>
