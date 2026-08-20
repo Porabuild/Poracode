@@ -705,6 +705,26 @@ describe("useRemoteServersStore", () => {
     );
   });
 
+  it("keeps pre-v1 remote workspace overrides when rehydrating", async () => {
+    localStorage.setItem(
+      "poracode-remote-servers",
+      JSON.stringify({
+        state: {
+          servers: [],
+          excludedProjectIds: {},
+          projectWorkspaceIds: { d1: { p1: "workspace-1" } },
+          projectNameOverrides: {},
+          lastKnownProjects: { d1: [proj] },
+        },
+        version: 0,
+      }),
+    );
+
+    await useRemoteServersStore.persist.rehydrate();
+
+    expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("workspace-1");
+  });
+
   it("keeps mirrored project metadata local across reconnects", async () => {
     const remoteWorkspaceProject = { ...proj, workspaceId: "remote-workspace" };
     const projectCommand = vi.fn<RemoteDesktopClient["projectCommand"]>(async () => ({
@@ -746,6 +766,88 @@ describe("useRemoteServersStore", () => {
     expect(
       useAppStore.getState().projects.find((project) => project.id === projectedId)?.name,
     ).toBe("Local Project");
+  });
+
+  it("derives a mirror's workspace from its local counterpart until filed explicitly", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({
+      projects: [{ ...proj, id: "local-1", workspaceId: "workspace-side" }],
+    });
+    try {
+      useRemoteServersStore
+        .getState()
+        .setClientFactory(factoryFor(makeClient({ snapshotProjects: [proj] })));
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+      const projectedId = remoteProjectId("d1", "p1");
+      const mirroredWorkspace = () =>
+        useAppStore.getState().projects.find((project) => project.id === projectedId)?.workspaceId;
+      // Same name as the local project, so the mirror joins its workspace…
+      expect(mirroredWorkspace()).toBe("workspace-side");
+      // …without pinning: the filing stays derived from the counterpart.
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBeUndefined();
+
+      // Moving the local project moves the mirror live, not on the next sync.
+      useAppStore.getState().setProjectWorkspace("local-1", "workspace-other");
+      expect(mirroredWorkspace()).toBe("workspace-other");
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBeUndefined();
+      await useRemoteServersStore.getState().refreshServer("d1");
+      expect(mirroredWorkspace()).toBe("workspace-other");
+
+      // An explicit filing pins the mirror and stops the inheritance.
+      useAppStore.getState().setProjectWorkspace(projectedId, "workspace-side");
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("workspace-side");
+      useAppStore.getState().setProjectWorkspace("local-1", undefined);
+      await useRemoteServersStore.getState().refreshServer("d1");
+      expect(mirroredWorkspace()).toBe("workspace-side");
+
+      // Explicitly unfiling the mirror must survive refreshes and stop
+      // inheriting the local counterpart's workspace.
+      useAppStore.getState().setProjectWorkspace(projectedId, undefined);
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBeNull();
+      await useRemoteServersStore.getState().refreshServer("d1");
+      expect(mirroredWorkspace()).toBeUndefined();
+    } finally {
+      useAppStore.setState({ projects: previousProjects });
+    }
+  });
+
+  it("does not inherit a workspace from ambiguous duplicate local project names", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({
+      projects: [
+        {
+          ...proj,
+          id: "local-1",
+          location: { kind: "windows", path: "C:\\one" },
+          workspaceId: "w1",
+        },
+        {
+          ...proj,
+          id: "local-2",
+          location: { kind: "windows", path: "C:\\two" },
+          workspaceId: "w2",
+        },
+      ],
+    });
+    try {
+      useRemoteServersStore
+        .getState()
+        .setClientFactory(factoryFor(makeClient({ snapshotProjects: [proj] })));
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+      expect(
+        useAppStore
+          .getState()
+          .projects.find((project) => project.id === remoteProjectId("d1", "p1"))?.workspaceId,
+      ).toBeUndefined();
+    } finally {
+      useAppStore.setState({ projects: previousProjects });
+    }
   });
 
   it("bootstraps and persists an SSH-backed server through the shared protocol", async () => {

@@ -125,6 +125,17 @@ interface RemoteServerEventSocketEntry {
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
 const remoteServerSnapshotSeqByDesktopId = new Map<string, number>();
+let remoteProjectRowsSyncDepth = 0;
+
+function withRemoteProjectRowsSync<T>(fn: () => T): T {
+  remoteProjectRowsSyncDepth += 1;
+  try {
+    return fn();
+  } finally {
+    remoteProjectRowsSyncDepth -= 1;
+  }
+}
+
 /** Maps a thread-history snapshot to the openThread slice (terminal fields only when present). */
 function buildOpenThread(
   desktopId: string,
@@ -144,6 +155,37 @@ function buildOpenThread(
       : {}),
     ...(snapshot.terminalSize ? { terminalSize: snapshot.terminalSize } : {}),
   };
+}
+
+/**
+ * Workspace filings of unique local project names. An unfiled remote mirror
+ * defaults to its local counterpart's workspace — one repo should not sit in
+ * two workspaces just because it is mirrored from another machine. Ambiguous
+ * names are left unfiled rather than assigned to an arbitrary project.
+ */
+function localWorkspaceByName(projects: readonly Project[]): Map<string, string> {
+  const byName = new Map<string, string>();
+  const ambiguousNames = new Set<string>();
+  for (const project of projects) {
+    if (project.remoteServerId !== undefined || ambiguousNames.has(project.name)) continue;
+    if (byName.has(project.name)) {
+      byName.delete(project.name);
+      ambiguousNames.add(project.name);
+      continue;
+    }
+    if (project.workspaceId === undefined) {
+      ambiguousNames.add(project.name);
+      continue;
+    }
+    byName.set(project.name, project.workspaceId);
+  }
+  return byName;
+}
+
+function withoutWorkspace(project: Project): Project {
+  const next: Project = { ...project };
+  delete next.workspaceId;
+  return next;
 }
 
 /**
@@ -178,16 +220,21 @@ function syncRemoteAppRows(
           .map((project) => [project.remoteId, project]),
       )
     : null;
+  const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
   const projectedProjects = projects?.map((project) => {
     const projected = projectRemoteProject(desktopId, project);
     const current = currentProjects?.get(project.id);
     const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
+    const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
+    const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
     const workspaceId =
-      remoteState.projectWorkspaceIds[desktopId]?.[project.id] ??
-      (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined);
+      workspaceOverride !== undefined
+        ? (workspaceOverride ?? undefined)
+        : (counterpartWorkspace.get(name) ??
+          (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined));
     return {
       ...projectWithoutWorkspace,
-      name: remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name,
+      name,
       ...(workspaceId ? { workspaceId } : {}),
       ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
     };
@@ -214,36 +261,38 @@ function syncRemoteAppRows(
       }
     }
   }
-  useAppStore.setState((state) => {
-    const provisioningThreads = projectedThreads
-      ? state.threads.filter(
-          (thread) =>
-            thread.remoteServerId === desktopId &&
-            state.provisioningWorktreeThreadIds[thread.id] === true &&
-            !projectedThreadIds.has(thread.id) &&
-            state.projects.some((project) => project.id === thread.projectId),
-        )
-      : [];
-    return {
-      ...(projectedProjects
-        ? {
-            projects: [
-              ...state.projects.filter((project) => project.remoteServerId !== desktopId),
-              ...projectedProjects,
-            ],
-          }
-        : {}),
-      ...(projectedThreads
-        ? {
-            threads: [
-              ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-              ...provisioningThreads,
-              ...projectedThreads,
-            ],
-          }
-        : {}),
-    };
-  });
+  withRemoteProjectRowsSync(() =>
+    useAppStore.setState((state) => {
+      const provisioningThreads = projectedThreads
+        ? state.threads.filter(
+            (thread) =>
+              thread.remoteServerId === desktopId &&
+              state.provisioningWorktreeThreadIds[thread.id] === true &&
+              !projectedThreadIds.has(thread.id) &&
+              state.projects.some((project) => project.id === thread.projectId),
+          )
+        : [];
+      return {
+        ...(projectedProjects
+          ? {
+              projects: [
+                ...state.projects.filter((project) => project.remoteServerId !== desktopId),
+                ...projectedProjects,
+              ],
+            }
+          : {}),
+        ...(projectedThreads
+          ? {
+              threads: [
+                ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
+                ...provisioningThreads,
+                ...projectedThreads,
+              ],
+            }
+          : {}),
+      };
+    }),
+  );
   if (!projectedProjects) return;
   if (useRemoteServersStore.getState().runtime[desktopId]?.status !== "online") return;
   const gitStatuses = useGitStore.getState().statuses;
@@ -1344,13 +1393,19 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // mirrors the PWA (IndexedDB) and is scoped to the Electron renderer; the
       // server can revoke a session at any time.
       partialize: persistedRemoteServersState,
+      version: 1,
+      // v1 reserves null in projectWorkspaceIds for an explicit "unfiled"
+      // override. Older string-valued entries and absent entries remain valid.
+      migrate: (persistedState) => persistedState as RemoteServersState,
     },
   ),
 );
 
 /**
  * Mirror local project workspace assignments back into the remote state so the
- * sync layer keeps a stable record across reloads and server reconnects.
+ * sync layer keeps a stable record across reloads and server reconnects, and
+ * keep unpinned mirrors filed where their same-named local counterpart is
+ * filed (see `localWorkspaceByName`).
  *
  * Installed from `app.tsx` (like `installRemoteGitSummaryPublisher`): the
  * module-scope equivalent would touch `useAppStore` during its own
@@ -1358,18 +1413,56 @@ export const useRemoteServersStore = create<RemoteServersState>()(
  * cycle's TDZ before `useAppStore` is defined.
  */
 export function installRemoteProjectWorkspaceSync(): () => void {
+  let applyingDerivedProjects = false;
   return useAppStore.subscribe((state, previousState) => {
     if (state.projects === previousState.projects) return;
+    if (remoteProjectRowsSyncDepth > 0 || applyingDerivedProjects) return;
     const previousProjects = new Map(
       previousState.projects.map((project) => [project.id, project]),
     );
+    const counterpartWorkspace = localWorkspaceByName(state.projects);
+    // Mirrors whose filing changed in this very update were edited (or
+    // projected) deliberately — re-deriving them here would overwrite that.
+    const changedIds = new Set<string>();
+    for (const project of state.projects) {
+      const previous = previousProjects.get(project.id);
+      if (previous && previous.workspaceId !== project.workspaceId) changedIds.add(project.id);
+    }
+    // Unpinned mirrors follow their local counterpart's filing live, not only
+    // on the next remote snapshot that happens to change the project rows.
+    const pinned = useRemoteServersStore.getState().projectWorkspaceIds;
+    const derivedProjectIds = new Set<string>();
+    const rederived = state.projects.map((project) => {
+      if (!project.remoteServerId || !project.remoteId) return project;
+      if (changedIds.has(project.id)) return project;
+      if (pinned[project.remoteServerId]?.[project.remoteId] !== undefined) return project;
+      const inherited = counterpartWorkspace.get(project.name);
+      if (project.workspaceId === inherited) return project;
+      const next =
+        inherited === undefined
+          ? withoutWorkspace(project)
+          : { ...project, workspaceId: inherited };
+      derivedProjectIds.add(project.id);
+      return next;
+    });
+    const rederivedChanged = rederived.some((project, index) => project !== state.projects[index]);
+    if (rederivedChanged) {
+      applyingDerivedProjects = true;
+      try {
+        useAppStore.setState({ projects: rederived });
+      } finally {
+        applyingDerivedProjects = false;
+      }
+    }
+    const finalProjects = rederivedChanged ? rederived : state.projects;
     const changes: Array<{
       desktopId: string;
       remoteId: string;
       workspaceId: string | undefined;
     }> = [];
-    for (const project of state.projects) {
+    for (const project of finalProjects) {
       if (!project.remoteServerId || !project.remoteId) continue;
+      if (derivedProjectIds.has(project.id)) continue;
       const previous = previousProjects.get(project.id);
       if (!previous || previous.workspaceId === project.workspaceId) continue;
       changes.push({
@@ -1385,10 +1478,10 @@ export function installRemoteProjectWorkspaceSync(): () => void {
       for (const change of changes) {
         const currentForServer = projectWorkspaceIds[change.desktopId] ?? {};
         const currentWorkspaceId = currentForServer[change.remoteId];
-        if (currentWorkspaceId === change.workspaceId) continue;
+        const nextWorkspaceId = change.workspaceId ?? null;
+        if (currentWorkspaceId === nextWorkspaceId) continue;
         const nextForServer = { ...currentForServer };
-        if (change.workspaceId) nextForServer[change.remoteId] = change.workspaceId;
-        else delete nextForServer[change.remoteId];
+        nextForServer[change.remoteId] = nextWorkspaceId;
         projectWorkspaceIds = {
           ...projectWorkspaceIds,
           [change.desktopId]: nextForServer,

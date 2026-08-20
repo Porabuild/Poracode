@@ -8205,8 +8205,8 @@ msgid "Other"
 msgstr "Прочие"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
-msgid "Other workspaces"
-msgstr "Другие рабочие области"
+#~ msgid "Other workspaces"
+#~ msgstr "Другие рабочие области"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"

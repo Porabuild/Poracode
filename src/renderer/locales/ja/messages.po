@@ -8203,8 +8203,8 @@ msgid "Other"
 msgstr "その他"
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
-msgid "Other workspaces"
-msgstr "他のワークスペース"
+#~ msgid "Other workspaces"
+#~ msgstr "他のワークスペース"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
