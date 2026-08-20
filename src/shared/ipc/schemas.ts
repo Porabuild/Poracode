@@ -16,6 +16,8 @@ import {
 export const pickFilesOptionsSchema = z
   .object({
     title: z.string().optional(),
+    /** Folder the desktop dialog opens first. */
+    defaultPath: z.string().min(1).optional(),
     /** Remote composer destination. The desktop dialog ignores this field. */
     attachmentThreadId: z.string().min(1).optional(),
     filters: z

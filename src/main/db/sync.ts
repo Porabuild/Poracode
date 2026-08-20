@@ -99,18 +99,19 @@ type SqliteStatement = ReturnType<InstanceType<typeof Database>["prepare"]>;
 function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): SqliteStatement {
   return sqlite.prepare(`
     INSERT INTO projects (
-      id, name, location_kind, location_path, location_distro, location_linux_path,
+      id, name, icon, location_kind, location_path, location_distro, location_linux_path,
       location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
       mcp_servers, workspace_id,
       disabled, sort_order, created_at
     ) VALUES (
-      @id, @name, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
+      @id, @name, @icon, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
       @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
       @mcpServers, @workspaceId,
       @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
+      icon = excluded.icon,
       location_kind = excluded.location_kind,
       location_path = excluded.location_path,
       location_distro = excluded.location_distro,

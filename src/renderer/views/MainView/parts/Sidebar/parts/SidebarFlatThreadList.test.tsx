@@ -207,6 +207,24 @@ describe("SidebarFlatThreadList", () => {
     expect(localRow).not.toHaveTextContent("MacBook 16");
   });
 
+  it("carries a project's custom icon in the row tag at the tag's scale", () => {
+    useAppStore.setState({
+      projects: [homeProject, { ...localProject, icon: "lucide:rocket" }],
+      threads: [
+        makeThread("h1", HOME_PROJECT_ID, "2026-08-02T10:00:00.000Z"),
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const row = screen.getByText(/thread:p1 in Poracode/).closest("[data-testid=row]");
+    const glyph = row?.querySelector("svg");
+    expect(glyph).not.toBeNull();
+    // 12px, not the 16px menu default: the tag text next to it is 10px.
+    expect(glyph?.getAttribute("class")).toContain("size-3");
+  });
+
   it("hides Home threads when home scope is disabled", () => {
     useSharedSettings.setState({ homeScopeEnabled: false } as never);
     useAppStore.setState({

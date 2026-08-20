@@ -59,6 +59,8 @@ export interface ProjectSlice {
   updateProjectMcpServers: (projectId: string, mcpServers: McpServer[]) => void;
   updateProjectLocation: (projectId: string, location: ProjectLocation) => void;
   renameProject: (projectId: string, name: string) => void;
+  /** `undefined` clears the custom icon back to the location-kind glyph. */
+  updateProjectIcon: (projectId: string, icon: string | undefined) => void;
   /** Move a project into a workspace; `undefined` unfiles it (visible in every workspace). */
   setProjectWorkspace: (projectId: string, workspaceId: string | undefined) => void;
   /**
@@ -258,6 +260,17 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       projects: state.projects.map((project) =>
         project.id === projectId ? { ...project, name } : project,
       ),
+    })),
+  updateProjectIcon: (projectId, icon) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (!icon) {
+          const { icon: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, icon };
+      }),
     })),
   setProjectWorkspace: (projectId, workspaceId) =>
     set((state) => {

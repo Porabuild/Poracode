@@ -12,7 +12,7 @@ export function SkillsSection(props: { projectId: string }) {
   const projects = allProjects
     .filter((project) => project.remoteServerId === currentProject?.remoteServerId)
     .filter((item) => !isHomeProject(item))
-    .map(({ id, name, location }) => ({ id, name, location }));
+    .map(({ id, name, location, icon }) => ({ id, name, location, ...(icon ? { icon } : {}) }));
   if (!projects.some((project) => project.id === props.projectId)) return null;
 
   return (

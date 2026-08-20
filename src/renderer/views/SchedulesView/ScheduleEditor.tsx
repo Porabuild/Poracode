@@ -2,8 +2,14 @@ import type { ReactNode } from "react";
 import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
 import { House } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { AgentStatus, ProjectLocation, ThreadPresentationMode } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  Project,
+  ProjectLocation,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
+import { useProjectIconNode } from "@/renderer/components/common/ProjectIcon";
 import { ProjectLocationIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { useAppStore } from "@/renderer/state/appStore";
 import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
@@ -38,6 +44,11 @@ const CONTROL_WIDTH = "w-[280px] max-w-[60%] shrink-0";
 
 function projectLocationLabel(location: ProjectLocation): string {
   return location.kind === "wsl" ? `${location.distro}: ${location.linuxPath}` : location.path;
+}
+
+function ScheduleProjectIcon(props: { project: Project }) {
+  const customIcon = useProjectIconNode(props.project, "size-4 text-muted");
+  return customIcon ?? <ProjectLocationIcon location={props.project.location} />;
 }
 
 /** A titled group of rows, matching the settings section header treatment. */
@@ -78,7 +89,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
       .map((project) => ({
         id: project.id,
         label: project.name,
-        icon: <ProjectLocationIcon location={project.location} />,
+        icon: <ScheduleProjectIcon project={project} />,
         detail: projectLocationLabel(project.location),
       })),
   ];

@@ -15,9 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v3 routes live PR-watch helper-agent resolution to the host that owns the
-// project, so headless watches follow provider/model changes made by a paired app.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 3;
+// v4 carries project icon metadata and project-icon update patches across the
+// paired-client boundary.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 4;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -260,6 +260,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     projectId: z.string().min(1),
     patch: z.object({
       name: projectSchema.shape.name.optional(),
+      icon: projectSchema.shape.icon.unwrap().nullable().optional(),
       scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
       searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
       worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),

@@ -1287,6 +1287,10 @@ msgstr "Luôn luôn"
 msgid "Always excluded"
 msgstr "Luôn bị loại trừ"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Amber"
+msgstr "Hồ phách"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "Một tác nhân đang sửa PR này."
@@ -1601,9 +1605,9 @@ msgstr "Tự động chọn"
 msgid "Auto-show terminal panel"
 msgstr "Tự động hiển thị bảng điều khiển thiết bị đầu cuối"
 
-#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#~ msgid "Automatic"
-#~ msgstr "Tự động"
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Automatic"
+msgstr "Tự động"
 
 #. placeholder {0}: shellName(automaticShell)
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -1772,6 +1776,10 @@ msgstr "Bị trình duyệt chặn. Hãy cho phép thông báo cho trang web nà
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "blocked:"
 msgstr "bị chặn:"
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Blue"
+msgstr "Xanh dương"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Bold"
@@ -1961,6 +1969,10 @@ msgstr "Phím tắt tích hợp sẵn — không thể thay đổi"
 msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
 msgstr "Các gói skill và máy chủ MCP hoạt động với mọi agent được hỗ trợ. Poracode tải mọi gói được xây dựng theo đặc tả Agent Plugins."
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Business & finance"
+msgstr "Kinh doanh và tài chính"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "bởi <0>{author}</0>"
@@ -2089,6 +2101,10 @@ msgstr "Danh mục"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Thay đổi thư mục dự án"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Change project icon"
+msgstr "Đổi biểu tượng dự án"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
@@ -2258,6 +2274,14 @@ msgstr "Chọn một nhánh cơ sở cục bộ cho thử nghiệm."
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Chọn một thư mục cha"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Choose a project icon image"
+msgstr "Chọn ảnh biểu tượng dự án"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Choose an image inside the project folder."
+msgstr "Chọn một ảnh bên trong thư mục dự án."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
@@ -2839,6 +2863,7 @@ msgid "Commits"
 msgstr "Cam kết"
 
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "Giao tiếp"
 
@@ -3669,6 +3694,10 @@ msgstr "Đã cập nhật Cursor SDK lên v{nextVersion}."
 msgid "Custom"
 msgstr "Tùy chỉnh"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Custom color"
+msgstr "Màu tùy chỉnh"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Các lệnh tùy chỉnh có sẵn từ menu ngữ cảnh của dự án (nhấp chuột phải)."
@@ -3722,6 +3751,8 @@ msgstr "Từ chối"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Mặc định"
@@ -3935,6 +3966,10 @@ msgstr "Mô tả"
 msgid "Description (optional)"
 msgstr "Mô tả (tùy chọn)"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Design & media"
+msgstr "Thiết kế và phương tiện"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Điểm cuối máy tính"
@@ -3959,6 +3994,10 @@ msgstr "HEAD tách rời"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "Chi tiết"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#~ msgid "Detect from project files"
+#~ msgstr "Phát hiện từ tệp dự án"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Detected"
@@ -3997,6 +4036,10 @@ msgstr "Máy chủ phát triển đang lắng nghe trên localhost của máy t�
 msgid "Developer tools"
 msgstr "Công cụ lập trình"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Development"
+msgstr "Phát triển"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản dựng PORACODE DEV."
@@ -4005,6 +4048,10 @@ msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản d
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung soạn thảo."
+
+#: src/renderer/utils/projectIcons.ts
+msgid "Devices & tools"
+msgstr "Thiết bị và công cụ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
@@ -4912,6 +4959,10 @@ msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 msgid "Files"
 msgstr "Tập tin"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Files & folders"
+msgstr "Tệp và thư mục"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.worktreeBranch
 #. placeholder {0}: thread.worktreeBranch ?? thread.title
@@ -5123,6 +5174,10 @@ msgstr "Tiếp tục..."
 msgid "Fonts and scrolling"
 msgstr "Phông chữ và cuộn"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Food & drink"
+msgstr "Đồ ăn và thức uống"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Buộc xóa"
@@ -5195,6 +5250,10 @@ msgstr "Tần suất"
 msgid "Friday at 4:00 PM"
 msgstr "Thứ Sáu lúc 4:00 CH"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "From this project"
+msgstr "Từ dự án này"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
 msgstr "Làm mờ thanh bên bằng hiệu ứng làm mờ của hệ thống (vibrancy), gợi nhớ macOS gần đây. Sẽ dùng lớp màu mờ trong suốt nếu không được hỗ trợ."
@@ -5219,6 +5278,10 @@ msgstr "Cấu hình đầy đủ"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Lớp phủ toàn màn hình"
+
+#: src/renderer/utils/projectIcons.ts
+msgid "Games & fun"
+msgstr "Trò chơi và giải trí"
 
 #: src/renderer/components/providers/gemini/manifest.ts
 msgid "Gemini"
@@ -5421,6 +5484,10 @@ msgstr "Đã hiểu"
 msgid "Grade {0}"
 msgstr "Xếp hạng {0}"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Green"
+msgstr "Xanh lá"
+
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
 msgstr "Grok Build"
@@ -5477,6 +5544,10 @@ msgstr "Header"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Hãy giúp tôi tạo lịch. Hỏi những chi tiết còn thiếu, sau đó dùng các điều khiển lịch của Poracode để tạo giúp tôi."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Hex color"
+msgstr "Màu hex"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -5602,6 +5673,18 @@ msgstr "HTTP (hỗ trợ truyền phát)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Hue"
+msgstr "Sắc màu"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Icon color"
+msgstr "Màu biểu tượng"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Icon color: {label}"
+msgstr "Màu biểu tượng: {label}"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -5642,6 +5725,10 @@ msgstr "Hình ảnh"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Images"
+msgstr "Ảnh"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6316,6 +6403,10 @@ msgstr "localhost:{0} trên máy tính"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Vị trí"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Location glyph"
+msgstr "Ký tự vị trí"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Lock panel to the open thread"
@@ -7067,6 +7158,10 @@ msgstr "Nhà cung cấp bản địa"
 msgid "Native support"
 msgstr "Hỗ trợ bản địa"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Nature & weather"
+msgstr "Thiên nhiên và thời tiết"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Điều hướng, kiểm tra và thử nghiệm trang bằng Browser MCP tích hợp."
@@ -7459,6 +7554,10 @@ msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "No icons found"
+msgstr "Không tìm thấy biểu tượng"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
@@ -8191,6 +8290,10 @@ msgstr "Tùy chọn"
 msgid "Or write a custom answer"
 msgstr "Hoặc viết một câu trả lời tùy chỉnh"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Orange"
+msgstr "Cam"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "Khác"
@@ -8484,6 +8587,10 @@ msgstr "Ghim lên đầu"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Pin workflow"
 msgstr "Ghim quy trình làm việc"
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Pink"
+msgstr "Hồng"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -8827,6 +8934,20 @@ msgstr "Thư mục dự án"
 #: src/renderer/actions/projectActions.ts
 msgid "Project folder updated. Reopen any terminals in this project."
 msgstr "Đã cập nhật thư mục dự án. Hãy mở lại bất kỳ terminal nào trong dự án này."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Project icon"
+msgstr "Biểu tượng dự án"
+
+#. placeholder {0}: projectIconDisplayName(spec.name)
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#~ msgid "Project icon: {0}"
+#~ msgstr "Biểu tượng dự án: {0}"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconGrid.tsx
+msgid "Project icon: {label}"
+msgstr "Biểu tượng dự án: {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "project managed"
@@ -9198,6 +9319,10 @@ msgstr "Đang kết nối lại với desktop…"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API công khai - nó không phản ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong bảng sử dụng."
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Red"
+msgstr "Đỏ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
@@ -10029,6 +10154,10 @@ msgstr "Gỡ lỗi thời gian chạy"
 msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+msgid "Saturation and brightness"
+msgstr "Độ bão hòa và độ sáng"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -10150,6 +10279,10 @@ msgstr "Lịch biểu"
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Lịch biểu, AI, tác nhân và luồng đã lưu trữ trên máy tính được ghép nối"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Science & education"
+msgstr "Khoa học và giáo dục"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "Phạm vi"
@@ -10224,6 +10357,14 @@ msgstr "Tìm kiếm nhánh..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Tìm kiếm tập tin"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Search icons"
+msgstr "Tìm biểu tượng"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Search icons..."
+msgstr "Tìm biểu tượng..."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
@@ -10512,6 +10653,10 @@ msgstr "Cài đặt"
 msgid "Setup script"
 msgstr "Tập lệnh thiết lập"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Shapes & symbols"
+msgstr "Hình dạng và ký hiệu"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Share"
 msgstr "Chia sẻ"
@@ -10693,6 +10838,10 @@ msgstr "Đang hiển thị {0, plural, other {# skill}}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Đang hiển thị 4.000 mục đầu tiên."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Shown next to the project name."
+msgstr "Hiển thị cạnh tên dự án."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11521,6 +11670,10 @@ msgstr "Đầu ra nhiệm vụ"
 msgid "Task tags"
 msgstr "Thẻ tác vụ"
 
+#: src/renderer/utils/projectIconColors.ts
+msgid "Teal"
+msgstr "Xanh mòng kỹ"
+
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -12209,6 +12362,10 @@ msgstr "Phiên âm giọng nói"
 msgid "Translucent sidebar"
 msgstr "Thanh bên trong suốt"
 
+#: src/renderer/utils/projectIcons.ts
+msgid "Travel & places"
+msgstr "Du lịch và địa điểm"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Đang thịnh hành"
@@ -12847,6 +13004,10 @@ msgstr "Dùng + để ghép nối trực tiếp hoặc kết nối với máy t�
 msgid "Use an existing folder"
 msgstr "Sử dụng thư mục hiện có"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+msgid "Use an image from the project folder..."
+msgstr "Dùng ảnh từ thư mục dự án..."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "Dùng Chrome an toàn khi tác vụ cần một phiên trình duyệt sẵn có."
@@ -13010,6 +13171,10 @@ msgstr "Xem nhật ký thay đổi"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
+
+#: src/renderer/utils/projectIconColors.ts
+msgid "Violet"
+msgstr "Tím"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx

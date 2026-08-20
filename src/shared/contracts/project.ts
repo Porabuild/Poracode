@@ -62,6 +62,12 @@ export const projectSchema = z.object({
   remoteServerId: z.string().min(1).optional(),
   remoteId: z.string().min(1).optional(),
   name: z.string().min(1),
+  /**
+   * Custom project icon. `"auto"` detects an icon from the project's files;
+   * `lucide:<name>` picks a bundled glyph; `file:<path>` points at an image
+   * relative to the project folder. Absent keeps the location-kind glyph.
+   */
+  icon: z.string().min(1).optional(),
   location: projectLocationSchema,
   lastDraftConfig: projectDraftConfigSchema.optional(),
   scripts: projectScriptsSchema.optional(),

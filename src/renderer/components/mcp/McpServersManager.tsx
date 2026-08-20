@@ -52,6 +52,7 @@ interface McpServerSource {
   projectId?: string;
   projectLocation?: ProjectLocation;
   projectName?: string;
+  projectIcon?: string;
   onChange: (servers: McpServer[]) => void;
 }
 
@@ -66,6 +67,7 @@ export interface McpImportProjectTarget {
   id: string;
   name: string;
   location: ProjectLocation;
+  icon?: string;
   servers: McpServer[];
   onChange: (servers: McpServer[]) => void;
 }
@@ -134,7 +136,12 @@ export function McpServersManager(props: {
   const projectDestinations: McpEditorDestination[] = (props.importProjects ?? []).map(
     (project) => ({
       id: mcpProjectDestinationId(project.id),
-      project: { id: project.id, name: project.name, location: project.location },
+      project: {
+        id: project.id,
+        name: project.name,
+        location: project.location,
+        ...(project.icon ? { icon: project.icon } : {}),
+      },
       source: {
         servers: project.servers,
         projectId: project.id,
@@ -159,6 +166,7 @@ export function McpServersManager(props: {
               id: workspaceSource.projectId,
               name: workspaceSource.projectName ?? workspaceSource.projectId,
               location: workspaceSource.projectLocation,
+              ...(workspaceSource.projectIcon ? { icon: workspaceSource.projectIcon } : {}),
             },
           }
         : {}),

@@ -3,6 +3,7 @@ import type { McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   setProjectDisabled,
+  updateProjectIcon,
   updateProjectMcpServers,
   updateProjectScripts,
 } from "./projectActions";
@@ -115,5 +116,65 @@ describe("remote project actions", () => {
 
     await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("remote server offline"));
     expect(useAppStore.getState().projects[0]?.disabled).not.toBe(true);
+  });
+
+  it("applies a project icon only after the remote host accepts it", async () => {
+    let accept: (() => void) | undefined;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+
+    updateProjectIcon(project.id, "lucide:rocket");
+
+    expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    accept?.();
+    await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.icon).toBe("lucide:rocket"));
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { icon: "lucide:rocket" },
+    });
+  });
+
+  it("clears a remote project icon by patching null", async () => {
+    useAppStore.setState({ projects: [{ ...project, icon: "auto" }], threads: [] });
+
+    updateProjectIcon(project.id, undefined);
+
+    await vi.waitFor(() => expect(runProjectCommand).toHaveBeenCalled());
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { icon: null },
+    });
+  });
+});
+
+describe("local project icon action", () => {
+  const localProject: Project = {
+    id: "local-project",
+    name: "Local project",
+    location: { kind: "windows", path: "E:/work/app" },
+    createdAt: "2026-08-02T00:00:00.000Z",
+  };
+
+  beforeEach(() => {
+    runProjectCommand.mockReset().mockResolvedValue(undefined);
+    useAppStore.setState({ projects: [localProject], threads: [] });
+  });
+
+  it("sets and clears the icon immediately without any remote call", () => {
+    updateProjectIcon(localProject.id, "lucide:folder-git");
+    expect(useAppStore.getState().projects[0]?.icon).toBe("lucide:folder-git");
+
+    updateProjectIcon(localProject.id, "auto");
+    expect(useAppStore.getState().projects[0]?.icon).toBe("auto");
+
+    updateProjectIcon(localProject.id, undefined);
+    expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    expect(runProjectCommand).not.toHaveBeenCalled();
   });
 });

@@ -645,6 +645,16 @@ describe("RemoteDesktopClient", () => {
     await expect(client.environment()).rejects.toThrow(/incompatible/i);
   });
 
+  it("rejects a v3 host after the project-icon wire change", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(3, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
   it("falls back to the legacy environment endpoint when the Poracode endpoint is unavailable", async () => {
     const requestedPaths: string[] = [];
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async (url) => {
