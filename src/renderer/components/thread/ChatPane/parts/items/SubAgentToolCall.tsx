@@ -85,7 +85,9 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
   const isCrossagent = isCrossagentTool(payload);
-  const describesCancelledStatus = isCrossagent && payload.crossagentStatus === "cancelled";
+  const describesCancelledStatus =
+    payload.subAgentStatus === "cancelled" ||
+    (isCrossagent && payload.crossagentStatus === "cancelled");
   const displayTitle = normalizeCallTitleSeparator(display.title);
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
@@ -274,9 +276,15 @@ function resolveStatus(
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }
-  if (payload?.crossagentStatus === "cancelled") {
+  if (payload?.subAgentStatus === "cancelled" || payload?.crossagentStatus === "cancelled") {
     return {
       rightLabel: <Trans>cancelled</Trans>,
+      rightLabelClassName: "!text-[color:var(--muted)]",
+    };
+  }
+  if (payload?.subAgentStatus === "paused") {
+    return {
+      rightLabel: <Trans>Paused</Trans>,
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }

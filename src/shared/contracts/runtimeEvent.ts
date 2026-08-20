@@ -201,6 +201,15 @@ export const toolCallProgressSchema = z.object({
 });
 export type ToolCallProgress = z.infer<typeof toolCallProgressSchema>;
 
+export const subAgentStatusSchema = z.enum([
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+  "paused",
+]);
+export type SubAgentStatus = z.infer<typeof subAgentStatusSchema>;
+
 export const acpToolKindSchema = z.enum([
   "read",
   "edit",
@@ -268,6 +277,7 @@ export const toolCallPayloadSchema = z.object({
   status: toolCallStatusSchema,
   progress: toolCallProgressSchema.optional(),
   isSubAgent: z.boolean().optional(),
+  subAgentStatus: subAgentStatusSchema.optional(),
   /**
    * This agent row CONTINUES an earlier run instead of launching a new agent —
    * e.g. Claude Code's `SendMessage` resuming a completed sub-agent from its

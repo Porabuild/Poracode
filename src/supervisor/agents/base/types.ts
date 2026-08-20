@@ -203,6 +203,8 @@ export interface CreateStructuredSessionInput {
    * lifecycle boundaries on an extension method instead of the ACP stream.
    */
   acpExtensionSessionUpdateTransform?: AcpExtensionSessionUpdateTransform;
+  /** Vendor metadata added to the ACP `initialize` request. */
+  acpInitializeMeta?: Record<string, unknown>;
   /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
@@ -242,7 +244,18 @@ export type AcpSessionUpdateTransform = (
 export type AcpExtensionSessionUpdateTransform = (
   method: string,
   params: Record<string, unknown>,
-) => import("@agentclientprotocol/sdk").SessionNotification | undefined;
+  ctx?: {
+    request: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  },
+) =>
+  | import("@agentclientprotocol/sdk").SessionNotification
+  | readonly import("@agentclientprotocol/sdk").SessionNotification[]
+  | undefined
+  | Promise<
+      | import("@agentclientprotocol/sdk").SessionNotification
+      | readonly import("@agentclientprotocol/sdk").SessionNotification[]
+      | undefined
+    >;
 
 export type AcpExtensionNotificationHandler = (
   method: string,

@@ -38,6 +38,8 @@ import {
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
+  readAcpSubAgentProgressMeta,
+  readAcpSubAgentStatusMeta,
   removeActiveSubAgent,
   selectActiveSubAgentForToolCall,
   tagSubAgentChildStarts,
@@ -442,14 +444,29 @@ export function mapAcpSessionUpdate(
         item.isSubAgent && !hasOpenSubAgentContent
           ? buildSubAgentProgress(toolCall, payload, status)
           : undefined;
-      const nextPayload = subAgentProgress?.label
-        ? mergeToolPayload(payload, {
-            progress: {
+      const reportedProgress = item.isSubAgent
+        ? readAcpSubAgentProgressMeta(toolCall._meta)
+        : undefined;
+      const progress = {
+        ...reportedProgress,
+        ...(subAgentProgress?.label
+          ? {
               description: subAgentProgress.label,
               ...(subAgentProgress.summary ? { summary: subAgentProgress.summary } : {}),
-            },
-          })
-        : payload;
+            }
+          : {}),
+      };
+      const reportedStatus = item.isSubAgent
+        ? readAcpSubAgentStatusMeta(toolCall._meta)
+        : undefined;
+      const metadataPayload = {
+        ...(Object.keys(progress).length > 0 ? { progress } : {}),
+        ...(reportedStatus ? { subAgentStatus: reportedStatus } : {}),
+      };
+      const nextPayload =
+        Object.keys(metadataPayload).length > 0
+          ? mergeToolPayload(payload, metadataPayload)
+          : payload;
       if (toolCall.rawInput !== undefined) nextPayload.args = toolCall.rawInput;
       const mergedRaw = mergeToolPayload(item.payload, nextPayload);
       const emittedRaw = mergeProgressForEmission(nextPayload, mergedRaw);

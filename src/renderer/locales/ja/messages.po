@@ -8389,6 +8389,7 @@ msgstr "一時停止"
 msgid "Pause goal"
 msgstr "目標を一時停止"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"

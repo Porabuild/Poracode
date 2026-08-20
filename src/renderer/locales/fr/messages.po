@@ -8390,6 +8390,7 @@ msgstr "Mettre en pause"
 msgid "Pause goal"
 msgstr "Mettre l'objectif en pause"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
