@@ -403,7 +403,8 @@ function nextConfigOptionsUpdate(
 // ── Probe ────────────────────────────────────────────────────────
 
 /**
- * Spawn an ACP agent, discover its capabilities, then kill it.
+ * Spawn an ACP agent, discover its capabilities, clean up the probe session,
+ * then stop the process.
  *
  * Returns `undefined` on any failure (timeout, missing --acp support,
  * protocol error, etc.).
@@ -434,6 +435,10 @@ export async function probeAcpCapabilities(
   const tag = options?.label ? `[acp-probe:${options.label}]` : "[acp-probe]";
   let child: ReturnType<typeof spawn> | undefined;
   let abortProbe: (() => void) | undefined;
+  let connection: ClientSideConnection | undefined;
+  let probeSessionId: string | undefined;
+  let probeSessionCleanup: "delete" | "close" | undefined;
+  let cleanupReserveMs = 0;
   const ownedProcessGroup = process.platform !== "win32";
   const probeResult: AcpProbeResult = {};
 
@@ -465,17 +470,18 @@ export async function probeAcpCapabilities(
       child!.once("error", markClosed);
       child!.once("exit", markClosed);
     });
+    let resolveProbeAborted: (() => void) | undefined;
+    let probeWasAborted = false;
+    const probeAborted = new Promise<void>((resolve) => {
+      resolveProbeAborted = resolve;
+    });
     abortProbe = () => {
-      try {
-        child?.stdin?.destroy();
-      } catch {
-        // Ignore cleanup races.
-      }
-      if (child) terminateChildProcessTree(child, { ownedProcessGroup });
+      probeWasAborted = true;
+      resolveProbeAborted?.();
     };
     options?.signal?.addEventListener("abort", abortProbe, { once: true });
     if (options?.signal?.aborted) abortProbe();
-    const remainingBudgetMs = () => Math.max(0, deadline - Date.now());
+    const remainingBudgetMs = () => Math.max(0, deadline - Date.now() - cleanupReserveMs);
     const waitForProbeWindow = async (maxMs: number): Promise<void> => {
       const waitMs = Math.min(maxMs, remainingBudgetMs());
       if (waitMs <= 0 || childExited) return;
@@ -486,6 +492,9 @@ export async function probeAcpCapabilities(
             timer = setTimeout(resolve, waitMs);
           }),
           childClosed,
+          probeAborted.then<never>(() => {
+            throw new Error("ACP probe aborted");
+          }),
         ]);
       } finally {
         if (timer) clearTimeout(timer);
@@ -494,6 +503,7 @@ export async function probeAcpCapabilities(
     const runWithinProbeBudget = async <T>(operation: Promise<T>, maxMs?: number): Promise<T> => {
       const budgetMs = Math.min(maxMs ?? Number.POSITIVE_INFINITY, remainingBudgetMs());
       if (budgetMs <= 0) throw new Error("ACP probe timed out");
+      if (probeWasAborted) throw new Error("ACP probe aborted");
       if (childExited) throw new Error("ACP agent exited during capability probe");
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -504,6 +514,9 @@ export async function probeAcpCapabilities(
           }),
           childClosed.then<never>(() => {
             throw new Error("ACP agent exited during capability probe");
+          }),
+          probeAborted.then<never>(() => {
+            throw new Error("ACP probe aborted");
           }),
         ]);
       } finally {
@@ -526,7 +539,7 @@ export async function probeAcpCapabilities(
     const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
     const stream = ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent));
 
-    const connection = new ClientSideConnection(
+    connection = new ClientSideConnection(
       () => ({
         requestPermission: () => Promise.resolve({ outcome: { outcome: "cancelled" as const } }),
         sessionUpdate: (params: SessionNotification) => {
@@ -547,70 +560,82 @@ export async function probeAcpCapabilities(
       stream,
     );
 
-    const result = await runWithinProbeBudget(
-      (async () => {
-        const initResult = await connection.initialize({
-          protocolVersion: PROTOCOL_VERSION,
-          clientInfo: { name: "poracode-probe", version: "0.1.0" },
-          clientCapabilities: { auth: { terminal: true } },
-        });
-        if (initResult.authMethods?.length) {
-          probeResult.authMethods = initResult.authMethods;
-        }
-        if (initResult.agentCapabilities?.auth?.logout !== undefined) {
-          probeResult.authLogoutSupported = true;
-        }
-        if (initResult._meta && typeof initResult._meta === "object") {
-          probeResult.acpMeta = initResult._meta as Record<string, unknown>;
-          initializeModels = readUnstableInitializeModels(initResult._meta);
-        }
-
-        // Non-spec compatibility fallback for agents that still expose
-        // commands during initialize instead of session/update.
-        const rawCommands = (initResult as { commands?: AcpAvailableCommandLike[] }).commands;
-        if (Array.isArray(rawCommands) && rawCommands.length > 0) {
-          latestSlashCommands = mapAcpSlashCommands(rawCommands);
-        }
-
-        const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
-          initResult.authMethods?.some((method) => method.id === id),
-        );
-        if (preferredAuthMethodId) {
-          try {
-            const authResult = (await connection.authenticate({
-              methodId: preferredAuthMethodId,
-            })) as { _meta?: unknown } | undefined;
-            const authMeta = authResult?._meta;
-            if (authMeta && typeof authMeta === "object") {
-              probeResult.acpMeta = {
-                ...(probeResult.acpMeta ?? {}),
-                ...(authMeta as Record<string, unknown>),
-              };
-            }
-          } catch (err) {
-            console.log(
-              "%s authenticate(%s) failed: %s",
-              tag,
-              preferredAuthMethodId,
-              err instanceof Error ? err.message : String(err),
-            );
-          }
-        }
-
-        try {
-          return await connection.newSession({ cwd: sessionCwd, mcpServers: [] });
-        } catch (err) {
-          // ACP's spec-compliant signal that the agent is not signed in.
-          // Propagate it as a distinct authState so the detection layer can
-          // surface "missing" without falling back to env-var / file probes
-          // that don't reflect post-logout state.
-          if (isAcpAuthRequiredError(err)) {
-            probeResult.authState = "missing";
-          }
-          throw err;
-        }
-      })(),
+    const initResult = await runWithinProbeBudget(
+      connection.initialize({
+        protocolVersion: PROTOCOL_VERSION,
+        clientInfo: { name: "poracode-probe", version: "0.1.0" },
+        clientCapabilities: { auth: { terminal: true } },
+      }),
     );
+    if (initResult.authMethods?.length) {
+      probeResult.authMethods = initResult.authMethods;
+    }
+    if (initResult.agentCapabilities?.auth?.logout !== undefined) {
+      probeResult.authLogoutSupported = true;
+    }
+    const sessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
+    probeSessionCleanup =
+      sessionCapabilities?.delete != null
+        ? "delete"
+        : sessionCapabilities?.close != null
+          ? "close"
+          : undefined;
+    if (probeSessionCleanup) {
+      cleanupReserveMs = Math.min(1_000, Math.floor(timeoutMs / 4));
+    }
+    if (initResult._meta && typeof initResult._meta === "object") {
+      probeResult.acpMeta = initResult._meta as Record<string, unknown>;
+      initializeModels = readUnstableInitializeModels(initResult._meta);
+    }
+
+    // Non-spec compatibility fallback for agents that still expose
+    // commands during initialize instead of session/update.
+    const rawCommands = (initResult as { commands?: AcpAvailableCommandLike[] }).commands;
+    if (Array.isArray(rawCommands) && rawCommands.length > 0) {
+      latestSlashCommands = mapAcpSlashCommands(rawCommands);
+    }
+
+    const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
+      initResult.authMethods?.some((method) => method.id === id),
+    );
+    if (preferredAuthMethodId) {
+      try {
+        const authResult = (await runWithinProbeBudget(
+          connection.authenticate({ methodId: preferredAuthMethodId }),
+        )) as { _meta?: unknown } | undefined;
+        const authMeta = authResult?._meta;
+        if (authMeta && typeof authMeta === "object") {
+          probeResult.acpMeta = {
+            ...(probeResult.acpMeta ?? {}),
+            ...(authMeta as Record<string, unknown>),
+          };
+        }
+      } catch (err) {
+        console.log(
+          "%s authenticate(%s) failed: %s",
+          tag,
+          preferredAuthMethodId,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    let result;
+    try {
+      result = await runWithinProbeBudget(
+        connection.newSession({ cwd: sessionCwd, mcpServers: [] }),
+      );
+    } catch (err) {
+      // ACP's spec-compliant signal that the agent is not signed in.
+      // Propagate it as a distinct authState so the detection layer can
+      // surface "missing" without falling back to env-var / file probes
+      // that don't reflect post-logout state.
+      if (isAcpAuthRequiredError(err)) {
+        probeResult.authState = "missing";
+      }
+      throw err;
+    }
+    probeSessionId = result.sessionId;
     // An available-commands update is a full snapshot. Keep the latest one
     // throughout the grace window because agents may publish built-ins first
     // and append skills after their async discovery completes.
@@ -752,6 +777,41 @@ export async function probeAcpCapabilities(
     return undefined;
   } finally {
     if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
+    const cleanupBudgetMs = Math.max(0, deadline - Date.now());
+    if (
+      connection &&
+      probeSessionId &&
+      probeSessionCleanup &&
+      child &&
+      !child.killed &&
+      cleanupBudgetMs > 0
+    ) {
+      let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const cleanup =
+          probeSessionCleanup === "delete"
+            ? connection.deleteSession({ sessionId: probeSessionId })
+            : connection.closeSession({ sessionId: probeSessionId });
+        await Promise.race([
+          cleanup,
+          new Promise<never>((_, reject) => {
+            cleanupTimer = setTimeout(
+              () => reject(new Error("ACP probe session cleanup timed out")),
+              cleanupBudgetMs,
+            );
+          }),
+        ]);
+      } catch (error) {
+        console.log(
+          "%s session/%s cleanup failed: %s",
+          tag,
+          probeSessionCleanup,
+          error instanceof Error ? error.message : String(error),
+        );
+      } finally {
+        if (cleanupTimer) clearTimeout(cleanupTimer);
+      }
+    }
     if (child && !child.killed) {
       // Destroy stdin before killing to prevent the ACP SDK from writing
       // to a dead pipe (which causes noisy "ACP write error" logs).

@@ -17,8 +17,13 @@
  *   FAKE_HANG_SET_CONFIG        "1" → never answer session/set_config_option (simulates a wedged agent)
  *   FAKE_CRASH_AFTER_NEW_SESSION "1" → exit(0) immediately after answering session/new
  *   FAKE_AUTH_REQUIRED_ON_NEW     "1" → reject session/new as unauthenticated
+ *   FAKE_SESSION_CLEANUP_CAPABILITY "delete" | "close" | "null" | "null-delete-close"
+ *   FAKE_SESSION_CLEANUP_MARKER    path written with the received cleanup method
+ *   FAKE_SESSION_CLEANUP_BEHAVIOR  "error" | "hang" → fail or wedge cleanup
+ *   FAKE_SESSION_NEW_MARKER        path written after the session/new response flushes
  *   FAKE_SELF_DESTRUCT_MS       exit(0) after N ms regardless (test cleanup guard)
  */
+import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 
 const env = process.env;
@@ -41,6 +46,10 @@ const setConfigDelayMs = Number(env.FAKE_SET_CONFIG_DELAY_MS ?? 0);
 const hangSetConfig = env.FAKE_HANG_SET_CONFIG === "1";
 const crashAfterNewSession = env.FAKE_CRASH_AFTER_NEW_SESSION === "1";
 const authRequiredOnNewSession = env.FAKE_AUTH_REQUIRED_ON_NEW === "1";
+const sessionCleanupCapability = env.FAKE_SESSION_CLEANUP_CAPABILITY;
+const sessionCleanupMarker = env.FAKE_SESSION_CLEANUP_MARKER;
+const sessionCleanupBehavior = env.FAKE_SESSION_CLEANUP_BEHAVIOR;
+const sessionNewMarker = env.FAKE_SESSION_NEW_MARKER;
 const selfDestructMs = Number(env.FAKE_SELF_DESTRUCT_MS ?? 0);
 const includeReasoningEffort = env.FAKE_REASONING_EFFORT === "1";
 
@@ -51,12 +60,12 @@ if (selfDestructMs > 0) {
 
 let currentModel = models[0];
 
-function send(message) {
-  process.stdout.write(`${JSON.stringify(message)}\n`);
+function send(message, callback) {
+  process.stdout.write(`${JSON.stringify(message)}\n`, callback);
 }
 
-function respond(id, result) {
-  send({ jsonrpc: "2.0", id, result });
+function respond(id, result, callback) {
+  send({ jsonrpc: "2.0", id, result }, callback);
 }
 
 function notifySessionUpdate(update) {
@@ -109,7 +118,19 @@ rl.on("line", (line) => {
     case "initialize":
       respond(id, {
         protocolVersion: 1,
-        agentCapabilities: { promptCapabilities: {}, sessionCapabilities: {} },
+        agentCapabilities: {
+          promptCapabilities: {},
+          sessionCapabilities:
+            sessionCleanupCapability === "delete"
+              ? { delete: {} }
+              : sessionCleanupCapability === "close"
+                ? { close: {} }
+                : sessionCleanupCapability === "null-delete-close"
+                  ? { delete: null, close: {} }
+                  : sessionCleanupCapability === "null"
+                    ? { delete: null, close: null }
+                    : {},
+        },
         agentInfo: { name: "fake-acp-agent", version: "0.0.0" },
         ...(initializeModels.length > 0
           ? {
@@ -141,14 +162,18 @@ rl.on("line", (line) => {
         });
         return;
       }
-      respond(id, {
-        sessionId: SESSION_ID,
-        modes: {
-          currentModeId: "default",
-          availableModes: [{ id: "default", name: "Default" }],
+      respond(
+        id,
+        {
+          sessionId: SESSION_ID,
+          modes: {
+            currentModeId: "default",
+            availableModes: [{ id: "default", name: "Default" }],
+          },
+          configOptions: configOptions(),
         },
-        configOptions: configOptions(),
-      });
+        sessionNewMarker ? () => writeFileSync(sessionNewMarker, SESSION_ID) : undefined,
+      );
       for (const batch of slashBatches) {
         setTimeout(
           () => {
@@ -185,6 +210,17 @@ rl.on("line", (line) => {
 
     case "session/cancel":
       return; // notification — no response
+
+    case "session/delete":
+    case "session/close":
+      if (sessionCleanupMarker) writeFileSync(sessionCleanupMarker, method);
+      if (sessionCleanupBehavior === "hang") return;
+      if (sessionCleanupBehavior === "error") {
+        send({ jsonrpc: "2.0", id, error: { code: -32603, message: "cleanup failed" } });
+        return;
+      }
+      respond(id, {});
+      return;
 
     default:
       if (id !== undefined) respond(id, {});
