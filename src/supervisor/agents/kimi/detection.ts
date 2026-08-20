@@ -84,6 +84,7 @@ export function normalizeKimiProbeEfforts(probe: AcpProbeResult | undefined): {
   defaultEffort?: string;
   modelEfforts?: Record<string, string[]>;
   modelDefaultEfforts?: Record<string, string>;
+  thinkingModels?: string[];
 } {
   const efforts = kimiThoughtLevelChoices(probe?.efforts ?? []);
   const defaultEffort = preferredKimiThoughtTier(efforts, probe?.defaultEffort);
@@ -111,6 +112,7 @@ export function normalizeKimiProbeEfforts(probe: AcpProbeResult | undefined): {
     ...(efforts.length > 0 ? { efforts, ...(defaultEffort ? { defaultEffort } : {}) } : {}),
     ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
     ...(Object.keys(modelDefaultEfforts).length > 0 ? { modelDefaultEfforts } : {}),
+    ...(probe?.thinkingModels ? { thinkingModels: probe.thinkingModels } : {}),
   };
 }
 

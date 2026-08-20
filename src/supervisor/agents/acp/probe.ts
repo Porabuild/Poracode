@@ -22,7 +22,11 @@ import {
 } from "@agentclientprotocol/sdk";
 import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { findThoughtLevelConfigOption } from "./thoughtLevel";
+import {
+  findThoughtLevelConfigOption,
+  isToggleOnlyThoughtLevelConfig,
+  resolveThoughtLevelToggleValues,
+} from "./thoughtLevel";
 import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 import {
   readUnstableInitializeModels,
@@ -82,6 +86,8 @@ export interface AcpProbeResult {
   modelEfforts?: Record<string, string[]>;
   /** Per-model default thought level, read while the sweep has that model active. */
   modelDefaultEfforts?: Record<string, string>;
+  /** Models whose ACP thought-level selector is a thinking on/off toggle. */
+  thinkingModels?: string[];
   modes?: ThreadMode[];
   approvalPolicies?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
@@ -314,6 +320,7 @@ function findSelectConfigOption(
 export function mapAcpThoughtLevels(configOptions: unknown): {
   efforts: string[];
   defaultEffort?: string;
+  toggleOnly?: boolean;
 } {
   const option = findThoughtLevelConfigOption(configOptions);
 
@@ -333,6 +340,7 @@ export function mapAcpThoughtLevels(configOptions: unknown): {
   return {
     efforts,
     ...(defaultEffort ? { defaultEffort } : {}),
+    ...(isToggleOnlyThoughtLevelConfig(option) ? { toggleOnly: true } : {}),
   };
 }
 
@@ -346,8 +354,20 @@ function rememberModelThoughtLevels(
   fallbackEfforts: string[],
   modelEfforts: Record<string, string[]>,
   modelDefaultEfforts: Record<string, string>,
+  thinkingModels: string[],
 ): void {
   const thoughtLevels = mapAcpThoughtLevels(configOptions);
+  if (thoughtLevels.toggleOnly) {
+    const thoughtLevelConfig = findThoughtLevelConfigOption(configOptions);
+    if (!resolveThoughtLevelToggleValues(thoughtLevelConfig)) {
+      return;
+    }
+    modelEfforts[modelId] = [];
+    if (!thinkingModels.includes(modelId)) {
+      thinkingModels.push(modelId);
+    }
+    return;
+  }
   // The selector's currentValue while this model is active is its default —
   // record it even when the effort list matches the provider baseline, since
   // models sharing one list can still default to different levels (Kimi's
@@ -671,10 +691,10 @@ export async function probeAcpCapabilities(
         probeResult.models = configModels;
       }
       const thoughtLevels = mapAcpThoughtLevels(result.configOptions);
-      if (thoughtLevels.efforts.length > 0) {
+      if (!thoughtLevels.toggleOnly && thoughtLevels.efforts.length > 0) {
         probeResult.efforts = thoughtLevels.efforts;
       }
-      if (thoughtLevels.defaultEffort) {
+      if (!thoughtLevels.toggleOnly && thoughtLevels.defaultEffort) {
         probeResult.defaultEffort = thoughtLevels.defaultEffort;
       }
       const modelConfig = findSelectConfigOption(result.configOptions, "model");
@@ -686,6 +706,7 @@ export async function probeAcpCapabilities(
           typeof modelConfig?.currentValue === "string" ? modelConfig.currentValue : undefined;
         const modelEfforts: Record<string, string[]> = {};
         const modelDefaultEfforts: Record<string, string> = {};
+        const thinkingModels: string[] = [];
         if (currentModel) {
           rememberModelThoughtLevels(
             currentModel,
@@ -693,6 +714,7 @@ export async function probeAcpCapabilities(
             probeResult.efforts ?? [],
             modelEfforts,
             modelDefaultEfforts,
+            thinkingModels,
           );
         }
         const modelIds = probeResult.models
@@ -740,7 +762,7 @@ export async function probeAcpCapabilities(
           // Adopt the first discovered thought-level selector as the baseline.
           if (!probeResult.efforts?.length) {
             const discovered = mapAcpThoughtLevels(configOptions);
-            if (discovered.efforts.length > 0) {
+            if (!discovered.toggleOnly && discovered.efforts.length > 0) {
               probeResult.efforts = discovered.efforts;
               if (discovered.defaultEffort) {
                 probeResult.defaultEffort = discovered.defaultEffort;
@@ -753,6 +775,7 @@ export async function probeAcpCapabilities(
             probeResult.efforts ?? [],
             modelEfforts,
             modelDefaultEfforts,
+            thinkingModels,
           );
         }
         if (Object.keys(modelEfforts).length > 0) {
@@ -760,6 +783,9 @@ export async function probeAcpCapabilities(
         }
         if (Object.keys(modelDefaultEfforts).length > 0) {
           probeResult.modelDefaultEfforts = modelDefaultEfforts;
+        }
+        if (thinkingModels.length > 0) {
+          probeResult.thinkingModels = thinkingModels;
         }
       }
     }

@@ -283,6 +283,13 @@ describe("buildKimiProbeCapabilities", () => {
     expect(buildKimiProbeCapabilities(undefined, noCredentials).models).toBeUndefined();
   });
 
+  it("preserves ACP thinking model capabilities", () => {
+    expect(
+      buildKimiProbeCapabilities({ thinkingModels: ["kimi-for-coding"] }, noCredentials)
+        .thinkingModels,
+    ).toEqual(["kimi-for-coding"]);
+  });
+
   it("advertises the static terminal login method and prefers it", () => {
     const caps = buildKimiProbeCapabilities(undefined, noCredentials);
     expect(caps.authMethods).toEqual([kimiTerminalAuthMethod]);

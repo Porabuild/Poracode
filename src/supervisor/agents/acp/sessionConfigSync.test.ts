@@ -25,6 +25,18 @@ function thoughtLevelOption(id = "thought-level", currentValue = "low") {
   };
 }
 
+function toggleThoughtLevelOption(id = "thought-level", currentValue = "default") {
+  return {
+    ...thoughtLevelOption(id, currentValue),
+    name: "Reasoning",
+    options: [
+      { value: "none", name: "None" },
+      { value: "default", name: "Default" },
+    ],
+    _meta: { "qwenCode/reasoning": { toggleOnly: true } },
+  };
+}
+
 function modelSelectOption(currentValue = "model-a") {
   return {
     id: "model",
@@ -103,6 +115,71 @@ describe("AcpSessionConfigSync", () => {
     expect(connection.request.mock.invocationCallOrder[0]).toBeLessThan(
       connection.setSessionConfigOption.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it.each([
+    [false, "none"],
+    [true, "default"],
+  ] as const)("maps ACP toggle-only reasoning %s to %s", async (thinking, value) => {
+    const { connection, sync } = makeConfigSync({
+      configOptions: [
+        modelSelectOption(),
+        toggleThoughtLevelOption("thought-level", thinking ? "none" : "default"),
+      ],
+    });
+    const previous = { ...previousConfig, thinking: !thinking };
+    const next = { ...previous, thinking };
+
+    await sync.applyTurnConfig("session-1", next, previous);
+
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "thought-level",
+      value,
+    });
+  });
+
+  it("uses the toggle selector's advertised wire values", async () => {
+    const toggleOption = {
+      ...toggleThoughtLevelOption("thought-level", "on"),
+      options: [
+        { value: "off", name: "Reasoning Off" },
+        { value: "on", name: "Reasoning On" },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({ configOptions: [toggleOption] });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, thinking: false },
+      { ...previousConfig, thinking: true },
+    );
+
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "thought-level",
+      value: "off",
+    });
+  });
+
+  it("skips an ambiguous toggle selector", async () => {
+    const toggleOption = {
+      ...toggleThoughtLevelOption("thought-level", "on"),
+      options: [
+        { value: "off", name: "Reasoning Off" },
+        { value: "on", name: "Reasoning On" },
+        { value: "auto", name: "Reasoning Auto" },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({ configOptions: [toggleOption] });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, thinking: false },
+      { ...previousConfig, thinking: true },
+    );
+
+    expect(connection.setSessionConfigOption).not.toHaveBeenCalled();
   });
 
   it("falls back to ACP autopilot mode when approvals change but yolo is unavailable", async () => {
@@ -628,6 +705,26 @@ describe("AcpSessionConfigSync", () => {
       sessionId: "session-1",
       configId: "thought-new",
       value: "low",
+    });
+  });
+
+  it("remembers toggle-only config updates and returns thinking changes", async () => {
+    const { connection, sync } = makeConfigSync({
+      configOptions: [toggleThoughtLevelOption("thought-old", "default")],
+    });
+    const currentConfig = { ...previousConfig, thinking: true };
+    const nextConfig = sync.reduceSessionUpdate(currentConfig, {
+      sessionUpdate: "config_option_update",
+      configOptions: [toggleThoughtLevelOption("thought-new", "none")],
+    } as SessionUpdate);
+
+    expect(nextConfig).toEqual({ ...currentConfig, thinking: false });
+
+    await sync.applyTurnConfig("session-1", currentConfig, nextConfig);
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "thought-new",
+      value: "default",
     });
   });
 

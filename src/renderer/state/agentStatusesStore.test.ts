@@ -47,8 +47,8 @@ beforeEach(reset);
 describe("persisted agent status cache", () => {
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(11);
-    // Mirrors supervisor STATUS_CACHE_VERSION=14: a persisted antigravity
+    expect(options.version).toBe(12);
+    // Mirrors supervisor STATUS_CACHE_VERSION=15: a persisted antigravity
     // status from before the derivation would build the `agy` login command
     // without `AGY_CLI_DISABLE_AUTO_UPDATE`.
     const staleLogin = makeStatus({
@@ -77,7 +77,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(11);
+    expect(options.version).toBe(12);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -104,7 +104,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(11);
+    expect(options.version).toBe(12);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -154,6 +154,26 @@ describe("setAgentStatuses", () => {
     expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.slashCommands).toEqual(
       fresh.capabilities.slashCommands,
     );
+  });
+
+  it("replaces the array when ACP thinking capabilities change", () => {
+    const cached = makeStatus();
+    const fresh = makeStatus({
+      capabilities: {
+        ...cached.capabilities,
+        modelEfforts: { "gpt-5.5": [] },
+        modelDefaultEfforts: { "gpt-5.5": "default" },
+        thinkingModels: ["gpt-5.5"],
+      },
+    });
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities).toMatchObject({
+      modelEfforts: { "gpt-5.5": [] },
+      modelDefaultEfforts: { "gpt-5.5": "default" },
+      thinkingModels: ["gpt-5.5"],
+    });
   });
 
   it("replaces the array when only Codex context-window capabilities change", () => {

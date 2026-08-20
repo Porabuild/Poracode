@@ -427,13 +427,16 @@ describe("ClaudeProfileProviderSettings", () => {
     ]);
     expect(config).toMatchObject({
       configDir: "~/.poracode/claude-profiles/glm",
-      efforts: ["low", "medium", "xHigh"],
+      efforts: ["low", "medium", "high", "xHigh", "max"],
       defaultEffort: "xHigh",
       modelEfforts: {
         "qwen3.8-max": ["low", "medium", "xHigh"],
-        "qwen3.7-max": ["low", "medium", "xHigh"],
-        "qwen3.7-plus": ["low", "medium", "xHigh"],
-        "qwen3.6-flash": ["low", "medium", "xHigh"],
+        "qwen3.7-max": [],
+        "qwen3.7-plus": [],
+        "qwen3.6-flash": [],
+        "glm-5.2": ["high", "max"],
+        "deepseek-v4-pro-0813": ["high", "max"],
+        "deepseek-v4-flash-0731": ["low", "high", "max"],
       },
     });
   });

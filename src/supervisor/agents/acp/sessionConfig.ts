@@ -60,6 +60,7 @@ export type AcpConfigOptionLike = {
   type?: string;
   currentValue?: string;
   options?: unknown;
+  _meta?: unknown;
 };
 
 type AcpConfigSelectOptionLike = {

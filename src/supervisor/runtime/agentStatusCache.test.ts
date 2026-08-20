@@ -155,6 +155,42 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
+  it("invalidates v14 caches produced before ACP thinking capabilities", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 14,
+        windows: [
+          {
+            kind: "qwen",
+            label: "Qwen Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [{ id: "qwen3.7-plus", label: "Qwen3.7 Plus" }] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("migrates stale cached settingDefs to current schema", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;

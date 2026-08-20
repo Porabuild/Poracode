@@ -80,6 +80,7 @@ export function buildQoderProbeCapabilities(
     ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(probe?.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
     ...(probe?.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
+    ...(probe?.thinkingModels ? { thinkingModels: probe.thinkingModels } : {}),
     modes: [...new Set([...qoderDefaultCapabilities.modes, ...(probe?.modes ?? [])])],
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),

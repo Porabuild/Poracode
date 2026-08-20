@@ -186,6 +186,7 @@ export const geminiDetectionSpec: DetectionSpec = {
       ...(probeResult.models?.length ? { models: probeResult.models } : {}),
       ...(probeResult.efforts?.length ? { efforts: probeResult.efforts } : {}),
       ...(probeResult.defaultEffort ? { defaultEffort: probeResult.defaultEffort } : {}),
+      ...(probeResult.thinkingModels ? { thinkingModels: probeResult.thinkingModels } : {}),
       ...(probeResult.modes?.length ? { modes: probeResult.modes } : {}),
       ...(probeResult.approvalPolicies?.length
         ? { approvalPolicies: probeResult.approvalPolicies }

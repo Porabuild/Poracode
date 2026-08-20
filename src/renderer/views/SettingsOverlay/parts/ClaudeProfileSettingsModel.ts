@@ -85,6 +85,7 @@ export const KIMI_CODE_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
  */
 const QWEN_TOKEN_MODEL_ID = "qwen3.8-max";
 const QWEN_38_EFFORTS = ["low", "medium", "xHigh"] as const;
+const QWEN_TOKEN_PLAN_EFFORTS = ["low", "medium", "high", "xHigh", "max"] as const;
 const QWEN_TOKEN_PLAN_MODELS = [
   { id: QWEN_TOKEN_MODEL_ID, label: "Qwen3.8 Max" },
   { id: "qwen3.7-max", label: "Qwen3.7 Max" },
@@ -94,6 +95,17 @@ const QWEN_TOKEN_PLAN_MODELS = [
   { id: "deepseek-v4-pro-0813", label: "DeepSeek V4 Pro 0813" },
   { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
 ] as const;
+const QWEN_TOKEN_PLAN_MODEL_EFFORTS = {
+  [QWEN_TOKEN_MODEL_ID]: QWEN_38_EFFORTS,
+  // Claude profiles cannot represent ACP's thinking toggle, so hybrid Qwen
+  // models must not inherit Qwen3.8's effort tiers here.
+  "qwen3.7-max": [],
+  "qwen3.7-plus": [],
+  "qwen3.6-flash": [],
+  "glm-5.2": ["high", "max"],
+  "deepseek-v4-pro-0813": ["high", "max"],
+  "deepseek-v4-flash-0731": ["low", "high", "max"],
+} as const;
 
 export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   {
@@ -190,11 +202,9 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     label: msg`Qwen Token Plan`,
     envRows: QWEN_TOKEN_PLAN_PRESET_ROWS,
     models: QWEN_TOKEN_PLAN_MODELS,
-    efforts: QWEN_38_EFFORTS,
+    efforts: QWEN_TOKEN_PLAN_EFFORTS,
     defaultEffort: "xHigh",
-    modelEfforts: Object.fromEntries(
-      QWEN_TOKEN_PLAN_MODELS.map((model) => [model.id, QWEN_38_EFFORTS]),
-    ),
+    modelEfforts: QWEN_TOKEN_PLAN_MODEL_EFFORTS,
     removeEnvKeys: ["ANTHROPIC_API_KEY"],
   },
 ];

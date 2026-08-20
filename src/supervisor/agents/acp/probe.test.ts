@@ -9,6 +9,7 @@ import {
   mapAcpThoughtLevels,
   normalizeAcpModeId,
 } from "./probe";
+import { resolveThoughtLevelToggleValues } from "./thoughtLevel";
 
 describe("mapAcpSlashCommands", () => {
   it("maps ACP skill commands into the Skills section without changing their native id", () => {
@@ -370,6 +371,44 @@ describe("mapAcpThoughtLevels", () => {
       efforts: ["xhigh", "high", "low"],
       defaultEffort: "xhigh",
     });
+  });
+
+  it("preserves ACP metadata for toggle-only reasoning selectors", () => {
+    const result = mapAcpThoughtLevels([
+      {
+        id: "reasoning_effort",
+        name: "Reasoning",
+        category: "thought_level",
+        type: "select",
+        currentValue: "default",
+        options: [
+          { value: "none", name: "None" },
+          { value: "default", name: "Default" },
+        ],
+        _meta: { "qwenCode/reasoning": { toggleOnly: true } },
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["none", "default"],
+      defaultEffort: "default",
+      toggleOnly: true,
+    });
+  });
+
+  it("rejects toggle metadata when the selector has an ambiguous third state", () => {
+    expect(
+      resolveThoughtLevelToggleValues({
+        category: "thought_level",
+        type: "select",
+        options: [
+          { value: "off", name: "Reasoning Off" },
+          { value: "on", name: "Reasoning On" },
+          { value: "auto", name: "Reasoning Auto" },
+        ],
+        _meta: { "qwenCode/reasoning": { toggleOnly: true } },
+      }),
+    ).toBeUndefined();
   });
 
   it("returns empty efforts when no thought_level config exists", () => {

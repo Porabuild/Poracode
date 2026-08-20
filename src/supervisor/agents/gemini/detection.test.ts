@@ -77,6 +77,7 @@ describe("geminiDetectionSpec", () => {
         { id: "gemini-2.5-flash", label: "2.5 Flash" },
         { id: "gemini-9-pro", label: "9 Pro" },
       ],
+      thinkingModels: ["gemini-3.1-pro-preview"],
     });
 
     const result = await geminiDetectionSpec.capabilitiesProbe?.({
@@ -93,6 +94,7 @@ describe("geminiDetectionSpec", () => {
     });
     expect(result?.modelContextSizes).not.toHaveProperty("auto-gemini-3");
     expect(result?.modelContextSizes).not.toHaveProperty("gemini-9-pro");
+    expect(result?.thinkingModels).toEqual(["gemini-3.1-pro-preview"]);
   });
 });
 

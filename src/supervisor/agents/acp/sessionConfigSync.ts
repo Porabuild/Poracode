@@ -10,6 +10,7 @@ import {
   resolveAcpMode,
   resolveModelConfigValue,
 } from "./sessionConfig";
+import { isToggleOnlyThoughtLevelConfig, resolveThoughtLevelToggleValues } from "./thoughtLevel";
 import { setUnstableSessionModel } from "./unstableModelCompat";
 
 const CONFIG_OPTION_UPDATE_TIMEOUT_MS = 5_000;
@@ -44,6 +45,8 @@ export class AcpSessionConfigSync {
   private modeConfigId: string | undefined;
   private modelConfigValue: string | undefined;
   private thoughtLevelConfigId: string | undefined;
+  private thoughtLevelToggleOnly = false;
+  private thoughtLevelToggleValues: { disabled: string; enabled: string } | undefined;
   private readonly configOptionUpdateWaiters = new Set<ConfigOptionUpdateWaiter>();
 
   constructor(private readonly connection: ClientSideConnection) {}
@@ -110,7 +113,10 @@ export class AcpSessionConfigSync {
     this.modeConfigId = findSelectConfigOption(configOptions, "mode")?.id;
     const modelConfig = findSelectConfigOption(configOptions, "model");
     this.modelConfigValue = modelConfig?.currentValue;
-    this.thoughtLevelConfigId = findThoughtLevelConfig(configOptions)?.id;
+    const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
+    this.thoughtLevelConfigId = thoughtLevelConfig?.id;
+    this.thoughtLevelToggleOnly = isToggleOnlyThoughtLevelConfig(thoughtLevelConfig);
+    this.thoughtLevelToggleValues = resolveThoughtLevelToggleValues(thoughtLevelConfig);
     this.resolveConfigOptionUpdateWaiters();
   }
 
@@ -189,20 +195,33 @@ export class AcpSessionConfigSync {
       }
     }
 
+    const nextThoughtLevelValue = this.thoughtLevelToggleOnly
+      ? this.thoughtLevelToggleValues
+        ? nextConfig.thinking === false
+          ? this.thoughtLevelToggleValues.disabled
+          : this.thoughtLevelToggleValues.enabled
+        : undefined
+      : nextConfig.effort;
+    const thoughtLevelChanged = this.thoughtLevelToggleOnly
+      ? nextConfig.thinking !== previousConfig?.thinking
+      : nextConfig.effort !== previousConfig?.effort;
     if (
-      nextConfig.effort &&
+      nextThoughtLevelValue &&
       this.thoughtLevelConfigId &&
-      (modelChanged || nextConfig.effort !== previousConfig?.effort)
+      (modelChanged || thoughtLevelChanged)
     ) {
       try {
         await this.setConfigOptionAndRefresh(
           sessionId,
           this.thoughtLevelConfigId,
-          nextConfig.effort,
+          nextThoughtLevelValue,
         );
-        console.log("[acp] effort set to:", nextConfig.effort);
+        console.log("[acp] thought level set to:", nextThoughtLevelValue);
       } catch (error) {
-        console.log("[acp] live effort change rejected, continuing: %s", toErrorMessage(error));
+        console.log(
+          "[acp] live thought level change rejected, continuing: %s",
+          toErrorMessage(error),
+        );
       }
     }
 
@@ -219,6 +238,19 @@ export class AcpSessionConfigSync {
         return undefined;
       }
       const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
+      if (isToggleOnlyThoughtLevelConfig(thoughtLevelConfig)) {
+        if (!thoughtLevelConfig) return undefined;
+        const toggleValues = resolveThoughtLevelToggleValues(thoughtLevelConfig);
+        if (
+          !toggleValues ||
+          (thoughtLevelConfig.currentValue !== toggleValues.disabled &&
+            thoughtLevelConfig.currentValue !== toggleValues.enabled)
+        ) {
+          return undefined;
+        }
+        const thinking = thoughtLevelConfig.currentValue === toggleValues.enabled;
+        return thinking !== currentConfig.thinking ? { ...currentConfig, thinking } : undefined;
+      }
       if (
         thoughtLevelConfig?.currentValue &&
         thoughtLevelConfig.currentValue !== currentConfig.effort

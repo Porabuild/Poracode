@@ -198,6 +198,34 @@ describe("buildQwenProbeCapabilities", () => {
     expect(capabilities.modelDefaultEfforts).toBeUndefined();
   });
 
+  it("normalizes provider suffixes in per-model effort and thinking maps", () => {
+    const capabilities = buildQwenProbeCapabilities({
+      models: [
+        { id: "qwen3.8-max(openai)", label: "Qwen3.8 Max" },
+        { id: "qwen3.7-plus(openai)", label: "Qwen3.7 Plus" },
+      ],
+      modelEfforts: {
+        "qwen3.8-max(openai)": ["low", "medium", "xhigh"],
+        "qwen3.7-plus(openai)": [],
+      },
+      modelDefaultEfforts: {
+        "qwen3.8-max(openai)": "xhigh",
+        "qwen3.7-plus(openai)": "default",
+      },
+      thinkingModels: ["qwen3.7-plus(openai)"],
+    });
+
+    expect(capabilities.modelEfforts).toEqual({
+      "qwen3.8-max": ["low", "medium", "xhigh"],
+      "qwen3.7-plus": [],
+    });
+    expect(capabilities.modelDefaultEfforts).toEqual({
+      "qwen3.8-max": "xhigh",
+      "qwen3.7-plus": "default",
+    });
+    expect(capabilities.thinkingModels).toEqual(["qwen3.7-plus"]);
+  });
+
   it("keeps Agent and Plan modes when an authenticated ACP probe reports only Agent", () => {
     expect(buildQwenProbeCapabilities({ modes: ["agent"] }).modes).toEqual(["agent", "plan"]);
   });
