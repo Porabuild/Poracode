@@ -318,6 +318,46 @@ describe("SidebarProjectFilter", () => {
       );
     });
 
+    it("right-aligns the overflow button on unavailable rows like the selectable ones", async () => {
+      const mirrored = {
+        ...projects[1]!,
+        remoteServerId: "desktop-1",
+        remoteId: "remote-b",
+      } as Project;
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      } as never);
+      useAppStore.setState({ projects: [projects[0]!, mirrored], threads: [] });
+      render(
+        <SidebarProjectFilter
+          projects={[projects[0]!, mirrored]}
+          filterableProjectIds={new Set(["a"])}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+      await openMenu();
+
+      // The unavailable row pushes its overflow button to the right edge…
+      const unavailableButton = screen.getByRole("button", {
+        name: "Project actions for Beta",
+      });
+      expect(unavailableButton).toHaveClass("ms-auto");
+      // …and keeps the indicator so the row gets the same left inset
+      // (:has(.menu-item__indicator) → ps-7) as the selectable rows.
+      expect(
+        unavailableButton
+          .closest('[data-slot="menu-item"]')
+          ?.querySelector('[data-slot="menu-item-indicator"]'),
+      ).not.toBeNull();
+      // Selectable rows right-align through the thread-count hint instead.
+      expect(screen.getByRole("button", { name: "Project actions for Alpha" })).not.toHaveClass(
+        "ms-auto",
+      );
+    });
+
     it("closes both menus once an action is picked", async () => {
       renderFilter(null);
       await openMenu();
