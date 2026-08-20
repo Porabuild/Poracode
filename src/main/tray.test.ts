@@ -5,6 +5,7 @@ interface TrayMockInstance {
   destroy(): void;
   on(event: string, listener: () => void): void;
   setContextMenu(menu: unknown): void;
+  setImage(image: unknown): void;
   setToolTip(tooltip: string): void;
 }
 
@@ -15,6 +16,7 @@ const trayConstructorMock = vi.hoisted(() =>
       destroy: vi.fn<() => void>(),
       on: vi.fn<(event: string, listener: () => void) => void>(),
       setContextMenu: vi.fn<(menu: unknown) => void>(),
+      setImage: vi.fn<(image: unknown) => void>(),
       setToolTip: vi.fn<(tooltip: string) => void>(),
     };
   }),
@@ -30,6 +32,14 @@ const imageMock = vi.hoisted(() => {
 });
 const appMock = vi.hoisted(() => ({ isPackaged: false }));
 const buildFromTemplateMock = vi.hoisted(() => vi.fn<(template: unknown[]) => unknown>(() => ({})));
+const nativeImageMock = vi.hoisted(() => ({
+  createFromPath: vi.fn<(path: string) => unknown>(() => imageMock),
+}));
+const nativeThemeMock = vi.hoisted(() => ({
+  shouldUseDarkColors: true,
+  on: vi.fn<(event: string, listener: () => void) => void>(),
+  removeListener: vi.fn<(event: string, listener: () => void) => void>(),
+}));
 
 vi.mock("node:fs", () => ({
   existsSync: existsSyncMock,
@@ -38,9 +48,8 @@ vi.mock("node:fs", () => ({
 vi.mock("electron", () => ({
   app: appMock,
   Menu: { buildFromTemplate: buildFromTemplateMock },
-  nativeImage: {
-    createFromPath: vi.fn<(path: string) => unknown>(() => imageMock),
-  },
+  nativeImage: nativeImageMock,
+  nativeTheme: nativeThemeMock,
   Tray: trayConstructorMock,
 }));
 
@@ -51,6 +60,7 @@ describe("resolveTrayIconPath", () => {
     vi.clearAllMocks();
     appMock.isPackaged = false;
     imageMock.isEmpty.mockReturnValue(false);
+    nativeThemeMock.shouldUseDarkColors = true;
   });
 
   afterEach(() => vi.useRealTimers());
@@ -72,6 +82,56 @@ describe("resolveTrayIconPath", () => {
       new RegExp(`build[\\\\/]${filename.replace(".", "\\.")}$`, "u"),
     );
   });
+
+  it.skipIf(process.platform !== "win32")(
+    "resolves the ink glyph variant for light Windows shells",
+    () => {
+      nativeThemeMock.shouldUseDarkColors = false;
+      existsSyncMock.mockImplementation((path) => path.endsWith("-dark.ico"));
+
+      expect(resolveTrayIconPath("stable")).toMatch(/build[\\/]tray-icon-dark\.ico$/u);
+      expect(resolveTrayIconPath("nightly", false)).toMatch(
+        /build[\\/]tray-icon-nightly-dark\.ico$/u,
+      );
+    },
+  );
+
+  it.skipIf(process.platform !== "win32")(
+    "falls back to the moon glyph when the ink variant is missing",
+    () => {
+      existsSyncMock.mockImplementation((path) => path.endsWith("tray-icon.ico"));
+
+      expect(resolveTrayIconPath("stable", false)).toMatch(/build[\\/]tray-icon\.ico$/u);
+    },
+  );
+
+  it.skipIf(process.platform !== "win32")(
+    "swaps the tray glyph when the shell theme flips and unregisters on destroy",
+    () => {
+      existsSyncMock.mockReturnValue(true);
+
+      const handle = createTray({
+        appName: "Poracode",
+        channel: "stable",
+        onShow: vi.fn<() => void>(),
+        onQuit: vi.fn<() => void>(),
+      });
+      expect(handle.available).toBe(true);
+      expect(nativeThemeMock.on).toHaveBeenCalledWith("updated", expect.any(Function));
+      const listener = nativeThemeMock.on.mock.calls.at(-1)?.[1];
+
+      nativeThemeMock.shouldUseDarkColors = false;
+      listener?.();
+      const trayInstance = trayConstructorMock.mock.results.at(-1)?.value;
+      expect(nativeImageMock.createFromPath).toHaveBeenLastCalledWith(
+        expect.stringMatching(/tray-icon-dark\.ico$/u),
+      );
+      expect(trayInstance?.setImage).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+      expect(nativeThemeMock.removeListener).toHaveBeenCalledWith("updated", listener);
+    },
+  );
 
   it("falls back to no tray when the icon is missing", () => {
     existsSyncMock.mockReturnValue(false);
