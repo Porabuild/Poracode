@@ -1,6 +1,14 @@
 import { join } from "node:path";
 import { existsSync } from "node:fs";
-import { Menu, Tray, app, nativeImage, type MenuItemConstructorOptions } from "electron";
+import {
+  Menu,
+  Tray,
+  app,
+  nativeImage,
+  nativeTheme,
+  type MenuItemConstructorOptions,
+  type NativeImage,
+} from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { Project, Thread } from "@/shared/contracts";
 
@@ -48,17 +56,22 @@ function toMenuItem(
   };
 }
 
-export function resolveTrayIconPath(channel: PoracodeChannel): string | null {
+export function resolveTrayIconPath(
+  channel: PoracodeChannel,
+  darkShell: boolean = nativeTheme.shouldUseDarkColors,
+): string | null {
   const suffix = channel === "nightly" ? "-nightly" : "";
   const buildDir = join(__dirname, "..", "..", "build");
   const candidates: string[] = [];
   if (process.platform === "win32") {
-    if (app.isPackaged) {
-      candidates.push(join(process.resourcesPath, "tray-icon.ico"));
-    } else {
-      candidates.push(join(buildDir, `tray-icon${suffix}.ico`));
-      candidates.push(join(buildDir, "tray-icon.ico"));
-    }
+    // Windows draws the tray glyph straight onto the taskbar, so the glyph must
+    // contrast the shell theme: the default ICO carries the moon glyph for dark
+    // shells, the `-dark` variant the ink glyph for light ones.
+    const names = darkShell
+      ? [`tray-icon${suffix}.ico`, "tray-icon.ico"]
+      : [`tray-icon${suffix}-dark.ico`, `tray-icon${suffix}.ico`, "tray-icon.ico"];
+    const dir = app.isPackaged ? process.resourcesPath : buildDir;
+    for (const name of new Set(names)) candidates.push(join(dir, name));
   } else if (process.platform === "darwin") {
     // macOS menu bar: prefer the monochrome template glyph, then the full tile.
     if (app.isPackaged) {
@@ -99,37 +112,45 @@ export function createTray(options: CreateTrayOptions): TrayHandle {
   let quickComposerShortcut: string | null = null;
   let menuKey: string | null = null;
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  const trayImageFrom = (path: string): NativeImage | null => {
+    const image = nativeImage.createFromPath(path);
+    if (image.isEmpty()) return null;
+    if (process.platform === "darwin" && path.endsWith("tray-icon-mac.png")) {
+      // Template images are tinted per menu-bar appearance and auto-scaled by macOS;
+      // resizing would drop the @2x representation.
+      image.setTemplateImage(true);
+    } else if (process.platform === "darwin") {
+      return image.resize({ width: 18, height: 18 });
+    }
+    return image;
+  };
   const iconPath = resolveTrayIconPath(channel);
-  if (!iconPath) {
-    console.warn("[poracode] Tray icon not found; skipping tray creation.");
+  const trayImage = iconPath ? trayImageFrom(iconPath) : null;
+  if (!trayImage) {
+    console.warn(
+      iconPath
+        ? `[poracode] Tray icon is empty: ${iconPath}`
+        : "[poracode] Tray icon not found; skipping tray creation.",
+    );
     return {
       available: false,
       destroy: () => {},
       refreshMenu: () => {},
       setQuickComposerShortcut: () => {},
     };
-  }
-  const image = nativeImage.createFromPath(iconPath);
-  if (image.isEmpty()) {
-    console.warn(`[poracode] Tray icon is empty: ${iconPath}`);
-    return {
-      available: false,
-      destroy: () => {},
-      refreshMenu: () => {},
-      setQuickComposerShortcut: () => {},
-    };
-  }
-  const isMacTemplate = process.platform === "darwin" && iconPath.endsWith("tray-icon-mac.png");
-  let trayImage = image;
-  if (isMacTemplate) {
-    // Template images are tinted per menu-bar appearance and auto-scaled by macOS;
-    // resizing would drop the @2x representation.
-    image.setTemplateImage(true);
-  } else if (process.platform === "darwin") {
-    trayImage = image.resize({ width: 18, height: 18 });
   }
   const tray = new Tray(trayImage);
   tray.setToolTip(appName);
+
+  // Windows has no template-image equivalent — the glyph color is baked into the
+  // ICO, so swap it when the shell theme flips (white-on-white otherwise). macOS
+  // tints the template image natively; Linux uses the opaque tile.
+  const onThemeUpdated = () => {
+    const nextPath = resolveTrayIconPath(channel);
+    const nextImage = nextPath ? trayImageFrom(nextPath) : null;
+    if (nextImage) tray.setImage(nextImage);
+  };
+  if (process.platform === "win32") nativeTheme.on("updated", onThemeUpdated);
 
   const rebuildMenu = () => {
     const projectNames = new Map(
@@ -223,6 +244,7 @@ export function createTray(options: CreateTrayOptions): TrayHandle {
     available: true,
     destroy: () => {
       if (refreshTimer) clearTimeout(refreshTimer);
+      if (process.platform === "win32") nativeTheme.removeListener("updated", onThemeUpdated);
       tray.destroy();
     },
     refreshMenu,
