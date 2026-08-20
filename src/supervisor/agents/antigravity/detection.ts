@@ -10,6 +10,20 @@ import { ANTIGRAVITY_CONFIG_SUBPATH, antigravityConfigDirExists } from "./sessio
 
 export const ANTIGRAVITY_DEFAULT_MODEL_ID = "Gemini 3.5 Flash";
 
+// `agy` runs a detached background self-updater (`agy --bg-updater`, which then
+// shells out to `agy --version`) on its own rate-limited schedule — so it fires
+// on the first spawn after a quiet period, not on every spawn. The updater
+// escapes the pseudoconsole its parent runs in and allocates a fresh Windows
+// console; when the user's default terminal application is Windows Terminal the
+// OS hands that console off, popping a stray terminal window mid-session.
+// Poracode owns agent updates (Settings update button -> `agy update`), so we
+// set `AGY_CLI_DISABLE_AUTO_UPDATE` on every `agy` spawn we make (detection
+// probes, account probe, PTY launches, one-shots). `agy update` runs without
+// this env (separate path), so explicit updates still work.
+export const ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV: Record<string, string> = {
+  AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+};
+
 const defaultModelCapabilities = buildAntigravityModelCapabilities(
   ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
 );
@@ -72,6 +86,8 @@ const ANTIGRAVITY_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
   id: "antigravity-login",
   name: "Antigravity login",
   args: [],
+  // No `env` needed: `detectAgentInstall` merges `baseSpawnEnv` into every
+  // terminal auth method as it assembles the status.
 };
 
 export function createAntigravityDetectionSpec(
@@ -90,6 +106,10 @@ export function createAntigravityDetectionSpec(
     // never shows a Logout button that would have nothing to invoke.
     loginCommand: "agy",
     capabilities: defaultAntigravityCapabilities,
+    // Single declaration point: shared runtime fans this out to the launch-time
+    // `agy --version` / `agy models` / `agy --help` probes, terminal login, PTY
+    // launches, one-shots, context extraction, and subagent children.
+    baseSpawnEnv: ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV,
     authProbes: [configDirAuthProbe],
     async capabilitiesProbe(ctx) {
       // Advertise the terminal login method regardless of the model-probe

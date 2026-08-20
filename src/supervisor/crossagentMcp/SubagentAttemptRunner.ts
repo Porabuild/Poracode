@@ -70,6 +70,10 @@ export class SubagentAttemptRunner {
         projectLocation: state.plan.projectLocation,
         config,
         presentationMode: "gui",
+        // Same contract as SpawnPipeline.createStructuredSession: the shared
+        // runtime — not the provider — supplies `baseSpawnEnv`, so a structured
+        // subagent child spawns with the provider's updater/telemetry opt-outs.
+        ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
         ...(mcpAccess ?? {}),
       });
       if (!handle) {

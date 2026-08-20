@@ -255,11 +255,14 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 10,
-      // v10 adds ACP session readiness separately from authentication and
-      // normalized ACP approval-policy labels. This mirrors the supervisor
-      // STATUS_CACHE_VERSION=13 bump, which only invalidates the supervisor's
-      // on-disk cache, not this localStorage copy.
+      version: 11,
+      // v11 mirrors the supervisor STATUS_CACHE_VERSION=14 bump: terminal auth
+      // methods now carry baseSpawnEnv-derived `env`, and a persisted status
+      // from before that derivation would build a login command without the
+      // provider's base env. This mirrors the supervisor cache invalidation,
+      // which only covers the supervisor's on-disk cache, not this localStorage
+      // copy. (v10 added ACP session readiness separately from authentication
+      // and normalized ACP approval-policy labels.)
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

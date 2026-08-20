@@ -2,7 +2,7 @@ import { spawn as spawnChild } from "node:child_process";
 import { spawn as spawnPty, type IDisposable } from "node-pty";
 import { stripAnsi } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
-import type { AgentAdapter } from "@/supervisor/agents/base";
+import { withCommandBaseSpawnEnv, type AgentAdapter } from "@/supervisor/agents/base";
 import { buildOneShotSpec } from "@/supervisor/oneShotSpawn";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import { processEnvRecord } from "@/supervisor/processEnv";
@@ -109,10 +109,11 @@ export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle 
     return NOOP_HANDLE;
   }
 
-  const spec = buildOneShotSpec(params.projectLocation, cmd.command, cmd.args, {
-    ...(cmd.env ? { env: cmd.env } : {}),
+  const childCommand = withCommandBaseSpawnEnv(cmd, params.adapter.baseSpawnEnv);
+  const spec = buildOneShotSpec(params.projectLocation, childCommand.command, childCommand.args, {
+    ...(childCommand.env ? { env: childCommand.env } : {}),
   });
-  const input = cmd.stdin ?? params.prompt;
+  const input = childCommand.stdin ?? params.prompt;
   const maxLifetimeMs = params.maxLifetimeMs ?? ONE_SHOT_CHILD_MAX_LIFETIME_MS;
 
   let transport: ChildTransport;

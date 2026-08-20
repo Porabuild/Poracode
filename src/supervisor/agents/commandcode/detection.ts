@@ -19,7 +19,7 @@ import { commandCodeHasStoredCredentials } from "./session";
 // also honors `CI`, but that flips broader non-interactive behavior, so we use
 // the dedicated switch. `command-code update` runs without this env (separate
 // path), so explicit updates still work.
-export const COMMANDCODE_SKIP_UPDATES_ENV: Record<string, string> = {
+const COMMANDCODE_SKIP_UPDATES_ENV: Record<string, string> = {
   COMMANDCODE_SKIP_UPDATES: "1",
 };
 
@@ -402,10 +402,8 @@ const COMMANDCODE_TERMINAL_AUTH: AgentTerminalAuthMethod = {
   id: "commandcode-terminal-login",
   name: "Login",
   type: "terminal",
-  // `runTerminalLogin` forwards `env` into the login command; suppress the
-  // CLI's background self-updater so `command-code login` doesn't spawn a
-  // detached `npm i` terminal alongside the login overlay.
-  env: COMMANDCODE_SKIP_UPDATES_ENV,
+  // No `env` needed: `detectAgentInstall` merges `baseSpawnEnv` into every
+  // terminal auth method as it assembles the status.
 };
 
 export const commandCodeDetectionSpec: DetectionSpec = {
@@ -432,7 +430,8 @@ export const commandCodeDetectionSpec: DetectionSpec = {
         timeoutMs: 8_000,
         wslLinuxCwd: "/tmp",
         posixCwd: getAgentProbeCwd(ctx.location),
-        // Suppress the CLI's background self-updater (sourced from spec.probeEnv).
+        // Suppress the CLI's background self-updater (ctx.probeEnv is the
+        // shared `baseSpawnEnv` + `probeEnv` merge from detectAgentInstall).
         ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
         ...(ctx.signal ? { signal: ctx.signal } : {}),
       },
@@ -450,6 +449,7 @@ export const commandCodeDetectionSpec: DetectionSpec = {
   // and is the automatic fallback if the built-in updater fails, since the CLI
   // is distributed as the `command-code` npm package on every platform.
   update: { builtIn: { binary: "command-code", args: ["update"] }, npm: "command-code" },
-  // Suppress the CLI's own background self-updater on the `--version` probe.
-  probeEnv: COMMANDCODE_SKIP_UPDATES_ENV,
+  // Suppress the CLI's background self-updater on every spawn lane (shared
+  // runtime fans this out; the explicit `update` command stays exempt).
+  baseSpawnEnv: COMMANDCODE_SKIP_UPDATES_ENV,
 };

@@ -133,6 +133,91 @@ describe("detectAgentInstall version probe", () => {
   });
 });
 
+describe("detectAgentInstall baseSpawnEnv fan-out", () => {
+  const originalPlatform = process.platform;
+  const baseSpawnEnv = { AGY_CLI_DISABLE_AUTO_UPDATE: "1" };
+  let probeCtxSeen: import("./base").DetectProbeCtx | undefined;
+
+  const baseEnvSpec: DetectionSpec = {
+    ...spec,
+    baseSpawnEnv,
+    probeEnv: { PROBE_ONLY: "1" },
+    async capabilitiesProbe(ctx) {
+      probeCtxSeen = ctx;
+      return { authMethods: [{ id: "login", name: "Login", type: "terminal", args: [] }] };
+    },
+  };
+
+  beforeEach(() => {
+    Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+    clearExecutablePathCache();
+    probeCtxSeen = undefined;
+    execFileAsyncMock.mockReset();
+    spawnMock.mockReset();
+    spawnMock.mockImplementation((command, args, options) => {
+      const stdout = new PassThrough();
+      const stderr = new PassThrough();
+      const child = Object.assign(new EventEmitter(), {
+        stdout,
+        stderr,
+        pid: 12_345,
+        killed: false,
+      }) as unknown as import("node:child_process").ChildProcess;
+      queueMicrotask(() => {
+        void execFileAsyncMock(command, args, options).then(
+          (result) => {
+            stdout.end(result.stdout);
+            stderr.end(result.stderr ?? "");
+            child.emit("close", 0);
+          },
+          (error: unknown) => child.emit("error", error),
+        );
+      });
+      return child;
+    });
+    execFileAsyncMock.mockImplementation(async (_cmd: unknown, args: unknown) => {
+      const joined = (Array.isArray(args) ? args : []).join(" ");
+      if (joined.includes("command -v")) return { stdout: "/opt/tools/grok\n", stderr: "" };
+      return { stdout: "grok version 1.2.3\n", stderr: "" };
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+    vi.restoreAllMocks();
+  });
+
+  it("merges baseSpawnEnv under probeEnv for the probes and the version spawn", async () => {
+    await detectAgentInstall(undefined, baseEnvSpec);
+
+    // The capabilities probe sees the shared merge (base first, probeEnv wins).
+    expect(probeCtxSeen?.probeEnv).toEqual({
+      AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+      PROBE_ONLY: "1",
+    });
+
+    // The `--version` spawn carries the same merged env.
+    const versionCall = execFileAsyncMock.mock.calls.find(([, args]) =>
+      (Array.isArray(args) ? args : []).includes("--version"),
+    );
+    expect(versionCall).toBeDefined();
+    expect(versionCall?.[2]).toEqual(
+      expect.objectContaining({
+        env: expect.objectContaining({ AGY_CLI_DISABLE_AUTO_UPDATE: "1", PROBE_ONLY: "1" }),
+      }),
+    );
+  });
+
+  it("applies baseSpawnEnv to terminal auth methods when assembling the status", async () => {
+    const status = await detectAgentInstall(undefined, baseEnvSpec);
+
+    // probeEnv is detection-only: the login method gets the base env, not it.
+    expect(status.authMethods).toEqual([
+      { id: "login", name: "Login", type: "terminal", args: [], env: baseSpawnEnv },
+    ]);
+  });
+});
+
 describe("detectAgentInstall WSL interop guard", () => {
   const originalPlatform = process.platform;
   // WSL `command -v` output the fake bridge returns for the binary probe; set

@@ -1,5 +1,5 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import type { AgentAdapter } from "./agents/base";
+import { withCommandBaseSpawnEnv, type AgentAdapter } from "./agents/base";
 import { prepareOneShot } from "./oneShotSpawn";
 
 /**
@@ -123,7 +123,12 @@ async function runViaCli(
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
-  const { spec, spawn } = prepareOneShot(location, cmd);
+  // Same wrap as commit/PR/judge one-shots: title gen is a Poracode-made CLI
+  // spawn, so updater opt-outs have to ride it. Command-declared env wins.
+  const { spec, spawn } = prepareOneShot(
+    location,
+    withCommandBaseSpawnEnv(cmd, adapter.baseSpawnEnv),
+  );
   return spawn(spec, cmd.stdin ?? prompt, TITLE_GEN_TIMEOUT_MS);
 }
 

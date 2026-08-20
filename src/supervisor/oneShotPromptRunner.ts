@@ -1,5 +1,5 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import type { AgentAdapter, CommandSpec } from "./agents/base";
+import { withCommandBaseSpawnEnv, type AgentAdapter, type CommandSpec } from "./agents/base";
 import { prepareOneShot } from "./oneShotSpawn";
 
 // Spawn returns these errno codes when the OS rejects the argv length:
@@ -179,8 +179,11 @@ async function runOneShotPromptWithFallbackImpl(
     // The judge workspace is already throwaway and contains the only files the
     // model may inspect. Preserve it even for adapters that normally move
     // utility one-shots to the OS temp root for session-cache isolation.
-    const effectiveCommand =
+    const baseCommand =
       options.readOnlyWorkspace && cmd.isolateCwd ? { ...cmd, isolateCwd: false } : cmd;
+    // Every Poracode-made spawn of this CLI carries the provider's base env
+    // (updater/telemetry opt-outs); a command-specific `env` wins on conflict.
+    const effectiveCommand = withCommandBaseSpawnEnv(baseCommand, options.adapter.baseSpawnEnv);
     const { spec: spawnSpec, spawn } = prepareOneShot(options.location, effectiveCommand);
 
     if (hasNextAttempt && isArgvLikelyTooLong(spawnSpec)) {

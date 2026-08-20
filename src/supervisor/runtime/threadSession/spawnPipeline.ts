@@ -57,6 +57,7 @@ import {
   injectWslEnv,
   primeProjectShellEnv,
   resolveLaunchSpec,
+  mergeSpawnEnv,
 } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
@@ -910,10 +911,14 @@ export class SpawnPipeline {
 
     const agentEnv = this.resolveAgentProcessEnv(input.adapter);
     const cliHookEnvInjected = Boolean(input.extraEnv?.PORACODE_HOOK_URL);
-    const providerEnv =
+    // `baseSpawnEnv` underlies every lane; the location-specific `spawnEnv`
+    // layers on top so a provider can still override per platform.
+    const providerEnv = mergeSpawnEnv(
+      input.adapter.baseSpawnEnv,
       input.projectLocation.kind === "wsl"
         ? input.adapter.spawnEnv?.wsl
-        : input.adapter.spawnEnv?.native;
+        : input.adapter.spawnEnv?.native,
+    );
     if (providerEnv) {
       Object.assign(agentEnv, providerEnv);
     }
@@ -1269,6 +1274,7 @@ export class SpawnPipeline {
         projectLocation,
         config,
         agentSettings: this.ctx.resolveAgentSettings(adapter),
+        ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
         ...(mcpIdentity ? { mcpIdentity } : {}),
         ...(mcpServers.length > 0 || adapter.capabilities.mcpConfigSource === "agentSettings"
           ? { mcpServers }

@@ -249,3 +249,71 @@ describe("dispatchAcpLogout", () => {
     ).rejects.toThrow("did not return an ACP logout command");
   });
 });
+
+describe("baseSpawnEnv — every ACP auth/logout spawn carries the adapter's base env", () => {
+  const baseSpawnEnv = { DROID_DISABLE_AUTO_UPDATE: "true" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authenticateAcpAgentMock.mockResolvedValue(undefined);
+    logoutAcpAgentMock.mockResolvedValue(undefined);
+    readCommandOutputAsyncMock.mockResolvedValue({ ok: true, stdout: "", stderr: "" });
+  });
+
+  it("applies it to ACP auth commands", async () => {
+    await dispatchAcpAuthenticate({
+      adapter: makeAdapter({ command: "droid", args: ["exec"] }, { baseSpawnEnv }),
+      methodId: "login",
+      envKind: "posix",
+    });
+
+    const [, , , options] = authenticateAcpAgentMock.mock.calls[0]!;
+    expect(options?.env).toMatchObject(baseSpawnEnv);
+  });
+
+  it("lets command-declared env win over the base env", async () => {
+    await dispatchAcpAuthenticate({
+      adapter: makeAdapter(
+        { command: "droid", args: ["exec"], env: { DROID_DISABLE_AUTO_UPDATE: "false" } },
+        { baseSpawnEnv },
+      ),
+      methodId: "login",
+      envKind: "posix",
+    });
+
+    const [, , , options] = authenticateAcpAgentMock.mock.calls[0]!;
+    expect(options?.env).toMatchObject({ DROID_DISABLE_AUTO_UPDATE: "false" });
+  });
+
+  it("applies it to direct logout commands", async () => {
+    await dispatchAcpLogout({
+      adapter: makeAdapter(
+        { command: "droid", args: ["exec"] },
+        {
+          baseSpawnEnv,
+          async buildAcpLogoutCommand() {
+            return { command: "droid", args: ["logout"] };
+          },
+        },
+      ),
+      envKind: "posix",
+    });
+
+    const [, , options] = readCommandOutputAsyncMock.mock.calls[0]!;
+    expect(options).toEqual(
+      expect.objectContaining({ env: expect.objectContaining(baseSpawnEnv) }),
+    );
+  });
+
+  it("applies it to the logout RPC fallback", async () => {
+    await dispatchAcpLogout({
+      adapter: makeAdapter({ command: "droid", args: ["exec"] }, { baseSpawnEnv }),
+      envKind: "posix",
+    });
+
+    const options = logoutAcpAgentMock.mock.calls[0]?.[2] as
+      | { env?: Record<string, string> }
+      | undefined;
+    expect(options?.env).toMatchObject(baseSpawnEnv);
+  });
+});
