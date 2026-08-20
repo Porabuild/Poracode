@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAttachments, type SaveClipboardImage } from "./useAttachments";
+import { storableAttachment, useAttachments, type SaveClipboardImage } from "./useAttachments";
 
 describe("useAttachments", () => {
   // jsdom does not implement object URLs.
@@ -83,5 +83,72 @@ describe("useAttachments", () => {
 
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
     expect(result.current.attachments).toEqual([]);
+  });
+
+  it("drops the ephemeral preview URL from stashed and restored attachments", async () => {
+    const saveImage = vi.fn<SaveClipboardImage>(async () => Promise.resolve("/tmp/image.png"));
+    const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    const { result } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+
+    await act(async () => {
+      await result.current.addClipboardImage(file, "thread-1");
+    });
+    const [attachment] = result.current.attachments;
+
+    // A stashed copy (draft save) keeps every field but the object URL.
+    expect(storableAttachment(attachment!)).toEqual({
+      id: attachment!.id,
+      path: "/tmp/image.png",
+      name: "Image 1.png",
+      mimeType: "image/png",
+      isImage: true,
+    });
+
+    // A restore must not resurrect a preview URL its previous composer may
+    // already have revoked — the image renders from the durable path instead.
+    act(() => {
+      result.current.restore([attachment!]);
+    });
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+    expect(result.current.attachments[0]?.previewUrl).toBeUndefined();
+    expect(result.current.attachments[0]?.path).toBe("/tmp/image.png");
+  });
+
+  it("ignores a pasted image that finishes after attachments are cleared", async () => {
+    let resolveSave: ((path: string) => void) | undefined;
+    const saveImage = vi.fn<SaveClipboardImage>(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    const { result } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+
+    const pastePromise = result.current.addClipboardImage(file, "thread-1");
+    await waitFor(() => expect(saveImage).toHaveBeenCalled());
+    act(() => {
+      result.current.clearAll();
+    });
+    await act(async () => {
+      resolveSave?.("/tmp/image.png");
+      await pastePromise;
+    });
+
+    expect(result.current.attachments).toEqual([]);
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("revokes outstanding pasted-image object URLs on unmount", async () => {
+    const saveImage = vi.fn<SaveClipboardImage>(async () => Promise.resolve("/tmp/image.png"));
+    const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    const { result, unmount } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+
+    await act(async () => {
+      await result.current.addClipboardImage(file, "thread-1");
+    });
+    unmount();
+
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
   });
 });

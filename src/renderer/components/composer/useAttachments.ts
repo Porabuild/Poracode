@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { readBridge } from "@/renderer/bridge";
 import type { PromptSegment } from "@/shared/contracts";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
@@ -39,6 +39,19 @@ export function attachmentImageUrl(
   );
 }
 
+/**
+ * Copy of an attachment that can outlive the live composer (draft saves,
+ * submit-failure snapshots). `previewUrl` is an object URL owned by the live
+ * hook instance and revoked when that composer clears or unmounts, so a
+ * stashed copy must render from the durable `path` instead of the ephemeral
+ * blob.
+ */
+export function storableAttachment(attachment: Attachment): Attachment {
+  if (attachment.previewUrl === undefined) return attachment;
+  const { previewUrl: _previewUrl, ...rest } = attachment;
+  return rest;
+}
+
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -72,6 +85,30 @@ export type SaveClipboardImage = (input: {
 
 export function useAttachments(options: { saveClipboardImage?: SaveClipboardImage } = {}) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Object URLs belong to this live composer. Track ownership separately from
+  // React state so a pending paste can still be released if the component goes
+  // away before its state update commits.
+  const ownedPreviewUrlsRef = useRef(new Set<string>());
+  const pasteGenerationRef = useRef(0);
+
+  function releasePreviewUrl(previewUrl: string) {
+    if (!ownedPreviewUrlsRef.current.delete(previewUrl)) return;
+    if (typeof URL.revokeObjectURL === "function") URL.revokeObjectURL(previewUrl);
+  }
+
+  function releaseAllPreviewUrls() {
+    for (const previewUrl of ownedPreviewUrlsRef.current) {
+      releasePreviewUrl(previewUrl);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      pasteGenerationRef.current += 1;
+      // jsdom (tests) has no object-URL support.
+      releaseAllPreviewUrls();
+    };
+  }, []);
 
   function addFiles(paths: string[]) {
     const newAttachments = paths.map((path): Attachment => {
@@ -89,14 +126,23 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }
 
   async function addClipboardImage(file: File, threadId: string) {
+    const pasteGeneration = pasteGenerationRef.current;
     const buffer = await file.arrayBuffer();
+    if (pasteGeneration !== pasteGenerationRef.current) return;
     const ext = file.type.split("/")[1]?.replace("svg+xml", "svg") ?? "png";
     const path = await (options.saveClipboardImage ?? readBridge().saveClipboardImage)({
       threadId,
       data: new Uint8Array(buffer),
       extension: ext,
     });
+    if (pasteGeneration !== pasteGenerationRef.current) return;
+    const previewUrl = URL.createObjectURL(file);
+    ownedPreviewUrlsRef.current.add(previewUrl);
     setAttachments((prev) => {
+      if (pasteGeneration !== pasteGenerationRef.current) {
+        releasePreviewUrl(previewUrl);
+        return prev;
+      }
       // Find the next available image number (fills gaps from removals)
       const usedNumbers = new Set(
         prev
@@ -113,7 +159,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
           name: `Image ${n}.${ext}`,
           mimeType: file.type,
           isImage: true,
-          previewUrl: URL.createObjectURL(file),
+          previewUrl,
         },
       ];
     });
@@ -142,15 +188,14 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
 
   function removeAttachment(id: string) {
     const removed = attachments.find((a) => a.id === id);
-    if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+    if (removed?.previewUrl) releasePreviewUrl(removed.previewUrl);
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
   function clearAll() {
-    for (const a of attachments) {
-      if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
-    }
-    setAttachments([]);
+    pasteGenerationRef.current += 1;
+    releaseAllPreviewUrls();
+    setAttachments((prev) => (prev.length === 0 ? prev : []));
   }
 
   function toSegments(): PromptSegment[] {
@@ -162,7 +207,12 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }
 
   function restore(saved: Attachment[]) {
-    setAttachments(saved);
+    pasteGenerationRef.current += 1;
+    releaseAllPreviewUrls();
+    // A `previewUrl` arriving here points at an object URL owned by a previous
+    // composer instance, which may already have revoked it — restored
+    // attachments render from the durable `path` instead.
+    setAttachments(saved.map(storableAttachment));
   }
 
   return {
