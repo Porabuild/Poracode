@@ -217,6 +217,8 @@ export interface AcpStructuredSessionOptions {
   /** Paint canonical state for this provider's `/goal` command family. */
   goalCommands?: boolean;
   extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
+  /** Vendor capability requests sent on ACP initialize. */
+  initializeMeta?: Record<string, unknown>;
   /**
    * Vendor ACP extension notifications (e.g. Cursor `cursor/task`) that are
    * not surfaced as standard `session/update` messages.
@@ -263,6 +265,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
   private extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
+
+  private readonly initializeMeta: Record<string, unknown> | undefined;
 
   private readonly goalCommands: boolean;
 
@@ -440,6 +444,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (options?.extensionSessionUpdateTransform) {
       this.extensionSessionUpdateTransform = options.extensionSessionUpdateTransform;
     }
+    this.initializeMeta = options?.initializeMeta;
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
@@ -710,6 +715,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         elicitation: { form: {}, url: {} },
         terminal: true,
       },
+      ...(this.initializeMeta ? { _meta: this.initializeMeta } : {}),
     });
     this.agentPromptCapabilities = initResult.agentCapabilities?.promptCapabilities;
     this.agentSessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
@@ -1299,9 +1305,28 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       !this.isReplayingHistory &&
       Date.now() >= (this.replayHistoryUntil || 0)
     ) {
-      const recovered = this.extensionSessionUpdateTransform(method, params);
-      if (recovered) {
-        this.handleSessionUpdate(recovered);
+      const recovered = this.extensionSessionUpdateTransform(method, params, {
+        request: (requestMethod, requestParams) =>
+          this.connection.extMethod(requestMethod, requestParams),
+      });
+      if (recovered && typeof (recovered as Promise<unknown>).then === "function") {
+        void (
+          recovered as Promise<SessionNotification | readonly SessionNotification[] | undefined>
+        )
+          .then((notifications) => this.ingestExtensionSessionUpdates(notifications))
+          .catch((error: unknown) => {
+            console.warn(
+              "[acp] extension session update transform failed:",
+              error instanceof Error ? error.message : String(error),
+            );
+          });
+        return;
+      }
+      if (
+        this.ingestExtensionSessionUpdates(
+          recovered as SessionNotification | readonly SessionNotification[] | undefined,
+        )
+      ) {
         return;
       }
     }
@@ -1318,6 +1343,19 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.emitRuntimeEvents(events);
       }
     }
+  }
+
+  private ingestExtensionSessionUpdates(
+    notifications: SessionNotification | readonly SessionNotification[] | undefined,
+  ): boolean {
+    if (!notifications) return false;
+    if (this.isDisposed || this.isReplayingHistory || Date.now() < (this.replayHistoryUntil || 0)) {
+      return true;
+    }
+    for (const notification of Array.isArray(notifications) ? notifications : [notifications]) {
+      this.handleSessionUpdate(notification);
+    }
+    return true;
   }
 
   private rememberAcpToolCallItemId(

@@ -86,6 +86,7 @@ export function createQwenAdapter(): AgentAdapter {
       );
       return createAcpStructuredSession(command, {
         ...input,
+        acpInitializeMeta: acpBridge.initializeMeta,
         acpSessionUpdateTransform: acpBridge.sessionUpdateTransform,
         acpExtensionSessionUpdateTransform: acpBridge.extensionSessionUpdateTransform,
       });

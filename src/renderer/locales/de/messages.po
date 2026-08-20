@@ -8391,6 +8391,7 @@ msgstr "Pausieren"
 msgid "Pause goal"
 msgstr "Ziel pausieren"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"

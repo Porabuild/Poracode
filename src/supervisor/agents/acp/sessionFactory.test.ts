@@ -68,4 +68,17 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
 
     expect(createSpy.mock.calls[0]?.[0]).toBe(command);
   });
+
+  it("forwards adapter initialize metadata to the ACP session", () => {
+    const createSpy = spyOnCreate();
+
+    createAcpStructuredSession(
+      { command: "qwen", args: ["--acp"] },
+      makeInput({ acpInitializeMeta: { "qwen.daemon.activeWorkHeartbeat": { v: 1 } } }),
+    );
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      initializeMeta: { "qwen.daemon.activeWorkHeartbeat": { v: 1 } },
+    });
+  });
 });
