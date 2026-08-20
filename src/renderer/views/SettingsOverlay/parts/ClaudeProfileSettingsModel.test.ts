@@ -105,9 +105,9 @@ describe("ClaudeProfileSettingsModel", () => {
         applyPresetEnvRows(DEEPSEEK_PRESET_ROWS, [], nextRowId).map((row) => [row.key, row.value]),
       );
       expect(byKey.ANTHROPIC_BASE_URL).toBe("https://api.deepseek.com/anthropic");
-      expect(byKey.ANTHROPIC_MODEL).toBe("deepseek-v4-pro[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("deepseek-v4-pro[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("deepseek-v4-pro[1m]");
+      expect(byKey.ANTHROPIC_MODEL).toBe("deepseek-v4-pro-0813[1m]");
+      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("deepseek-v4-pro-0813[1m]");
+      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("deepseek-v4-pro-0813[1m]");
       expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("deepseek-v4-flash");
       expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("deepseek-v4-flash");
       expect(byKey.CLAUDE_CODE_EFFORT_LEVEL).toBe("max");

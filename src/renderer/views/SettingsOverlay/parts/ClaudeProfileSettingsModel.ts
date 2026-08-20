@@ -35,9 +35,9 @@ export const ZAI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
 export const DEEPSEEK_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "ANTHROPIC_BASE_URL", value: "https://api.deepseek.com/anthropic", sensitive: false },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
-  { key: "ANTHROPIC_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
+  { key: "ANTHROPIC_MODEL", value: "deepseek-v4-pro-0813[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "deepseek-v4-pro-0813[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "deepseek-v4-pro-0813[1m]", sensitive: false },
   { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "deepseek-v4-flash", sensitive: false },
   { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "deepseek-v4-flash", sensitive: false },
   { key: "CLAUDE_CODE_EFFORT_LEVEL", value: "max", sensitive: false },
@@ -91,7 +91,7 @@ const QWEN_TOKEN_PLAN_MODELS = [
   { id: "qwen3.7-plus", label: "Qwen3.7 Plus" },
   { id: "qwen3.6-flash", label: "Qwen3.6 Flash" },
   { id: "glm-5.2", label: "GLM-5.2" },
-  { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+  { id: "deepseek-v4-pro-0813", label: "DeepSeek V4 Pro 0813" },
   { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
 ] as const;
 
@@ -150,13 +150,13 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     label: msg`DeepSeek`,
     envRows: DEEPSEEK_PRESET_ROWS,
     models: [
-      { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
+      { id: "deepseek-v4-pro-0813[1m]", label: "DeepSeek V4 Pro 0813" },
       { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
     ],
     efforts: ["max"],
     defaultEffort: "max",
     modelEfforts: {
-      "deepseek-v4-pro[1m]": ["max"],
+      "deepseek-v4-pro-0813[1m]": ["max"],
       "deepseek-v4-flash": ["max"],
     },
   },

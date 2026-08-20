@@ -329,7 +329,7 @@ describe("ClaudeProfileProviderSettings", () => {
     expect(screen.getByDisplayValue("CLAUDE_CODE_SUBAGENT_MODEL")).toBeInTheDocument();
     expect(
       screen.getAllByLabelText("Model id").map((input) => input.getAttribute("value")),
-    ).toEqual(["deepseek-v4-pro[1m]", "deepseek-v4-flash"]);
+    ).toEqual(["deepseek-v4-pro-0813[1m]", "deepseek-v4-flash"]);
     expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
       id: "glm",
       driver: "claude",
@@ -337,13 +337,13 @@ describe("ClaudeProfileProviderSettings", () => {
       config: {
         configDir: "~/.poracode/claude-profiles/glm",
         models: [
-          { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
+          { id: "deepseek-v4-pro-0813[1m]", label: "DeepSeek V4 Pro 0813" },
           { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
         ],
         efforts: ["max"],
         defaultEffort: "max",
         modelEfforts: {
-          "deepseek-v4-pro[1m]": ["max"],
+          "deepseek-v4-pro-0813[1m]": ["max"],
           "deepseek-v4-flash": ["max"],
         },
       },
@@ -422,7 +422,7 @@ describe("ClaudeProfileProviderSettings", () => {
       "qwen3.7-plus",
       "qwen3.6-flash",
       "glm-5.2",
-      "deepseek-v4-pro",
+      "deepseek-v4-pro-0813",
       "deepseek-v4-flash-0731",
     ]);
     expect(config).toMatchObject({
