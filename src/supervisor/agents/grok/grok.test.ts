@@ -309,3 +309,31 @@ describe("createGrokAdapter L1 hook plugin support", () => {
     expect(extras?.env).toBeUndefined();
   });
 });
+
+describe("createGrokAdapter one-shot", () => {
+  const adapter = createGrokAdapter();
+
+  it("defaults to the model grok advertises as current and builds the headless -p command", () => {
+    // `grok models` and the ACP handshake both report grok-4.6 as the default
+    // on 1.0.5 (grok-4.5 stays selectable). Utility runs follow that default.
+    expect(adapter.defaultOneShotModel).toBe("grok-4.6");
+    expect(adapter.buildOneShotCommand?.("grok-4.6", "low", "hello")).toEqual({
+      command: "grok",
+      args: [
+        "--no-auto-update",
+        "-p",
+        "hello",
+        "-m",
+        "grok-4.6",
+        "--reasoning-effort",
+        "low",
+        "--always-approve",
+      ],
+      stdin: "",
+    });
+  });
+
+  it("returns undefined without a prompt", () => {
+    expect(adapter.buildOneShotCommand?.("grok-4.6", undefined, "")).toBeUndefined();
+  });
+});
