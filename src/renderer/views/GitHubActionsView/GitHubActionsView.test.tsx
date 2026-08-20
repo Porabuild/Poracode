@@ -240,6 +240,31 @@ describe("GitHubActionsView", () => {
     expect(document.querySelector('[class~="min-w-[--trigger-width]"]')).toBeInTheDocument();
   });
 
+  it("disables menu rows for projects on unreachable servers", async () => {
+    const mirrored: Project = {
+      ...project,
+      id: "remote:desktop-1:project:project-1",
+      remoteServerId: "desktop-1",
+      remoteId: project.id,
+      location: { ...project.location, remoteServerId: "desktop-1" },
+    };
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({ projects: [project, mirrored] });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+    const remoteRow = await screen.findByRole("menuitemradio", { name: /MacBook 16/ });
+    expect(remoteRow).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitemradio", { name: "Poracode" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   it("selects the first pinned workflow by default", async () => {
     bridge.ghListWorkflows.mockResolvedValue({
       workflows: [
