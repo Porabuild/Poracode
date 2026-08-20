@@ -1527,7 +1527,6 @@ msgstr "Do bạn tạo"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Tự động"
@@ -5318,8 +5317,8 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
-msgid "GitHub account"
-msgstr "Tài khoản GitHub"
+#~ msgid "GitHub account"
+#~ msgstr "Tài khoản GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -7303,6 +7302,10 @@ msgstr "Không có phiên hoạt động"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Không tìm thấy workflow đang hoạt động."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows in this repository."
+msgstr "Không có workflow đang hoạt động trong kho lưu trữ này."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
@@ -13374,6 +13377,10 @@ msgstr "Quy trình làm việc: {description}"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Quy trình làm việc"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflows added under .github/workflows will appear here."
+msgstr "Các workflow được thêm vào .github/workflows sẽ xuất hiện ở đây."
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx

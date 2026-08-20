@@ -1527,7 +1527,6 @@ msgstr "Созданные мной"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Авто"
@@ -5318,8 +5317,8 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
-msgid "GitHub account"
-msgstr "Аккаунт GitHub"
+#~ msgid "GitHub account"
+#~ msgstr "Аккаунт GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -7303,6 +7302,10 @@ msgstr "Нет активной сессии"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Активные workflow не найдены."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows in this repository."
+msgstr "В этом репозитории нет активных workflow."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
@@ -13374,6 +13377,10 @@ msgstr "Рабочий процесс: {description}"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Рабочие процессы"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflows added under .github/workflows will appear here."
+msgstr "Workflow, добавленные в .github/workflows, появятся здесь."
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx

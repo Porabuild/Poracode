@@ -1527,7 +1527,6 @@ msgstr "我创建的"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "自动"
@@ -5318,8 +5317,8 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
-msgid "GitHub account"
-msgstr "GitHub 账户"
+#~ msgid "GitHub account"
+#~ msgstr "GitHub 账户"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
@@ -7302,6 +7301,10 @@ msgstr "没有活动会话"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "未找到活动的工作流。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows in this repository."
+msgstr "此仓库中没有活动的工作流。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
@@ -13373,6 +13376,10 @@ msgstr "工作流程：{description}"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "工作流程"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflows added under .github/workflows will appear here."
+msgstr "添加到 .github/workflows 的工作流将显示在此处。"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx

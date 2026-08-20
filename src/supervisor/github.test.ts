@@ -1383,6 +1383,72 @@ describe("GitHubService", () => {
       );
     });
 
+    it("returns empty lists when gh prints no output", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+
+      await expect(new GitHubService().listWorkflows(location)).resolves.toEqual({
+        workflows: [],
+      });
+      await expect(new GitHubService().listWorkflowRuns(location, 11)).resolves.toEqual({
+        runs: [],
+      });
+    });
+
+    it("retries run list without the attempt field when gh rejects it", async () => {
+      const service = new GitHubService();
+      const runsJson = JSON.stringify([
+        { databaseId: 501, workflowDatabaseId: 11, workflowName: "CI" },
+      ]);
+      execFileAsyncMock
+        .mockRejectedValueOnce(new Error('Unknown JSON field: "attempt"'))
+        .mockResolvedValueOnce({ stdout: runsJson })
+        .mockResolvedValueOnce({ stdout: runsJson });
+
+      const result = await service.listWorkflowRuns(location, 11);
+
+      expect(result.runs[0]).toMatchObject({ id: 501, workflowId: 11 });
+      const firstArgs = execFileAsyncMock.mock.calls[0]![1] as string[];
+      const retriedArgs = execFileAsyncMock.mock.calls[1]![1] as string[];
+      expect(firstArgs[firstArgs.length - 1]).toContain("attempt");
+      expect(retriedArgs[retriedArgs.length - 1]).not.toContain("attempt");
+
+      // The capability is remembered, so later calls skip the failing probe.
+      await service.listWorkflowRuns(location, 11);
+      expect(execFileAsyncMock).toHaveBeenCalledTimes(3);
+      const nextArgs = execFileAsyncMock.mock.calls[2]![1] as string[];
+      expect(nextArgs[nextArgs.length - 1]).not.toContain("attempt");
+    });
+
+    it("retries run view without the attempt field when gh rejects it", async () => {
+      execFileAsyncMock
+        .mockRejectedValueOnce(new Error('Unknown JSON field: "attempt"'))
+        .mockResolvedValueOnce({
+          stdout: JSON.stringify({ databaseId: 501, name: "CI" }),
+        });
+
+      const result = await new GitHubService().getWorkflowRun(location, 501);
+
+      expect(result.run.id).toBe(501);
+      const retriedArgs = execFileAsyncMock.mock.calls[1]![1] as string[];
+      expect(retriedArgs[retriedArgs.length - 1]).not.toContain("attempt");
+    });
+
+    it("remembers run field capability per project location", async () => {
+      const service = new GitHubService();
+      const runsJson = JSON.stringify([
+        { databaseId: 501, workflowDatabaseId: 11, workflowName: "CI" },
+      ]);
+      execFileAsyncMock
+        .mockRejectedValueOnce(new Error('Unknown JSON field: "attempt"'))
+        .mockResolvedValue({ stdout: runsJson });
+
+      await service.listWorkflowRuns(location, 11);
+      await service.listWorkflowRuns(posixLocation, 11);
+
+      const nextLocationArgs = execFileAsyncMock.mock.calls[2]![1] as string[];
+      expect(nextLocationArgs[nextLocationArgs.length - 1]).toContain("attempt");
+    });
+
     it("loads a workflow definition from the selected ref", async () => {
       execFileAsyncMock.mockResolvedValueOnce({ stdout: "main\n" }).mockResolvedValueOnce({
         stdout: `
