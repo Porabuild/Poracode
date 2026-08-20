@@ -8,8 +8,9 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 
 - `kind` / `label` — Provider identifier and display name.
 - `capabilities` — Declares models, efforts, modes, approval policies, sandbox modes, resume/direct-input support, live input mode (terminal | server), presentation mode (terminal | gui).
-- `spawnEnv?` — Optional `{ native?, wsl? }` env records the runtime merges into the PTY spawn (e.g. `BROWSER=/bin/true` under WSL for OAuth-flow providers). Runtime owns no provider-specific env.
-- `detectInstall(ctx?)` — Typically one line: `return detectAgentInstall(ctx, spec)`. Declare a `DetectionSpec` (binary, capabilities, versionArgs?, authProbes?, capabilitiesProbe?) and let the engine own the WSL vs native probe + binary resolution + version + auth/capability merge.
+- `spawnEnv?` — Optional `{ native?, wsl? }` env records the runtime merges into the PTY spawn (e.g. `BROWSER=/bin/true` under WSL for OAuth-flow providers). Location-specific only — env that must ride EVERY spawn of the CLI belongs in `baseSpawnEnv` instead.
+- `baseSpawnEnv?` — Env applied to every Poracode-made spawn of this CLI in every lane (detection probes, terminal login, PTY launch, ACP session/auth/logout, one-shots, context extraction, subagent children), merged UNDER lane-specific env. Declare it once on the `DetectionSpec`; the adapter re-exposes it via `...inheritBaseSpawnEnv(spec)` so the two can never drift. Shared runtime fans it out — never repeat it per command builder. Deliberately NOT applied to `update` commands so the user-driven "update agent" action still reaches the CLI's own updater. WSL caveat: the shared merge sets spawn-level env; env that must reach the distro still has to be baked into the wsl.exe login-shell script by the command builder (`buildAgentCommand` does this) — keep the same map reference there, as factory does.
+- `detectInstall(ctx?)` — Typically one line: `return detectAgentInstall(ctx, spec)`. Declare a `DetectionSpec` (binary, capabilities, versionArgs?, authProbes?, capabilitiesProbe?, baseSpawnEnv?) and let the engine own the WSL vs native probe + binary resolution + version + auth/capability merge.
 - `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
 - `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
 
@@ -97,6 +98,11 @@ most often forgotten.
         "Re-login" for a never-signed-in user (and the inverse if you then drop
         the probe). Return `authenticated` when the credential exists, else
         `missing`. (Providers that only auth on first TUI launch may skip this.)
+  - [ ] ⚠️ `baseSpawnEnv` — if the CLI runs a background self-updater (or other
+        opt-out-able side effect) on spawn, declare the opt-out env ONCE here.
+        Shared runtime applies it to every spawn lane except the explicit
+        `update` command; never repeat it per command builder. Re-expose it on
+        the adapter via `...inheritBaseSpawnEnv(spec)` (see the `index.ts` item).
 - [ ] `argv.ts` — `build<Kind>Args(config, prompt, …)`. Map `config.mode`/`approvalPolicy`/
       `sandboxMode` to flags. Pass a trust/skip-prompt flag so the PTY never blocks.
 - [ ] `terminal.ts` — `detect<Kind>TerminalStatus` hint table (working/needs_approval/idle).
@@ -106,7 +112,9 @@ most often forgotten.
 - [ ] `index.ts` — `create<Kind>Adapter()`: `buildLaunchArgv`/`buildResumeArgv`,
       `buildDirectInput`, `formatPromptSegments`, `detectTerminalStatus`,
       `detectInvalidSessionRef`, `defaultOneShotModel` + `buildOneShotCommand`,
-      `spawnEnv` (`BROWSER=/bin/true` under WSL for OAuth providers).
+      `spawnEnv` (`BROWSER=/bin/true` under WSL for OAuth providers), and
+      `...inheritBaseSpawnEnv(spec)` when the spec declares `baseSpawnEnv`
+      (derive it — never re-declare the literal on the adapter).
   - [ ] ⚠️ Re-expose `update` on the returned adapter object:
         `...(spec.update ? { update: spec.update } : {})`. The shared updater reads
         `status.update ?? adapter.update`, but the registry card's latest-version

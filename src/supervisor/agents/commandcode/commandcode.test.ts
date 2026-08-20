@@ -247,8 +247,6 @@ describe("createCommandCodeAdapter", () => {
         "summarize",
       ],
       stdin: "",
-      // Suppress the CLI's background self-updater on one-shot utility runs.
-      env: { COMMANDCODE_SKIP_UPDATES: "1" },
     });
   });
 });
@@ -304,17 +302,16 @@ describe("commandCodeDetectionSpec auth", () => {
   // Suppresses the CLI's background self-updater. The one-shot and terminal-login
   // surfaces are asserted by their own tests above; this covers the detection
   // probe + PTY-launch surfaces.
-  it("sets COMMANDCODE_SKIP_UPDATES on the version probe and PTY launch env", () => {
-    // `--version` probe (also flows to capabilitiesProbe via DetectProbeCtx.probeEnv).
-    expect(commandCodeDetectionSpec.probeEnv).toEqual({ COMMANDCODE_SKIP_UPDATES: "1" });
+  it("declares COMMANDCODE_SKIP_UPDATES once, for every launch lane", () => {
+    // Single declaration point; shared runtime fans it out to the version
+    // probe, login, PTY launch, one-shots, extraction, and subagents.
+    expect(commandCodeDetectionSpec.baseSpawnEnv).toEqual({ COMMANDCODE_SKIP_UPDATES: "1" });
 
-    // Interactive / login PTY launch (spawnEnv); wsl keeps the OAuth BROWSER shim.
     const adapter = createCommandCodeAdapter();
-    expect(adapter.spawnEnv?.native).toEqual({ COMMANDCODE_SKIP_UPDATES: "1" });
-    expect(adapter.spawnEnv?.wsl).toEqual({
-      BROWSER: "/bin/true",
-      COMMANDCODE_SKIP_UPDATES: "1",
-    });
+    expect(adapter.baseSpawnEnv).toBe(commandCodeDetectionSpec.baseSpawnEnv);
+    // `spawnEnv` is now only the genuinely location-specific OAuth shim.
+    expect(adapter.spawnEnv?.native).toBeUndefined();
+    expect(adapter.spawnEnv?.wsl).toEqual({ BROWSER: "/bin/true" });
   });
 
   it("advertises a terminal login method when installed (drives the Login button)", async () => {
@@ -324,12 +321,9 @@ describe("commandCodeDetectionSpec auth", () => {
       executablePath: "C:\\bin\\command-code.cmd",
     });
     expect(result?.authMethods).toEqual([
-      {
-        id: "commandcode-terminal-login",
-        name: "Login",
-        type: "terminal",
-        env: { COMMANDCODE_SKIP_UPDATES: "1" },
-      },
+      // No `env` here: the raw probe result is pre-merge. `detectAgentInstall`
+      // applies `baseSpawnEnv` when it assembles the status (baseSpawnEnv.test.ts).
+      { id: "commandcode-terminal-login", name: "Login", type: "terminal" },
     ]);
   });
 

@@ -11,6 +11,7 @@ import {
   queryLs,
 } from "./antigravityLanguageServer";
 import { resolveAntigravityLsEndpoints } from "./antigravityProcessScan";
+import { ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV } from "./detection";
 
 /**
  * Resolve the signed-in Antigravity account (email + plan) from its local
@@ -84,6 +85,11 @@ async function spawnAndReadAccount(
     cwd,
     stdio: "ignore",
     windowsHide: true,
+    // The account probe runs on a 5-minute TTL, which is exactly the cadence
+    // that keeps re-arming the CLI's background self-updater — and the updater
+    // detaches into its own console window (see
+    // ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV in detection.ts).
+    env: { ...process.env, ...ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV },
   });
   try {
     const deadline = Date.now() + SPAWN_LS_TIMEOUT_MS;

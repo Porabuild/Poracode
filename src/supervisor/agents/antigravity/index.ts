@@ -8,6 +8,7 @@ import {
   detectAgentInstall,
   watchSessionPaths,
   type AgentAdapter,
+  inheritBaseSpawnEnv,
 } from "../base";
 import { probeAntigravityAccount } from "./antigravityAccountProbe";
 import { buildAntigravityArgs, buildAntigravityModelArgs } from "./argv";
@@ -93,6 +94,9 @@ export function createAntigravityAdapter(): AgentAdapter {
     spawnEnv: {
       wsl: { BROWSER: "/bin/true" },
     },
+    // Stops `agy`'s background self-updater from detaching out of the thread's
+    // pseudoconsole and popping a stray terminal window.
+    ...inheritBaseSpawnEnv(detectionSpec),
 
     async detectInstall(ctx) {
       const status = await detectAgentInstall(ctx, detectionSpec);

@@ -5,12 +5,12 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
+  inheritBaseSpawnEnv,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import {
   buildFactoryCommand,
   FACTORY_ACP_ARGS,
-  FACTORY_DISABLE_AUTO_UPDATE_ENV,
   factoryDefaultCapabilities,
   factoryDetectionSpec,
 } from "./detection";
@@ -53,6 +53,7 @@ export function createFactoryAdapter(): AgentAdapter {
       },
     },
     ...(factoryDetectionSpec.update ? { update: factoryDetectionSpec.update } : {}),
+    ...inheritBaseSpawnEnv(factoryDetectionSpec),
     get capabilities() {
       return capabilities;
     },
@@ -65,14 +66,12 @@ export function createFactoryAdapter(): AgentAdapter {
       return {
         binary: "droid",
         args: [...FACTORY_ACP_ARGS],
-        env: FACTORY_DISABLE_AUTO_UPDATE_ENV,
       };
     },
     buildResumeArgv() {
       return {
         binary: "droid",
         args: [...FACTORY_ACP_ARGS],
-        env: FACTORY_DISABLE_AUTO_UPDATE_ENV,
       };
     },
     createInitialSessionRef() {
@@ -107,7 +106,6 @@ export function createFactoryAdapter(): AgentAdapter {
       return {
         command: "droid",
         args,
-        env: FACTORY_DISABLE_AUTO_UPDATE_ENV,
       };
     },
   };

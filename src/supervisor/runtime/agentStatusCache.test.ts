@@ -113,6 +113,48 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
+  it("invalidates v13 caches whose terminal auth methods lack baseSpawnEnv-derived env", () => {
+    // Pre-v14 statuses assembled terminal auth methods WITHOUT the provider's
+    // baseSpawnEnv (antigravity's `AGY_CLI_DISABLE_AUTO_UPDATE` did not exist
+    // on the method). Serving that stale status would build the `agy` login
+    // command without the opt-out — the stray-updater window the v14
+    // derivation exists to prevent.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 13,
+        windows: [
+          {
+            kind: "antigravity",
+            label: "Antigravity",
+            installed: true,
+            authState: "missing",
+            authMethods: [{ id: "antigravity-login", name: "Antigravity login", type: "terminal" }],
+            capabilities: { models: [] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("migrates stale cached settingDefs to current schema", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;

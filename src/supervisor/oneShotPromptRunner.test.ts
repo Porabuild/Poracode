@@ -14,8 +14,14 @@ const buildAgentCommandMock = vi.hoisted(() =>
   >(),
 );
 
-vi.mock("node:child_process", () => ({ spawn: spawnMock }));
-vi.mock("./agents/base", () => ({ buildAgentCommand: buildAgentCommandMock }));
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: spawnMock,
+}));
+vi.mock("./agents/base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./agents/base")>()),
+  buildAgentCommand: buildAgentCommandMock,
+}));
 
 import {
   isArgvLikelyTooLong,
@@ -196,6 +202,42 @@ describe("runOneShotPromptWithFallback", () => {
       ["-p", "read solution-1.patch"],
       undefined,
       undefined,
+    );
+  });
+
+  it("applies adapter baseSpawnEnv under the one-shot command env", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValueOnce(child);
+    const adapter = {
+      label: "FactoryLike",
+      baseSpawnEnv: { DROID_DISABLE_AUTO_UPDATE: "true" },
+      buildOneShotCommand: (_model: string, _effort?: string, prompt?: string) => ({
+        command: "droid",
+        args: ["exec", prompt ?? ""],
+        env: { DROID_DISABLE_AUTO_UPDATE: "false", LANE: "1" },
+      }),
+    } as unknown as AgentAdapter;
+
+    const pending = runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      model: "model-a",
+      effort: undefined,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "summarize" }],
+    });
+    await flushPromises();
+    child.stdout.emit("data", Buffer.from("ok"));
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe("ok");
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(
+      windowsProject,
+      "droid",
+      ["exec", "summarize"],
+      undefined,
+      { DROID_DISABLE_AUTO_UPDATE: "false", LANE: "1" },
     );
   });
 

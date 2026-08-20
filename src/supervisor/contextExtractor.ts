@@ -1,5 +1,5 @@
 import type { ExtractContextResult, ProjectLocation, SessionRef } from "@/shared/contracts";
-import type { AgentAdapter } from "./agents/base";
+import { withCommandBaseSpawnEnv, type AgentAdapter } from "./agents/base";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
 import { buildOneShotSpec, spawnAgent } from "./oneShotSpawn";
 
@@ -60,9 +60,15 @@ export async function extractContext(
   if (adapter.buildContextExtractionCommand) {
     const cmd = adapter.buildContextExtractionCommand(sessionRef, location, model);
     if (cmd) {
-      const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args, {
-        ...(cmd.env ? { env: cmd.env } : {}),
-      });
+      const extractionCommand = withCommandBaseSpawnEnv(cmd, adapter.baseSpawnEnv);
+      const spawnSpec = buildOneShotSpec(
+        location,
+        extractionCommand.command,
+        extractionCommand.args,
+        {
+          ...(extractionCommand.env ? { env: extractionCommand.env } : {}),
+        },
+      );
       console.log(`[context-extract] spawning: ${spawnSpec.command} ${spawnSpec.args.join(" ")}`);
 
       const raw = await spawnAgent(

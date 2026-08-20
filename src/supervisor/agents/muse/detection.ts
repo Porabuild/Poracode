@@ -12,6 +12,10 @@ import { nativeMuseAuthPath, WSL_MUSE_AUTH_PATH } from "./paths";
 
 // Models are static — Muse has no `list-models` command. All three ship with a
 // 1M context window (verified against Muse Code 0.1.0 docs/binary).
+const MUSE_DISABLE_AUTO_UPDATE_ENV: Record<string, string> = {
+  MUSE_NO_AUTO_UPDATE: "1",
+};
+
 export const MUSE_DEFAULT_MODEL_ID = "muse-spark-1.2";
 
 const MUSE_MODEL_IDS = [
@@ -128,7 +132,7 @@ export const museDetectionSpec: DetectionSpec = {
   // The installed `muse` command is a launcher that otherwise checks for and
   // starts a background update. Detection must stay read-only and predictable;
   // explicit updates still use the installer spec below.
-  probeEnv: { MUSE_NO_AUTO_UPDATE: "1" },
+  baseSpawnEnv: MUSE_DISABLE_AUTO_UPDATE_ENV,
   // META_API_KEY takes priority over stored credentials at the CLI; treat either
   // as signed-in. The file probe keys off a non-empty `providers` object, not
   // mere config-dir existence (the dir appears on first run regardless).

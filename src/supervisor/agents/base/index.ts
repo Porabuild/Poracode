@@ -32,6 +32,7 @@ import {
   quotePowerShellLiteral,
 } from "./shellBasics";
 import { detectPowerShell, type DetectedPowerShell } from "../../shellPreference";
+import { mergeSpawnEnv, withBaseSpawnEnv } from "./spawnEnv";
 import type {
   AgentArgvSpec,
   AgentEnvContext,
@@ -93,6 +94,7 @@ export * from "./expectedRuntimeError";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
+export * from "./spawnEnv";
 export type { DetectedPowerShell } from "../../shellPreference";
 export * from "./sessionFs";
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
@@ -717,16 +719,21 @@ export async function detectAgentInstall(
   const executablePath = await resolveDetectedBinary(ctx, spec);
   ctx?.signal?.throwIfAborted();
 
+  // `baseSpawnEnv` applies to every lane; `probeEnv` narrows further to
+  // detection only. Merge once here so each probe below gets both without
+  // having to know the difference.
+  const probeEnv = mergeSpawnEnv(spec.baseSpawnEnv, spec.probeEnv);
+
   const versionArgs = spec.versionArgs ?? ["--version"];
   const version = spec.versionProbe
     ? await spec.versionProbe({
         location,
         executablePath,
         ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
-        ...(spec.probeEnv ? { probeEnv: spec.probeEnv } : {}),
+        ...(probeEnv ? { probeEnv } : {}),
         ...(ctx?.signal ? { signal: ctx.signal } : {}),
       })
-    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv, ctx?.signal);
+    : await readDetectedVersion(location, executablePath, versionArgs, probeEnv, ctx?.signal);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -741,7 +748,7 @@ export async function detectAgentInstall(
       executablePath,
       version,
       ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
-      probeEnv: spec.probeEnv,
+      probeEnv,
       ...(ctx?.signal ? { signal: ctx.signal } : {}),
     };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
@@ -829,7 +836,9 @@ export async function detectAgentInstall(
     ...(spec.update ? { update: spec.update } : {}),
     authState,
     ...(providerMetadata ? { providerMetadata } : {}),
-    ...(probedAuthMethods ? { authMethods: probedAuthMethods } : {}),
+    ...(probedAuthMethods
+      ? { authMethods: withBaseSpawnEnv(probedAuthMethods, spec.baseSpawnEnv) }
+      : {}),
     ...(probedAuthLogoutSupported ? { authLogoutSupported: true } : {}),
     capabilities,
   };

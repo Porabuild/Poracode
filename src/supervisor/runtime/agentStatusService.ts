@@ -55,8 +55,12 @@ const execFileAsync = promisify(execFile);
  * advertised auth methods do not create a false Login requirement. v13
  * normalizes ACP mode labels for display, so statuses cached with raw ids
  * (`smart_approve`) as approval-policy labels must be re-probed.
+ * v14 derives terminal auth-method `env` from `DetectionSpec.baseSpawnEnv`
+ * during status assembly, so statuses cached before that derivation (e.g.
+ * antigravity login without `AGY_CLI_DISABLE_AUTO_UPDATE`) must be re-probed
+ * or the login command runs without the provider's base env.
  */
-export const STATUS_CACHE_VERSION = 13;
+export const STATUS_CACHE_VERSION = 14;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

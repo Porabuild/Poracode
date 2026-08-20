@@ -89,6 +89,7 @@ function makeHarness(options?: {
   createFailures?: number;
   deferCreate?: boolean;
   interruptError?: string;
+  baseSpawnEnv?: Record<string, string>;
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
@@ -103,6 +104,7 @@ function makeHarness(options?: {
   const adapter = {
     kind: "codex",
     label: options?.providerLabel ?? "Codex",
+    ...(options?.baseSpawnEnv ? { baseSpawnEnv: options.baseSpawnEnv } : {}),
     capabilities: {
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
       ...(options?.subProviders ? { subProviders: options.subProviders } : {}),
@@ -741,6 +743,28 @@ describe("SubagentRunManager", () => {
       status: "failed",
       error: { message: "Subagent session closed before the turn completed" },
     });
+  });
+
+  it("forwards the provider's baseSpawnEnv to the structured child session", async () => {
+    // The shared runtime — not the provider — supplies `baseSpawnEnv`, so every
+    // launch point that builds a `CreateStructuredSessionInput` has to pass it.
+    // Miss it here and a structured subagent spawns without the provider's
+    // updater opt-out, which on Windows pops a stray terminal window.
+    const baseSpawnEnv = { DROID_DISABLE_AUTO_UPDATE: "true" };
+    const h = makeHarness({ baseSpawnEnv });
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(h.inputs[0]!.baseSpawnEnv).toEqual(baseSpawnEnv);
+  });
+
+  it("omits baseSpawnEnv entirely for a provider that declares none", async () => {
+    // Absent key, not `undefined` — `exactOptionalPropertyTypes`.
+    const h = makeHarness();
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(h.inputs[0]!).not.toHaveProperty("baseSpawnEnv");
   });
 
   it("uses unrestricted permissions and inherits non-recursive MCPs", async () => {
