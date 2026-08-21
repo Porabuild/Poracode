@@ -27,6 +27,7 @@ import {
 } from "@/shared/agentSelection";
 import type { ComposerControl } from "./ThreadComposer";
 import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
+import type { ProviderModelPreference } from "@/shared/settings";
 
 export type ModelPickerConfigPatch = {
   model?: string;
@@ -176,13 +177,9 @@ export function patchConfigForModelChange(
   const nextContextDefault = nextContextIds?.[0] ?? capabilities.defaultContextSize;
   return {
     model,
-    // Reset to the new model's declared default, not the first tier in its
-    // list. A model with no tiers at all clears the effort rather than
-    // inheriting the previous model's — an effort it does not support would
-    // otherwise be sent to the agent, which is free to apply its own default.
-    ...(effortValid ? {} : { effort: nextReasoning.default ?? "" }),
+    effort: effortValid && current.effort ? current.effort : (nextReasoning.default ?? ""),
     ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
-    ...(supportsUsableFastMode(capabilities, model) ? {} : { fast: false }),
+    fast: supportsUsableFastMode(capabilities, model) ? (current.fast ?? true) : false,
     thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
 }
@@ -363,6 +360,8 @@ export function buildControls(
   agentStatus: AgentStatus | undefined,
   hiddenModelIds: readonly string[] | undefined,
   onConfigChange: (config: ThreadConfig) => void,
+  modelPreferences?: Record<string, ProviderModelPreference>,
+  onModelPreferenceChange?: (model: string, preference: ProviderModelPreference) => void,
 ): ComposerControl[] {
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
@@ -380,8 +379,14 @@ export function buildControls(
     filteredCaps,
   );
   const isDisabled = !thread.canResumeWithConfig && thread.status !== "launching";
-  const onPatch = (patch: Partial<ThreadConfig>) =>
-    onConfigChange({ ...thread.config, ...effectiveConfig, ...patch });
+  const onPatch = (patch: Partial<ThreadConfig>) => {
+    const config = { ...thread.config, ...effectiveConfig, ...patch };
+    onConfigChange(config);
+    onModelPreferenceChange?.(config.model, {
+      ...(config.effort ? { effort: config.effort } : {}),
+      ...(config.fast !== undefined ? { fast: config.fast } : {}),
+    });
+  };
   const provider: ProviderModelMenuProvider = {
     kind: thread.agentKind,
     label: agentStatus.label,
@@ -403,11 +408,12 @@ export function buildControls(
       presentationMode,
       isDisabled,
       onProviderModelChange: ({ model }) => {
+        const preference = modelPreferences?.[model];
         onPatch(
           patchConfigForModelChange(filteredCaps, model, {
-            ...(effectiveConfig.effort ? { effort: effectiveConfig.effort } : {}),
+            ...(preference?.effort !== undefined ? { effort: preference.effort } : {}),
             ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
-            ...(effectiveConfig.fast ? { fast: effectiveConfig.fast } : {}),
+            ...(preference?.fast !== undefined ? { fast: preference.fast } : {}),
             ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
           }),
         );

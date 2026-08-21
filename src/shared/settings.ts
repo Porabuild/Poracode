@@ -53,6 +53,12 @@ export const agentSelectionUsageEntrySchema = z.object({
 });
 export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
 
+export const providerModelPreferenceSchema = z.object({
+  effort: z.string().optional(),
+  fast: z.boolean().optional(),
+});
+export type ProviderModelPreference = z.infer<typeof providerModelPreferenceSchema>;
+
 export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
 export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
 
@@ -446,6 +452,11 @@ export const sharedSettingsSchema = z.object({
   commitDefaultAction: commitDefaultActionSchema,
   /** Per-provider last-used draft config (model, effort, mode, etc.). App-wide. */
   providerConfigs: z.record(z.string(), providerDraftConfigSchema),
+  /** Per-provider and model effort/Fast choices. App-wide. */
+  providerModelPreferences: z.record(
+    z.string(),
+    z.record(z.string(), providerModelPreferenceSchema),
+  ),
   /**
    * Per-provider last-picked thread presentation mode (terminal vs gui chat).
    * Read by ThreadDraftView so a provider that supports both modes remembers
@@ -688,6 +699,7 @@ export const defaultSharedSettings: SharedSettings = {
   prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
   providerConfigs: {},
+  providerModelPreferences: {},
   lastPresentationModeByAgent: {},
   lastUsedProjectDirs: {},
   editorLspEnabled: false,
@@ -778,6 +790,21 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
           qwen: { ...qwenProviderConfig, model: QWEN_DEFAULT_MODEL_ID },
         }
       : settings.providerConfigs;
+  const qwenModelPreferences = settings.providerModelPreferences.qwen;
+  const retiredQwenModelPreference = qwenModelPreferences?.[QWEN_RETIRED_PREVIEW_MODEL_ID];
+  let providerModelPreferences = settings.providerModelPreferences;
+  if (qwenModelPreferences && retiredQwenModelPreference) {
+    const currentQwenModelPreferences = { ...qwenModelPreferences };
+    delete currentQwenModelPreferences[QWEN_RETIRED_PREVIEW_MODEL_ID];
+    providerModelPreferences = {
+      ...settings.providerModelPreferences,
+      qwen: {
+        ...currentQwenModelPreferences,
+        [QWEN_DEFAULT_MODEL_ID]:
+          currentQwenModelPreferences[QWEN_DEFAULT_MODEL_ID] ?? retiredQwenModelPreference,
+      },
+    };
+  }
 
   const seenFavorites = new Set<string>();
   const favoriteModels = settings.favoriteModels
@@ -807,6 +834,7 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
   return {
     ...settings,
     providerConfigs,
+    providerModelPreferences,
     hiddenModels,
     commitGenModel: migrateUtilityModel(settings.commitGenProvider, settings.commitGenModel),
     titleGenModel: migrateUtilityModel(settings.titleGenProvider, settings.titleGenModel),

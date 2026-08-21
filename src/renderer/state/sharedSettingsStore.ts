@@ -7,6 +7,7 @@ import {
   WINDOWS_SHELL_ARGUMENTS_MAX,
   type CliPickerTarget,
   type PreventSleep,
+  type ProviderModelPreference,
   type SidebarShortcutId,
   type SharedSettings,
   type SharedSettingsInput,
@@ -148,6 +149,11 @@ interface SharedSettingsState extends SharedSettings {
     value: SharedSettings["usage"][K],
   ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
+  setProviderModelPreference: (
+    agentKind: string,
+    modelId: string,
+    preference: ProviderModelPreference,
+  ) => void;
   setLastPresentationMode: (agentKind: string, mode: ThreadPresentationMode) => void;
   setLastUsedProjectDir: (runtimeKey: string, dir: string) => void;
   setNotificationsEnabled: (value: boolean) => void;
@@ -730,6 +736,24 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ providerConfigs: { ...current, [agentKind]: config } });
     persistSettings(selectSharedSettings(get()));
   },
+  setProviderModelPreference: (agentKind, modelId, preference) => {
+    if (!modelId.trim()) return;
+    const current = get().providerModelPreferences;
+    const currentPreference = current[agentKind]?.[modelId];
+    if (
+      currentPreference?.effort === preference.effort &&
+      currentPreference?.fast === preference.fast
+    ) {
+      return;
+    }
+    set({
+      providerModelPreferences: {
+        ...current,
+        [agentKind]: { ...current[agentKind], [modelId]: preference },
+      },
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
   setLastPresentationMode: (agentKind, mode) => {
     const current = get().lastPresentationModeByAgent;
     if (current[agentKind] === mode) return;
@@ -809,6 +833,9 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({
       agentInstances,
       providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
+      providerModelPreferences: removeProfileKey(
+        get().providerModelPreferences,
+      ) as SharedSettings["providerModelPreferences"],
       hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
       agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
       lastPresentationModeByAgent: removeProfileKey(
@@ -1016,6 +1043,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
+    providerModelPreferences: state.providerModelPreferences,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
     lastUsedProjectDirs: state.lastUsedProjectDirs,
     editorLspEnabled: state.editorLspEnabled,

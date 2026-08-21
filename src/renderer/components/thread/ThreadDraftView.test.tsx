@@ -136,6 +136,23 @@ const codexStatus: AgentStatus = {
   },
 };
 
+const rememberedCodexStatus: AgentStatus = {
+  ...codexStatus,
+  capabilities: {
+    ...codexStatus.capabilities,
+    models: [
+      { id: "gpt-5.6-luna", label: "Luna" },
+      { id: "gpt-5.6-sol", label: "Sol" },
+    ],
+    efforts: ["low", "medium", "high", "max"],
+    modelEfforts: {
+      "gpt-5.6-luna": ["low", "medium", "high", "max"],
+      "gpt-5.6-sol": ["low", "medium", "high"],
+    },
+    fastModels: ["gpt-5.6-luna", "gpt-5.6-sol"],
+  },
+};
+
 const dualModeCodexStatus: AgentStatus = {
   ...codexStatus,
   capabilities: {
@@ -480,6 +497,7 @@ describe("ThreadDraftView", () => {
     });
     useSharedSettings.setState({
       providerConfigs: {},
+      providerModelPreferences: {},
       hiddenModels: {},
       disabledAgents: [],
       lastPresentationModeByAgent: {},
@@ -1269,6 +1287,9 @@ describe("ThreadDraftView", () => {
 
   it("submits an explicit Fast-off selection in the launch config", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({
+      providerModelPreferences: { cursor: { "composer-2": { fast: false } } },
+    });
 
     render(
       <ThreadDraftView
@@ -1750,6 +1771,7 @@ describe("ThreadDraftView", () => {
             sandboxMode: "danger-full-access",
           },
         },
+        providerModelPreferences: {},
         sharedSettingsHydrated: true,
       });
     });
@@ -1763,6 +1785,81 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       expect(effortContext?.effortValue).toBe("medium");
     });
+  });
+
+  it("recalls app-wide effort and Fast choices when switching between Codex models", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: {
+          model: "gpt-5.6-luna",
+          effort: "max",
+          fast: true,
+          mode: "agent",
+          approvalPolicy: "on-request",
+          sandboxMode: "workspace-write",
+        },
+      },
+      providerModelPreferences: {
+        codex: {
+          "gpt-5.6-luna": { effort: "max", fast: true },
+          "gpt-5.6-sol": { effort: "high", fast: false },
+        },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[rememberedCodexStatus]}
+        lastDraftConfig={{
+          agentKind: "codex",
+          model: "gpt-5.6-luna",
+          effort: "low",
+          fast: false,
+        }}
+        onStart={vi.fn<(input: unknown) => void>()}
+      />,
+    );
+
+    type ModelControl = {
+      kind?: string;
+      currentModel?: string;
+      effortValue?: string;
+      label?: string;
+      isSelected?: boolean;
+      onChange?: (next: { agentKind: string; model: string }) => void;
+    };
+    const currentControls = () => {
+      const call = composerSpy.mock.lastCall;
+      if (!call) throw new Error("Composer has not rendered");
+      return (call[0] as { controls: ModelControl[] }).controls;
+    };
+    const expectSelection = async (model: string, effort: string, fast: boolean) => {
+      await waitFor(() => {
+        const controls = currentControls();
+        expect(controls.find((control) => control.kind === "provider-model")?.currentModel).toBe(
+          model,
+        );
+        expect(controls.find((control) => control.kind === "effort-context")?.effortValue).toBe(
+          effort,
+        );
+        expect(controls.find((control) => control.label === "Fast")?.isSelected).toBe(fast);
+      });
+    };
+
+    await expectSelection("gpt-5.6-luna", "max", true);
+    act(() => {
+      currentControls()
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({ agentKind: "codex", model: "gpt-5.6-sol" });
+    });
+    await expectSelection("gpt-5.6-sol", "high", false);
+    act(() => {
+      currentControls()
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({ agentKind: "codex", model: "gpt-5.6-luna" });
+    });
+    await expectSelection("gpt-5.6-luna", "max", true);
   });
 
   it("keeps simultaneously open draft configs independent while saving defaults for later drafts", async () => {
