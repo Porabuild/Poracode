@@ -144,6 +144,15 @@ export function createKimiAdapter(): AgentAdapter {
       );
       session = createAcpStructuredSession(command, {
         ...input,
+        // Kimi's ACP server rejects the protocol's standard stdio MCP shape
+        // during session/new ("ACP stdio MCP server <name> does not declare a
+        // runtime identity", surfaced only as -32603 Internal error), and the
+        // ACP schema gives it no mcpCapabilities flag to declare that gap.
+        // Relay stdio servers optimistically instead of pre-dropping them:
+        // the shared session retries once without them on that exact failure
+        // (MoonshotAI/kimi-code#3069, fix pending in #3070) and, once a Kimi
+        // release ships support, relays them with no change here.
+        acpOptimisticMcpTransports: ["stdio"],
         // Kimi's ACP host filesystem routes *every* text read/write through
         // the client once fs capability is advertised — including its own
         // per-session state under ~/.kimi-code — and rethrows the client's

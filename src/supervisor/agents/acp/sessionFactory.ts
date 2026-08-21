@@ -74,6 +74,9 @@ export function createAcpStructuredSession(
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
+    ...(input.acpOptimisticMcpTransports
+      ? { optimisticMcpTransports: input.acpOptimisticMcpTransports }
+      : {}),
     ...(input.acpFsAgentHomeDirs ? { fsAgentHomeDirs: input.acpFsAgentHomeDirs } : {}),
     ...(input.acpFsTextCapability !== undefined
       ? { fsTextCapability: input.acpFsTextCapability }

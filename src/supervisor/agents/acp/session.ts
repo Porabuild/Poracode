@@ -54,6 +54,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
   ResolvedMcpServer,
+  McpTransportKind,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -235,6 +236,14 @@ export interface AcpStructuredSessionOptions {
    */
   assumedMcpCapabilities?: AcpMcpCapabilities;
   /**
+   * MCP transports relayed optimistically: sent on the first open attempt and
+   * excluded from the compatibility-failure retry set. For agents that fail
+   * session-open on a transport the ACP schema gives them no way to decline
+   * (stdio has no capability flag) — see `acpOptimisticMcpTransports` in the
+   * adapter contract.
+   */
+  optimisticMcpTransports?: readonly McpTransportKind[];
+  /**
    * Home-relative directories (posix-style, e.g. ".kimi-code") the agent may
    * read and write through the ACP fs bridge even though they sit outside the
    * project root. For providers that keep internal session state (plan files,
@@ -281,6 +290,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly assumedMcpCapabilities: AcpMcpCapabilities | undefined;
+  private readonly optimisticMcpTransports: readonly McpTransportKind[] | undefined;
   private readonly fsAgentHomeDirs: readonly string[];
   private readonly fsTextCapability: boolean;
   private planModeToolTrackerInstance: AcpPlanModeToolTracker | undefined;
@@ -450,6 +460,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     this.mcpServers = options?.mcpServers ?? [];
     this.assumedMcpCapabilities = options?.assumedMcpCapabilities;
+    this.optimisticMcpTransports = options?.optimisticMcpTransports;
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
     this.fsTextCapability = options?.fsTextCapability !== false;
   }
@@ -764,27 +775,44 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private async openWithMcpServers<T>(
     open: (mcpServers: ProtocolMcpServer[]) => Promise<T>,
   ): Promise<T> {
-    const built = buildAcpMcpServers(this.mcpServers);
-    const assumed = this.gateMcpServers(
-      built,
-      resolveAcpMcpCapabilities(this.agentMcpCapabilities, this.assumedMcpCapabilities),
+    const capabilities = resolveAcpMcpCapabilities(
+      this.agentMcpCapabilities,
+      this.assumedMcpCapabilities,
     );
-    const advertised =
-      this.agentMcpCapabilities === undefined && this.assumedMcpCapabilities !== undefined
-        ? gateAcpMcpServers(built, this.agentMcpCapabilities)
-        : assumed;
-    if (advertised.length === assumed.length) return open(assumed);
+    const built = buildAcpMcpServers(this.mcpServers);
+    const attempted = this.gateMcpServers(built, capabilities);
+    const optimisticTransports = this.optimisticMcpTransports;
+    let fallback: ProtocolMcpServer[];
+    if (optimisticTransports !== undefined && optimisticTransports.length > 0) {
+      // Optimistic transports ride along on the first attempt only; the retry
+      // set excludes them so a compatibility failure can still open the
+      // session without them.
+      fallback = gateAcpMcpServers(
+        buildAcpMcpServers(
+          this.mcpServers.filter((server) => !optimisticTransports.includes(server.transport.type)),
+        ),
+        capabilities,
+      );
+    } else if (
+      this.agentMcpCapabilities === undefined &&
+      this.assumedMcpCapabilities !== undefined
+    ) {
+      fallback = gateAcpMcpServers(built, this.agentMcpCapabilities);
+    } else {
+      fallback = attempted;
+    }
+    if (fallback.length === attempted.length) return open(attempted);
 
     try {
-      return await open(assumed);
+      return await open(attempted);
     } catch (error) {
       if (!isAssumedMcpCompatibilityError(error)) throw error;
       console.log(
         "[acp] session open failed with %d assumed-transport MCP server(s) (ACP error %d); retrying without them",
-        assumed.length - advertised.length,
+        attempted.length - fallback.length,
         error.code,
       );
-      return open(advertised);
+      return open(fallback);
     }
   }
 
