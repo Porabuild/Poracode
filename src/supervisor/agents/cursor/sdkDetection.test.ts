@@ -55,6 +55,24 @@ describe("probeCursorSdkRuntime", () => {
     expect(handle.dispose).toHaveBeenCalledOnce();
   });
 
+  it("uses an explicit profile key instead of the base Cursor setting", async () => {
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.24",
+        source: "global-npm",
+      }),
+    });
+
+    await probeCursorSdkRuntime(
+      { envKind: "posix", agentSettings: { sdkApiKey: "base-key" } },
+      { spawnWorker: async () => handle },
+      "profile-key",
+    );
+
+    expect(handle.probe).toHaveBeenCalledWith("profile-key");
+  });
+
   it("reports a missing or rejected SDK API key as missing authentication", async () => {
     const missingAuth = worker({
       probe: async () => {

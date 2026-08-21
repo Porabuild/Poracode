@@ -24,6 +24,15 @@ describe("formatShortcutModelLabel", () => {
     ).toBe("Composer 2.5 · Fast");
   });
 
+  it("formats Cursor profile shortcut ids with the same rules as the base provider", () => {
+    expect(formatShortcutFallbackLabel("cursor:work", "composer-2.5[fast=true]")).toBe(
+      "Composer 2.5 · Fast",
+    );
+    expect(formatShortcutModelLabel("cursor:work", "composer-2.5[fast=true]", "Composer 2.5")).toBe(
+      "Composer 2.5 · Fast",
+    );
+  });
+
   it("appends ACP param hints when a grouped Cursor row is reused", () => {
     expect(formatShortcutModelLabel("cursor", "composer-2.5[fast=true]", "Composer 2.5")).toBe(
       "Composer 2.5 · Fast",
@@ -287,5 +296,30 @@ describe("buildProviderModelItems shortcut labels", () => {
       "model:cursor:terminal:gpt-5.5",
       "model:cursor:gui:gpt-5.5[context=272k,reasoning=medium,fast=false]",
     ]);
+  });
+
+  it("keeps Cursor profile identity and legacy runtime labels scoped to the profile", () => {
+    const items = buildProviderModelItems({
+      providers: [
+        codexProvider,
+        {
+          ...cursorProvider,
+          kind: "cursor:work",
+          label: "Cursor Day job",
+          presentationMode: "terminal",
+        },
+      ],
+      search: "",
+    });
+    const header = items.find(
+      (item) => item.type === "header-provider" && item.providerKind === "cursor:work",
+    );
+    const row = items.find((item) => item.type === "model" && item.providerKind === "cursor:work");
+
+    expect(header?.type === "header-provider" ? header.label : undefined).toBe(
+      "Cursor Day job CLI",
+    );
+    expect(row?.type === "model" ? row.providerLabel : undefined).toBe("Cursor Day job");
+    expect(row?.type === "model" ? row.hiddenModelsKey : undefined).toBe("cursor:work");
   });
 });

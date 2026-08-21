@@ -7,6 +7,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
   statusToMenuProvider,
@@ -324,7 +325,10 @@ function normalizeCursorComposerConfig(
   capabilities: AgentStatus["capabilities"],
 ): ThreadConfig {
   if (!config) return { model: capabilities.models[0]?.id ?? "auto" };
-  if (agentKind !== "cursor" || capabilities.models.some((model) => model.id === config.model)) {
+  if (
+    baseAgentKind(agentKind) !== "cursor" ||
+    capabilities.models.some((model) => model.id === config.model)
+  ) {
     return config;
   }
 

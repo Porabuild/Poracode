@@ -26,11 +26,13 @@ import {
   buildCursorModelPickerCapabilities,
   buildCursorProbeSpec,
   createCursorAdapter,
+  createCursorProfileAdapter,
   detectCursorTerminalStatus,
   rewriteCursorLoadSessionError,
   sortCursorModels,
 } from "./index";
 import { buildCursorArgs } from "./argv";
+import { CursorSdkSession } from "./sdkSession";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -56,6 +58,43 @@ describe("createCursorAdapter capabilities", () => {
     expect(adapter.capabilities.approvalPolicies.some((p) => p.id === "never")).toBe(true);
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.createStructuredSession).toBeTypeOf("function");
+  });
+
+  it("creates a profile adapter whose key applies to every process lane", () => {
+    const adapter = createCursorProfileAdapter({
+      id: "work",
+      driver: "cursor",
+      displayName: "Work",
+      environment: { CURSOR_API_KEY: { value: "profile-key", sensitive: true } },
+    });
+
+    expect(adapter.kind).toBe("cursor:work");
+    expect(adapter.label).toBe("Cursor Work");
+    expect(adapter.baseSpawnEnv).toEqual({ CURSOR_API_KEY: "profile-key" });
+  });
+
+  it("defaults new Cursor profile GUI sessions to the SDK runtime", async () => {
+    const adapter = createCursorProfileAdapter({
+      id: "work",
+      driver: "cursor",
+      environment: { CURSOR_API_KEY: { value: "profile-key", sensitive: true } },
+    });
+
+    const session = await adapter.createStructuredSession?.({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      config: { model: "composer-2.5" },
+      presentationMode: "gui",
+      ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
+    });
+
+    expect(session).toBeInstanceOf(CursorSdkSession);
+  });
+
+  it("rejects a profile without its own API key", () => {
+    expect(() =>
+      createCursorProfileAdapter({ id: "work", driver: "cursor", displayName: "Work" }),
+    ).toThrow("Cursor profiles require a CURSOR_API_KEY");
   });
 
   it("does not pass SDK-local session ids to cursor-agent context extraction", () => {

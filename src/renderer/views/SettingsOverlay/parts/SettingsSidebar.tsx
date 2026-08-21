@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { baseAgentKind, isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
+import { baseAgentKind, type AgentStatus } from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -68,8 +68,11 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "about",
 ]);
 
-function claudeProfileSidebarLabel(agent: AgentStatus): string {
-  return agent.label.replace(/^Claude\s+/iu, "").trim() || agent.label;
+function profileSidebarLabel(agent: AgentStatus): string {
+  const baseKind = baseAgentKind(agent.kind);
+  return agent.label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
+    ? agent.label.slice(baseKind.length).trim()
+    : agent.label;
 }
 
 function renderAgentIcon(
@@ -84,7 +87,7 @@ function renderAgentIcon(
       kind={agent.kind}
       icon={agent.icon}
       fallbackLabel={
-        isClaudeProfileKind(agent.kind) ? claudeProfileSidebarLabel(agent) : agent.label
+        baseAgentKind(agent.kind) !== agent.kind ? profileSidebarLabel(agent) : agent.label
       }
       className={`${options.className ?? "size-4"} ${options.disabled ? "opacity-35" : ""}`}
     />
@@ -650,7 +653,7 @@ export function SettingsSidebar(props: {
                                               disabled: profileDisabled,
                                               className: "size-3.5",
                                             })}
-                                            label={claudeProfileSidebarLabel(profile)}
+                                            label={profileSidebarLabel(profile)}
                                             suffix={
                                               profileNeedsAttention ? (
                                                 <AlertTriangle

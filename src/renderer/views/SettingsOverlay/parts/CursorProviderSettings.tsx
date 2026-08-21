@@ -3,9 +3,18 @@ import { RadioGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import type { AgentCapability, AgentStatus, AuthState } from "@/shared/contracts";
+import {
+  cursorProfileKind,
+  extractCursorProfileInstanceId,
+  type AgentCapability,
+  type AgentStatus,
+  type AuthState,
+} from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { CursorRuntimeCard } from "./CursorRuntimeCard";
+import { AgentProfileList } from "./AgentProfileList";
+import { CursorProfileIdentity } from "./CursorProfileIdentity";
+import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorSdkRuntimeSetup } from "./CursorSdkRuntimeSetup";
 import { cursorRuntimeInstallState } from "./cursorRuntimeInstall";
 
@@ -13,8 +22,11 @@ type CursorStructuredRuntime = "acp" | "sdk";
 
 function readStructuredRuntime(
   settings: Record<string, boolean | string> | undefined,
+  fallback: CursorStructuredRuntime = "acp",
 ): CursorStructuredRuntime {
-  return settings?.structuredRuntime === "sdk" ? "sdk" : "acp";
+  if (settings?.structuredRuntime === "sdk") return "sdk";
+  if (settings?.structuredRuntime === "acp") return "acp";
+  return fallback;
 }
 
 /**
@@ -31,11 +43,20 @@ export function CursorProviderSettings(props: {
   wslDistros: string[];
   /** Per-environment Cursor CLI rows, handed over by `SingleAgentSettings`. */
   installRows?: ReactNode;
+  onOpenProfile?: ((profileKind: string) => void) | undefined;
 }) {
   const { t } = useLingui();
   const { agentKind, statuses, wslDistros } = props;
+  const profileInstanceId = extractCursorProfileInstanceId(agentKind);
   const savedAgentSettings = useSharedSettings((state) => state.agentSettings[agentKind]);
-  const selectedRuntime = readStructuredRuntime(savedAgentSettings);
+  const agentInstances = useSharedSettings((state) => state.agentInstances);
+  const cursorProfileKinds = Object.values(agentInstances)
+    .filter((instance) => instance.driver === "cursor" && instance.enabled !== false)
+    .map((instance) => cursorProfileKind(instance.id));
+  const selectedRuntime = readStructuredRuntime(
+    savedAgentSettings,
+    profileInstanceId ? "sdk" : "acp",
+  );
   const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
 
   const firstStatus = statuses?.[0];
@@ -73,6 +94,10 @@ export function CursorProviderSettings(props: {
 
   const refreshStatus = () =>
     readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [agentKind] });
+  const refreshPackageStatus = () =>
+    readBridge().refreshAgentStatuses(wslDistros, {
+      agentKinds: ["cursor", ...cursorProfileKinds],
+    });
 
   /**
    * Persists the default runtime right away; there is nothing else to batch.
@@ -98,15 +123,33 @@ export function CursorProviderSettings(props: {
 
   return (
     <div className="border-t border-border/10 pt-3">
+      {profileInstanceId ? (
+        <CursorProfileIdentity
+          agentKind={agentKind}
+          profileInstanceId={profileInstanceId}
+          // The SDK probe authenticates with the key itself, so it is the only
+          // runtime whose state answers "is this key good?" — ACP runs through
+          // the CLI and can report success from an ambient machine login.
+          authDescription={authLabel(sdkAuthState, "sdk")}
+          refreshStatus={refreshStatus}
+        />
+      ) : null}
       <div className="mb-2">
         <p className="text-sm font-medium text-foreground">
           <Trans>GUI runtime</Trans>
         </p>
         <p className="text-xs text-muted">
-          <Trans>
-            Pick the runtime that backs new Cursor GUI chats. Each runtime installs and
-            authenticates on its own; open chats keep the runtime they started with.
-          </Trans>
+          {profileInstanceId ? (
+            <Trans>
+              Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both
+              runtimes.
+            </Trans>
+          ) : (
+            <Trans>
+              Pick the runtime that backs new Cursor GUI chats. Each runtime installs and
+              authenticates on its own; open chats keep the runtime they started with.
+            </Trans>
+          )}
         </p>
       </div>
 
@@ -140,13 +183,22 @@ export function CursorProviderSettings(props: {
         >
           <CursorSdkRuntimeSetup
             agentKind={agentKind}
+            {...(profileInstanceId ? { profileInstanceId } : {})}
             status={sdkStatus}
             authDescription={authLabel(sdkAuthState, "sdk")}
             refreshStatus={refreshStatus}
+            refreshPackageStatus={refreshPackageStatus}
             onApiKeyCleared={fallBackToAcp}
           />
         </CursorRuntimeCard>
       </RadioGroup>
+      {profileInstanceId === undefined ? (
+        <AgentProfileList
+          profiles={cursorProfileSupport}
+          {...(statuses ? { statuses } : {})}
+          onOpenProfile={props.onOpenProfile}
+        />
+      ) : null}
     </div>
   );
 }

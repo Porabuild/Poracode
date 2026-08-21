@@ -12,7 +12,7 @@ import type {
 import {
   baseAgentKind,
   extractAcpGenericInstanceId,
-  extractClaudeProfileInstanceId,
+  parseAgentProfileKind,
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
@@ -44,7 +44,6 @@ import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/b
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
 import { SAVED_CREDENTIAL_MASK } from "../secretMask";
-import { ClaudeProfileProviderSettings } from "../ClaudeProfileSettings";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
 import { AgentEnvironmentRow, AgentInstallEnvironmentRow } from "./parts/AgentEnvironmentRow";
@@ -108,9 +107,10 @@ export function SingleAgentSettings(props: {
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
-  const claudeProfileInstanceId = extractClaudeProfileInstanceId(props.agentKind);
-  const claudeProfileInstance = useSharedSettings((s) =>
-    claudeProfileInstanceId ? s.agentInstances[claudeProfileInstanceId] : undefined,
+  // Instance-scoped kind of any multi-profile provider (`claude:work`).
+  const profileKindParts = parseAgentProfileKind(props.agentKind);
+  const profileInstance = useSharedSettings((s) =>
+    profileKindParts ? s.agentInstances[profileKindParts.instanceId] : undefined,
   );
   const installedHere = agentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedWsl = wslAgentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
@@ -223,13 +223,36 @@ export function SingleAgentSettings(props: {
   }, [accountResolver, wslProjectDistrosKey]);
 
   if (!agent) {
-    if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
+    // A profile whose base provider is not installed here — or whose detection
+    // has not landed yet — still needs its settings page: it is the only place
+    // to fix the credential or config that made detection fail. Driven by the
+    // provider registry, so this holds for every multi-profile provider.
+    const ProfilePanel = providerEntry?.settingsPanel;
+    if (
+      profileKindParts &&
+      profileInstance?.driver === profileKindParts.driver &&
+      providerEntry?.profiles &&
+      ProfilePanel
+    ) {
+      // Profile kinds can lack an *installed* root status while a runtime
+      // variant (e.g. @cursor/sdk) is usable; hand over whatever detection
+      // produced so the panel shows truthful install/auth states.
+      const profileStatuses = [...agentStatuses, ...wslAgentStatuses].filter(
+        (candidate) => candidate.kind === props.agentKind,
+      );
+      const providerLabel =
+        profileKindParts.driver.charAt(0).toUpperCase() + profileKindParts.driver.slice(1);
       return (
         <SettingsPage
-          title={`Claude ${claudeProfileInstance.displayName ?? claudeProfileInstance.id}`}
+          title={`${providerLabel} ${profileInstance.displayName ?? profileInstance.id}`}
           bodyClassName=""
         >
-          <ClaudeProfileProviderSettings instanceId={claudeProfileInstanceId} />
+          <ProfilePanel
+            agentKind={props.agentKind}
+            statuses={profileStatuses}
+            wslDistros={wslDistros}
+            onOpenProfile={props.onOpenProfile}
+          />
         </SettingsPage>
       );
     }

@@ -5,10 +5,13 @@ import {
   agentInstanceConfigSchema,
   baseAgentKind,
   claudeProfileKind,
+  cursorProfileKind,
   extractAcpGenericInstanceId,
   extractClaudeProfileInstanceId,
+  extractCursorProfileInstanceId,
   isAcpGenericKind,
   isClaudeProfileKind,
+  isCursorProfileKind,
   parseAcpGenericInstanceConfig,
   parseClaudeProfileInstanceConfig,
 } from "./agentInstance";
@@ -126,6 +129,17 @@ describe("Claude profile instance helpers", () => {
     expect(isClaudeProfileKind("claude")).toBe(false);
     expect(extractClaudeProfileInstanceId("claude:work")).toBe("work");
     expect(extractClaudeProfileInstanceId("codex")).toBeUndefined();
+  });
+});
+
+describe("Cursor profile instance helpers", () => {
+  it("maps profile ids to synthetic Cursor provider kinds", () => {
+    expect(cursorProfileKind("work")).toBe("cursor:work");
+    expect(isCursorProfileKind("cursor:work")).toBe(true);
+    expect(isCursorProfileKind("cursor")).toBe(false);
+    expect(extractCursorProfileInstanceId("cursor:work")).toBe("work");
+    expect(extractCursorProfileInstanceId("claude:work")).toBeUndefined();
+    expect(baseAgentKind(cursorProfileKind("work"))).toBe("cursor");
   });
 });
 

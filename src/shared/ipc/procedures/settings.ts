@@ -1,6 +1,10 @@
 import { z } from "zod";
-import type { AgentInstanceConfig, SetClaudeProfileEnvironmentPayload } from "../../contracts";
-import { setClaudeProfileEnvironmentPayloadSchema } from "../../contracts";
+import type {
+  AgentInstanceConfig,
+  CreateProfilePayload,
+  SetProfileEnvironmentPayload,
+} from "../../contracts";
+import { createProfilePayloadSchema, setProfileEnvironmentPayloadSchema } from "../../contracts";
 import {
   type CrossagentRoutingOverride,
   type CrossagentSelectionUsageEntry,
@@ -77,11 +81,18 @@ export const settingsProcedures = {
   // Seals sensitive vars in main before writing settings.json, so a profile's
   // ANTHROPIC_AUTH_TOKEN never lands in plaintext via the renderer persist
   // cycle. Returns the updated instance (env sealed) for the store to adopt.
-  setClaudeProfileEnvironment: definePayloadProcedure<
-    SetClaudeProfileEnvironmentPayload,
+  // One encrypting write path for every multi-profile provider; the driver
+  // comes from the instance (or the payload on create), never from the name.
+  setProfileEnvironment: definePayloadProcedure<
+    SetProfileEnvironmentPayload,
     AgentInstanceConfig,
     "main-local"
-  >("setClaudeProfileEnvironment", "main-local", setClaudeProfileEnvironmentPayloadSchema),
+  >("setProfileEnvironment", "main-local", setProfileEnvironmentPayloadSchema),
+  createProfile: definePayloadProcedure<CreateProfilePayload, AgentInstanceConfig, "main-local">(
+    "createProfile",
+    "main-local",
+    createProfilePayloadSchema,
+  ),
   setWindowChrome: definePayloadProcedure<
     WindowChromePayload,
     WindowChromeResult | void,

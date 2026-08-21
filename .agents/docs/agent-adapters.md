@@ -179,6 +179,48 @@ most often forgotten.
 > (single managed model) or `commandcode/` (multi-model + npm install/update + a
 > synthesized terminal Login method).
 
+## Giving a Provider Multiple Profiles
+
+A **profile** is a second account or configuration of a provider that already
+exists as a built-in agent (a second Claude account, a Cursor key for another
+org). Each profile is an `AgentInstanceConfig` whose `driver` is the provider
+id; it surfaces as the instance-scoped agent kind `<driver>:<instanceId>` and
+gets its own adapter, sidebar entry, model-picker group, and settings page.
+
+Everything generic already handles profiles — the sealing settings writer, the
+`createProfile` / `setProfileEnvironment` IPC, the sidebar nesting, the instance
+badge on the provider icon, the profile list UI, and `removeAgentInstance`'s
+cleanup of profile-scoped settings. Adding profiles to a provider is four
+declarations, none of which is a new branch in shared code:
+
+- [ ] **Register the driver** — add `{ driver: "<id>" }` (plus
+      `credentialEnvVar` when the provider authenticates with a single secret)
+      to `AGENT_PROFILE_DRIVERS` in `src/shared/contracts/agentProfiles.ts`.
+      This is what makes shared code treat `<id>:<instance>` kinds as profiles.
+- [ ] **Supervisor adapter factory** — export `create<Provider>ProfileAdapter(instance)`
+      from the provider's module and add it to `profileAdapterFactories` in
+      `src/supervisor/agents/registry.ts`. Build it from your normal adapter
+      factory with an overridden `kind`/`label` and the profile's credential in
+      `baseSpawnEnv`, so detection probes and every launch lane use that
+      credential (see `cursor/index.ts`). Throw when the profile is unusable:
+      the registry skips it with a warning instead of failing.
+- [ ] **Profile descriptor** — set `profiles: <provider>ProfileSupport` on the
+      provider's `NATIVE_AGENT_REGISTRY_ENTRIES` entry. The descriptor supplies
+      only what differs: the one extra add-form field, the row subtitle
+      component, the removal-consequence copy, and `createPayload`. Optional
+      `onCreated` pins provider settings that must exist before the first
+      detection pass (Cursor pins its GUI runtime there).
+- [ ] **Profile page** — the provider's `settingsPanel` already receives
+      instance-scoped kinds; branch on your own
+      `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
+      editor instead of the base page.
+
+Do NOT add per-provider profile branches to `mergeManagedSharedSettings`,
+`ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface —
+they are all driven by the registry above. Reference implementations:
+`cursor` (single sealed credential) and `claude` (free-form environment plus an
+opaque per-profile `config`).
+
 ## Plugin Architecture
 
 The codebase is provider-agnostic by design (targeting 5-10 providers). Each provider is a fully self-contained plugin:

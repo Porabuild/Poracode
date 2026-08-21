@@ -8,7 +8,13 @@ const mocks = vi.hoisted(() => ({
   detectAgentInstall:
     vi.fn<(ctx: AgentEnvContext | undefined, spec: DetectionSpec) => Promise<AgentStatus>>(),
   probeCursorSdkRuntime:
-    vi.fn<(ctx: AgentEnvContext | undefined) => Promise<CursorSdkRuntimeProbe>>(),
+    vi.fn<
+      (
+        ctx: AgentEnvContext | undefined,
+        dependencies?: unknown,
+        explicitApiKey?: string,
+      ) => Promise<CursorSdkRuntimeProbe>
+    >(),
   applyCursorSdkProbe:
     vi.fn<
       (
@@ -38,7 +44,7 @@ vi.mock("../base/processRuntime", async (importActual) => {
   return { ...actual, resolveWslShellPath: () => "/bin/bash" };
 });
 
-import { createCursorAdapter } from "./index";
+import { createCursorAdapter, createCursorProfileAdapter } from "./index";
 
 const cliStatus: AgentStatus = {
   kind: "cursor",
@@ -103,6 +109,40 @@ describe("Cursor adapter SDK detection selection", () => {
       cliStatus,
       expect.objectContaining({ models: [{ id: "sdk-model", displayName: "SDK Model" }] }),
       "acp",
+    );
+  });
+
+  it("keeps a profile key out of renderer-visible login metadata", async () => {
+    mocks.detectAgentInstall.mockResolvedValue({
+      ...cliStatus,
+      loginCommand: "cursor-agent login",
+      authLogoutSupported: true,
+      authMethods: [
+        {
+          type: "terminal",
+          id: "cursor-login",
+          name: "Cursor login",
+          args: ["login"],
+          env: { CURSOR_API_KEY: "profile-key" },
+        },
+      ],
+    });
+    mocks.applyCursorSdkProbe.mockImplementation((status) => status);
+    const adapter = createCursorProfileAdapter({
+      id: "work",
+      driver: "cursor",
+      environment: { CURSOR_API_KEY: { value: "profile-key", sensitive: true } },
+    });
+
+    const result = await adapter.detectInstall({ envKind: "posix" });
+
+    expect(result).not.toHaveProperty("loginCommand");
+    expect(result).not.toHaveProperty("authMethods");
+    expect(result).not.toHaveProperty("authLogoutSupported");
+    expect(mocks.probeCursorSdkRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ envKind: "posix" }),
+      {},
+      "profile-key",
     );
   });
 

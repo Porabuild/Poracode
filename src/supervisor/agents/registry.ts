@@ -19,7 +19,7 @@ import { createClaudeAdapter, createClaudeProfileAdapter } from "./claude";
 import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
 import { createCodexAdapter } from "./codex";
-import { createCursorAdapter } from "./cursor";
+import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
 import { createFactoryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
@@ -60,21 +60,30 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
   const userAdapters = userInstances
     .filter((inst) => inst.enabled !== false && inst.driver === "acp-generic")
     .map((inst) => createAcpGenericAdapter(inst));
-  const claudeProfileAdapters = userInstances
-    .filter((inst) => inst.enabled !== false && inst.driver === "claude")
+  // One entry per multi-profile provider. Everything else here is generic, so
+  // giving a new provider profiles means adding its factory below (and its
+  // `driver` to `AGENT_PROFILE_DRIVERS`) — not another filter/flatMap block.
+  const profileAdapterFactories: Record<string, (instance: AgentInstanceConfig) => AgentAdapter> = {
+    claude: createClaudeProfileAdapter,
+    cursor: createCursorProfileAdapter,
+  };
+  const profileAdapters = userInstances
+    .filter((inst) => inst.enabled !== false && profileAdapterFactories[inst.driver] !== undefined)
     .flatMap((inst) => {
       try {
-        return [createClaudeProfileAdapter(inst)];
+        return [profileAdapterFactories[inst.driver]!(inst)];
       } catch (error) {
+        // A profile missing its credential or config is skipped, not fatal:
+        // one broken profile must not take the whole registry down.
         console.warn(
-          `[agents] skipping Claude profile ${inst.id}: ${
+          `[agents] skipping ${inst.driver} profile ${inst.id}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
         return [];
       }
     });
-  const adapters = [...builtIns, ...claudeProfileAdapters, ...userAdapters];
+  const adapters = [...builtIns, ...profileAdapters, ...userAdapters];
   const kinds = new Set(adapters.map((a) => a.kind));
   if (kinds.size !== adapters.length) {
     throw new Error("Duplicate agent kind in registry");

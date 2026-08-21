@@ -710,9 +710,17 @@ msgstr "7 j"
 msgid "A candidate is no longer on its experiment branch."
 msgstr "Un candidat n’est plus sur la branche de son expérience."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "A Cursor profile with this name already exists."
+msgstr "Un profil Cursor portant ce nom existe déjà."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Une source d'arbre de travail figée nécessite un hash de commit complet"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "A profile with this name already exists."
+msgstr "Un profil portant ce nom existe déjà."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
@@ -932,8 +940,8 @@ msgid "Add candidate"
 msgstr "Ajouter un candidat"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Add Claude profile"
-msgstr "Ajouter un profil Claude"
+#~ msgid "Add Claude profile"
+#~ msgstr "Ajouter un profil Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Add context window"
@@ -942,6 +950,10 @@ msgstr "Ajouter une fenêtre de contexte"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "Ajoutez des informations d'identification avant que ce fil puisse s'exécuter."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Add Cursor profile"
+#~ msgstr "Ajouter un profil Cursor"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -967,7 +979,7 @@ msgstr "Ajoutez-en un manuellement ou importez-le depuis un autre agent."
 msgid "Add pattern"
 msgstr "Ajouter un motif"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Add profile"
 msgstr "Ajouter un profil"
 
@@ -2050,8 +2062,16 @@ msgid "Cancel"
 msgstr "Annuler"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Cancel new Claude profile"
-msgstr "Annuler le nouveau profil Claude"
+#~ msgid "Cancel new Claude profile"
+#~ msgstr "Annuler le nouveau profil Claude"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Cancel new Cursor profile"
+#~ msgstr "Annuler le nouveau profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Cancel new profile"
+msgstr "Annuler le nouveau profil"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Cancel pending steer"
@@ -2391,8 +2411,8 @@ msgid "Claude {0} profile saved."
 msgstr "Profil de Claude {0} enregistré."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Claude {displayName} profile added."
-msgstr "Profil de Claude {displayName} ajouté."
+#~ msgid "Claude {displayName} profile added."
+#~ msgstr "Profil de Claude {displayName} ajouté."
 
 #: src/renderer/components/providers/claude/manifest.ts
 msgid "Claude Code"
@@ -2407,8 +2427,8 @@ msgid "Claude profile name"
 msgstr "Nom du profil Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Claude profile removed."
-msgstr "Profil de Claude supprimé."
+#~ msgid "Claude profile removed."
+#~ msgstr "Profil de Claude supprimé."
 
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -3476,6 +3496,10 @@ msgstr "Action Créer une PR"
 msgid "Create PR…"
 msgstr "Créer une PR…"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Create profile"
+msgstr "Créer le profil"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Create project"
 msgstr "Créer un projet"
@@ -3492,6 +3516,10 @@ msgstr "Créer une planification"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Create scheduled task"
 msgstr "Créer une tâche planifiée"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+msgid "Create separate Cursor profiles with their own API keys."
+msgstr "Créez des profils Cursor distincts avec leurs propres clés API."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Create task"
@@ -3638,6 +3666,15 @@ msgstr "Série actuelle"
 msgid "Cursor"
 msgstr "Cursor"
 
+#. placeholder {0}: cursorProfileInstance.displayName ?? cursorProfileInstance.id
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#~ msgid "Cursor {0}"
+#~ msgstr "Cursor {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Cursor {displayName} profile added."
+#~ msgstr "Profil Cursor {displayName} ajouté."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Cursor ACP"
 #~ msgstr "Cursor ACP"
@@ -3650,6 +3687,7 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Déconnexion de Cursor ACP effectuée."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
@@ -3658,6 +3696,31 @@ msgstr "Cursor CLI (ACP)"
 #~ msgid "Cursor GUI runtime updated."
 #~ msgstr "Environnement d’exécution de l’interface Cursor mis à jour."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor profile API key"
+msgstr "Clé API du profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor profile API key saved."
+msgstr "Clé API du profil Cursor enregistrée."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "Cursor profile name"
+msgstr "Nom du profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Cursor profile removed, but statuses could not be refreshed."
+#~ msgstr "Le profil Cursor a été supprimé, mais les statuts n’ont pas pu être actualisés."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Cursor profile removed."
+#~ msgstr "Profil Cursor supprimé."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "Cursor profile renamed."
+msgstr "Profil Cursor renommé."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor SDK"
 msgstr "Cursor SDK"
@@ -4326,7 +4389,7 @@ msgstr "p. ex. 512k ou 1m"
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "par ex. Codex GPT-5.5 fast pour les recherches rapides, OpenCode GLM pour les refactorisations en masse, Claude Opus pour tout ce qui est subtil."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "par ex. Travail"
 
@@ -7139,6 +7202,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "Nom"
@@ -7221,12 +7285,20 @@ msgid "New Claude profile config directory"
 msgstr "Nouveau répertoire de configuration du profil Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "New Claude profile name"
-msgstr "Nouveau nom de profil Claude"
+#~ msgid "New Claude profile name"
+#~ msgstr "Nouveau nom de profil Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "Nouveau code"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+msgid "New Cursor profile API key"
+msgstr "Clé API du nouveau profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "New Cursor profile name"
+#~ msgstr "Nom du nouveau profil Cursor"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "New experiment"
@@ -7273,6 +7345,10 @@ msgstr "nouveau modèle"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New phones, tablets, and browsers appear here after pairing."
 msgstr "Les nouveaux téléphones, tablettes et navigateurs apparaîtront ici après l’appairage."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "New profile name"
+msgstr "Nom du nouveau profil"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
@@ -7406,8 +7482,16 @@ msgid "No activity yet."
 msgstr "Aucune activité pour l'instant."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "No additional Claude profiles."
-msgstr "Aucun profil Claude supplémentaire."
+#~ msgid "No additional Claude profiles."
+#~ msgstr "Aucun profil Claude supplémentaire."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "No additional Cursor profiles."
+#~ msgstr "Aucun profil Cursor supplémentaire."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "No additional profiles."
+msgstr "Aucun profil supplémentaire."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "No agent available to generate PR summary"
@@ -7991,7 +8075,7 @@ msgstr "Ouvrir"
 msgid "Open {0}"
 msgstr "Ouvrir {0}"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Open {label}"
 msgstr "Ouvrir {label}"
 
@@ -8476,6 +8560,7 @@ msgstr "Collez la clé API {label}"
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "Collez <0>{0}</0> ici. Cliquez pour copier."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Paste Cursor API key"
 msgstr "Collez la clé API Cursor"
@@ -8580,6 +8665,10 @@ msgstr "Choisir une icône"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
 msgstr "Choisissez la durée d'exécution qui alimente les nouveaux chats GUI Cursor. Chaque durée d'exécution s'installe et s'authentifie séparément ; les chats ouverts conservent celle avec laquelle ils ont démarré."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both runtimes."
+msgstr "Choisissez l’environnement d’exécution des nouveaux chats Cursor. La clé API du profil s’applique aux deux environnements."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Picker failed"
@@ -8911,15 +9000,32 @@ msgid "Productivity"
 msgstr "Productivité"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "Profil"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Profile {displayName} added."
+msgstr "Profil {displayName} ajouté."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Profile API key"
+#~ msgstr "Clé API du profil"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Profile removed, but statuses could not be refreshed."
+msgstr "Profil supprimé, mais les statuts n'ont pas pu être actualisés."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Profile removed."
+msgstr "Profil supprimé."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Profile stats range"
 msgstr "Plage des statistiques du profil"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profiles"
 msgstr "Profils"
 
@@ -9352,7 +9458,7 @@ msgstr "Masquer le contenu des notifications"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
@@ -9511,6 +9617,7 @@ msgid "Remote URL"
 msgstr "URL distante"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove"
 msgstr "Supprimer"
 
@@ -9556,12 +9663,24 @@ msgid "Remove candidate {0}"
 msgstr "Supprimer le candidat {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Remove Claude profile"
-msgstr "Supprimer le profil de Claude"
+#~ msgid "Remove Claude profile"
+#~ msgstr "Supprimer le profil de Claude"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Remove connection"
 msgstr "Supprimer la connexion"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Remove Cursor profile"
+#~ msgstr "Supprimer le profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Remove Cursor profile {label}"
+#~ msgstr "Supprimer le profil Cursor {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Remove Cursor profile?"
+#~ msgstr "Supprimer le profil Cursor ?"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Remove Cursor SDK API key"
@@ -9596,6 +9715,14 @@ msgstr "Supprimer le modèle"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "Supprimer la route épinglée pour {tagLabel}"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Remove profile {label}"
+msgstr "Supprimer le profil {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+msgid "Remove profile?"
+msgstr "Supprimer le profil ?"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove project"
 msgstr "Supprimer le projet"
@@ -9624,6 +9751,19 @@ msgstr "Supprimez les expériences du projet avant de supprimer le projet."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Supprimer le worktree ?"
+
+#. placeholder {0}: confirmRemoval?.displayName ?? confirmRemoval?.id
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#~ msgid "Removing {0} deletes its saved API key. Threads that use this profile will no longer find their agent."
+#~ msgstr "Supprimer {0} efface sa clé API enregistrée. Les fils de discussion qui utilisent ce profil ne trouveront plus leur agent."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
+msgstr "Supprimer {profileName} efface sa clé API enregistrée. Les fils de discussion qui utilisent ce profil ne trouveront plus leur agent."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
+msgstr "Supprimer {profileName} abandonne ses réglages Poracode — variables d'environnement, modèles et effort. Son répertoire de configuration et les identifiants Claude qu'il contient restent sur le disque."
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/TodoActionsSheet.tsx
@@ -10201,6 +10341,14 @@ msgstr "Enregistrer le profil de Claude"
 #~ msgstr "Enregistrer l’environnement d’exécution de l’interface Cursor"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Save Cursor profile API key"
+msgstr "Enregistrer la clé API du profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "Save Cursor profile name"
+msgstr "Enregistrer le nom du profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Save Cursor SDK API key"
 msgstr "Enregistrer la clé API du SDK Cursor"
 
@@ -10610,6 +10758,11 @@ msgstr "Envoyer un message"
 msgid "Sent selection to terminal."
 msgstr "Sélection envoyée au terminal."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#~ msgid "Separate API key"
+#~ msgstr "Clé API distincte"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Séparez les comptes Claude Code par dossier de configuration, ou dirigez un profil vers un fournisseur externe (z.ai, …). Ouvrez un profil pour configurer ses variables d'environnement, ses modèles et son effort."
@@ -10850,6 +11003,10 @@ msgstr "Affichage de {0, plural, one {# compétence} other {# compétences}}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Affichage des 4 000 premières entrées."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "Shown in the sidebar and the model picker."
+msgstr "Affiché dans la barre latérale et dans le sélecteur de modèles."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
@@ -11796,6 +11953,10 @@ msgstr "l'agent"
 msgid "The agent"
 msgstr "L'agent"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
+msgstr "La clé API ci-dessous est utilisée par Cursor CLI, ACP et le SDK pour ce profil."
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
 msgstr "l'application"
@@ -12048,6 +12209,10 @@ msgstr "Ce dossier est vide."
 #: src/mobile/views/DesktopsView.tsx
 msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 msgstr "Cette page HTTPS n'a pas pu joindre l'ordinateur en HTTP simple. Autorisez l'accès au réseau local pour ce site puis réessayez l'association, ou continuez sur l'adresse de l'ordinateur."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "This key is used by Cursor CLI, ACP, and SDK for this profile."
+#~ msgstr "Cette clé est utilisée par Cursor CLI, ACP et SDK pour ce profil."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."

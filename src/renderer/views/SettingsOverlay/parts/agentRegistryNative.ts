@@ -1,10 +1,18 @@
 import type { ComponentType, ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
+import type {
+  AgentInstanceConfig,
+  AgentKind,
+  AgentProviderMetadata,
+  AgentStatus,
+  CreateProfilePayload,
+  Project,
+} from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
-import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { ClaudeAgentSettingsPanel, claudeProfileSupport } from "./ClaudeProfileSettings";
 import { CodexProviderSettings } from "./CodexProviderSettings";
+import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
@@ -31,6 +39,58 @@ export interface NativeAgentAcpRegistryAlias {
   id: string;
   /** The app can run this registry agent through its built-in native adapter. */
   nativeSupport?: boolean;
+}
+
+/** The one add-form field a provider needs beside the profile name. */
+export interface NativeAgentProfileField {
+  ariaLabel: MessageDescriptor;
+  placeholder?: MessageDescriptor;
+  /** Derived placeholder that doubles as the value when left empty. */
+  placeholderFor?: (name: string) => string;
+  /** Rendered masked and never echoed back once saved. */
+  secret?: boolean;
+  /** Blocks submission while empty. */
+  required?: boolean;
+}
+
+/**
+ * Declares that a provider supports several profiles, and supplies the only
+ * parts of the profile flow that differ between providers. `AgentProfileList`
+ * renders everything else, so a new multi-profile provider adds this descriptor
+ * plus its `driver` in `AGENT_PROFILE_DRIVERS` and a supervisor profile-adapter
+ * factory — no shared file grows a branch.
+ */
+export interface NativeAgentProfileSupport {
+  /** `AgentInstanceConfig.driver` for this provider's profiles. */
+  driver: string;
+  /** Copy under the shared "Profiles" heading. */
+  description: ReactNode;
+  field: NativeAgentProfileField;
+  /**
+   * Secondary line under a profile's name in the list. A component, not a
+   * plain render function, so a provider can subscribe to its own settings
+   * (Cursor's per-profile runtime) instead of reading a snapshot once.
+   */
+  RowSubtitle: ComponentType<{ instance: AgentInstanceConfig }>;
+  /** What removing this profile costs, shown in the confirmation dialog. */
+  removalBody: (profileName: string) => ReactNode;
+  /** Turns the add form into a sealed `createProfile` payload. */
+  createPayload: (input: {
+    id: string;
+    displayName: string;
+    field: string;
+  }) => CreateProfilePayload;
+  /**
+   * Runs after the instance is created and before the settings flush, for
+   * provider settings that must exist by the first detection pass. `statuses`
+   * is the base provider's detection, so a provider can pin a setting to what
+   * is actually installed (Cursor's GUI runtime) without reaching into a store.
+   */
+  onCreated?: (input: {
+    profileKind: string;
+    instance: AgentInstanceConfig;
+    statuses: readonly AgentStatus[];
+  }) => void;
 }
 
 export interface NativeAgentRegistryEntry {
@@ -78,6 +138,12 @@ export interface NativeAgentRegistryEntry {
    * resolving `undefined` hides the account line.
    */
   accountResolver?: (wslDistros: string[]) => Promise<AgentProviderMetadata | undefined>;
+  /**
+   * The provider keeps several profiles (extra accounts or configurations),
+   * listed on its base settings page and reachable as `<driver>:<id>` agent
+   * kinds. Absent for single-account providers.
+   */
+  profiles?: NativeAgentProfileSupport;
 }
 
 const POSIX_MISSING_CURL_NPM_MESSAGE =
@@ -152,6 +218,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://claude.ai/install.ps1 | iex } elseif (Get-Command curl.exe -ErrorAction SilentlyContinue) { cmd /c \"curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd\" } elseif (Get-Command winget -ErrorAction SilentlyContinue) { winget install Anthropic.ClaudeCode } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod, curl, or WinGet first, then refresh detected agents.' }",
       }),
     settingsPanel: ClaudeAgentSettingsPanel,
+    profiles: claudeProfileSupport,
   },
   {
     id: "opencode",
@@ -303,6 +370,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     settingsPanel: CursorProviderSettings,
     ownsAuthUi: true,
     ownsInstallRows: true,
+    profiles: cursorProfileSupport,
   },
   {
     id: "gemini",

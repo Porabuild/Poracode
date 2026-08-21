@@ -1,4 +1,5 @@
 import {
+  injectWslEnv,
   withCommandBaseSpawnEnv,
   type CommandSpec,
   type CreateStructuredSessionInput,
@@ -54,7 +55,10 @@ export function createAcpStructuredSession(
   // The ACP child is spawned from `command.env`, so this is where the
   // provider's `baseSpawnEnv` has to land — an ACP adapter must not have to
   // remember to repeat it on its own launch argv. Command-declared env wins.
-  const command = withCommandBaseSpawnEnv(acpCommand, input.baseSpawnEnv);
+  const mergedCommand = withCommandBaseSpawnEnv(acpCommand, input.baseSpawnEnv);
+  const command = mergedCommand.env
+    ? injectWslEnv(mergedCommand, input.projectLocation, mergedCommand.env)
+    : mergedCommand;
   return AcpStructuredSession.create(command, input.projectLocation, input.threadId, {
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }

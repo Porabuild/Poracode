@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/opencode";
+import "@/renderer/components/providers/cursor";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderModelMenu, type ProviderModelMenuProvider } from "./ProviderModelMenu";
 
@@ -125,6 +126,25 @@ describe("ProviderModelMenu", () => {
       providerConfigs: {},
       providerModelPreferences: {},
     });
+  });
+
+  it("uses a renamed Cursor profile label for the trigger badge", () => {
+    const provider = makeCursorProvider();
+    provider.kind = "cursor:work";
+    provider.label = "Cursor Day job";
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="cursor:work"
+        currentModel="gpt-5.1-codex"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Select model" });
+    expect(trigger).toHaveTextContent("D");
+    expect(trigger).not.toHaveTextContent("W");
+    expect(trigger).toHaveTextContent("Codex 5.1 Max");
   });
 
   it("hides the list scrollbar for long model lists", async () => {
