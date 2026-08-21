@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button, Spinner, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw } from "lucide-react";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
@@ -18,6 +18,9 @@ export function RemoteHostUpdateControl({
   const checkHostUpdate = useRemoteServersStore((s) => s.checkHostUpdate);
   const installHostUpdate = useRemoteServersStore((s) => s.installHostUpdate);
   const updateState = useRemoteServersStore((s) => s.hostUpdates[server.desktopId]);
+  const restarting = useRemoteServersStore(
+    (s) => s.hostUpdateRestarts[server.desktopId] !== undefined,
+  );
   const [checked, setChecked] = useState(false);
   const { busy, error, run } = useAsyncOperation();
   const updateStatus = updateState?.status;
@@ -60,7 +63,12 @@ export function RemoteHostUpdateControl({
           <Trans>Host version: {currentVersion}</Trans>
         </span>
       ) : null}
-      {updateStatus?.type === "downloaded" ? (
+      {restarting ? (
+        <span role="status" className="flex items-center gap-1.5 text-xs text-muted">
+          <Spinner size="sm" color="current" />
+          <Trans>The host is restarting to install the update.</Trans>
+        </span>
+      ) : updateStatus?.type === "downloaded" ? (
         <Button variant="secondary" size="sm" isDisabled={busy || !isOnline} onPress={install}>
           <Trans>Install v{updateStatus.version}</Trans>
         </Button>

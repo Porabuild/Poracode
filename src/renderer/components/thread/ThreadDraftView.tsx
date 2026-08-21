@@ -209,6 +209,12 @@ export function ThreadDraftView(props: {
     if (!state.servers.some((server) => server.desktopId === remoteServerId)) return "missing";
     return state.runtime[remoteServerId]?.status ?? "connecting";
   });
+  const hostUpdateRestarting = useRemoteServersStore((state) =>
+    project.remoteServerId ? state.hostUpdateRestarts[project.remoteServerId] !== undefined : false,
+  );
+  const remoteConnectionMessage = useRemoteServersStore((state) =>
+    project.remoteServerId ? state.runtime[project.remoteServerId]?.message : undefined,
+  );
 
   // Debugging showed config-only edits were rebuilding the provider/model
   // payload. Keep the installed-agent list stable unless the source inputs
@@ -1042,7 +1048,7 @@ export function ThreadDraftView(props: {
     spacerRef: anchorSpacerRef,
   });
 
-  if (remoteConnection === "connecting") {
+  if (remoteConnection === "connecting" && !hostUpdateRestarting) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <PixelLoader size="md" />
@@ -1052,14 +1058,16 @@ export function ThreadDraftView(props: {
       </div>
     );
   }
-  if (remoteConnection !== "local" && remoteConnection !== "online") {
+  if (!hostUpdateRestarting && remoteConnection !== "local" && remoteConnection !== "online") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           <Trans>Connection error</Trans>
         </h1>
         <p className="text-muted">
-          <Trans>This project's remote server is offline. Reconnect it to start a thread.</Trans>
+          {remoteConnectionMessage ?? (
+            <Trans>This project's remote server is offline. Reconnect it to start a thread.</Trans>
+          )}
         </p>
       </div>
     );
