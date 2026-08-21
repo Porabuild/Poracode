@@ -73,6 +73,8 @@ export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
   hostUpdates: Record<string, RemoteHostUpdateState>;
+  /** Expected version while a remotely installed desktop update restarts its host. */
+  hostUpdateRestarts: Record<string, string>;
   /**
    * Remote (server-side) project ids the user excluded from sync, keyed by
    * desktopId. Local-only state, so a project can be dropped from — or restored

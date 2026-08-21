@@ -14,6 +14,7 @@ import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import { mainProcessFetch } from "./remoteServers/mainProcessFetch";
 import type {
   RemoteClientFactory,
+  RemoteServerRecord,
   RemoteSocketFactory,
   RemoteSocketLike,
 } from "./remoteServers/types";
@@ -174,10 +175,12 @@ function remoteThreadSnapshot(threadId: string): RemoteThreadHistorySnapshot {
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((next) => {
+  let reject: (error: unknown) => void = () => {};
+  const promise = new Promise<T>((next, rejectNext) => {
     resolve = next;
+    reject = rejectNext;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function makeSocket(overrides: Partial<RemoteSocketLike> = {}): RemoteSocketLike {
@@ -210,7 +213,9 @@ function makeClient(opts?: {
   startShell?: RemoteDesktopClient["startShell"];
   closeShell?: RemoteDesktopClient["closeShell"];
   callRemoteProcedure?: RemoteDesktopClient["callRemoteProcedure"];
+  hostUpdateState?: RemoteDesktopClient["hostUpdateState"];
   checkHostUpdate?: RemoteDesktopClient["checkHostUpdate"];
+  installHostUpdate?: RemoteDesktopClient["installHostUpdate"];
 }): RemoteDesktopClient {
   return {
     exchangePairingCredential: async () => ({
@@ -227,6 +232,12 @@ function makeClient(opts?: {
         desktopId: "d1",
         label: "Server One",
         appVersion: "1.0",
+        auth: {
+          policy: "remote-reachable",
+          bootstrapMethods: ["one-time-token"],
+          sessionMethods: ["bearer-access-token"],
+          scopes: ["session:read", "projects:manage"],
+        },
         endpoints: {
           httpBaseUrl: opts?.environmentHttpBaseUrl ?? "http://192.168.1.9:38987/",
           wsBaseUrl: "ws://192.168.1.9:38987/",
@@ -267,14 +278,40 @@ function makeClient(opts?: {
     startShell: opts?.startShell ?? (async () => {}),
     closeShell: opts?.closeShell ?? (async () => {}),
     callRemoteProcedure: opts?.callRemoteProcedure ?? (async () => ({})),
+    hostUpdateState:
+      opts?.hostUpdateState ??
+      (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
     checkHostUpdate:
       opts?.checkHostUpdate ??
       (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
+    installHostUpdate: opts?.installHostUpdate ?? (async () => {}),
   } as unknown as RemoteDesktopClient;
 }
 
 function factoryFor(client: RemoteDesktopClient): RemoteClientFactory {
   return () => client;
+}
+
+function makeEnvironment(
+  appVersion = "1.0",
+): Awaited<ReturnType<RemoteDesktopClient["environment"]>> {
+  return {
+    protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+    hostMode: "desktop",
+    desktopId: "d1",
+    label: "Server One",
+    appVersion,
+    auth: {
+      policy: "remote-reachable",
+      bootstrapMethods: ["one-time-token"],
+      sessionMethods: ["bearer-access-token"],
+      scopes: ["session:read", "projects:manage"],
+    },
+    endpoints: {
+      httpBaseUrl: "http://192.168.1.9:38987/",
+      wsBaseUrl: "ws://192.168.1.9:38987/",
+    },
+  };
 }
 
 /**
@@ -359,6 +396,436 @@ describe("useRemoteServersStore", () => {
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
 
     expect(checkHostUpdate).not.toHaveBeenCalled();
+  });
+
+  it("waits for the installed host version before restoring the connection", async () => {
+    vi.useFakeTimers();
+    const environment = vi
+      .fn<RemoteDesktopClient["environment"]>()
+      .mockResolvedValueOnce(makeEnvironment("1.0"))
+      .mockResolvedValue(makeEnvironment("1.1"));
+    const installHostUpdate = vi.fn<RemoteDesktopClient["installHostUpdate"]>(async () => {});
+    const checkHostUpdate = vi.fn<RemoteDesktopClient["checkHostUpdate"]>(async () => ({
+      currentVersion: "1.1",
+      status: { type: "update-not-available" },
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        factoryFor(makeClient({ environment, installHostUpdate, checkHostUpdate })),
+      );
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+
+    expect(installHostUpdate).toHaveBeenCalledOnce();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toBeUndefined();
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBe("1.1");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    expect(useRemoteServersStore.getState().servers[0]?.appVersion).toBe("1.1");
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
+    expect(checkHostUpdate).toHaveBeenCalledOnce();
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual({
+      currentVersion: "1.1",
+      status: { type: "update-not-available" },
+    });
+  });
+
+  it("ignores a stale host update response after installation starts", async () => {
+    const stale = deferred<Awaited<ReturnType<RemoteDesktopClient["hostUpdateState"]>>>();
+    const hostUpdateState = vi.fn<RemoteDesktopClient["hostUpdateState"]>(() => stale.promise);
+    const checkHostUpdate = vi.fn<RemoteDesktopClient["checkHostUpdate"]>(async () => ({
+      currentVersion: "1.1",
+      status: { type: "update-not-available" },
+    }));
+    const client = makeClient({
+      hostUpdateState,
+      checkHostUpdate,
+      installHostUpdate: async () => {},
+      environment: async () => makeEnvironment("1.1"),
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    const staleRequest = useRemoteServersStore.getState().getHostUpdateState("d1");
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+    await vi.waitFor(() => {
+      expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual({
+        currentVersion: "1.1",
+        status: { type: "update-not-available" },
+      });
+    });
+
+    stale.resolve({
+      currentVersion: "1.0",
+      status: { type: "downloaded", version: "1.1" },
+    });
+    await staleRequest;
+
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual({
+      currentVersion: "1.1",
+      status: { type: "update-not-available" },
+    });
+  });
+
+  it("stops waiting when the updated host does not reconnect in time", async () => {
+    vi.useFakeTimers();
+    const environment = vi.fn<RemoteDesktopClient["environment"]>(() => new Promise(() => {}));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ environment, installHostUpdate: async () => {} })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+    await useRemoteServersStore.getState().connectAll();
+    await useRemoteServersStore.getState().reconnectServer("d1");
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(environment).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "offline",
+      message: "Can't reach the remote server. Check that it is online, then reconnect it.",
+    });
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
+  });
+
+  it("bounds the connection refresh after the updated version appears", async () => {
+    vi.useFakeTimers();
+    const environment = vi
+      .fn<RemoteDesktopClient["environment"]>()
+      .mockResolvedValueOnce(makeEnvironment("1.1"))
+      .mockImplementation(() => new Promise(() => {}));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ environment, installHostUpdate: async () => {} })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(environment).toHaveBeenCalledTimes(2);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("offline");
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
+  });
+
+  it("ignores an update response from a removed server after it is paired again", async () => {
+    const stale = deferred<Awaited<ReturnType<RemoteDesktopClient["hostUpdateState"]>>>();
+    const hostUpdateState = vi
+      .fn<RemoteDesktopClient["hostUpdateState"]>()
+      .mockImplementationOnce(() => stale.promise)
+      .mockResolvedValue({
+        currentVersion: "2.0",
+        status: { type: "update-not-available" },
+      });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ hostUpdateState })));
+    const server: RemoteServerRecord = {
+      desktopId: "d1",
+      label: "Server One",
+      endpoint: "http://192.168.1.9:38987/",
+      accessToken: "acc-token",
+      scopes: ["session:read", "projects:manage"],
+      appVersion: "1.0",
+      hostMode: "desktop",
+    };
+    useRemoteServersStore.setState({
+      servers: [server],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+    });
+
+    const staleRequest = useRemoteServersStore.getState().getHostUpdateState("d1");
+    useRemoteServersStore.getState().removeServer("d1");
+    useRemoteServersStore.setState({
+      servers: [server],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+    });
+    await useRemoteServersStore.getState().getHostUpdateState("d1");
+
+    stale.resolve({
+      currentVersion: "1.0",
+      status: { type: "downloaded", version: "1.1" },
+    });
+    await staleRequest;
+
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual({
+      currentVersion: "2.0",
+      status: { type: "update-not-available" },
+    });
+  });
+
+  it("ignores an update reconnect snapshot after the server is removed and paired again", async () => {
+    const staleSnapshot = deferred<RemoteShellSnapshot>();
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(() => staleSnapshot.promise);
+    const environment = vi.fn<RemoteDesktopClient["environment"]>(async () =>
+      makeEnvironment("1.1"),
+    );
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        factoryFor(makeClient({ environment, snapshot, installHostUpdate: async () => {} })),
+      );
+    const server: RemoteServerRecord = {
+      desktopId: "d1",
+      label: "Server One",
+      endpoint: "http://192.168.1.9:38987/",
+      accessToken: "acc-token",
+      scopes: ["session:read", "projects:manage"],
+      appVersion: "1.0",
+      hostMode: "desktop",
+    };
+    useRemoteServersStore.setState({
+      servers: [server],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+    await vi.waitFor(() => expect(snapshot).toHaveBeenCalledOnce());
+
+    useRemoteServersStore.getState().removeServer("d1");
+    useRemoteServersStore.setState({
+      servers: [{ ...server, appVersion: "2.0" }],
+      runtime: { d1: { status: "online", projects: [proj2], threads: [] } },
+    });
+    staleSnapshot.resolve({
+      snapshotSeq: 99,
+      projects: [proj],
+      threads: [remoteThread],
+      runtimeSummariesByThread: {},
+      updatedAt: "stale",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "online",
+      projects: [proj2],
+      threads: [],
+    });
+    expect(useRemoteServersStore.getState().servers[0]?.appVersion).toBe("2.0");
+  });
+
+  it("ignores an update reconnect error after the server is removed and paired again", async () => {
+    const pendingEnvironment = deferred<Awaited<ReturnType<RemoteDesktopClient["environment"]>>>();
+    const environment = vi.fn<RemoteDesktopClient["environment"]>(() => pendingEnvironment.promise);
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ environment, installHostUpdate: async () => {} })));
+    const server: RemoteServerRecord = {
+      desktopId: "d1",
+      label: "Server One",
+      endpoint: "http://192.168.1.9:38987/",
+      accessToken: "acc-token",
+      scopes: ["session:read", "projects:manage"],
+      appVersion: "1.0",
+      hostMode: "desktop",
+    };
+    useRemoteServersStore.setState({
+      servers: [server],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+    await vi.waitFor(() => expect(environment).toHaveBeenCalledOnce());
+
+    useRemoteServersStore.getState().removeServer("d1");
+    useRemoteServersStore.setState({
+      servers: [{ ...server, appVersion: "2.0" }],
+      runtime: { d1: { status: "online", projects: [proj2], threads: [] } },
+    });
+    pendingEnvironment.reject(
+      new RemoteClientError(
+        "This app version is incompatible with that server.",
+        426,
+        "protocol_version_mismatch",
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "online",
+      projects: [proj2],
+    });
+    expect(useRemoteServersStore.getState().runtime.d1?.message).toBeUndefined();
+  });
+
+  it("reports a protocol mismatch immediately after the host update", async () => {
+    const mismatch = new RemoteClientError(
+      "This app version is incompatible with that server.",
+      426,
+      "protocol_version_mismatch",
+    );
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          environment: async () => {
+            throw mismatch;
+          },
+          installHostUpdate: async () => {},
+        }),
+      ),
+    );
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+
+    await vi.waitFor(() => {
+      expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+        status: "error",
+        message: "This app version is incompatible with that server.",
+      });
+      expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
+    });
+  });
+
+  it("clears the restart watch when the server is paired again mid-restart", async () => {
+    vi.useFakeTimers();
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ installHostUpdate: async () => {} })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {
+        d1: { currentVersion: "1.0", status: { type: "downloaded", version: "1.1" } },
+      },
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBe("1.1");
+
+    await useRemoteServersStore.getState().pairServer({
+      endpoint: "192.168.1.9:38987",
+      token: "lc_pair_x",
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
+  it("installs without tracking a restart when no downloaded update is recorded", async () => {
+    const installHostUpdate = vi.fn<RemoteDesktopClient["installHostUpdate"]>(async () => {});
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ installHostUpdate })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://192.168.1.9:38987/",
+          accessToken: "acc-token",
+          scopes: ["session:read", "projects:manage"],
+          appVersion: "1.0",
+          hostMode: "desktop",
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+      hostUpdates: {},
+    });
+
+    await useRemoteServersStore.getState().installHostUpdate("d1");
+
+    expect(installHostUpdate).toHaveBeenCalledOnce();
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
   });
 
   it("pairs a server and stores its snapshot online", async () => {

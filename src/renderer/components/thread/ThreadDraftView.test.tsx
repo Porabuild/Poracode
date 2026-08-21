@@ -506,7 +506,12 @@ describe("ThreadDraftView", () => {
       sharedSettingsHydrated: true,
     });
     useAppStore.setState({ pendingDraftWorktreeSelections: {} });
-    useRemoteServersStore.setState({ servers: [], runtime: {}, hostUpdates: {} });
+    useRemoteServersStore.setState({
+      servers: [],
+      runtime: {},
+      hostUpdates: {},
+      hostUpdateRestarts: {},
+    });
   });
 
   it("adds experiment candidates without a prompt and keeps the composer submit button", () => {
@@ -1018,6 +1023,89 @@ describe("ThreadDraftView", () => {
     expect(screen.getByText("Connection error")).toBeInTheDocument();
     expect(screen.getByText(/remote server is offline/i)).toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+  });
+
+  it("shows the remote connection's specific error message", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": {
+          status: "error",
+          message: "This app version is incompatible with that server.",
+          projects: [],
+          threads: [],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={remoteProject} agentStatuses={[]} onStart={() => {}} />);
+
+    expect(
+      screen.getByText("This app version is incompatible with that server."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/remote server is offline/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the remote connecting state instead of the missing-agent message", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "connecting", projects: [], threads: [] },
+      },
+    });
+
+    render(<ThreadDraftView project={remoteProject} agentStatuses={[]} onStart={() => {}} />);
+
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
+    expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+  });
+
+  it("keeps the remote composer visible and disables submit during a host update restart", () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: ["projects:manage"],
+          hostMode: "desktop",
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "connecting", projects: [], threads: [] },
+      },
+      hostUpdateRestarts: { "desktop-1": "1.1.0" },
+    });
+
+    render(
+      <ThreadDraftView project={remoteProject} agentStatuses={[codexStatus]} onStart={onStart} />,
+    );
+
+    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    const composer = composerSpy.mock.lastCall?.[0] as { submitDisabled?: boolean };
+    expect(composer.submitDisabled).toBe(true);
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    expect(onStart).not.toHaveBeenCalled();
   });
 
   it("shows the discovery reveal for a WSL project while its distro is probing", () => {

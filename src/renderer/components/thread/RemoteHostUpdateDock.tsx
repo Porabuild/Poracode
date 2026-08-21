@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button, Spinner, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Download } from "lucide-react";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
@@ -9,6 +9,7 @@ import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 export function RemoteHostUpdateDock({ desktopId }: { readonly desktopId: string }) {
   const { t } = useLingui();
   const update = useRemoteServersStore((state) => state.hostUpdates[desktopId]);
+  const restartingVersion = useRemoteServersStore((state) => state.hostUpdateRestarts[desktopId]);
   const isOnline = useRemoteServersStore((state) => state.runtime[desktopId]?.status === "online");
   const installHostUpdate = useRemoteServersStore((state) => state.installHostUpdate);
   const getHostUpdateState = useRemoteServersStore((state) => state.getHostUpdateState);
@@ -28,20 +29,25 @@ export function RemoteHostUpdateDock({ desktopId }: { readonly desktopId: string
   }, [desktopId, getHostUpdateState, isUpdating]);
 
   if (
-    !status ||
-    (status.type !== "update-available" &&
-      status.type !== "downloading" &&
-      status.type !== "downloaded")
+    !restartingVersion &&
+    (!status ||
+      (status.type !== "update-available" &&
+        status.type !== "downloading" &&
+        status.type !== "downloaded"))
   ) {
     return null;
   }
 
-  const title =
-    status.type === "update-available"
+  const isInstalling = busy || restartingVersion !== undefined;
+  const title = isInstalling
+    ? t`The host is restarting to install the update.`
+    : status?.type === "update-available"
       ? t`Remote host update v${status.version} is downloading…`
-      : status.type === "downloading"
+      : status?.type === "downloading"
         ? t`Remote host update is downloading… ${Math.round(status.percent)}%`
-        : t`Remote host update v${status.version} is ready.`;
+        : status?.type === "downloaded"
+          ? t`Remote host update v${status.version} is ready.`
+          : "";
 
   const install = () =>
     run(async () => {
@@ -56,8 +62,12 @@ export function RemoteHostUpdateDock({ desktopId }: { readonly desktopId: string
         iconClassName="text-accent"
         title={title}
         actions={
-          status.type === "downloaded" ? (
-            <Button size="sm" variant="secondary" isDisabled={busy || !isOnline} onPress={install}>
+          isInstalling ? (
+            <span role="status" aria-label={title}>
+              <Spinner size="sm" color="current" />
+            </span>
+          ) : status?.type === "downloaded" ? (
+            <Button size="sm" variant="ghost" isDisabled={busy || !isOnline} onPress={install}>
               {t`Install and restart`}
             </Button>
           ) : null

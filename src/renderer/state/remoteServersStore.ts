@@ -54,6 +54,7 @@ import {
   shouldRefreshRemoteServerAfterEvent,
 } from "@/renderer/state/remoteServers/eventRouting";
 import { syncRemoteGitSummaries } from "@/renderer/state/remoteServers/gitSummaries";
+import { waitForHostUpdateReconnect } from "@/renderer/state/remoteServers/hostUpdateReconnect";
 import { mainProcessFetch } from "@/renderer/state/remoteServers/mainProcessFetch";
 import {
   persistedRemoteServersState,
@@ -358,6 +359,14 @@ const REMOTE_SERVER_REFRESH_DEBOUNCE_MS = 600;
 const remoteServerRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const remoteServerRefreshSeqByDesktopId = new Map<string, number>();
 const remoteServerAgentStatusRefreshes = new Set<string>();
+const remoteHostUpdateReconnectSeqByDesktopId = new Map<string, number>();
+const remoteHostUpdateRequestSeqByDesktopId = new Map<string, number>();
+let remoteHostUpdateSequence = 0;
+
+function nextRemoteHostUpdateSequence(): number {
+  remoteHostUpdateSequence += 1;
+  return remoteHostUpdateSequence;
+}
 
 function clearRemoteServerRefreshTimer(desktopId: string): void {
   const timer = remoteServerRefreshTimers.get(desktopId);
@@ -366,6 +375,14 @@ function clearRemoteServerRefreshTimer(desktopId: string): void {
     remoteServerRefreshTimers.delete(desktopId);
   }
   remoteServerAgentStatusRefreshes.delete(desktopId);
+}
+
+function invalidateRemoteServerRefresh(desktopId: string): void {
+  clearRemoteServerRefreshTimer(desktopId);
+  remoteServerRefreshSeqByDesktopId.set(
+    desktopId,
+    (remoteServerRefreshSeqByDesktopId.get(desktopId) ?? 0) + 1,
+  );
 }
 
 function normalizeEndpoint(raw: string): string {
@@ -458,10 +475,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
       const checkHostUpdateInBackground = (server: RemoteServerRecord): void => {
         if (server.hostMode === "helper" || !server.scopes.includes("projects:manage")) return;
+        const requestSeq = nextRemoteHostUpdateSequence();
+        remoteHostUpdateRequestSeqByDesktopId.set(server.desktopId, requestSeq);
         void get()
           .clientFactory(server.endpoint, server.accessToken)
           .checkHostUpdate()
           .then((update) => {
+            if (remoteHostUpdateRequestSeqByDesktopId.get(server.desktopId) !== requestSeq) return;
             set((state) => ({
               hostUpdates: { ...state.hostUpdates, [server.desktopId]: update },
             }));
@@ -802,13 +822,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       /** Restore a server's transport (SSH tunnel) when needed, then snapshot
        * it and (re)attach its event stream. Shared by connectAll and
        * reconnectServer so transport handling lives in one place. */
-      const connectServer = async (persistedServer: RemoteServerRecord): Promise<void> => {
+      const connectServer = async (
+        persistedServer: RemoteServerRecord,
+        shouldContinue: () => boolean = () => true,
+      ): Promise<void> => {
+        const reconnectGeneration = remoteHostUpdateReconnectSeqByDesktopId.get(
+          persistedServer.desktopId,
+        );
+        const canContinue = () =>
+          remoteHostUpdateReconnectSeqByDesktopId.get(persistedServer.desktopId) ===
+            reconnectGeneration && shouldContinue();
         let server = persistedServer;
         if (server.transport?.kind === "ssh") {
           try {
             const launched = await readBridge().sshConnect({
               connection: server.transport.connection,
             });
+            if (!canContinue()) return;
             server = { ...server, endpoint: normalizeEndpoint(launched.endpoint) };
             const updated = server;
             set((state) => ({
@@ -817,6 +847,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               ),
             }));
           } catch (error) {
+            if (!canContinue()) return;
             const message = friendlyError(error) || i18n._(msg`SSH connection failed.`);
             toast.danger(message);
             setRemoteServerFailure(server.desktopId, "offline", message);
@@ -827,6 +858,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const environment = await get()
             .clientFactory(server.endpoint, server.accessToken)
             .environment();
+          if (!canContinue()) return;
           const keepsLocalAlias =
             server.remoteLabel !== undefined && server.label !== server.remoteLabel;
           server = {
@@ -843,6 +875,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             ),
           }));
         } catch (error) {
+          if (!canContinue()) return;
           if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
             setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
             return;
@@ -850,8 +883,82 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // refreshServer below owns other visible connection errors.
         }
         await get().refreshServer(server.desktopId);
+        if (!canContinue()) return;
         startRemoteServerEventStream(server);
         checkHostUpdateInBackground(server);
+      };
+
+      const reconnectAfterHostUpdate = async (
+        persistedServer: RemoteServerRecord,
+        expectedVersion: string,
+        reconnectSeq: number,
+      ): Promise<void> => {
+        const isCurrent = () =>
+          remoteHostUpdateReconnectSeqByDesktopId.get(persistedServer.desktopId) === reconnectSeq &&
+          get().servers.some((server) => server.desktopId === persistedServer.desktopId);
+        const outcome = await waitForHostUpdateReconnect({
+          isCurrent,
+          isTerminalError: (error) =>
+            error instanceof RemoteClientError && error.code === "protocol_version_mismatch",
+          attempt: async () => {
+            const environment = await get()
+              .clientFactory(persistedServer.endpoint, persistedServer.accessToken)
+              .environment();
+            if (environment.appVersion !== expectedVersion) return false;
+            const current = get().servers.find(
+              (server) => server.desktopId === persistedServer.desktopId,
+            );
+            if (!current || !isCurrent()) return false;
+            await connectServer(current, () => isCurrent());
+            if (
+              isCurrent() &&
+              get().runtime[persistedServer.desktopId]?.status === "online" &&
+              get().servers.find((server) => server.desktopId === persistedServer.desktopId)
+                ?.appVersion === expectedVersion
+            ) {
+              return true;
+            }
+            closeRemoteServerEventSocket(persistedServer.desktopId);
+            const latest = get().servers.find(
+              (server) => server.desktopId === persistedServer.desktopId,
+            );
+            if (latest && isCurrent()) setServersConnecting([latest]);
+            return false;
+          },
+        });
+        if (outcome.type === "cancelled" || !isCurrent()) {
+          set((state) => {
+            const { [persistedServer.desktopId]: _stale, ...hostUpdateRestarts } =
+              state.hostUpdateRestarts;
+            return { hostUpdateRestarts };
+          });
+          return;
+        }
+        remoteHostUpdateReconnectSeqByDesktopId.set(
+          persistedServer.desktopId,
+          nextRemoteHostUpdateSequence(),
+        );
+        if (outcome.type === "connected") {
+          set((state) => {
+            const { [persistedServer.desktopId]: _finished, ...hostUpdateRestarts } =
+              state.hostUpdateRestarts;
+            return { hostUpdateRestarts };
+          });
+          return;
+        }
+        invalidateRemoteServerRefresh(persistedServer.desktopId);
+        closeRemoteServerEventSocket(persistedServer.desktopId);
+        const status = outcome.type === "terminal-error" ? "error" : "offline";
+        const message =
+          outcome.type === "terminal-error"
+            ? friendlyError(outcome.error)
+            : sharedMsg("remote.server.unreachable");
+        setRemoteServerFailure(persistedServer.desktopId, status, message);
+        set((state) => {
+          const { [persistedServer.desktopId]: _finished, ...hostUpdateRestarts } =
+            state.hostUpdateRestarts;
+          return { hostUpdateRestarts };
+        });
       };
 
       const pairAtEndpoint = async (input: {
@@ -883,6 +990,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
           transport: input.transport,
         };
+        remoteHostUpdateReconnectSeqByDesktopId.set(
+          record.desktopId,
+          nextRemoteHostUpdateSequence(),
+        );
         set((state) => ({
           servers: [...state.servers.filter((s) => s.desktopId !== record.desktopId), record],
           lastKnownProjects: replaceCachedProjects(
@@ -915,6 +1026,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         servers: [],
         runtime: {},
         hostUpdates: {},
+        hostUpdateRestarts: {},
         excludedProjectIds: {},
         projectWorkspaceIds: {},
         projectNameOverrides: {},
@@ -1096,6 +1208,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
         removeServer: (desktopId) => {
           const removed = get().servers.find((server) => server.desktopId === desktopId);
+          remoteHostUpdateReconnectSeqByDesktopId.set(desktopId, nextRemoteHostUpdateSequence());
+          remoteHostUpdateRequestSeqByDesktopId.delete(desktopId);
+          invalidateRemoteServerRefresh(desktopId);
           closeRemoteServerEventSocket(desktopId);
           // If the open live-chat thread belongs to this server, tear it (and its
           // socket) down first so it isn't left orphaned with no way to interact.
@@ -1105,10 +1220,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           set((state) => {
             const { [desktopId]: _removed, ...runtime } = state.runtime;
             const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
+            const { [desktopId]: _removedRestart, ...hostUpdateRestarts } =
+              state.hostUpdateRestarts;
             return {
               servers: state.servers.filter((server) => server.desktopId !== desktopId),
               runtime,
               hostUpdates,
+              hostUpdateRestarts,
               lastKnownProjects: removeCachedProjects(state.lastKnownProjects, desktopId),
             };
           });
@@ -1269,7 +1387,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (connectAllInFlight) return connectAllInFlight;
           const servers = get().servers;
           setServersConnecting(servers);
-          connectAllInFlight = Promise.all(servers.map(connectServer))
+          connectAllInFlight = Promise.all(
+            servers
+              .filter((server) => get().hostUpdateRestarts[server.desktopId] === undefined)
+              .map((server) => connectServer(server)),
+          )
             .then(() => undefined)
             .finally(() => {
               connectAllInFlight = null;
@@ -1278,6 +1400,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         reconnectServer: async (desktopId) => {
+          if (get().hostUpdateRestarts[desktopId] !== undefined) return;
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
           if (!server) return;
           setServersConnecting([server]);
@@ -1285,19 +1408,52 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         getHostUpdateState: async (desktopId) => {
+          const requestSeq = nextRemoteHostUpdateSequence();
+          remoteHostUpdateRequestSeqByDesktopId.set(desktopId, requestSeq);
           const update = await withClient(desktopId, (client) => client.hostUpdateState());
+          if (remoteHostUpdateRequestSeqByDesktopId.get(desktopId) !== requestSeq) return update;
           set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
           return update;
         },
 
         checkHostUpdate: async (desktopId) => {
+          const requestSeq = nextRemoteHostUpdateSequence();
+          remoteHostUpdateRequestSeqByDesktopId.set(desktopId, requestSeq);
           const update = await withClient(desktopId, (client) => client.checkHostUpdate());
+          if (remoteHostUpdateRequestSeqByDesktopId.get(desktopId) !== requestSeq) return update;
           set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
           return update;
         },
 
-        installHostUpdate: (desktopId) =>
-          withClient(desktopId, (client) => client.installHostUpdate()),
+        installHostUpdate: async (desktopId) => {
+          if (get().hostUpdateRestarts[desktopId] !== undefined) return;
+          const server = get().servers.find((entry) => entry.desktopId === desktopId);
+          const status = get().hostUpdates[desktopId]?.status;
+          if (!server || status?.type !== "downloaded") {
+            await withClient(desktopId, (client) => client.installHostUpdate());
+            return;
+          }
+
+          const reconnectGeneration = remoteHostUpdateReconnectSeqByDesktopId.get(desktopId);
+          await withClient(desktopId, (client) => client.installHostUpdate());
+          if (remoteHostUpdateReconnectSeqByDesktopId.get(desktopId) !== reconnectGeneration) {
+            return;
+          }
+          remoteHostUpdateRequestSeqByDesktopId.set(desktopId, nextRemoteHostUpdateSequence());
+          const reconnectSeq = nextRemoteHostUpdateSequence();
+          remoteHostUpdateReconnectSeqByDesktopId.set(desktopId, reconnectSeq);
+          invalidateRemoteServerRefresh(desktopId);
+          closeRemoteServerEventSocket(desktopId);
+          set((state) => {
+            const { [desktopId]: _installed, ...hostUpdates } = state.hostUpdates;
+            return {
+              hostUpdates,
+              hostUpdateRestarts: { ...state.hostUpdateRestarts, [desktopId]: status.version },
+            };
+          });
+          setServersConnecting([server]);
+          void reconnectAfterHostUpdate(server, status.version, reconnectSeq);
+        },
 
         setProjectNameOverride: (desktopId, remoteId, name) => {
           set((state) => ({
@@ -1518,6 +1674,8 @@ export function __resetRemoteServersStoreForTest(): void {
   remoteServerSnapshotSeqByDesktopId.clear();
   remoteServerRefreshSeqByDesktopId.clear();
   remoteServerAgentStatusRefreshes.clear();
+  remoteHostUpdateReconnectSeqByDesktopId.clear();
+  remoteHostUpdateRequestSeqByDesktopId.clear();
   clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   connectAllInFlight = null;
@@ -1527,5 +1685,5 @@ export function __resetRemoteServersStoreForTest(): void {
     projects: state.projects.filter((project) => !project.remoteServerId),
     threads: state.threads.filter((thread) => !thread.remoteServerId),
   }));
-  useRemoteServersStore.setState({ openThread: null, hostUpdates: {} });
+  useRemoteServersStore.setState({ openThread: null, hostUpdates: {}, hostUpdateRestarts: {} });
 }

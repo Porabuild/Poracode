@@ -323,6 +323,9 @@ export function ThreadDraftComposerArea(props: {
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = props.project.remoteServerId;
+  const hostUpdateRestarting = useRemoteServersStore((state) =>
+    remoteDesktopId ? state.hostUpdateRestarts[remoteDesktopId] !== undefined : false,
+  );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
@@ -676,6 +679,7 @@ export function ThreadDraftComposerArea(props: {
   }
 
   function submitSegments(allSegments: PromptSegment[], fallbackPrompt = "") {
+    if (hostUpdateRestarting) return;
     if (experimentMode) {
       void runExperiment(allSegments, fallbackPrompt);
       return;
@@ -1163,6 +1167,7 @@ export function ThreadDraftComposerArea(props: {
         submitDisabled={
           authRequired ||
           agentUpdating ||
+          hostUpdateRestarting ||
           isSubmitting ||
           !(hasContent || attachments.attachments.length > 0) ||
           (experimentMode && experimentCandidates.length < 2)
