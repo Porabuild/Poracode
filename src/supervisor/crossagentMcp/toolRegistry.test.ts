@@ -606,6 +606,19 @@ describe("subagent tool registration", () => {
     expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
   });
 
+  it("asks parents to give every spawned run a descriptive task label", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("Always set name");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("appends those automatically");
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
+      properties: {
+        name: {
+          description: expect.stringContaining("describing what this run does"),
+        },
+      },
+    });
+  });
+
   it("returns an isError result (not a throw) for removed full-thread tools", async () => {
     const { ctx } = makeToolContext();
     const result = await dispatchTool("create_thread", { prompt: "x" }, ctx);
