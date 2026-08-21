@@ -1,11 +1,20 @@
 // electron-builder afterPack hook.
 //
 // node-pty ships a `spawn-helper` binary that posix_spawn invokes to set up
-// the pty. electron-builder's asar-unpack copy can strip the execute bit,
-// which makes posix_spawnp fail at runtime with the opaque
-// "posix_spawnp failed." error. Restore +x on every prebuild we ship.
+// the pty. Keep only the target platform/architecture prebuild in each thin
+// package, then restore +x because electron-builder's asar-unpack copy can
+// strip the execute bit and make posix_spawnp fail with the opaque
+// "posix_spawnp failed." error.
 
-const { existsSync, statSync, chmodSync, readdirSync, mkdirSync, cpSync } = require("node:fs");
+const {
+  existsSync,
+  statSync,
+  chmodSync,
+  readdirSync,
+  mkdirSync,
+  cpSync,
+  rmSync,
+} = require("node:fs");
 const { join, resolve } = require("node:path");
 
 // electron-builder's Arch enum is numeric: ia32=0, x64=1, armv7l=2, arm64=3,
@@ -44,6 +53,45 @@ function lookupAsarEntry(header, segments) {
     if (!node) return null;
   }
   return node;
+}
+
+function platformTag(electronPlatformName) {
+  if (electronPlatformName === "darwin" || electronPlatformName === "mas") return "darwin";
+  if (electronPlatformName === "win32") return "win32";
+  return "linux";
+}
+
+// npm installs every node-pty prebuild from its package tarball. electron-builder
+// preserves all of them under app.asar.unpacked, including the Intel-only macOS
+// spawn-helper in an arm64 app. macOS treats that nested helper as an Intel-based
+// component and displays its end-of-support warning even though Poracode itself
+// and the helper it actually loads are arm64. Remove all foreign prebuilds from
+// each thin package before signing. Older better-sqlite3 packages used a similar
+// bin/<platform>-<arch>-<abi> layout, so prune those defensively as well.
+function pruneForeignNativePrebuilds(resourcesDir, electronPlatformName, archName) {
+  const expectedPrefix = `${platformTag(electronPlatformName)}-${archName}`;
+  const roots = [
+    {
+      path: join(resourcesDir, "app.asar.unpacked", "node_modules", "node-pty", "prebuilds"),
+      keep: (entry) => entry === expectedPrefix,
+    },
+    {
+      path: join(resourcesDir, "app.asar.unpacked", "node_modules", "better-sqlite3", "bin"),
+      keep: (entry) => entry === expectedPrefix || entry.startsWith(`${expectedPrefix}-`),
+    },
+  ];
+
+  const removed = [];
+  for (const root of roots) {
+    if (!existsSync(root.path)) continue;
+    for (const entry of readdirSync(root.path)) {
+      if (root.keep(entry)) continue;
+      const foreignPath = join(root.path, entry);
+      rmSync(foreignPath, { recursive: true, force: true });
+      removed.push(foreignPath);
+    }
+  }
+  return removed;
 }
 
 // The packaging script (build-desktop-artifact.mjs) rebuilds better-sqlite3 for
@@ -93,12 +141,7 @@ function assertNativeBinaries(resourcesDir, electronPlatformName, arch) {
   if (!archName) {
     throw new Error(`[afterPack] FATAL: unknown electron-builder Arch enum value ${arch}`);
   }
-  const platTag =
-    electronPlatformName === "darwin" || electronPlatformName === "mas"
-      ? "darwin"
-      : electronPlatformName === "win32"
-        ? "win32"
-        : "linux";
+  const platTag = platformTag(electronPlatformName);
 
   const unpacked = join(resourcesDir, "app.asar.unpacked", "node_modules");
 
@@ -191,7 +234,12 @@ module.exports = async function afterPack(context) {
   }
   // Replace the (possibly off-host-arch) binary electron-builder packed with the
   // arch-correct one staged per target arch.
-  injectBetterSqliteBinary(context, resourcesDir, ARCH_NAME[context.arch]);
+  const archName = ARCH_NAME[context.arch];
+  injectBetterSqliteBinary(context, resourcesDir, archName);
+  const removed = pruneForeignNativePrebuilds(resourcesDir, context.electronPlatformName, archName);
+  for (const path of removed) {
+    console.log(`[afterPack] pruned foreign native prebuild ${path}`);
+  }
   // Throws if a required native binary is missing or mis-packed, so a broken
   // app can never be packaged or published.
   assertNativeBinaries(resourcesDir, context.electronPlatformName, context.arch);
