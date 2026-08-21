@@ -67,6 +67,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
   "Give each subagent a self-contained prompt — it does not share your conversation context.",
+  "Always set name on spawn_agent and on every tasks=[...] entry: a short, specific label describing what that subagent will do (for example `Review runtime findings`). Users see this label in the thread; do not omit it or repeat provider/model/reasoning values there — Crossagents appends those automatically.",
   "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
 ].join(" ");
 
@@ -119,7 +120,11 @@ const SUBAGENT_TASK_PROPERTIES = {
   ...SUBAGENT_SELECTION_PROPERTIES,
   prompt: { type: "string", description: "Self-contained task for the subagent." },
   tags: TASK_TAGS_PROPERTY,
-  name: { type: "string", description: "Optional short label for the run." },
+  name: {
+    type: "string",
+    description:
+      "Short specific label describing what this run does (its task or goal), shown to the user in the thread. Always provide one; provider/model details are appended automatically.",
+  },
   fallbacks: {
     type: "array",
     maxItems: 3,
