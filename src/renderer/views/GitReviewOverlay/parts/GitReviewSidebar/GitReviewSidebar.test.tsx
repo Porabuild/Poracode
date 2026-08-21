@@ -42,6 +42,7 @@ vi.mock("@heroui/react", () => {
   function Button(props: {
     children?: ReactNode | ((state: { isPending: boolean }) => ReactNode);
     className?: string;
+    "aria-label"?: string;
     isDisabled?: boolean;
     isPending?: boolean;
     onPress?: () => void;
@@ -50,6 +51,7 @@ vi.mock("@heroui/react", () => {
     return (
       <button
         className={props.className}
+        aria-label={props["aria-label"]}
         data-variant={props.variant}
         disabled={props.isDisabled}
         type="button"
@@ -1206,6 +1208,13 @@ describe("GitReviewSidebar", () => {
       .mockRejectedValueOnce(new Error("branch discovery failed"))
       .mockResolvedValue(branches);
     getCommitGenCandidatesMock.mockReturnValue([{ kind: "codex" }]);
+    let resolveSummary!: (value: { title: string; description: string }) => void;
+    bridgeMock.generatePrSummary.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSummary = resolve;
+        }),
+    );
     useGitStore.setState({ ghAvailable: { [project.id]: true } });
 
     render(
@@ -1235,7 +1244,8 @@ describe("GitReviewSidebar", () => {
     act(() => dropdownMenuHandlers.targetBranch?.(new Set(["master"])));
     expect(screen.getByRole("button", { name: "master" })).toBeInTheDocument();
     const createButtons = screen.getAllByRole("button", { name: "Create PR" });
-    fireEvent.click(createButtons[createButtons.length - 1]!);
+    fireEvent.click(createButtons[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Generate PR summary" }));
 
     await waitFor(() =>
       expect(bridgeMock.generatePrSummary).toHaveBeenCalledWith(
@@ -1245,6 +1255,18 @@ describe("GitReviewSidebar", () => {
         }),
       ),
     );
+    expect(
+      screen
+        .getAllByRole("status")
+        .every((status) => status.textContent?.includes("Generating PR summary…")),
+    ).toBe(true);
+    await act(async () => {
+      resolveSummary({
+        title: "Generated worktree PR",
+        description: "Generated description",
+      });
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Create PR" }).at(-1)!);
     await waitFor(() =>
       expect(bridgeMock.ghCreatePr).toHaveBeenCalledWith({
         projectLocation: project.location,

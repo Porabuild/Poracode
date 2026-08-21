@@ -2862,6 +2862,10 @@ msgstr "Kompozytory commita, PR i recenzji"
 msgid "Commits"
 msgstr "Commity"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Committing…"
+msgstr "Tworzenie commita…"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
@@ -3513,6 +3517,10 @@ msgstr "Utwórz z agentem"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Utworzono drzewo pracy na „{newBranch}”, ale zmiany kolidują ze sobą i pozostają w skrytce git — rozwiąż je w drzewie pracy."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Creating PR…"
+msgstr "Tworzenie PR…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
@@ -5325,6 +5333,14 @@ msgstr "Generuje komunikaty commita na podstawie przygotowanych (staged) zmian."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Generuje krótkie tytuły nowych wątków."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Generating commit message…"
+msgstr "Generowanie komunikatu commita…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Generating PR summary…"
+msgstr "Generowanie opisu PR…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9166,6 +9182,10 @@ msgstr "Żądania ściągnięcia"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "Skrót żądań ściągnięcia"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Pulling…"
+msgstr "Pobieranie…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -9191,6 +9211,10 @@ msgstr "Push nie powiódł się: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "Wysyłaj aktualizacje na sparowane urządzenia mobilne, gdy wątki się kończą lub wymagają Twojej uwagi, nawet gdy aplikacja jest zamknięta."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Pushing…"
+msgstr "Wysyłanie…"
 
 #: src/renderer/components/providers/qoder/manifest.ts
 msgid "Qoder CLI"
@@ -11594,6 +11618,10 @@ msgstr "Opcje synchronizacji"
 #: src/mobile/components.tsx
 msgid "Sync with desktop"
 msgstr "Synchronizuj z desktopem"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Syncing…"
+msgstr "Synchronizowanie…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"

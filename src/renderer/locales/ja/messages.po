@@ -2861,6 +2861,10 @@ msgstr "コミット、PR、レビューのコンポーザー"
 msgid "Commits"
 msgstr "コミット"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Committing…"
+msgstr "コミット中…"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
@@ -3512,6 +3516,10 @@ msgstr "エージェントで作成"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "「{newBranch}」にワークツリーを作成しましたが、変更が競合し、git stash に残っています。ワークツリー内で解決してください。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Creating PR…"
+msgstr "PRを作成中…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
@@ -5324,6 +5332,14 @@ msgstr "ステージされた変更からコミットメッセージを生成し
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "新しいスレッドの短いタイトルを生成します。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Generating commit message…"
+msgstr "コミットメッセージを生成中…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Generating PR summary…"
+msgstr "PRの概要を生成中…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9164,6 +9180,10 @@ msgstr "プルリクエスト"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "プルリクエストのショートカット"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Pulling…"
+msgstr "プル中…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -9189,6 +9209,10 @@ msgstr "プッシュに失敗しました:{detail}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "スレッドが完了したり対応が必要になったりしたときに、アプリが閉じていてもペアリング済みのモバイルデバイスに更新をプッシュします。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Pushing…"
+msgstr "プッシュ中…"
 
 #: src/renderer/components/providers/qoder/manifest.ts
 msgid "Qoder CLI"
@@ -11592,6 +11616,10 @@ msgstr "同期オプション"
 #: src/mobile/components.tsx
 msgid "Sync with desktop"
 msgstr "デスクトップと同期"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Syncing…"
+msgstr "同期中…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"

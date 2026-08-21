@@ -2,7 +2,9 @@ import { ChevronDown, GitPullRequest, Sparkles } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Modal, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo } from "@/shared/contracts";
+import type { GitActionPhase } from "@/renderer/state/gitReviewActionStore";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
+import { ActionPhaseStatus } from "./ActionPhaseStatus";
 
 export function CreatePrModal(props: {
   isOpen: boolean;
@@ -17,6 +19,7 @@ export function CreatePrModal(props: {
   setPrTargetBranch: (branch: string | null) => void;
   prLoading: boolean;
   isGeneratingPr: boolean;
+  actionPhase: GitActionPhase | null;
   canGenerateMessage: boolean;
   branchList: readonly GitBranchInfo[];
   handleCreatePr: (isDraft: boolean) => Promise<void>;
@@ -35,6 +38,7 @@ export function CreatePrModal(props: {
     setPrTargetBranch,
     prLoading,
     isGeneratingPr,
+    actionPhase,
     canGenerateMessage,
     branchList,
     handleCreatePr,
@@ -101,7 +105,13 @@ export function CreatePrModal(props: {
                   value={prTitle}
                   onChange={(e) => setPrTitle(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    if (
+                      e.key === "Enter" &&
+                      (e.ctrlKey || e.metaKey) &&
+                      !prLoading &&
+                      !isGeneratingPr &&
+                      !actionPhase
+                    ) {
                       e.preventDefault();
                       void handleCreatePr(false).then(() => onOpenChange(false));
                     }
@@ -112,7 +122,7 @@ export function CreatePrModal(props: {
                     isIconOnly
                     variant="tertiary"
                     aria-label={t`Generate PR summary`}
-                    isDisabled={isGeneratingPr || !canGenerateMessage}
+                    isDisabled={isGeneratingPr || Boolean(actionPhase) || !canGenerateMessage}
                     isPending={isGeneratingPr}
                     onPress={() => void handleGeneratePrSummary()}
                     className="mt-0.5 shrink-0"
@@ -131,6 +141,7 @@ export function CreatePrModal(props: {
                 value={prBody}
                 onChange={(e) => setPrBody(e.target.value)}
               />
+              <ActionPhaseStatus actionPhase={actionPhase} />
             </div>
           </Modal.Body>
           <Modal.Footer>
@@ -140,7 +151,7 @@ export function CreatePrModal(props: {
             <ButtonGroup>
               <Button
                 variant="tertiary"
-                isDisabled={prLoading || isGeneratingPr}
+                isDisabled={prLoading || isGeneratingPr || Boolean(actionPhase)}
                 isPending={prLoading}
                 onPress={() => void handleCreatePr(false).then(() => onOpenChange(false))}
               >
@@ -160,7 +171,7 @@ export function CreatePrModal(props: {
                   isIconOnly
                   variant="tertiary"
                   aria-label={t`More PR options`}
-                  isDisabled={prLoading || isGeneratingPr}
+                  isDisabled={prLoading || isGeneratingPr || Boolean(actionPhase)}
                 >
                   <ButtonGroup.Separator />
                   <ChevronDown className="size-3.5" />
@@ -169,6 +180,7 @@ export function CreatePrModal(props: {
                   <Dropdown.Menu
                     aria-label={t`PR options`}
                     onAction={(key) => {
+                      if (actionPhase) return;
                       if (key === "draft") {
                         void handleCreatePr(true).then(() => onOpenChange(false));
                       }

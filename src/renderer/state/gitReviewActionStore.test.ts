@@ -59,6 +59,30 @@ describe("gitReviewActionStore", () => {
     expect(panels()["p"]).toMatchObject({ isCommitting: false, isSyncing: false });
   });
 
+  // The pipeline step advances commit → push → PR within one multi-step
+  // action ("Commit & Create PR") and clears when the whole flow ends.
+  it("advances and clears the commit/push/PR pipeline step", () => {
+    patch("p", { isCommitting: true, actionPhase: "generating-message" });
+    patch("p", { isGenerating: false, actionPhase: "committing" });
+    patch("p", { isSyncing: true, actionPhase: "pushing" });
+    patch("p", { isCreatingPr: true, actionPhase: "creating-pr" });
+    expect(panels()["p"]).toMatchObject({ actionPhase: "creating-pr", isCreatingPr: true });
+    patch("p", { isCreatingPr: false, actionPhase: null });
+    expect(panels()["p"]?.actionPhase).toBeNull();
+  });
+
+  it("does not let overlapping actions take or clear the phase slot", () => {
+    const store = useGitReviewActionStore.getState();
+    expect(store.beginActionPhase("p", "committing")).toBe(true);
+    expect(store.beginActionPhase("p", "creating-pr")).toBe(false);
+    expect(store.transitionActionPhase("p", "creating-pr", "pushing")).toBe(false);
+    expect(store.transitionActionPhase("p", "committing", "pushing")).toBe(true);
+    expect(store.clearActionPhase("p", "committing")).toBe(false);
+    expect(panels()["p"]?.actionPhase).toBe("pushing");
+    expect(store.clearActionPhase("p", "pushing")).toBe(true);
+    expect(panels()["p"]?.actionPhase).toBeNull();
+  });
+
   it("tracks each in-flight action flag independently", () => {
     patch("p", { isMerging: true, isPullingFromSource: true, isCreatingPr: true });
     patch("p", { isMerging: false });

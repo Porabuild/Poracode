@@ -179,6 +179,7 @@ export function GitReviewSidebar(props: {
     prLoading,
     prPendingAction,
     isGeneratingPr,
+    actionPhase,
     handleCommit,
     handleGenerateMessage,
     handleSyncOrPush,
@@ -281,6 +282,7 @@ export function GitReviewSidebar(props: {
   const isAutoPrMode = prCreateMode === "auto";
   const createPrPending = isAutoPrMode && prLoading;
   const runPrMode = (prMode: PrCreateMode) => {
+    if (actionPhase) return;
     if (prMode === "auto") void handleCreatePr(false);
     else setCreatePrModalOpen(true);
   };
@@ -288,6 +290,7 @@ export function GitReviewSidebar(props: {
   // Picking the other mode from the split-button menu both runs it and makes
   // it the sticky default (the same field the Git settings select drives).
   const selectPrMode = (prMode: PrCreateMode) => {
+    if (actionPhase) return;
     setPrCreateMode(prMode);
     runPrMode(prMode);
   };
@@ -533,6 +536,7 @@ export function GitReviewSidebar(props: {
               isGenerating={isGenerating}
               isSyncing={isSyncing}
               prLoading={prLoading}
+              actionPhase={actionPhase}
               isPullingFromSource={isPullingFromSource}
               showPullFromSource={showPullFromSource}
               sourceBranch={sourceBranch}
@@ -575,7 +579,7 @@ export function GitReviewSidebar(props: {
                 <Button
                   variant="tertiary"
                   className="flex-1"
-                  isDisabled={createPrPending}
+                  isDisabled={createPrPending || Boolean(actionPhase)}
                   isPending={createPrPending}
                   onPress={onCreatePrPress}
                 >
@@ -586,7 +590,7 @@ export function GitReviewSidebar(props: {
                     isIconOnly
                     variant="tertiary"
                     aria-label={t`More pull request options`}
-                    isDisabled={createPrPending || isMerging}
+                    isDisabled={createPrPending || isMerging || Boolean(actionPhase)}
                   >
                     <ButtonGroup.Separator />
                     <ChevronDown className="size-3.5" />
@@ -648,6 +652,7 @@ export function GitReviewSidebar(props: {
             setPrTargetBranch={setPrTargetBranch}
             prLoading={prLoading}
             isGeneratingPr={isGeneratingPr}
+            actionPhase={actionPhase}
             canGenerateMessage={canGenerateMessage}
             branchList={prBranchList}
             handleCreatePr={handleCreatePr}

@@ -2862,6 +2862,10 @@ msgstr "커밋, PR, 리뷰 작성기"
 msgid "Commits"
 msgstr "커밋"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Committing…"
+msgstr "커밋 중…"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
@@ -3513,6 +3517,10 @@ msgstr "에이전트로 만들기"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\"에 작업 트리를 만들었지만 변경 사항이 충돌하여 git stash에 남아 있습니다. 작업 트리에서 해결하세요."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Creating PR…"
+msgstr "PR 생성 중…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
@@ -5325,6 +5333,14 @@ msgstr "스테이징된 변경 사항에서 커밋 메시지를 생성합니다.
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "새 스레드에 대한 짧은 제목을 생성합니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Generating commit message…"
+msgstr "커밋 메시지 생성 중…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Generating PR summary…"
+msgstr "PR 요약 생성 중…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9166,6 +9182,10 @@ msgstr "풀 리퀘스트"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "풀 리퀘스트 바로가기"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Pulling…"
+msgstr "풀 중…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -9191,6 +9211,10 @@ msgstr "푸시 실패: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "스레드가 완료되거나 응답이 필요할 때 앱이 닫혀 있어도 페어링된 모바일 기기로 업데이트를 푸시합니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Pushing…"
+msgstr "푸시 중…"
 
 #: src/renderer/components/providers/qoder/manifest.ts
 msgid "Qoder CLI"
@@ -11594,6 +11618,10 @@ msgstr "동기화 옵션"
 #: src/mobile/components.tsx
 msgid "Sync with desktop"
 msgstr "데스크톱과 동기화"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+msgid "Syncing…"
+msgstr "동기화 중…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"

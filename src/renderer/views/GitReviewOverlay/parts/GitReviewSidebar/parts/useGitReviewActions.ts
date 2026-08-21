@@ -19,6 +19,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import {
   useGitReviewActionState,
   useGitReviewActionStore,
+  type GitActionPhase,
 } from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
@@ -70,6 +71,28 @@ function truncateForToast(details: string): string {
   }
   return sliced || body.length < details.length ? `${body}\n…` : body;
 }
+
+/**
+ * Cursor over a panel's single action-phase slot. A chained flow like
+ * "Commit & Create PR" claims one cursor up front and hands it to each step, so
+ * the status line walks commit → push → PR without blinking off (and without
+ * re-enabling the other buttons) between them.
+ */
+interface ActionPhaseCursor {
+  /** Move to the next step; ignored once another action owns the slot. */
+  advance: (to: GitActionPhase) => void;
+  /** Release the slot if this cursor still owns it. */
+  release: () => void;
+}
+
+/** Phase each sync command reports, so the dropdown's entries all explain themselves. */
+const SYNC_COMMAND_PHASES: Record<GitSyncCommand, GitActionPhase> = {
+  pull: "pulling",
+  pullRebase: "pulling",
+  push: "pushing",
+  sync: "syncing",
+  syncRebase: "syncing",
+};
 
 export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const { t } = useLingui();
@@ -154,6 +177,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     isAbortingMerge,
     isFinishingMerge,
     isCreatingPr,
+    actionPhase,
     pullStashCommit,
   } = useGitReviewActionState(storeKey);
   const patch = useGitReviewActionStore((s) => s.patch);
@@ -171,6 +195,30 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const setIsAbortingMerge = (value: boolean) => patch(storeKey, { isAbortingMerge: value });
   const setIsFinishingMerge = (value: boolean) => patch(storeKey, { isFinishingMerge: value });
   const setIsCreatingPr = (value: boolean) => patch(storeKey, { isCreatingPr: value });
+  // Claim the panel's phase slot for one action. Returns null when another
+  // action already owns it, which is the caller's signal to bail out rather
+  // than run a second git command against the same worktree.
+  function claimActionPhase(initial: GitActionPhase): ActionPhaseCursor | null {
+    const store = useGitReviewActionStore.getState();
+    if (!store.beginActionPhase(storeKey, initial)) return null;
+    let current = initial;
+    return {
+      advance: (to) => {
+        if (to === current) return;
+        if (useGitReviewActionStore.getState().transitionActionPhase(storeKey, current, to)) {
+          current = to;
+        }
+      },
+      release: () => {
+        useGitReviewActionStore.getState().clearActionPhase(storeKey, current);
+      },
+    };
+  }
+  // A blank message means the commit starts by generating one, so the status
+  // line names that step first. Shared with the chained "Commit & Create PR"
+  // entry point, which claims the slot before delegating to handleCommit.
+  const commitStartPhase = (): GitActionPhase =>
+    !commitMessage.trim() && canGenerateMessage ? "generating-message" : "committing";
   function handlePullStashResult(result: {
     stashReapplied?: boolean;
     reapplyConflicting?: boolean;
@@ -248,7 +296,10 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     addAll: boolean,
     pushAfter = false,
     skipDelayedRefresh = false,
+    chainedPhase?: ActionPhaseCursor,
   ): Promise<boolean> {
+    const phase = chainedPhase ?? claimActionPhase(commitStartPhase());
+    if (!phase) return false;
     setIsCommitting(true);
     try {
       let message = commitMessage.trim();
@@ -267,6 +318,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         }
       }
       if (!message) throw new Error("Commit message is required");
+      phase.advance("committing");
       const commitResult = await readBridge().gitCommit({
         projectLocation: project.location,
         message,
@@ -302,6 +354,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
 
       if (pushAfter && hasRemote) {
         setIsSyncing(true);
+        phase.advance("pushing");
         try {
           await runGitSyncCommand({
             command: "push",
@@ -352,6 +405,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       return false;
     } finally {
       setIsCommitting(false);
+      if (!chainedPhase) phase.release();
     }
   }
 
@@ -359,6 +413,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     // A generation may still be running from before a panel remount — don't
     // start a second one; the first one's result will land in the store.
     if (isGenerating) return;
+    const phase = claimActionPhase("generating-message");
+    if (!phase) return;
     setIsGenerating(true);
     try {
       const generated = await generateMessage();
@@ -385,10 +441,13 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       toast.danger(friendlyError(err));
     } finally {
       setIsGenerating(false);
+      phase.release();
     }
   }
 
   async function handleSyncOrPush(): Promise<void> {
+    const phase = claimActionPhase(needsPush ? "pushing" : "syncing");
+    if (!phase) return;
     setIsSyncing(true);
     try {
       if (needsPush) {
@@ -437,10 +496,13 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       });
     } finally {
       setIsSyncing(false);
+      phase.release();
     }
   }
 
   async function handleSyncAction(key: GitSyncCommand): Promise<void> {
+    const phase = claimActionPhase(SYNC_COMMAND_PHASES[key]);
+    if (!phase) return;
     setIsSyncing(true);
     try {
       await runGitSyncCommand({
@@ -477,6 +539,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       });
     } finally {
       setIsSyncing(false);
+      phase.release();
     }
   }
 
@@ -516,6 +579,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
 
   async function handlePullFromSource(): Promise<void> {
     if (!sourceBranch) return;
+    const phase = claimActionPhase("pulling");
+    if (!phase) return;
     setIsPullingFromSource(true);
     try {
       const result = await runGitPullFromSource({
@@ -548,6 +613,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       showGitActionError(err, { logPrefix: "[git] pull from source failed" });
     } finally {
       setIsPullingFromSource(false);
+      phase.release();
     }
   }
 
@@ -629,9 +695,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     return null;
   }
 
-  async function handleCreatePr(isDraft: boolean): Promise<void> {
+  async function handleCreatePr(isDraft: boolean, chainedPhase?: ActionPhaseCursor): Promise<void> {
     const targetBranch = prTargetBranch || defaultPrTargetBranch;
     if (!effectiveBranch || !targetBranch) return;
+    const shouldGenerateSummary = !prTitle.trim() && canGenerateMessage && !isGeneratingPr;
+    const startPhase: GitActionPhase = shouldGenerateSummary
+      ? "generating-pr-summary"
+      : "creating-pr";
+    const phase = chainedPhase ?? claimActionPhase(startPhase);
+    if (!phase) return;
+    phase.advance(startPhase);
     setIsCreatingPr(true);
     try {
       const summaryBaseBranch = prTargetBranch || sourceBranch || targetBranch;
@@ -644,7 +717,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       // empty-commit-message flow in handleCommit. This powers both the
       // "auto" create-PR mode and pressing Create in the dialog with a blank
       // title.
-      if (!title && canGenerateMessage && !isGeneratingPr) {
+      if (shouldGenerateSummary) {
         const candidates = getCommitGenCandidates(projectAgentStatuses, commitGenProvider);
         setIsGeneratingPr(true);
         try {
@@ -665,6 +738,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         } finally {
           setIsGeneratingPr(false);
         }
+        phase.advance("creating-pr");
       }
       const pr = await readBridge().ghCreatePr({
         projectLocation: project.location,
@@ -706,6 +780,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       toast.danger(friendlyError(err));
     } finally {
       setIsCreatingPr(false);
+      if (!chainedPhase) phase.release();
     }
   }
 
@@ -714,10 +789,19 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   // opens the dialog), so this stays a single uninterrupted action regardless
   // of the prCreateMode setting.
   async function handleCommitAndCreatePr(addAll: boolean): Promise<void> {
-    const committed = await handleCommit(addAll, true, true);
-    if (!committed) return;
-    await handleCreatePr(false);
-    onRefresh();
+    // One cursor for the whole flow: handing it to both steps keeps the status
+    // line running commit → push → creating PR, instead of clearing between
+    // them and briefly re-enabling every button mid-action.
+    const phase = claimActionPhase(commitStartPhase());
+    if (!phase) return;
+    try {
+      const committed = await handleCommit(addAll, true, true, phase);
+      if (!committed) return;
+      await handleCreatePr(false, phase);
+      onRefresh();
+    } finally {
+      phase.release();
+    }
   }
 
   async function handleGeneratePrSummary(): Promise<void> {
@@ -733,6 +817,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     // Don't start a second PR-summary generation if one is still in flight
     // from before a panel remount — its result will land in the store.
     if (isGeneratingPr) return;
+    const phase = claimActionPhase("generating-pr-summary");
+    if (!phase) return;
     setIsGeneratingPr(true);
     try {
       const result = await generatePrSummaryResult(candidates, effectiveBranch, summaryBaseBranch);
@@ -751,6 +837,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       toast.danger(friendlyError(err));
     } finally {
       setIsGeneratingPr(false);
+      phase.release();
     }
   }
 
@@ -776,6 +863,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     prLoading,
     prPendingAction: writeActions.pendingAction,
     isGeneratingPr,
+    actionPhase,
     handleCommit,
     handleGenerateMessage,
     handleSyncOrPush,

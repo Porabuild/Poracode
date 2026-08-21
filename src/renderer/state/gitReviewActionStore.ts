@@ -38,6 +38,23 @@ export interface GeneratedDraftMeta {
   model: string;
 }
 
+/**
+ * Fine-grained step of the git action currently in flight. The panel renders it
+ * as a live status line ("Committing…", "Pushing…", "Creating PR…") so a
+ * multi-step action like "Commit & Create PR" shows which step is running
+ * instead of one opaque spinner. Every action offered by the commit/sync
+ * controls maps to a phase, so the slot doubles as the panel's mutual-exclusion
+ * lock: while one action owns it the others stay disabled. Null when idle.
+ */
+export type GitActionPhase =
+  | "generating-message"
+  | "committing"
+  | "pushing"
+  | "pulling"
+  | "syncing"
+  | "creating-pr"
+  | "generating-pr-summary";
+
 export interface GitReviewActionState {
   /** Draft commit message — typed by the user or filled in by generation. */
   commitMessage: string;
@@ -73,6 +90,8 @@ export interface GitReviewActionState {
   isFinishingMerge: boolean;
   /** A PR creation is in flight. */
   isCreatingPr: boolean;
+  /** Current step of the git action in flight (null when idle). */
+  actionPhase: GitActionPhase | null;
   /** Commit hash of the Poracode pull stash awaiting re-apply after the in-progress merge. */
   pullStashCommit: string | null;
 }
@@ -96,6 +115,7 @@ const EMPTY_STATE: GitReviewActionState = Object.freeze({
   isAbortingMerge: false,
   isFinishingMerge: false,
   isCreatingPr: false,
+  actionPhase: null,
   pullStashCommit: null,
 });
 
@@ -116,6 +136,12 @@ interface GitReviewActionStore {
   panels: Record<string, GitReviewActionState>;
   /** Merge `patch` into the state for `key`; no-op writes are skipped. */
   patch: (key: string, patch: Partial<GitReviewActionState>) => void;
+  /** Claim the panel's phase slot; only one tracked action may own it. */
+  beginActionPhase: (key: string, phase: GitActionPhase) => boolean;
+  /** Advance a phase only when the caller still owns the expected phase. */
+  transitionActionPhase: (key: string, from: GitActionPhase, to: GitActionPhase) => boolean;
+  /** Clear a phase only when the caller still owns it. */
+  clearActionPhase: (key: string, phase: GitActionPhase) => boolean;
 }
 
 export const useGitReviewActionStore = create<GitReviewActionStore>((set, get) => ({
@@ -127,6 +153,21 @@ export const useGitReviewActionStore = create<GitReviewActionStore>((set, get) =
     set((state) => ({
       panels: { ...state.panels, [key]: { ...current, ...patch } },
     }));
+  },
+  beginActionPhase: (key, phase) => {
+    if (get().panels[key]?.actionPhase) return false;
+    get().patch(key, { actionPhase: phase });
+    return true;
+  },
+  transitionActionPhase: (key, from, to) => {
+    if (get().panels[key]?.actionPhase !== from) return false;
+    get().patch(key, { actionPhase: to });
+    return true;
+  },
+  clearActionPhase: (key, phase) => {
+    if (get().panels[key]?.actionPhase !== phase) return false;
+    get().patch(key, { actionPhase: null });
+    return true;
   },
 }));
 
