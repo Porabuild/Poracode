@@ -416,8 +416,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         )
       ],
   );
-  const controls = buildControls(thread, effectiveAgentStatus, hiddenModelIds, (config) =>
-    changeThreadConfig(thread.id, config),
+  const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
+  const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
+  const controls = buildControls(
+    thread,
+    effectiveAgentStatus,
+    hiddenModelIds,
+    (config) => changeThreadConfig(thread.id, config),
+    modelPreferences,
+    (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
   );
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {

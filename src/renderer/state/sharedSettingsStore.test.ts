@@ -24,6 +24,7 @@ describe("sharedSettingsStore", () => {
         useWebGpu: true,
       },
       providerConfigs: {},
+      providerModelPreferences: {},
       agentInstances: {},
       hiddenModels: {},
       agentSettings: {},
@@ -161,6 +162,35 @@ describe("sharedSettingsStore", () => {
       contextSize: "200k",
       fast: true,
       thinking: true,
+    });
+  });
+
+  it("keeps effort and Fast preferences independent for subprovider model ids", () => {
+    const state = useSharedSettings.getState();
+    state.setProviderModelPreference("opencode", "openai/gpt-5.6-sol", {
+      effort: "high",
+      fast: false,
+    });
+    state.setProviderModelPreference("opencode", "openai/gpt-5.6-luna", {
+      effort: "max",
+      fast: true,
+    });
+    state.setProviderModelPreference("opencode", "github-copilot/gpt-5.6-luna", {
+      effort: "medium",
+      fast: false,
+    });
+    state.setProviderModelPreference("codex", "openai/gpt-5.6-luna", {
+      effort: "low",
+      fast: false,
+    });
+
+    expect(useSharedSettings.getState().providerModelPreferences.opencode).toEqual({
+      "openai/gpt-5.6-sol": { effort: "high", fast: false },
+      "openai/gpt-5.6-luna": { effort: "max", fast: true },
+      "github-copilot/gpt-5.6-luna": { effort: "medium", fast: false },
+    });
+    expect(useSharedSettings.getState().providerModelPreferences.codex).toEqual({
+      "openai/gpt-5.6-luna": { effort: "low", fast: false },
     });
   });
 

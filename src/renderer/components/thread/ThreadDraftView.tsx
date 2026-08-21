@@ -26,6 +26,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
+import type { ProviderModelPreference } from "@/shared/settings";
 import {
   appendProviderComposerControls,
   buildModelPickerControls,
@@ -42,6 +43,7 @@ import {
   resolveModelValue,
   resolvePreferredAgentKind,
   resolveProviderDraftConfig,
+  resolveProviderModelPreference,
   resolveSavedProviderDraftConfig,
   supportsUsableFastMode,
   resolveThinkingValue,
@@ -323,8 +325,12 @@ export function ThreadDraftView(props: {
   // --- Per-provider config memory (app-wide via shared settings) ---
   const updateProjectDraftConfig = useAppStore((s) => s.updateProjectDraftConfig);
   const setProviderConfig = useSharedSettings((s) => s.setProviderConfig);
+  const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
   const effectiveAgentKindRef = useRef(effectiveAgentKind);
   const providerConfigsRef = useRef<Record<string, ProviderDraftConfig>>({});
+  const providerModelPreferencesRef = useRef<
+    Record<string, Record<string, ProviderModelPreference>>
+  >({});
   const initialLastDraftConfigRef = useRef(lastDraftConfig);
   const hasLocalConfigEditRef = useRef(false);
   const hasLocalContextEditRef = useRef(false);
@@ -333,17 +339,41 @@ export function ThreadDraftView(props: {
   // in place to keep effort/model selections in sync mid-render. Assigning the
   // store reference directly would mutate Zustand state and skip subscribers.
   providerConfigsRef.current = { ...useSharedSettings.getState().providerConfigs };
+  providerModelPreferencesRef.current = {
+    ...useSharedSettings.getState().providerModelPreferences,
+  };
+
+  function persistProviderModelPreference(providerKind: string, config: ProviderDraftConfig) {
+    const preference: ProviderModelPreference = {
+      ...(config.effort ? { effort: config.effort } : {}),
+      ...(config.fast !== undefined ? { fast: config.fast } : {}),
+    };
+    providerModelPreferencesRef.current = {
+      ...providerModelPreferencesRef.current,
+      [providerKind]: {
+        ...providerModelPreferencesRef.current[providerKind],
+        [config.model]: preference,
+      },
+    };
+    setProviderModelPreference(providerKind, config.model, preference);
+  }
 
   function persistProviderConfig(providerKind: string, config: ProviderDraftConfig) {
     providerConfigsRef.current[providerKind] = config;
     if (!isHomeScope) {
       setProviderConfig(providerKind, config);
     }
+    persistProviderModelPreference(providerKind, config);
   }
 
   function persistProjectDraftConfig(draftConfig: ProjectDraftConfig) {
     updateProjectDraftConfig(project.id, draftConfig);
   }
+
+  const persistProviderConfigRef = useRef(persistProviderConfig);
+  const persistProjectDraftConfigRef = useRef(persistProjectDraftConfig);
+  persistProviderConfigRef.current = persistProviderConfig;
+  persistProjectDraftConfigRef.current = persistProjectDraftConfig;
 
   function handleSwitchBranch(branch: string, createNew: boolean) {
     readBridge()
@@ -392,6 +422,7 @@ export function ThreadDraftView(props: {
       effectiveAgentKind,
       lastDraftConfig,
       isHomeScope ? {} : providerConfigsRef.current,
+      providerModelPreferencesRef.current,
     );
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
     const nextModel = resolved.model;
@@ -416,10 +447,7 @@ export function ThreadDraftView(props: {
     lastAppliedAgentKindRef.current = effectiveAgentKind;
 
     // Persist per-provider config app-wide, last-used provider per project.
-    providerConfigsRef.current[effectiveAgentKind] = resolved;
-    if (!isHomeScope) {
-      setProviderConfig(effectiveAgentKind, resolved);
-    }
+    persistProviderConfigRef.current(effectiveAgentKind, resolved);
     updateProjectDraftConfig(project.id, {
       agentKind: effectiveAgentKind,
       model: nextModel,
@@ -479,10 +507,7 @@ export function ThreadDraftView(props: {
         fast: nextFast,
         thinking: nextThinking,
       };
-      providerConfigsRef.current[effectiveAgentKind] = corrected;
-      if (!isHomeScope) {
-        setProviderConfig(effectiveAgentKind, corrected);
-      }
+      persistProviderConfigRef.current(effectiveAgentKind, corrected);
       updateProjectDraftConfig(project.id, {
         agentKind: effectiveAgentKind,
         model: nextModel,
@@ -517,6 +542,73 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
+    if (!sharedSettingsHydrated || !selectedAgentForConfig || !effectiveAgentKind || !model) {
+      return;
+    }
+    if (hasLocalConfigEditRef.current) return;
+
+    const settings = useSharedSettings.getState();
+    providerConfigsRef.current = { ...settings.providerConfigs };
+    providerModelPreferencesRef.current = { ...settings.providerModelPreferences };
+    const preference = resolveProviderModelPreference(
+      effectiveAgentKind,
+      model,
+      settings.providerConfigs,
+      settings.providerModelPreferences,
+    );
+    if (!preference) return;
+
+    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, {
+      model,
+      ...(preference.effort !== undefined ? { effort: preference.effort } : {}),
+      ...(contextSize ? { contextSize } : {}),
+      ...(preference.fast !== undefined ? { fast: preference.fast } : {}),
+      thinking,
+      mode,
+      approvalPolicy,
+      approvalsReviewer,
+      sandboxMode,
+    });
+    const nextEffort = resolved.effort ?? "";
+    const nextFast = resolved.fast ?? false;
+    if (nextEffort === effort && nextFast === fast) return;
+
+    setEffort(nextEffort);
+    setFast(nextFast);
+    const corrected: ProviderDraftConfig = {
+      model,
+      effort: nextEffort,
+      ...(contextSize ? { contextSize } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
+      mode,
+      approvalPolicy,
+      approvalsReviewer,
+      sandboxMode,
+    };
+    persistProviderConfigRef.current(effectiveAgentKind, corrected);
+    persistProjectDraftConfigRef.current({
+      agentKind: effectiveAgentKind,
+      ...corrected,
+      worktreeMode: effectiveWorktreeMode,
+    });
+  }, [
+    sharedSettingsHydrated,
+    selectedAgentForConfig,
+    effectiveAgentKind,
+    model,
+    effort,
+    contextSize,
+    fast,
+    thinking,
+    mode,
+    approvalPolicy,
+    approvalsReviewer,
+    sandboxMode,
+    effectiveWorktreeMode,
+  ]);
+
+  useEffect(() => {
     if (isHomeScope || !sharedSettingsHydrated) {
       return;
     }
@@ -537,11 +629,13 @@ export function ThreadDraftView(props: {
     }
 
     const providerConfigs = useSharedSettings.getState().providerConfigs;
+    const providerModelPreferences = useSharedSettings.getState().providerModelPreferences;
     const providerConfig = providerConfigs[effectiveAgentKind];
     if (!providerConfig) {
       return;
     }
     providerConfigsRef.current = { ...providerConfigs };
+    providerModelPreferencesRef.current = { ...providerModelPreferences };
 
     if (hasLocalConfigEditRef.current) {
       const nextContext = resolveContextSizeValue(
@@ -571,9 +665,12 @@ export function ThreadDraftView(props: {
       return;
     }
 
-    const saved = hasInitialProjectDraft
-      ? resolveSavedProviderDraftConfig(effectiveAgentKind, initialLastDraftConfig, providerConfigs)
-      : providerConfig;
+    const saved = resolveSavedProviderDraftConfig(
+      effectiveAgentKind,
+      hasInitialProjectDraft ? initialLastDraftConfig : undefined,
+      providerConfigs,
+      providerModelPreferences,
+    );
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
     const nextModel = resolved.model;
     const nextEffort = resolved.effort ?? "";
@@ -622,8 +719,7 @@ export function ThreadDraftView(props: {
         providerConfig.approvalsReviewer !== nextReviewer ||
         providerConfig.sandboxMode !== nextSandbox)
     ) {
-      providerConfigsRef.current[effectiveAgentKind] = resolved;
-      setProviderConfig(effectiveAgentKind, resolved);
+      persistProviderConfigRef.current(effectiveAgentKind, resolved);
     }
 
     updateProjectDraftConfig(project.id, {
@@ -803,9 +899,20 @@ export function ThreadDraftView(props: {
         persistProviderConfig(effectiveAgentKind, snapshot);
       }
       const targetSaved = isHomeScope ? undefined : providerConfigsRef.current[nextKind];
+      const targetPreference = resolveProviderModelPreference(
+        nextKind as AgentStatus["kind"],
+        nextModel,
+        providerConfigsRef.current,
+        providerModelPreferencesRef.current,
+      );
+      const targetBase = { ...targetSaved };
+      delete targetBase.effort;
+      delete targetBase.fast;
       const resolved = resolveProviderDraftConfig(targetAgentForConfig, {
-        ...(targetSaved ?? {}),
+        ...targetBase,
         model: nextModel,
+        ...(targetPreference?.effort !== undefined ? { effort: targetPreference.effort } : {}),
+        ...(targetPreference?.fast !== undefined ? { fast: targetPreference.fast } : {}),
       });
       persistProviderConfig(nextKind, resolved);
       setModel(resolved.model);
@@ -833,10 +940,17 @@ export function ThreadDraftView(props: {
         worktreeMode: effectiveWorktreeMode,
       });
     } else {
+      const modelPreference = resolveProviderModelPreference(
+        effectiveAgentKind as AgentStatus["kind"],
+        nextModel,
+        providerConfigsRef.current,
+        providerModelPreferencesRef.current,
+      );
       latestConfigPatchRef.current(
         patchConfigForModelChange(selectedAgentForConfig.capabilities, nextModel, {
-          ...(effort ? { effort } : {}),
+          ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
           ...(contextSize ? { contextSize } : {}),
+          ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
         }),
       );
     }

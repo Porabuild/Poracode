@@ -156,6 +156,7 @@ describe("sharedSettingsFile", () => {
       prMergeMethod: "squash",
       commitDefaultAction: "commit-push",
       providerConfigs: {},
+      providerModelPreferences: {},
       lastPresentationModeByAgent: {},
       lastUsedProjectDirs: {},
       editorLspEnabled: false,
@@ -290,6 +291,7 @@ describe("sharedSettingsFile", () => {
       prMergeMethod: "squash",
       commitDefaultAction: "commit-push",
       providerConfigs: {},
+      providerModelPreferences: {},
       lastPresentationModeByAgent: {},
       lastUsedProjectDirs: {},
       editorLspEnabled: false,
@@ -416,6 +418,26 @@ describe("sharedSettingsFile", () => {
     const raw = readFileSync(settingsPath, "utf8");
     expect(raw.endsWith("\n")).toBe(true);
     expect(raw).toContain("\n  "); // two-space indent
+  });
+
+  it("round-trips app-wide provider model preferences", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeSharedSettingsFile(settingsPath, {
+      ...defaultSharedSettings,
+      providerModelPreferences: {
+        codex: {
+          "gpt-5.6-luna": { effort: "max", fast: true },
+          "gpt-5.6-sol": { effort: "high", fast: false },
+        },
+      },
+    });
+
+    expect(readSharedSettingsFile(settingsPath).providerModelPreferences).toEqual({
+      codex: {
+        "gpt-5.6-luna": { effort: "max", fast: true },
+        "gpt-5.6-sol": { effort: "high", fast: false },
+      },
+    });
   });
 
   it("preserves valid settings when provider configs contain invalid entries", () => {

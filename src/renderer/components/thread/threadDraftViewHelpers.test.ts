@@ -102,7 +102,7 @@ describe("resolveThinkingValue", () => {
 });
 
 describe("resolveSavedProviderDraftConfig", () => {
-  it("fills an omitted context window from the app-wide provider preset", () => {
+  it("fills an omitted context window and model controls from app-wide preferences", () => {
     const resolved = resolveSavedProviderDraftConfig(
       "codex",
       { agentKind: "codex", model: "gpt-5.6-sol", effort: "high" },
@@ -118,10 +118,31 @@ describe("resolveSavedProviderDraftConfig", () => {
 
     expect(resolved).toMatchObject({
       model: "gpt-5.6-sol",
-      effort: "high",
+      effort: "medium",
       contextSize: "400k",
+      fast: false,
     });
-    expect(resolved?.fast).toBeUndefined();
+  });
+
+  it("uses global model preferences instead of a different project's effort and Fast", () => {
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        {
+          agentKind: "codex",
+          model: "gpt-5.6-luna",
+          effort: "low",
+          fast: false,
+        },
+        { codex: { model: "gpt-5.6-sol", effort: "high", fast: false } },
+        {
+          codex: {
+            "gpt-5.6-luna": { effort: "max", fast: true },
+            "gpt-5.6-sol": { effort: "high", fast: false },
+          },
+        },
+      ),
+    ).toMatchObject({ model: "gpt-5.6-luna", effort: "max", fast: true });
   });
 
   it("keeps an explicit last-draft context size over the provider preset", () => {

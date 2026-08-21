@@ -14,6 +14,24 @@ import {
   resolveReasoningSelection,
 } from "@/shared/agentSelection";
 import { i18n } from "@/renderer/i18n/i18n";
+import type { ProviderModelPreference } from "@/shared/settings";
+
+export function resolveProviderModelPreference(
+  agentKind: AgentStatus["kind"],
+  model: string,
+  providerConfigs: Record<string, ProviderDraftConfig>,
+  providerModelPreferences: Record<string, Record<string, ProviderModelPreference>>,
+): ProviderModelPreference | undefined {
+  const saved = providerModelPreferences[agentKind]?.[model];
+  if (saved) return saved;
+
+  const legacy = providerConfigs[agentKind];
+  if (legacy?.model !== model) return undefined;
+  return {
+    ...(legacy.effort ? { effort: legacy.effort } : {}),
+    ...(legacy.fast !== undefined ? { fast: legacy.fast } : {}),
+  };
+}
 
 export function resolvePreferredAgentKind(
   installedAgents: AgentStatus[],
@@ -33,17 +51,44 @@ export function resolveSavedProviderDraftConfig(
   agentKind: AgentStatus["kind"],
   lastDraftConfig: ProjectDraftConfig | undefined,
   providerConfigs: Record<string, ProviderDraftConfig>,
+  providerModelPreferences: Record<string, Record<string, ProviderModelPreference>> = {},
 ): Partial<ProviderDraftConfig> | undefined {
   const providerConfig = providerConfigs[agentKind];
   if (lastDraftConfig?.agentKind === agentKind && lastDraftConfig.model.trim()) {
+    const projectConfig = { ...lastDraftConfig };
+    delete projectConfig.effort;
+    delete projectConfig.fast;
+    const modelPreference = resolveProviderModelPreference(
+      agentKind,
+      lastDraftConfig.model,
+      providerConfigs,
+      providerModelPreferences,
+    );
     // Older project drafts predate context-window persistence. Preserve their
     // other choices while filling only that missing field from the provider preset.
-    return !lastDraftConfig.contextSize && providerConfig?.contextSize
-      ? { ...lastDraftConfig, contextSize: providerConfig.contextSize }
-      : lastDraftConfig;
+    // Effort and Fast are app-wide model preferences rather than project state.
+    return {
+      ...projectConfig,
+      ...(!lastDraftConfig.contextSize && providerConfig?.contextSize
+        ? { contextSize: providerConfig.contextSize }
+        : {}),
+      ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+      ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
+    };
   }
 
-  return providerConfig;
+  if (!providerConfig) return undefined;
+  const modelPreference = resolveProviderModelPreference(
+    agentKind,
+    providerConfig.model,
+    providerConfigs,
+    providerModelPreferences,
+  );
+  return {
+    ...providerConfig,
+    ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+    ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
+  };
 }
 
 export function resolveModelValue(agent: AgentStatus, preferred?: string): string {

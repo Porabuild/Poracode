@@ -25,6 +25,32 @@ describe("shared settings defaults", () => {
     expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
   });
 
+  it("preserves global provider and model effort/Fast preferences", () => {
+    expect(
+      normalizeSharedSettings({
+        providerModelPreferences: {
+          codex: {
+            "gpt-5.6-luna": { effort: "max", fast: true },
+            "gpt-5.6-sol": { effort: "high", fast: false },
+          },
+        },
+      }).providerModelPreferences,
+    ).toEqual({
+      codex: {
+        "gpt-5.6-luna": { effort: "max", fast: true },
+        "gpt-5.6-sol": { effort: "high", fast: false },
+      },
+    });
+  });
+
+  it("adds an empty model preference map to the previous shared-settings shape", () => {
+    expect(
+      normalizeSharedSettings({
+        providerConfigs: { codex: { model: "gpt-5.6-sol", effort: "high", fast: false } },
+      }).providerModelPreferences,
+    ).toEqual({});
+  });
+
   it("adds automatic Windows shell settings to a previous settings shape", () => {
     const normalized = normalizeSharedSettings({ terminalPosition: "right" });
     expect(normalized).toMatchObject({
@@ -132,6 +158,10 @@ describe("shared settings defaults", () => {
         qwen: { model: "qwen3.8-max-preview", mode: "agent", approvalPolicy: "auto" },
         "claude:qwen": { model: "qwen3.8-max-preview" },
       },
+      providerModelPreferences: {
+        qwen: { "qwen3.8-max-preview": { effort: "xhigh", fast: false } },
+        "claude:qwen": { "qwen3.8-max-preview": { effort: "high", fast: true } },
+      },
       commitGenProvider: "qwen",
       commitGenModel: "qwen3.8-max-preview",
       favoriteModels: [
@@ -172,6 +202,10 @@ describe("shared settings defaults", () => {
 
     expect(migrated.providerConfigs.qwen?.model).toBe("qwen3.8-max");
     expect(migrated.providerConfigs["claude:qwen"]?.model).toBe("qwen3.8-max-preview");
+    expect(migrated.providerModelPreferences).toMatchObject({
+      qwen: { "qwen3.8-max": { effort: "xhigh", fast: false } },
+      "claude:qwen": { "qwen3.8-max-preview": { effort: "high", fast: true } },
+    });
     expect(migrated.commitGenModel).toBe("qwen3.8-max");
     expect(migrated.favoriteModels).toEqual([
       { agentKind: "qwen", modelId: "qwen3.8-max", presentationMode: "gui" },
