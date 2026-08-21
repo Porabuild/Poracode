@@ -71,11 +71,15 @@ function makeConfigSyncSession(
     currentConfig?: ThreadConfig;
     agentMcpCapabilities?: { http?: boolean; sse?: boolean } | undefined;
     assumedMcpCapabilities?: { http?: boolean; sse?: boolean };
+    optimisticMcpTransports?: readonly ("stdio" | "http" | "sse")[];
     mcpServers?: Array<{
       id: string;
       name: string;
       timeoutMs: number;
-      transport: { type: "http"; url: string; headers: Record<string, string> };
+      transport:
+        | { type: "http"; url: string; headers: Record<string, string> }
+        | { type: "sse"; url: string; headers: Record<string, string> }
+        | { type: "stdio"; command: string; args: string[]; env: Record<string, string> };
     }>;
     fsTextCapability?: boolean;
     initializeMeta?: Record<string, unknown>;
@@ -163,6 +167,7 @@ function makeConfigSyncSession(
   session["agentMcpCapabilities"] =
     "agentMcpCapabilities" in overrides ? overrides.agentMcpCapabilities : { http: true };
   session["assumedMcpCapabilities"] = overrides.assumedMcpCapabilities;
+  session["optimisticMcpTransports"] = overrides.optimisticMcpTransports;
   session["currentConfig"] = overrides.currentConfig ?? {
     model: "model-a",
     effort: "low",
@@ -1613,6 +1618,123 @@ describe("ACP client protocol helpers", () => {
     await expect(session.openThread({ model: "model-a", browserMcp: true })).rejects.toMatchObject({
       code: -32603,
     });
+    expect(connection.newSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("relays optimistic stdio transports on the first attempt and keeps them when accepted", async () => {
+    // Kimi-shaped agent: advertises http/sse but has no way to advertise that
+    // it lacks stdio (the ACP schema has no such flag). Once it grows support
+    // the servers must flow with no code change, so the first attempt carries
+    // them and success keeps them.
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: { http: true, sse: true },
+      optimisticMcpTransports: ["stdio"],
+      mcpServers: [
+        {
+          id: "fs",
+          name: "fs",
+          timeoutMs: 30_000,
+          transport: { type: "stdio", command: "npx", args: ["-y", "fs-mcp"], env: {} },
+        },
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: {},
+          },
+        },
+      ],
+    });
+
+    await expect(session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+      "session-1",
+    );
+
+    expect(connection.newSession).toHaveBeenCalledTimes(1);
+    expect(connection.newSession).toHaveBeenCalledWith({
+      cwd: "C:\\repo",
+      mcpServers: [
+        { name: "fs", command: "npx", args: ["-y", "fs-mcp"], env: [] },
+        { type: "http", name: "browser", url: "http://127.0.0.1:9123/mcp", headers: [] },
+      ],
+    });
+  });
+
+  it("retries without optimistic stdio transports on Kimi's runtime-identity failure", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: { http: true, sse: true },
+      optimisticMcpTransports: ["stdio"],
+      mcpServers: [
+        {
+          id: "fs",
+          name: "fs",
+          timeoutMs: 30_000,
+          transport: { type: "stdio", command: "npx", args: ["server"], env: {} },
+        },
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: {},
+          },
+        },
+      ],
+    });
+    // Kimi 0.38.0 surfaces the converter throw as a bare -32603 whose data
+    // carries the details string (MoonshotAI/kimi-code#3069).
+    connection.newSession
+      .mockRejectedValueOnce(
+        RequestError.internalError({
+          details: "ACP stdio MCP server fs does not declare a runtime identity",
+        }),
+      )
+      .mockResolvedValueOnce({
+        sessionId: "session-1",
+        modes: { availableModes: [] },
+        configOptions: [],
+      });
+
+    try {
+      await expect(session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+        "session-1",
+      );
+
+      expect(connection.newSession).toHaveBeenCalledTimes(2);
+      // The retry keeps remote servers (advertised) and drops only stdio.
+      expect(connection.newSession).toHaveBeenLastCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [
+          { type: "http", name: "browser", url: "http://127.0.0.1:9123/mcp", headers: [] },
+        ],
+      });
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("does not retry optimistic stdio transports after an unrelated session-open failure", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: { http: true, sse: true },
+      optimisticMcpTransports: ["stdio"],
+      mcpServers: [
+        {
+          id: "fs",
+          name: "fs",
+          timeoutMs: 30_000,
+          transport: { type: "stdio", command: "npx", args: ["server"], env: {} },
+        },
+      ],
+    });
+    connection.newSession.mockRejectedValueOnce(new Error("transport closed"));
+
+    await expect(session.openThread({ model: "model-a" })).rejects.toThrow("transport closed");
     expect(connection.newSession).toHaveBeenCalledTimes(1);
   });
 

@@ -17,6 +17,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
   ThreadGoalControl,
+  McpTransportKind,
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
@@ -230,6 +231,16 @@ export interface CreateStructuredSessionInput {
    * is the same content the bridge would have served.
    */
   acpFsTextCapability?: boolean;
+  /**
+   * MCP transports relayed optimistically: included in the first
+   * `session/new` / `session/load` attempt and dropped from the retry set if
+   * opening fails with a protocol compatibility error. Use for agents that
+   * fail session-open on a transport the ACP schema gives them no way to
+   * decline (stdio has no capability flag): the worst case is one failed
+   * roundtrip per launch, and an agent that grows support for the transport
+   * picks its servers up with no code change here.
+   */
+  acpOptimisticMcpTransports?: readonly McpTransportKind[];
 }
 
 export type AcpEmptyResponseErrorResolver = (input: {
