@@ -66,8 +66,6 @@ export interface ProviderModelMenuProps {
   lockedAgentKind?: string;
   presentationMode?: ThreadPresentationMode;
   isDisabled?: boolean;
-  /** Fast mode is on for the current draft, so supported rows mark it filled. */
-  isFastEnabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
   collapseTier?: number;
@@ -261,7 +259,6 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     lockedAgentKind,
     presentationMode,
     isDisabled,
-    isFastEnabled = false,
     hideLabelOnWrap,
     forceHideLabel = false,
     collapseTier,
@@ -287,6 +284,8 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const recents = useSharedSettings((s) => s.recentModels);
   const providerOrder = useSharedSettings((s) => s.providerOrder);
   const hiddenModels = useSharedSettings((s) => s.hiddenModels);
+  const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
+  const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const toggleFavoriteModel = useSharedSettings((s) => s.toggleFavoriteModel);
   const latestFavoritesRef = useRef(favorites);
   const latestRecentsRef = useRef(recents);
@@ -371,6 +370,18 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     `recent:${currentAgentKind}:${effectiveCurrentModel}`,
     `model:${currentProviderKey}:${effectiveCurrentModel}`,
   ]);
+
+  // Rows mirror the Fast preference saved per model — an explicitly saved value
+  // wins, otherwise the app default keeps Fast on for models that support it.
+  // This is intentionally not the current draft's toggle: the icon answers
+  // "what will selecting this model do", so every row resolves independently.
+  function modelFastEnabled(providerKind: string, modelId: string): boolean {
+    const saved = providerModelPreferences[providerKind]?.[modelId];
+    if (saved) return saved.fast ?? true;
+    const legacy = providerConfigs[providerKind];
+    if (legacy?.model === modelId && legacy.fast !== undefined) return legacy.fast;
+    return true;
+  }
 
   function handleSelect(itemId: string) {
     const selected = items.find((item) => item.id === itemId);
@@ -475,7 +486,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
           mobile={mobile}
           mobileExpanded={mobile && expanded}
-          isFastEnabled={isFastEnabled}
+          modelFastEnabled={modelFastEnabled}
           toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
             toggleFavoriteModel(
               providerKind,
@@ -524,7 +535,7 @@ function WindowedProviderModelList(props: {
   modelRowHeight: number;
   mobile: boolean;
   mobileExpanded: boolean;
-  isFastEnabled: boolean;
+  modelFastEnabled: (providerKind: string, modelId: string) => boolean;
   toggleFavorite: (
     providerKind: string,
     modelId: string,
@@ -540,7 +551,7 @@ function WindowedProviderModelList(props: {
     modelRowHeight,
     mobile,
     mobileExpanded,
-    isFastEnabled,
+    modelFastEnabled,
     toggleFavorite,
     onSelect,
   } = props;
@@ -820,17 +831,18 @@ function WindowedProviderModelList(props: {
               // Render the head as the model name and the tail as muted hint.
               const { name, hint } = splitModelLabel(item.label);
               const mutedHint = [hint, item.contextDescription].filter(Boolean).join(" · ");
+              const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
               const content = (
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="min-w-0 truncate">{name}</span>
                   {item.supportsFast ? (
-                    // Filled while Fast mode is on, outlined when the model
-                    // merely supports it.
+                    // Filled when Fast mode is saved on for this model,
+                    // outlined when it merely supports it or Fast was saved off.
                     <Zap
                       role="img"
-                      aria-label={isFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
+                      aria-label={rowFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
                       className={
-                        isFastEnabled
+                        rowFastEnabled
                           ? "size-3 shrink-0 fill-current text-muted"
                           : "size-3 shrink-0 text-muted/60"
                       }

@@ -122,6 +122,8 @@ describe("ProviderModelMenu", () => {
       favoriteModels: [],
       recentModels: [],
       hiddenModels: {},
+      providerConfigs: {},
+      providerModelPreferences: {},
     });
   });
 
@@ -194,6 +196,57 @@ describe("ProviderModelMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select model" }));
 
     expect(await screen.findByRole("option", { name: /Opus/u })).toHaveTextContent("· 2x");
+  });
+
+  it("shows each fast-capable model's saved Fast preference", async () => {
+    const provider = makeProvider(2);
+    provider.capabilities.fastModels = ["model-1", "model-2"];
+    useSharedSettings.setState({
+      providerModelPreferences: {
+        codex: {
+          "model-1": { fast: false },
+          "model-2": { fast: true },
+        },
+      },
+    });
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getByRole("img", { name: "Supports Fast mode" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("img", { name: "Fast mode" })).toBeInTheDocument();
+  });
+
+  it("uses the model default when a saved preference omits Fast", async () => {
+    const provider = makeProvider(1);
+    provider.capabilities.fastModels = ["model-1"];
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "model-1", fast: false } },
+      providerModelPreferences: { codex: { "model-1": { effort: "high" } } },
+    });
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getByRole("img", { name: "Fast mode" })).toBeInTheDocument();
   });
 
   it("ignores provider prose model descriptions", async () => {

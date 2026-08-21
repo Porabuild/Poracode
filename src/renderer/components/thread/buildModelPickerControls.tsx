@@ -240,8 +240,6 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       ...(lockedAgentKind ? { lockedAgentKind } : {}),
       ...(presentationMode ? { presentationMode } : {}),
       ...(isDisabled !== undefined ? { isDisabled } : {}),
-      // Rows mark Fast mode filled while it is on for this draft.
-      ...(fast === true ? { isFastEnabled: true } : {}),
       hideLabelOnWrap,
       tier: 5,
       onChange: onProviderModelChange,
