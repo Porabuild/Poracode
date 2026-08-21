@@ -85,7 +85,6 @@ export type ComposerControl =
       lockedAgentKind?: string;
       presentationMode?: ThreadPresentationMode;
       isDisabled?: boolean;
-      isFastEnabled?: boolean;
       hideLabelOnWrap?: boolean;
       openSignal?: number;
       onChange: (next: {
@@ -443,7 +442,6 @@ export function ThreadComposer(props: {
           {...(control.lockedAgentKind ? { lockedAgentKind: control.lockedAgentKind } : {})}
           {...(control.presentationMode ? { presentationMode: control.presentationMode } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
-          {...(control.isFastEnabled !== undefined ? { isFastEnabled: control.isFastEnabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}
           {...(hideOnWrap || shouldHideLabel
             ? {
