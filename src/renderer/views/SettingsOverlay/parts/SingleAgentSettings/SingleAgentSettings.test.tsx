@@ -309,6 +309,8 @@ vi.mock("@/renderer/components/common", () => ({
     />
   ),
   PixelLoader: () => <span data-testid="pixel-loader" />,
+  // Reached through the Cursor panel's profile list, which confirms removals.
+  ConfirmDialog: () => null,
   Select: () => <select aria-label="mock-select" />,
   ToggleSwitch: (props: {
     "aria-label": string;

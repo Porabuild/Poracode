@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { ACP_GENERIC_KIND_PREFIX, CLAUDE_PROFILE_KIND_PREFIX } from "@/shared/contracts";
+import { ACP_GENERIC_KIND_PREFIX, baseAgentKind, isAgentProfileKind } from "@/shared/contracts";
 import type { StatusTone } from "./statusTone";
 import { syncMaskScanPhase } from "./syncMaskScanPhase";
 import { lookupProviderRegistration } from "./providerRegistry";
@@ -67,16 +67,27 @@ function fallbackInitial(label: string | undefined): string {
   const raw = label?.startsWith(ACP_GENERIC_KIND_PREFIX)
     ? label.slice(ACP_GENERIC_KIND_PREFIX.length).trim()
     : (label?.trim() ?? "");
-  return (raw.match(/[A-Za-z0-9]/)?.[0] ?? "?").toUpperCase();
+  // Prefer a latin/digit initial, but fall back to the first grapheme of any
+  // script so a profile named "Работа" or "工作" gets its own initial instead
+  // of a shared "?" badge. Segmenting keeps combining marks and emoji whole.
+  const latin = raw.match(/[A-Za-z0-9]/)?.[0];
+  if (latin) return latin.toUpperCase();
+  const [firstGrapheme] = new Intl.Segmenter().segment(raw);
+  return (firstGrapheme?.segment ?? "?").toUpperCase();
 }
 
-function claudeProfileBadgeLabel(kind: string, fallbackLabel: string | undefined): string {
-  const profileId = kind.slice(CLAUDE_PROFILE_KIND_PREFIX.length);
+function profileBadgeLabel(kind: string, fallbackLabel: string | undefined): string {
+  const baseKind = baseAgentKind(kind);
+  const profileId = kind.slice(baseKind.length + 1);
   const label = fallbackLabel?.trim();
   if (!label) return profileId;
-  if (label === kind || label.toLowerCase().startsWith(CLAUDE_PROFILE_KIND_PREFIX))
+  // An unlabelled status can arrive carrying the raw kind; the instance id
+  // reads better as a badge than the provider's first letter.
+  if (label === kind || label.toLowerCase().startsWith(`${baseKind.toLowerCase()}:`))
     return profileId;
-  const profileLabel = label.replace(/^claude\s+/i, "").trim();
+  const profileLabel = label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
+    ? label.slice(baseKind.length).trim()
+    : label;
   return profileLabel || profileId;
 }
 
@@ -135,12 +146,14 @@ export function ProviderIcon(props: {
   const rendered = (
     <Icon tone={tone} {...(props.className ? { className: props.className } : {})} />
   );
-  if (props.kind.startsWith(CLAUDE_PROFILE_KIND_PREFIX)) {
+  // Every multi-profile provider gets the same instance badge, so the icon
+  // needs no per-provider knowledge.
+  if (isAgentProfileKind(props.kind)) {
     return (
       <span className={`relative inline-flex ${props.className ?? ""}`}>
         {rendered}
         <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 items-center justify-center rounded-full border border-background bg-surface text-[6px] font-semibold leading-none text-foreground">
-          {fallbackInitial(claudeProfileBadgeLabel(props.kind, props.fallbackLabel))}
+          {fallbackInitial(profileBadgeLabel(props.kind, props.fallbackLabel))}
         </span>
       </span>
     );

@@ -34,6 +34,7 @@ export interface ProviderModelRow {
   providerKey: string;
   hiddenModelsKey: string;
   providerIcon?: string;
+  providerLabel: string;
   presentationMode?: ThreadPresentationMode;
   modelId: string;
   label: string;

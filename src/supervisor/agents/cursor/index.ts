@@ -1,10 +1,13 @@
-import type { PromptSegment } from "@/shared/contracts";
+import type { AgentInstanceConfig, PromptSegment } from "@/shared/contracts";
+import { cursorProfileKind } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
+  inheritBaseSpawnEnv,
+  mergeSpawnEnv,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -49,6 +52,25 @@ const CURSOR_PLUGIN_VERSION = readBundledCursorPluginVersion();
 
 warnIfPluginManifestMissing("cursor", CURSOR_PLUGIN_VERSION);
 
+interface CursorAdapterOptions {
+  kind?: string;
+  label?: string;
+  apiKey?: string;
+}
+
+export function createCursorProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const apiKey = instance.environment?.CURSOR_API_KEY?.value.trim();
+  if (!apiKey) {
+    throw new Error("Cursor profiles require a CURSOR_API_KEY.");
+  }
+  const profileLabel = instance.displayName ?? instance.id;
+  return createCursorAdapter({
+    kind: cursorProfileKind(instance.id),
+    label: `Cursor ${profileLabel}`,
+    apiKey,
+  });
+}
+
 /**
  * Hook coverage gap: Cursor's `beforeShellExecution` / `beforeMCPExecution`
  * fire on every command, not only when the user is being prompted for
@@ -58,6 +80,17 @@ warnIfPluginManifestMissing("cursor", CURSOR_PLUGIN_VERSION);
  */
 function cursorHookActiveTerminalFallback(hint: TerminalStatusHint): boolean {
   return hint.status === "needs_approval";
+}
+
+function withoutCursorProfileLogin(status: Awaited<ReturnType<typeof detectAgentInstall>>) {
+  const {
+    authLogoutSupported: _authLogoutSupported,
+    authMethods: _authMethods,
+    loginCommand: _loginCommand,
+    preferTerminalLogin: _preferTerminalLogin,
+    ...profileStatus
+  } = status;
+  return profileStatus;
 }
 
 /**
@@ -72,22 +105,35 @@ export function rewriteCursorLoadSessionError(error: unknown, _sessionId: string
   return Object.assign(new Error(message), { cause: error });
 }
 
-export function createCursorAdapter(): AgentAdapter {
+export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAdapter {
+  const kind = options.kind ?? cursorDetectionSpec.kind;
+  const label = options.label ?? cursorDetectionSpec.label;
+  const detectionSpec = options.apiKey
+    ? {
+        ...cursorDetectionSpec,
+        kind,
+        label,
+        baseSpawnEnv: {
+          ...cursorDetectionSpec.baseSpawnEnv,
+          CURSOR_API_KEY: options.apiKey,
+        },
+      }
+    : cursorDetectionSpec;
   return {
-    kind: cursorDetectionSpec.kind,
-    label: cursorDetectionSpec.label,
-    binary: cursorDetectionSpec.binary,
+    kind,
+    label,
+    binary: detectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "cursor",
-          label: cursorDetectionSpec.label,
+          label,
           globalPath: ".cursor/skills",
           projectPath: ".cursor/skills",
         },
         {
           id: "cursor-legacy",
-          label: cursorDetectionSpec.label,
+          label,
           globalPath: ".cursor/skills-cursor",
         },
         {
@@ -119,7 +165,8 @@ export function createCursorAdapter(): AgentAdapter {
         project: ["cursor", "agents", "claude", "codex"],
       },
     },
-    ...(cursorDetectionSpec.update ? { update: cursorDetectionSpec.update } : {}),
+    ...(detectionSpec.update ? { update: detectionSpec.update } : {}),
+    ...inheritBaseSpawnEnv(detectionSpec),
     // Detection returns environment-scoped capabilities through AgentStatus.
     // Keep the adapter's process-wide fallback immutable: native and WSL
     // probes run concurrently, and a mutable singleton lets the last probe
@@ -148,14 +195,25 @@ export function createCursorAdapter(): AgentAdapter {
     },
 
     detectInstall: async (ctx) => {
-      const [cliStatus, sdkProbe] = await Promise.all([
-        detectAgentInstall(ctx, cursorDetectionSpec),
-        probeCursorSdkRuntime(ctx),
+      const [detectedCliStatus, sdkProbe] = await Promise.all([
+        detectAgentInstall(ctx, detectionSpec),
+        options.apiKey
+          ? probeCursorSdkRuntime(ctx, {}, options.apiKey)
+          : probeCursorSdkRuntime(ctx),
       ]);
+      // `baseSpawnEnv` intentionally carries the profile key into every real
+      // provider process. Detection also uses it to decorate renderer-driven
+      // terminal login methods, so remove those methods for profiles before
+      // the status crosses IPC; the encrypted profile editor owns auth.
+      const cliStatus = options.apiKey
+        ? withoutCursorProfileLogin(detectedCliStatus)
+        : detectedCliStatus;
       return applyCursorSdkProbe(
         cliStatus,
         sdkProbe,
-        configuredCursorStructuredRuntime(ctx?.agentSettings),
+        options.apiKey && ctx?.agentSettings?.structuredRuntime === undefined
+          ? "sdk"
+          : configuredCursorStructuredRuntime(ctx?.agentSettings),
       );
     },
     // Cursor CLI has no documented per-launch MCP config or isolated config
@@ -178,9 +236,23 @@ export function createCursorAdapter(): AgentAdapter {
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       if (input.presentationMode === "gui") {
-        const resolved = resolveCursorStructuredRuntime(input.agentSettings, input.sessionRef);
+        const agentSettings = options.apiKey
+          ? {
+              ...input.agentSettings,
+              sdkApiKey: options.apiKey,
+              ...(input.agentSettings?.structuredRuntime === undefined
+                ? { structuredRuntime: "sdk" }
+                : {}),
+            }
+          : input.agentSettings;
+        const resolved = resolveCursorStructuredRuntime(agentSettings, input.sessionRef);
         if (resolved.runtime === "sdk") {
-          return CursorSdkSession.create(input);
+          const env = mergeSpawnEnv(input.env, input.baseSpawnEnv);
+          return CursorSdkSession.create({
+            ...input,
+            ...(agentSettings ? { agentSettings } : {}),
+            ...(env ? { env } : {}),
+          });
         }
       }
       const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);

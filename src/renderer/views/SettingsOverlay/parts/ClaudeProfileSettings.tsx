@@ -1,17 +1,6 @@
 import { useRef, useState } from "react";
 import { Button, Popover, toast } from "@heroui/react";
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Lock,
-  LockOpen,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Wand2,
-  X,
-} from "lucide-react";
+import { Check, ChevronDown, Lock, LockOpen, Plus, Wand2, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -29,6 +18,8 @@ import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewH
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import { AgentProfileList } from "./AgentProfileList";
+import type { NativeAgentProfileSupport } from "./agentRegistryNative";
 import {
   applyPresetEnvRows,
   cleanModels,
@@ -44,7 +35,6 @@ import {
   SAVED_SECRET_MASK,
   selectedEffortsFromConfig,
   shouldTreatEnvKeyAsSensitive,
-  uniqueProfileId,
   type EnvRow,
   type ModelRow,
   type ProfilePreset,
@@ -347,7 +337,7 @@ function ClaudeProfileEditor(props: {
     // Seal sensitive env in main first (returns the instance with sealed env),
     // then persist the non-secret config through the store.
     void readBridge()
-      .setClaudeProfileEnvironment({ instanceId: props.instance.id, environment })
+      .setProfileEnvironment({ instanceId: props.instance.id, environment })
       .then((updated) => {
         setAgentInstance({ ...updated, displayName: trimmedName, config });
         setEnvRows(rowsFromEnvironment(updated.environment, nextRowId));
@@ -603,228 +593,64 @@ function ClaudeProfileEditor(props: {
   );
 }
 
-// ── Simple profile list (rendered on the base "Claude Code" page) ────────────
+// ── Profile list descriptor (rendered on the base "Claude Code" page) ────────
 
-function ClaudeProfileRow(props: {
-  instance: AgentInstanceConfig;
-  config: ClaudeProfileInstanceConfig;
-  onOpen: () => void;
-  onRemove: (id: string) => void;
-}) {
-  const { t } = useLingui();
-  const label = props.instance.displayName ?? props.instance.id;
+/**
+ * Claude profiles are distinguished by their config directory, and optionally
+ * point at an external provider through their env vars.
+ */
+function ClaudeProfileConfigDir(props: { instance: AgentInstanceConfig }) {
+  let config: ClaudeProfileInstanceConfig | undefined;
+  try {
+    config = parseClaudeProfileInstanceConfig(props.instance.config);
+  } catch {
+    // Malformed records are skipped by the supervisor too; show the id only.
+    config = undefined;
+  }
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/15 bg-surface-secondary/30 px-3 py-2">
-      <button
-        type="button"
-        className="flex min-w-0 flex-1 flex-col items-start text-left"
-        onClick={props.onOpen}
-      >
-        <span className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
-          {label}
-          {profileUsesExternalProvider(props.instance, props.config) ? (
-            <span className="rounded bg-primary/15 px-1 py-px text-[10px] font-medium text-primary">
-              <Trans>External</Trans>
-            </span>
-          ) : null}
+    <span className="flex items-center gap-1.5">
+      {config && profileUsesExternalProvider(props.instance, config) ? (
+        <span className="rounded bg-primary/15 px-1 py-px text-[10px] font-medium text-primary">
+          <Trans>External</Trans>
         </span>
-        <span className="max-w-full truncate font-mono text-[11px] text-muted">
-          {props.config.configDir}
-        </span>
-      </button>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button
-          isIconOnly
-          aria-label={t`Open ${label}`}
-          size="sm"
-          variant="ghost"
-          className="h-7 w-7 min-w-7"
-          onPress={props.onOpen}
-        >
-          <ChevronRight className="size-3.5" />
-        </Button>
-        <Button
-          isIconOnly
-          aria-label={t`Remove Claude profile`}
-          size="sm"
-          variant="ghost"
-          className="h-7 w-7 min-w-7 text-danger"
-          onPress={() => props.onRemove(props.instance.id)}
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
-      </div>
-    </div>
+      ) : null}
+      <span className="truncate font-mono">{config?.configDir ?? props.instance.id}</span>
+    </span>
   );
 }
+
+export const claudeProfileSupport: NativeAgentProfileSupport = {
+  driver: "claude",
+  description: (
+    <Trans>
+      Separate Claude Code accounts by config directory, or point a profile at an external provider
+      (z.ai, …). Open a profile to configure its env vars, models, and effort.
+    </Trans>
+  ),
+  field: {
+    ariaLabel: msg`New Claude profile config directory`,
+    // Live default shown as the placeholder and used verbatim when left empty.
+    placeholderFor: (name) => defaultConfigDir(name),
+  },
+  RowSubtitle: ClaudeProfileConfigDir,
+  removalBody: (profileName) => (
+    <Trans>
+      Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config
+      directory and the Claude credentials inside it stay on disk.
+    </Trans>
+  ),
+  createPayload: ({ id, displayName, field }) => ({
+    driver: "claude",
+    id,
+    displayName,
+    config: { configDir: field },
+  }),
+};
 
 export function ClaudeProfileSettings(props: {
   onOpenProfile?: ((profileKind: string) => void) | undefined;
 }) {
-  const { t } = useLingui();
-  const agentInstances = useSharedSettings((s) => s.agentInstances ?? {});
-  const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
-  const removeAgentInstance = useSharedSettings((s) => s.removeAgentInstance);
-  const removeAgentStatus = useAgentStatusesStore((s) => s.removeAgentStatus);
-  const [isAdding, setIsAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newConfigDir, setNewConfigDir] = useState("");
-
-  const profiles: Array<{ instance: AgentInstanceConfig; config: ClaudeProfileInstanceConfig }> =
-    [];
-  for (const instance of Object.values(agentInstances)) {
-    if (instance.driver !== "claude") continue;
-    try {
-      const config = parseClaudeProfileInstanceConfig(instance.config);
-      profiles.push({ instance, config });
-    } catch {
-      // Ignore malformed records here; the supervisor skips them too.
-    }
-  }
-  profiles.sort((a, b) =>
-    (a.instance.displayName ?? a.instance.id).localeCompare(
-      b.instance.displayName ?? b.instance.id,
-    ),
-  );
-
-  const canAdd = newName.trim().length > 0;
-  // Live default shown as the dir placeholder; used verbatim when left empty.
-  const suggestedConfigDir = defaultConfigDir(newName);
-
-  function closeAddForm(): void {
-    setIsAdding(false);
-    setNewName("");
-    setNewConfigDir("");
-  }
-
-  function addProfile(): void {
-    const displayName = newName.trim();
-    const configDir = newConfigDir.trim() || suggestedConfigDir;
-    if (!displayName) return;
-    const id = uniqueProfileId(displayName, agentInstances);
-    const instance: AgentInstanceConfig = {
-      id,
-      driver: "claude",
-      displayName,
-      config: { configDir },
-    };
-    setAgentInstance(instance);
-    refreshClaudeProfile(claudeProfileKind(id));
-    closeAddForm();
-    toast.success(t`Claude ${displayName} profile added.`);
-    // Open the new profile's page so it can be pointed at an external provider.
-    props.onOpenProfile?.(claudeProfileKind(id));
-  }
-
-  return (
-    <div className="border-t border-border/10 pt-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">
-            <Trans>Profiles</Trans>
-          </p>
-          <p className="text-xs text-muted">
-            <Trans>
-              Separate Claude Code accounts by config directory, or point a profile at an external
-              provider (z.ai, …). Open a profile to configure its env vars, models, and effort.
-            </Trans>
-          </p>
-        </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-          onPress={() => refreshClaudeProfile()}
-        >
-          <RefreshCw className="size-3" />
-          <Trans>Refresh</Trans>
-        </Button>
-      </div>
-
-      {profiles.length === 0 && !isAdding ? (
-        <p className="py-2 text-xs text-muted">
-          <Trans>No additional Claude profiles.</Trans>
-        </p>
-      ) : null}
-
-      <div className="flex flex-col gap-2">
-        {profiles.map(({ instance, config }) => (
-          <ClaudeProfileRow
-            key={instance.id}
-            instance={instance}
-            config={config}
-            onOpen={() => props.onOpenProfile?.(claudeProfileKind(instance.id))}
-            onRemove={(id) => {
-              const kind = claudeProfileKind(id);
-              removeAgentInstance(id);
-              removeAgentStatus(kind);
-              refreshClaudeProfile();
-              toast.success(t`Claude profile removed.`);
-            }}
-          />
-        ))}
-
-        {isAdding ? (
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] items-center gap-2 rounded-xl border border-border/15 bg-surface-secondary/30 p-3">
-            <Input
-              // Focus the name field when the form is revealed by the explicit
-              // "Add profile" press (the accepted exception to no-autofocus).
-              ref={(node: HTMLInputElement | null) => node?.focus()}
-              aria-label={t`New Claude profile name`}
-              className="min-w-0"
-              placeholder={t`e.g. Work`}
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-            />
-            <Input
-              aria-label={t`New Claude profile config directory`}
-              className="min-w-0"
-              placeholder={suggestedConfigDir}
-              value={newConfigDir}
-              onChange={(event) => setNewConfigDir(event.target.value)}
-            />
-            {/* Icon-only actions matching the saved rows' action pair, so the
-                action column keeps the same width when the draft opens. */}
-            <div className="flex shrink-0 items-center gap-1 justify-self-end">
-              <Button
-                isIconOnly
-                aria-label={t`Add Claude profile`}
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 min-w-7"
-                isDisabled={!canAdd}
-                onPress={addProfile}
-              >
-                <Check className="size-3.5" />
-              </Button>
-              <Button
-                isIconOnly
-                aria-label={t`Cancel new Claude profile`}
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 min-w-7"
-                onPress={closeAddForm}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {!isAdding ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="mt-2 h-7 min-h-7 gap-1 px-2 text-[11px]"
-          onPress={() => setIsAdding(true)}
-        >
-          <Plus className="size-3" />
-          <Trans>Add profile</Trans>
-        </Button>
-      ) : null}
-    </div>
-  );
+  return <AgentProfileList profiles={claudeProfileSupport} onOpenProfile={props.onOpenProfile} />;
 }
 
 /**

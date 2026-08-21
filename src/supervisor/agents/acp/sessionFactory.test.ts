@@ -60,6 +60,44 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
     });
   });
 
+  it("exports merged environment inside WSL before launching the ACP agent", () => {
+    const createSpy = spyOnCreate();
+
+    createAcpStructuredSession(
+      {
+        command: "wsl.exe",
+        args: [
+          "-d",
+          "Ubuntu",
+          "--cd",
+          "/repo",
+          "--exec",
+          "/bin/bash",
+          "-l",
+          "-i",
+          "-c",
+          "cursor-agent acp",
+        ],
+      },
+      makeInput({
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+        baseSpawnEnv: { CURSOR_API_KEY: "profile-key" },
+      }),
+    );
+
+    expect(createSpy.mock.calls[0]?.[0]).toMatchObject({
+      env: { CURSOR_API_KEY: "profile-key" },
+      args: expect.arrayContaining([
+        expect.stringContaining("export CURSOR_API_KEY='profile-key'; cursor-agent acp"),
+      ]),
+    });
+  });
+
   it("passes the command through unchanged when nothing contributes env", () => {
     const createSpy = spyOnCreate();
     const command = { command: "droid", args: ["exec"] };

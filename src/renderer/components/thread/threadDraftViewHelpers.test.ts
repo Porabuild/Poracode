@@ -57,6 +57,31 @@ describe("resolveProviderDraftConfig fast mode", () => {
     const gated = agentWith({ fastDisabledReason: "Fast requests are disabled for this account." });
     expect(resolveProviderDraftConfig(gated, { model: "fast-capable" }).fast).toBeUndefined();
   });
+
+  it("normalizes Cursor profile bracket models before resolving draft controls", () => {
+    expect(
+      resolveProviderDraftConfig(
+        {
+          ...agentWith(),
+          kind: "cursor:work",
+          label: "Cursor Work",
+          capabilities: {
+            ...capabilities,
+            models: [{ id: "gpt-5.1-codex-max", label: "Codex 5.1 Max" }],
+            modelEfforts: { "gpt-5.1-codex-max": ["high"] },
+            fastModels: ["gpt-5.1-codex-max"],
+            thinkingModels: ["gpt-5.1-codex-max"],
+          },
+        },
+        { model: "gpt-5.1-codex-high-thinking-fast" },
+      ),
+    ).toMatchObject({
+      model: "gpt-5.1-codex-max",
+      effort: "high",
+      fast: true,
+      thinking: true,
+    });
+  });
 });
 
 describe("resolveFastValue", () => {

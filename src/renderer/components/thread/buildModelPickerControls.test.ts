@@ -167,6 +167,43 @@ describe("buildControls model preferences", () => {
     );
     expect(onPreferenceChange).toHaveBeenCalledWith("b", { effort: "high", fast: true });
   });
+
+  it("normalizes a Cursor profile's bracket model before building controls", () => {
+    const agent = {
+      kind: "cursor:work",
+      label: "Cursor Work",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "gpt-5.1-codex-max", label: "Codex 5.1 Max" }],
+      },
+    } as AgentStatus;
+    const thread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "cursor:work",
+      config: { model: "gpt-5.1-codex-high-thinking-fast" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    } as Thread;
+
+    const modelControl = buildControls(thread, agent, undefined, vi.fn()).find(
+      (control) => control.kind === "provider-model",
+    );
+
+    expect(modelControl?.kind === "provider-model" ? modelControl.currentModel : undefined).toBe(
+      "gpt-5.1-codex-max",
+    );
+  });
 });
 
 describe("buildModelPickerControls fast toggle", () => {

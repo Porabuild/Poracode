@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createAgentRegistry } from "./registry";
+import { buildAgentRegistry, createAgentRegistry } from "./registry";
 import { buildUnrestrictedChildConfig } from "@/supervisor/crossagentMcp/types";
 
 const EXPECTED_BUILT_IN_ORDER = [
@@ -120,4 +120,22 @@ describe("built-in agent registry", () => {
       });
     },
   );
+});
+
+describe("profile agent registry", () => {
+  it("registers Cursor profiles with their own adapter kinds", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "work",
+        driver: "cursor",
+        displayName: "Work",
+        environment: { CURSOR_API_KEY: { value: "profile-key", sensitive: true } },
+      },
+    ]);
+
+    expect(adapters.find((adapter) => adapter.kind === "cursor:work")).toMatchObject({
+      label: "Cursor Work",
+      baseSpawnEnv: { CURSOR_API_KEY: "profile-key" },
+    });
+  });
 });

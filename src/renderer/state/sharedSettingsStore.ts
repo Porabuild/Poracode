@@ -825,9 +825,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   removeAgentInstance: (instanceId) => {
     const current = get().agentInstances;
-    if (!current[instanceId]) return;
+    const instance = current[instanceId];
+    if (!instance) return;
     const { [instanceId]: _removed, ...agentInstances } = current;
-    const prefix = `claude:${instanceId}`;
+    const prefix = `${instance.driver}:${instanceId}`;
     const removeProfileKey = (values: Record<string, unknown>) =>
       Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
     set({

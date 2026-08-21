@@ -13,7 +13,7 @@ import { Tooltip } from "@heroui/react";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import type { ThreadPresentationMode } from "@/shared/contracts";
+import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import { Button } from "../Button";
 import {
@@ -85,7 +85,7 @@ function normalizeCurrentModelForProvider(
   if (!provider || provider.capabilities.models.some((model) => model.id === modelId)) {
     return modelId;
   }
-  if (provider.kind !== "cursor") {
+  if (baseAgentKind(provider.kind) !== "cursor") {
     return modelId;
   }
   const normalized = migrateCursorBaseId(parseCursorModelId(modelId).baseId);
@@ -419,6 +419,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       <ProviderIcon
         kind={currentAgentKind}
         {...(currentProvider?.icon ? { icon: currentProvider.icon } : {})}
+        fallbackLabel={currentProvider?.label}
         tone="active"
         className="size-3.5 shrink-0"
       />
@@ -878,6 +879,7 @@ function WindowedProviderModelList(props: {
                   <ProviderIcon
                     kind={item.providerKind}
                     {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+                    fallbackLabel={item.providerLabel}
                     tone="inactive"
                     className="size-3 shrink-0"
                   />
@@ -978,6 +980,7 @@ function HeaderProvider(props: {
       <ProviderIcon
         kind={item.providerKind}
         {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+        fallbackLabel={item.label}
         tone="active"
         className="size-3"
       />

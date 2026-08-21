@@ -6,6 +6,7 @@ import type {
   ProviderDraftConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
   agentStatusForPresentation,
@@ -188,7 +189,7 @@ function normalizeCursorPreferredDraft(
   agent: AgentStatus,
   preferred?: Partial<ProviderDraftConfig>,
 ): Partial<ProviderDraftConfig> | undefined {
-  if (agent.kind !== "cursor" || !preferred?.model) {
+  if (baseAgentKind(agent.kind) !== "cursor" || !preferred?.model) {
     return preferred;
   }
   if (agent.capabilities.models.some((model) => model.id === preferred.model)) {

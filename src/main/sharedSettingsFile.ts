@@ -3,8 +3,10 @@ import { writeFileAtomic } from "@/shared/atomicFile";
 import type {
   AgentInstanceConfig,
   AgentInstanceEnvVar,
-  SetClaudeProfileEnvironmentPayload,
+  CreateProfilePayload,
+  SetProfileEnvironmentPayload,
 } from "@/shared/contracts";
+import { agentProfileDriver, isAgentProfileDriver } from "@/shared/contracts";
 import { isSensitiveAgentSetting, sensitiveAgentSettingKeys } from "@/shared/agentSecrets";
 import { encryptSecret } from "@/shared/secretStorage";
 import {
@@ -53,14 +55,14 @@ export function patchSharedSettingsFile(
 }
 
 /**
- * Re-merge supervisor-managed fields and encrypted Claude-profile environments
+ * Re-merge supervisor-managed fields and encrypted provider-profile environments
  * from the on-disk settings into an `incoming` (renderer- or tool-originated)
  * settings object, so a plaintext-capable write can never clobber a secret or a
  * field the supervisor owns. Preserves:
  *   - `acpRegistryInstalledAgents` and `agentHookSupport` (supervisor-managed),
  *   - `acp-generic` agent instances (supervisor-managed), and
- *   - each Claude profile's `environment` (owned by the encrypting
- *     `setClaudeProfileEnvironment` path).
+ *   - each Claude/Cursor profile's `environment` (owned by an encrypting
+ *     main-local write path).
  * Extracted verbatim from the IPC `setSharedSettings` path so every write —
  * including the app-controls MCP `update_settings` tool — applies one guard.
  * `incoming` is assumed already normalized.
@@ -89,10 +91,11 @@ export function mergeManagedSharedSettings(
     Object.entries(incoming.agentInstances)
       .filter(([, instance]) => instance.driver !== "acp-generic")
       .map(([id, instance]): [string, AgentInstanceConfig] => {
-        // A Claude profile's `environment` is owned by the encrypting
-        // `setClaudeProfileEnvironment` path; pin it to disk so a plaintext-
-        // capable write can never leak or clear a saved secret.
-        if (instance.driver !== "claude") return [id, instance];
+        // Profile environments are owned by the encrypting main-local write
+        // path; pin them to disk so a plaintext-capable renderer write can
+        // never leak or clear a saved secret. Driven by the profile-driver
+        // registry, so a new multi-profile provider is covered on registration.
+        if (!isAgentProfileDriver(instance.driver)) return [id, instance];
         const onDiskEnv = onDisk.agentInstances[id]?.environment;
         const next: AgentInstanceConfig = { ...instance };
         if (onDiskEnv) next.environment = onDiskEnv;
@@ -152,30 +155,45 @@ export function applyAgentSecretSetting(
 }
 
 /**
- * Apply a Claude profile's environment edit, sealing any `sensitive` value that
- * is not already sealed. `baseDir` is the settings directory (passed through to
- * the cipher). Empty values are dropped (delete semantics); an empty result
- * removes the `environment` field entirely. Throws if the instance is missing
- * or is not a Claude profile. Returns the next settings plus the updated
- * instance (with sealed env) for the renderer store to adopt without re-reading.
+ * Seal a profile's environment edit and write it onto its instance.
+ *
+ * Any `sensitive` value that is not already sealed is encrypted with `baseDir`
+ * (the settings directory) as the cipher scope. Empty values are dropped
+ * (delete semantics); an empty result removes the `environment` field entirely.
+ * Throws when the instance is missing or its driver does not support profiles,
+ * so a caller can never seal a secret onto an unrelated instance. Returns the
+ * next settings plus the updated instance so the renderer store can adopt the
+ * sealed result without re-reading the file.
+ *
+ * Shared by every multi-profile provider: Claude sends a free-form environment,
+ * Cursor sends its single credential var. Neither needs its own write path.
  */
-export function applyClaudeProfileEnvironment(
+export function applyProfileEnvironment(
   settings: SharedSettings,
-  payload: SetClaudeProfileEnvironmentPayload,
+  payload: SetProfileEnvironmentPayload,
   baseDir: string,
 ): { settings: SharedSettings; instance: AgentInstanceConfig } {
   const instance = settings.agentInstances[payload.instanceId];
-  if (!instance || instance.driver !== "claude") {
-    throw new Error(`Claude profile not found: ${payload.instanceId}`);
+  const profileDriver = instance ? agentProfileDriver(instance.driver) : undefined;
+  if (!instance || !profileDriver) {
+    throw new Error(`Agent profile not found: ${payload.instanceId}`);
+  }
+
+  if (
+    profileDriver.credentialEnvVar &&
+    Object.keys(payload.environment).some((name) => name.trim() !== profileDriver.credentialEnvVar)
+  ) {
+    throw new Error(`${instance.driver} profiles only support ${profileDriver.credentialEnvVar}.`);
   }
 
   const nextEnv: Record<string, AgentInstanceEnvVar> = {};
   for (const [name, variable] of Object.entries(payload.environment)) {
     const key = name.trim();
     if (key.length === 0 || variable.value.length === 0) continue;
-    nextEnv[key] = variable.sensitive
-      ? { value: encryptSecret(baseDir, variable.value), sensitive: true }
-      : { value: variable.value };
+    nextEnv[key] =
+      variable.sensitive || key === profileDriver.credentialEnvVar
+        ? { value: encryptSecret(baseDir, variable.value), sensitive: true }
+        : { value: variable.value };
   }
 
   const nextInstance: AgentInstanceConfig = { ...instance };
@@ -192,4 +210,40 @@ export function applyClaudeProfileEnvironment(
     },
     instance: nextInstance,
   };
+}
+
+/**
+ * Create a profile instance and seal its initial environment in one write, so a
+ * credential supplied at creation time never travels through the renderer's
+ * plaintext settings flush.
+ */
+export function applyCreateProfile(
+  settings: SharedSettings,
+  payload: CreateProfilePayload,
+  baseDir: string,
+): { settings: SharedSettings; instance: AgentInstanceConfig } {
+  if (settings.agentInstances[payload.id]) {
+    throw new Error(`Agent profile already exists: ${payload.id}`);
+  }
+  if (!isAgentProfileDriver(payload.driver)) {
+    throw new Error(`Driver does not support profiles: ${payload.driver}`);
+  }
+  const displayName = payload.displayName.trim();
+  if (!displayName) {
+    throw new Error("Agent profiles require a name.");
+  }
+  const created: AgentInstanceConfig = {
+    id: payload.id,
+    driver: payload.driver,
+    displayName,
+    ...(payload.config === undefined ? {} : { config: payload.config }),
+  };
+  return applyProfileEnvironment(
+    {
+      ...settings,
+      agentInstances: { ...settings.agentInstances, [payload.id]: created },
+    },
+    { instanceId: payload.id, environment: payload.environment ?? {} },
+    baseDir,
+  );
 }

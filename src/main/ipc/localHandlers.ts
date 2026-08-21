@@ -50,7 +50,8 @@ import {
 } from "../profile";
 import {
   applyAgentSecretSetting,
-  applyClaudeProfileEnvironment,
+  applyCreateProfile,
+  applyProfileEnvironment,
   mergeManagedSharedSettings,
   readSharedSettingsFile,
   writeSharedSettingsFile,
@@ -201,6 +202,17 @@ export function createLocalIpcHandlers(
       threadIds: [...new Set(threadIds)],
       ...(viewedThreadIds.length > 0 ? { viewedThreadIds: [...new Set(viewedThreadIds)] } : {}),
     });
+  };
+  // Shared plumbing for the main-local secret/profile handlers: read the
+  // settings file, apply one encrypting transform, persist, and notify.
+  const applyToSharedSettingsFile = <T>(
+    apply: (settings: SharedSettings, baseDir: string) => { settings: SharedSettings; result: T },
+  ): T => {
+    const settingsPath = options.requirePoracodePaths().settingsPath;
+    const applied = apply(readSharedSettingsFile(settingsPath), dirname(settingsPath));
+    writeSharedSettingsFile(settingsPath, applied.settings);
+    options.onSharedSettingsChanged?.(applied.settings);
+    return applied.result;
   };
   return defineMainLocalIpcHandlers({
     pickFolder: async (defaultPath) => {
@@ -383,7 +395,7 @@ export function createLocalIpcHandlers(
     getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
     setSharedSettings: (settings) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
-      // Preserve supervisor-managed fields and encrypted Claude-profile
+      // Preserve supervisor-managed fields and encrypted provider-profile
       // environments so the renderer's persist cycle doesn't clobber writes
       // made out-of-band by the supervisor. (Shared with the app-controls MCP
       // `update_settings` tool via `mergeManagedSharedSettings`.)
@@ -392,17 +404,11 @@ export function createLocalIpcHandlers(
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
     },
-    setAgentSecretSetting: (payload) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const { settings, storedValue } = applyAgentSecretSetting(
-        readSharedSettingsFile(settingsPath),
-        payload,
-        dirname(settingsPath),
-      );
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return { storedValue };
-    },
+    setAgentSecretSetting: (payload) =>
+      applyToSharedSettingsFile((settings, baseDir) => {
+        const { settings: next, storedValue } = applyAgentSecretSetting(settings, payload, baseDir);
+        return { settings: next, result: { storedValue } };
+      }),
     removeCrossagentRoutingOverride: ({ tags }) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
       const current = readSharedSettingsFile(settingsPath);
@@ -434,17 +440,16 @@ export function createLocalIpcHandlers(
       options.onSharedSettingsChanged?.(settings);
       return usage;
     },
-    setClaudeProfileEnvironment: (payload) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const { settings, instance } = applyClaudeProfileEnvironment(
-        readSharedSettingsFile(settingsPath),
-        payload,
-        dirname(settingsPath),
-      );
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return instance;
-    },
+    setProfileEnvironment: (payload) =>
+      applyToSharedSettingsFile((settings, baseDir) => {
+        const { settings: next, instance } = applyProfileEnvironment(settings, payload, baseDir);
+        return { settings: next, result: instance };
+      }),
+    createProfile: (payload) =>
+      applyToSharedSettingsFile((settings, baseDir) => {
+        const { settings: next, instance } = applyCreateProfile(settings, payload, baseDir);
+        return { settings: next, result: instance };
+      }),
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
       const nativeCapable = supportsNativeWindowMaterial();
       const mainWindow = options.getMainWindow();

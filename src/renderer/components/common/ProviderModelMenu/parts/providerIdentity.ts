@@ -1,4 +1,4 @@
-import type { ThreadPresentationMode } from "@/shared/contracts";
+import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 
 type ProviderIdentityInput = {
   kind: string;
@@ -55,7 +55,8 @@ function resolveRuntimeVariantId(
 ): string | undefined {
   if (presentationMode !== "gui") return undefined;
   return (
-    runtimeVariant?.toLowerCase() ?? legacySurfaceIdentity[agentKind]?.defaultGuiRuntimeVariant
+    runtimeVariant?.toLowerCase() ??
+    legacySurfaceIdentity[baseAgentKind(agentKind)]?.defaultGuiRuntimeVariant
   );
 }
 
@@ -73,7 +74,7 @@ export function providerLabelForPresentation(provider: ProviderIdentityInput): s
   const label = provider.label ?? provider.kind;
   const runtimeLabel =
     provider.presentationMode === "terminal"
-      ? legacySurfaceIdentity[provider.kind]?.terminalRuntimeLabel
+      ? legacySurfaceIdentity[baseAgentKind(provider.kind)]?.terminalRuntimeLabel
       : provider.capabilities?.runtimeLabel;
   if (!runtimeLabel) return label;
   // Callers may pass a provider whose label was already qualified by this

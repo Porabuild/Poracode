@@ -232,10 +232,12 @@ function cursorSdkRuntimeCapabilities(
 export async function probeCursorSdkRuntime(
   ctx: AgentEnvContext | undefined,
   dependencies: CursorSdkDetectionDependencies = {},
+  explicitApiKey?: string,
 ): Promise<CursorSdkRuntimeProbe> {
   const projectLocation = detectProbeLocation(ctx);
   const configuredApiKey =
-    typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "";
+    explicitApiKey?.trim() ||
+    (typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "");
   let worker:
     | (Pick<CursorSdkWorkerClient, "probe" | "dispose"> &
         Partial<Pick<CursorSdkWorkerClient, "terminate">>)

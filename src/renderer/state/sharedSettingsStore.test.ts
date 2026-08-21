@@ -334,4 +334,21 @@ describe("sharedSettingsStore", () => {
     expect(state.recentModels).toEqual([]);
     expect(state.providerOrder).toEqual(["claude"]);
   });
+
+  it("removes Cursor profile-scoped settings with the profile instance", () => {
+    useSharedSettings.getState().setAgentInstance({
+      id: "work",
+      driver: "cursor",
+      displayName: "Work",
+    });
+    useSharedSettings.setState({
+      agentSettings: { "cursor:work": { structuredRuntime: "sdk" } },
+      providerOrder: ["cursor", "cursor:work"],
+    });
+
+    useSharedSettings.getState().removeAgentInstance("work");
+
+    expect(useSharedSettings.getState().agentSettings["cursor:work"]).toBeUndefined();
+    expect(useSharedSettings.getState().providerOrder).toEqual(["cursor"]);
+  });
 });
