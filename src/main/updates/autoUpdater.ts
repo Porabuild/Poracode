@@ -43,9 +43,15 @@ export function createAutoUpdaterController(
   // True while a check or download is in flight; gates the periodic timer so a
   // scheduled tick never stacks a redundant check on top of an active one.
   let checkInFlight = false;
-  // True once an update is downloaded and waiting to install; we stop polling
-  // until the user restarts to apply it.
+  // True once an update is downloaded and waiting to install. Checks keep
+  // running so a newer release can supersede the staged one before the user
+  // ever restarts.
   let updateReady = false;
+  // Version of the staged download, and of the release the in-flight check
+  // found. Compared so a check that re-discovers the staged version doesn't
+  // trigger a redundant re-download.
+  let downloadedVersion: string | null = null;
+  let availableVersion: string | null = null;
   let periodicTimer: ReturnType<typeof setInterval> | null = null;
   let checkPromise: Promise<void> | null = null;
   let downloadPromise: Promise<void> | null = null;
@@ -99,17 +105,22 @@ export function createAutoUpdaterController(
           continue;
         }
         reportClassifiedFailure(operation, failure.kind);
-        if (failure.kind === "optional-manifest-missing") {
+        if (updateReady) {
+          // A background check/download failed while an update is staged; keep
+          // the install affordance instead of replacing it with an error state.
+          sendStagedStatus();
+        } else if (failure.kind === "optional-manifest-missing") {
           sendStatus({ type: "update-not-available" });
           return;
+        } else {
+          sendStatus({
+            type: "error",
+            messageKey:
+              failure.kind === "transient-network"
+                ? "update.serviceUnavailable"
+                : "update.operationFailed",
+          });
         }
-        sendStatus({
-          type: "error",
-          messageKey:
-            failure.kind === "transient-network"
-              ? "update.serviceUnavailable"
-              : "update.operationFailed",
-        });
         throw error;
       } finally {
         if (activeAttempt === attemptState) {
@@ -124,7 +135,11 @@ export function createAutoUpdaterController(
     checkInFlight = true;
     downloadPromise = runOperation("download", () => autoUpdater.downloadUpdate()).finally(() => {
       downloadPromise = null;
-      if (!updateReady) checkInFlight = false;
+      // downloadUpdate resolves after update-downloaded fired (which already
+      // cleared the flag); on failure nothing else will, so reset here either
+      // way. updateReady may still hold for a previously staged version, so it
+      // can't be used to tell whether this download finished.
+      checkInFlight = false;
     });
     return downloadPromise;
   }
@@ -133,12 +148,20 @@ export function createAutoUpdaterController(
     if (checkPromise) return checkPromise;
     checkInFlight = true;
     updateAvailable = false;
+    availableVersion = null;
     checkPromise = runOperation("check", () => autoUpdater.checkForUpdates())
       .then(() => {
-        if (updateAvailable && !updateReady) {
+        if (updateAvailable && availableVersion !== downloadedVersion) {
+          // A newer (or first) release — download it. When an older update is
+          // already staged, electron-updater supersedes it, so the pending
+          // install is discarded in favor of the fresh one.
           void beginDownload().catch(() => {});
         } else {
           checkInFlight = false;
+          // The check re-found the version that is already staged: no new
+          // download, but restore the staged status so the install affordance
+          // stays visible.
+          sendStagedStatus();
         }
       })
       .catch(() => {
@@ -150,10 +173,21 @@ export function createAutoUpdaterController(
     return checkPromise;
   }
 
+  // Re-emit the staged-update status after a background check finishes without
+  // a newer release, so the renderer's install affordance is not clobbered by
+  // the intermediate "checking"/"update-not-available" states.
+  function sendStagedStatus(): void {
+    if (updateReady && downloadedVersion) {
+      sendStatus({ type: "downloaded", version: downloadedVersion });
+    }
+  }
+
   // Fire a background check, but only when the updater is otherwise idle. Used
-  // by both the initial launch check and the recurring interval.
+  // by both the initial launch check and the recurring interval. A staged
+  // update does not block checks: a newer release must still be discovered and
+  // downloaded, superseding the pending install.
   function runScheduledCheck(): void {
-    if (checkInFlight || updateReady) {
+    if (checkInFlight) {
       return;
     }
     void beginCheck();
@@ -193,12 +227,18 @@ export function createAutoUpdaterController(
     });
     autoUpdater.on("update-available", (info) => {
       updateAvailable = true;
+      availableVersion = info.version;
       checkInFlight = true;
       sendStatus({ type: "update-available", version: info.version });
     });
     autoUpdater.on("update-not-available", () => {
       checkInFlight = false;
-      sendStatus({ type: "update-not-available" });
+      if (updateReady) {
+        // Nothing newer than the staged download — keep it visible.
+        sendStagedStatus();
+      } else {
+        sendStatus({ type: "update-not-available" });
+      }
     });
     autoUpdater.on("download-progress", (progress) => {
       checkInFlight = true;
@@ -213,6 +253,7 @@ export function createAutoUpdaterController(
     autoUpdater.on("update-downloaded", (info) => {
       checkInFlight = false;
       updateReady = true;
+      downloadedVersion = info.version;
       sendStatus({ type: "downloaded", version: info.version });
     });
     autoUpdater.on("error", (error) => {
@@ -224,7 +265,9 @@ export function createAutoUpdaterController(
       const failure = classifyUpdateFailure(error, operation, channel);
       reportClassifiedFailure(operation, failure.kind);
       checkInFlight = false;
-      if (failure.kind === "optional-manifest-missing") {
+      if (updateReady) {
+        sendStagedStatus();
+      } else if (failure.kind === "optional-manifest-missing") {
         sendStatus({ type: "update-not-available" });
       } else {
         sendStatus({
