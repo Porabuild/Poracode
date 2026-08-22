@@ -6,7 +6,11 @@ import { usePrState } from "@/renderer/state/gitSelectors";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
 import { SyncBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/SyncBadge";
-import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
+import {
+  archiveThread,
+  markThreadDone,
+  requestDeleteThread,
+} from "@/renderer/actions/threadActions";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openTerminal, openWorktreeTerminal } from "@/renderer/actions/terminalActions";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
@@ -200,11 +204,22 @@ function ThreadItemRemovalTime(
   const { thread, isExperimentCandidate, compact = false } = props;
   const { t } = useLingui();
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
-  const removeThread = () => {
+  const removeThread = (anchorElement?: HTMLElement) => {
     if (threadRemoveAction === "archive") {
       archiveThread(thread.id);
     } else {
-      deleteThread(thread.id, thread.worktreePath, thread.projectId);
+      const rect = anchorElement?.getBoundingClientRect();
+      requestDeleteThread(thread.id, thread.worktreePath, thread.projectId, {
+        ...(anchorElement ? { returnFocusElement: anchorElement } : {}),
+        ...(rect
+          ? {
+              anchorPosition: {
+                x: rect.right,
+                y: rect.top + rect.height / 2,
+              },
+            }
+          : {}),
+      });
     }
   };
   const removeLabel =
@@ -228,12 +243,16 @@ function ThreadItemRemovalTime(
             role="button"
             tabIndex={0}
             aria-label={removeLabel}
-            className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:bg-[var(--row-hover)] hover:text-warning" : "hover:bg-[var(--row-hover)] hover:text-danger"}`}
+            className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 ${threadRemoveAction === "archive" ? "hover:bg-[var(--row-hover)] hover:text-warning" : "hover:bg-[var(--row-hover)] hover:text-danger"}`}
             onClick={(event) => {
               event.stopPropagation();
-              removeThread();
+              removeThread(event.currentTarget);
             }}
-            onKeyDown={(event) => handleKeyActivate(event, removeThread, { stopPropagation: true })}
+            onKeyDown={(event) =>
+              handleKeyActivate(event, () => removeThread(event.currentTarget), {
+                stopPropagation: true,
+              })
+            }
           >
             {removeIcon}
           </div>
@@ -253,15 +272,15 @@ function ThreadItemRemovalTime(
           role="button"
           tabIndex={0}
           aria-label={removeLabel}
-          className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
+          className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
           onClick={(event) => {
             event.stopPropagation();
-            removeThread();
+            removeThread(event.currentTarget);
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.stopPropagation();
-              removeThread();
+              removeThread(event.currentTarget);
             }
           }}
         >

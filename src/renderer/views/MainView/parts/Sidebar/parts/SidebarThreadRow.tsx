@@ -1,8 +1,15 @@
+import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown } from "lucide-react";
-import type { Project } from "@/shared/contracts";
+import { Archive, ChevronDown, Trash2 } from "lucide-react";
+import type { Project, Thread } from "@/shared/contracts";
+import { archiveThread, deleteThread } from "@/renderer/actions/threadActions";
+import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
+import { Button } from "@/renderer/components/common/Button";
+import { ConfirmationPopover } from "@/renderer/components/common/ConfirmationPopover";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { chatRowRailClass } from "@/renderer/components/thread/ChatPane/parts/items/chatRow";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { SidebarRow } from "./sidebarProjectRows";
 import { SidebarThreadGroup } from "./SidebarThreadGroup";
 import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
@@ -20,6 +27,94 @@ export function SeeMoreThreadsButton(props: { onPress: () => void }) {
   );
 }
 
+function deleteDoneThreads(doneThreads: Thread[]): void {
+  const doneThreadIds = new Set(doneThreads.map((thread) => thread.id));
+  const allThreads = useAppStore.getState().threads;
+  const deletedWorktrees = new Set<string>();
+
+  for (const thread of doneThreads) {
+    if (!thread.worktreePath) {
+      deleteThread(thread.id);
+      continue;
+    }
+
+    const worktreeKey = `${thread.projectId}\0${thread.worktreePath}`;
+    if (deletedWorktrees.has(worktreeKey)) continue;
+
+    const siblings = allThreads.filter(
+      (candidate) =>
+        candidate.projectId === thread.projectId && candidate.worktreePath === thread.worktreePath,
+    );
+    if (siblings.every((candidate) => doneThreadIds.has(candidate.id))) {
+      deletedWorktrees.add(worktreeKey);
+      deleteWorktreeGroup(
+        thread.projectId,
+        thread.worktreePath,
+        siblings.map((candidate) => candidate.id),
+      );
+    } else {
+      deleteThread(thread.id);
+    }
+  }
+}
+
+function DoneSectionLabel(props: { row: Extract<SidebarRow, { kind: "section-label" }> }) {
+  const { row } = props;
+  const { t } = useLingui();
+  const [isOpen, setIsOpen] = useState(false);
+  const threadRemoveAction = useSharedSettings((state) => state.threadRemoveAction);
+  const isArchive = threadRemoveAction === "archive";
+  const actionLabel = isArchive ? t`Archive done threads` : t`Delete done threads`;
+
+  const removeDoneThreads = () => {
+    for (const thread of row.doneThreads) {
+      if (isArchive) archiveThread(thread.id);
+    }
+    if (!isArchive) deleteDoneThreads(row.doneThreads);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="group flex w-full items-center px-1.5 pb-0.5 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted">
+      <span>{t(row.label)}</span>
+      {row.doneThreads.length > 0 ? (
+        <ConfirmationPopover
+          isOpen={isOpen}
+          onOpenChange={setIsOpen}
+          title={actionLabel}
+          body={
+            row.hasProtectedDoneThreads
+              ? isArchive
+                ? t`Experiment candidates will remain; all other threads in Done will be archived.`
+                : t`Experiment candidates will remain; all other threads in Done will be permanently deleted.`
+              : isArchive
+                ? t`All threads in Done will be archived.`
+                : t`All threads in Done will be permanently deleted.`
+          }
+          actions={[
+            {
+              label: isArchive ? t`Archive` : t`Delete`,
+              variant: isArchive ? "secondary" : "danger",
+              onPress: removeDoneThreads,
+            },
+          ]}
+          trigger={
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={actionLabel}
+              className={`ml-auto size-[18px] min-w-0 p-0 opacity-0 transition-[opacity,color,background-color] group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none"} ${isArchive ? "hover:bg-warning/10 hover:text-warning" : "hover:bg-danger/10 hover:text-danger"}`}
+            >
+              {isArchive ? <Archive className="size-3.5" /> : <Trash2 className="size-3.5" />}
+            </Button>
+          }
+        />
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Renders one prebuilt sidebar row (thread, group, or section label). Shared by
  * the per-project list and the flat cross-project list — the caller resolves
@@ -34,7 +129,6 @@ export function SidebarThreadRow(props: {
   projectTag?: React.ReactNode;
 }) {
   const { row, project, editingThreadId, setEditingThreadId, projectTag } = props;
-  const { t } = useLingui();
 
   if (row.kind === "thread") {
     const item = (
@@ -84,9 +178,7 @@ export function SidebarThreadRow(props: {
           {...(projectTag !== undefined ? { projectTag } : {})}
         />
       ) : (
-        <div className="px-1.5 pb-0.5 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted">
-          {t(row.label)}
-        </div>
+        <DoneSectionLabel row={row} />
       )}
     </div>
   );

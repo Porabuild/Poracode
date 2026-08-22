@@ -23,9 +23,9 @@ import {
 } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
 import { getActiveWorkspaceId, getLastWorkspaceProjectId } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
-import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
@@ -627,48 +627,81 @@ function deleteThreadOnly(threadId: string): void {
     .catch(() => undefined);
 }
 
+/** True when `threadId` is the only thread still using `worktreePath`. */
+function ownsWorktreeAlone(threadId: string, worktreePath: string): boolean {
+  return !useAppStore
+    .getState()
+    .threads.some(
+      (candidate) => candidate.worktreePath === worktreePath && candidate.id !== threadId,
+    );
+}
+
+/**
+ * Deletes a thread, also removing its worktree directory when this was the last
+ * thread using it. Confirmation is the caller's job — see `requestDeleteThread`
+ * for the interactive entry point.
+ */
 export function deleteThread(threadId: string, worktreePath?: string, projectId?: string): void {
   if (findExperimentByThreadId(threadId)) return;
-  if (!worktreePath) {
+  // No worktree, or siblings still use it — drop the thread and keep the directory.
+  if (!worktreePath || !ownsWorktreeAlone(threadId, worktreePath)) {
     deleteThreadOnly(threadId);
     return;
   }
 
-  const allThreads = useAppStore.getState().threads;
-  const siblings = allThreads.filter((t) => t.worktreePath === worktreePath && t.id !== threadId);
-
-  // Other threads still use this worktree — delete the thread without offering worktree removal.
-  if (siblings.length > 0) {
-    deleteThreadOnly(threadId);
-    return;
-  }
-
-  const pref = readWorktreeDeletePref();
-  if (pref === "thread-only") {
-    deleteThreadOnly(threadId);
-    return;
-  }
-
-  if (pref === "thread-and-worktree") {
-    const project = useAppStore.getState().projects.find((p) => p.id === projectId);
-    if (project) {
-      deleteWorktreeGroup(project.id, worktreePath, [threadId]);
-      return;
-    }
+  const project = useAppStore.getState().projects.find((p) => p.id === projectId);
+  if (!project) {
     useAppStore.getState().deleteThread(threadId);
     return;
   }
+  deleteWorktreeGroup(project.id, worktreePath, [threadId]);
+}
 
-  const thread = allThreads.find((t) => t.id === threadId);
+/**
+ * Sidebar-initiated delete: asks first unless the user turned confirmation off,
+ * then routes through `deleteThread`. Every thread is confirmed the same way,
+ * whether or not it owns a worktree — the popover only names the worktree when
+ * deleting this thread is what would take the directory with it.
+ */
+export function requestDeleteThread(
+  threadId: string,
+  worktreePath: string | undefined,
+  projectId: string | undefined,
+  options?: {
+    anchorPosition?: { x: number; y: number };
+    returnFocusElement?: HTMLElement;
+  },
+): void {
+  if (findExperimentByThreadId(threadId)) return;
+  if (!shouldConfirmThreadDelete()) {
+    deleteThread(threadId, worktreePath, projectId);
+    return;
+  }
+
+  const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
+  // Named in the confirmation only when this delete is what removes the directory.
+  const worktreeToRemove =
+    worktreePath !== undefined &&
+    projectId !== undefined &&
+    ownsWorktreeAlone(threadId, worktreePath)
+      ? {
+          worktreePath,
+          worktreeBranch:
+            resolveWorktreeBranch(projectId, worktreePath, thread?.worktreeBranch) ??
+            worktreePath.split(/[/\\]/).pop() ??
+            worktreePath,
+        }
+      : {};
   useWorktreeDeleteStore.getState().setDialog({
     kind: "single-thread",
     threadId,
-    projectId: projectId!,
-    worktreePath,
-    worktreeBranch:
-      resolveWorktreeBranch(projectId!, worktreePath, thread?.worktreeBranch) ??
-      worktreePath.split(/[/\\]/).pop() ??
-      worktreePath,
+    ...(projectId !== undefined ? { projectId } : {}),
+    ...worktreeToRemove,
+    anchorPosition: options?.anchorPosition ?? {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    },
+    ...(options?.returnFocusElement ? { returnFocusElement: options.returnFocusElement } : {}),
   });
 }
 

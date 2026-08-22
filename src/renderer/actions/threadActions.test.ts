@@ -11,6 +11,7 @@ import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   archiveThread,
   deleteThread,
+  requestDeleteThread,
   openNewThread,
   openThread,
   reopenPaneThreadsIfInactive,
@@ -657,7 +658,9 @@ describe("threadActions", () => {
     });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
 
-    deleteThread(thread.id, worktreePath, thread.projectId);
+    requestDeleteThread(thread.id, worktreePath, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
 
     expect(useAppStore.getState().threads).toHaveLength(1);
     expect(bridge.closeThread).not.toHaveBeenCalled();
@@ -667,11 +670,80 @@ describe("threadActions", () => {
       projectId: thread.projectId,
       worktreePath,
       worktreeBranch: "poracode/feature",
+      anchorPosition: { x: 240, y: 120 },
     });
   });
 
-  it("routes local worktree deletion through the group action", () => {
+  it("asks again for the legacy thread-only preference instead of deleting a worktree", () => {
+    localStorage.setItem("poracode-delete-worktree-pref", "thread-only");
+    const worktreePath = "/repo/.worktrees/feature";
+    const thread = makeThread({
+      worktreePath,
+      worktreeBranch: "poracode/feature",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    requestDeleteThread(thread.id, worktreePath, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toHaveLength(1);
+    expect(deleteWorktreeGroup).not.toHaveBeenCalled();
+    expect(useWorktreeDeleteStore.getState().dialog?.kind).toBe("single-thread");
+  });
+
+  it("confirms a thread that has no worktree without naming one", () => {
+    const thread = makeThread({});
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    requestDeleteThread(thread.id, undefined, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toHaveLength(1);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+    expect(useWorktreeDeleteStore.getState().dialog).toEqual({
+      kind: "single-thread",
+      threadId: thread.id,
+      projectId: thread.projectId,
+      anchorPosition: { x: 240, y: 120 },
+    });
+  });
+
+  it("confirms a shared-worktree thread without promising to remove the worktree", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const firstThread = makeThread({ id: "thread-a", worktreePath });
+    const secondThread = makeThread({ id: "thread-b", worktreePath });
+    useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
+
+    requestDeleteThread(firstThread.id, worktreePath, firstThread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toHaveLength(2);
+    expect(useWorktreeDeleteStore.getState().dialog).toEqual({
+      kind: "single-thread",
+      threadId: firstThread.id,
+      projectId: firstThread.projectId,
+      anchorPosition: { x: 240, y: 120 },
+    });
+  });
+
+  it("skips the confirmation entirely once the user opted out", () => {
     localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
+    const thread = makeThread({});
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    requestDeleteThread(thread.id, undefined, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
+    expect(useWorktreeDeleteStore.getState().dialog).toBeNull();
+  });
+
+  it("routes local worktree deletion through the group action", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const project = useAppStore.getState().addProject({
       kind: "posix",
@@ -691,7 +763,6 @@ describe("threadActions", () => {
   });
 
   it("routes remote worktree deletion through the remote-aware group action", () => {
-    localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
     const worktreePath = "/repo/.worktrees/feature";
     const localProject = useAppStore.getState().addProject({
       kind: "posix",
