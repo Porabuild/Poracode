@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { toast } from "@heroui/react";
-import { ChevronDown, Monitor, TerminalSquare } from "lucide-react";
+import { ChevronDown, Monitor, TerminalSquare, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -257,29 +257,31 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // and Computer Use. Users change servers in the draft composer or settings
   // before launching a new thread.
   // Bindings are display-only for an active session; toggles are no-ops.
-  // Providers with `mcpConfigSource: "agentSettings"` configure MCP on their
-  // settings page instead of per-thread, so their composer carries no MCP
-  // display at all — no built-in rows, no custom servers, and no read-only
-  // "none for this run" fallback.
   const providerOwnsMcp = effectiveAgentStatus
     ? providerOwnsMcpConfig(effectiveAgentStatus.capabilities)
     : false;
+  const runtimeLaunchConfig = useAppStore((s) => s.runtimeLaunchConfigByThreadId[thread.id]);
+  const effectiveMcpConfig = providerOwnsMcp
+    ? (runtimeLaunchConfig ?? thread.config)
+    : thread.config;
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
-    enabled: thread.config?.[descriptor.configKey] === true,
-    visible: !providerOwnsMcp && thread.config?.[descriptor.configKey] === true,
+    enabled: effectiveMcpConfig?.[descriptor.configKey] === true,
+    visible:
+      descriptor.isAvailable(projectLocation) &&
+      effectiveMcpConfig?.[descriptor.configKey] === true,
     onToggle: () => {},
   }));
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
   );
-  const customMcpServers = providerOwnsMcp
-    ? []
-    : (launchCustomMcpNames ?? []).map((name) => ({
-        id: name,
-        name,
-        enabled: true,
-      }));
+  const customMcpServers = (
+    providerOwnsMcp && usesRemoteTransport ? [] : (launchCustomMcpNames ?? [])
+  ).map((name) => ({
+    id: name,
+    name,
+    enabled: true,
+  }));
   const mcpMentions: McpMentionItem[] = [
     ...(appControlsEnabled && !providerOwnsMcp
       ? [
@@ -294,7 +296,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
     ...composerMcpServers
-      .filter((descriptor) => thread.config?.[descriptor.configKey] === true)
+      .filter(
+        (descriptor) =>
+          descriptor.isAvailable(projectLocation) &&
+          effectiveMcpConfig?.[descriptor.configKey] === true,
+      )
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
@@ -302,7 +308,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         detail: t`MCP server`,
         enabled: true,
       })),
-    ...(thread.config?.computerUse === true
+    ...customMcpServers.map((server) => ({
+      id: server.id,
+      name: server.name,
+      icon: Webhook,
+      detail: t`MCP server`,
+      enabled: true,
+    })),
+    ...(effectiveMcpConfig?.computerUse === true &&
+    readBridge()?.platform !== "linux" &&
+    projectLocation?.kind !== "wsl"
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -913,10 +928,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
-                          readOnly={!providerOwnsMcp}
+                          readOnly
                           computerUse={{
-                            enabled: thread.config?.computerUse === true,
-                            visible: !providerOwnsMcp && thread.config?.computerUse === true,
+                            enabled: effectiveMcpConfig?.computerUse === true,
+                            visible:
+                              effectiveMcpConfig?.computerUse === true &&
+                              readBridge()?.platform !== "linux" &&
+                              projectLocation?.kind !== "wsl",
                             onToggle: () => {},
                           }}
                           showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}

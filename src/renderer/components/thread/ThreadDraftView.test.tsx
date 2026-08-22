@@ -26,6 +26,7 @@ vi.mock("./ThreadComposer", () => ({
     controls: unknown[];
     onPromptChange: (value: string) => void;
     onSubmit: () => void;
+    afterControls?: ReactNode;
   }) => {
     composerSpy(props);
     return (
@@ -498,6 +499,7 @@ describe("ThreadDraftView", () => {
     useSharedSettings.setState({
       providerConfigs: {},
       providerModelPreferences: {},
+      agentSettings: {},
       hiddenModels: {},
       disabledAgents: [],
       lastPresentationModeByAgent: {},
@@ -1106,6 +1108,52 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
     expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("does not use local provider MCP settings for a desktop remote draft", () => {
+    useSharedSettings.setState({ agentSettings: { codex: { crossagentMcp: true } } });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "online", projects: [], threads: [] },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={remoteProject}
+        agentStatuses={[
+          {
+            ...codexStatus,
+            capabilities: {
+              ...codexStatus.capabilities,
+              mcpConfigSource: "agentSettings",
+              agentSettingsDefaults: { crossagentMcp: true },
+            },
+          },
+        ]}
+        onStart={() => {}}
+      />,
+    );
+
+    const composerProps = composerSpy.mock.lastCall?.[0] as { afterControls?: ReactNode };
+    expect(isValidElement(composerProps.afterControls)).toBe(true);
+    const menuProps = (composerProps.afterControls as ReactElement).props as {
+      mcpServers: Array<{ visible: boolean }>;
+      customMcpServers: unknown[];
+      readOnlyMcp?: boolean;
+    };
+    expect(menuProps.mcpServers.some((server) => server.visible)).toBe(false);
+    expect(menuProps.customMcpServers).toEqual([]);
+    expect(menuProps.readOnlyMcp).not.toBe(true);
   });
 
   it("shows the discovery reveal for a WSL project while its distro is probing", () => {

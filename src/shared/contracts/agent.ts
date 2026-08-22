@@ -326,10 +326,10 @@ export const agentCapabilitySchema = z.object({
    * - absent / "thread": per-thread `ThreadConfig` flags set by the composer
    *   MCP controls (the default for every provider).
    * - "agentSettings": provider-level — flags are read from
-   *   `sharedSettings.agentSettings[kind]` at launch, the composer shows no
-   *   MCP controls at all, and the MCP set is identical across the provider's
-   *   threads (letting pooled servers stay stable). Configured from the
-   *   provider's settings page.
+   *   `sharedSettings.agentSettings[kind]` at launch, the composer shows the
+   *   effective MCP set read-only, and the MCP set is identical across the
+   *   provider's threads (letting pooled servers stay stable). Configured from
+   *   the provider's settings page.
    */
   mcpConfigSource: z.enum(["thread", "agentSettings"]).optional(),
   /**

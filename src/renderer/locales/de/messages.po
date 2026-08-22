@@ -2126,6 +2126,10 @@ msgstr "Projektordner ändern"
 msgid "Change project icon"
 msgstr "Projektsymbol ändern"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Change servers in provider settings"
+msgstr "Server in den Anbietereinstellungen ändern"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
 msgstr "Tastenkürzel ändern"

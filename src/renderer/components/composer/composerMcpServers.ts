@@ -35,15 +35,22 @@ export const resolveMcpScope = resolveComposerMcpScope;
 
 /**
  * Providers that declare `mcpConfigSource: "agentSettings"` configure MCP on
- * their settings page instead of the composer: the "+" menu shows no MCP rows
- * at all for their threads (built-ins are hidden by their `"none"` scopes;
- * callers use this to suppress the custom-server rows and read-only fallbacks
- * too).
+ * their settings page instead of the composer: the "+" menu shows their
+ * effective MCP rows read-only instead of exposing per-thread toggles.
  */
 export function providerOwnsMcpConfig(
   capabilities: Pick<AgentCapability, "mcpConfigSource">,
 ): boolean {
   return capabilities.mcpConfigSource === "agentSettings";
+}
+
+/** Resolve a provider-owned MCP flag the same way as the supervisor runtime. */
+export function providerMcpSettingEnabled(
+  capabilities: Pick<AgentCapability, "agentSettingsDefaults">,
+  settings: Record<string, boolean | string> | undefined,
+  key: ComposerMcpConfigKey | "computerUse",
+): boolean {
+  return (settings?.[key] ?? capabilities.agentSettingsDefaults?.[key]) === true;
 }
 
 export interface ComposerMcpServerDescriptor {
@@ -56,6 +63,7 @@ export interface ComposerMcpServerDescriptor {
   enabledTitle: MessageDescriptor;
   /** aria-label for the chip's remove button. */
   disableLabel: MessageDescriptor;
+  isAvailable: (projectLocation?: ProjectLocation) => boolean;
   getScope: (
     capabilities: AgentCapability,
     presentationMode: ThreadPresentationMode,
@@ -70,6 +78,7 @@ export const browserMcpServer: ComposerMcpServerDescriptor = {
   label: msg`Browser`,
   enabledTitle: msg`Browser MCP enabled for this thread`,
   disableLabel: msg`Disable Browser MCP`,
+  isAvailable: () => true,
   getScope: (capabilities, presentationMode) =>
     resolveMcpScope(capabilities.mcpScope, presentationMode),
 };
@@ -81,6 +90,7 @@ export const crossagentMcpServer: ComposerMcpServerDescriptor = {
   label: msg`Crossagents`,
   enabledTitle: msg`Crossagents enabled for this thread`,
   disableLabel: msg`Disable Crossagents`,
+  isAvailable: () => true,
   getScope: (capabilities, presentationMode) =>
     resolveMcpScope(capabilities.mcpScope, presentationMode),
 };
@@ -92,8 +102,9 @@ export const chromeMcpServer: ComposerMcpServerDescriptor = {
   label: msg`Chrome`,
   enabledTitle: msg`Chrome MCP enabled for this thread`,
   disableLabel: msg`Disable Chrome MCP`,
+  isAvailable: (projectLocation) => projectLocation?.kind !== "wsl",
   getScope: (capabilities, presentationMode, projectLocation) =>
-    projectLocation?.kind === "wsl"
+    !chromeMcpServer.isAvailable(projectLocation)
       ? "none"
       : resolveMcpScope(capabilities.mcpScope, presentationMode),
 };

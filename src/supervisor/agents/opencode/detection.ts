@@ -64,7 +64,8 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // MCP is provider-level for OpenCode: the composer shows no MCP controls;
+  // MCP is provider-level for OpenCode: the composer shows the effective set
+  // read-only, while changes stay on the provider settings page.
   // built-in server flags come from the OpenCode settings page
   // (`agentSettings.opencode`) at launch. OpenCode applies that set to each
   // project directory inside the shared runtime server instead of hosting

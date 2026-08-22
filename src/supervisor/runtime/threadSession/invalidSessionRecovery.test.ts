@@ -87,6 +87,9 @@ function createHarness() {
     events.push("mcp");
     return [];
   });
+  const resolveMcpLaunchConfig = vi.fn<
+    InvalidSessionRecoveryContext["spawnPipeline"]["resolveMcpLaunchConfig"]
+  >((config) => config);
   const composeLaunchOptions = vi.fn<
     InvalidSessionRecoveryContext["spawnPipeline"]["composeLaunchOptions"]
   >(() => {
@@ -130,6 +133,7 @@ function createHarness() {
 
   const context: InvalidSessionRecoveryContext = {
     spawnPipeline: {
+      resolveMcpLaunchConfig,
       resolveMcpServersForLaunch,
       composeLaunchOptions,
       spawnThread,
