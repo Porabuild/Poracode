@@ -44,7 +44,14 @@ describe("ContextMenu", () => {
   });
 
   it("dispatches an item's trailing action without dispatching the row", async () => {
-    const onAction = vi.fn<(key: string) => void>();
+    const onAction =
+      vi.fn<
+        (
+          key: string,
+          anchorPosition?: { x: number; y: number },
+          returnFocusElement?: HTMLElement,
+        ) => void
+      >();
     render(
       <ContextMenu
         items={[
@@ -60,15 +67,19 @@ describe("ContextMenu", () => {
       </ContextMenu>,
     );
 
-    fireEvent.contextMenu(screen.getByRole("button", { name: "Row" }));
+    const row = screen.getByRole("button", { name: "Row" });
+    fireEvent.contextMenu(row, {
+      clientX: 240,
+      clientY: 120,
+    });
     const stopButton = await screen.findByRole("button", { name: "Stop Run" });
     expect(stopButton).toHaveClass("[--button-bg-hover:var(--row-hover)]");
     fireEvent.pointerDown(stopButton, { pointerId: 1, pointerType: "mouse", button: 0 });
     fireEvent.pointerUp(stopButton, { pointerId: 1, pointerType: "mouse", button: 0 });
     fireEvent.click(stopButton);
 
-    expect(onAction).toHaveBeenCalledWith("stop");
-    expect(onAction).not.toHaveBeenCalledWith("run");
+    expect(onAction).toHaveBeenCalledWith("stop", { x: 240, y: 120 }, row);
+    expect(onAction).not.toHaveBeenCalledWith("run", expect.anything());
     await vi.waitFor(() => {
       expect(screen.queryByRole("menuitem", { name: "Run" })).not.toBeInTheDocument();
     });

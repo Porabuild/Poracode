@@ -133,6 +133,9 @@ describe("searchSettings", () => {
     expect(
       searchSettings("quick remove", t, { remoteSession: true }).map((r) => r.anchor),
     ).not.toContain("threads.defaultThreadRemoval");
+    expect(
+      searchSettings("confirm delete", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("threads.confirmThreadDelete");
     expect(searchSettings("panel", t, { remoteSession: true }).map((r) => r.anchor)).not.toContain(
       "terminal.terminalPosition",
     );

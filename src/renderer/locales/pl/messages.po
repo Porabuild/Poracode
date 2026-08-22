@@ -1242,6 +1242,14 @@ msgstr "Wszystkie projekty"
 msgid "All sources"
 msgstr "Wszystkie źródła"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+msgid "All threads in Done will be archived."
+msgstr "Wszystkie wątki w sekcji Gotowe zostaną zarchiwizowane."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+msgid "All threads in Done will be permanently deleted."
+msgstr "Wszystkie wątki w sekcji Gotowe zostaną trwale usunięte."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
@@ -1387,6 +1395,7 @@ msgid "Approved"
 msgstr "Zatwierdzone"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Archive"
 msgstr "Archiwum"
@@ -1402,10 +1411,18 @@ msgstr "Archiwum {0}"
 msgid "Archive All"
 msgstr "Archiwizuj wszystko"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+#~ msgid "Archive all done threads"
+#~ msgstr "Zarchiwizuj wszystkie ukończone wątki"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Archive all threads"
 msgstr "Archiwizuj wszystkie wątki"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+msgid "Archive done threads"
+msgstr "Zarchiwizuj ukończone wątki"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
@@ -2023,11 +2040,11 @@ msgstr "Nie można wczytać portów"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "Nie można połączyć się z serwerem zdalnym. Sprawdź, czy jest online, i połącz ponownie."
 
-#. Dialog button: dismiss without deleting
 #: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
+#: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -2050,7 +2067,6 @@ msgstr "Nie można połączyć się z serwerem zdalnym. Sprawdź, czy jest onlin
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -3011,6 +3027,16 @@ msgstr "Skonfiguruj serwer, który Poracode doda podczas uruchamiania obsługiwa
 msgid "Configured MCP servers"
 msgstr "Skonfigurowane serwery MCP"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Confirm before deleting threads"
+msgstr "Potwierdzaj przed usunięciem wątków"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#~ msgid "Confirm before deleting worktrees"
+#~ msgstr "Potwierdzaj przed usunięciem drzew roboczych"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
@@ -3887,6 +3913,8 @@ msgstr "Deleguj zadania innym agentom AI."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -3925,9 +3953,17 @@ msgstr "Usuń {serverName}"
 msgid "Delete <0>{0}</0>? This cannot be undone."
 msgstr "Usunąć <0>{0}</0>? Tej operacji nie można cofnąć."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+#~ msgid "Delete all done threads"
+#~ msgstr "Usuń wszystkie ukończone wątki"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
 msgstr "Usunąć gałąź?"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+msgid "Delete done threads"
+msgstr "Usuń ukończone wątki"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
@@ -3974,7 +4010,7 @@ msgstr "Usuń wątek"
 msgid "Delete Thread"
 msgstr "Usuń wątek"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Delete thread?"
 msgstr "Usunąć wątek?"
 
@@ -4299,7 +4335,7 @@ msgid "Docs"
 msgstr "Dokumentacja"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "Nie pytaj ponownie"
 
@@ -4830,6 +4866,14 @@ msgstr "Kandydat eksperymentu nie pochodzi już od zamrożonego commita bazowego
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Experiment candidate thread ids must be unique"
 msgstr "Identyfikatory wątków kandydatów eksperymentu muszą być unikalne"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+msgid "Experiment candidates will remain; all other threads in Done will be archived."
+msgstr "Kandydaci eksperymentu pozostaną; wszystkie pozostałe wątki w sekcji Gotowe zostaną zarchiwizowane."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
+msgid "Experiment candidates will remain; all other threads in Done will be permanently deleted."
+msgstr "Kandydaci eksperymentu pozostaną; wszystkie pozostałe wątki w sekcji Gotowe zostaną trwale usunięte."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Experiment diff base must be a full commit hash"
@@ -10882,6 +10926,16 @@ msgstr "Pokaż {0}"
 msgid "Show {label} circle in sidebar"
 msgstr "Pokaż krąg {label} na pasku bocznym"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#~ msgid "Show a confirmation before deleting a thread together with its worktree."
+#~ msgstr "Wyświetl potwierdzenie przed usunięciem wątku wraz z jego drzewem roboczym."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Show a confirmation before permanently deleting a thread."
+msgstr "Wyświetl potwierdzenie przed trwałym usunięciem wątku."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
@@ -12335,9 +12389,22 @@ msgid "This system-wide shortcut is unavailable. Choose another key combination.
 msgstr "Ten skrót globalny jest niedostępny. Wybierz inną kombinację klawiszy."
 
 #. placeholder {0}: props.worktreeBranch
-#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
-msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
-msgstr "W tym wątku używane jest drzewo robocze <0>{0}</0>. Usunąć także katalog drzewa roboczego?"
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
+#~ msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
+#~ msgstr "W tym wątku używane jest drzewo robocze <0>{0}</0>. Usunąć także katalog drzewa roboczego?"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
+#~ msgid "This will permanently delete the thread and its worktree."
+#~ msgstr "Spowoduje to trwałe usunięcie wątku i jego drzewa roboczego."
+
+#. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
+msgid "This will permanently delete the thread and remove worktree <0>{0}</0>."
+msgstr "Spowoduje to trwałe usunięcie wątku i drzewa roboczego <0>{0}</0>."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
+msgid "This will permanently delete the thread."
+msgstr "Spowoduje to trwałe usunięcie wątku."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "This workflow cannot be started manually."
@@ -12360,10 +12427,10 @@ msgstr "Myśl"
 msgid "Thread"
 msgstr "Wątek"
 
-#. Dialog button: delete the thread and remove its worktree directory
-#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
-msgid "Thread + Worktree"
-msgstr "Wątek + drzewo robocze"
+#. Popover button: delete the thread and remove its worktree directory
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
+#~ msgid "Thread + Worktree"
+#~ msgstr "Wątek + drzewo robocze"
 
 #: src/mobile/ThreadTitleRow.tsx
 msgid "Thread actions"
@@ -12406,10 +12473,10 @@ msgstr "Opcje listy wątków"
 msgid "Thread mode"
 msgstr "Tryb wątku"
 
-#. Dialog button: delete the thread but keep the worktree directory
-#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
-msgid "Thread Only"
-msgstr "Tylko wątek"
+#. Popover button: delete the thread but keep the worktree directory
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
+#~ msgid "Thread Only"
+#~ msgstr "Tylko wątek"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #~ msgid "Thread sort order"

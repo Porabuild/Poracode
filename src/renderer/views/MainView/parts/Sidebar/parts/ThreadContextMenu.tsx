@@ -50,7 +50,7 @@ import {
   unloadThread,
   toggleMarkThreadDone,
   toggleStarThread,
-  deleteThread,
+  requestDeleteThread,
   continueInProvider,
   openNewThreadInWorktree,
 } from "@/renderer/actions/threadActions";
@@ -295,7 +295,7 @@ export function ThreadContextMenu(props: {
             ]
           : []),
       ]}
-      onAction={(key) => {
+      onAction={(key, anchorPosition, returnFocusElement) => {
         if (key === "new-thread-in-worktree" && thread.worktreePath)
           openNewThreadInWorktree({
             projectId: thread.projectId,
@@ -378,7 +378,10 @@ export function ThreadContextMenu(props: {
         if (key === "mark-done") toggleMarkThreadDone(thread.id);
         if (key === "toggle-star") toggleStarThread(thread.id);
         if (key === "delete" && !isExperimentCandidate)
-          deleteThread(thread.id, thread.worktreePath, thread.projectId);
+          requestDeleteThread(thread.id, thread.worktreePath, thread.projectId, {
+            ...(anchorPosition ? { anchorPosition } : {}),
+            ...(returnFocusElement ? { returnFocusElement } : {}),
+          });
         if (key.startsWith("action:")) {
           runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
         }

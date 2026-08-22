@@ -1,9 +1,13 @@
-import { startTransition } from "react";
+import { startTransition, useState } from "react";
 import { NumberField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadRemoveAction } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  setConfirmThreadDelete,
+  shouldConfirmThreadDelete,
+} from "@/renderer/state/threadDeletePreference";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { threadRemoveActionOptions, useLocalizedOptions } from "./settingsOptions";
@@ -22,6 +26,7 @@ export function ThreadSettings() {
   const setThreadRemoveAction = useSharedSettings((state) => state.setThreadRemoveAction);
   const autoMarkDoneOnPrMerge = useSharedSettings((state) => state.autoMarkDoneOnPrMerge);
   const setAutoMarkDoneOnPrMerge = useSharedSettings((state) => state.setAutoMarkDoneOnPrMerge);
+  const [confirmThreadDelete, setConfirmThreadDeleteState] = useState(shouldConfirmThreadDelete);
   // Idle unloading and launch-time auto-archive run on the desktop; a remote
   // session's copy of these values is never read, so hide the rows there.
   const remote = isRemoteSession();
@@ -134,6 +139,23 @@ export function ThreadSettings() {
               startTransition(() => {
                 setThreadRemoveAction(value as ThreadRemoveAction);
               });
+            }}
+          />
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="threads.confirmThreadDelete"
+          title={t`Confirm before deleting threads`}
+          description={<Trans>Show a confirmation before permanently deleting a thread.</Trans>}
+        >
+          <ToggleSwitch
+            aria-label={t`Confirm before deleting threads`}
+            isSelected={confirmThreadDelete}
+            onChange={(selected) => {
+              setConfirmThreadDelete(selected);
+              setConfirmThreadDeleteState(selected);
             }}
           />
         </SettingRow>

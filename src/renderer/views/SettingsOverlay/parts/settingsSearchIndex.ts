@@ -323,6 +323,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "default thread removal delete archive quick remove sidebar",
     desktopOnly: true,
   },
+  {
+    section: "threads",
+    anchor: "threads.confirmThreadDelete",
+    title: msg`Confirm before deleting threads`,
+    description: msg`Show a confirmation before permanently deleting a thread.`,
+    keywords: "confirm delete thread worktree remove ask warning",
+    desktopOnly: true,
+  },
 
   // Git
   {
