@@ -2126,6 +2126,10 @@ msgstr "프로젝트 폴더 변경"
 msgid "Change project icon"
 msgstr "프로젝트 아이콘 변경"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Change servers in provider settings"
+msgstr "제공업체 설정에서 서버 변경"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
 msgstr "단축키 변경"

@@ -2126,6 +2126,10 @@ msgstr "Changer le dossier du projet"
 msgid "Change project icon"
 msgstr "Changer l'icône du projet"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Change servers in provider settings"
+msgstr "Modifiez les serveurs dans les paramètres du fournisseur"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
 msgstr "Changer le raccourci"

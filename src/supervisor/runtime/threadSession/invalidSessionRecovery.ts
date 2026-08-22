@@ -10,7 +10,7 @@ import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
   SpawnPipeline,
-  "resolveMcpServersForLaunch" | "composeLaunchOptions" | "spawnThread"
+  "resolveMcpLaunchConfig" | "resolveMcpServersForLaunch" | "composeLaunchOptions" | "spawnThread"
 >;
 
 export interface InvalidSessionRecoveryContext {
@@ -73,12 +73,17 @@ export class InvalidSessionRecoveryCoordinator {
       return;
     }
 
-    const launchConfig = workspaceLaunchConfig(
-      session.projectLocation,
-      session.config,
+    const launchConfig = context.spawnPipeline.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        session.projectLocation,
+        session.config,
+        session.adapter,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      mcpLaunchSnapshot,
       session.adapter,
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      session.threadId,
     );
     const resolvedMcpServers = await context.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,

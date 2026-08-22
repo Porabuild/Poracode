@@ -367,12 +367,26 @@ export class SpawnPipeline {
             payload.userMessageItemId,
           )
         : undefined;
-    const optimisticLaunchConfig = workspaceLaunchConfig(
-      payload.projectLocation,
-      payload.config,
+    const mcpLaunchSnapshotBase = {
+      disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
+      disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
+      pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
+    };
+    const optimisticMcpLaunchSnapshot: McpLaunchSnapshot = {
+      mcpServers: [],
+      ...mcpLaunchSnapshotBase,
+    };
+    const optimisticLaunchConfig = this.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        payload.projectLocation,
+        payload.config,
+        adapter,
+        optimisticMcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        optimisticMcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      optimisticMcpLaunchSnapshot,
       adapter,
-      payload.disabledBuiltInMcpServerIds ?? [],
-      pluginContributions.builtInMcpServerIds,
+      payload.threadId,
     );
     if (optimisticUserMessageItemId) {
       this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
@@ -414,16 +428,19 @@ export class SpawnPipeline {
     }
     const mcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers,
-      disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
-      disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
-      pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
+      ...mcpLaunchSnapshotBase,
     };
-    const launchConfig = workspaceLaunchConfig(
-      payload.projectLocation,
-      payload.config,
+    const launchConfig = this.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        payload.projectLocation,
+        payload.config,
+        adapter,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      mcpLaunchSnapshot,
       adapter,
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      payload.threadId,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: payload.projectLocation,
@@ -714,12 +731,17 @@ export class SpawnPipeline {
     }
 
     const mcpIdentity = { threadId: session.threadId };
-    const launchConfig = workspaceLaunchConfig(
-      session.projectLocation,
-      config,
+    const launchConfig = this.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        session.projectLocation,
+        config,
+        session.adapter,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      mcpLaunchSnapshot,
       session.adapter,
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      session.threadId,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -1051,9 +1073,6 @@ export class SpawnPipeline {
     adapter?: AgentAdapter;
     presentationMode?: ThreadPresentationMode;
   }): Promise<ResolvedMcpServer[]> {
-    const crossagentRoutingAvailable =
-      adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
-      crossagentThreadId !== undefined;
     const providerSessionCrossagents = usesProviderSessionCrossagentRouting(
       adapter,
       presentationMode,
@@ -1063,17 +1082,7 @@ export class SpawnPipeline {
       // Provider-level MCP: flags come from the provider's settings page. Drop
       // the general MCP identity; GUI provider-session routing uses its own
       // shared credential, while terminal routing keeps the thread token.
-      config = applyAgentSettingsMcpFlags(
-        config,
-        this.ctx.resolveAgentSettings(adapter),
-        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-        crossagentRoutingAvailable,
-      );
-      config = effectiveLaunchConfig(
-        config,
-        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
-      );
+      config = this.resolveMcpLaunchConfig(config, mcpLaunchSnapshot, adapter, crossagentThreadId);
       identity = undefined;
       if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
         crossagentThreadId = undefined;
@@ -1113,6 +1122,27 @@ export class SpawnPipeline {
       computerUseMcp,
       chromeMcp,
       appControlsMcp,
+    );
+  }
+
+  resolveMcpLaunchConfig(
+    config: ThreadConfig,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
+    adapter: AgentAdapter,
+    crossagentThreadId?: string,
+  ): ThreadConfig {
+    if (adapter.capabilities.mcpConfigSource !== "agentSettings") return config;
+    const withProviderSettings = applyAgentSettingsMcpFlags(
+      config,
+      this.ctx.resolveAgentSettings(adapter),
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      adapter.capabilities.crossagentMcpRouting === "provider-session" &&
+        crossagentThreadId !== undefined,
+    );
+    return effectiveLaunchConfig(
+      withProviderSettings,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
   }
 

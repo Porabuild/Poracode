@@ -45,6 +45,8 @@ const analytics = vi.hoisted(() => ({
   captureThreadPromptSubmitted: vi.fn<() => void>(),
 }));
 
+const composerAddMenuSpy = vi.hoisted(() => vi.fn<(props: unknown) => void>());
+
 vi.mock("@/renderer/analytics/posthog", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/analytics/posthog")>()),
   captureThreadPromptSubmitted: analytics.captureThreadPromptSubmitted,
@@ -65,6 +67,13 @@ vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
 
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentLoginCommand: loginActions.runAgentLoginCommand,
+}));
+
+vi.mock("../composer/ComposerAddMenu", () => ({
+  ComposerAddMenu: (props: unknown) => {
+    composerAddMenuSpy(props);
+    return null;
+  },
 }));
 
 vi.mock("../../bridge", () => ({
@@ -92,6 +101,8 @@ vi.mock("./ThreadComposer", () => ({
     fixedContent?: ReactNode;
     attachmentBar?: ReactNode;
     inputContent?: ReactNode;
+    leadingControls?: ReactNode | (() => ReactNode);
+    afterControls?: ReactNode | (() => ReactNode);
     onAttachFiles?: (paths: string[]) => void;
     onStop?: () => void;
     onSubmit: () => void;
@@ -101,6 +112,10 @@ vi.mock("./ThreadComposer", () => ({
       {props.fixedContent}
       {props.attachmentBar}
       {props.inputContent}
+      {typeof props.leadingControls === "function"
+        ? props.leadingControls()
+        : props.leadingControls}
+      {typeof props.afterControls === "function" ? props.afterControls() : props.afterControls}
       <output data-testid="control-kinds">
         {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
       </output>
@@ -242,6 +257,8 @@ describe("ThreadComposerSection", () => {
       pendingComposerFocusThreadId: null,
       threadDraftContents: {},
       provisioningWorktreeThreadIds: {},
+      runtimeLaunchConfigByThreadId: {},
+      mcpLaunchCustomServerNamesByThreadId: {},
     });
     useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
@@ -256,6 +273,7 @@ describe("ThreadComposerSection", () => {
     bridgeMock.setPendingSteer.mockResolvedValue(undefined);
     analytics.captureProductEvent.mockClear();
     analytics.captureThreadPromptSubmitted.mockClear();
+    composerAddMenuSpy.mockClear();
     runtimeActions.changeThreadConfig.mockClear();
     runtimeActions.resolveThreadServerRequest.mockClear();
     runtimeActions.resolveThreadServerRequest.mockResolvedValue(undefined);
@@ -440,6 +458,105 @@ describe("ThreadComposerSection", () => {
     typeComposerText(input, "@ter");
 
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
+
+  it("shows provider-owned enabled MCPs in the indicator and @ mentions", () => {
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [guiThread.id]: { model: "gpt-5.4", crossagentMcp: true },
+      },
+      mcpLaunchCustomServerNamesByThreadId: {
+        [guiThread.id]: ["Vision-MCP"],
+      },
+    });
+    const rangeRectDescriptor = Object.getOwnPropertyDescriptor(
+      Range.prototype,
+      "getBoundingClientRect",
+    );
+    const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollIntoView",
+    );
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 0, top: 0 }),
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+
+    try {
+      renderComposer({
+        agentStatus: {
+          ...codexGuiStatus,
+          capabilities: {
+            ...codexGuiStatus.capabilities,
+            mcpConfigSource: "agentSettings",
+          },
+        },
+      });
+
+      const menuProps = composerAddMenuSpy.mock.lastCall?.[0] as {
+        mcpServers: Array<{ descriptor: { id: string }; visible: boolean }>;
+        customMcpServers: Array<{ name: string; enabled: boolean }>;
+        readOnly: boolean;
+      };
+      expect(
+        menuProps.mcpServers
+          .filter((server) => server.visible)
+          .map((server) => server.descriptor.id),
+      ).toEqual(["crossagents"]);
+      expect(menuProps.customMcpServers).toEqual([
+        expect.objectContaining({ name: "Vision-MCP", enabled: true }),
+      ]);
+      expect(menuProps.readOnly).toBe(true);
+
+      const input = screen.getByRole("textbox");
+      typeComposerText(input, "@cro");
+      expect(screen.getByRole("option")).toHaveTextContent("Crossagents");
+
+      typeComposerText(input, "@vis");
+      expect(screen.getByRole("option")).toHaveTextContent("Vision-MCP");
+    } finally {
+      if (rangeRectDescriptor) {
+        Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
+      } else {
+        Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+      }
+      if (scrollIntoViewDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", scrollIntoViewDescriptor);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+      }
+    }
+  });
+
+  it("does not report client-local custom MCPs for a remote provider-owned thread", () => {
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [guiThread.id]: { model: "gpt-5.4", crossagentMcp: true },
+      },
+      mcpLaunchCustomServerNamesByThreadId: {
+        [guiThread.id]: ["Client-only MCP"],
+      },
+    });
+
+    renderComposer({
+      thread: { ...guiThread, remoteServerId: "desktop-1", remoteId: "remote-thread-1" },
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          mcpConfigSource: "agentSettings",
+        },
+      },
+    });
+
+    const menuProps = composerAddMenuSpy.mock.lastCall?.[0] as {
+      customMcpServers: unknown[];
+    };
+    expect(menuProps.customMcpServers).toEqual([]);
   });
 
   it("uses GUI presentation capabilities for slash commands and /fast submission", () => {

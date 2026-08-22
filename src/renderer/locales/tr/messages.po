@@ -2126,6 +2126,10 @@ msgstr "Proje klasörünü değiştir"
 msgid "Change project icon"
 msgstr "Proje simgesini değiştir"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Change servers in provider settings"
+msgstr "Sunucuları sağlayıcı ayarlarından değiştirin"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Change shortcut"
 msgstr "Kısayolu değiştir"

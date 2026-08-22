@@ -375,12 +375,17 @@ export class ThreadSessionManager {
       reloads.push(
         (async () => {
           try {
-            const launchConfig = workspaceLaunchConfig(
-              session.projectLocation,
-              session.config,
+            const launchConfig = this.spawnPipeline.resolveMcpLaunchConfig(
+              workspaceLaunchConfig(
+                session.projectLocation,
+                session.config,
+                session.adapter,
+                session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+                session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+              ),
+              session.mcpLaunchSnapshot,
               session.adapter,
-              session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-              session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+              session.threadId,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -388,8 +393,13 @@ export class ThreadSessionManager {
               mcpLaunchSnapshot: session.mcpLaunchSnapshot,
               crossagentThreadId: session.threadId,
               adapter: session.adapter,
+              ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
             });
+            if (!this.isCurrentSession(session)) return;
             await update(mcpServers);
+            if (!this.isCurrentSession(session)) return;
+            session.launchConfig = launchConfig;
+            this.outputPipeline.emitState(session);
           } catch (error) {
             console.warn(
               `[supervisor] failed to reload MCP servers for thread ${session.threadId}:`,
