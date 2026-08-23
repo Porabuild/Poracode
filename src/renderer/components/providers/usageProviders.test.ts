@@ -33,6 +33,12 @@ const agentInstances: AgentInstanceConfigMap = {
     enabled: false,
     config: { configDir: "~/.poracode/claude-profiles/disabled" },
   },
+  yieldmo: {
+    id: "yieldmo",
+    driver: "cursor",
+    displayName: "Work",
+    environment: { CURSOR_API_KEY: { value: "lc-safe:encrypted", sensitive: true } },
+  },
 };
 
 describe("usageProviders", () => {
@@ -65,6 +71,22 @@ describe("usageProviders", () => {
       "claude:work",
     ]);
     expect(providers.find((provider) => provider.id === "claude:home")?.label).toBe("Claude Home");
+  });
+
+  it("adds Cursor profile providers after the base Cursor provider", () => {
+    const providers = usageProvidersForAgentInstances(agentInstances);
+    const cursorIndex = providers.findIndex((provider) => provider.id === "cursor");
+
+    expect(providers.slice(cursorIndex, cursorIndex + 2).map((provider) => provider.id)).toEqual([
+      "cursor",
+      "cursor:yieldmo",
+    ]);
+    expect(providers.find((provider) => provider.id === "cursor:yieldmo")?.label).toBe(
+      "Cursor Work",
+    );
+    expect(providers.find((provider) => provider.id === "cursor:yieldmo")?.sharedWindowReset).toBe(
+      true,
+    );
   });
 
   it("orders, disables, and rings Claude profiles like Claude", () => {

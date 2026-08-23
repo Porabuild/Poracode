@@ -26,6 +26,25 @@ export function authStateForPresentation(
   return status.presentationAuthStates?.[presentationMode] ?? status.authState;
 }
 
+/**
+ * Whether Settings should flag this provider as needing sign-in. Providers with
+ * independently authenticated runtimes (Cursor CLI vs SDK) are ready when any
+ * installed runtime is signed in — picking SDK on the main tile must not look
+ * like a CLI logout.
+ */
+export function agentStatusNeedsAuthAttention(
+  status: Pick<AgentStatus, "installed" | "authState" | "runtimeVariants">,
+): boolean {
+  if (!status.installed) return false;
+  const variants = status.runtimeVariants;
+  if (variants && Object.keys(variants).length > 0) {
+    const installed = Object.values(variants).filter((variant) => variant.installed);
+    if (installed.length === 0) return status.authState === "missing";
+    return !installed.some((variant) => variant.authState === "authenticated");
+  }
+  return status.authState === "missing";
+}
+
 export function authStatusForPresentation(
   status: AgentStatus,
   presentationMode: ThreadPresentationMode,

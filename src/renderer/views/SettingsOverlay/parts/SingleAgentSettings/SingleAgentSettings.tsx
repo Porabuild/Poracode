@@ -12,6 +12,7 @@ import type {
 import {
   baseAgentKind,
   extractAcpGenericInstanceId,
+  isCursorProfileKind,
   parseAgentProfileKind,
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -999,11 +1000,13 @@ export function SingleAgentSettings(props: {
         )}
       </div>
 
-      <HookPluginSettings
-        agentKind={agent.kind}
-        agentLabel={agent.label}
-        statuses={installedStatuses}
-      />
+      {isCursorProfileKind(agent.kind) ? null : (
+        <HookPluginSettings
+          agentKind={agent.kind}
+          agentLabel={agent.label}
+          statuses={installedStatuses}
+        />
+      )}
     </div>
   );
 }

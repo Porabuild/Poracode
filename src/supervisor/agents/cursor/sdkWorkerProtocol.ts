@@ -50,6 +50,8 @@ export interface CursorSdkWorkerProbeResult {
     | "global-npm"
     | "global-pnpm"
     | "explicit-entry";
+  /** Account the probed API key belongs to, from `Cursor.me()`. */
+  authenticatedAs?: string;
 }
 
 export type CursorSdkWorkerMcpServer =

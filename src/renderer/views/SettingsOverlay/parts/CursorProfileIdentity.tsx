@@ -72,7 +72,10 @@ export function CursorProfileIdentity(props: {
         <Trans>Profile</Trans>
       </p>
       <p className="mb-2 text-xs text-muted">
-        <Trans>The API key below is used by Cursor CLI, ACP, and SDK for this profile.</Trans>
+        <Trans>
+          This API key authenticates this profile's SDK chats and its usage card. It does not change
+          the main Cursor CLI login.
+        </Trans>
       </p>
       <div className="space-y-1.5">
         <CursorRuntimeCardRow

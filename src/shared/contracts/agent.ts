@@ -385,6 +385,11 @@ export const agentRuntimeVariantSchema = z.object({
   authState: authStateSchema,
   authUsesProviderLogin: z.boolean(),
   capabilities: agentCapabilitySchema,
+  /**
+   * Runtime-specific account identity. Cursor's SDK key is a different login
+   * from the CLI/ACP session, so the SDK card must not reuse root metadata.
+   */
+  providerMetadata: agentProviderMetadataSchema.optional(),
 });
 export type AgentRuntimeVariant = z.infer<typeof agentRuntimeVariantSchema>;
 

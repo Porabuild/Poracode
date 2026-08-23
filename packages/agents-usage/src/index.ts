@@ -59,7 +59,16 @@ export {
   CODEX_USAGE_ENDPOINT,
 } from "./collectors/codex";
 export { collectCopilot, parseCopilotUsage, COPILOT_USER_ENDPOINT } from "./collectors/copilot";
-export { collectCursor, parseCursorUsage, CURSOR_USAGE_ENDPOINT } from "./collectors/cursor";
+export {
+  collectCursor,
+  collectCursorFromApiKey,
+  parseCursorUsage,
+  parseCursorPeriodUsage,
+  CURSOR_USAGE_ENDPOINT,
+  CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+  CURSOR_PERIOD_USAGE_ENDPOINT,
+  CURSOR_PLAN_INFO_ENDPOINT,
+} from "./collectors/cursor";
 export {
   collectCommandCode,
   formatCommandCodePlanLabel,

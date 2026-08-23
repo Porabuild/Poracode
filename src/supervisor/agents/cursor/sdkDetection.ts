@@ -41,6 +41,7 @@ export interface CursorSdkRuntimeProbe {
   source?: string;
   diagnosticCode?: string;
   diagnosticMessage?: string;
+  authenticatedAs?: string;
 }
 
 export interface CursorSdkDetectionDependencies {
@@ -88,6 +89,9 @@ export function applyCursorSdkProbe(
       authState: probe.authState,
       authUsesProviderLogin: false,
       capabilities: sdkCapabilities,
+      ...(probe.authenticatedAs
+        ? { providerMetadata: { authenticatedAs: probe.authenticatedAs } }
+        : {}),
     },
   };
   const runtimeRouting: NonNullable<AgentStatus["sessionRuntimeRouting"]> = {
@@ -257,6 +261,7 @@ export async function probeCursorSdkRuntime(
       models: result.models,
       version: result.sdkVersion,
       source: result.source,
+      ...(result.authenticatedAs ? { authenticatedAs: result.authenticatedAs } : {}),
     };
   } catch (error) {
     const code = cursorSdkProbeErrorCode(error);

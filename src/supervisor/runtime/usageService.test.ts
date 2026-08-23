@@ -2,7 +2,14 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { HostPort, OAuthToken, UsageSnapshot } from "@poracode/agents-usage";
+import {
+  CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+  CURSOR_PERIOD_USAGE_ENDPOINT,
+  CURSOR_PLAN_INFO_ENDPOINT,
+  type HostPort,
+  type OAuthToken,
+  type UsageSnapshot,
+} from "@poracode/agents-usage";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { LocalUsageCollector } from "./localUsageCollectors";
 import { UsageService } from "./usageService";
@@ -417,6 +424,88 @@ describe("UsageService", () => {
       plan: "Team Subscription",
     });
     expect(result.snapshots[0]?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+  });
+
+  it("collects Cursor profile usage from the profile API key", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentInstances: {
+          work: {
+            id: "work",
+            driver: "cursor",
+            displayName: "Work",
+            environment: { CURSOR_API_KEY: { value: "crsr_work", sensitive: true } },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const urls: string[] = [];
+    const authorizations: Array<string | undefined> = [];
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: () => Promise.resolve(undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: (request) => {
+          urls.push(request.url);
+          authorizations.push(request.headers?.Authorization);
+          if (request.url === CURSOR_API_KEY_EXCHANGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ accessToken: "session-jwt" }),
+            });
+          }
+          if (request.url === CURSOR_PERIOD_USAGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                planUsage: {
+                  totalSpend: 2000,
+                  limit: 2000,
+                  autoPercentUsed: 10,
+                  apiPercentUsed: 40,
+                },
+              }),
+            });
+          }
+          if (request.url === CURSOR_PLAN_INFO_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ planInfo: { planName: "pro" } }),
+            });
+          }
+          return Promise.resolve({ status: 404, headers: {}, body: "" });
+        },
+      },
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host,
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({ providerIds: ["cursor:work"] });
+
+    expect(urls[0]).toBe(CURSOR_API_KEY_EXCHANGE_ENDPOINT);
+    expect(authorizations[0]).toBe("Bearer crsr_work");
+    expect(result.snapshots).toHaveLength(1);
+    expect(result.snapshots[0]).toMatchObject({
+      providerId: "cursor:work",
+      status: "ok",
+      plan: "Cursor Pro",
+    });
+    expect(result.snapshots[0]?.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(10);
   });
 
   it("does not re-poll a rate-limited provider until its Retry-After backoff clears", async () => {

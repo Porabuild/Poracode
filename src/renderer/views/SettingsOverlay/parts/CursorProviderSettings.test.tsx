@@ -601,11 +601,12 @@ describe("CursorProviderSettings", () => {
     const field = screen.getByLabelText("Cursor profile API key");
     expect(field).toHaveValue("***********");
     expect(
-      screen.getByText("The API key below is used by Cursor CLI, ACP, and SDK for this profile."),
+      screen.getByText(
+        "This API key authenticates this profile's SDK chats and its usage card. It does not change the main Cursor CLI login.",
+      ),
     ).toBeTruthy();
-    expect(screen.getByRole("radiogroup", { name: "Structured runtime" }).contains(field)).toBe(
-      false,
-    );
+    expect(screen.queryByRole("radiogroup", { name: "Structured runtime" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /ACP/ })).toBeNull();
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: " replacement-key " } });
     fireEvent.click(screen.getByRole("button", { name: "Save Cursor profile API key" }));
@@ -683,6 +684,57 @@ describe("CursorProviderSettings", () => {
     ).toHaveLength(2);
     // The SDK card carries its own API key state; ACP auth lives with the CLI.
     expect(screen.getByText("Authenticated")).toBeInTheDocument();
+  });
+
+  it("shows the SDK account email on the main SDK card", () => {
+    const withEmail: AgentStatus = {
+      ...runtimeStatus,
+      runtimeVariants: {
+        ...runtimeStatus.runtimeVariants,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          providerMetadata: { authenticatedAs: "sdk@example.com" },
+        },
+      },
+    };
+    render(<CursorProviderSettings agentKind="cursor" statuses={[withEmail]} wslDistros={[]} />);
+
+    expect(screen.getByText("Installed · Authenticated · sdk@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Authenticated · sdk@example.com")).toBeInTheDocument();
+    expect(
+      screen.getAllByText((_, element) => element?.textContent === "Installed · Authenticated"),
+    ).toHaveLength(1);
+  });
+
+  it("shows the SDK account email on a Cursor profile", () => {
+    useSharedSettings.setState({
+      agentInstances: {
+        work: {
+          id: "work",
+          driver: "cursor",
+          displayName: "Work",
+          environment: { CURSOR_API_KEY: { value: "lc-safe:encrypted", sensitive: true } },
+        },
+      },
+    });
+    const withEmail: AgentStatus = {
+      ...runtimeStatus,
+      kind: "cursor:work",
+      label: "Cursor Work",
+      runtimeVariants: {
+        ...runtimeStatus.runtimeVariants,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          providerMetadata: { authenticatedAs: "work@yieldmo.com" },
+        },
+      },
+    };
+    render(
+      <CursorProviderSettings agentKind="cursor:work" statuses={[withEmail]} wslDistros={[]} />,
+    );
+
+    expect(screen.getAllByText("Authenticated · work@yieldmo.com").length).toBeGreaterThan(0);
+    expect(screen.getByText("Installed · Authenticated · work@yieldmo.com")).toBeInTheDocument();
   });
 
   it("combines runtime availability detected in different environments", () => {
@@ -857,7 +909,7 @@ describe("CursorProviderSettings", () => {
     expect(setAgentSettingMock).toHaveBeenLastCalledWith("cursor", "structuredRuntime", "acp");
   });
 
-  it("persists a profile runtime choice under the profile kind", async () => {
+  it("does not offer CLI or ACP on a Cursor profile", () => {
     render(
       <CursorProviderSettings
         agentKind="cursor:work"
@@ -866,36 +918,14 @@ describe("CursorProviderSettings", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("radio", { name: /ACP/ }));
-
-    await vi.waitFor(() => {
-      expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledWith([], {
-        agentKinds: ["cursor:work"],
-      });
-    });
-    expect(setAgentSettingMock).toHaveBeenCalledWith("cursor:work", "structuredRuntime", "acp");
-    expect(flushSharedSettingsMock.mock.invocationCallOrder[0]).toBeLessThan(
-      bridgeMock.refreshAgentStatuses.mock.invocationCallOrder[0]!,
-    );
-  });
-
-  it("restores a profile runtime choice when the settings flush fails", async () => {
-    flushSharedSettingsMock.mockRejectedValueOnce(new Error("write failed"));
-    render(
-      <CursorProviderSettings
-        agentKind="cursor:work"
-        statuses={[{ ...runtimeStatus, kind: "cursor:work", label: "Cursor Work" }]}
-        wslDistros={[]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("radio", { name: /ACP/ }));
-
-    await act(async () => {
-      await vi.waitFor(() => expect(toastMock.danger).toHaveBeenCalled());
-    });
-    expect(bridgeMock.refreshAgentStatuses).not.toHaveBeenCalled();
-    expect(setAgentSettingMock).toHaveBeenLastCalledWith("cursor:work", "structuredRuntime", "sdk");
+    expect(screen.queryByRole("radiogroup", { name: "Structured runtime" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /ACP/ })).toBeNull();
+    expect(screen.getByText("Cursor SDK")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile.",
+      ),
+    ).toBeTruthy();
   });
 
   it("saves an SDK API key through the encrypted setting path and refreshes detection", async () => {
@@ -975,7 +1005,7 @@ describe("CursorProviderSettings", () => {
     expect(bridgeMock.createProfile).not.toHaveBeenCalled();
   });
 
-  it("pins the ACP runtime for a new profile when @cursor/sdk is missing", async () => {
+  it("pins the SDK runtime for a new profile even when @cursor/sdk is missing", async () => {
     const withoutSdk: AgentStatus = {
       ...runtimeStatus,
       runtimeVariants: {
@@ -995,7 +1025,7 @@ describe("CursorProviderSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
 
     await vi.waitFor(() =>
-      expect(setAgentSettingMock).toHaveBeenCalledWith("cursor:work", "structuredRuntime", "acp"),
+      expect(setAgentSettingMock).toHaveBeenCalledWith("cursor:work", "structuredRuntime", "sdk"),
     );
   });
 
@@ -1016,7 +1046,7 @@ describe("CursorProviderSettings", () => {
     expect(screen.getByRole("button", { name: "Remove profile Work" })).toBeTruthy();
   });
 
-  it("labels each profile row with the runtime it launches on", () => {
+  it("labels each profile row as Cursor SDK", () => {
     useSharedSettings.setState({
       agentInstances: {
         work: { id: "work", driver: "cursor", displayName: "Work" },
@@ -1028,10 +1058,8 @@ describe("CursorProviderSettings", () => {
       <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
     );
 
-    // "Personal" pinned ACP; "Work" has no saved choice and follows the
-    // supervisor's SDK default.
     const rowText = screen.getAllByRole("button").map((button) => button.textContent);
-    expect(rowText).toContain("PersonalCursor CLI (ACP)");
+    expect(rowText).toContain("PersonalCursor SDK");
     expect(rowText).toContain("WorkCursor SDK");
   });
 

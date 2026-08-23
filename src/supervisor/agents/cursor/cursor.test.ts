@@ -60,7 +60,7 @@ describe("createCursorAdapter capabilities", () => {
     expect(adapter.createStructuredSession).toBeTypeOf("function");
   });
 
-  it("creates a profile adapter whose key applies to every process lane", () => {
+  it("creates a profile adapter that does not inject its key into CLI/ACP spawns", () => {
     const adapter = createCursorProfileAdapter({
       id: "work",
       driver: "cursor",
@@ -70,7 +70,8 @@ describe("createCursorAdapter capabilities", () => {
 
     expect(adapter.kind).toBe("cursor:work");
     expect(adapter.label).toBe("Cursor Work");
-    expect(adapter.baseSpawnEnv).toEqual({ CURSOR_API_KEY: "profile-key" });
+    expect(adapter.baseSpawnEnv).toBeUndefined();
+    expect(adapter.capabilities.presentationModes).toEqual(["gui"]);
   });
 
   it("defaults new Cursor profile GUI sessions to the SDK runtime", async () => {
@@ -85,7 +86,7 @@ describe("createCursorAdapter capabilities", () => {
       projectLocation: { kind: "posix", path: "/repo" },
       config: { model: "composer-2.5" },
       presentationMode: "gui",
-      ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
+      agentSettings: { structuredRuntime: "acp" },
     });
 
     expect(session).toBeInstanceOf(CursorSdkSession);

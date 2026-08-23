@@ -112,22 +112,12 @@ describe("Cursor adapter SDK detection selection", () => {
     );
   });
 
-  it("keeps a profile key out of renderer-visible login metadata", async () => {
-    mocks.detectAgentInstall.mockResolvedValue({
-      ...cliStatus,
-      loginCommand: "cursor-agent login",
-      authLogoutSupported: true,
-      authMethods: [
-        {
-          type: "terminal",
-          id: "cursor-login",
-          name: "Cursor login",
-          args: ["login"],
-          env: { CURSOR_API_KEY: "profile-key" },
-        },
-      ],
-    });
-    mocks.applyCursorSdkProbe.mockImplementation((status) => status);
+  it("probes a profile through the SDK only and never runs cursor-agent", async () => {
+    mocks.applyCursorSdkProbe.mockImplementation((status, probe) => ({
+      ...status,
+      installed: probe.installed,
+      authState: probe.authState,
+    }));
     const adapter = createCursorProfileAdapter({
       id: "work",
       driver: "cursor",
@@ -136,14 +126,22 @@ describe("Cursor adapter SDK detection selection", () => {
 
     const result = await adapter.detectInstall({ envKind: "posix" });
 
-    expect(result).not.toHaveProperty("loginCommand");
-    expect(result).not.toHaveProperty("authMethods");
-    expect(result).not.toHaveProperty("authLogoutSupported");
+    expect(mocks.detectAgentInstall).not.toHaveBeenCalled();
     expect(mocks.probeCursorSdkRuntime).toHaveBeenCalledWith(
       expect.objectContaining({ envKind: "posix" }),
       {},
       "profile-key",
     );
+    expect(mocks.applyCursorSdkProbe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "cursor:work",
+        installed: false,
+        capabilities: expect.objectContaining({ presentationModes: ["gui"] }),
+      }),
+      expect.objectContaining({ models: [{ id: "sdk-model", displayName: "SDK Model" }] }),
+      "sdk",
+    );
+    expect(result.authState).toBe("authenticated");
   });
 
   it("keeps process-wide routing immutable across divergent environment probes", async () => {
