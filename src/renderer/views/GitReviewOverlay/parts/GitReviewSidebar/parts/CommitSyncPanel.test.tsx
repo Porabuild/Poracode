@@ -79,40 +79,75 @@ function renderPanel(overrides?: Partial<Parameters<typeof CommitSyncPanel>[0]>)
 // English catalog is active under renderWithI18n, so each phase resolves to
 // its source string.
 const PHASE_TEXT: Record<GitActionPhase, string> = {
-  "generating-message": "Generating commit message…",
+  "generating-message": "Generating…",
   committing: "Committing…",
   pushing: "Pushing…",
   pulling: "Pulling…",
   syncing: "Syncing…",
-  "generating-pr-summary": "Generating PR summary…",
+  "generating-pr-summary": "Summarizing…",
   "creating-pr": "Creating PR…",
 };
 
-describe("CommitSyncPanel pipeline status row", () => {
-  it("shows no status line when no tracked step is running", () => {
-    renderPanel();
+describe("CommitSyncPanel in-button step status", () => {
+  it("keeps the idle caption when no tracked step is running", () => {
+    renderPanel({ hasAnyChanges: true, canCommitStaged: true });
+    expect(screen.getByRole("button", { name: "Commit" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  // Each pipeline step renders its own live label so a multi-step flow like
-  // "Commit & Create PR" shows which backend operation is running.
-  it.each(Object.entries(PHASE_TEXT) as [GitActionPhase, string][])(
-    "renders the %s status line",
-    (phase, expected) => {
-      renderPanel({ actionPhase: phase });
-      expect(screen.getByRole("status")).toHaveTextContent(expected);
+  // Each pipeline step replaces the caption of the button that started it, so a
+  // multi-step flow like "Commit & Create PR" names the backend operation in
+  // flight without adding a row that reflows the panel.
+  it.each(["generating-message", "committing", "pushing", "creating-pr"] as GitActionPhase[])(
+    "labels the commit button with the %s step",
+    (phase) => {
+      renderPanel({
+        hasAnyChanges: true,
+        canCommitStaged: true,
+        isCommitting: true,
+        actionPhase: phase,
+      });
+      expect(screen.getByRole("status")).toHaveTextContent(PHASE_TEXT[phase]);
       expect(screen.getByTestId("pixel-loader")).toBeInTheDocument();
     },
   );
 
-  it("keeps the status line visible while the commit button is pending", () => {
+  it("labels the sync button with its own step", () => {
+    renderPanel({
+      hasRemote: true,
+      hasTracking: true,
+      behind: 1,
+      isSyncing: true,
+      actionPhase: "pulling",
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(PHASE_TEXT.pulling);
+  });
+
+  it("labels the sync button while pulling from the source branch", () => {
+    renderPanel({
+      hasRemote: true,
+      hasTracking: true,
+      showPullFromSource: true,
+      sourceBranch: "main",
+      sourceAhead: 2,
+      isPullingFromSource: true,
+      actionPhase: "pulling",
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(PHASE_TEXT.pulling);
+  });
+
+  // The AI generate button owns the phase slot on its own; the commit button
+  // must not claim a step it did not start.
+  it("leaves the commit button captioned while only the generate button runs", () => {
     renderPanel({
       hasAnyChanges: true,
-      hasRemote: true,
-      isCommitting: true,
-      actionPhase: "pushing",
+      canCommitStaged: true,
+      canGenerateMessage: true,
+      isGenerating: true,
+      actionPhase: "generating-message",
     });
-    expect(screen.getByRole("status")).toHaveTextContent(PHASE_TEXT.pushing);
+    expect(screen.getByRole("button", { name: "Commit" })).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("disables conflicting commit controls while another phase is active", () => {

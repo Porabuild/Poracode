@@ -4,7 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo } from "@/shared/contracts";
 import type { GitActionPhase } from "@/renderer/state/gitReviewActionStore";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
-import { ActionPhaseStatus } from "./ActionPhaseStatus";
+import { ActionPhaseLabel } from "./ActionPhaseLabel";
 
 export function CreatePrModal(props: {
   isOpen: boolean;
@@ -45,6 +45,10 @@ export function CreatePrModal(props: {
     handleGeneratePrSummary,
   } = props;
   const { t } = useLingui();
+  // The create button owns the phase only while its own flow runs, so an
+  // explicit "generate summary" press keeps its spinner on the sparkle button
+  // and leaves the create button captioned.
+  const createPrPhase = prLoading ? actionPhase : null;
   const targetBranches = Array.from(
     new Set([
       ...(defaultTargetBranch && defaultTargetBranch !== effectiveBranch
@@ -141,7 +145,6 @@ export function CreatePrModal(props: {
                 value={prBody}
                 onChange={(e) => setPrBody(e.target.value)}
               />
-              <ActionPhaseStatus actionPhase={actionPhase} />
             </div>
           </Modal.Body>
           <Modal.Footer>
@@ -162,7 +165,11 @@ export function CreatePrModal(props: {
                     ) : (
                       <GitPullRequest className="size-3.5" />
                     )}
-                    <Trans>Create PR</Trans>
+                    {createPrPhase ? (
+                      <ActionPhaseLabel phase={createPrPhase} />
+                    ) : (
+                      <Trans>Create PR</Trans>
+                    )}
                   </>
                 )}
               </Button>

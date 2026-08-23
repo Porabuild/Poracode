@@ -53,6 +53,7 @@ import { ConflictResolutionActions } from "./parts/ConflictResolutionActions";
 import { CommitSyncPanel } from "./parts/CommitSyncPanel";
 import { PrSection } from "./parts/PrSection";
 import { CreatePrModal } from "./parts/CreatePrModal";
+import { ActionPhaseLabel } from "./parts/ActionPhaseLabel";
 import { GitReviewSection } from "./parts/GitReviewSection";
 import { GitReviewPadXProvider } from "./gitReviewPadXContext";
 
@@ -280,7 +281,13 @@ export function GitReviewSidebar(props: {
   // (merge-actions group vs standalone), so its label/pending/content are
   // derived once here and shared.
   const isAutoPrMode = prCreateMode === "auto";
-  const createPrPending = isAutoPrMode && prLoading;
+  // The button reports the live step of any create-PR flow, not just the
+  // one-click mode: the dialog can be dismissed while its summary generation
+  // or creation is still running, and this button is then the only control
+  // left to show it.
+  const createPrPhase =
+    actionPhase === "generating-pr-summary" || actionPhase === "creating-pr" ? actionPhase : null;
+  const createPrPending = (isAutoPrMode && prLoading) || createPrPhase !== null;
   const runPrMode = (prMode: PrCreateMode) => {
     if (actionPhase) return;
     if (prMode === "auto") void handleCreatePr(false);
@@ -299,7 +306,13 @@ export function GitReviewSidebar(props: {
   const createPrButtonContent = (
     <>
       {createPrPending ? <PixelLoader size="xs" /> : <GitPullRequest className="size-3.5" />}
-      {isAutoPrMode ? <Trans>Create PR (Auto)</Trans> : <Trans>Create PR</Trans>}
+      {createPrPhase ? (
+        <ActionPhaseLabel phase={createPrPhase} />
+      ) : isAutoPrMode ? (
+        <Trans>Create PR (Auto)</Trans>
+      ) : (
+        <Trans>Create PR</Trans>
+      )}
     </>
   );
   const initialPrWatch = createdPrWatch?.prNumber === prNumber ? createdPrWatch : undefined;

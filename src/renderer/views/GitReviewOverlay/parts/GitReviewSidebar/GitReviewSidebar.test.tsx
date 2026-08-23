@@ -1256,9 +1256,7 @@ describe("GitReviewSidebar", () => {
       ),
     );
     expect(
-      screen
-        .getAllByRole("status")
-        .every((status) => status.textContent?.includes("Generating PR summary…")),
+      screen.getAllByRole("status").every((status) => status.textContent?.includes("Summarizing…")),
     ).toBe(true);
     await act(async () => {
       resolveSummary({

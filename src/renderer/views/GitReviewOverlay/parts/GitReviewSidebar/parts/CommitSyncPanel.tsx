@@ -16,7 +16,7 @@ import type { GitActionPhase } from "@/renderer/state/gitReviewActionStore";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
 import type { GitSyncCommand } from "@/renderer/actions/gitCommandRunner";
 import { GitReviewSection } from "./GitReviewSection";
-import { ActionPhaseStatus } from "./ActionPhaseStatus";
+import { ActionPhaseLabel } from "./ActionPhaseLabel";
 import {
   COMMIT_ACTION_LABELS,
   getAvailableCommitActions,
@@ -121,8 +121,15 @@ export function CommitSyncPanel(props: {
     setCommitDefaultAction(action);
     runCommitAction(action);
   };
-  const primaryCommitPending =
-    isCommitting || (primaryCommitAction === "commit-push-pr" && prLoading);
+  // Each row's primary button owns the live step for every action its split
+  // menu can start — including the pull-from-source item — so the phase label
+  // shows up in the control the user actually pressed. Only the button whose
+  // own action is running claims the phase; an unrelated step (the AI generate
+  // button, or the other row) leaves it captioned normally.
+  const commitPending = isCommitting || (primaryCommitAction === "commit-push-pr" && prLoading);
+  const commitPhase = commitPending || isPullingFromSource ? actionPhase : null;
+  const pushPhase = isSyncing ? actionPhase : null;
+  const syncPhase = isSyncing || isPullingFromSource ? actionPhase : null;
 
   return (
     <GitReviewSection gap={1}>
@@ -210,7 +217,7 @@ export function CommitSyncPanel(props: {
                 variant="tertiary"
                 className={hasMenuItems ? "flex-1" : "w-full"}
                 isDisabled={!canRunCommitAction}
-                isPending={primaryCommitPending}
+                isPending={commitPending || Boolean(commitPhase)}
                 onPress={() => runCommitAction(primaryCommitAction)}
               >
                 {({ isPending }) => (
@@ -220,7 +227,11 @@ export function CommitSyncPanel(props: {
                     ) : (
                       COMMIT_ACTION_ICONS[primaryCommitAction]
                     )}
-                    {t(COMMIT_ACTION_LABELS[primaryCommitAction])}
+                    {commitPhase ? (
+                      <ActionPhaseLabel phase={commitPhase} />
+                    ) : (
+                      t(COMMIT_ACTION_LABELS[primaryCommitAction])
+                    )}
                   </>
                 )}
               </Button>
@@ -297,7 +308,11 @@ export function CommitSyncPanel(props: {
               {({ isPending }) => (
                 <>
                   {isPending ? <PixelLoader size="xs" /> : <ArrowUp className="size-3.5" />}
-                  <Trans>Push ({ahead})</Trans>
+                  {pushPhase ? (
+                    <ActionPhaseLabel phase={pushPhase} />
+                  ) : (
+                    <Trans>Push ({ahead})</Trans>
+                  )}
                 </>
               )}
             </Button>
@@ -318,7 +333,7 @@ export function CommitSyncPanel(props: {
               variant="tertiary"
               className="flex-1"
               isDisabled={isSyncing || actionInFlight}
-              isPending={isSyncing}
+              isPending={isSyncing || Boolean(syncPhase)}
               onPress={() => void handleSyncOrPush()}
             >
               {({ isPending }) => (
@@ -330,13 +345,19 @@ export function CommitSyncPanel(props: {
                   ) : (
                     <ArrowUpDown className="size-3.5" />
                   )}
-                  {needsPush
-                    ? ahead > 0
-                      ? t`Push (${ahead})`
-                      : t`Push`
-                    : behind > 0 || ahead > 0
-                      ? `${t`Sync`}${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
-                      : t`Sync`}
+                  {syncPhase ? (
+                    <ActionPhaseLabel phase={syncPhase} />
+                  ) : needsPush ? (
+                    ahead > 0 ? (
+                      t`Push (${ahead})`
+                    ) : (
+                      t`Push`
+                    )
+                  ) : behind > 0 || ahead > 0 ? (
+                    `${t`Sync`}${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
+                  ) : (
+                    t`Sync`
+                  )}
                 </>
               )}
             </Button>
@@ -438,7 +459,6 @@ export function CommitSyncPanel(props: {
           );
         })()
       ) : null}
-      <ActionPhaseStatus actionPhase={actionPhase} />
     </GitReviewSection>
   );
 }
