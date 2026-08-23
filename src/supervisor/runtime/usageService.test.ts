@@ -66,6 +66,34 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
+  it("discards v2 caches that still label the first-party window Auto + Composer", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 2,
+        snapshots: [
+          {
+            providerId: "cursor",
+            status: "ok",
+            windows: [{ id: "cursor-auto", label: "Auto + Composer", usedPercent: 34 }],
+            fetchedAt: NOW,
+          },
+        ],
+      }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: makeHost({}),
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.getProviderUsage({ providerIds: ["cursor"] });
+    expect(result.fromCache).toBe(false);
+    expect(result.snapshots).toEqual([]);
+  });
+
   it("refresh defaults to Claude and Codex only, emits per-provider then a terminal event", async () => {
     const events: SupervisorEvent[] = [];
     const service = new UsageService({

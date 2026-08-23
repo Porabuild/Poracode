@@ -255,12 +255,32 @@ describe("cursorSdkCapabilitiesFromModels", () => {
 
     expect(capabilities.models.map(({ id }) => id)).toEqual(["default", "opus-5", "composer-2.5"]);
     expect(capabilities.modelSubProvider?.default).toBe("cursor");
+    expect(capabilities.modelSubProvider?.["composer-2.5"]).toBe("cursor");
+    expect(capabilities.modelSubProvider?.["opus-5"]).toBe("other");
     expect(
       buildCursorSdkModelSelection({ model: "auto" }, [
         { id: "opus-5", displayName: "Opus 5" },
         { id: "default", displayName: "Auto" },
       ]),
     ).toEqual({ id: "default" });
+  });
+
+  it("groups first-party Grok with Cursor Models, not the API Other Models pool", () => {
+    const capabilities = cursorSdkCapabilitiesFromModels([
+      { id: "composer-2.5", displayName: "Composer 2.5" },
+      { id: "grok-4.6", displayName: "Cursor Grok 4.6" },
+      { id: "grok-4.5", displayName: "Cursor Grok 4.5" },
+      { id: "gpt-5.6-luna", displayName: "GPT-5.6 Luna" },
+      { id: "gemini-3.7-flash", displayName: "Gemini 3.7 Flash" },
+    ]);
+
+    expect(capabilities.modelSubProvider).toEqual({
+      "composer-2.5": "cursor",
+      "grok-4.6": "cursor",
+      "grok-4.5": "cursor",
+      "gpt-5.6-luna": "other",
+      "gemini-3.7-flash": "other",
+    });
   });
 
   it("removes the effort suffix while keeping Reasoning, Context, and Fast controls", () => {

@@ -12,8 +12,9 @@ import type { UsageSnapshot, UsageWindow } from "../types";
  * Schema (per codexbar) of GET /api/usage-summary → individualUsage.plan:
  *   { used (cents), limit (cents), breakdown { included, bonus, total },
  *     totalPercentUsed, autoPercentUsed, apiPercentUsed } + billingCycleEnd +
- *   membershipType. Surfaced as Auto and API windows. API dollars use real
- *   spend over the vendor plan limit; the bar uses apiPercentUsed separately.
+ *   membershipType. Surfaced as Cursor Models (`autoPercentUsed`) and API
+ *   windows. API dollars use real spend over the vendor plan limit; the bar
+ *   uses apiPercentUsed separately.
  */
 
 export const CURSOR_USAGE_ENDPOINT = "https://cursor.com/api/usage-summary";
@@ -134,7 +135,7 @@ export function parseCursorUsage(
   if (autoPercent !== undefined) {
     windows.push({
       id: "cursor-auto",
-      label: "Auto + Composer",
+      label: "Cursor Models",
       usedPercent: autoPercent,
       unit: "percent",
       ...withReset,
