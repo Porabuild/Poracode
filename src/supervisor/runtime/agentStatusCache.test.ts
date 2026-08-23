@@ -191,6 +191,46 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
+  it("invalidates v17 caches that grouped Cursor Grok under Other models", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 17,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [{ id: "grok-4.6", label: "Cursor Grok 4.6" }],
+              modelSubProvider: { "grok-4.6": "other" },
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(18);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("migrates stale cached settingDefs to current schema", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;

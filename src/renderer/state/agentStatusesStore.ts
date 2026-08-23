@@ -263,12 +263,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 14,
-      // v14 mirrors the supervisor STATUS_CACHE_VERSION=17 bump: Cursor SDK
-      // runtime variants now carry their own account email. v13 covered
-      // Cursor profiles becoming SDK-only. This mirrors the supervisor cache
-      // invalidation, which only covers the supervisor's on-disk cache, not
-      // this localStorage copy.
+      version: 15,
+      // v15 mirrors supervisor STATUS_CACHE_VERSION=18 so this localStorage
+      // copy does not keep Cursor Grok grouped under Other models.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

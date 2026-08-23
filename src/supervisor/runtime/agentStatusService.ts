@@ -66,8 +66,11 @@ const execFileAsync = promisify(execFile);
  * statuses that advertised profile CLI login/ACP variants must be re-probed.
  * v17 adds per-runtime `providerMetadata` so Cursor SDK can show the API-key
  * account email without overwriting the CLI login identity.
+ * v18 regroups Cursor first-party models (Grok, Composer, future Cursor ids)
+ * into the Cursor Models pool by denylisting known third-party vendor prefixes
+ * instead of allowlisting first-party families.
  */
-export const STATUS_CACHE_VERSION = 17;
+export const STATUS_CACHE_VERSION = 18;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

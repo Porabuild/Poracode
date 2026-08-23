@@ -36,8 +36,11 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
  * 5 min, 2 min floor) — never a fast poll.
  */
 
-/** Bump when the cached snapshot shape changes so stale caches are discarded. */
-const USAGE_CACHE_VERSION = 2;
+/**
+ * Bump when the cached snapshot shape changes so stale caches are discarded.
+ * v3 relabels Cursor's first-party window from Auto + Composer to Cursor Models.
+ */
+const USAGE_CACHE_VERSION = 3;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;

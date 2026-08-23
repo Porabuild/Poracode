@@ -73,6 +73,7 @@ describe("parseCursorUsage", () => {
     expect(snap.windows).toHaveLength(2); // on-demand disabled → no extra window
 
     const auto = snap.windows.find((w) => w.id === "cursor-auto")!;
+    expect(auto.label).toBe("Cursor Models");
     expect(auto.usedPercent).toBe(34);
     expect(auto.resetsAt).toBe(1_719_600_000_000);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;

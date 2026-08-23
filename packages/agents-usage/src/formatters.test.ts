@@ -21,6 +21,10 @@ describe("usageWindowDisplayLabel", () => {
     expect(usageWindowDisplayLabel({ id: "weekly-fable", label: "x", usedPercent: 0 })).toBe(
       "Weekly · Fable",
     );
+    expect(usageWindowDisplayLabel({ id: "cursor-auto", label: "x", usedPercent: 0 })).toBe(
+      "Cursor Models",
+    );
+    expect(usageWindowDisplayLabel({ id: "cursor-api", label: "x", usedPercent: 0 })).toBe("API");
   });
 
   it("honors a collector's custom monthly label (e.g. z.ai 'MCP')", () => {
