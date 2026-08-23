@@ -3492,6 +3492,10 @@ msgstr "Utwórz"
 msgid "Create a pull request for candidate {0} ({label})"
 msgstr "Utwórz pull request dla kandydata {0} ({label})"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+msgid "Create a second Cursor account with its own User API key. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
+msgstr "Utwórz drugie konto Cursor z własnym kluczem API użytkownika. Cursor CLI i ACP współdzielą jedno logowanie na komputerze, więc pozostają na głównej kafelce Cursor."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Utwórz przydatną rutynę jednym kliknięciem i dostosuj ją w dowolnym momencie."
@@ -3552,8 +3556,8 @@ msgid "Create scheduled task"
 msgstr "Utwórz zaplanowane zadanie"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
-msgid "Create separate Cursor profiles with their own API keys."
-msgstr "Utwórz osobne profile Cursor z własnymi kluczami API."
+#~ msgid "Create separate Cursor profiles with their own API keys."
+#~ msgstr "Utwórz osobne profile Cursor z własnymi kluczami API."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Create task"
@@ -3725,7 +3729,6 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Wylogowano z Cursor ACP."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
@@ -8736,8 +8739,8 @@ msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs a
 msgstr "Wybierz czas wykonania dla nowych czatów GUI Cursor. Każdy instaluje się i uwierzytelnia oddzielnie; otwarte czaty zachowują ten, z którym zostały uruchomione."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both runtimes."
-msgstr "Wybierz środowisko dla nowych czatów GUI Cursor. Klucz API profilu dotyczy obu środowisk."
+#~ msgid "Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both runtimes."
+#~ msgstr "Wybierz środowisko dla nowych czatów GUI Cursor. Klucz API profilu dotyczy obu środowisk."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Picker failed"
@@ -12049,8 +12052,8 @@ msgid "The agent"
 msgstr "Agent"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
-msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
-msgstr "Poniższy klucz API jest używany przez Cursor CLI, ACP i SDK dla tego profilu."
+#~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
+#~ msgstr "Poniższy klucz API jest używany przez Cursor CLI, ACP i SDK dla tego profilu."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
@@ -12250,6 +12253,10 @@ msgstr "Myślenie"
 msgid "This agent is not installed."
 msgstr "Ten agent nie jest zainstalowany."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "This API key authenticates this profile's SDK chats and its usage card. It does not change the main Cursor CLI login."
+msgstr "Ten klucz API uwierzytelnia czaty SDK tego profilu i jego kartę użycia. Nie zmienia logowania CLI głównej kafelki Cursor."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
 #~ msgstr "Ta aplikacja jest serwowana przez HTTPS, ale desktop używa zwykłego HTTP, które przeglądarki blokują. Otwórz link parowania bezpośrednio z desktopa (LAN) albo udostępnij desktop przez HTTPS."
@@ -12351,6 +12358,10 @@ msgstr "Ustawienia Poracode tej wtyczki zostały zignorowane, ponieważ są niep
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "Nie udało się odczytać umiejętności tej wtyczki."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
+msgstr "Ten profil działa na Cursor SDK. Cursor CLI i ACP współdzielą jedno logowanie na komputerze, więc pozostają na głównej kafelce Cursor."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"

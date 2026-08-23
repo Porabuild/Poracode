@@ -3492,6 +3492,10 @@ msgstr "생성"
 msgid "Create a pull request for candidate {0} ({label})"
 msgstr "후보 {0}({label})의 풀 리퀘스트 생성"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
+msgid "Create a second Cursor account with its own User API key. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
+msgstr "고유한 사용자 API 키로 두 번째 Cursor 계정을 만듭니다. Cursor CLI와 ACP는 기기에서 로그인을 하나 공유하므로 기본 Cursor 타일에 남습니다."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "한 번의 클릭으로 유용한 루틴을 만들고 언제든지 조정하세요."
@@ -3552,8 +3556,8 @@ msgid "Create scheduled task"
 msgstr "예약 작업 만들기"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
-msgid "Create separate Cursor profiles with their own API keys."
-msgstr "각각 고유한 API 키를 사용하는 별도의 Cursor 프로필을 만드세요."
+#~ msgid "Create separate Cursor profiles with their own API keys."
+#~ msgstr "각각 고유한 API 키를 사용하는 별도의 Cursor 프로필을 만드세요."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Create task"
@@ -3725,7 +3729,6 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Cursor ACP에서 로그아웃했습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
@@ -8736,8 +8739,8 @@ msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs a
 msgstr "새 Cursor GUI 채팅에 사용할 런타임을 선택하세요. 각 런타임은 개별적으로 설치되고 인증됩니다. 열려 있는 채팅은 시작할 때의 런타임을 유지합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both runtimes."
-msgstr "새 Cursor GUI 채팅을 지원할 런타임을 선택하세요. 프로필 API 키는 두 런타임 모두에 적용됩니다."
+#~ msgid "Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both runtimes."
+#~ msgstr "새 Cursor GUI 채팅을 지원할 런타임을 선택하세요. 프로필 API 키는 두 런타임 모두에 적용됩니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Picker failed"
@@ -12049,8 +12052,8 @@ msgid "The agent"
 msgstr "에이전트"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
-msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
-msgstr "아래 API 키는 이 프로필의 Cursor CLI, ACP, SDK에서 사용됩니다."
+#~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
+#~ msgstr "아래 API 키는 이 프로필의 Cursor CLI, ACP, SDK에서 사용됩니다."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
@@ -12250,6 +12253,10 @@ msgstr "생각 중"
 msgid "This agent is not installed."
 msgstr "이 에이전트는 설치되지 않았습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+msgid "This API key authenticates this profile's SDK chats and its usage card. It does not change the main Cursor CLI login."
+msgstr "이 API 키는 이 프로필의 SDK 채팅과 사용량 카드를 인증합니다. 기본 Cursor CLI 로그인은 바꾸지 않습니다."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
 #~ msgstr "이 앱은 HTTPS로 제공되지만 데스크톱은 브라우저가 차단하는 일반 HTTP를 사용합니다. 데스크톱(LAN)에서 페어링 링크를 직접 열거나 데스크톱을 HTTPS로 노출하세요."
@@ -12351,6 +12358,10 @@ msgstr "이 플러그인의 Poracode 설정이 유효하지 않아 무시되었�
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "이 플러그인의 스킬을 읽을 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
+msgstr "이 프로필은 Cursor SDK에서 실행됩니다. Cursor CLI와 ACP는 기기에서 로그인을 하나 공유하므로 기본 Cursor 타일에 남습니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"

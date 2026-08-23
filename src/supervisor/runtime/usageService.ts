@@ -9,12 +9,7 @@ import {
 import { coalesceByKey } from "@/shared/coalesce";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import {
-  defaultSharedSettings,
-  normalizeSharedSettings,
-  type SharedSettings,
-  type UsageSettings,
-} from "@/shared/settings";
+import { defaultSharedSettings, type SharedSettings, type UsageSettings } from "@/shared/settings";
 import {
   collectClaudeProfile,
   readClaudeUsageProfiles,
@@ -22,8 +17,14 @@ import {
   withClaudeEstimatedCost,
   type ClaudeUsageProfile,
 } from "../agents/claude/claudeUsageProfiles";
+import {
+  collectCursorProfile,
+  readCursorUsageProfiles,
+  type CursorUsageProfile,
+} from "../agents/cursor/cursorUsageProfiles";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -99,17 +100,13 @@ export class UsageService {
   private defaultProviderIds(): string[] {
     const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
     if (this.options.providerIds) return baseIds;
-    return [...baseIds, ...this.claudeUsageProfiles().keys()];
+    return [...baseIds, ...this.claudeUsageProfiles().keys(), ...this.cursorUsageProfiles().keys()];
   }
 
-  /** Read shared settings from disk (defaults if absent). */
+  /** Read shared settings from disk (defaults if absent). Decrypts profile keys. */
   private readSharedSettings(): SharedSettings {
     if (!this.options.settingsPath) return defaultSharedSettings;
-    try {
-      return normalizeSharedSettings(JSON.parse(readFileSync(this.options.settingsPath, "utf8")));
-    } catch {
-      return defaultSharedSettings;
-    }
+    return readSupervisorSharedSettings(this.options.settingsPath);
   }
 
   /** Read the usage policy from the shared settings file (defaults if absent). */
@@ -121,10 +118,17 @@ export class UsageService {
     return readClaudeUsageProfiles(this.readSharedSettings());
   }
 
+  private cursorUsageProfiles(): Map<string, CursorUsageProfile> {
+    return readCursorUsageProfiles(this.readSharedSettings());
+  }
+
   /** A provider id this service can collect (package registry or supervisor-local). */
   private isSupported(id: string): boolean {
     return (
-      this.registry.has(id) || this.localCollectors.has(id) || this.claudeUsageProfiles().has(id)
+      this.registry.has(id) ||
+      this.localCollectors.has(id) ||
+      this.claudeUsageProfiles().has(id) ||
+      this.cursorUsageProfiles().has(id)
     );
   }
 
@@ -219,13 +223,15 @@ export class UsageService {
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
     const claudeProfiles = this.claudeUsageProfiles();
+    const cursorProfiles = this.cursorUsageProfiles();
     const registryIds = ids.filter((id) => this.registry.has(id));
     const localIds = ids.filter((id) => this.localCollectors.has(id));
     const claudeProfileIds = ids.filter((id) => claudeProfiles.has(id));
+    const cursorProfileIds = ids.filter((id) => cursorProfiles.has(id));
     // The registry HTTP batch and the supervisor-local collectors are independent
     // of each other, so run both groups concurrently rather than waiting out the
     // (rate-limited, slow) HTTP batch before starting the local scans.
-    const [registrySnaps, localSnaps, claudeProfileSnaps] = await Promise.all([
+    const [registrySnaps, localSnaps, claudeProfileSnaps, cursorProfileSnaps] = await Promise.all([
       this.registry.collectAll(registryIds, this.host),
       Promise.all(localIds.map((id) => this.collectLocal(id))),
       Promise.all(
@@ -234,10 +240,19 @@ export class UsageService {
           return profile ? [collectClaudeProfile(profile, this.host)] : [];
         }),
       ),
+      Promise.all(
+        cursorProfileIds.flatMap((id) => {
+          const profile = cursorProfiles.get(id);
+          return profile ? [collectCursorProfile(profile, this.host)] : [];
+        }),
+      ),
     ]);
-    let snapshots = [...registrySnaps, ...localSnaps, ...claudeProfileSnaps].map((snap) =>
-      this.preserveOnTransientFailure(snap),
-    );
+    let snapshots = [
+      ...registrySnaps,
+      ...localSnaps,
+      ...claudeProfileSnaps,
+      ...cursorProfileSnaps,
+    ].map((snap) => this.preserveOnTransientFailure(snap));
     if (this.readUsageSettings().showEstimatedCost) {
       snapshots = await this.withEstimatedCost(snapshots, claudeProfiles);
     }

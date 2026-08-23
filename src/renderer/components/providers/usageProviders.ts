@@ -4,6 +4,7 @@ import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import {
   baseAgentKind,
   claudeProfileKind,
+  cursorProfileKind,
   parseClaudeProfileInstanceConfig,
   type AgentInstanceConfigMap,
 } from "@/shared/contracts";
@@ -161,17 +162,39 @@ function claudeProfileUsageProviders(
   return profiles;
 }
 
+function cursorProfileUsageProviders(
+  agentInstances: AgentInstanceConfigMap | undefined,
+): UsageProvider[] {
+  if (!agentInstances) return [];
+  const profiles: UsageProvider[] = [];
+  for (const instance of Object.values(agentInstances)) {
+    if (instance.enabled === false || instance.driver !== "cursor") continue;
+    const apiKey = instance.environment?.CURSOR_API_KEY?.value;
+    if (typeof apiKey !== "string" || apiKey.length === 0) continue;
+    const label = instance.displayName ?? instance.id;
+    profiles.push({
+      id: cursorProfileKind(instance.id),
+      label: `Cursor ${label}`,
+      ...rendererMeta("cursor"),
+    });
+  }
+  profiles.sort((a, b) => a.label.localeCompare(b.label));
+  return profiles;
+}
+
 export function usageProvidersForAgentInstances(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
-  const profiles = claudeProfileUsageProviders(agentInstances);
-  if (profiles.length === 0) return [...STATIC_USAGE_PROVIDERS];
+  const claudeProfiles = claudeProfileUsageProviders(agentInstances);
+  const cursorProfiles = cursorProfileUsageProviders(agentInstances);
+  if (claudeProfiles.length === 0 && cursorProfiles.length === 0) {
+    return [...STATIC_USAGE_PROVIDERS];
+  }
   const out: UsageProvider[] = [];
   for (const provider of STATIC_USAGE_PROVIDERS) {
     out.push(provider);
-    if (provider.id === "claude") {
-      out.push(...profiles);
-    }
+    if (provider.id === "claude") out.push(...claudeProfiles);
+    if (provider.id === "cursor") out.push(...cursorProfiles);
   }
   return out;
 }

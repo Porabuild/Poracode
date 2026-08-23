@@ -135,7 +135,9 @@ describe("profile agent registry", () => {
 
     expect(adapters.find((adapter) => adapter.kind === "cursor:work")).toMatchObject({
       label: "Cursor Work",
-      baseSpawnEnv: { CURSOR_API_KEY: "profile-key" },
     });
+    expect(
+      adapters.find((adapter) => adapter.kind === "cursor:work")?.baseSpawnEnv,
+    ).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { RadioGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
+import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   cursorProfileKind,
@@ -70,16 +71,35 @@ export function CursorProviderSettings(props: {
   const sdkVariant = sdkStatus?.runtimeVariants?.sdk;
   const acpAuthState = acpVariant?.authState ?? acpStatus?.authState ?? "unknown";
   const sdkAuthState = sdkVariant?.authState ?? "unknown";
+  const providerUsage = useProviderUsage(agentKind);
+  const sdkAccountEmail =
+    sdkVariant?.providerMetadata?.authenticatedAs?.trim() ||
+    (profileInstanceId && providerUsage?.status === "ok"
+      ? providerUsage.authenticatedAs?.trim()
+      : undefined);
 
-  const authLabel = (authState: AuthState, runtime: CursorStructuredRuntime) => {
-    if (authState === "authenticated") return t`Authenticated`;
+  const authLabel = (
+    authState: AuthState,
+    runtime: CursorStructuredRuntime,
+    accountEmail?: string,
+  ) => {
+    if (authState === "authenticated") {
+      return accountEmail ? `${t`Authenticated`} · ${accountEmail}` : t`Authenticated`;
+    }
     if (authState === "missing") {
       return runtime === "sdk" ? t`API key required` : t`Sign in required`;
     }
     return t`Authentication unavailable`;
   };
-  const statusLine = (installed: boolean, authState: AuthState, runtime: CursorStructuredRuntime) =>
-    installed ? `${t`Installed`} · ${authLabel(authState, runtime)}` : t`Not installed`;
+  const statusLine = (
+    installed: boolean,
+    authState: AuthState,
+    runtime: CursorStructuredRuntime,
+    accountEmail?: string,
+  ) =>
+    installed
+      ? `${t`Installed`} · ${authLabel(authState, runtime, accountEmail)}`
+      : t`Not installed`;
   const detailLine = (capabilities: AgentCapability | undefined) => {
     if (!capabilities?.models.length) return undefined;
     const modes = capabilities.modes.map((mode) =>
@@ -121,35 +141,64 @@ export function CursorProviderSettings(props: {
     await flushSharedSettings();
   };
 
-  return (
-    <div className="border-t border-border/10 pt-3">
-      {profileInstanceId ? (
+  const sdkSetup = (
+    <CursorSdkRuntimeSetup
+      agentKind={agentKind}
+      {...(profileInstanceId ? { profileInstanceId } : {})}
+      status={sdkStatus}
+      authDescription={authLabel(sdkAuthState, "sdk", sdkAccountEmail)}
+      refreshStatus={refreshStatus}
+      refreshPackageStatus={refreshPackageStatus}
+      onApiKeyCleared={fallBackToAcp}
+    />
+  );
+
+  if (profileInstanceId) {
+    return (
+      <div className="border-t border-border/10 pt-3">
         <CursorProfileIdentity
           agentKind={agentKind}
           profileInstanceId={profileInstanceId}
-          // The SDK probe authenticates with the key itself, so it is the only
-          // runtime whose state answers "is this key good?" — ACP runs through
-          // the CLI and can report success from an ambient machine login.
-          authDescription={authLabel(sdkAuthState, "sdk")}
+          authDescription={authLabel(sdkAuthState, "sdk", sdkAccountEmail)}
           refreshStatus={refreshStatus}
         />
-      ) : null}
+        <div className="mb-2">
+          <p className="text-sm font-medium text-foreground">
+            <Trans>Cursor SDK</Trans>
+          </p>
+          <p className="text-xs text-muted">
+            <Trans>
+              This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so
+              they stay on the main Cursor tile.
+            </Trans>
+          </p>
+        </div>
+        <div className="rounded-lg border border-border/40 bg-surface-secondary/35">
+          <div className="px-3 py-2">
+            <p className="text-xs text-muted">
+              {statusLine(sdkInstallState.sdkInstalled, sdkAuthState, "sdk", sdkAccountEmail)}
+            </p>
+            {sdkDetailLine ? (
+              <p className="mt-0.5 text-[11px] text-muted/80">{sdkDetailLine}</p>
+            ) : null}
+          </div>
+          <div className="space-y-1.5 border-t border-border/10 px-3 py-2">{sdkSetup}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-border/10 pt-3">
       <div className="mb-2">
         <p className="text-sm font-medium text-foreground">
           <Trans>GUI runtime</Trans>
         </p>
         <p className="text-xs text-muted">
-          {profileInstanceId ? (
-            <Trans>
-              Pick the runtime that backs new Cursor GUI chats. The profile API key applies to both
-              runtimes.
-            </Trans>
-          ) : (
-            <Trans>
-              Pick the runtime that backs new Cursor GUI chats. Each runtime installs and
-              authenticates on its own; open chats keep the runtime they started with.
-            </Trans>
-          )}
+          <Trans>
+            Pick the runtime that backs new Cursor GUI chats. Each runtime installs and
+            authenticates on its own; open chats keep the runtime they started with.
+          </Trans>
         </p>
       </div>
 
@@ -178,27 +227,22 @@ export function CursorProviderSettings(props: {
           label={t`Cursor SDK`}
           isSelected={selectedRuntime === "sdk"}
           isSelectable={sdkInstallState.sdkInstalled && sdkAuthState === "authenticated"}
-          statusLine={statusLine(sdkInstallState.sdkInstalled, sdkAuthState, "sdk")}
+          statusLine={statusLine(
+            sdkInstallState.sdkInstalled,
+            sdkAuthState,
+            "sdk",
+            sdkAccountEmail,
+          )}
           {...(sdkDetailLine ? { detailLine: sdkDetailLine } : {})}
         >
-          <CursorSdkRuntimeSetup
-            agentKind={agentKind}
-            {...(profileInstanceId ? { profileInstanceId } : {})}
-            status={sdkStatus}
-            authDescription={authLabel(sdkAuthState, "sdk")}
-            refreshStatus={refreshStatus}
-            refreshPackageStatus={refreshPackageStatus}
-            onApiKeyCleared={fallBackToAcp}
-          />
+          {sdkSetup}
         </CursorRuntimeCard>
       </RadioGroup>
-      {profileInstanceId === undefined ? (
-        <AgentProfileList
-          profiles={cursorProfileSupport}
-          {...(statuses ? { statuses } : {})}
-          onOpenProfile={props.onOpenProfile}
-        />
-      ) : null}
+      <AgentProfileList
+        profiles={cursorProfileSupport}
+        {...(statuses ? { statuses } : {})}
+        onOpenProfile={props.onOpenProfile}
+      />
     </div>
   );
 }

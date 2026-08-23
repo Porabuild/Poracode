@@ -41,6 +41,7 @@ import {
   type RuntimeAgent,
   type RuntimeRun,
 } from "./sdkWorkerRuntime";
+import { probeCursorSdkAccountEmail } from "./sdkAccount";
 
 // stdout is a protocol channel, while provider-native console output can carry
 // credentials or arbitrary non-JSON text. SDK failures are returned through
@@ -310,9 +311,11 @@ async function listModels(
   const models = await loaded.Cursor.models.list(
     input.apiKey ? { apiKey: input.apiKey } : undefined,
   );
+  const authenticatedAs = await probeCursorSdkAccountEmail(loaded.Cursor, input.apiKey);
   return {
     models,
     ...sdkRuntime.metadata,
+    ...(authenticatedAs ? { authenticatedAs } : {}),
   };
 }
 

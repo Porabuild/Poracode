@@ -62,8 +62,12 @@ const execFileAsync = promisify(execFile);
  * v15 adds ACP-derived per-model thinking toggles and normalizes provider model
  * capability maps, so statuses cached before those capability semantics changed
  * must be re-probed.
+ * v16 makes Cursor profiles SDK-only (no CLI/ACP probe or shared login), so
+ * statuses that advertised profile CLI login/ACP variants must be re-probed.
+ * v17 adds per-runtime `providerMetadata` so Cursor SDK can show the API-key
+ * account email without overwriting the CLI login identity.
  */
-export const STATUS_CACHE_VERSION = 15;
+export const STATUS_CACHE_VERSION = 17;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
