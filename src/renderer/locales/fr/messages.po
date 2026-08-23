@@ -2902,9 +2902,9 @@ msgstr "Compositeurs de commit, PR et revue"
 msgid "Commits"
 msgstr "Commits"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Committing…"
-msgstr "Création du commit…"
+msgstr "Commit…"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
@@ -3576,9 +3576,9 @@ msgstr "Créer avec un agent"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Arbre de travail créé sur \"{newBranch}\", mais les modifications sont entrées en conflit et restent dans un stash git — résolvez-les dans l'arbre de travail."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
-msgstr "Création de la PR…"
+msgstr "Création PR…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
@@ -5445,13 +5445,17 @@ msgstr "Génère des messages de commit à partir des modifications indexées."
 msgid "Generates short titles for new threads."
 msgstr "Génère des titres courts pour les nouveaux fils de discussion."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating commit message…"
-msgstr "Génération du message de commit…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating commit message…"
+#~ msgstr "Génération du message de commit…"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating PR summary…"
-msgstr "Génération du résumé de la PR…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating PR summary…"
+#~ msgstr "Génération du résumé de la PR…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Generating…"
+msgstr "Génération…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9335,9 +9339,9 @@ msgstr "Pull requests"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "Raccourci des pull requests"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pulling…"
-msgstr "Pull en cours…"
+msgstr "Récupération…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -9365,9 +9369,9 @@ msgstr "Échec du push : {detail}"
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "Envoyez des mises à jour aux appareils mobiles appairés lorsque les fils de discussion se terminent ou ont besoin de vous, même lorsque l’application est fermée."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pushing…"
-msgstr "Envoi en cours…"
+msgstr "Envoi…"
 
 #: src/renderer/components/providers/qoder/manifest.ts
 msgid "Qoder CLI"
@@ -11734,6 +11738,10 @@ msgstr "Suggestions"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Résume les progrès de cette semaine, le travail inachevé et les risques les plus importants pour la semaine prochaine."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Summarizing…"
+msgstr "Résumé…"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Supervisé"
@@ -11833,9 +11841,9 @@ msgstr "Options de synchronisation"
 msgid "Sync with desktop"
 msgstr "Synchroniser avec l'ordinateur"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Syncing…"
-msgstr "Synchronisation en cours…"
+msgstr "Synchronisation…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"

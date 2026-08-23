@@ -2902,9 +2902,9 @@ msgstr "Trình soạn thảo commit, PR và đánh giá"
 msgid "Commits"
 msgstr "Cam kết"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Committing…"
-msgstr "Đang tạo commit…"
+msgstr "Đang commit…"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
@@ -3576,7 +3576,7 @@ msgstr "Tạo bằng tác nhân"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Đã tạo một cây làm việc trên \"{newBranch}\", nhưng những thay đổi này xung đột và vẫn nằm trong kho lưu trữ git — hãy giải quyết chúng trong cây làm việc."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
 msgstr "Đang tạo PR…"
 
@@ -5445,13 +5445,17 @@ msgstr "Tạo thông điệp commit từ các thay đổi đã staged."
 msgid "Generates short titles for new threads."
 msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating commit message…"
-msgstr "Đang tạo thông điệp commit…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating commit message…"
+#~ msgstr "Đang tạo thông điệp commit…"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating PR summary…"
-msgstr "Đang tạo mô tả PR…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating PR summary…"
+#~ msgstr "Đang tạo mô tả PR…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Generating…"
+msgstr "Đang tạo…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9336,7 +9340,7 @@ msgstr "Pull request"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "Lối tắt pull request"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pulling…"
 msgstr "Đang pull…"
 
@@ -9366,7 +9370,7 @@ msgstr "Push không thành công: {detail}"
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "Đẩy các cập nhật đến những thiết bị di động đã ghép nối khi luồng hoàn tất hoặc cần bạn, ngay cả khi ứng dụng đã đóng."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pushing…"
 msgstr "Đang push…"
 
@@ -11735,6 +11739,10 @@ msgstr "Gợi ý"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Tóm tắt tiến độ tuần này, công việc chưa hoàn thành và những rủi ro quan trọng nhất cho tuần tới."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Summarizing…"
+msgstr "Đang tóm tắt…"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Giám sát"
@@ -11834,9 +11842,9 @@ msgstr "Tùy chọn đồng bộ hóa"
 msgid "Sync with desktop"
 msgstr "Đồng bộ với desktop"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Syncing…"
-msgstr "Đang đồng bộ hóa…"
+msgstr "Đang đồng bộ…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"

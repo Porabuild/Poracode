@@ -2902,7 +2902,7 @@ msgstr "Commit, PR, and review composers"
 msgid "Commits"
 msgstr "Commits"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Committing…"
 msgstr "Committing…"
 
@@ -3576,7 +3576,7 @@ msgstr "Create with Agent"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
 msgstr "Creating PR…"
 
@@ -5445,13 +5445,17 @@ msgstr "Generates commit messages from staged changes."
 msgid "Generates short titles for new threads."
 msgstr "Generates short titles for new threads."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating commit message…"
-msgstr "Generating commit message…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating commit message…"
+#~ msgstr "Generating commit message…"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating PR summary…"
-msgstr "Generating PR summary…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating PR summary…"
+#~ msgstr "Generating PR summary…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Generating…"
+msgstr "Generating…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9336,7 +9340,7 @@ msgstr "Pull requests"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "Pull requests shortcut"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pulling…"
 msgstr "Pulling…"
 
@@ -9366,7 +9370,7 @@ msgstr "Push failed: {detail}"
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pushing…"
 msgstr "Pushing…"
 
@@ -11735,6 +11739,10 @@ msgstr "Suggestions"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Summarize this week's progress, unfinished work, and the most important risks for next week."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Summarizing…"
+msgstr "Summarizing…"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Supervised"
@@ -11834,7 +11842,7 @@ msgstr "Sync options"
 msgid "Sync with desktop"
 msgstr "Sync with desktop"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Syncing…"
 msgstr "Syncing…"
 

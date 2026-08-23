@@ -2902,7 +2902,7 @@ msgstr "提交、PR 和审查 Composer"
 msgid "Commits"
 msgstr "提交"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Committing…"
 msgstr "提交中…"
 
@@ -3576,7 +3576,7 @@ msgstr "使用代理创建"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "在“{newBranch}”上创建了一个工作树，但更改发生冲突并保留在 git 存储中 - 在工作树中解决它们。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
 msgstr "创建 PR 中…"
 
@@ -5445,13 +5445,17 @@ msgstr "从分阶段更改生成提交消息。"
 msgid "Generates short titles for new threads."
 msgstr "为新线程生成短标题。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating commit message…"
-msgstr "正在生成提交信息…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating commit message…"
+#~ msgstr "正在生成提交信息…"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating PR summary…"
-msgstr "正在生成 PR 描述…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating PR summary…"
+#~ msgstr "正在生成 PR 描述…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Generating…"
+msgstr "生成中…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9335,7 +9339,7 @@ msgstr "拉取请求"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "拉取请求快捷方式"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pulling…"
 msgstr "拉取中…"
 
@@ -9365,7 +9369,7 @@ msgstr "推送失败：{detail}"
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "当线程完成或需要你处理时，向已配对的移动设备推送更新，即使应用已关闭。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pushing…"
 msgstr "推送中…"
 
@@ -11734,6 +11738,10 @@ msgstr "建议"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "总结本周进展、未完成的工作以及下周最重要的风险。"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Summarizing…"
+msgstr "生成摘要…"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "监督"
@@ -11833,7 +11841,7 @@ msgstr "同步选项"
 msgid "Sync with desktop"
 msgstr "与桌面同步"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Syncing…"
 msgstr "同步中…"
 

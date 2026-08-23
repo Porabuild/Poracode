@@ -2901,7 +2901,7 @@ msgstr "コミット、PR、レビューのコンポーザー"
 msgid "Commits"
 msgstr "コミット"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Committing…"
 msgstr "コミット中…"
 
@@ -3575,9 +3575,9 @@ msgstr "エージェントで作成"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "「{newBranch}」にワークツリーを作成しましたが、変更が競合し、git stash に残っています。ワークツリー内で解決してください。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
-msgstr "PRを作成中…"
+msgstr "PR作成中…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
@@ -5444,13 +5444,17 @@ msgstr "ステージされた変更からコミットメッセージを生成し
 msgid "Generates short titles for new threads."
 msgstr "新しいスレッドの短いタイトルを生成します。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating commit message…"
-msgstr "コミットメッセージを生成中…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating commit message…"
+#~ msgstr "コミットメッセージを生成中…"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating PR summary…"
-msgstr "PRの概要を生成中…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating PR summary…"
+#~ msgstr "PRの概要を生成中…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Generating…"
+msgstr "生成中…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9334,7 +9338,7 @@ msgstr "プルリクエスト"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "プルリクエストのショートカット"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pulling…"
 msgstr "プル中…"
 
@@ -9364,7 +9368,7 @@ msgstr "プッシュに失敗しました:{detail}"
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "スレッドが完了したり対応が必要になったりしたときに、アプリが閉じていてもペアリング済みのモバイルデバイスに更新をプッシュします。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pushing…"
 msgstr "プッシュ中…"
 
@@ -11733,6 +11737,10 @@ msgstr "提案"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "今週の進捗、未完了の作業、来週の重要なリスクをまとめてください。"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Summarizing…"
+msgstr "要約中…"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "監督あり"
@@ -11832,7 +11840,7 @@ msgstr "同期オプション"
 msgid "Sync with desktop"
 msgstr "デスクトップと同期"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Syncing…"
 msgstr "同期中…"
 

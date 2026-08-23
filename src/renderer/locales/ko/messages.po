@@ -2902,7 +2902,7 @@ msgstr "커밋, PR, 리뷰 작성기"
 msgid "Commits"
 msgstr "커밋"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Committing…"
 msgstr "커밋 중…"
 
@@ -3576,7 +3576,7 @@ msgstr "에이전트로 만들기"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\"에 작업 트리를 만들었지만 변경 사항이 충돌하여 git stash에 남아 있습니다. 작업 트리에서 해결하세요."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
 msgstr "PR 생성 중…"
 
@@ -5445,13 +5445,17 @@ msgstr "스테이징된 변경 사항에서 커밋 메시지를 생성합니다.
 msgid "Generates short titles for new threads."
 msgstr "새 스레드에 대한 짧은 제목을 생성합니다."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating commit message…"
-msgstr "커밋 메시지 생성 중…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating commit message…"
+#~ msgstr "커밋 메시지 생성 중…"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
-msgid "Generating PR summary…"
-msgstr "PR 요약 생성 중…"
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#~ msgid "Generating PR summary…"
+#~ msgstr "PR 요약 생성 중…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Generating…"
+msgstr "생성 중…"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
@@ -9336,7 +9340,7 @@ msgstr "풀 리퀘스트"
 #~ msgid "Pull requests shortcut"
 #~ msgstr "풀 리퀘스트 바로가기"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pulling…"
 msgstr "풀 중…"
 
@@ -9366,7 +9370,7 @@ msgstr "푸시 실패: {detail}"
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "스레드가 완료되거나 응답이 필요할 때 앱이 닫혀 있어도 페어링된 모바일 기기로 업데이트를 푸시합니다."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Pushing…"
 msgstr "푸시 중…"
 
@@ -11735,6 +11739,10 @@ msgstr "제안"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "이번 주의 진행 상황, 미완료 작업, 다음 주의 가장 중요한 위험을 요약해 주세요."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+msgid "Summarizing…"
+msgstr "요약 중…"
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "감독됨"
@@ -11834,7 +11842,7 @@ msgstr "동기화 옵션"
 msgid "Sync with desktop"
 msgstr "데스크톱과 동기화"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseStatus.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Syncing…"
 msgstr "동기화 중…"
 

@@ -70,7 +70,7 @@ vi.mock("@/renderer/components/common", () => ({
 
 const branchList: readonly GitBranchInfo[] = [];
 
-function renderModal(actionPhase: GitActionPhase | null): void {
+function renderModal(actionPhase: GitActionPhase | null, prLoading = false): void {
   renderWithI18n(
     <CreatePrModal
       isOpen
@@ -83,7 +83,7 @@ function renderModal(actionPhase: GitActionPhase | null): void {
       setPrBody={vi.fn<(body: string) => void>()}
       prTargetBranch={null}
       setPrTargetBranch={vi.fn<(branch: string | null) => void>()}
-      prLoading={false}
+      prLoading={prLoading}
       isGeneratingPr={false}
       actionPhase={actionPhase}
       canGenerateMessage
@@ -95,17 +95,18 @@ function renderModal(actionPhase: GitActionPhase | null): void {
 }
 
 describe("CreatePrModal operation status", () => {
-  it("shows the active phase inside the modal", () => {
-    renderModal("generating-pr-summary");
+  it("labels the create button with the active phase", () => {
+    renderModal("generating-pr-summary", true);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Generating PR summary…");
+    expect(screen.getByRole("status")).toHaveTextContent("Summarizing…");
     expect(screen.getByTestId("pixel-loader")).toBeInTheDocument();
   });
 
-  it("does not show an idle status row", () => {
+  it("keeps the create button captioned when idle", () => {
     renderModal(null);
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Create PR" }).length).toBeGreaterThan(0);
   });
 
   it("disables PR controls while another phase owns the panel", () => {
