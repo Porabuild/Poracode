@@ -104,11 +104,16 @@ describe("ArchivedThreadsSettings", () => {
     expect(screen.getByText("Local newer")).toBeInTheDocument();
     expect(screen.queryByText("Remote archive")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Machine"));
-    fireEvent.click(await screen.findByRole("option", { name: "Studio Mac" }));
+    const machineTrigger = screen.getByRole("button", { name: "Machine: This machine" });
+    expect(machineTrigger).toHaveClass("rounded-3xl", "justify-start");
+    expect(machineTrigger.querySelector(".lucide-monitor")).not.toBeNull();
+    fireEvent.click(machineTrigger);
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio Mac" }));
 
     expect(screen.getByText("Remote archive")).toBeInTheDocument();
     expect(screen.queryByText("Local newer")).not.toBeInTheDocument();
+    expect(machineTrigger.querySelector(".lucide-server")).not.toBeNull();
+    expect(machineTrigger).toHaveAccessibleName("Machine: Studio Mac");
   });
 
   it("groups archives by day and clears only the selected day", () => {
@@ -171,8 +176,8 @@ describe("ArchivedThreadsSettings", () => {
     }));
     render(<ArchivedThreadsSettings />);
 
-    fireEvent.click(screen.getByLabelText("Machine"));
-    fireEvent.click(await screen.findByRole("option", { name: "Studio Mac" }));
+    fireEvent.click(screen.getByRole("button", { name: /Machine:/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio Mac" }));
 
     expect(screen.getByText(/selected machine is unavailable/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear all" })).toBeDisabled();
@@ -189,8 +194,8 @@ describe("ArchivedThreadsSettings", () => {
     }));
     render(<ArchivedThreadsSettings />);
 
-    fireEvent.click(screen.getByLabelText("Machine"));
-    fireEvent.click(await screen.findByRole("option", { name: "Studio Mac" }));
+    fireEvent.click(screen.getByRole("button", { name: /Machine:/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio Mac" }));
 
     expect(screen.queryByText(/selected machine is unavailable/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear all" })).toBeEnabled();

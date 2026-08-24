@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Button, Surface, Tooltip } from "@heroui/react";
-import { ArchiveRestore, GitFork, Monitor, Server, Trash2 } from "lucide-react";
+import { Button, Dropdown, Label, Surface, Tooltip } from "@heroui/react";
+import { ArchiveRestore, ChevronsUpDown, GitFork, Monitor, Trash2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
-import { Select } from "@/renderer/components/common";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { ConfirmationPopover } from "@/renderer/components/common/ConfirmationPopover";
+import { ProjectRemoteServerIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
@@ -64,12 +65,23 @@ export function ArchivedThreadsSettings() {
     { id: LOCAL_MACHINE_ID, label: t`This machine`, icon: <Monitor className="size-4" /> },
     ...remoteServers.map((server) => ({
       id: server.desktopId,
-      label: server.label,
-      icon: <Server className="size-4" />,
+      label: desktopTitle(server.label),
+      icon: (
+        <ProjectRemoteServerIcon
+          info={{
+            isRemote: true,
+            serverName: desktopTitle(server.label),
+            status: remoteRuntimes[server.desktopId]?.status,
+          }}
+          className="size-3.5 text-muted"
+          dotClassName="size-1"
+        />
+      ),
     })),
   ];
-  const selectedMachineLabel =
-    machineOptions.find((option) => option.id === selectedMachineId)?.label ?? t`This machine`;
+  const selectedMachine =
+    machineOptions.find((option) => option.id === selectedMachineId) ?? machineOptions[0]!;
+  const selectedMachineLabel = selectedMachine.label;
   const selectedMachineUnavailable =
     selectedMachineId !== LOCAL_MACHINE_ID &&
     remoteRuntimes[selectedMachineId]?.status !== "online" &&
@@ -134,14 +146,37 @@ export function ArchivedThreadsSettings() {
         />
       }
     >
-      <Select
-        aria-label={t`Machine`}
-        className="mb-6 w-[260px]"
-        variant="secondary"
-        options={machineOptions}
-        value={selectedMachineId}
-        onChange={setMachineId}
-      />
+      <div className="mb-6 w-[260px]">
+        <Dropdown>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-full min-w-0 justify-start gap-2 rounded-3xl px-2 text-sm text-muted"
+            aria-label={`${t`Machine`}: ${selectedMachine.label}`}
+          >
+            {selectedMachine.icon}
+            <span className="min-w-0 truncate">{selectedMachine.label}</span>
+            <ChevronsUpDown className="ms-auto size-3.5 shrink-0" />
+          </Button>
+          <Dropdown.Popover placement="bottom start" className="min-w-[--trigger-width]">
+            <Dropdown.Menu
+              aria-label={t`Machine`}
+              className="poracode-menu"
+              selectionMode="single"
+              selectedKeys={[selectedMachineId]}
+              onAction={(key) => setMachineId(String(key))}
+            >
+              {machineOptions.map((option) => (
+                <Dropdown.Item key={option.id} id={option.id} textValue={option.label}>
+                  {option.icon}
+                  <Label>{option.label}</Label>
+                  <Dropdown.ItemIndicator />
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
+      </div>
       {selectedMachineUnavailable ? (
         <p className="mb-6 text-xs text-warning">
           <Trans>
