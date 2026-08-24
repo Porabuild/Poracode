@@ -126,6 +126,43 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector("p")?.textContent).toBe("line 1\nline 2");
   });
 
+  it("does not crash on deeply nested raw HTML", () => {
+    const text = `${"<div>".repeat(5_000)}subagent result`;
+
+    const { container } = render(
+      <AppProvider>
+        <ItemMarkdownInner text={text} />
+      </AppProvider>,
+    );
+
+    expect(container).toHaveTextContent("subagent result");
+  });
+
+  it("keeps normal raw HTML elements rendered", () => {
+    const { container } = render(
+      <AppProvider>
+        <ItemMarkdownInner text={"<em>raw emphasis</em>"} />
+      </AppProvider>,
+    );
+
+    expect(container.querySelector("em")).toHaveTextContent("raw emphasis");
+  });
+
+  it("rewrites raw HTML image paths through the local image protocol", () => {
+    render(
+      <AppProvider>
+        <ItemMarkdownInner
+          text={'<img src="C:/Users/sdsle/.poracode-smoke/raw-image.png" alt="Raw image" />'}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByAltText("Raw image")).toHaveAttribute(
+      "src",
+      "poracode-local://local/C:/Users/sdsle/.poracode-smoke/raw-image.png",
+    );
+  });
+
   it("caps markdown images so tall screenshots do not fill the chat", () => {
     const { container } = render(
       <AppProvider>
