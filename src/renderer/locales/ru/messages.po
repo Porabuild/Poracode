@@ -7514,6 +7514,11 @@ msgstr "Новый тред — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Новый тред из этой задачи"
 
+#. placeholder {0}: project.name
+#: src/renderer/views/HomeView.tsx
+msgid "New thread in {0}"
+msgstr "Новый поток в {0}"
+
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -7989,6 +7994,7 @@ msgstr "В этом проекте нет потоков"
 msgid "No threads yet"
 msgstr "Пока нет потоков"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "Тредов пока нет."
@@ -9226,6 +9232,7 @@ msgstr "Переопределения для конкретного проек�
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx

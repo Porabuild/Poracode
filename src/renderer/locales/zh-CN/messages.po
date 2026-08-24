@@ -7513,6 +7513,11 @@ msgstr "新线程 —{projectName}"
 msgid "New thread from this to-do"
 msgstr "基于此待办事项的新线程"
 
+#. placeholder {0}: project.name
+#: src/renderer/views/HomeView.tsx
+msgid "New thread in {0}"
+msgstr "在 {0} 中新建线程"
+
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -7988,6 +7993,7 @@ msgstr "此项目中没有线程"
 msgid "No threads yet"
 msgstr "还没有线程"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "暂无对话。"
@@ -9225,6 +9231,7 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
