@@ -2,6 +2,7 @@ import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { ProjectIcon } from "@/renderer/components/common/ProjectIcon";
+import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import {
   ProjectRemoteServerChip,
   ProjectSelectorIcon,
@@ -244,6 +245,10 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
                           <ProjectIcon project={project} className="size-3 text-muted/70" />
                           <span className="truncate">{project.name}</span>
                           <ProjectRemoteServerChip info={remote} size="xs" />
+                          {/* Mirrors the grouped header's trailing WSL marker. */}
+                          {project.location.kind === "wsl" ? (
+                            <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
+                          ) : null}
                         </span>
                       ),
                     }
