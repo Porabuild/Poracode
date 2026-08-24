@@ -84,6 +84,15 @@ describe("friendlyErrorWithDetail", () => {
     });
   });
 
+  it("maps worktree concurrency conflicts to a shared message", () => {
+    const error = Object.assign(new Error("stale worktree thread list"), {
+      code: "worktree_threads_changed",
+    });
+    expect(friendlyError(error)).toBe(
+      "The threads linked to this worktree changed. Refresh and try again.",
+    );
+  });
+
   it("maps helper bootstrap failures to shared messages", () => {
     expect(friendlyError(new Error("Poracode Helper probe returned HTTP 503."))).toBe(
       "Poracode Helper is not ready yet (HTTP 503).",

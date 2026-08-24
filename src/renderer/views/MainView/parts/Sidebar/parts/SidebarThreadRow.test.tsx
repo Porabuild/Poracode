@@ -9,15 +9,10 @@ import { SidebarThreadRow } from "./SidebarThreadRow";
 
 const threadActions = vi.hoisted(() => ({
   archiveThread: vi.fn<(threadId: string) => void>(),
-  deleteThread: vi.fn<(threadId: string) => void>(),
-}));
-const worktreeActions = vi.hoisted(() => ({
-  deleteWorktreeGroup:
-    vi.fn<(projectId: string, worktreePath: string, threadIds: string[]) => void>(),
+  deleteThreadsAndOwnedWorktrees: vi.fn<(threads: readonly Thread[]) => void>(),
 }));
 
 vi.mock("@/renderer/actions/threadActions", () => threadActions);
-vi.mock("@/renderer/actions/worktreeActions", () => worktreeActions);
 vi.mock("./SidebarThreadGroup", () => ({ SidebarThreadGroup: () => null }));
 vi.mock("./SidebarWorktreeGroup", () => ({ SidebarWorktreeGroup: () => null }));
 vi.mock("./SortableThreadItem/SortableThreadItem", () => ({ SortableThreadItem: () => null }));
@@ -75,8 +70,7 @@ function renderDoneRow(options?: {
 describe("SidebarThreadRow Done section action", () => {
   beforeEach(() => {
     threadActions.archiveThread.mockReset();
-    threadActions.deleteThread.mockReset();
-    worktreeActions.deleteWorktreeGroup.mockReset();
+    threadActions.deleteThreadsAndOwnedWorktrees.mockReset();
     useSharedSettings.setState({ threadRemoveAction: "archive" });
   });
 
@@ -99,7 +93,7 @@ describe("SidebarThreadRow Done section action", () => {
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
     expect(threadActions.archiveThread.mock.calls).toEqual([["done-1"], ["done-2"]]);
-    expect(threadActions.deleteThread).not.toHaveBeenCalled();
+    expect(threadActions.deleteThreadsAndOwnedWorktrees).not.toHaveBeenCalled();
   });
 
   it("confirms and permanently deletes every done thread", () => {
@@ -112,7 +106,10 @@ describe("SidebarThreadRow Done section action", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(threadActions.deleteThread.mock.calls).toEqual([["done-1"], ["done-2"]]);
+    expect(threadActions.deleteThreadsAndOwnedWorktrees).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "done-1" }),
+      expect.objectContaining({ id: "done-2" }),
+    ]);
     expect(threadActions.archiveThread).not.toHaveBeenCalled();
   });
 
@@ -126,12 +123,7 @@ describe("SidebarThreadRow Done section action", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete done threads" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(worktreeActions.deleteWorktreeGroup).toHaveBeenCalledWith(
-      project.id,
-      thread.worktreePath,
-      [thread.id],
-    );
-    expect(threadActions.deleteThread).not.toHaveBeenCalled();
+    expect(threadActions.deleteThreadsAndOwnedWorktrees).toHaveBeenCalledWith([thread]);
   });
 
   it("removes a worktree when every sibling is done", () => {
@@ -146,11 +138,7 @@ describe("SidebarThreadRow Done section action", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete done threads" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(worktreeActions.deleteWorktreeGroup).toHaveBeenCalledWith(project.id, worktreePath, [
-      "done-1",
-      "done-2",
-    ]);
-    expect(threadActions.deleteThread).not.toHaveBeenCalled();
+    expect(threadActions.deleteThreadsAndOwnedWorktrees).toHaveBeenCalledWith(threads);
   });
 
   it("preserves a worktree that still has a retained sibling", () => {
@@ -163,8 +151,7 @@ describe("SidebarThreadRow Done section action", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete done threads" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(threadActions.deleteThread).toHaveBeenCalledWith(doneThread.id);
-    expect(worktreeActions.deleteWorktreeGroup).not.toHaveBeenCalled();
+    expect(threadActions.deleteThreadsAndOwnedWorktrees).toHaveBeenCalledWith([doneThread]);
   });
 
   it("uses one visible keyboard trigger and restores focus after Escape", async () => {

@@ -47,18 +47,18 @@ describe("createDbStorage", () => {
 
     await storage.setItem("poracode-app-v2", {
       state: { projects, threads, view, groupLayouts },
-      version: 4,
+      version: 5,
     });
     await storage.setItem("poracode-app-v2", {
       state: { projects, threads, view, groupLayouts },
-      version: 4,
+      version: 5,
     });
 
     expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
 
     await storage.setItem("poracode-app-v2", {
       state: { projects, threads: [...threads], view, groupLayouts },
-      version: 4,
+      version: 5,
     });
 
     expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
@@ -106,7 +106,7 @@ describe("createDbStorage", () => {
         view: { kind: "home" },
         groupLayouts: {},
       },
-      version: 4,
+      version: 5,
     } as never);
 
     expect(bridge.dbSyncAll).not.toHaveBeenCalled();
@@ -133,7 +133,7 @@ describe("dbStorage persistence error reporting", () => {
 
     await storage.setItem("poracode-app-v2", {
       state: { projects: [], threads: [], view: { kind: "home" }, groupLayouts: {} },
-      version: 4,
+      version: 5,
     } as never);
     await flushMicrotasks();
 

@@ -34,8 +34,23 @@ export const useAppStore = create<AppStoreState>()(
       }),
       {
         name: "poracode-app-v2",
-        version: 4,
+        version: 5,
         storage: createDbStorage(),
+        migrate: (persistedState) => {
+          const state = persistedState as Partial<AppStoreState> & { threads?: Thread[] };
+          return {
+            ...state,
+            ...(state.threads
+              ? {
+                  threads: state.threads.map((thread) =>
+                    thread.archived && !thread.archivedAt
+                      ? { ...thread, archivedAt: thread.updatedAt }
+                      : thread,
+                  ),
+                }
+              : {}),
+          };
+        },
         merge: (persistedState, currentState) => {
           const state =
             (persistedState as (Partial<AppStoreState> & { threads?: Thread[] }) | undefined) ??
@@ -43,6 +58,7 @@ export const useAppStore = create<AppStoreState>()(
 
           const threads = (state.threads ?? currentState.threads).map((t) => ({
             ...normalizeStoredThreadStatus(t),
+            ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
             done: t.done ?? false,
             doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
           }));

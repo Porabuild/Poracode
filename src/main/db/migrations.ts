@@ -382,6 +382,16 @@ export const DATABASE_MIGRATIONS = [
     name: "projects.icon",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "icon", "TEXT"),
   },
+  {
+    version: 35,
+    name: "threads.archived_at",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "archived_at", "TEXT");
+      sqlite.exec(
+        "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
+      );
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -452,6 +462,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["threads", "agent_instance_id", "TEXT"],
   ["threads", "thread_status_source", "TEXT"],
   ["threads", "parent_thread_id", "TEXT"],
+  ["threads", "archived_at", "TEXT"],
   ["threads", "active_turn_started_at", "TEXT"],
   ["threads", "last_turn_started_at", "TEXT"],
   ["threads", "last_turn_ended_at", "TEXT"],
@@ -470,6 +481,9 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     for (const [table, column, definition] of SAFE_COLUMN_REPAIRS) {
       addColumnIfMissing(sqlite, table, column, definition);
     }
+    sqlite.exec(
+      "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
+    );
   })();
 }
 
@@ -514,6 +528,7 @@ const REQUIRED_COLUMNS = {
     "group_name",
     "parent_thread_id",
     "archived",
+    "archived_at",
     "done",
     "done_at",
     "starred",

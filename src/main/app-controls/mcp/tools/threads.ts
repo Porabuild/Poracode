@@ -509,7 +509,15 @@ export const threadTools: ToolDomain = {
       }));
       applyField(parsed.archived, "archived", (archived) => ({
         command: { kind: archived ? "archive" : "unarchive", threadId },
-        mutate: (thread) => ({ ...thread, archived, updatedAt: stamp() }),
+        mutate: (thread) => {
+          const now = stamp();
+          return {
+            ...thread,
+            archived,
+            archivedAt: archived ? now : undefined,
+            updatedAt: now,
+          };
+        },
       }));
       if (parsed.acknowledge) {
         const command: RemoteThreadCommand = { kind: "acknowledge", threadId };

@@ -514,8 +514,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       const thread = state.threads.find((t) => t.id === threadId);
       if (!thread || thread.archived) return {};
 
+      const now = new Date().toISOString();
       const threads = state.threads.map((t) =>
-        t.id === threadId ? { ...t, archived: true, updatedAt: new Date().toISOString() } : t,
+        t.id === threadId ? { ...t, archived: true, archivedAt: now, updatedAt: now } : t,
       );
 
       let nextView = state.view;
@@ -534,7 +535,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
       return {
         threads: state.threads.map((t) =>
-          t.id === threadId ? { ...t, archived: false, updatedAt: new Date().toISOString() } : t,
+          t.id === threadId
+            ? { ...t, archived: false, archivedAt: undefined, updatedAt: new Date().toISOString() }
+            : t,
         ),
       };
     }),
@@ -588,7 +591,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     set((state) => {
       const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
       const nextThreads = state.threads.filter(
-        (t) => !t.archived || new Date(t.updatedAt).getTime() > cutoff,
+        (t) => !t.archived || new Date(t.archivedAt ?? t.updatedAt).getTime() > cutoff,
       );
       if (nextThreads.length === state.threads.length) return {};
       return { threads: nextThreads };
@@ -600,12 +603,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       let changed = false;
       const visiblePanes =
         state.view.kind === "thread" ? new Set(state.view.panes) : new Set<string>();
+      const archivedAt = new Date().toISOString();
 
       const threads = state.threads.map((t) => {
         if (!t.done || t.archived || t.starred) return t;
         if (new Date(t.doneAt ?? t.updatedAt).getTime() > cutoff) return t;
         changed = true;
-        return { ...t, archived: true };
+        return { ...t, archived: true, archivedAt };
       });
 
       if (!changed) return {};

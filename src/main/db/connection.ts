@@ -131,6 +131,7 @@ export function initDatabase(dbPath: string) {
       worktree_branch TEXT,
       pr_number INTEGER,
       archived INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT,
       done INTEGER NOT NULL DEFAULT 0,
       done_at TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,

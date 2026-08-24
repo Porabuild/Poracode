@@ -657,6 +657,37 @@ export function deleteThread(threadId: string, worktreePath?: string, projectId?
   deleteWorktreeGroup(project.id, worktreePath, [threadId]);
 }
 
+export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void {
+  const selectedThreadIds = new Set(threads.map((thread) => thread.id));
+  const allThreads = useAppStore.getState().threads;
+  const deletedWorktrees = new Set<string>();
+
+  for (const thread of threads) {
+    if (!thread.worktreePath) {
+      deleteThread(thread.id);
+      continue;
+    }
+
+    const worktreeKey = `${thread.projectId}\0${thread.worktreePath}`;
+    if (deletedWorktrees.has(worktreeKey)) continue;
+
+    const siblings = allThreads.filter(
+      (candidate) =>
+        candidate.projectId === thread.projectId && candidate.worktreePath === thread.worktreePath,
+    );
+    if (siblings.every((candidate) => selectedThreadIds.has(candidate.id))) {
+      deletedWorktrees.add(worktreeKey);
+      deleteWorktreeGroup(
+        thread.projectId,
+        thread.worktreePath,
+        siblings.map((candidate) => candidate.id),
+      );
+    } else {
+      deleteThread(thread.id);
+    }
+  }
+}
+
 /**
  * Sidebar-initiated delete: asks first unless the user turned confirmation off,
  * then routes through `deleteThread`. Every thread is confirmed the same way,

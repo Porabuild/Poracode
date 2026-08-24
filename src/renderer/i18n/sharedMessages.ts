@@ -236,6 +236,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "remote.project.experimentsOwned": msg({
     message: "Remove the project's experiments before removing the project.",
   }),
+  "remote.worktree.threadsChanged": msg({
+    message: "The threads linked to this worktree changed. Refresh and try again.",
+  }),
   "remote.session.expired": msg({
     message: "Pairing expired — pair again to reconnect.",
   }),

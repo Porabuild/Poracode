@@ -156,6 +156,8 @@ const messages = {
   "remote.project.runningThreads": "Stop the project's running threads before changing its folder.",
   "remote.project.experimentsOwned":
     "Remove the project's experiments before removing the project.",
+  "remote.worktree.threadsChanged":
+    "The threads linked to this worktree changed. Refresh and try again.",
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
@@ -315,6 +317,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   project_not_found: "remote.project.notFound",
   project_has_running_threads: "remote.project.runningThreads",
   experiment_owned: "remote.project.experimentsOwned",
+  worktree_threads_changed: "remote.worktree.threadsChanged",
 };
 
 function remoteErrorMessageKey(error: unknown): MessageKey | undefined {
