@@ -74,6 +74,16 @@ describe("createAutoUpdaterController", () => {
     expect(autoUpdaterMock.autoInstallOnAppQuit).toBe(true);
   });
 
+  it("retains the latest status for a renderer that subscribes after the update finishes", () => {
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false);
+    controller.initialize();
+
+    autoUpdaterMock.emit("update-available", { version: "1.2.3" });
+    autoUpdaterMock.emit("update-downloaded", { version: "1.2.3" });
+
+    expect(controller.getStatus()).toEqual({ type: "downloaded", version: "1.2.3" });
+  });
+
   it("starts the controller-owned download when a check finds an update", async () => {
     const controller = createAutoUpdaterController(vi.fn(), "stable", false);
     controller.initialize();

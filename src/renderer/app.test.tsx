@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { toast } from "@heroui/react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +8,7 @@ import type {
   QuickComposerSubmission,
   SupervisorEvent,
   ThreadOpenRequestedEvent,
+  UpdateStatus,
 } from "@/shared/ipc";
 import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
@@ -16,6 +18,7 @@ import { useExperimentStore } from "./state/experimentStore";
 import { useWorkspaceStore } from "./state/workspaceStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
+import { useUpdateStore } from "./state/updateStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
@@ -186,6 +189,7 @@ const {
       gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitUnwatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       checkForUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      getUpdateStatus: vi.fn<() => Promise<null>>().mockResolvedValue(null),
       startUpdateDownload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       installUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       relaunchApp: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -401,7 +405,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
   ),
 }));
 
-import { App, STARTUP_RECOVERY_TIMEOUT_MS } from "./app";
+import { App, installUpdateStatusSync, STARTUP_RECOVERY_TIMEOUT_MS } from "./app";
 
 describe("App", () => {
   const originalHasHydrated = useAppStore.persist.hasHydrated;
@@ -437,6 +441,15 @@ describe("App", () => {
     }));
     resetDevTerminalStore();
     useThreadOutputStore.setState({ buffers: {} });
+    useUpdateStore.setState({
+      phase: "idle",
+      version: null,
+      downloadPercent: 0,
+      errorMessage: null,
+      downloadTransferred: null,
+      downloadTotal: null,
+      downloadBytesPerSecond: null,
+    });
     useExperimentStore.setState({ experiments: {} });
     useGitStore.setState({
       statuses: {},
@@ -465,6 +478,93 @@ describe("App", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("restores a completed update when the renderer subscribed after it finished", async () => {
+    const unsubscribe = installUpdateStatusSync({
+      getUpdateStatus: vi
+        .fn<() => Promise<UpdateStatus | null>>()
+        .mockResolvedValue({ type: "downloaded", version: "1.2.3" }),
+      onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
+    });
+
+    await waitFor(() => {
+      expect(useUpdateStore.getState()).toMatchObject({
+        phase: "downloaded",
+        version: "1.2.3",
+        downloadPercent: 100,
+      });
+    });
+    unsubscribe();
+  });
+
+  it("does not let an older snapshot replace a newly started download", async () => {
+    let resolveSnapshot!: (status: UpdateStatus | null) => void;
+    let statusListener!: (status: UpdateStatus) => void;
+    const unsubscribe = installUpdateStatusSync({
+      getUpdateStatus: vi.fn<() => Promise<UpdateStatus | null>>(
+        () =>
+          new Promise((resolve) => {
+            resolveSnapshot = resolve;
+          }),
+      ),
+      onUpdateStatus: vi.fn<(listener: (status: UpdateStatus) => void) => () => void>(
+        (listener) => {
+          statusListener = listener;
+          return () => undefined;
+        },
+      ),
+    });
+
+    statusListener({ type: "update-available", version: "1.2.4" });
+    resolveSnapshot({ type: "downloaded", version: "1.2.3" });
+    await Promise.resolve();
+
+    expect(useUpdateStore.getState()).toMatchObject({
+      phase: "downloading",
+      version: "1.2.4",
+      downloadPercent: 0,
+    });
+    unsubscribe();
+  });
+
+  it("ignores a snapshot that resolves after its subscription was disposed", async () => {
+    let resolveSnapshot!: (status: UpdateStatus | null) => void;
+    const unsubscribe = installUpdateStatusSync({
+      getUpdateStatus: vi.fn<() => Promise<UpdateStatus | null>>(
+        () =>
+          new Promise((resolve) => {
+            resolveSnapshot = resolve;
+          }),
+      ),
+      onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
+    });
+
+    unsubscribe();
+    useUpdateStore.getState().beginUpdateDownload("1.2.4");
+    resolveSnapshot({ type: "downloaded", version: "1.2.3" });
+    await Promise.resolve();
+
+    expect(useUpdateStore.getState()).toMatchObject({ phase: "downloading", version: "1.2.4" });
+  });
+
+  it("restores an error snapshot without repeating its toast", async () => {
+    const danger = vi.spyOn(toast, "danger").mockImplementation(() => "toast-id");
+    const unsubscribe = installUpdateStatusSync({
+      getUpdateStatus: vi
+        .fn<() => Promise<UpdateStatus | null>>()
+        .mockResolvedValue({ type: "error", message: "Update failed" }),
+      onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
+    });
+
+    await waitFor(() => {
+      expect(useUpdateStore.getState()).toMatchObject({
+        phase: "error",
+        errorMessage: "Update failed",
+      });
+    });
+    expect(danger).not.toHaveBeenCalled();
+    unsubscribe();
   });
 
   it("offers recovery controls when initial hydration does not finish", async () => {
