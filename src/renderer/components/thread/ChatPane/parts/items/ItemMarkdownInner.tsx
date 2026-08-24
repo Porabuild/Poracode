@@ -56,11 +56,76 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): RehypePlugins {
   return Object.entries(defaultRehypePlugins)
     .filter(([key]) => key !== "harden")
-    .flatMap(([key, plugin]) =>
-      key === "sanitize"
-        ? [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)]
-        : [plugin],
-    ) as RehypePlugins;
+    .flatMap(([key, plugin]): RehypePlugins[number][] => {
+      // Streamdown checks the raw plugin by identity to preserve raw HTML
+      // nodes. Guard pathological fragments while keeping its plugin intact.
+      if (key === "raw") return [guardRawHtmlNesting, plugin];
+      if (key === "sanitize") {
+        return [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)];
+      }
+      return [plugin];
+    }) as RehypePlugins;
+}
+
+const MAX_RAW_HTML_NESTING = 1_000;
+const RAW_HTML_TAG_RE = /<!--[^]*?-->|<![^>]*>|<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*?)?\/?>/g;
+const RAW_HTML_VOID_ELEMENTS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+function guardRawHtmlNesting() {
+  return (tree: MarkdownHastNode): void => {
+    const pending = [tree];
+    const state = { depth: 0 };
+    while (pending.length > 0) {
+      const node = pending.pop();
+      if (!node) continue;
+      if (node.type === "raw" && typeof node.value === "string") {
+        if (scanRawHtmlNesting(node.value, state)) {
+          replaceRawHtmlWithText(node);
+          state.depth = 0;
+        }
+        continue;
+      }
+      if (node.children) {
+        for (let index = node.children.length - 1; index >= 0; index--) {
+          const child = node.children[index];
+          if (child) pending.push(child);
+        }
+      }
+    }
+  };
+}
+
+function scanRawHtmlNesting(value: string, state: { depth: number }): boolean {
+  RAW_HTML_TAG_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = RAW_HTML_TAG_RE.exec(value)) !== null) {
+    const tagName = match[1]?.toLowerCase();
+    if (!tagName) continue;
+    if (value[match.index + 1] === "/") {
+      state.depth = Math.max(0, state.depth - 1);
+      continue;
+    }
+    if (value[match.index + match[0].length - 2] === "/") continue;
+    if (RAW_HTML_VOID_ELEMENTS.has(tagName)) continue;
+    state.depth += 1;
+    if (state.depth > MAX_RAW_HTML_NESTING) return true;
+  }
+  return false;
 }
 
 interface ItemMarkdownInnerProps {
@@ -232,9 +297,19 @@ const transformMarkdownUrl: UrlTransform = (url, key, node) =>
     : defaultUrlTransform(url, key, node);
 
 interface MarkdownHastNode {
+  type?: string;
+  value?: string;
   tagName?: string;
   properties?: Record<string, unknown>;
   children?: MarkdownHastNode[];
+}
+
+function replaceRawHtmlWithText(node: MarkdownHastNode): void {
+  node.type = "text";
+  node.value = node.value ?? "";
+  delete node.tagName;
+  delete node.properties;
+  delete node.children;
 }
 
 function rehypeLocalImageUrls(options?: { remoteLocalImageUrl?: (url: string) => string }) {
