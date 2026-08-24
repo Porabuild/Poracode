@@ -114,6 +114,37 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetThread("thread-1")?.threadStatusSource).toBeUndefined();
   });
 
+  it("round-trips and clears the thread archive timestamp", () => {
+    dbUpsertThread(
+      testThread({
+        archived: true,
+        archivedAt: "2026-02-02T03:04:05.000Z",
+      }),
+      0,
+    );
+    expect(dbGetThread("thread-1")?.archivedAt).toBe("2026-02-02T03:04:05.000Z");
+
+    dbUpsertThread(testThread(), 0);
+    expect(dbGetThread("thread-1")?.archivedAt).toBeUndefined();
+  });
+
+  it("backfills archive timestamps when upgrading schema v34", () => {
+    dbUpsertThread(
+      testThread({
+        archived: true,
+        updatedAt: "2026-02-03T04:05:06.000Z",
+      }),
+      0,
+    );
+    dbSetState("schema_version", "34");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetThread("thread-1")?.archivedAt).toBe("2026-02-03T04:05:06.000Z");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
   it("round-trips project MCP servers through the projects table", () => {
     dbUpsertProject(
       {
@@ -263,7 +294,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     initDatabase(databasePath);
 
-    expect(dbGetState("schema_version")).toBe("34");
+    expect(dbGetState("schema_version")).toBe("35");
     const legacyProject = dbGetProject("legacy-project");
     expect(legacyProject).toMatchObject({
       id: "legacy-project",
@@ -370,6 +401,86 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: "Legacy project",
       location: { kind: "posix", path: "/tmp/legacy-project" },
     });
+  });
+
+  it("repairs and backfills archived_at when schema v35 is missing the column", () => {
+    closeDatabase();
+    const databasePath = join(dir, "corrupt-v35.sqlite");
+    const corrupt = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    corrupt.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_kind TEXT NOT NULL,
+        location_path TEXT,
+        location_distro TEXT,
+        location_linux_path TEXT,
+        location_unc_path TEXT,
+        last_draft_config TEXT,
+        scripts TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE threads (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        agent_kind TEXT NOT NULL,
+        agent_instance_id TEXT,
+        config TEXT NOT NULL,
+        status TEXT NOT NULL,
+        attention TEXT NOT NULL,
+        thread_status_source TEXT,
+        can_resume_with_config INTEGER NOT NULL DEFAULT 0,
+        session_ref TEXT,
+        terminal_prompt TEXT,
+        worktree_path TEXT,
+        worktree_branch TEXT,
+        pr_number INTEGER,
+        group_id TEXT,
+        group_name TEXT,
+        parent_thread_id TEXT,
+        archived INTEGER NOT NULL DEFAULT 0,
+        done INTEGER NOT NULL DEFAULT 0,
+        done_at TEXT,
+        starred INTEGER NOT NULL DEFAULT 0,
+        presentation_mode TEXT NOT NULL DEFAULT 'terminal',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        active_turn_started_at TEXT,
+        last_turn_started_at TEXT,
+        last_turn_ended_at TEXT
+      );
+      CREATE TABLE app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO projects (
+        id, name, location_kind, location_path, sort_order, created_at
+      ) VALUES (
+        'legacy-project', 'Legacy project', 'posix', '/tmp/legacy-project', 0,
+        '2026-01-01T00:00:00.000Z'
+      );
+      INSERT INTO threads (
+        id, project_id, title, agent_kind, config, status, attention,
+        can_resume_with_config, archived, done, starred, presentation_mode,
+        sort_order, created_at, updated_at
+      ) VALUES (
+        'legacy-archived', 'legacy-project', 'Legacy archived', 'claude',
+        '{"model":"sonnet"}', 'inactive', 'none', 0, 1, 0, 0, 'gui', 0,
+        '2026-01-01T00:00:00.000Z', '2026-02-03T04:05:06.000Z'
+      );
+      INSERT INTO app_state (key, value) VALUES ('schema_version', '35');
+    `);
+    corrupt.close();
+
+    initDatabase(databasePath);
+
+    expect(dbGetThread("legacy-archived")?.archivedAt).toBe("2026-02-03T04:05:06.000Z");
+    expect(dbGetState("schema_version")).toBe("35");
   });
 
   it("repairs blank legacy thread models from schema v29 without changing valid configs", () => {

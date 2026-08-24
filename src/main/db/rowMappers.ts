@@ -90,6 +90,7 @@ export function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
     ...(row.groupName ? { groupName: row.groupName } : {}),
     ...(row.parentThreadId ? { parentThreadId: row.parentThreadId } : {}),
     archived: row.archived,
+    ...(row.archivedAt ? { archivedAt: row.archivedAt } : {}),
     done: row.done,
     ...(row.doneAt ? { doneAt: row.doneAt } : {}),
     starred: row.starred,

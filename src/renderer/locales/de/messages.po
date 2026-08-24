@@ -1439,6 +1439,10 @@ msgstr "Thread archivieren"
 msgid "Archive Thread"
 msgstr "Thread archivieren"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Archived at {archivedTime}"
+msgstr "Archiviert um {archivedTime}"
+
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -1485,6 +1489,10 @@ msgstr "Genehmigung anfordern"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Frage stellen"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Associated worktrees with no remaining threads will also be removed."
+msgstr "Zugehörige Worktrees ohne verbleibende Threads werden ebenfalls entfernt."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
@@ -2460,6 +2468,14 @@ msgstr "Sauberer Arbeitsbaum"
 msgid "Cleanup script"
 msgstr "Bereinigungsskript"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear all"
+msgstr "Alle löschen"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear archived threads from {dateLabel}"
+msgstr "Archivierte Threads vom {dateLabel} löschen"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear browsing history"
 msgstr "Browserverlauf löschen"
@@ -2475,6 +2491,10 @@ msgstr "Cache leeren"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Cookies"
 msgstr "Cookies löschen"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear day"
+msgstr "Tag leeren"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
@@ -3920,6 +3940,7 @@ msgstr "Delegieren Sie Aufgaben an andere KI-Agenten."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -3960,6 +3981,14 @@ msgstr "<0>{0}</0> löschen? Dies kann nicht rückgängig gemacht werden."
 #~ msgid "Delete all done threads"
 #~ msgstr "Alle erledigten Threads löschen"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete archived thread?"
+msgstr "Archivierten Thread löschen?"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete archived threads?"
+msgstr "Archivierte Threads löschen?"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
 msgstr "Zweig löschen?"
@@ -3974,8 +4003,8 @@ msgstr "Datei löschen"
 
 #. Tooltip: permanently delete the archived thread
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
-msgid "Delete permanently"
-msgstr "Dauerhaft löschen"
+#~ msgid "Delete permanently"
+#~ msgstr "Dauerhaft löschen"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete run"
@@ -6618,6 +6647,10 @@ msgstr "Suche nach Dev-Servern…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Die Worktrees und Branches der unterlegenen Kandidaten werden entfernt. Ihr Sitzungsverlauf bleibt erhalten."
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Machine"
+msgstr "Computer"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Die Seitenleiste durchscheinend machen — das Unschärfe-Material des Systems unter Windows 11, sonst eine durchscheinende Tönung."
@@ -8708,6 +8741,22 @@ msgstr "noch ausstehende Überprüfung"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "Ausstehende Lenkung"
+
+#. placeholder {0}: clearTarget.threads.length
+#. placeholder {1}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#~ msgid "Permanently delete {0} archived threads from {1}."
+#~ msgstr "{0} archivierte Threads von {1} dauerhaft löschen."
+
+#. placeholder {0}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Permanently delete the selected archive entries from {0}."
+msgstr "Die ausgewählten Archiveinträge von {0} dauerhaft löschen."
+
+#. placeholder {0}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#~ msgid "Permanently delete the selected archived threads from {0}."
+#~ msgstr "Die ausgewählten archivierten Threads von {0} dauerhaft löschen."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "permission"
@@ -12145,6 +12194,10 @@ msgstr "Der Speicherort des Repositorys auf der Festplatte. Aktualisieren Sie ih
 #~ msgid "The selected file does not contain valid MCP server configurations."
 #~ msgstr "Die ausgewählte Datei enthält keine gültigen MCP-Server-Konfigurationen."
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "The selected machine is unavailable. Reconnect it to manage archived threads."
+msgstr "Der ausgewählte Computer ist nicht verfügbar. Stellen Sie die Verbindung wieder her, um archivierte Threads zu verwalten."
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
 #~ msgstr "Das ausgewählte Modell vergleicht anonymisierte Momentaufnahmen der Änderungen jedes Kandidaten. Es empfiehlt einen Gewinner, ohne etwas zusammenzuführen."
@@ -12212,6 +12265,10 @@ msgstr "der Zielanbieter"
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Der Thread wird in einem separaten Arbeitsbaum auf einem neuen Zweig ausgeführt."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The threads linked to this worktree changed. Refresh and try again."
+msgstr "Die mit diesem Worktree verknüpften Threads wurden geändert. Aktualisieren Sie die Ansicht und versuchen Sie es erneut."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -12319,6 +12376,10 @@ msgstr "Diese HTTPS-Seite konnte den Desktop über einfaches HTTP nicht erreiche
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "Dieser Link öffnet die App, die Poracode in deinem Netzwerk bereitstellt. Die gehostete App wird über HTTPS ausgeliefert, was Browser daran hindert, einen Desktop über einfaches HTTP zu erreichen."
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "This machine"
+msgstr "Dieser Computer"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -13920,6 +13981,10 @@ msgstr "Worktree-Threads werden als erledigt markiert, sobald Poracode das Zusam
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Worktree: {0}"
 msgstr "Worktree: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Worktree: {worktreeLabel}"
+msgstr "Worktree: {worktreeLabel}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx

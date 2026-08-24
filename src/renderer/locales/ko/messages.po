@@ -1439,6 +1439,10 @@ msgstr "스레드 보관"
 msgid "Archive Thread"
 msgstr "아카이브 스레드"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Archived at {archivedTime}"
+msgstr "{archivedTime}에 보관됨"
+
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -1485,6 +1489,10 @@ msgstr "승인 요청"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "질문하기"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Associated worktrees with no remaining threads will also be removed."
+msgstr "남은 스레드가 없는 연결된 작업 트리도 삭제됩니다."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
@@ -2460,6 +2468,14 @@ msgstr "클린 작업 트리"
 msgid "Cleanup script"
 msgstr "정리 스크립트"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear all"
+msgstr "모두 지우기"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear archived threads from {dateLabel}"
+msgstr "{dateLabel}의 보관된 스레드 지우기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear browsing history"
 msgstr "방문 기록 지우기"
@@ -2475,6 +2491,10 @@ msgstr "캐시 지우기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Cookies"
 msgstr "쿠키 지우기"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear day"
+msgstr "이 날짜 지우기"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
@@ -3920,6 +3940,7 @@ msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -3960,6 +3981,14 @@ msgstr "<0>{0}</0>을(를) 삭제할까요? 이 작업은 되돌릴 수 없습�
 #~ msgid "Delete all done threads"
 #~ msgstr "완료된 모든 스레드 삭제"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete archived thread?"
+msgstr "보관된 스레드를 삭제할까요?"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete archived threads?"
+msgstr "보관된 스레드를 삭제할까요?"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
 msgstr "브랜치를 삭제하시겠습니까?"
@@ -3974,8 +4003,8 @@ msgstr "파일 삭제"
 
 #. Tooltip: permanently delete the archived thread
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
-msgid "Delete permanently"
-msgstr "영구 삭제"
+#~ msgid "Delete permanently"
+#~ msgstr "영구 삭제"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete run"
@@ -6618,6 +6647,10 @@ msgstr "개발 서버를 찾는 중…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "선정되지 않은 작업 트리와 브랜치는 제거됩니다. 세션 기록은 유지됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Machine"
+msgstr "기기"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "사이드바를 반투명하게 만듭니다 — Windows 11에서는 시스템 블러 효과, 그 외 환경에서는 반투명 색조를 사용합니다."
@@ -8708,6 +8741,22 @@ msgstr "검토 대기 중"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "조정 대기 중"
+
+#. placeholder {0}: clearTarget.threads.length
+#. placeholder {1}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#~ msgid "Permanently delete {0} archived threads from {1}."
+#~ msgstr "{1}에서 보관된 스레드 {0}개를 영구 삭제합니다."
+
+#. placeholder {0}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Permanently delete the selected archive entries from {0}."
+msgstr "{0}에서 선택한 보관 항목을 영구적으로 삭제합니다."
+
+#. placeholder {0}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#~ msgid "Permanently delete the selected archived threads from {0}."
+#~ msgstr "{0}에서 선택한 보관 스레드를 영구적으로 삭제합니다."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "permission"
@@ -12145,6 +12194,10 @@ msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 �
 #~ msgid "The selected file does not contain valid MCP server configurations."
 #~ msgstr "선택한 파일에 유효한 MCP 서버 구성이 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "The selected machine is unavailable. Reconnect it to manage archived threads."
+msgstr "선택한 기기를 사용할 수 없습니다. 보관된 스레드를 관리하려면 다시 연결하세요."
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
 #~ msgstr "선택한 모델은 각 후보 변경 사항의 익명화된 스냅샷을 비교합니다. 아무것도 병합하지 않고 우승자를 추천합니다."
@@ -12212,6 +12265,10 @@ msgstr "대상 공급자"
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "스레드가 새 브랜치의 별도 작업 트리에서 실행됩니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The threads linked to this worktree changed. Refresh and try again."
+msgstr "이 worktree에 연결된 스레드가 변경되었습니다. 새로 고친 후 다시 시도하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -12319,6 +12376,10 @@ msgstr "이 HTTPS 페이지는 일반 HTTP 데스크톱에 연결할 수 없었�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "이 링크는 Poracode가 네트워크에서 제공하는 앱을 엽니다. 호스팅된 앱은 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱에 연결하는 것을 차단합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "This machine"
+msgstr "이 기기"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -13920,6 +13981,10 @@ msgstr "Poracode가 풀 리퀘스트 병합을 감지하면 작업 트리 스레
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Worktree: {0}"
 msgstr "작업 트리:{0}"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Worktree: {worktreeLabel}"
+msgstr "작업 트리: {worktreeLabel}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx

@@ -1438,6 +1438,10 @@ msgstr "スレッドをアーカイブ"
 msgid "Archive Thread"
 msgstr "アーカイブスレッド"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Archived at {archivedTime}"
+msgstr "{archivedTime} にアーカイブ"
+
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -1484,6 +1488,10 @@ msgstr "承認を求める"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "質問する"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Associated worktrees with no remaining threads will also be removed."
+msgstr "残っているスレッドがない関連ワークツリーも削除されます。"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
@@ -2459,6 +2467,14 @@ msgstr "クリーンなワークツリー"
 msgid "Cleanup script"
 msgstr "クリーンアップスクリプト"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear all"
+msgstr "すべて消去"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear archived threads from {dateLabel}"
+msgstr "{dateLabel} のアーカイブ済みスレッドを消去"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear browsing history"
 msgstr "閲覧履歴を消去"
@@ -2474,6 +2490,10 @@ msgstr "キャッシュのクリア"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Cookies"
 msgstr "Cookie を消去"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Clear day"
+msgstr "この日の分を消去"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
@@ -3919,6 +3939,7 @@ msgstr "他の AI エージェントに作業を委任します。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -3959,6 +3980,14 @@ msgstr "<0>{0}</0> を削除しますか？この操作は元に戻せません�
 #~ msgid "Delete all done threads"
 #~ msgstr "完了したスレッドをすべて削除"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete archived thread?"
+msgstr "アーカイブ済みスレッドを削除しますか？"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete archived threads?"
+msgstr "アーカイブ済みスレッドを削除しますか？"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
 msgstr "ブランチを削除しますか?"
@@ -3973,8 +4002,8 @@ msgstr "ファイルの削除"
 
 #. Tooltip: permanently delete the archived thread
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
-msgid "Delete permanently"
-msgstr "完全に削除"
+#~ msgid "Delete permanently"
+#~ msgstr "完全に削除"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete run"
@@ -6617,6 +6646,10 @@ msgstr "開発サーバーを検索しています…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "敗者のワークツリーとブランチは削除されます。セッション履歴は保持されます。"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Machine"
+msgstr "マシン"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "サイドバーを半透明にします。Windows 11ではシステムのぼかし素材を、それ以外では半透明の色付けを使用します。"
@@ -8706,6 +8739,22 @@ msgstr "審査待ち"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "保留中のステアリング"
+
+#. placeholder {0}: clearTarget.threads.length
+#. placeholder {1}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#~ msgid "Permanently delete {0} archived threads from {1}."
+#~ msgstr "{1} から {0} 件のアーカイブ済みスレッドを完全に削除します。"
+
+#. placeholder {0}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Permanently delete the selected archive entries from {0}."
+msgstr "{0} から選択したアーカイブ項目を完全に削除します。"
+
+#. placeholder {0}: clearTarget.label
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#~ msgid "Permanently delete the selected archived threads from {0}."
+#~ msgstr "{0} から選択したアーカイブ済みスレッドを完全に削除します。"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "permission"
@@ -12143,6 +12192,10 @@ msgstr "ディスク上のリポジトリの場所。フォルダーを移動し
 #~ msgid "The selected file does not contain valid MCP server configurations."
 #~ msgstr "選択したファイルに有効なMCPサーバー設定が含まれていません。"
 
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "The selected machine is unavailable. Reconnect it to manage archived threads."
+msgstr "選択したマシンは利用できません。アーカイブ済みスレッドを管理するには再接続してください。"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
 #~ msgstr "選択したモデルは、各候補の変更内容を匿名化したスナップショットで比較します。何もマージせずに勝者を推奨します。"
@@ -12210,6 +12263,10 @@ msgstr "対象プロバイダー"
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "スレッドは新しいブランチ上の別のワークツリーで実行されます。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The threads linked to this worktree changed. Refresh and try again."
+msgstr "このワークツリーに関連付けられたスレッドが変更されました。更新してもう一度お試しください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -12317,6 +12374,10 @@ msgstr "この HTTPS ページは平文 HTTP のデスクトップに接続で�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "このリンクは Poracode がネットワーク上で提供しているアプリを開きます。ホスト版のアプリは HTTPS で配信されるため、ブラウザは平文 HTTP のデスクトップに接続できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "This machine"
+msgstr "このマシン"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -13918,6 +13979,10 @@ msgstr "Poracode がプルリクエストのマージを検知すると、ワー
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Worktree: {0}"
 msgstr "ワークツリー:{0}"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Worktree: {worktreeLabel}"
+msgstr "ワークツリー: {worktreeLabel}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx

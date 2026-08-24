@@ -3097,7 +3097,10 @@ describe("RemoteAccessServer", () => {
   });
 
   it("persists simple thread commands and mirrors them to the renderer", async () => {
-    const db = mockThreadDb([createTestThread()]);
+    const db = mockThreadDb([
+      createTestThread({ worktreePath: "/repo/wt" }),
+      createTestThread({ id: "thread-2", worktreePath: "/repo/wt" }),
+    ]);
     const dispatched: unknown[] = [];
     let rendererAvailable = true;
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
@@ -3171,14 +3174,32 @@ describe("RemoteAccessServer", () => {
       { method: "POST", headers, body: JSON.stringify({ kind: "archive" }) },
     );
     expect(archiveResponse.status).toBe(200);
-    expect(db.threads()[0]?.archived).toBe(true);
+    expect(db.threads()[0]).toMatchObject({ archived: true, archivedAt: expect.any(String) });
     await expect(readWs()).resolves.toMatchObject({
       type: "event",
       event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
     });
 
-    rendererAvailable = true;
+    rendererAvailable = false;
+    const unavailableResponse = await fetch(
+      new URL("/api/threads/thread-1/command", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "delete-worktree-group",
+          projectId: "project-1",
+          worktreePath: "/repo/wt",
+          threadIds: ["thread-1", "thread-2"],
+        }),
+      },
+    );
+    expect(unavailableResponse.status).toBe(503);
+    await expect(unavailableResponse.json()).resolves.toMatchObject({
+      error: { code: "desktop_unavailable" },
+    });
 
+    rendererAvailable = true;
     const deleteWorktreeResponse = await fetch(
       new URL("/api/threads/thread-1/command", info.httpBaseUrl),
       {
@@ -3201,26 +3222,53 @@ describe("RemoteAccessServer", () => {
       threadIds: ["thread-1", "thread-2"],
     });
     expect(db.threads()).toEqual([]);
-
-    rendererAvailable = false;
-    const unavailableResponse = await fetch(
-      new URL("/api/threads/thread-1/command", info.httpBaseUrl),
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          kind: "delete-worktree-group",
-          projectId: "project-1",
-          worktreePath: "/repo/wt",
-          threadIds: ["thread-1"],
-        }),
-      },
-    );
-    expect(unavailableResponse.status).toBe(503);
-    await expect(unavailableResponse.json()).resolves.toMatchObject({
-      error: { code: "desktop_unavailable" },
-    });
     ws.close();
+  });
+
+  it("rejects deleting a worktree when its linked thread set changed", async () => {
+    const threads = [
+      createTestThread({ worktreePath: "/repo/wt" }),
+      createTestThread({ id: "thread-2", worktreePath: "/repo/wt" }),
+      createTestThread({ id: "thread-3", worktreePath: "/repo/wt" }),
+    ];
+    const db = mockThreadDb(threads);
+    const dispatchThreadCommand = vi.fn<
+      NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
+    >(() => true);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async () => undefined as never,
+      ),
+      dispatchThreadCommand,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "delete-worktree-group",
+        projectId: "project-1",
+        worktreePath: "/repo/wt",
+        threadIds: ["thread-1", "thread-2"],
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "worktree_threads_changed" },
+    });
+    expect(dispatchThreadCommand).not.toHaveBeenCalled();
+    expect(db.threads()).toEqual(threads);
   });
 
   it("acknowledges a finished thread in the source DB and renderer", async () => {

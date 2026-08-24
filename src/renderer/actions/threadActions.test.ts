@@ -11,6 +11,7 @@ import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   archiveThread,
   deleteThread,
+  deleteThreadsAndOwnedWorktrees,
   requestDeleteThread,
   openNewThread,
   openThread,
@@ -548,6 +549,7 @@ describe("threadActions", () => {
 
     resolveCommand();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
+    expect(useAppStore.getState().threads[0]?.archivedAt).toEqual(expect.any(String));
   });
 
   it("tags a local thread with worktree metadata in the store", async () => {
@@ -648,6 +650,40 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual(["thread-b"]);
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: firstThread.id });
     expect(useWorktreeDeleteStore.getState().dialog).toBeNull();
+  });
+
+  it("removes a worktree once when every linked thread is selected", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const firstThread = makeThread({ id: "thread-a", worktreePath });
+    const secondThread = makeThread({ id: "thread-b", worktreePath });
+    const standalone = makeThread({ id: "thread-c" });
+    useAppStore.setState({ threads: [firstThread, secondThread, standalone] });
+
+    deleteThreadsAndOwnedWorktrees([firstThread, secondThread, standalone]);
+
+    expect(deleteWorktreeGroup).toHaveBeenCalledExactlyOnceWith(
+      firstThread.projectId,
+      worktreePath,
+      [firstThread.id, secondThread.id],
+    );
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual([
+      firstThread.id,
+      secondThread.id,
+    ]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: standalone.id });
+  });
+
+  it("keeps a worktree when an unselected linked thread remains", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const selected = makeThread({ id: "thread-a", worktreePath });
+    const remaining = makeThread({ id: "thread-b", worktreePath });
+    useAppStore.setState({ threads: [selected, remaining] });
+
+    deleteThreadsAndOwnedWorktrees([selected]);
+
+    expect(deleteWorktreeGroup).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads).toEqual([remaining]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: selected.id });
   });
 
   it("prompts to remove the worktree when deleting the sole thread using it", () => {

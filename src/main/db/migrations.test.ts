@@ -39,8 +39,9 @@ describe("database migration registry", () => {
       [32, "pr watch blocked reason"],
       [33, "project GitHub account"],
       [34, "projects.icon"],
+      [35, "threads.archived_at"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(34);
+    expect(LATEST_SCHEMA_VERSION).toBe(35);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

@@ -594,7 +594,7 @@ describe("Poracode app control tools — threads", () => {
 
   it("update_thread dispatches the matching remote thread commands", async () => {
     const threads = [makeThread({ id: "a" })];
-    const { ctx, emitRemoteThreadCommand } = context({ threads });
+    const { ctx, emitRemoteThreadCommand, updatedRows } = context({ threads });
     const result = (await dispatchTool(
       "update_thread",
       { threadId: "a", rename: "Renamed", done: true, archived: true },
@@ -612,6 +612,7 @@ describe("Poracode app control tools — threads", () => {
       done: true,
     });
     expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "archive", threadId: "a" });
+    expect(updatedRows.at(-1)).toMatchObject({ archived: true, archivedAt: expect.any(String) });
   });
 
   it("send_to_thread interrupts first when requested then sends", async () => {

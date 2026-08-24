@@ -126,7 +126,7 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
 
   return rememberStorageValue(APP_STORE_NAME, {
     state: { projects, threads, view, groupLayouts },
-    version: 4,
+    version: 5,
   });
 }
 

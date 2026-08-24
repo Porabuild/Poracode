@@ -42,6 +42,7 @@ export const threadSchema = z.object({
   groupId: z.string().optional(),
   groupName: z.string().optional(),
   archived: z.boolean().default(false),
+  archivedAt: z.string().min(1).optional(),
   done: z.boolean().default(false),
   doneAt: z.string().min(1).optional(),
   starred: z.boolean().default(false),

@@ -49,6 +49,7 @@ import {
   dbGetProject,
   dbGetProjectNotes,
   dbGetThread,
+  dbGetThreads,
   dbSetProjectNotes,
   dbTruncateThreadRuntimeAfter,
 } from "../../db";
@@ -876,6 +877,24 @@ export async function handleHttp(
       assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
         if (command.kind === "delete-worktree-group") {
+          const linkedThreadIds = dbGetThreads()
+            .filter(
+              (thread) =>
+                thread.projectId === command.projectId &&
+                thread.worktreePath === command.worktreePath,
+            )
+            .map((thread) => thread.id);
+          const requestedThreadIds = new Set(command.threadIds);
+          if (
+            requestedThreadIds.size !== linkedThreadIds.length ||
+            linkedThreadIds.some((threadId) => !requestedThreadIds.has(threadId))
+          ) {
+            throw new RemoteHttpError(
+              "worktree_threads_changed",
+              msg("remote.worktree.threadsChanged"),
+              409,
+            );
+          }
           if (ctx.options.dispatchThreadCommand?.(command) !== true) {
             throw new RemoteHttpError(
               "desktop_unavailable",

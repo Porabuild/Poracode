@@ -185,16 +185,21 @@ export async function applyRemoteThreadCommand(
       return false;
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
-      updateRemoteThread(command.threadId, (thread) => ({
-        ...thread,
-        archived: true,
-        updatedAt: new Date().toISOString(),
-      }));
+      {
+        const now = new Date().toISOString();
+        updateRemoteThread(command.threadId, (thread) => ({
+          ...thread,
+          archived: true,
+          archivedAt: now,
+          updatedAt: now,
+        }));
+      }
       return false;
     case "unarchive":
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
         archived: false,
+        archivedAt: undefined,
         updatedAt: new Date().toISOString(),
       }));
       return false;
