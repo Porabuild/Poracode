@@ -225,6 +225,40 @@ describe("SidebarFlatThreadList", () => {
     expect(glyph?.getAttribute("class")).toContain("size-3");
   });
 
+  it("tags WSL project rows with the WSL marker; native rows carry none", () => {
+    useAppStore.setState({
+      projects: [
+        homeProject,
+        localProject,
+        {
+          ...localProject,
+          id: "wsl-1",
+          name: "Ubuntu Repo",
+          location: {
+            kind: "wsl",
+            distro: "Ubuntu",
+            linuxPath: "/home/me/repo",
+            uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+          },
+        },
+      ],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("w1", "wsl-1", "2026-08-02T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const wslRow = screen.getByText(/thread:w1 in Ubuntu Repo/).closest("[data-testid=row]");
+    expect(wslRow).toHaveTextContent("WSL");
+    expect(wslRow?.querySelector('svg[viewBox="0 0 40 16"]')?.getAttribute("class")).toContain(
+      "h-2.5",
+    );
+    const localRow = screen.getByText(/thread:p1 in Poracode/).closest("[data-testid=row]");
+    expect(localRow).not.toHaveTextContent("WSL");
+  });
+
   it("hides Home threads when home scope is disabled", () => {
     useSharedSettings.setState({ homeScopeEnabled: false } as never);
     useAppStore.setState({
