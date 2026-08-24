@@ -94,7 +94,19 @@ export {
 } from "@/shared/toolCallClassification";
 export { isWorkflowTool };
 
-export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
+export interface ToolDisplayOptions {
+  /**
+   * Omit the "Agent:"/"Crossagent:" kind prefix from delegated-agent titles —
+   * rows already grouped under a kind header (e.g. the Crossagents dock)
+   * would just repeat the header on every item.
+   */
+  bareAgentTitle?: boolean;
+}
+
+export function deriveToolDisplay(
+  payload: ToolCallPayload,
+  options?: ToolDisplayOptions,
+): ToolDisplay {
   const args = readArgsObject(payload);
 
   const mcp = parseMcpName(payload);
@@ -118,7 +130,7 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
     };
   }
 
-  const claude = mapClaudeRawTool(payload.name, args);
+  const claude = mapClaudeRawTool(payload.name, args, options);
   if (claude) return claude;
 
   if (payload.isSubAgent === true || payload.isCrossagent === true) {
@@ -127,6 +139,7 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
         preferFallback: payload.title !== undefined,
         isCrossagent: payload.isCrossagent === true,
         isResume: payload.isSubAgentResume === true,
+        ...(options?.bareAgentTitle ? { bare: true } : {}),
         ...(payload.subAgentType ? { subAgentType: payload.subAgentType } : {}),
       }),
       Icon: Bot,
@@ -142,6 +155,7 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
 function mapClaudeRawTool(
   name: string,
   args: Record<string, unknown> | undefined,
+  options?: ToolDisplayOptions,
 ): ToolDisplay | null {
   switch (name) {
     case "Read":
@@ -156,7 +170,14 @@ function mapClaudeRawTool(
       return withPath("List", args, ["path"], FolderSearch);
     case "Task":
     case "Agent":
-      return { title: formatAgentTitle(args), Icon: Bot };
+      return {
+        title: formatAgentTitle(
+          args,
+          undefined,
+          options?.bareAgentTitle ? { bare: true } : undefined,
+        ),
+        Icon: Bot,
+      };
     case "BashOutput":
       return { title: titleWithValue(i18n._(msg`Bash output`), args, "bash_id"), Icon: Terminal };
     case "KillBash":
@@ -339,6 +360,7 @@ function formatAgentTitle(
     preferFallback?: boolean;
     isCrossagent?: boolean;
     isResume?: boolean;
+    bare?: boolean;
     subAgentType?: string;
   },
 ): string {
@@ -356,6 +378,10 @@ function formatAgentTitle(
         : i18n._(msg`Agent Resume: ${description}`);
     }
     return subagent ? i18n._(msg`Agent Resume: ${subagent}`) : i18n._(msg`Agent Resume`);
+  }
+  if (options?.bare) {
+    if (description) return description;
+    return subagent ?? (options.isCrossagent ? i18n._(msg`Crossagent`) : i18n._(msg`Agent`));
   }
   if (options?.isCrossagent) {
     if (description) {

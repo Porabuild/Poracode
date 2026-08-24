@@ -342,6 +342,9 @@ describe("SubAgentContent", () => {
     expect(screen.queryByText("Background tasks")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close subagents panel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close Crossagents panel" })).toBeInTheDocument();
+    // Rows sit under the kind header, so they keep the bare label.
+    expect(screen.getByText("Codex · GPT-5.5")).toBeInTheDocument();
+    expect(screen.queryByText(/^Crossagent:/)).not.toBeInTheDocument();
   });
 
   it("renders child messages through the main timeline parser", async () => {
