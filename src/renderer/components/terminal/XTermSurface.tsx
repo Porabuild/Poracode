@@ -21,7 +21,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
-import type { TerminalSize } from "@/shared/contracts";
+import { MAX_TERMINAL_COLS, MAX_TERMINAL_ROWS, type TerminalSize } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { isMac, readBridge } from "@/renderer/bridge";
@@ -281,6 +281,10 @@ export const XTermSurface = forwardRef<
       resizeBackingTerminalRef.current
         ? resizeBackingTerminalRef.current(size)
         : readBridge().resizeTerminal({ threadId: terminalId, cols: size.cols, rows: size.rows });
+    const backingTerminalSize = (): TerminalSize => ({
+      cols: Math.min(terminal.cols, MAX_TERMINAL_COLS),
+      rows: Math.min(terminal.rows, MAX_TERMINAL_ROWS),
+    });
 
     // Force the live agent to repaint a clean full frame. On reopen the PTY kept
     // running at the same winsize, so a fresh same-size fit issues a no-op
@@ -292,8 +296,7 @@ export const XTermSurface = forwardRef<
     // (possibly stale / byte-sliced) replayed scrollback.
     const forceAgentRepaint = () => {
       if (!isActive) return;
-      const cols = terminal.cols;
-      const rows = terminal.rows;
+      const { cols, rows } = backingTerminalSize();
       if (cols < 20 || rows < 5) return;
       // Pin our throttle bookkeeping to the REAL size so the next doFit doesn't
       // also fire a (now-redundant) resize for the same dimensions.
@@ -430,8 +433,7 @@ export const XTermSurface = forwardRef<
     const flushPtyResize = () => {
       ptyResizeTimer = 0;
       if (!isActive) return;
-      const cols = terminal.cols;
-      const rows = terminal.rows;
+      const { cols, rows } = backingTerminalSize();
       if (cols === lastCols && rows === lastRows) return;
       if (cols < 20 || rows < 5) return;
 
@@ -508,7 +510,7 @@ export const XTermSurface = forwardRef<
         ptyResizeTimer = 0;
       }
       if (!resizeTerminalOnFit) {
-        onTerminalResizeRef.current?.({ cols: terminal.cols, rows: terminal.rows });
+        onTerminalResizeRef.current?.(backingTerminalSize());
       } else if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
         flushPtyResize();
       } else {
