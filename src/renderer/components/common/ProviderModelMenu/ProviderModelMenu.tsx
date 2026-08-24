@@ -1,11 +1,12 @@
 import {
+  forwardRef,
   startTransition,
   useDeferredValue,
   useEffect,
   useId,
+  useImperativeHandle,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
@@ -271,13 +272,14 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeModelItemId, setActiveModelItemId] = useState<string | null>(null);
   const [sessionFavorites, setSessionFavorites] = useState<readonly ModelRef[] | undefined>(
     undefined,
   );
   const [sessionRecents, setSessionRecents] = useState<readonly ModelRef[] | undefined>(undefined);
   const deferredSearch = useDeferredValue(search);
   const searchRef = useRef<HTMLInputElement>(null);
-  const windowedListRef = useRef<HTMLDivElement>(null);
+  const windowedListRef = useRef<WindowedProviderModelListHandle>(null);
   const listboxDomIdPrefix = useId();
 
   const favorites = useSharedSettings((s) => s.favoriteModels);
@@ -332,6 +334,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open);
+    if (!open) setActiveModelItemId(null);
     onOpenChange?.(open);
   }
 
@@ -349,20 +352,22 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     isOpen ? (sessionRecents ?? recents) : recents,
     presentationMode,
   );
-  const items = isOpen
-    ? buildProviderModelItems({
-        providers,
-        search: deferredSearch,
-        ...(lockedAgentKind ? { lockedAgentKind } : {}),
-        currentAgentKind: deferredAgentKind,
-        currentModel: deferredModel,
-        favorites: sectionFavorites,
-        favoriteStateRefs: activeFavorites,
-        recents: sectionRecents,
-        hiddenModels,
-        providerOrder,
-      })
-    : [];
+  function buildItemsForSearch(searchValue: string) {
+    return buildProviderModelItems({
+      providers,
+      search: searchValue,
+      ...(lockedAgentKind ? { lockedAgentKind } : {}),
+      currentAgentKind: deferredAgentKind,
+      currentModel: deferredModel,
+      favorites: sectionFavorites,
+      favoriteStateRefs: activeFavorites,
+      recents: sectionRecents,
+      hiddenModels,
+      providerOrder,
+    });
+  }
+
+  const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
 
   // Highlight the current model wherever it appears (provider section, favorites, recents).
   const selectedKeys = new Set<string>([
@@ -383,8 +388,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     return true;
   }
 
-  function handleSelect(itemId: string) {
-    const selected = items.find((item) => item.id === itemId);
+  function selectModelItem(selected: ProviderModelItem | undefined) {
     if (selected?.type !== "model") return;
     if (
       selected.providerKind === currentAgentKind &&
@@ -405,6 +409,10 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         ...(selected.presentationMode ? { presentationMode: selected.presentationMode } : {}),
       });
     });
+  }
+
+  function handleSelect(itemId: string) {
+    selectModelItem(items.find((item) => item.id === itemId));
   }
 
   const trigger = (
@@ -459,6 +467,15 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           ref={searchRef}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
           placeholder={t`Search models...`}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={`${listboxDomIdPrefix}-listbox`}
+          aria-expanded={isOpen}
+          aria-activedescendant={
+            activeModelItemId && items.length > 0
+              ? `${listboxDomIdPrefix}-${activeModelItemId}`
+              : undefined
+          }
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
@@ -467,9 +484,18 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
               handleOpenChange(false);
               return;
             }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (search !== deferredSearch) {
+                selectModelItem(buildItemsForSearch(search).find((item) => item.type === "model"));
+              } else if (items.length > 0) {
+                windowedListRef.current?.selectActive();
+              }
+              return;
+            }
             if (items.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
               e.preventDefault();
-              windowedListRef.current?.focus();
+              windowedListRef.current?.moveActive(e.key === "ArrowDown" ? 1 : -1);
             }
           }}
         />
@@ -483,10 +509,11 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           domIdPrefix={listboxDomIdPrefix}
           items={items}
           selectedKeys={selectedKeys}
-          scrollRef={windowedListRef}
+          ref={windowedListRef}
           modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
           mobile={mobile}
           mobileExpanded={mobile && expanded}
+          onActiveChange={setActiveModelItemId}
           modelFastEnabled={modelFastEnabled}
           toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
             toggleFavoriteModel(
@@ -527,15 +554,20 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   );
 }
 
-function WindowedProviderModelList(props: {
+interface WindowedProviderModelListHandle {
+  moveActive: (delta: number) => void;
+  selectActive: () => void;
+}
+
+interface WindowedProviderModelListProps {
   domIdPrefix: string;
   items: ProviderModelItem[];
   selectedKeys: Set<string>;
-  scrollRef: RefObject<HTMLDivElement | null>;
   /** Height of a model row; larger on mobile so drawer rows are finger-sized. */
   modelRowHeight: number;
   mobile: boolean;
   mobileExpanded: boolean;
+  onActiveChange: (itemId: string | null) => void;
   modelFastEnabled: (providerKind: string, modelId: string) => boolean;
   toggleFavorite: (
     providerKind: string,
@@ -543,20 +575,26 @@ function WindowedProviderModelList(props: {
     presentationMode: ThreadPresentationMode | undefined,
   ) => void;
   onSelect: (itemId: string) => void;
-}) {
+}
+
+const WindowedProviderModelList = forwardRef<
+  WindowedProviderModelListHandle,
+  WindowedProviderModelListProps
+>(function WindowedProviderModelList(props, ref) {
   const {
     domIdPrefix,
     items,
     selectedKeys,
-    scrollRef,
     modelRowHeight,
     mobile,
     mobileExpanded,
+    onActiveChange,
     modelFastEnabled,
     toggleFavorite,
     onSelect,
   } = props;
   const { t } = useLingui();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
@@ -589,6 +627,10 @@ function WindowedProviderModelList(props: {
     if (activeIndex >= 0 && meta.modelPositionByIndex.has(activeIndex)) return;
     setActiveRowId(initialActiveRowId);
   }, [activeIndex, initialActiveRowId, meta]);
+
+  useEffect(() => {
+    onActiveChange(activeIndex >= 0 ? activeRowId : null);
+  }, [activeIndex, activeRowId, onActiveChange]);
 
   const totalHeight = meta.totalHeight;
   const [browserToolbarClearance] = useState(() => (mobile ? browserToolbarScrollClearance() : 0));
@@ -698,9 +740,22 @@ function WindowedProviderModelList(props: {
     }
   }
 
+  useImperativeHandle(ref, () => ({
+    moveActive,
+    selectActive() {
+      const activeItem =
+        items[activeIndex] ??
+        (meta.modelRowIndices[0] === undefined ? undefined : items[meta.modelRowIndices[0]]);
+      if (activeItem?.type === "model") {
+        onSelect(activeItem.id);
+      }
+    },
+  }));
+
   return (
     <div
       ref={scrollRef}
+      id={`${domIdPrefix}-listbox`}
       role="listbox"
       aria-label={t`Models`}
       aria-activedescendant={
@@ -916,7 +971,7 @@ function WindowedProviderModelList(props: {
       />
     </div>
   );
-}
+});
 
 function StickyWindowedHeader(props: {
   headerItem: Extract<ProviderModelItem, { type: "header-plain" | "header-provider" }> | null;
