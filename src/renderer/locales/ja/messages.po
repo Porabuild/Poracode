@@ -7512,6 +7512,11 @@ msgstr "新しいスレッド —{projectName}"
 msgid "New thread from this to-do"
 msgstr "この ToDo からの新しいスレッド"
 
+#. placeholder {0}: project.name
+#: src/renderer/views/HomeView.tsx
+msgid "New thread in {0}"
+msgstr "{0} で新規スレッド"
+
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -7987,6 +7992,7 @@ msgstr "このプロジェクトにはスレッドがありません"
 msgid "No threads yet"
 msgstr "まだスレッドはありません"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "まだスレッドがありません。"
@@ -9224,6 +9230,7 @@ msgstr "グローバル検索設定に加えてプロジェクト固有のオー
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx

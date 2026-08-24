@@ -7514,6 +7514,11 @@ msgstr "Luồng mới — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Luồng mới từ việc cần làm này"
 
+#. placeholder {0}: project.name
+#: src/renderer/views/HomeView.tsx
+msgid "New thread in {0}"
+msgstr "Luồng mới trong {0}"
+
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -7989,6 +7994,7 @@ msgstr "Không có luồng trong dự án này"
 msgid "No threads yet"
 msgstr "Chưa có luồng nào"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "Chưa có luồng nào."
@@ -9226,6 +9232,7 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx

@@ -7514,6 +7514,11 @@ msgstr "새 스레드 — {projectName}"
 msgid "New thread from this to-do"
 msgstr "이 할 일의 새 스레드"
 
+#. placeholder {0}: project.name
+#: src/renderer/views/HomeView.tsx
+msgid "New thread in {0}"
+msgstr "{0}에서 새 스레드"
+
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -7989,6 +7994,7 @@ msgstr "이 프로젝트에 스레드가 없음"
 msgid "No threads yet"
 msgstr "아직 스레드 없음"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "아직 스레드가 없습니다."
@@ -9226,6 +9232,7 @@ msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx

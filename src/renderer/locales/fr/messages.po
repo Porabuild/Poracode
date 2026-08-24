@@ -7513,6 +7513,11 @@ msgstr "Nouveau fil de discussion — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Nouveau fil de cette tâche"
 
+#. placeholder {0}: project.name
+#: src/renderer/views/HomeView.tsx
+msgid "New thread in {0}"
+msgstr "Nouveau fil dans {0}"
+
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
@@ -7988,6 +7993,7 @@ msgstr "Aucun fil dans ce projet"
 msgid "No threads yet"
 msgstr "Aucun fil pour le moment"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "Aucun fil pour l'instant."
@@ -9225,6 +9231,7 @@ msgstr "Remplacements spécifiques au projet en plus des paramètres de recherch
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
