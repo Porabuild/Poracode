@@ -94,6 +94,7 @@ describe("ipcProcedureMap", () => {
       updatePowerSaveBlocker: vi.fn<() => void>(),
       autoUpdater: {
         initialize: vi.fn<() => void>(),
+        getStatus: vi.fn<() => null>(() => null),
         checkForUpdate: vi.fn<() => Promise<void>>(),
         startUpdateDownload: vi.fn<() => Promise<void>>(),
         installUpdate: vi.fn<() => void>(),

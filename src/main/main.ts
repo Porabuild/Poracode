@@ -84,7 +84,6 @@ import {
   type PrWatchStatusEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
-  type UpdateStatus,
 } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
@@ -936,10 +935,6 @@ if (!hasSingleInstanceLock) {
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, patch);
         },
       });
-      // Latest updater status, captured from the auto-updater's status stream so
-      // the app-controls `check_for_update` tool can report the most recent
-      // result (the check itself is fire-and-forget and event-driven).
-      let lastUpdateStatus: UpdateStatus | null = null;
       appControlsMcpIngress = new AppControlsMcpIngress({
         scheduleService,
         getThread: dbGetThread,
@@ -982,7 +977,7 @@ if (!hasSingleInstanceLock) {
         },
         checkForUpdate: async () => {
           await autoUpdaterController.checkForUpdate();
-          const status = lastUpdateStatus;
+          const status = autoUpdaterController.getStatus();
           const availableVersion =
             status && (status.type === "update-available" || status.type === "downloaded")
               ? status.version
@@ -999,7 +994,6 @@ if (!hasSingleInstanceLock) {
 
       const autoUpdaterController = createAutoUpdaterController(
         (status) => {
-          lastUpdateStatus = status;
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.updateStatus, status);
         },
         channel,
@@ -1100,7 +1094,7 @@ if (!hasSingleInstanceLock) {
         gitStateService,
         updates: {
           currentVersion: () => app.getVersion(),
-          status: () => lastUpdateStatus,
+          status: () => autoUpdaterController.getStatus(),
           check: () => autoUpdaterController.checkForUpdate(),
           install: () => autoUpdaterController.installUpdate(),
         },

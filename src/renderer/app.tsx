@@ -290,7 +290,7 @@ function installThreadOutputPruning(): () => void {
   };
 }
 
-function handleUpdateStatus(status: UpdateStatus): void {
+function handleUpdateStatus(status: UpdateStatus, notifyError = true): void {
   const store = useUpdateStore.getState();
   switch (status.type) {
     case "checking":
@@ -315,10 +315,33 @@ function handleUpdateStatus(status: UpdateStatus): void {
     case "error": {
       const detail = status.messageKey ? msg(status.messageKey) : status.message;
       store.setError(detail);
-      toast.danger(msg("update.error", { detail }));
+      if (notifyError) toast.danger(msg("update.error", { detail }));
       break;
     }
   }
+}
+
+export function installUpdateStatusSync(
+  bridge: Pick<ReturnType<typeof readBridge>, "getUpdateStatus" | "onUpdateStatus"> = readBridge(),
+): () => void {
+  let disposed = false;
+  let receivedLiveStatus = false;
+  const unsubscribe = bridge.onUpdateStatus((status) => {
+    receivedLiveStatus = true;
+    handleUpdateStatus(status);
+  });
+  void bridge
+    .getUpdateStatus()
+    .then((status) => {
+      if (!disposed && !receivedLiveStatus && status) handleUpdateStatus(status, false);
+    })
+    .catch((error: unknown) => {
+      if (!disposed) console.error("[poracode][updates] get-update-status failed", error);
+    });
+  return () => {
+    disposed = true;
+    unsubscribe();
+  };
 }
 
 // The browser-extract window renders a standalone BrowserPanel; it has no use
@@ -328,7 +351,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
       installRuntimeEventScheduling(),
-      readBridge().onUpdateStatus(handleUpdateStatus),
+      installUpdateStatusSync(),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
       // They run through the same actions as local edits so persistence and
       // side effects (unload on archive, …) stay identical.

@@ -27,18 +27,20 @@ const TRANSIENT_REPORT_COOLDOWN_MS = 6 * 60 * 60 * 1_000;
 
 export interface AutoUpdaterController {
   initialize(): void;
+  getStatus(): UpdateStatus | null;
   checkForUpdate(): Promise<void>;
   startUpdateDownload(): Promise<void>;
   installUpdate(): void;
 }
 
 export function createAutoUpdaterController(
-  sendStatus: (status: UpdateStatus) => void,
+  onStatus: (status: UpdateStatus) => void,
   channel: PoracodeChannel,
   isDev: boolean,
   reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void = () => {},
   beforeInstall: () => void = () => {},
 ): AutoUpdaterController {
+  let lastStatus: UpdateStatus | null = null;
   let initialized = false;
   // True while a check or download is in flight; gates the periodic timer so a
   // scheduled tick never stacks a redundant check on top of an active one.
@@ -58,6 +60,11 @@ export function createAutoUpdaterController(
   let updateAvailable = false;
   let activeAttempt: { operation: UpdateOperation; eventError: unknown | null } | null = null;
   const transientReportTimes = new Map<string, number>();
+
+  function sendStatus(status: UpdateStatus): void {
+    lastStatus = status;
+    onStatus(status);
+  }
 
   function reportClassifiedFailure(operation: UpdateOperation, outcome: UpdateFailureKind): void {
     if (outcome === "optional-manifest-missing") {
@@ -318,6 +325,7 @@ export function createAutoUpdaterController(
 
   return {
     initialize,
+    getStatus: () => lastStatus,
     checkForUpdate,
     startUpdateDownload,
     installUpdate,

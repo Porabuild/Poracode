@@ -138,6 +138,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbGetThreadContextUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
+  "getUpdateStatus",
   "checkForUpdate",
   "startUpdateDownload",
   "installUpdate",
