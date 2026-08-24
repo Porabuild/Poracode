@@ -1,5 +1,6 @@
 import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
 import { QWEN_RETIRED_PREVIEW_MODEL_ID } from "@/shared/agents/qwenModels";
+import { compareVersions } from "@/shared/changelog";
 import { humanizeModelId, probeAcpCapabilities, type AcpProbeResult } from "../acp";
 import {
   buildAgentCommand,
@@ -41,6 +42,17 @@ export function buildQwenCommand(
   executablePath?: string,
 ) {
   return buildAgentCommand(location, "qwen", args, executablePath);
+}
+
+// Qwen Code 0.22.0 re-hangs a trailing unanswered ask_user_question on ACP
+// load/resume instead of synthesizing a failed tool result. Older CLIs parse
+// with strict yargs and exit on unknown flags, so gate on the detected version.
+const RESTORE_ASK_USER_QUESTION_MIN_VERSION = "0.22.0";
+
+export function buildQwenAcpSessionArgs(version: string | undefined): string[] {
+  const supportsRestore =
+    version !== undefined && compareVersions(version, RESTORE_ASK_USER_QUESTION_MIN_VERSION) >= 0;
+  return supportsRestore ? ["--acp", "--restore-ask-user-question"] : ["--acp"];
 }
 
 const terminalAuthMethod: AgentTerminalAuthMethod = {
