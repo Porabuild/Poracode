@@ -1758,6 +1758,21 @@ describe("CodexStructuredSession", () => {
 
     expect(requests).toEqual([
       {
+        method: "thread/settings/update",
+        params: {
+          threadId: "provider-thread",
+          model: "gpt-5.4",
+          summary: "auto",
+          collaborationMode: expect.objectContaining({
+            mode: "default",
+            settings: expect.objectContaining({ model: "gpt-5.4", reasoning_effort: "medium" }),
+          }),
+          serviceTier: null,
+        },
+        // Best-effort in latency too: a wedged app-server must not delay the steer.
+        timeoutMs: 3_000,
+      },
+      {
         method: "turn/steer",
         params: {
           threadId: "provider-thread",
@@ -1820,7 +1835,11 @@ describe("CodexStructuredSession", () => {
       userMessageItemId: "user-steer",
     });
 
-    expect(requests.map((request) => request.method)).toEqual(["turn/steer", "turn/start"]);
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/settings/update",
+      "turn/steer",
+      "turn/start",
+    ]);
     // Exactly one user row: the fallback reuses the id painted before the RPC.
     const userStarts = runtimeEvents.filter(
       (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
@@ -1828,6 +1847,100 @@ describe("CodexStructuredSession", () => {
     );
     expect(userStarts).toHaveLength(2); // steer paint + startTurn echo (deduped by id downstream)
     expect(new Set(userStarts.map((event) => event.itemId))).toEqual(new Set(["user-steer"]));
+  });
+
+  it("applies mid-turn composer changes to the thread before steering", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const subAgentRouter = new CodexSubAgentRouter("local-thread");
+    const setDefaultModelSettings = vi.spyOn(subAgentRouter, "setDefaultModelSettings");
+    (structuredSession as unknown as Record<string, unknown>)["subAgentRouter"] = subAgentRouter;
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", threadId: "provider-thread" },
+      },
+    });
+
+    await structuredSession.steerTurn("lower the effort", {
+      model: "gpt-5.6-sol",
+      effort: "medium",
+      fast: true,
+      approvalPolicy: "never",
+      sandboxMode: "workspace-write",
+    });
+
+    // `turn/steer` carries no settings, so the full `turn/start` override set
+    // rides through `thread/settings/update` first: subagents spawned later in
+    // the running turn inherit the thread's current effort (embedded in
+    // collaborationMode.settings), sandbox, and approval policy.
+    expect(requests).toEqual([
+      {
+        method: "thread/settings/update",
+        params: {
+          threadId: "provider-thread",
+          model: "gpt-5.6-sol",
+          effort: "medium",
+          summary: "auto",
+          approvalPolicy: "never",
+          sandboxPolicy: { type: "workspaceWrite" },
+          collaborationMode: expect.objectContaining({
+            mode: "default",
+            settings: expect.objectContaining({ model: "gpt-5.6-sol", reasoning_effort: "medium" }),
+          }),
+          serviceTier: "fast",
+        },
+        timeoutMs: 3_000,
+      },
+      { method: "turn/steer", params: expect.objectContaining({ threadId: "provider-thread" }) },
+    ]);
+    // Spawned-subagent rows mirror the new selection immediately…
+    expect(setDefaultModelSettings).toHaveBeenCalledWith("gpt-5.6-sol", "medium");
+    // …and later config consumers (e.g. rollback fork overrides) see it too.
+    expect(
+      (structuredSession as unknown as { currentConfig: unknown }).currentConfig,
+    ).toMatchObject({ model: "gpt-5.6-sol", effort: "medium" });
+  });
+
+  it("steers anyway when the mid-turn settings update fails", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", threadId: "provider-thread" },
+      },
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/settings/update") {
+          return Promise.reject(new CodexRpcResponseError("unsupported", -32601));
+        }
+        if (method === "turn/steer") {
+          return Promise.resolve({ turnId: "turn-live" });
+        }
+        return Promise.resolve({});
+      },
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      await structuredSession.steerTurn("still steering", { model: "gpt-5.4", effort: "low" });
+    } finally {
+      warn.mockRestore();
+    }
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/settings/update",
+      "turn/steer",
+    ]);
   });
 
   it("steerTurn with no active turn routes through startTurn", async () => {

@@ -38,12 +38,11 @@ import {
   extractThreadField,
   extractTurnField,
   isRecoverableResumeError,
-  toCodexSandboxPolicy,
   type CodexThreadStatus,
 } from "./acpProtocol";
 import {
-  buildCodexCollaborationMode,
   buildCodexTurnInput,
+  buildCodexTurnSettingsOverrides,
   parseCodexGoalCommand,
   type CodexGoalCommand,
 } from "./acpTurn";
@@ -65,8 +64,6 @@ import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInte
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
-
-type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -659,14 +656,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    this.currentConfig = config;
+    this.applyTurnConfig(config);
     // New user turn clears any sticky error from a previous failed turn, along
     // with the per-turn error dedupe state and any pending fallback timer.
     this.errorSticky = false;
     this.seenErrorMessages.clear();
     this.clearPendingSystemErrorFallback();
     const threadId = await this.waitForRemoteThreadId();
-    this.ensureSubAgentRouter().setDefaultModelSettings(config.model, config.effort ?? "medium");
     this.resumeActiveStatusSuppressionUntil.delete(threadId);
 
     const turnId = `turn-${randomUUID()}`;
@@ -721,36 +717,14 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.emitUpdate({ status: "working", attention: "working" });
 
     const input = buildCodexTurnInput(prompt, segments, options?.inlineInstructions);
-    const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
-    const collaborationMode = buildCodexCollaborationMode(config);
     try {
       const result = await this.rpc.request("turn/start", {
         threadId,
         input,
-        model: config.model,
-        ...(config.effort ? { effort: config.effort } : {}),
-        summary: "auto",
-        ...(config.approvalPolicy
-          ? {
-              approvalPolicy: config.approvalPolicy as NonNullable<
-                TurnStartParams["approvalPolicy"]
-              >,
-            }
-          : {}),
-        ...(config.approvalsReviewer
-          ? {
-              approvalsReviewer: config.approvalsReviewer as NonNullable<
-                TurnStartParams["approvalsReviewer"]
-              >,
-            }
-          : {}),
-        ...(sandboxPolicy
-          ? { sandboxPolicy: sandboxPolicy as NonNullable<TurnStartParams["sandboxPolicy"]> }
-          : {}),
-        collaborationMode,
-        // Fast toggle is authoritative and the server tier is sticky, so force it
-        // every turn: "fast" selects the Fast lane, null clears it to the default.
-        serviceTier: config.fast === true ? "fast" : null,
+        // Fast toggle is authoritative and the server tier is sticky, so
+        // buildCodexTurnSettingsOverrides forces serviceTier every turn:
+        // "fast" selects the Fast lane, null clears it to the default.
+        ...buildCodexTurnSettingsOverrides(config),
       });
       this.activeTurnId = extractTurnField(result, "id");
       if (this.activeTurnId) {
@@ -777,6 +751,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
    * Per the protocol, `turn/steer` emits no `turn/started`; the accepted turn
    * keeps its lifecycle, so this only paints the user message locally. The
    * mapper drops the server's `userMessage` echo, keeping a single row.
+   *
+   * `turn/steer` carries no model settings, so a mid-turn composer change is
+   * pushed to the thread through `thread/settings/update` first (see
+   * `syncThreadModelSettings`). Goal slash-commands bypass this: they keep
+   * their pre-existing goal-RPC semantics without a settings-bearing turn.
    */
   async steerTurn(
     prompt: string,
@@ -812,6 +791,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     ]);
 
     const threadId = await this.waitForRemoteThreadId();
+    this.applyTurnConfig(config);
+    await this.syncThreadModelSettings(threadId, config);
     const input = buildCodexTurnInput(prompt, segments, options?.inlineInstructions);
     try {
       const result = await this.rpc.request("turn/steer", {
@@ -836,6 +817,44 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         });
       }
       throw error;
+    }
+  }
+
+  /**
+   * Record the turn's config locally: it feeds later config consumers
+   * (e.g. `rollbackThread` fork overrides), and the subagent router mirrors
+   * it onto spawned-subagent progress rows.
+   */
+  private applyTurnConfig(config: ThreadConfig): void {
+    this.currentConfig = config;
+    this.ensureSubAgentRouter().setDefaultModelSettings(config.model, config.effort ?? "medium");
+  }
+
+  /**
+   * Push the composer's selection onto the thread before steering:
+   * `turn/steer` has no settings params, and collab-agent child threads
+   * spawned later in the running turn inherit the thread's current settings
+   * (`collaborationMode.settings` embeds model + reasoning effort) — without
+   * this, subagents keep the pre-steer effort. Sends the same override set as
+   * `turn/start` via the documented `thread/settings/update` ("subsequent
+   * turns"), forced every steer because the server-side settings are sticky
+   * and not tracked authoritatively here. Best-effort in error handling (a
+   * failed update must not lose the steer) and in latency (short timeout — a
+   * wedged app-server must not delay the steer by the default 30s).
+   */
+  private async syncThreadModelSettings(threadId: string, config: ThreadConfig): Promise<void> {
+    try {
+      await this.rpc.request(
+        "thread/settings/update",
+        {
+          threadId,
+          ...buildCodexTurnSettingsOverrides(config),
+        },
+        3_000,
+      );
+    } catch (error) {
+      if (this.isDisposed) return;
+      console.warn("[codex] thread/settings/update failed while steering:", error);
     }
   }
 
