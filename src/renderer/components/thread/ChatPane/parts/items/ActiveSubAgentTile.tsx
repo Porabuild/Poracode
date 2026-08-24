@@ -280,7 +280,9 @@ function ActiveSubAgentRow({
   const isRunning = item?.state !== "completed" || payload?.status === "running" || workflowIsLive;
   if (registrationOnly || !item || !payload?.name) return null;
 
-  const display = deriveToolDisplay(payload);
+  // The dock groups rows under kind headers (Subagents/Crossagents), so the
+  // per-row "Agent:"/"Crossagent:" prefix would just repeat the header.
+  const display = deriveToolDisplay(payload, { bareAgentTitle: true });
   const args =
     payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
       ? (payload.args as Record<string, unknown>)
