@@ -90,9 +90,12 @@ export interface TerminalShellSnapshot {
   outputLength: number;
 }
 
+export const MAX_TERMINAL_COLS = 400;
+export const MAX_TERMINAL_ROWS = 200;
+
 export const terminalSizeSchema = z.object({
-  cols: z.number().int().min(20).max(400),
-  rows: z.number().int().min(5).max(200),
+  cols: z.number().int().min(20).max(MAX_TERMINAL_COLS),
+  rows: z.number().int().min(5).max(MAX_TERMINAL_ROWS),
 });
 export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 
