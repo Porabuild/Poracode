@@ -194,6 +194,68 @@ describe("ProviderModelMenu", () => {
     expect(listbox.closest(".w-96")).toBe(fixedWidthPopover);
   });
 
+  it("navigates and selects search results without moving focus out of search", async () => {
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[makeProvider(3)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const search = await screen.findByPlaceholderText("Search models...");
+    const listbox = screen.getByRole("listbox", { name: "Models" });
+    await waitFor(() => expect(search).toHaveFocus());
+
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+
+    expect(search).toHaveFocus();
+    expect(listbox).toHaveAttribute("aria-activedescendant", expect.stringContaining("model-2"));
+    expect(search).toHaveAttribute("aria-controls", listbox.id);
+    expect(search).toHaveAttribute("aria-activedescendant", expect.stringContaining("model-2"));
+
+    fireEvent.keyDown(search, { key: "ArrowUp" });
+
+    expect(search).toHaveFocus();
+    expect(listbox).toHaveAttribute("aria-activedescendant", expect.stringContaining("model-1"));
+
+    fireEvent.change(search, { target: { value: "Model 3" } });
+    await waitFor(() => expect(within(listbox).getAllByRole("option")).toHaveLength(1));
+    expect(search).toHaveFocus();
+
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(onChange).toHaveBeenCalledWith({ agentKind: "codex", model: "model-3" });
+  });
+
+  it("selects from the current query when Enter follows typing immediately", async () => {
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[makeProvider(3)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const search = await screen.findByPlaceholderText("Search models...");
+
+    fireEvent.change(search, { target: { value: "No match" } });
+    await screen.findByText("No models found");
+    expect(search).not.toHaveAttribute("aria-activedescendant");
+
+    fireEvent.change(search, { target: { value: "Model 3" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(onChange).toHaveBeenCalledWith({ agentKind: "codex", model: "model-3" });
+  });
+
   it("renders normalized model rate descriptions as muted row hints", async () => {
     const provider = makeProvider(1);
     provider.capabilities.models = [
