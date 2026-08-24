@@ -204,6 +204,26 @@ describe("parseCursorPeriodUsage", () => {
     expect(api.used).toBeCloseTo(28.75);
     expect(api.limit).toBeCloseTo(20);
   });
+
+  it("uses the plan-info allowance instead of the period default", () => {
+    const snap = parseCursorPeriodUsage(
+      {
+        planUsage: {
+          totalSpend: 11300,
+          limit: 2000,
+          autoPercentUsed: 11,
+          apiPercentUsed: 1,
+        },
+      },
+      { plan: "Cursor Team", email: "team@example.com" },
+      NOW,
+      "cursor:team",
+      12000,
+    );
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.used).toBeCloseTo(113);
+    expect(api.limit).toBeCloseTo(120);
+  });
 });
 
 describe("collectCursorFromApiKey", () => {
@@ -251,7 +271,9 @@ describe("collectCursorFromApiKey", () => {
             return {
               status: 200,
               headers: {},
-              body: JSON.stringify({ planInfo: { planName: "enterprise" } }),
+              body: JSON.stringify({
+                planInfo: { planName: "enterprise", includedAmountCents: 12000 },
+              }),
             };
           }
           throw new Error(`unexpected url ${req.url}`);
@@ -271,6 +293,7 @@ describe("collectCursorFromApiKey", () => {
     expect(snap.plan).toBe("Cursor Enterprise");
     expect(snap.authenticatedAs).toBe("work@example.com");
     expect(snap.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(34);
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeCloseTo(120);
   });
 
   it("maps a thrown usage request to an error snapshot", async () => {

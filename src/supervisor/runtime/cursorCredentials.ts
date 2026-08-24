@@ -4,62 +4,26 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { OAuthToken } from "@poracode/agents-usage";
-import { withReadonlyDb } from "./sqliteRead";
 
 const execFileAsync = promisify(execFile);
 const KEYCHAIN_TIMEOUT_MS = 5_000;
 
 /**
- * Resolve Cursor's JWT access token from whichever Cursor install is signed in:
+ * Resolve Cursor Agent's JWT access token without consulting the Cursor desktop
+ * app. The desktop and CLI can be signed into different accounts, while usage
+ * belongs to the CLI/SDK account selected by the main provider tile.
  *
- * 1. The Cursor desktop app's `state.vscdb` SQLite store (table `ItemTable`,
- *    key `cursorAuth/accessToken`) — the same place the IDE keeps it.
- * 2. The Cursor CLI (`cursor-agent`), which keeps no token in `state.vscdb`;
- *    it shells out to `/usr/bin/security` and stores the JWT in the macOS
- *    Keychain (service `cursor-access-token`, account `cursor-user`). Without
- *    this fallback a CLI-only install (no IDE) reads as "Not signed in".
- *
- * No cookie capture and no browser involvement. Read-only; the token is
- * short-lived so it is read fresh each call.
+ * The CLI stores the token in `auth.json` on Windows/Linux and can use the
+ * macOS Keychain. No cookie capture and no browser involvement. Read-only; the
+ * token is short-lived so it is read fresh each call.
  */
-
-function cursorStateDbPaths(): string[] {
+function cursorCliAuthPaths(): string[] {
   const home = homedir();
   if (process.platform === "win32") {
     const appData = process.env.APPDATA?.trim();
-    return appData ? [join(appData, "Cursor", "User", "globalStorage", "state.vscdb")] : [];
+    return appData ? [join(appData, "Cursor", "auth.json")] : [];
   }
-  if (process.platform === "darwin") {
-    return [
-      join(
-        home,
-        "Library",
-        "Application Support",
-        "Cursor",
-        "User",
-        "globalStorage",
-        "state.vscdb",
-      ),
-    ];
-  }
-  const configHome = process.env.XDG_CONFIG_HOME?.trim() || join(home, ".config");
-  return [join(configHome, "Cursor", "User", "globalStorage", "state.vscdb")];
-}
-
-const MEMBERSHIP_LABELS: Record<string, string> = {
-  free: "Cursor Free",
-  free_trial: "Cursor Free Trial",
-  pro: "Cursor Pro",
-  pro_plus: "Cursor Pro+",
-  ultra: "Cursor Ultra",
-  business: "Cursor Business",
-  team: "Cursor Team",
-  enterprise: "Cursor Enterprise",
-};
-
-function formatMembership(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  return MEMBERSHIP_LABELS[value.toLowerCase()] ?? value;
+  return [join(home, ".cursor", "auth.json")];
 }
 
 /**
@@ -86,20 +50,6 @@ export function cursorUserIdFromJwt(accessToken: string | undefined): string | u
   }
 }
 
-/** ItemTable values may be raw strings or JSON-encoded strings; normalize both. */
-function unquote(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
-  const trimmed = value.trim();
-  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
-    try {
-      return JSON.parse(trimmed) as string;
-    } catch {
-      return trimmed.slice(1, -1);
-    }
-  }
-  return trimmed || undefined;
-}
-
 /**
  * The Cursor CLI keychain namespace is `cursor`, so its per-secret services are
  * `cursor-<secret>` under one shared account `cursor-user`. We only read the
@@ -109,9 +59,9 @@ export const CURSOR_CLI_KEYCHAIN_SERVICE = "cursor-access-token";
 export const CURSOR_CLI_KEYCHAIN_ACCOUNT = "cursor-user";
 
 /**
- * Read the Cursor CLI's session JWT from the macOS Keychain. Returns undefined
- * off macOS (the CLI uses libsecret/Credential Manager there — not covered yet)
- * or when the CLI is not signed in / the keychain is locked or denied.
+ * Read the Cursor CLI's session JWT from the macOS Keychain. File-backed CLI
+ * auth is handled separately so Windows does not fall through to the desktop
+ * app's account.
  */
 async function readCursorCliKeychainToken(): Promise<string | undefined> {
   if (process.platform !== "darwin") return undefined;
@@ -134,6 +84,45 @@ async function readCursorCliKeychainToken(): Promise<string | undefined> {
     // Missing/locked keychains and CLI-not-signed-in degrade to auth-missing.
     return undefined;
   }
+}
+
+export function parseCursorCliAuth(
+  content: string,
+): { accessToken: string; refreshToken?: string } | undefined {
+  try {
+    const parsed = JSON.parse(content) as {
+      accessToken?: unknown;
+      refreshToken?: unknown;
+    };
+    if (typeof parsed.accessToken !== "string" || !parsed.accessToken.trim()) return undefined;
+    return {
+      accessToken: parsed.accessToken.trim(),
+      ...(typeof parsed.refreshToken === "string" && parsed.refreshToken.trim()
+        ? { refreshToken: parsed.refreshToken.trim() }
+        : {}),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveCursorCliAuthFile(): Promise<OAuthToken | undefined> {
+  for (const path of cursorCliAuthPaths()) {
+    try {
+      const auth = parseCursorCliAuth(await readFile(path, "utf8"));
+      if (!auth) continue;
+      const userId = cursorUserIdFromJwt(auth.accessToken);
+      const email = await readCursorCliEmail();
+      return {
+        ...auth,
+        ...(userId ? { accountId: userId } : {}),
+        ...(email ? { raw: { email } } : {}),
+      };
+    } catch {
+      // Try the next CLI credential source.
+    }
+  }
+  return undefined;
 }
 
 /** The CLI keeps the signed-in email in `~/.cursor/cli-config.json` → authInfo.email. */
@@ -159,6 +148,8 @@ async function readCursorCliEmail(): Promise<string | undefined> {
 
 /** Build the token bundle from the Cursor CLI (`cursor-agent`) session. */
 async function resolveCursorCliToken(): Promise<OAuthToken | undefined> {
+  const fromAuthFile = await resolveCursorCliAuthFile();
+  if (fromAuthFile) return fromAuthFile;
   const accessToken = await readCursorCliKeychainToken();
   if (!accessToken) return undefined;
   const userId = cursorUserIdFromJwt(accessToken);
@@ -171,30 +162,5 @@ async function resolveCursorCliToken(): Promise<OAuthToken | undefined> {
 }
 
 export async function resolveCursorToken(): Promise<OAuthToken | undefined> {
-  for (const dbPath of cursorStateDbPaths()) {
-    const token = await withReadonlyDb(dbPath, (db) => {
-      const read = (key: string): string | undefined => {
-        const row = db.prepare("SELECT value FROM ItemTable WHERE key = ?").get(key) as
-          | { value?: unknown }
-          | undefined;
-        return typeof row?.value === "string" ? row.value : undefined;
-      };
-      const accessToken = unquote(read("cursorAuth/accessToken"));
-      if (!accessToken) return undefined;
-      const email = unquote(read("cursorAuth/cachedEmail"));
-      const membership = formatMembership(unquote(read("cursorAuth/stripeMembershipType")));
-      const userId = cursorUserIdFromJwt(accessToken);
-      const bundle: OAuthToken = {
-        accessToken,
-        ...(userId ? { accountId: userId } : {}),
-        ...(membership ? { subscriptionType: membership } : {}),
-        ...(email ? { raw: { email } } : {}),
-      };
-      return bundle;
-    });
-    if (token) return token;
-  }
-  // No desktop-IDE token — fall back to a Cursor CLI (`cursor-agent`) session so
-  // usage works for CLI-only installs that have no Cursor IDE.
   return resolveCursorCliToken();
 }

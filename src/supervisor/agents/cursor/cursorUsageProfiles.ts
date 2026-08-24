@@ -13,6 +13,15 @@ export interface CursorUsageProfile {
   apiKey: string;
 }
 
+/** The main Cursor tile uses the saved SDK key when one is configured. */
+export function readCursorSdkUsageProfile(
+  settings: SharedSettings,
+): CursorUsageProfile | undefined {
+  const apiKey = settings.agentSettings.cursor?.sdkApiKey;
+  if (typeof apiKey !== "string" || !apiKey.trim()) return undefined;
+  return { providerId: "cursor", apiKey: apiKey.trim() };
+}
+
 /** Enabled Cursor profile instances as usage providers, keyed by provider id. */
 export function readCursorUsageProfiles(settings: SharedSettings): Map<string, CursorUsageProfile> {
   const profiles = new Map<string, CursorUsageProfile>();

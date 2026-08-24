@@ -7,6 +7,7 @@ import { copilotCredentialTargetFromConfig } from "./copilotCredentials";
 import {
   CURSOR_CLI_KEYCHAIN_ACCOUNT,
   CURSOR_CLI_KEYCHAIN_SERVICE,
+  parseCursorCliAuth,
   cursorUserIdFromJwt,
   parseCursorCliEmail,
 } from "./cursorCredentials";
@@ -46,6 +47,19 @@ describe("Cursor CLI keychain fallback", () => {
         JSON.stringify({ authInfo: { email: " user@example.com ", userId: 1 }, model: {} }),
       ),
     ).toBe("user@example.com");
+  });
+
+  it("parses the CLI auth file without exposing the desktop credential source", () => {
+    expect(
+      parseCursorCliAuth(
+        JSON.stringify({ accessToken: " cli-access ", refreshToken: " cli-refresh " }),
+      ),
+    ).toEqual({ accessToken: "cli-access", refreshToken: "cli-refresh" });
+  });
+
+  it("rejects auth files without an access token", () => {
+    expect(parseCursorCliAuth(JSON.stringify({ refreshToken: "refresh" }))).toBeUndefined();
+    expect(parseCursorCliAuth("not json")).toBeUndefined();
   });
 
   it("returns undefined when authInfo/email is absent or JSON is invalid", () => {

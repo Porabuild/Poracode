@@ -66,12 +66,12 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
-  it("discards v2 caches that still label the first-party window Auto + Composer", async () => {
+  it("discards older caches that still label the first-party window Auto + Composer", async () => {
     const cachePath = tempCachePath();
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 2,
+        version: 4,
         snapshots: [
           {
             providerId: "cursor",
@@ -534,6 +534,87 @@ describe("UsageService", () => {
       plan: "Cursor Pro",
     });
     expect(result.snapshots[0]?.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(10);
+  });
+
+  it("uses the main Cursor SDK API key instead of the machine CLI login", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ agentSettings: { cursor: { sdkApiKey: "crsr_personal" } } }),
+      "utf8",
+    );
+
+    const urls: string[] = [];
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: () => Promise.resolve({ accessToken: "cli-enterprise-session" }),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: (request) => {
+          urls.push(request.url);
+          if (request.url === CURSOR_API_KEY_EXCHANGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                accessToken: "header.eyJlbWFpbCI6InBlcnNvbmFsQGV4YW1wbGUuY29tIn0.sig",
+              }),
+            });
+          }
+          if (request.url === CURSOR_PERIOD_USAGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                planUsage: {
+                  totalSpend: 1200,
+                  limit: 2000,
+                  autoPercentUsed: 6,
+                  apiPercentUsed: 12,
+                },
+              }),
+            });
+          }
+          if (request.url === CURSOR_PLAN_INFO_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ planInfo: { planName: "pro" } }),
+            });
+          }
+          return Promise.resolve({
+            status: 200,
+            headers: {},
+            body: JSON.stringify({ membershipType: "enterprise" }),
+          });
+        },
+      },
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host,
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({ providerIds: ["cursor"] });
+
+    expect(urls).toEqual([
+      CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+      CURSOR_PERIOD_USAGE_ENDPOINT,
+      CURSOR_PLAN_INFO_ENDPOINT,
+    ]);
+    expect(result.snapshots).toHaveLength(1);
+    expect(result.snapshots[0]).toMatchObject({
+      providerId: "cursor",
+      status: "ok",
+      plan: "Cursor Pro",
+      authenticatedAs: "personal@example.com",
+    });
+    expect(result.snapshots[0]?.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(6);
   });
 
   it("does not re-poll a rate-limited provider until its Retry-After backoff clears", async () => {

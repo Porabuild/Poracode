@@ -2,9 +2,8 @@ import type { CollectOptions, HostPort, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
 
 /**
- * Cursor. Reuses Cursor's session token (which the host reads from the desktop
- * app's `state.vscdb` SQLite store, key `cursorAuth/accessToken`, or — for a
- * CLI-only install — from the `cursor-agent` keychain entry) as the
+ * Cursor. Reuses Cursor Agent's session token (which the host reads from the
+ * CLI auth file or keychain) as the
  * `WorkosCursorSessionToken` cookie and reads the dashboard usage summary — the
  * same endpoint Cursor's own settings page uses. No cookie capture, no browser
  * involvement.
@@ -128,6 +127,10 @@ export function parseCursorUsage(
   const onDemand = summary.individualUsage?.onDemand;
   const resetsAt = toResetMs(summary.billingCycleEnd);
   const withReset = resetsAt !== undefined ? { resetsAt } : {};
+  const membership = summary.membershipType?.trim();
+  const planName =
+    (membership ? (MEMBERSHIP_LABELS[membership.toLowerCase()] ?? membership) : undefined) ??
+    account.plan;
 
   const windows: UsageWindow[] = [];
 
@@ -173,11 +176,6 @@ export function parseCursorUsage(
       });
     }
   }
-
-  const membership = summary.membershipType?.trim();
-  const planName =
-    (membership ? (MEMBERSHIP_LABELS[membership.toLowerCase()] ?? membership) : undefined) ??
-    account.plan;
 
   return {
     providerId: "cursor",
@@ -276,7 +274,7 @@ interface CursorPeriodUsage {
 }
 
 interface CursorPlanInfo {
-  planInfo?: { planName?: string };
+  planInfo?: { planName?: string; includedAmountCents?: number };
 }
 
 /** Map api2 `GetCurrentPeriodUsage` onto the dashboard usage-summary parser. */
@@ -285,6 +283,7 @@ export function parseCursorPeriodUsage(
   account: { plan?: string; email?: string },
   nowMs: number,
   providerId = "cursor",
+  includedAmountCents?: number,
 ): UsageSnapshot {
   const period = (body ?? {}) as CursorPeriodUsage;
   const plan = period.planUsage ?? {};
@@ -295,7 +294,7 @@ export function parseCursorPeriodUsage(
       individualUsage: {
         plan: {
           used: plan.totalSpend,
-          limit: plan.limit,
+          limit: includedAmountCents ?? plan.limit,
           autoPercentUsed: plan.autoPercentUsed,
           apiPercentUsed: plan.apiPercentUsed,
           totalPercentUsed: plan.totalPercentUsed,
@@ -459,13 +458,18 @@ async function collectCursorFromApiKeyUnchecked(
   }
 
   let planName: string | undefined;
+  let includedAmountCents: number | undefined;
   if (planRes && planRes.status >= 200 && planRes.status < 300) {
     try {
       const planBody = JSON.parse(planRes.body) as CursorPlanInfo;
       const name = planBody.planInfo?.planName?.trim();
       planName = name ? (MEMBERSHIP_LABELS[name.toLowerCase()] ?? name) : undefined;
+      const included = planBody.planInfo?.includedAmountCents;
+      includedAmountCents =
+        typeof included === "number" && Number.isFinite(included) ? included : undefined;
     } catch {
       planName = undefined;
+      includedAmountCents = undefined;
     }
   }
 
@@ -478,5 +482,6 @@ async function collectCursorFromApiKeyUnchecked(
     },
     now,
     providerId,
+    includedAmountCents,
   );
 }
