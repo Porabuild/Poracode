@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import {
+  startTransition,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Surface } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, X } from "lucide-react";
@@ -14,6 +22,7 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { guiChatFontCssVars } from "../../chatFontVars";
 import {
+  EMPTY_THREAD_TIMELINE_ENTRIES,
   getChildTimelineEntriesStoreSelector,
   getRuntimeItemStoreSelector,
   type ChatTimelineEntry,
@@ -26,6 +35,9 @@ import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
 import { WorkflowOverlayBody } from "./WorkflowOverlayBody";
 import { parseWorkflowInfo, type WorkflowInfo } from "./workflowDisplay";
+
+const CHILD_TIMELINE_ENTRY_BATCH = 4;
+const CHILD_TOOL_GROUP_ITEM_BATCH = 40;
 
 interface SubAgentOpenControllerProps {
   threadId: string;
@@ -167,6 +179,7 @@ export function SubAgentContent({
         />
       ) : (
         <ChildList
+          key={parentItemId}
           threadId={threadId}
           parentItemId={parentItemId}
           entries={childEntries}
@@ -352,6 +365,7 @@ function ChildList({
   workflow: WorkflowInfo | null;
   workflowProgress: WorkflowOverlayProgress | null;
 }) {
+  const visibleEntries = useDeferredChildEntries(entries);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
@@ -363,10 +377,11 @@ function ChildList({
     <div className="relative min-h-0 flex-1">
       <MessageList
         threadId={threadId}
-        entries={entries}
+        entries={visibleEntries}
         isTurnActive={stickToBottom}
         markTailAsLive={stickToBottom}
         canRevertCheckpoints={false}
+        drawDistance={100}
         setScrollContainer={setScrollContainer}
         scrollContentRef={contentRef}
         onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
@@ -394,7 +409,11 @@ function ChildList({
           ) : null
         }
         emptyContent={
-          workflow ? (
+          entries.length > 0 ? (
+            <div className="flex justify-center py-3 text-foreground-muted">
+              <PixelLoader size="xs" />
+            </div>
+          ) : workflow ? (
             <WorkflowEmptyState progress={workflowProgress} />
           ) : (
             <p className="text-sm text-foreground-muted">
@@ -413,7 +432,7 @@ function ChildList({
         scrollRef={scrollRef}
         contentRef={contentRef}
         layoutChangeToken={null}
-        tailEntryId={entries.at(-1)?.id ?? null}
+        tailEntryId={visibleEntries.at(-1)?.id ?? null}
         threadId={`${threadId}:subagent:${parentItemId}`}
         tailLoaderVisible={turn !== null}
         initialScrollSettled
@@ -423,6 +442,154 @@ function ChildList({
       />
     </div>
   );
+}
+
+function useDeferredChildEntries(
+  entries: readonly ChatTimelineEntry[],
+): readonly ChatTimelineEntry[] {
+  const [reveal, setReveal] = useState<ChildRevealState>(() => ({
+    entries: { count: 0, fromStart: false },
+    groups: {},
+  }));
+  const latestEntriesRef = useRef(entries);
+  const cancelPendingRevealRef = useRef<(() => void) | null>(null);
+  latestEntriesRef.current = entries;
+  const visibleEntries = selectRevealedChildEntries(entries, reveal);
+  const needsReveal = childEntriesNeedReveal(entries, visibleEntries);
+
+  useLayoutEffect(() => {
+    setReveal((current) => clampChildRevealAfterShrink(current, entries));
+  }, [entries]);
+
+  useEffect(() => {
+    if (!needsReveal || cancelPendingRevealRef.current) return;
+    const revealNext = () => {
+      cancelPendingRevealRef.current = null;
+      startTransition(() => {
+        setReveal((current) => advanceChildReveal(current, latestEntriesRef.current));
+      });
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(revealNext, { timeout: 50 });
+      cancelPendingRevealRef.current = () => window.cancelIdleCallback?.(idleId);
+      return;
+    }
+    const timeoutId = window.setTimeout(revealNext, 16);
+    cancelPendingRevealRef.current = () => window.clearTimeout(timeoutId);
+  }, [entries, needsReveal, reveal]);
+
+  useEffect(
+    () => () => {
+      cancelPendingRevealRef.current?.();
+      cancelPendingRevealRef.current = null;
+    },
+    [],
+  );
+
+  return visibleEntries;
+}
+
+interface RevealRange {
+  count: number;
+  fromStart: boolean;
+}
+
+interface ChildRevealState {
+  entries: RevealRange;
+  groups: Record<string, RevealRange>;
+}
+
+function clampChildRevealAfterShrink(
+  current: ChildRevealState,
+  entries: readonly ChatTimelineEntry[],
+): ChildRevealState {
+  const groupsById = new Map(
+    entries
+      .filter((entry) => entry.kind === "tool_call_group")
+      .map((entry) => [entry.id, entry] as const),
+  );
+  const groupShrank = Object.entries(current.groups).some(([id, range]) => {
+    const entry = groupsById.get(id);
+    return !entry || range.count > entry.itemIds.length;
+  });
+  if (current.entries.count <= entries.length && !groupShrank) return current;
+
+  const groups: Record<string, RevealRange> = {};
+  for (const [id, range] of Object.entries(current.groups)) {
+    const entry = groupsById.get(id);
+    if (!entry) continue;
+    groups[id] = { ...range, count: Math.min(range.count, entry.itemIds.length) };
+  }
+  return {
+    entries: { ...current.entries, count: Math.min(current.entries.count, entries.length) },
+    groups,
+  };
+}
+
+function advanceChildReveal(
+  current: ChildRevealState,
+  entries: readonly ChatTimelineEntry[],
+): ChildRevealState {
+  const entryCount = Math.min(
+    entries.length,
+    Math.min(current.entries.count, entries.length) + CHILD_TIMELINE_ENTRY_BATCH,
+  );
+  const entryRange = {
+    count: entryCount,
+    fromStart: current.entries.fromStart || entryCount >= entries.length,
+  };
+  const visibleEntries = selectEntriesInRange(entries, entryRange);
+  const groups: Record<string, RevealRange> = {};
+  for (const entry of visibleEntries) {
+    if (entry.kind !== "tool_call_group") continue;
+    const previous = current.groups[entry.id];
+    const itemCount = Math.min(
+      entry.itemIds.length,
+      Math.min(previous?.count ?? 0, entry.itemIds.length) + CHILD_TOOL_GROUP_ITEM_BATCH,
+    );
+    groups[entry.id] = {
+      count: itemCount,
+      fromStart: (previous?.fromStart ?? false) || itemCount >= entry.itemIds.length,
+    };
+  }
+  return { entries: entryRange, groups };
+}
+
+function selectRevealedChildEntries(
+  entries: readonly ChatTimelineEntry[],
+  reveal: ChildRevealState,
+): readonly ChatTimelineEntry[] {
+  if (reveal.entries.count === 0) return EMPTY_THREAD_TIMELINE_ENTRIES;
+  return selectEntriesInRange(entries, reveal.entries).map((entry) => {
+    if (entry.kind !== "tool_call_group") return entry;
+    const range = reveal.groups[entry.id] ?? {
+      count: Math.min(CHILD_TOOL_GROUP_ITEM_BATCH, entry.itemIds.length),
+      fromStart: false,
+    };
+    const itemIds = selectEntriesInRange(entry.itemIds, range);
+    return itemIds.length === entry.itemIds.length ? entry : { ...entry, itemIds };
+  });
+}
+
+function selectEntriesInRange<T>(entries: readonly T[], range: RevealRange): readonly T[] {
+  const count = Math.min(range.count, entries.length);
+  if (count === 0) return [];
+  return range.fromStart ? entries.slice(0, count) : entries.slice(-count);
+}
+
+function childEntriesNeedReveal(
+  entries: readonly ChatTimelineEntry[],
+  visibleEntries: readonly ChatTimelineEntry[],
+): boolean {
+  if (visibleEntries.length !== entries.length) return true;
+  return visibleEntries.some((entry, index) => {
+    const source = entries[index];
+    return (
+      source?.kind === "tool_call_group" &&
+      entry.kind === "tool_call_group" &&
+      entry.itemIds.length !== source.itemIds.length
+    );
+  });
 }
 
 function CrossagentStatusFooter({ status }: { status: "completed" | "failed" | "cancelled" }) {

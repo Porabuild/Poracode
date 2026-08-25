@@ -89,6 +89,7 @@ interface MessageListProps {
   onPointerDownCapture?: PointerEventHandler<HTMLDivElement>;
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
   onStartReached?: () => void;
+  drawDistance?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
    * late provider events cannot append onto a truncated timeline.
@@ -144,6 +145,7 @@ export function MessageList({
   onPointerDownCapture,
   onKeyDownCapture,
   onStartReached,
+  drawDistance,
   canRevertCheckpoints = true,
   checkpointGuard,
   checkpointActions,
@@ -442,6 +444,7 @@ export function MessageList({
         }}
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
+        {...(drawDistance !== undefined ? { drawDistance } : {})}
         {...(onStartReached ? { onStartReached, onStartReachedThreshold: 0.75 } : {})}
         recycleItems={false}
         renderItem={({ item: entry, index }) => (

@@ -55,9 +55,36 @@ export function applyRuntimeEventBatchesToState(
   for (const batch of batches) {
     if (batch.events.length === 0) continue;
     const { threadId, events } = batch;
+    const coalescedEvents = coalesceRuntimeEvents(events);
     let batchChanged = false;
-    for (const event of coalesceRuntimeEvents(events)) {
+    for (let eventIndex = 0; eventIndex < coalescedEvents.length;) {
+      const event = coalescedEvents[eventIndex]!;
+      if (isRuntimeItemEvent(event)) {
+        let itemRunEnd = eventIndex + 1;
+        while (
+          itemRunEnd < coalescedEvents.length &&
+          isRuntimeItemEvent(coalescedEvents[itemRunEnd]!)
+        ) {
+          itemRunEnd += 1;
+        }
+        if (itemRunEnd - eventIndex > 1) {
+          const itemBatch = applyRuntimeItemEvents(
+            nextState,
+            threadId,
+            coalescedEvents.slice(eventIndex, itemRunEnd),
+            true,
+          );
+          if (itemBatch) {
+            nextState = itemBatch.state;
+            batchChanged = true;
+            if (itemBatch.structuralChanged) structuralBumpThreadIds.add(threadId);
+          }
+          eventIndex = itemRunEnd;
+          continue;
+        }
+      }
       const patch = applyRuntimeEventToRuntimeState(nextState, threadId, event);
+      eventIndex += 1;
       if (Object.keys(patch).length === 0) continue;
       nextState = { ...nextState, ...patch };
       const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
@@ -86,6 +113,168 @@ export function applyRuntimeEventBatchesToState(
   return {
     ...nextState,
   };
+}
+
+/**
+ * Buffered sub-agent history is delivered as one batch containing hundreds of
+ * item lifecycle events. Clone the thread collections once for that replay;
+ * cloning the growing id array and item map for every event makes hydration
+ * quadratic and blocks the panel's first paint.
+ */
+function applyRuntimeItemEvents(
+  state: RuntimeEventState,
+  threadId: string,
+  events: RuntimeEvent[],
+  applyReopen: boolean,
+): { state: RuntimeEventState; structuralChanged: boolean } | null {
+  if (!events.every(isRuntimeItemEvent)) return null;
+
+  const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
+  const preserveItemsMap = events.length === 1 && events[0]?.type === "content.delta";
+  const draft: RuntimeItemDraft = {
+    itemIds: existingIds,
+    itemIdsChanged: false,
+    items: preserveItemsMap ? existingItems : { ...existingItems },
+  };
+  let nextState: RuntimeEventState = {
+    ...state,
+    runtimeItemsByIdByThread: {
+      ...state.runtimeItemsByIdByThread,
+      [threadId]: draft.items,
+    },
+  };
+  let changed = false;
+  let structuralChanged = false;
+
+  for (const event of events) {
+    const itemIdsChangedBefore = draft.itemIdsChanged;
+    const eventChanged = applyRuntimeItemEvent(draft, event);
+    if (!eventChanged) continue;
+    changed = true;
+    if (eventAffectsStructuralVersion(event)) structuralChanged = true;
+    if (!itemIdsChangedBefore && draft.itemIdsChanged) {
+      nextState = {
+        ...nextState,
+        runtimeItemIdsByThread: {
+          ...nextState.runtimeItemIdsByThread,
+          [threadId]: draft.itemIds,
+        },
+      };
+    }
+    if (applyReopen) {
+      const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
+      if (Object.keys(reopenPatch).length > 0) {
+        nextState = { ...nextState, ...reopenPatch };
+      }
+    }
+  }
+
+  return changed ? { state: nextState, structuralChanged } : null;
+}
+
+interface RuntimeItemDraft {
+  itemIds: readonly string[];
+  itemIdsChanged: boolean;
+  items: Record<string, RuntimeChatItem>;
+}
+
+function mutableRuntimeItemIds(draft: RuntimeItemDraft): string[] {
+  if (!draft.itemIdsChanged) {
+    draft.itemIds = [...draft.itemIds];
+    draft.itemIdsChanged = true;
+  }
+  return draft.itemIds as string[];
+}
+
+function applyRuntimeItemEvent(
+  draft: RuntimeItemDraft,
+  event: Extract<
+    RuntimeEvent,
+    { type: "item.started" | "item.updated" | "item.completed" | "content.delta" }
+  >,
+): boolean {
+  switch (event.type) {
+    case "item.started": {
+      if (draft.items[event.itemId]) return false;
+      const item: RuntimeChatItem = {
+        id: event.itemId,
+        type: event.itemType,
+        state: "started",
+        ...(isDelegatedAgentTool(event.payload as ToolCallPayload | undefined)
+          ? { startedAt: Date.now() }
+          : {}),
+        payload: event.payload,
+        streams: {},
+        observedLive: true,
+        ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
+      };
+      mutableRuntimeItemIds(draft).push(event.itemId);
+      draft.items[event.itemId] = item;
+      return true;
+    }
+    case "item.updated": {
+      const prev = draft.items[event.itemId];
+      if (!prev) return false;
+      const payload = mergePayload(prev.payload, event.payload);
+      draft.items[event.itemId] = {
+        ...prev,
+        state: prev.state === "completed" ? "completed" : "updated",
+        ...(prev.startedAt === undefined &&
+        isDelegatedAgentTool(payload as ToolCallPayload | undefined)
+          ? { startedAt: Date.now() }
+          : {}),
+        payload,
+      };
+      return true;
+    }
+    case "item.completed": {
+      const prev = draft.items[event.itemId];
+      if (!prev) return false;
+      const next: RuntimeChatItem = {
+        ...prev,
+        state: "completed",
+        ...(prev.startedAt !== undefined ? { completedAt: Date.now() } : {}),
+        payload:
+          event.payload !== undefined ? mergePayload(prev.payload, event.payload) : prev.payload,
+      };
+      if (next.type === "reasoning" && !(next.streams.reasoning_text ?? "").trim()) {
+        const itemIds = mutableRuntimeItemIds(draft);
+        itemIds.splice(itemIds.indexOf(event.itemId), 1);
+        delete draft.items[event.itemId];
+      } else {
+        draft.items[event.itemId] = next;
+      }
+      return true;
+    }
+    case "content.delta": {
+      const prev = draft.items[event.itemId];
+      if (!prev) return false;
+      draft.items[event.itemId] = {
+        ...prev,
+        state: prev.state === "completed" ? "completed" : "updated",
+        streams: {
+          ...prev.streams,
+          [event.stream]: (prev.streams[event.stream] ?? "") + event.delta,
+        },
+      };
+      return true;
+    }
+  }
+}
+
+function isRuntimeItemEvent(
+  event: RuntimeEvent,
+): event is Extract<
+  RuntimeEvent,
+  { type: "item.started" | "item.updated" | "item.completed" | "content.delta" }
+> {
+  return (
+    event.type === "item.started" ||
+    event.type === "item.updated" ||
+    event.type === "item.completed" ||
+    event.type === "content.delta"
+  );
 }
 
 function reopenGuiTurnForLiveRuntimeActivity(
@@ -214,6 +403,10 @@ function applyRuntimeEventToRuntimeState(
   threadId: string,
   event: RuntimeEvent,
 ): Partial<RuntimeEventState> {
+  if (isRuntimeItemEvent(event)) {
+    return applyRuntimeItemEvents(state, threadId, [event], false)?.state ?? {};
+  }
+
   switch (event.type) {
     case "session.started":
     case "session.exited":
@@ -245,113 +438,6 @@ function applyRuntimeEventToRuntimeState(
           : { runtimeOpenTurnByThread: { ...state.runtimeOpenTurnByThread, [threadId]: false } };
       if (event.state !== "interrupted" && event.state !== "cancelled") return closeTurnPatch;
       return { ...closeTurnPatch, ...pruneTrailingInterruptedReasoningItems(state, threadId) };
-    }
-
-    case "item.started": {
-      const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
-      const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-      if (existingItems[event.itemId]) return {};
-      const item: RuntimeChatItem = {
-        id: event.itemId,
-        type: event.itemType,
-        state: "started",
-        ...(isDelegatedAgentTool(event.payload as ToolCallPayload | undefined)
-          ? { startedAt: Date.now() }
-          : {}),
-        payload: event.payload,
-        streams: {},
-        observedLive: true,
-        ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
-      };
-      return {
-        runtimeItemIdsByThread: {
-          ...state.runtimeItemIdsByThread,
-          [threadId]: [...existingIds, event.itemId],
-        },
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...existingItems, [event.itemId]: item },
-        },
-      };
-    }
-
-    case "item.updated": {
-      const items = state.runtimeItemsByIdByThread[threadId];
-      const prev = items?.[event.itemId];
-      if (!prev || !items) return {};
-      const payload = mergePayload(prev.payload, event.payload);
-      const next: RuntimeChatItem = {
-        ...prev,
-        state: prev.state === "completed" ? "completed" : "updated",
-        ...(prev.startedAt === undefined &&
-        isDelegatedAgentTool(payload as ToolCallPayload | undefined)
-          ? { startedAt: Date.now() }
-          : {}),
-        payload,
-      };
-      return {
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...items, [event.itemId]: next },
-        },
-      };
-    }
-
-    case "item.completed": {
-      const items = state.runtimeItemsByIdByThread[threadId];
-      const prev = items?.[event.itemId];
-      if (!prev || !items) return {};
-      const next: RuntimeChatItem = {
-        ...prev,
-        state: "completed",
-        ...(prev.startedAt !== undefined ? { completedAt: Date.now() } : {}),
-        payload:
-          event.payload !== undefined ? mergePayload(prev.payload, event.payload) : prev.payload,
-      };
-      // A reasoning item that completes with no streamed text is a bracket
-      // some agents emit before producing nothing — keeping it in the
-      // timeline would split otherwise-adjacent tool calls into separate
-      // groups. Drop it from the data so grouping naturally fuses them.
-      if (next.type === "reasoning" && !(next.streams.reasoning_text ?? "").trim()) {
-        const ids = state.runtimeItemIdsByThread[threadId];
-        if (!ids) return {};
-        const { [event.itemId]: _dropped, ...remaining } = items;
-        return {
-          runtimeItemIdsByThread: {
-            ...state.runtimeItemIdsByThread,
-            [threadId]: ids.filter((id) => id !== event.itemId),
-          },
-          runtimeItemsByIdByThread: {
-            ...state.runtimeItemsByIdByThread,
-            [threadId]: remaining,
-          },
-        };
-      }
-      return {
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...items, [event.itemId]: next },
-        },
-      };
-    }
-
-    case "content.delta": {
-      const items = state.runtimeItemsByIdByThread[threadId];
-      const prev = items?.[event.itemId];
-      if (!prev || !items) return {};
-      const prevStream = prev.streams[event.stream] ?? "";
-      const next: RuntimeChatItem = {
-        ...prev,
-        state: prev.state === "completed" ? "completed" : "updated",
-        streams: { ...prev.streams, [event.stream]: prevStream + event.delta },
-      };
-      items[event.itemId] = next;
-      return {
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: items,
-        },
-      };
     }
 
     case "context.updated": {

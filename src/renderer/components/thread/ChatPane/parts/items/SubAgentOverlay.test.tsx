@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
@@ -398,13 +398,306 @@ describe("SubAgentContent", () => {
     );
 
     const dialog = await screen.findByRole("region");
-    expect(within(dialog).getByText("Inspect the renderer.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Inspect the renderer.")).toBeInTheDocument();
     expect(within(dialog).getByText(byTextContent("2 commands"))).toBeInTheDocument();
     expect(
       await within(dialog).findByRole("heading", { name: "Child result" }, { timeout: 5_000 }),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("listitem")).toHaveTextContent("parsed markdown");
     expect(within(dialog).queryByText("internal plan")).not.toBeInTheDocument();
+  });
+
+  it("defers the first child timeline render until idle", async () => {
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    const children = Array.from({ length: 20 }, (_entry, index) =>
+      makeChildItem(`assistant-${index}`, parentItem.id, "assistant_message", undefined, {
+        assistant_text: `Child message ${index}`,
+      }),
+    );
+
+    useAppStore.setState({
+      runtimeItemIdsByThread: {
+        [threadId]: [parentItem.id, ...children.map((item) => item.id)],
+      },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          [parentItem.id]: parentItem,
+          ...Object.fromEntries(children.map((item) => [item.id, item])),
+        },
+      },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+
+    expect(screen.queryByText("Child message 19")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Loading" })).toBeInTheDocument();
+    expect(await screen.findByText("Child message 18")).toBeInTheDocument();
+    expect(screen.getByText("Child message 19")).toBeInTheDocument();
+  });
+
+  it("keeps the pending idle reveal while child entries continue arriving", async () => {
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    const children = Array.from({ length: 8 }, (_entry, index) =>
+      makeChildItem(`assistant-${index}`, parentItem.id, "assistant_message", undefined, {
+        assistant_text: `Child message ${index}`,
+      }),
+    );
+    const idleCallbacks: IdleRequestCallback[] = [];
+    const cancelIdleCallback = vi.fn<(id: number) => void>();
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      idleCallbacks.push(callback);
+      return idleCallbacks.length;
+    });
+    vi.stubGlobal("cancelIdleCallback", cancelIdleCallback);
+
+    try {
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: [parentItem.id, children[0]!.id] },
+        runtimeItemsByIdByThread: {
+          [threadId]: { [parentItem.id]: parentItem, [children[0]!.id]: children[0]! },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
+
+      render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+      await waitFor(() => expect(idleCallbacks).toHaveLength(1));
+
+      act(() => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: {
+            [threadId]: [parentItem.id, ...children.map((item) => item.id)],
+          },
+          runtimeItemsByIdByThread: {
+            [threadId]: {
+              [parentItem.id]: parentItem,
+              ...Object.fromEntries(children.map((item) => [item.id, item])),
+            },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 2 },
+        });
+      });
+
+      expect(idleCallbacks).toHaveLength(1);
+      expect(cancelIdleCallback).not.toHaveBeenCalled();
+      await act(async () => {
+        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+      });
+      expect(screen.getByText("Child message 7")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not restart the timer fallback when child entries arrive", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("requestIdleCallback", undefined);
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    const children = Array.from({ length: 8 }, (_entry, index) =>
+      makeChildItem(`assistant-${index}`, parentItem.id, "assistant_message", undefined, {
+        assistant_text: `Child message ${index}`,
+      }),
+    );
+
+    try {
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: [parentItem.id, children[0]!.id] },
+        runtimeItemsByIdByThread: {
+          [threadId]: { [parentItem.id]: parentItem, [children[0]!.id]: children[0]! },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
+      render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+
+      await act(async () => vi.advanceTimersByTime(10));
+      act(() => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: {
+            [threadId]: [parentItem.id, ...children.map((item) => item.id)],
+          },
+          runtimeItemsByIdByThread: {
+            [threadId]: {
+              [parentItem.id]: parentItem,
+              ...Object.fromEntries(children.map((item) => [item.id, item])),
+            },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 2 },
+        });
+      });
+      await act(async () => vi.advanceTimersByTime(6));
+
+      expect(screen.getByText("Child message 7")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("reveals a 250-call tool group in bounded idle batches", async () => {
+    const threadId = "thread-1";
+    const runningParent = makeSubAgentItem("parent-1");
+    const parentItem: RuntimeChatItem = {
+      ...runningParent,
+      state: "completed",
+      payload: { ...(runningParent.payload as ToolCallPayload), status: "success" },
+    };
+    const commands = Array.from({ length: 250 }, (_entry, index) =>
+      makeChildItem(`command-${index}`, parentItem.id, "command_execution", {
+        command: `echo ${index}`,
+      }),
+    );
+    const idleCallbacks: IdleRequestCallback[] = [];
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      idleCallbacks.push(callback);
+      return idleCallbacks.length;
+    });
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+
+    try {
+      useAppStore.setState({
+        runtimeItemIdsByThread: {
+          [threadId]: [parentItem.id, ...commands.map((item) => item.id)],
+        },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            [parentItem.id]: parentItem,
+            ...Object.fromEntries(commands.map((item) => [item.id, item])),
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
+
+      render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+
+      expect(screen.getByRole("img", { name: "Loading" })).toBeInTheDocument();
+      await act(async () => {
+        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+      });
+      expect(screen.getByText(byTextContent("40 commands"))).toBeInTheDocument();
+
+      for (let index = 0; index < 6; index += 1) {
+        await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
+        await act(async () => {
+          idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+        });
+      }
+      expect(await screen.findByText(byTextContent("250 commands"))).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("bounds a large append after a tool group was fully revealed", async () => {
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    const commands = Array.from({ length: 201 }, (_entry, index) =>
+      makeChildItem(`command-${index}`, parentItem.id, "command_execution", {
+        command: `echo ${index}`,
+      }),
+    );
+    const idleCallbacks: IdleRequestCallback[] = [];
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      idleCallbacks.push(callback);
+      return idleCallbacks.length;
+    });
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+
+    try {
+      useAppStore.setState({
+        runtimeItemIdsByThread: {
+          [threadId]: [parentItem.id, commands[0]!.id, commands[1]!.id],
+        },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            [parentItem.id]: parentItem,
+            [commands[0]!.id]: commands[0]!,
+            [commands[1]!.id]: commands[1]!,
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
+      render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
+
+      await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
+      await act(async () => {
+        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+      });
+      expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+
+      act(() => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: {
+            [threadId]: [parentItem.id, ...commands.map((item) => item.id)],
+          },
+          runtimeItemsByIdByThread: {
+            [threadId]: {
+              [parentItem.id]: parentItem,
+              ...Object.fromEntries(commands.map((item) => [item.id, item])),
+            },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 2 },
+        });
+      });
+      expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+
+      await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
+      await act(async () => {
+        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+      });
+      expect(screen.getByText(byTextContent("42 commands"))).toBeInTheDocument();
+
+      for (let index = 0; index < 4; index += 1) {
+        await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
+        await act(async () => {
+          idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+        });
+      }
+      expect(screen.getByText(byTextContent("201 commands"))).toBeInTheDocument();
+
+      act(() => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: {
+            [threadId]: [parentItem.id, commands[0]!.id, commands[1]!.id],
+          },
+          runtimeItemsByIdByThread: {
+            [threadId]: {
+              [parentItem.id]: parentItem,
+              [commands[0]!.id]: commands[0]!,
+              [commands[1]!.id]: commands[1]!,
+            },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 3 },
+        });
+      });
+      expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+
+      act(() => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: {
+            [threadId]: [parentItem.id, ...commands.map((item) => item.id)],
+          },
+          runtimeItemsByIdByThread: {
+            [threadId]: {
+              [parentItem.id]: parentItem,
+              ...Object.fromEntries(commands.map((item) => [item.id, item])),
+            },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 4 },
+        });
+      });
+      expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+
+      await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
+      await act(async () => {
+        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
+      });
+      expect(screen.getByText(byTextContent("42 commands"))).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("does not present the final child tool group as live after the subagent completes", async () => {
@@ -444,10 +737,9 @@ describe("SubAgentContent", () => {
     );
 
     const dialog = await screen.findByRole("region");
-    expect(within(dialog).getByText(byTextContent("2 commands")).closest("button")).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(
+      (await within(dialog).findByText(byTextContent("2 commands"))).closest("button"),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows an explicit terminal status for a cancelled Crossagent", async () => {
