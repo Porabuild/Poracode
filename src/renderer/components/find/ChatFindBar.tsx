@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { selectVisibleThreadTimelineEntries } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
@@ -54,16 +55,25 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
   const setMatchCount = useChatFindStore((state) => state.setMatchCount);
 
   const entries = useAppStore((state) => selectVisibleThreadTimelineEntries(state, threadId));
-  const itemsById = useAppStore((state) => state.runtimeItemsByIdByThread[threadId]);
+  const itemSnapshot = useAppStore(
+    useShallow(
+      (state) =>
+        [
+          state.runtimeItemsByIdByThread[threadId],
+          state.runtimeStructuralVersionByThread[threadId] ?? 0,
+        ] as const,
+    ),
+  );
+  const [itemsById, structuralVersion] = itemSnapshot;
 
   // `entries`/`itemsById` are reference-stable across navigation, so memoizing
   // keeps `matches` stable when only `currentIndex` changes — avoiding a full
   // transcript re-scan (and a spurious re-fire of the scroll/highlight effect)
   // on every next/prev press.
-  const matches = useMemo(
-    () => collectChatMatches(itemsById, entries, query, caseSensitive),
-    [itemsById, entries, query, caseSensitive],
-  );
+  const matches = useMemo(() => {
+    void structuralVersion;
+    return collectChatMatches(itemsById, entries, query, caseSensitive);
+  }, [itemsById, structuralVersion, entries, query, caseSensitive]);
 
   // Re-resolve highlight ranges from the live (virtualized) DOM. Reads the latest
   // render's values so the scroll listener and nav effect can share it.

@@ -121,15 +121,16 @@ function OpenRequestDebug(props: { index: number; request: OpenRuntimeRequest })
 export function ChatRuntimeDebugPanel({ threadId }: ChatRuntimeDebugPanelProps) {
   const { t } = useLingui();
   const itemIds = useAppStore((s) => s.runtimeItemIdsByThread[threadId] ?? EMPTY_IDS);
-  const itemsById = useAppStore((s) => s.runtimeItemsByIdByThread[threadId] ?? EMPTY_ITEMS_BY_ID);
+  // Development-only inspector: subscribe to every store update so pure
+  // streaming deltas refresh without adding a production-path revision.
+  const runtimeState = useAppStore((state) => state);
+  const itemsById = runtimeState.runtimeItemsByIdByThread[threadId] ?? EMPTY_ITEMS_BY_ID;
   const requests = useAppStore((s) => s.runtimeRequestsByThread[threadId] ?? EMPTY_REQ);
   const [query, setQuery] = useState("");
 
-  const items = useMemo(
-    () =>
-      itemIds.map((itemId) => itemsById[itemId]).filter((item): item is RuntimeChatItem => !!item),
-    [itemIds, itemsById],
-  );
+  const items = itemIds
+    .map((itemId) => itemsById[itemId])
+    .filter((item): item is RuntimeChatItem => !!item);
 
   const trimmed = query.trim().toLowerCase();
   const filteredItems = useMemo(() => {

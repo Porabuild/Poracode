@@ -42,6 +42,7 @@ import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
+import { evictOversizedInactiveThreadRuntimeItems } from "./state/chatRuntimePersister";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -113,6 +114,7 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
   // One Zustand set for all concurrent streams — avoids N selector passes when
   // several chats are working in the background / being switched between.
   store.applyRuntimeEventBatches(batches);
+  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
   for (const { threadId, events } of batches) {
     // Durable usage capture at the canonical layer (all providers normalized).
     // Thread metadata is resolved lazily inside, so pure-delta frames are free.
