@@ -604,6 +604,9 @@ describe("subagent tool registration", () => {
     );
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
+    expect(byName.get("spawn_agent")!.description).toContain(
+      "root provider/model/reasoning/fast/permissions are batch defaults",
+    );
   });
 
   it("asks parents to give every spawned run a descriptive task label", () => {
@@ -676,6 +679,78 @@ describe("subagent tool registration", () => {
         effort: "high",
         prompt: "review",
         background: true,
+      },
+    ]);
+  });
+
+  it("applies a batch-level selection to tasks unless a task overrides it", async () => {
+    const { ctx } = makeToolContext();
+    const received: unknown[] = [];
+    const listSpawnableAgents = ctx.listSpawnableAgents;
+    ctx.listSpawnableAgents = async (tags) =>
+      (await listSpawnableAgents(tags)).map((agent) => ({
+        ...agent,
+        models: agent.models.map((model) => ({
+          ...model,
+          reasoning: { values: ["low", "high"], default: "low" },
+          fast: { available: true },
+        })),
+        ...(agent.preference
+          ? { preference: { ...agent.preference, reasoning: "low", fast: false } }
+          : {}),
+      }));
+    ctx.runManager = {
+      spawnMany: (_parentThreadId: string, requests: unknown[]) => {
+        received.push(...requests);
+        return requests.map((_, index) => ({ runId: `run-${index + 1}` }));
+      },
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "spawn_agent",
+      {
+        provider: "claude",
+        model: "sonnet",
+        reasoning: "high",
+        fast: true,
+        permissions: "full-access",
+        tasks: [
+          {
+            name: "inherited",
+            provider: "",
+            model: null,
+            reasoning: "",
+            permissions: null,
+            prompt: "inspect",
+          },
+          {
+            name: "overridden",
+            provider: "codex",
+            model: "gpt-5.5",
+            reasoning: "low",
+            fast: false,
+            prompt: "review",
+          },
+        ],
+      },
+      ctx,
+    );
+
+    expect(received).toEqual([
+      {
+        agent: "claude",
+        model: "sonnet",
+        effort: "high",
+        fast: true,
+        prompt: "inspect",
+        name: "inherited",
+      },
+      {
+        agent: "codex",
+        model: "gpt-5.5",
+        effort: "low",
+        prompt: "review",
+        name: "overridden",
       },
     ]);
   });
