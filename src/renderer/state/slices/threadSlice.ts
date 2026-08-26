@@ -27,6 +27,7 @@ import {
 import { recordThreadStarted } from "../usageRecorder";
 import { removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
+import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 
 export interface ThreadSlice {
   threads: Thread[];
@@ -252,6 +253,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   },
   deleteThread: (threadId) =>
     set((state) => {
+      clearRuntimeStructuralChangeHint(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
 
       if (nextThreads.length === state.threads.length) {

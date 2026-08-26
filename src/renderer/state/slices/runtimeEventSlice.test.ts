@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
 import type { RuntimeEvent } from "@/shared/contracts";
 import {
   createRuntimeEventSlice,
@@ -12,10 +13,12 @@ import {
  * Zustand store so the rest of the app store doesn't have to be wired up.
  */
 function makeStore() {
-  return create<RuntimeEventSlice>()((set, get, store) =>
-    // Cast — the slice's `SliceCreator<T>` parameter expects the full app
-    // state, but the slice itself only touches its own keys. Safe in tests.
-    createRuntimeEventSlice(set as never, get as never, store as never),
+  return create<RuntimeEventSlice>()(
+    subscribeWithSelector((set, get, store) =>
+      // Cast — the slice's `SliceCreator<T>` parameter expects the full app
+      // state, but the slice itself only touches its own keys. Safe in tests.
+      createRuntimeEventSlice(set as never, get as never, store as never),
+    ),
   );
 }
 
@@ -138,6 +141,68 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(afterItems).toBe(beforeItems);
     expect(afterItems?.["i1"]).not.toBe(beforeItem);
     expect(afterItems?.["i1"]?.streams.assistant_text).toBe("Hello");
+  });
+
+  it("applies structural item events without cloning the whole thread item map", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "assistant_message",
+    });
+    const beforeItems = store.getState().runtimeItemsByIdByThread["t1"];
+    const beforeItem = beforeItems?.["i1"];
+
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i2",
+      itemType: "assistant_message",
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBe(beforeItems);
+
+    apply("t1", {
+      type: "item.updated",
+      threadId: "t1",
+      itemId: "i1",
+      payload: { content: [] },
+    });
+    const updatedItems = store.getState().runtimeItemsByIdByThread["t1"];
+    expect(updatedItems).toBe(beforeItems);
+    expect(updatedItems?.["i1"]).not.toBe(beforeItem);
+
+    apply("t1", {
+      type: "item.completed",
+      threadId: "t1",
+      itemId: "i1",
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBe(beforeItems);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.state).toBe("completed");
+  });
+
+  it("notifies item selectors while preserving the thread item map", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "assistant_message",
+    });
+    const beforeItems = store.getState().runtimeItemsByIdByThread["t1"];
+    const observed: string[] = [];
+    const unsubscribe = store.subscribe(
+      (state) => state.runtimeItemsByIdByThread["t1"]?.["i1"],
+      (item) => observed.push(item?.state ?? "missing"),
+    );
+
+    apply("t1", {
+      type: "item.completed",
+      threadId: "t1",
+      itemId: "i1",
+    });
+
+    unsubscribe();
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBe(beforeItems);
+    expect(observed).toEqual(["completed"]);
   });
 
   it("stores context usage updates", () => {

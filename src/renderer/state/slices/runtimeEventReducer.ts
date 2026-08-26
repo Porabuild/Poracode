@@ -1,5 +1,6 @@
 import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
+import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import type { AppStoreState } from "./shared";
 import {
   type CompletedTurnRecord,
@@ -51,6 +52,7 @@ export function applyRuntimeEventBatchesToState(
   };
   let changed = false;
   const structuralBumpThreadIds = new Set<string>();
+  const structuralChangedItemIdsByThread = new Map<string, Set<string> | null>();
 
   for (const batch of batches) {
     if (batch.events.length === 0) continue;
@@ -77,7 +79,18 @@ export function applyRuntimeEventBatchesToState(
           if (itemBatch) {
             nextState = itemBatch.state;
             batchChanged = true;
-            if (itemBatch.structuralChanged) structuralBumpThreadIds.add(threadId);
+            if (itemBatch.structuralItemIds === null || itemBatch.structuralItemIds.size > 0) {
+              structuralBumpThreadIds.add(threadId);
+              if (itemBatch.structuralItemIds === null) {
+                structuralChangedItemIdsByThread.set(threadId, null);
+              } else {
+                mergeStructuralChangedItemIds(
+                  structuralChangedItemIdsByThread,
+                  threadId,
+                  itemBatch.structuralItemIds,
+                );
+              }
+            }
           }
           eventIndex = itemRunEnd;
           continue;
@@ -92,7 +105,17 @@ export function applyRuntimeEventBatchesToState(
         nextState = { ...nextState, ...reopenPatch };
       }
       batchChanged = true;
-      if (eventAffectsStructuralVersion(event)) structuralBumpThreadIds.add(threadId);
+      if (eventAffectsStructuralVersion(event)) {
+        structuralBumpThreadIds.add(threadId);
+        if (
+          event.type === "item.completed" &&
+          !nextState.runtimeItemsByIdByThread[threadId]?.[event.itemId]
+        ) {
+          structuralChangedItemIdsByThread.set(threadId, null);
+        } else {
+          noteStructuralChangedEvent(structuralChangedItemIdsByThread, threadId, event);
+        }
+      }
     }
     if (batchChanged) {
       changed = true;
@@ -103,10 +126,16 @@ export function applyRuntimeEventBatchesToState(
   if (structuralBumpThreadIds.size > 0) {
     let runtimeStructuralVersionByThread = nextState.runtimeStructuralVersionByThread;
     for (const threadId of structuralBumpThreadIds) {
+      const nextVersion = (runtimeStructuralVersionByThread[threadId] ?? 0) + 1;
       runtimeStructuralVersionByThread = {
         ...runtimeStructuralVersionByThread,
-        [threadId]: (runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        [threadId]: nextVersion,
       };
+      recordRuntimeStructuralChangeHint(
+        threadId,
+        nextVersion,
+        structuralChangedItemIdsByThread.get(threadId) ?? null,
+      );
     }
     nextState = { ...nextState, runtimeStructuralVersionByThread };
   }
@@ -117,25 +146,28 @@ export function applyRuntimeEventBatchesToState(
 
 /**
  * Buffered sub-agent history is delivered as one batch containing hundreds of
- * item lifecycle events. Clone the thread collections once for that replay;
- * cloning the growing id array and item map for every event makes hydration
- * quadratic and blocks the panel's first paint.
+ * item lifecycle events. Reuse the thread's item index and clone its id array
+ * only if membership changes; copying a large index for every live batch makes
+ * active long threads progressively slower.
  */
 function applyRuntimeItemEvents(
   state: RuntimeEventState,
   threadId: string,
   events: RuntimeEvent[],
   applyReopen: boolean,
-): { state: RuntimeEventState; structuralChanged: boolean } | null {
+): { state: RuntimeEventState; structuralItemIds: ReadonlySet<string> | null } | null {
   if (!events.every(isRuntimeItemEvent)) return null;
 
   const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
   const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-  const preserveItemsMap = events.length === 1 && events[0]?.type === "content.delta";
   const draft: RuntimeItemDraft = {
     itemIds: existingIds,
     itemIdsChanged: false,
-    items: preserveItemsMap ? existingItems : { ...existingItems },
+    // The outer per-thread map is replaced below, so item selectors are still
+    // notified when their item object changes. Keep the inner index mutable:
+    // cloning every entry for each structural batch makes active long threads
+    // progressively slower even though a batch only touches its tail items.
+    items: existingItems,
   };
   let nextState: RuntimeEventState = {
     ...state,
@@ -145,14 +177,24 @@ function applyRuntimeItemEvents(
     },
   };
   let changed = false;
-  let structuralChanged = false;
+  let structuralItemIds: Set<string> | null = new Set<string>();
 
   for (const event of events) {
     const itemIdsChangedBefore = draft.itemIdsChanged;
+    const itemBefore = draft.items[event.itemId];
     const eventChanged = applyRuntimeItemEvent(draft, event);
     if (!eventChanged) continue;
     changed = true;
-    if (eventAffectsStructuralVersion(event)) structuralChanged = true;
+    if (eventAffectsStructuralVersion(event)) {
+      if (itemBefore && !draft.items[event.itemId]) {
+        structuralItemIds = null;
+      } else if (structuralItemIds) {
+        structuralItemIds.add(event.itemId);
+        if (event.type === "item.started" && event.parentItemId) {
+          structuralItemIds.add(event.parentItemId);
+        }
+      }
+    }
     if (!itemIdsChangedBefore && draft.itemIdsChanged) {
       nextState = {
         ...nextState,
@@ -170,7 +212,38 @@ function applyRuntimeItemEvents(
     }
   }
 
-  return changed ? { state: nextState, structuralChanged } : null;
+  return changed ? { state: nextState, structuralItemIds } : null;
+}
+
+function noteStructuralChangedEvent(
+  changes: Map<string, Set<string> | null>,
+  threadId: string,
+  event: RuntimeEvent,
+): void {
+  if (!isRuntimeItemEvent(event)) {
+    changes.set(threadId, null);
+    return;
+  }
+  const itemIds = changes.get(threadId);
+  if (itemIds === null) return;
+  const nextItemIds = itemIds ?? new Set<string>();
+  nextItemIds.add(event.itemId);
+  if (event.type === "item.started" && event.parentItemId) {
+    nextItemIds.add(event.parentItemId);
+  }
+  changes.set(threadId, nextItemIds);
+}
+
+function mergeStructuralChangedItemIds(
+  changes: Map<string, Set<string> | null>,
+  threadId: string,
+  itemIds: ReadonlySet<string>,
+): void {
+  const existing = changes.get(threadId);
+  if (existing === null) return;
+  const merged = existing ?? new Set<string>();
+  for (const itemId of itemIds) merged.add(itemId);
+  changes.set(threadId, merged);
 }
 
 interface RuntimeItemDraft {

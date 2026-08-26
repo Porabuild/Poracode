@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import type { AppStoreState } from "@/renderer/state/appStore";
+import { applyRuntimeEventsToState } from "@/renderer/state/slices/runtimeEventReducer";
+import { readRuntimeStructuralChangeHint } from "@/renderer/state/runtimeStructuralChanges";
 import {
   selectActiveNativeSubAgentThreadIds,
   selectActiveSubAgentParentItemIds,
@@ -474,6 +476,246 @@ describe("chatPaneSelectors", () => {
       },
       { kind: "item", id: "assistant-2" },
       { kind: "item", id: "tool-3" },
+    ]);
+  });
+
+  it("rebuilds only the live timeline tail across an item lifecycle", () => {
+    const threadId = "incremental-tail";
+    const itemIds = Array.from({ length: 256 }, (_, index) => `assistant-${index}`);
+    const items = Object.fromEntries(
+      itemIds.map((id) => [
+        id,
+        {
+          id,
+          type: "assistant_message",
+          state: "completed",
+          streams: { assistant_text: id },
+        },
+      ]),
+    );
+    let state = {
+      runtimeItemIdsByThread: { [threadId]: itemIds },
+      runtimeItemsByIdByThread: { [threadId]: items },
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+      threads: [],
+    } as unknown as AppStoreState;
+    const initial = selectVisibleThreadTimelineEntries(state, threadId);
+
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "tool-live",
+          itemType: "tool_call",
+          payload: { name: "Read", status: "running" },
+        },
+      ]),
+    } as AppStoreState;
+    const started = selectVisibleThreadTimelineEntries(state, threadId);
+    expect(started[0]).toBe(initial[0]);
+    expect(started.at(-1)).toEqual({ kind: "item", id: "tool-live" });
+
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.updated",
+          threadId,
+          itemId: "tool-live",
+          payload: { name: "Read src/app.ts", status: "running" },
+        },
+      ]),
+    } as AppStoreState;
+    const updated = selectVisibleThreadTimelineEntries(state, threadId);
+    expect(updated[0]).toBe(initial[0]);
+    expect(updated.at(-1)).toEqual({ kind: "item", id: "tool-live" });
+
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.completed",
+          threadId,
+          itemId: "tool-live",
+          payload: { status: "success" },
+        },
+      ]),
+    } as AppStoreState;
+    const completed = selectVisibleThreadTimelineEntries(state, threadId);
+    expect(completed[0]).toBe(initial[0]);
+    expect(completed.at(-1)).toEqual({ kind: "item", id: "tool-live" });
+  });
+
+  it("rebuilds a live parent row when an appended subagent child nests under it", () => {
+    const threadId = "incremental-child";
+    let state = {
+      runtimeItemIdsByThread: { [threadId]: ["tool-1", "parent"] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          "tool-1": {
+            id: "tool-1",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Read", status: "success" },
+            streams: {},
+          },
+          parent: {
+            id: "parent",
+            type: "tool_call",
+            state: "started",
+            payload: { name: "Custom tool", status: "running" },
+            streams: {},
+          },
+        },
+      },
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+      threads: [],
+    } as unknown as AppStoreState;
+    expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:tool-1",
+        itemIds: ["tool-1", "parent"],
+      },
+    ]);
+
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "child",
+          itemType: "assistant_message",
+          parentItemId: "parent",
+        },
+      ]),
+    } as AppStoreState;
+
+    expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+      { kind: "item", id: "tool-1" },
+      { kind: "item", id: "parent" },
+    ]);
+  });
+
+  it("falls back to a full projection after skipping structural versions", () => {
+    const threadId = "skipped-versions";
+    const itemIds = Array.from({ length: 256 }, (_, index) => `assistant-${index}`);
+    const items = Object.fromEntries(
+      itemIds.map((id, index) => [
+        id,
+        {
+          id,
+          type: "assistant_message",
+          state: "completed",
+          streams: { assistant_text: index === 0 ? "" : id },
+        },
+      ]),
+    );
+    let state = {
+      runtimeItemIdsByThread: { [threadId]: itemIds },
+      runtimeItemsByIdByThread: { [threadId]: items },
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+      threads: [],
+    } as unknown as AppStoreState;
+    expect(selectVisibleThreadRuntimeItemIds(state, threadId)).not.toContain("assistant-0");
+
+    for (const [itemId, text] of [
+      ["assistant-0", "now visible"],
+      ["assistant-255", "tail changed"],
+    ] as const) {
+      state = {
+        ...state,
+        ...applyRuntimeEventsToState(state, threadId, [
+          {
+            type: "item.updated",
+            threadId,
+            itemId,
+            payload: { content: [{ kind: "text", text }] },
+          },
+        ]),
+      } as AppStoreState;
+    }
+
+    expect(selectVisibleThreadRuntimeItemIds(state, threadId)).toContain("assistant-0");
+  });
+
+  it("recomputes child parents when an empty child is removed", () => {
+    const threadId = "removed-child";
+    let state = {
+      runtimeItemIdsByThread: { [threadId]: ["tool-1", "parent"] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          "tool-1": {
+            id: "tool-1",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Read", status: "success" },
+            streams: {},
+          },
+          parent: {
+            id: "parent",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Custom tool", status: "success" },
+            streams: {},
+          },
+        },
+      },
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+      threads: [],
+    } as unknown as AppStoreState;
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "child",
+          itemType: "reasoning",
+          parentItemId: "parent",
+        },
+      ]),
+    } as AppStoreState;
+    expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+      { kind: "item", id: "tool-1" },
+      { kind: "item", id: "parent" },
+    ]);
+
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        { type: "item.completed", threadId, itemId: "child" },
+      ]),
+    } as AppStoreState;
+    expect(state.runtimeItemIdsByThread[threadId]).not.toContain("child");
+    expect(state.runtimeItemsByIdByThread[threadId]?.child).toBeUndefined();
+    expect(state.runtimeStructuralVersionByThread[threadId]).toBe(3);
+    expect(readRuntimeStructuralChangeHint(threadId, 3)?.itemIds).toBeNull();
+    expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:tool-1",
+        itemIds: ["tool-1", "parent"],
+      },
     ]);
   });
 

@@ -14,6 +14,7 @@ import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { SliceCreator } from "./shared";
+import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
@@ -139,7 +140,10 @@ export interface RuntimeEventSlice {
    * this, parents that never completed (denied permissions, crashes, abrupt
    * exits) keep appearing in the active sub-agent dock forever.
    */
-  reconcileStaleSubAgents(threadId: string): void;
+  reconcileStaleSubAgents(
+    threadId: string,
+    options?: { readonly preserveObservedLive?: boolean },
+  ): void;
   /**
    * Revert the visible chat transcript to a checkpoint item, preserving that
    * item and everything before it. Used by GUI chat checkpoints.
@@ -226,6 +230,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   clearThreadRuntimeEvents: (threadId) =>
     set((state) => {
+      clearRuntimeStructuralChangeHint(threadId);
       if (
         !(threadId in state.runtimeItemIdsByThread) &&
         !(threadId in state.runtimeItemsByIdByThread) &&
@@ -262,12 +267,13 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 
-  reconcileStaleSubAgents: (threadId) =>
+  reconcileStaleSubAgents: (threadId, options) =>
     set((state) => {
       const items = state.runtimeItemsByIdByThread[threadId];
       if (!items) return {};
       let nextItems: Record<string, RuntimeChatItem> | undefined;
       for (const [id, item] of Object.entries(items)) {
+        if (options?.preserveObservedLive === true && item.observedLive === true) continue;
         if (!isStaleSubAgentItem(item)) continue;
         nextItems ??= { ...items };
         nextItems[id] = terminateSubAgentItem(item);
@@ -381,6 +387,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   evictThreadRuntimeItems: (threadId) =>
     set((state) => {
+      clearRuntimeStructuralChangeHint(threadId);
       if (!(threadId in state.runtimeItemIdsByThread)) return {};
       const { [threadId]: _itemIds, ...runtimeItemIdsByThread } = state.runtimeItemIdsByThread;
       const { [threadId]: _items, ...runtimeItemsByIdByThread } = state.runtimeItemsByIdByThread;

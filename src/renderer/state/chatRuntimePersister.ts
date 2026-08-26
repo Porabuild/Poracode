@@ -2,6 +2,7 @@ import type { ToolCallPayload } from "@/shared/contracts";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { captureRendererException } from "../diagnostics/sentry";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
+import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { readBridge } from "../bridge";
 import { useAppStore } from "./appStore";
 import {
@@ -13,10 +14,14 @@ import {
 const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_TRANSCRIPTS = 10;
+const MAX_CACHED_THREAD_RUNTIME_ITEMS = 5_000;
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
 const olderRuntimePageCursorByThread = new Map<string, number | null>();
-const pendingOlderRuntimePages = new Map<string, Promise<boolean>>();
+const pendingOlderRuntimePages = new Map<
+  string,
+  { cancelled: boolean; readonly promise: Promise<boolean> }
+>();
 const retainedThreadRuntimeCounts = new Map<string, number>();
 const inactiveThreadRuntimeLru = new Set<string>();
 
@@ -36,8 +41,13 @@ export function seedOlderThreadRuntimeItemsCursor(
   cursor: number | null,
   options: { readonly preserveExistingCursor?: boolean } = {},
 ): void {
-  hydratedThreadRuntimeIds.add(threadId);
   const currentCursor = olderRuntimePageCursorByThread.get(threadId);
+  if (
+    options.preserveExistingCursor !== true ||
+    (cursor === null && currentCursor !== undefined && currentCursor !== null)
+  )
+    cancelPendingOlderRuntimePage(threadId);
+  hydratedThreadRuntimeIds.add(threadId);
   if (options.preserveExistingCursor !== true || currentCursor === undefined || cursor === null) {
     olderRuntimePageCursorByThread.set(threadId, cursor);
     return;
@@ -47,10 +57,7 @@ export function seedOlderThreadRuntimeItemsCursor(
 }
 
 export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
-  return (
-    hydratedThreadRuntimeIds.has(threadId) ||
-    Object.prototype.hasOwnProperty.call(useAppStore.getState().runtimeItemIdsByThread, threadId)
-  );
+  return hydratedThreadRuntimeIds.has(threadId);
 }
 
 export function retainThreadRuntimeItems(threadId: string): void {
@@ -67,6 +74,7 @@ export function releaseThreadRuntimeItems(threadId: string): void {
   retainedThreadRuntimeCounts.delete(threadId);
   inactiveThreadRuntimeLru.delete(threadId);
   inactiveThreadRuntimeLru.add(threadId);
+  evictOversizedInactiveThreadRuntimeItems([threadId]);
   evictInactiveThreadRuntimeItems();
 }
 
@@ -74,8 +82,9 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
   const cursor = olderRuntimePageCursorByThread.get(threadId);
   if (cursor === undefined || cursor === null) return false;
   const pending = pendingOlderRuntimePages.get(threadId);
-  if (pending) return pending;
+  if (pending && !pending.cancelled) return pending.promise;
 
+  const request = { cancelled: false, promise: Promise.resolve(false) };
   const load = (async () => {
     const page = await readBridge().dbGetThreadRuntimeItemsPage({
       threadId,
@@ -83,22 +92,30 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
       limit: RUNTIME_PAGE_SCAN_SIZE,
       targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
     });
+    if (request.cancelled || !hydratedThreadRuntimeIds.has(threadId)) {
+      return false;
+    }
     olderRuntimePageCursorByThread.set(threadId, page.nextCursor);
     if (page.items.length === 0) return false;
     const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
     useAppStore.getState().prependThreadRuntimeItems(threadId, items);
-    useAppStore.getState().reconcileStaleSubAgents(threadId);
+    useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
+    evictOversizedInactiveThreadRuntimeItems([threadId]);
+    evictInactiveThreadRuntimeItems();
     return true;
   })().catch((error: unknown) => {
     console.warn("[chat] failed to load older runtime items for thread %s", threadId, error);
     captureRendererException(error, { featureArea: "runtime-persistence" });
     return false;
   });
-  pendingOlderRuntimePages.set(threadId, load);
+  request.promise = load;
+  pendingOlderRuntimePages.set(threadId, request);
   try {
     return await load;
   } finally {
-    pendingOlderRuntimePages.delete(threadId);
+    if (pendingOlderRuntimePages.get(threadId) === request) {
+      pendingOlderRuntimePages.delete(threadId);
+    }
   }
 }
 
@@ -121,6 +138,8 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
     const completed = await hydration;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
+      evictOversizedInactiveThreadRuntimeItems([threadId]);
+      evictInactiveThreadRuntimeItems();
     }
   } finally {
     pendingThreadRuntimeHydrations.delete(threadId);
@@ -147,14 +166,24 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
   if (itemsResult.status === "fulfilled" && itemsResult.value.items.length > 0) {
     // Persisted rows can contain raw tool runs or legacy synthetic summaries;
     // normalize both forms during hydration.
-    const items = compactRuntimeItemsForHydration(itemsResult.value.items.map(toRuntimeChatItem));
-    useAppStore.getState().hydrateThreadRuntimeItems(threadId, items);
+    const persistedItems = itemsResult.value.items.map(toRuntimeChatItem);
+    const state = useAppStore.getState();
+    const existingItemIds = state.runtimeItemIdsByThread[threadId] ?? [];
+    if (existingItemIds.length === 0) {
+      state.hydrateThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedItems));
+    } else {
+      const existingItemIdSet = new Set(existingItemIds);
+      const overlapIndex = persistedItems.findIndex((item) => existingItemIdSet.has(item.id));
+      const persistedPrefix =
+        overlapIndex < 0 ? persistedItems : persistedItems.slice(0, overlapIndex);
+      state.prependThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedPrefix));
+    }
     // Any sub-agent tool_call that was mid-flight when the prior session
     // ended will hydrate here as still "running" and show up in the active
     // sub-agent dock forever. Reconcile in place so those rows render as
     // terminated immediately instead of waiting for a live event that will
     // never come.
-    useAppStore.getState().reconcileStaleSubAgents(threadId);
+    useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
   } else if (itemsResult.status === "rejected") {
     console.warn(
       "[chat] failed to hydrate runtime items for thread %s",
@@ -203,10 +232,29 @@ function evictInactiveThreadRuntimeItems(): void {
   while (inactiveThreadRuntimeLru.size > MAX_CACHED_THREAD_TRANSCRIPTS) {
     const threadId = inactiveThreadRuntimeLru.keys().next().value as string | undefined;
     if (!threadId) return;
-    inactiveThreadRuntimeLru.delete(threadId);
-    hydratedThreadRuntimeIds.delete(threadId);
-    olderRuntimePageCursorByThread.delete(threadId);
-    useAppStore.getState().evictThreadRuntimeItems(threadId);
+    evictThreadRuntimeItems(threadId);
+  }
+}
+
+function evictThreadRuntimeItems(threadId: string): void {
+  inactiveThreadRuntimeLru.delete(threadId);
+  hydratedThreadRuntimeIds.delete(threadId);
+  olderRuntimePageCursorByThread.delete(threadId);
+  cancelPendingOlderRuntimePage(threadId);
+  clearRuntimeItemStoreSelectorCacheForThread(threadId);
+  useAppStore.getState().evictThreadRuntimeItems(threadId);
+}
+
+function cancelPendingOlderRuntimePage(threadId: string): void {
+  const pending = pendingOlderRuntimePages.get(threadId);
+  if (pending) pending.cancelled = true;
+}
+
+export function evictOversizedInactiveThreadRuntimeItems(threadIds: readonly string[]): void {
+  for (const threadId of threadIds) {
+    if (retainedThreadRuntimeCounts.has(threadId)) continue;
+    const itemCount = useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0;
+    if (itemCount > MAX_CACHED_THREAD_RUNTIME_ITEMS) evictThreadRuntimeItems(threadId);
   }
 }
 
