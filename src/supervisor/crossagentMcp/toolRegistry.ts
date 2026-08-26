@@ -179,7 +179,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -584,12 +584,31 @@ async function spawnAgent(
     if (tasks.length > MAX_CONCURRENT_CHILDREN_PER_PARENT) {
       return errorResult(`tasks supports at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} entries`);
     }
+    const batchSelection = {
+      ...(typeof args.provider === "string" ? { provider: args.provider } : {}),
+      ...(typeof args.model === "string" ? { model: args.model } : {}),
+      ...(typeof args.reasoning === "string" ? { reasoning: args.reasoning } : {}),
+      ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
+      ...(typeof args.permissions === "string" ? { permissions: args.permissions } : {}),
+    };
     const resolvedTasks: Array<ResolvedSelectionArgs | null> = await Promise.all(
       tasks.map(async (task) => {
         if (!task || typeof task !== "object" || Array.isArray(task)) {
           return null;
         }
-        const taskArgs = task as Record<string, unknown>;
+        const { provider, model, reasoning, fast, permissions, ...taskProperties } = task as Record<
+          string,
+          unknown
+        >;
+        const taskArgs = {
+          ...batchSelection,
+          ...taskProperties,
+          ...(typeof provider === "string" && provider.length > 0 ? { provider } : {}),
+          ...(typeof model === "string" && model.length > 0 ? { model } : {}),
+          ...(typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {}),
+          ...(typeof fast === "boolean" ? { fast } : {}),
+          ...(typeof permissions === "string" ? { permissions } : {}),
+        };
         return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
       }),
     );
