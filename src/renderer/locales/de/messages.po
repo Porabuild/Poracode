@@ -316,9 +316,12 @@ msgstr "{0}-Token"
 msgid "{0} tokens - {when}"
 msgstr "{0} Tokens - {when}"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
+#. placeholder {1}: entry.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0} auf Version {1} aktualisiert."
 
@@ -7122,8 +7125,8 @@ msgstr "Modellbeschriftung"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Model order"
-msgstr "Modellreihenfolge"
+#~ msgid "Model order"
+#~ msgstr "Modellreihenfolge"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9297,7 +9300,9 @@ msgstr "Anbieternutzung"
 msgid "providers"
 msgstr "Anbieter"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Anbieter"
@@ -13020,9 +13025,11 @@ msgstr "{0} ({envName}) kann nicht aktualisiert werden."
 msgid "Unable to update {0} hooks."
 msgstr "{0}-Hooks können nicht aktualisiert werden."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "{0} kann nicht aktualisiert werden: {1}"
 
@@ -13035,6 +13042,7 @@ msgstr "{0} kann nicht aktualisiert werden: {detailText}"
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "{0} kann nicht aktualisiert werden."
 
@@ -13228,10 +13236,16 @@ msgstr "Aktualisierung"
 msgid "Update"
 msgstr "Aktualisieren"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "Aktualisieren Sie {0} auf {updateLabel}"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Update all"
+msgstr "Alle aktualisieren"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
@@ -13289,7 +13303,9 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "Update auf {updateLabel} für {0} ({env})"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Update to v{0}"
 msgstr "Update auf v{0}"
 
@@ -13315,10 +13331,13 @@ msgid "Updated {0}"
 msgstr "{0} aktualisiert"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Wird aktualisiert …"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0} wird aktualisiert"

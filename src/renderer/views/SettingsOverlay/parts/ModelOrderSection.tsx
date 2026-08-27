@@ -1,13 +1,16 @@
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
-import { GripVertical, RotateCcw } from "lucide-react";
+import { Button } from "@heroui/react";
+import { ArrowUpCircle, GripVertical, RotateCcw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
+import { PixelLoader } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderModelPickerRank } from "@/renderer/components/providers/providerManifest";
+import { useProviderUpdates, type ProviderUpdateEntry } from "./useProviderUpdates";
 
 function resolveDisplayedKinds(
   installed: readonly AgentStatus[],
@@ -37,8 +40,14 @@ function resolveDisplayedKinds(
   return ordered;
 }
 
-function SortableProviderRow(props: { agent: AgentStatus; index: number }) {
-  const { agent, index } = props;
+function SortableProviderRow(props: {
+  agent: AgentStatus;
+  index: number;
+  update: ProviderUpdateEntry;
+  isBulkUpdating: boolean;
+  onUpdate: (kind: string) => void;
+}) {
+  const { agent, index, update, isBulkUpdating, onUpdate } = props;
   const { t } = useLingui();
   const { ref, handleRef, isDragging } = useSortable({
     id: `provider-order:${agent.kind}`,
@@ -48,6 +57,7 @@ function SortableProviderRow(props: { agent: AgentStatus; index: number }) {
     group: "provider-order",
     data: { kind: agent.kind },
   });
+  const updateLabel = update.targetVersion ? `v${update.targetVersion}` : "";
 
   return (
     <div
@@ -71,6 +81,36 @@ function SortableProviderRow(props: { agent: AgentStatus; index: number }) {
         className="size-3.5 shrink-0"
       />
       <span className="truncate text-foreground">{agent.label}</span>
+      <span className="ml-auto shrink-0 tabular-nums text-muted/60">
+        {update.environments.length > 0
+          ? update.environments
+              .map((env) => `${env.label} ${env.version ? `v${env.version}` : "—"}`.trim())
+              .join(" · ")
+          : update.installedVersion
+            ? `v${update.installedVersion}`
+            : "—"}
+      </span>
+      {update.isPending ? (
+        <div
+          className="flex size-5 shrink-0 items-center justify-center"
+          role="status"
+          aria-label={t`Updating ${agent.label}`}
+        >
+          <PixelLoader size="xs" />
+        </div>
+      ) : update.targetVersion ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-5 min-h-5 shrink-0 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
+          aria-label={t`Update ${agent.label} to ${updateLabel}`}
+          isDisabled={isBulkUpdating}
+          onPress={() => onUpdate(agent.kind)}
+        >
+          <ArrowUpCircle className="size-3" />
+          <Trans>Update to v{update.targetVersion}</Trans>
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -90,6 +130,7 @@ export function ModelOrderSection() {
     .filter((a): a is AgentStatus => a !== undefined);
 
   const isCustomized = providerOrder.length > 0;
+  const updates = useProviderUpdates(orderedAgents);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -115,7 +156,7 @@ export function ModelOrderSection() {
     >
       <div className="flex items-center gap-2">
         <p className="text-sm font-medium text-foreground">
-          <Trans>Model order</Trans>
+          <Trans>Providers</Trans>
         </p>
         {isCustomized ? (
           <button
@@ -127,6 +168,22 @@ export function ModelOrderSection() {
             <RotateCcw className="size-3" />
           </button>
         ) : null}
+        {updates.outdatedKinds.length > 0 ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-6 min-h-6 gap-1 px-2 text-[11px]"
+            isPending={updates.isUpdatingAll}
+            onPress={updates.updateAll}
+          >
+            {updates.isUpdatingAll ? (
+              <PixelLoader size="xs" />
+            ) : (
+              <ArrowUpCircle className="size-3" />
+            )}
+            {updates.isUpdatingAll ? t`Updating` : t`Update all`}
+          </Button>
+        ) : null}
       </div>
       <p className="text-xs text-muted">
         <Trans>Drag to reorder how providers appear in the model picker.</Trans>
@@ -134,7 +191,14 @@ export function ModelOrderSection() {
       <DragDropProvider onDragEnd={handleDragEnd}>
         <div className="flex flex-col gap-1">
           {orderedAgents.map((agent, index) => (
-            <SortableProviderRow key={agent.kind} agent={agent} index={index} />
+            <SortableProviderRow
+              key={agent.kind}
+              agent={agent}
+              index={index}
+              update={updates.entryFor(agent.kind)}
+              isBulkUpdating={updates.isUpdatingAll}
+              onUpdate={updates.updateKind}
+            />
           ))}
         </div>
       </DragDropProvider>

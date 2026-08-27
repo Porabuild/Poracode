@@ -316,9 +316,12 @@ msgstr "{0} jeton"
 msgid "{0} tokens - {when}"
 msgstr "{0} token - {when}"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
+#. placeholder {1}: entry.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0} v{1} sürümüne güncellendi."
 
@@ -7122,8 +7125,8 @@ msgstr "Model etiketi"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Model order"
-msgstr "Model sırası"
+#~ msgid "Model order"
+#~ msgstr "Model sırası"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9297,7 +9300,9 @@ msgstr "Sağlayıcı kullanımı"
 msgid "providers"
 msgstr "sağlayıcılar"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Sağlayıcılar"
@@ -13020,9 +13025,11 @@ msgstr "{0} ({envName}) güncellenemiyor."
 msgid "Unable to update {0} hooks."
 msgstr "{0} kancaları güncellenemiyor."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "{0} güncellenemiyor: {1}"
 
@@ -13035,6 +13042,7 @@ msgstr "{0} güncellenemiyor: {detailText}"
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "{0} güncellenemiyor."
 
@@ -13228,10 +13236,16 @@ msgstr "güncelleme"
 msgid "Update"
 msgstr "Güncelleme"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "{0} öğesini {updateLabel} olarak güncelleyin"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Update all"
+msgstr "Tümünü güncelle"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
@@ -13289,7 +13303,9 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "{0} ({env}) için {updateLabel} güncellemesi"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Update to v{0}"
 msgstr "v{0}'ye güncelleme"
 
@@ -13315,10 +13331,13 @@ msgid "Updated {0}"
 msgstr "{0} güncellendi"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Güncelleniyor"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0} güncelleniyor"
