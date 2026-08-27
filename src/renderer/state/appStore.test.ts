@@ -251,6 +251,39 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().projects).toHaveLength(1);
   });
 
+  it("does not bump updatedAt when the composer changes config without sending", () => {
+    // Changing effort/model/mode is not thread activity: bumping `updatedAt`
+    // reshuffled the sidebar and advanced the relative-time label before the
+    // user had sent anything.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4", effort: "low" },
+      prompt: "hello",
+    });
+    const originalUpdatedAt = thread.updatedAt;
+
+    vi.setSystemTime(new Date("2026-05-10T13:00:00.000Z"));
+    useAppStore.getState().updateThreadConfig(thread.id, {
+      model: "gpt-5.4",
+      effort: "high",
+    });
+
+    expect(useAppStore.getState().threads[0]?.config.effort).toBe("high");
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe(originalUpdatedAt);
+
+    // Sending is what marks the thread as active.
+    useAppStore.getState().touchThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T13:00:00.000Z");
+    vi.useRealTimers();
+  });
+
   it("preserves a user's pending composer change when runtime echoes the prior config", () => {
     // Reproduces the bug where a thread-state event from the supervisor (which
     // re-sends `session.config` on every status update) clobbered a pending
