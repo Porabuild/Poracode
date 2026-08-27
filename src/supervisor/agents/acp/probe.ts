@@ -21,6 +21,7 @@ import {
   type SessionMode,
 } from "@agentclientprotocol/sdk";
 import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contracts";
+import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import {
   findThoughtLevelConfigOption,
@@ -328,9 +329,13 @@ export function mapAcpThoughtLevels(configOptions: unknown): {
     return { efforts: [] };
   }
 
-  const efforts = flattenSelectOptions(option.options)
-    .map((entry) => entry.value)
-    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  // Agents advertise the levels in their own order (qodercli reports
+  // `xhigh, low, medium, none`); present them weakest → strongest instead.
+  const efforts = sortEffortsByCanonicalOrder(
+    flattenSelectOptions(option.options)
+      .map((entry) => entry.value)
+      .filter((value): value is string => typeof value === "string" && value.length > 0),
+  );
 
   const defaultEffort =
     typeof option.currentValue === "string" && option.currentValue.length > 0

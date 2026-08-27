@@ -655,6 +655,16 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("rejects a v5 host whose paged snapshots use the old goal anchor semantics", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(5, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
   it("falls back to the legacy environment endpoint when the Poracode endpoint is unavailable", async () => {
     const requestedPaths: string[] = [];
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async (url) => {

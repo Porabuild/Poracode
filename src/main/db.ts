@@ -37,6 +37,7 @@ export {
   dbReadThreadRuntimeSummaries,
   dbGetThreadRuntimeSummaries,
   dbGetThreadRuntimeItem,
+  dbGetLatestThreadGoalItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbTruncateThreadRuntimeAfter,

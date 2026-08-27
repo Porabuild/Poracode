@@ -352,10 +352,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         const nextConfig = thread.presentationMode === "gui" ? config : stripPlanMode(config);
         if (isThreadConfigEqual(thread.config, nextConfig)) return thread;
         changed = true;
+        // Deliberately no `updatedAt` bump: picking a model/effort/mode in the
+        // composer is not thread activity, and bumping it would reshuffle the
+        // sidebar (and the relative-time label) before anything was sent. The
+        // send path touches the thread on submit instead.
         return {
           ...thread,
           config: nextConfig,
-          updatedAt: new Date().toISOString(),
         };
       });
       return changed ? { threads } : {};

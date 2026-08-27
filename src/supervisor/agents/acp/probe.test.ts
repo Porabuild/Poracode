@@ -367,9 +367,33 @@ describe("mapAcpThoughtLevels", () => {
       },
     ]);
 
+    // Qoder advertises the levels out of order; the probe sorts them
+    // weakest -> strongest so the effort picker reads as a ladder.
     expect(result).toEqual({
-      efforts: ["xhigh", "high", "low"],
+      efforts: ["low", "high", "xhigh"],
       defaultEffort: "xhigh",
+    });
+  });
+
+  it("sorts unknown effort levels after the canonical ladder, in discovery order", () => {
+    const result = mapAcpThoughtLevels([
+      {
+        id: "thought_level",
+        category: "thought_level",
+        type: "select",
+        currentValue: "on",
+        options: [
+          { value: "on", name: "On" },
+          { value: "max", name: "Max" },
+          { value: "turbo", name: "Turbo" },
+          { value: "low", name: "Low" },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["low", "max", "on", "turbo"],
+      defaultEffort: "on",
     });
   });
 

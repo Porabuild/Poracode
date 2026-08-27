@@ -47,6 +47,7 @@ import {
   dbGetProjects,
   dbGetThread,
   dbGetThreadContextUsage,
+  dbGetLatestThreadGoalItem,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
@@ -90,6 +91,7 @@ vi.mock("../db", () => {
     dbGetProjects: vi.fn<() => unknown[]>(() => []),
     dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
     dbGetThreadContextUsage: vi.fn<() => null>(() => null),
+    dbGetLatestThreadGoalItem: vi.fn<() => unknown>(() => null),
     dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
     dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
     dbGetThreadRuntimeItemsPage: vi.fn<() => { items: unknown[]; nextCursor: number | null }>(
@@ -158,6 +160,7 @@ afterEach(async () => {
   vi.mocked(dbGetProjectNotes).mockReset().mockReturnValue(null);
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
+  vi.mocked(dbGetLatestThreadGoalItem).mockReset().mockReturnValue(null);
   vi.mocked(dbGetLatestThreadRuntimeAnchorItemId).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadRuntimeItemsPage)
@@ -919,8 +922,16 @@ describe("RemoteAccessServer", () => {
         streams: {},
       },
     ];
+    const goalItem = {
+      id: "goal-outside-tail",
+      type: "goal",
+      state: "updated" as const,
+      payload: { action: "set", objective: "Keep the remote dock visible" },
+      streams: {},
+    };
     const tailPage = { items: [fullItems[1]!], nextCursor: 41 };
     vi.mocked(dbGetThread).mockReturnValue(thread);
+    vi.mocked(dbGetLatestThreadGoalItem).mockReturnValue(goalItem);
     vi.mocked(dbGetThreadRuntimeItems).mockReturnValue(fullItems);
     vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailPage);
 
@@ -949,7 +960,7 @@ describe("RemoteAccessServer", () => {
     );
     expect(tailResponse.status).toBe(200);
     await expect(tailResponse.json()).resolves.toMatchObject({
-      runtimeItems: tailPage.items,
+      runtimeItems: [goalItem, ...tailPage.items],
       runtimeNextCursor: 41,
     });
     expect(dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
@@ -959,6 +970,8 @@ describe("RemoteAccessServer", () => {
       40,
     );
 
+    const tailWithGoal = { items: [goalItem, ...tailPage.items], nextCursor: 41 };
+    vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailWithGoal);
     const narrowTailResponse = await fetch(
       new URL(
         "/api/threads/thread-paged/history?runtimePage=1&targetTimelineEntryCount=20",
@@ -968,7 +981,7 @@ describe("RemoteAccessServer", () => {
     );
     expect(narrowTailResponse.status).toBe(200);
     await expect(narrowTailResponse.json()).resolves.toMatchObject({
-      runtimeItems: tailPage.items,
+      runtimeItems: tailWithGoal.items,
       runtimeNextCursor: 41,
     });
     expect(dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
@@ -978,6 +991,7 @@ describe("RemoteAccessServer", () => {
       20,
     );
 
+    vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailPage);
     const olderResponse = await fetch(
       new URL(
         "/api/threads/thread-paged/history/items?beforePosition=41&limit=500&targetTimelineEntryCount=40",

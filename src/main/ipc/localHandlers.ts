@@ -14,6 +14,7 @@ import {
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
+  dbGetLatestThreadGoalItem,
   dbTruncateThreadRuntimeAfter,
   dbGetThreads,
   dbPersistExperimentState,
@@ -527,6 +528,7 @@ export function createLocalIpcHandlers(
     dbGetThreadRuntimeItems: ({ threadId }) => dbGetThreadRuntimeItems(threadId),
     dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit, targetTimelineEntryCount }) =>
       dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
+    dbGetLatestThreadGoalItem: ({ threadId }) => dbGetLatestThreadGoalItem(threadId),
     dbTruncateThreadRuntimeAfter: ({ threadId, itemId }) =>
       dbTruncateThreadRuntimeAfter(threadId, itemId),
     dbReplaceThreadRuntimeItems: ({ threadId, items }) =>

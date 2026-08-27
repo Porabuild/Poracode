@@ -374,6 +374,58 @@ describe("applyThreadSnapshot", () => {
     expect(assistantStreamText("tail-a")).toBe("updated");
   });
 
+  it("catches up an active paged snapshot while preserving a pinned goal's order", () => {
+    const goal: PersistedRuntimeItem = {
+      id: "goal-1",
+      type: "goal",
+      state: "updated",
+      payload: { action: "set", objective: "Finish the task" },
+      streams: {},
+    };
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [goal, makeItem({ id: "tail-a" })],
+        runtimeNextCursor: 10,
+      }),
+    );
+
+    useAppStore.getState().applyRuntimeEvents(THREAD_ID, [
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "live-message",
+        itemType: "assistant_message",
+      },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "live-message",
+        stream: "assistant_text",
+        delta: "partial",
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [
+          goal,
+          makeItem({ id: "tail-a" }),
+          makeItem({ id: "live-message", assistantText: "partial complete" }),
+        ],
+        runtimeNextCursor: 10,
+      }),
+    );
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual([
+      "goal-1",
+      "tail-a",
+      "live-message",
+    ]);
+    expect(assistantStreamText("live-message")).toBe("partial complete");
+  });
+
   it("splices a missed initial user_message ahead of a fresher live transcript", () => {
     // Launch race: the thread's first events broadcast before this client's
     // mirrored thread list contained the id, so the live filter dropped the

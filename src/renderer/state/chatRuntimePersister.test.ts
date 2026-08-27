@@ -29,6 +29,18 @@ const { bridge } = vi.hoisted(() => ({
       .fn<(threadId: string) => Promise<never[]>>()
       .mockResolvedValue([]),
     dbGetThreadContextUsage: vi.fn<(threadId: string) => Promise<null>>().mockResolvedValue(null),
+    dbGetLatestThreadGoalItem: vi
+      .fn<
+        (input: { threadId: string }) => Promise<{
+          id: string;
+          type: string;
+          state: "started" | "updated" | "completed";
+          payload?: unknown;
+          streams: Record<string, string>;
+          parentItemId?: string;
+        } | null>
+      >()
+      .mockResolvedValue(null),
   },
 }));
 
@@ -160,6 +172,7 @@ describe("paged runtime hydration", () => {
     vi.clearAllMocks();
     bridge.dbGetThreadCompletedTurns.mockResolvedValue([]);
     bridge.dbGetThreadContextUsage.mockResolvedValue(null);
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValue(null);
     useAppStore.setState((state) => ({
       ...state,
       runtimeItemIdsByThread: {},
@@ -535,5 +548,93 @@ describe("paged runtime hydration", () => {
     );
     evictOversizedInactiveThreadRuntimeItems([threadId]);
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBeUndefined();
+  });
+
+  it("re-pins an out-of-window goal item when the paged tail has none", async () => {
+    const threadId = "long-goal-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValueOnce({
+      id: "goal-old",
+      type: "goal",
+      state: "updated",
+      payload: { action: "set", objective: "ship coverage", status: "active" },
+      streams: {},
+    });
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-old",
+      "assistant-recent",
+    ]);
+    const goal = useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["goal-old"];
+    expect(goal?.type).toBe("goal");
+  });
+
+  it("retries hydration after the latest goal lookup fails", async () => {
+    const threadId = "goal-retry-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValue({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({
+        id: "goal-old",
+        type: "goal",
+        state: "updated",
+        payload: { action: "set", objective: "retry coverage", status: "active" },
+        streams: {},
+      });
+
+    await hydrateThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(bridge.dbGetLatestThreadGoalItem).toHaveBeenCalledTimes(2);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-old",
+      "assistant-recent",
+    ]);
+  });
+
+  it("does not duplicate a goal item already present in the tail", async () => {
+    const threadId = "goal-in-tail-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [
+        makeItem({ id: "goal-in-tail", type: "goal", payload: { objective: "keep me" } }),
+        makeItem({ id: "assistant-recent", type: "assistant_message" }),
+      ],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValueOnce({
+      id: "goal-in-tail",
+      type: "goal",
+      state: "updated",
+      payload: { objective: "keep me" },
+      streams: {},
+    });
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-in-tail",
+      "assistant-recent",
+    ]);
+  });
+
+  it("does not pin when no persisted goal exists", async () => {
+    const threadId = "no-goal-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValueOnce(null);
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["assistant-recent"]);
   });
 });

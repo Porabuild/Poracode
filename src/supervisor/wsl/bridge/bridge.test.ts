@@ -386,6 +386,40 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     ).toBe(false);
   });
 
+  it("falls back to a Poracode identity when the repository has no git identity", async () => {
+    git(projectRoot, "init");
+    // Fresh distros can have no user.name/user.email in any config scope.
+    // Route the bridge's own global/system config at nonexistent files so it
+    // sees exactly that, instead of inheriting the host's real identity.
+    const identityBridge = await startBridge({
+      GIT_CONFIG_GLOBAL: join(projectRoot, "absent-global-config"),
+      GIT_CONFIG_SYSTEM: join(projectRoot, "absent-system-config"),
+      GIT_CONFIG_NOSYSTEM: "1",
+    });
+    try {
+      const metadata = {
+        threadId: "thread-1",
+        checkpointItemId: "user-1",
+        capturedAt: "2026-05-16T00:00:00.000Z",
+        ref: "refs/poracode/checkpoints/dGhyZWFkLTE/dXNlci0x",
+      };
+      const { status, body } = await post(`${identityBridge.baseUrl}/v1/git/checkpoint-snapshot`, {
+        projectRoot,
+        ref: metadata.ref,
+        metadata,
+      });
+
+      expect(status).toBe(200);
+      const envelope = body as { ok: boolean; data: { commit: string } };
+      expect(envelope.ok).toBe(true);
+      expect(git(projectRoot, "log", "-1", "--format=%an <%ae>", envelope.data.commit).trim()).toBe(
+        "Poracode <checkpoints@poracode.local>",
+      );
+    } finally {
+      await identityBridge.dispose();
+    }
+  });
+
   it("runs structured git batches without a shell", async () => {
     git(projectRoot, "init");
     git(projectRoot, "config", "user.email", "test@example.com");

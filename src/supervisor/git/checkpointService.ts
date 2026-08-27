@@ -16,6 +16,31 @@ const LEGACY_REF_ROOT = "refs/lightcode/checkpoints";
 
 type CheckpointMetadata = FileCheckpointRecord | FileCheckpointTurn;
 
+/**
+ * Checkpoints are internal, never-published commits, so a repository without a
+ * configured `user.name`/`user.email` must still be able to snapshot. These env
+ * vars outrank config, so they are applied ONLY as a retry after git reports a
+ * missing identity — a configured identity keeps authoring its own snapshots.
+ */
+export const CHECKPOINT_FALLBACK_IDENT_ENV: Record<string, string> = {
+  GIT_AUTHOR_NAME: "Poracode",
+  GIT_AUTHOR_EMAIL: "checkpoints@poracode.local",
+  GIT_COMMITTER_NAME: "Poracode",
+  GIT_COMMITTER_EMAIL: "checkpoints@poracode.local",
+};
+
+const MISSING_IDENTITY_RE =
+  /identity unknown|unable to auto-detect email|empty ident name|no name was given|no email was given/i;
+
+export function isMissingGitIdentityError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const parts = [
+    "message" in error ? String((error as { message: unknown }).message ?? "") : "",
+    "stderr" in error ? String((error as { stderr: unknown }).stderr ?? "") : "",
+  ];
+  return parts.some((part) => MISSING_IDENTITY_RE.test(part));
+}
+
 export function buildCheckpointCommitInput(
   tree: string,
   head: string | null,
@@ -173,9 +198,7 @@ export class GitCheckpointService {
       const tree = (await execGit(projectLocation, ["write-tree"], { env })).trim();
       const head = await resolveHeadCommit(projectLocation);
       const commitInput = buildCheckpointCommitInput(tree, head, { ...metadata, ref });
-      const commit = (
-        await execGit(projectLocation, commitInput.args, { env, input: commitInput.input })
-      ).trim();
+      const commit = (await commitCheckpointTree(projectLocation, commitInput, env)).trim();
       await execGit(projectLocation, ["update-ref", ref, commit]);
       return {
         threadId: metadata.threadId,
@@ -213,6 +236,35 @@ export class GitCheckpointService {
     } catch {
       return null;
     }
+  }
+}
+
+/**
+ * Run `commit-tree`, retrying once with a fallback identity when the repository
+ * (and the user's global config) provides none. Without the retry every
+ * checkpoint fails with "Author identity unknown" on a fresh machine.
+ */
+async function commitCheckpointTree(
+  projectLocation: ProjectLocation,
+  commitInput: { args: string[]; input: string },
+  env: Record<string, string>,
+): Promise<string> {
+  // Force English error text so isMissingGitIdentityError() can match it
+  // regardless of the machine's system locale.
+  const identityCheckEnv = { ...env, LC_ALL: "C" };
+  try {
+    return await execGit(projectLocation, commitInput.args, {
+      env: identityCheckEnv,
+      input: commitInput.input,
+    });
+  } catch (error) {
+    if (!isMissingGitIdentityError(error) && !isMissingGitIdentityError((error as Error)?.cause)) {
+      throw error;
+    }
+    return await execGit(projectLocation, commitInput.args, {
+      env: { ...env, ...CHECKPOINT_FALLBACK_IDENT_ENV },
+      input: commitInput.input,
+    });
   }
 }
 
