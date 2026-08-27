@@ -247,7 +247,8 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
   return (
     itemsResult.status !== "rejected" &&
     turnsResult.status !== "rejected" &&
-    contextResult.status !== "rejected"
+    contextResult.status !== "rejected" &&
+    latestGoalResult.status !== "rejected"
   );
 }
 

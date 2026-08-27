@@ -574,6 +574,32 @@ describe("paged runtime hydration", () => {
     expect(goal?.type).toBe("goal");
   });
 
+  it("retries hydration after the latest goal lookup fails", async () => {
+    const threadId = "goal-retry-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValue({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({
+        id: "goal-old",
+        type: "goal",
+        state: "updated",
+        payload: { action: "set", objective: "retry coverage", status: "active" },
+        streams: {},
+      });
+
+    await hydrateThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(bridge.dbGetLatestThreadGoalItem).toHaveBeenCalledTimes(2);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-old",
+      "assistant-recent",
+    ]);
+  });
+
   it("does not duplicate a goal item already present in the tail", async () => {
     const threadId = "goal-in-tail-thread";
     bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
