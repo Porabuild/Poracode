@@ -275,6 +275,39 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     });
   }
 
+  // Push arm shared by the plain push entries and both "…& Create PR" chains:
+  // run the command, report it, flip the cached status optimistically, and let
+  // a plain push schedule the delayed refresh (GitHub takes a beat to register
+  // the new commits, so an immediate fetch sees stale PR state). Chains pass
+  // skipDelayedRefresh instead: the delayed refresh would race with
+  // handleCreatePr's setPrData and overwrite it with a stale snapshot.
+  async function pushBranch(options: {
+    // The commit flow reports the whole commit+push as git.commit_created and
+    // must not emit a second sync event.
+    emitSyncEvent: boolean;
+    skipDelayedRefresh: boolean;
+  }): Promise<void> {
+    await runGitSyncCommand({
+      command: "push",
+      projectLocation: project.location,
+      setUpstream: !hasTracking,
+    });
+    if (options.emitSyncEvent) {
+      captureProductEvent("git.sync_action", {
+        action: "push",
+        has_remote: hasRemote,
+        has_tracking: hasTracking,
+        has_worktree: Boolean(worktreePath),
+      });
+    }
+    refreshPrAfterPush();
+    // Optimistic: a successful push clears `ahead`.
+    applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
+    if (!options.skipDelayedRefresh) {
+      setTimeout(() => onRefresh(), 2000);
+    }
+  }
+
   async function generateMessage(): Promise<GeneratedCommitMessageWithProvider> {
     return generateCommitMessageWithFallbackDetails({
       projectLocation: project.location,
@@ -356,22 +389,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         setIsSyncing(true);
         phase.advance("pushing");
         try {
-          await runGitSyncCommand({
-            command: "push",
-            projectLocation: project.location,
-            setUpstream: !hasTracking,
-          });
-          refreshPrAfterPush();
-          applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
-          // GitHub takes a beat to register the new commits — refreshing
-          // immediately fetches a stale PR snapshot. Delay so the post-push
-          // refresh picks up fresh state.
-          // When the caller chains a PR creation (skipDelayedRefresh), the
-          // delayed refresh would race with handleCreatePr's setPrData and
-          // overwrite it with a stale null from ghGetPrForBranch.
-          if (!skipDelayedRefresh) {
-            setTimeout(() => onRefresh(), 2000);
-          }
+          await pushBranch({ emitSyncEvent: false, skipDelayedRefresh });
         } finally {
           setIsSyncing(false);
         }
@@ -451,25 +469,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     setIsSyncing(true);
     try {
       if (needsPush) {
-        await runGitSyncCommand({
-          command: "push",
-          projectLocation: project.location,
-          setUpstream: !hasTracking,
-        });
-        captureProductEvent("git.sync_action", {
-          action: "push",
-          has_remote: hasRemote,
-          has_tracking: hasTracking,
-          has_worktree: Boolean(worktreePath),
-        });
-        refreshPrAfterPush();
-        // Optimistic: a successful push clears `ahead`. The refresh below
-        // confirms it a moment later.
-        applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
-        // GitHub takes a beat to register the new commits — refreshing
-        // immediately fetches a stale PR snapshot (mergeable/checks not
-        // yet updated). Delay so the post-push refresh picks up fresh state.
-        setTimeout(() => onRefresh(), 2000);
+        await pushBranch({ emitSyncEvent: true, skipDelayedRefresh: false });
       } else {
         await runGitSyncCommand({ command: "sync", projectLocation: project.location });
         captureProductEvent("git.sync_action", {
@@ -505,10 +505,13 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     if (!phase) return;
     setIsSyncing(true);
     try {
+      if (key === "push") {
+        await pushBranch({ emitSyncEvent: true, skipDelayedRefresh: false });
+        return;
+      }
       await runGitSyncCommand({
         command: key,
         projectLocation: project.location,
-        ...(key === "push" ? { setUpstream: !hasTracking } : {}),
       });
       captureProductEvent("git.sync_action", {
         action: key,
@@ -516,12 +519,6 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         has_tracking: hasTracking,
         has_worktree: Boolean(worktreePath),
       });
-      if (key === "push") {
-        refreshPrAfterPush();
-        applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
-        setTimeout(() => onRefresh(), 2000);
-        return;
-      }
       onRefresh();
     } catch (err) {
       showGitActionError(err, {
@@ -784,6 +781,32 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     }
   }
 
+  // One-click "Push & Create PR" for an already-committed branch: push, then —
+  // only if that succeeded — auto-create the PR. Both steps share one phase
+  // cursor so the status line walks pushing → creating PR without blinking off
+  // (and without re-enabling the other buttons) in between. The PR step always
+  // auto-generates, mirroring handleCommitAndCreatePr.
+  async function handlePushAndCreatePr(): Promise<void> {
+    const phase = claimActionPhase("pushing");
+    if (!phase) return;
+    // Stay "syncing" for the whole chain: the push button owns the flow, so it
+    // must keep reporting the live step through the PR step too.
+    setIsSyncing(true);
+    try {
+      try {
+        await pushBranch({ emitSyncEvent: true, skipDelayedRefresh: true });
+      } catch (err) {
+        showGitActionError(err, { logPrefix: "[git] push failed" });
+        return;
+      }
+      await handleCreatePr(false, phase);
+      onRefresh();
+    } finally {
+      setIsSyncing(false);
+      phase.release();
+    }
+  }
+
   // One-click "Commit & Create PR": commit + push, then — only if that
   // succeeded — auto-create the PR. The PR step always auto-generates (never
   // opens the dialog), so this stays a single uninterrupted action regardless
@@ -875,6 +898,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     handleFinishMerge,
     handleCreatePr,
     handleCommitAndCreatePr,
+    handlePushAndCreatePr,
     handleMergePr: writeActions.handleMergePr,
     handleClosePr: writeActions.handleClosePr,
     handleMarkPrReady: writeActions.handleMarkPrReady,

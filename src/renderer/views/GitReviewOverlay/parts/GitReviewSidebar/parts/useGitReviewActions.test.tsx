@@ -196,6 +196,35 @@ describe("useGitReviewActions action phase", () => {
     expect(bridgeMock.ghCreatePr).not.toHaveBeenCalled();
   });
 
+  // "Push & Create PR" is the same single-user-action chain for an
+  // already-committed branch: one continuous status walk, and never a PR
+  // attempt after a failed push.
+  it("keeps one continuous phase across push and PR creation", async () => {
+    const actions = renderActions();
+    const { seen, stop } = recordPhases();
+
+    await act(async () => {
+      await actions.current.handlePushAndCreatePr();
+    });
+    stop();
+
+    expect(seen).toEqual(["pushing", "creating-pr", null]);
+    expect(bridgeMock.ghCreatePr).toHaveBeenCalledTimes(1);
+  });
+
+  // A failed push must release the slot and hold off on creating the PR.
+  it("clears the phase when the chained flow fails at the push step", async () => {
+    runGitSyncCommandMock.mockRejectedValueOnce(new Error("push failed"));
+    const actions = renderActions();
+
+    await act(async () => {
+      await actions.current.handlePushAndCreatePr();
+    });
+
+    expect(useGitReviewActionStore.getState().panels[STORE_KEY]?.actionPhase).toBeNull();
+    expect(bridgeMock.ghCreatePr).not.toHaveBeenCalled();
+  });
+
   // Every sync-menu entry reports a phase, so none of them can race a commit.
   it.each([
     ["pull", "pulling"],
