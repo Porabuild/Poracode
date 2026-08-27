@@ -15,7 +15,13 @@ import {
   type CrossagentVisibilitySettings,
 } from "./availability";
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./SubagentRunManager";
-import { errorResult, jsonResult, parseWaitTimeoutMs, TIMEOUT_S_DESCRIPTION } from "./toolResult";
+import {
+  errorResult,
+  jsonResult,
+  parseWaitOptions,
+  parseWaitTimeoutMs,
+  TIMEOUT_S_DESCRIPTION,
+} from "./toolResult";
 import { parseRunIds, parseSpawnRequest, parseSpawnRequests } from "./toolRequests";
 import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
@@ -63,6 +69,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
   "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
   "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent for every background result the task requires. Each wait is bounded only to stay below the MCP client's transport timeout: status=running means the server kept the child active, and the elapsed wait does not by itself mean the run stalled. When its result is required, keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because 180 seconds or any other wait duration elapsed, it has not produced a final answer yet, or it is still investigating. Cancel only when the user explicitly asks or the task is no longer needed for a reason unrelated to elapsed time.",
+  "wait_for_agent and get_status support incremental output: pass the previous result's total_output_chars as after_output_chars on the next call, so repeated waits return only newer text and identical retries remain safe. Output is clipped to a short tail while the run is still working; clipped text requires full_output=true if genuinely needed.",
   "Pass tasks=[...] to the same spawn_agent call to launch up to four independent agents in parallel.",
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
@@ -104,6 +111,26 @@ const SUBAGENT_SELECTION_PROPERTIES = {
     enum: ["full-access"],
     description: "Permission preset from get_agent. Defaults to full-access for subagents.",
   },
+} as const;
+
+const FULL_OUTPUT_PROPERTY = {
+  type: "boolean",
+  description:
+    "Return the run's complete accumulated output instead of a cursor-based tail. Costly on long runs; leave unset unless the earlier text is genuinely needed.",
+} as const;
+
+const AFTER_OUTPUT_CHARS_PROPERTY = {
+  type: "integer",
+  minimum: 0,
+  description:
+    "Return text produced after this character offset. Pass the previous result's total_output_chars to receive only newer output; repeat the same offset to retry safely.",
+} as const;
+
+const AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY = {
+  type: "object",
+  additionalProperties: { type: "integer", minimum: 0 },
+  description:
+    "Per-run character offsets for run_ids waits, keyed by run_id. Pass each previous result's total_output_chars so every run returns only newer output.",
 } as const;
 
 const TASK_TAGS_PROPERTY = {
@@ -242,7 +269,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "wait_for_agent",
     description:
-      'Wait for one background run_id or several run_ids concurrently, returning their status and output. A "running" result means the wait call timed out while the child stayed active; keep waiting when its result is required.',
+      'Wait for one background run_id or several run_ids concurrently, returning their status and output. For incremental output, pass the previous total_output_chars as after_output_chars for one run or in after_output_chars_by_run for several; repeating the same offsets returns the same text. Output is tail-clipped while the run is working. A "running" result means the wait call timed out while the child stayed active; keep waiting when its result is required.',
     inputSchema: {
       type: "object",
       properties: {
@@ -257,6 +284,9 @@ const RAW_TOOLS: ToolSpec[] = [
           type: "number",
           description: TIMEOUT_S_DESCRIPTION,
         },
+        full_output: FULL_OUTPUT_PROPERTY,
+        after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+        after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
       },
       // See the spawn_agent schema above for why these branches repeat the root type.
       oneOf: [
@@ -268,11 +298,15 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_status",
     description:
-      "Check a spawned subagent without blocking: returns its current status and the output produced so far.",
+      "Check a spawned subagent without blocking. Pass the previous total_output_chars as after_output_chars for incremental output; repeating the same offset returns the same text.",
     inputSchema: {
       type: "object",
       required: ["run_id"],
-      properties: { run_id: { type: "string" } },
+      properties: {
+        run_id: { type: "string" },
+        full_output: FULL_OUTPUT_PROPERTY,
+        after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+      },
     },
   },
   {
@@ -566,7 +600,7 @@ async function spawnAgent(
   args: Record<string, unknown>,
   ctx: SubagentToolContext,
 ): Promise<McpToolResult> {
-  const timeoutMs = parseWaitTimeoutMs(args.timeout_s);
+  const timeoutMs = parseWaitTimeoutMs(args);
   const background = args.background === true;
   const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
   const agentsFor = (selectionArgs: Record<string, unknown>) => {
@@ -642,6 +676,7 @@ async function spawnAgent(
         runs.map(({ runId }) => runId),
         timeoutMs,
         ctx.parentThreadId,
+        { fullOutput: true, currentAttemptOnly: true },
       ),
     });
   }
@@ -657,7 +692,10 @@ async function spawnAgent(
   if (background) {
     return jsonResult({ run_id: runId, status: "running", output: "" });
   }
-  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId);
+  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
+    fullOutput: true,
+    currentAttemptOnly: true,
+  });
   return jsonResult({ run_id: runId, ...result });
 }
 
@@ -744,8 +782,9 @@ export async function dispatchTool(
           return jsonResult(
             await ctx.runManager.waitForMany(
               runIds,
-              parseWaitTimeoutMs(args.timeout_s),
+              parseWaitTimeoutMs(args),
               ctx.parentThreadId,
+              (runId) => parseWaitOptions(args, runId),
             ),
           );
         }
@@ -754,8 +793,9 @@ export async function dispatchTool(
         return jsonResult(
           await ctx.runManager.waitFor(
             runId,
-            parseWaitTimeoutMs(args.timeout_s),
+            parseWaitTimeoutMs(args),
             ctx.parentThreadId,
+            parseWaitOptions(args),
           ),
         );
       }
@@ -764,8 +804,9 @@ export async function dispatchTool(
         return jsonResult(
           await ctx.runManager.waitForMany(
             runIds,
-            parseWaitTimeoutMs(args.timeout_s),
+            parseWaitTimeoutMs(args),
             ctx.parentThreadId,
+            (runId) => parseWaitOptions(args, runId),
           ),
         );
       }
@@ -775,7 +816,9 @@ export async function dispatchTool(
       case "get_status": {
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
-        return jsonResult(ctx.runManager.getStatus(runId, ctx.parentThreadId));
+        return jsonResult(
+          ctx.runManager.getStatus(runId, ctx.parentThreadId, parseWaitOptions(args)),
+        );
       }
       case "list_runs":
         return jsonResult(ctx.runManager.listRuns(ctx.parentThreadId));

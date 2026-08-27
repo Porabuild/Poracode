@@ -589,6 +589,94 @@ describe("subagent tool registration", () => {
     );
   });
 
+  it("documents cursor-based incremental output with a full_output escape hatch", () => {
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("wait_for_agent")!.description).toContain("incremental");
+    expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
+      properties: {
+        full_output: { type: "boolean" },
+        after_output_chars: { type: "integer", minimum: 0 },
+        after_output_chars_by_run: {
+          type: "object",
+          additionalProperties: { type: "integer", minimum: 0 },
+        },
+      },
+    });
+    expect(byName.get("get_status")!.description).toContain("incremental output");
+    expect(byName.get("get_status")!.inputSchema).toMatchObject({
+      properties: {
+        full_output: { type: "boolean" },
+        after_output_chars: { type: "integer", minimum: 0 },
+      },
+    });
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("full_output=true");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("after_output_chars");
+  });
+
+  it("passes full_output and aliased timeouts through to the run manager", async () => {
+    const { ctx } = makeToolContext();
+    const calls: Array<{ timeoutMs?: number; options?: unknown }> = [];
+    ctx.runManager = {
+      waitFor: async (
+        _runId: string,
+        timeoutMs: number,
+        _parent: string | undefined,
+        options: unknown,
+      ) => {
+        calls.push({ timeoutMs, options });
+        return { status: "completed", output: "x" };
+      },
+      getStatus: (_runId: string, _parent: string | undefined, options: unknown) => {
+        calls.push({ options });
+        return { status: "running", output: "" };
+      },
+    } as unknown as SubagentRunManager;
+
+    // `timeout_seconds` is a common miss for `timeout_s` — it must not silently
+    // fall back to the default wait duration.
+    await dispatchTool("wait_for_agent", { run_id: "r", timeout_seconds: 30 }, ctx);
+    await dispatchTool("wait_for_agent", { run_id: "r", full_output: true }, ctx);
+    await dispatchTool("get_status", { run_id: "r", after_output_chars: 25 }, ctx);
+    expect(calls).toEqual([
+      { timeoutMs: 30_000, options: { fullOutput: false, afterOutputChars: 0 } },
+      { timeoutMs: 120_000, options: { fullOutput: true } },
+      { options: { fullOutput: false, afterOutputChars: 25 } },
+    ]);
+  });
+
+  it("passes independent cursors for a batch wait", async () => {
+    const { ctx } = makeToolContext();
+    const optionsByRun: unknown[] = [];
+    ctx.runManager = {
+      waitForMany: async (
+        _runIds: readonly string[],
+        _timeoutMs: number,
+        _parentThreadId: string | undefined,
+        options: unknown,
+      ) => {
+        if (typeof options === "function") {
+          const resolveOptions = options as (runId: string) => unknown;
+          optionsByRun.push(resolveOptions("a"), resolveOptions("b"));
+        }
+        return [];
+      },
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "wait_for_agent",
+      {
+        run_ids: ["a", "b"],
+        after_output_chars_by_run: { a: 100, b: 20 },
+      },
+      ctx,
+    );
+
+    expect(optionsByRun).toEqual([
+      { fullOutput: false, afterOutputChars: 100 },
+      { fullOutput: false, afterOutputChars: 20 },
+    ]);
+  });
+
   it("tells namespacing hosts to resolve bare tool names against the crossagents server", () => {
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("crossagents__list_agents");
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
@@ -807,9 +895,18 @@ describe("subagent tool registration", () => {
 
   it("waits by default when spawn_agent is foregrounded", async () => {
     const { ctx } = makeToolContext();
+    let waitOptions: unknown;
     ctx.runManager = {
       spawn: () => ({ runId: "run-fg" }),
-      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+      waitFor: async (
+        _runId: string,
+        _timeoutMs: number,
+        _parentThreadId: string | undefined,
+        options: unknown,
+      ) => {
+        waitOptions = options;
+        return { status: "completed" as const, output: "done" };
+      },
     } as unknown as SubagentRunManager;
 
     const result = await dispatchTool(
@@ -822,6 +919,40 @@ describe("subagent tool registration", () => {
       status: "completed",
       output: "done",
     });
+    expect(waitOptions).toEqual({ fullOutput: true, currentAttemptOnly: true });
+  });
+
+  it("requests complete output for a foreground task batch", async () => {
+    const { ctx } = makeToolContext();
+    let waitOptions: unknown;
+    ctx.runManager = {
+      spawnMany: () => [{ runId: "run-1" }, { runId: "run-2" }],
+      waitForMany: async (
+        _runIds: readonly string[],
+        _timeoutMs: number,
+        _parentThreadId: string | undefined,
+        options: unknown,
+      ) => {
+        waitOptions = options;
+        return [
+          { run_id: "run-1", status: "completed" as const, output: "one" },
+          { run_id: "run-2", status: "completed" as const, output: "two" },
+        ];
+      },
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "spawn_agent",
+      {
+        tasks: [
+          { provider: "codex", prompt: "one" },
+          { provider: "claude", prompt: "two" },
+        ],
+      },
+      ctx,
+    );
+
+    expect(waitOptions).toEqual({ fullOutput: true, currentAttemptOnly: true });
   });
 
   it("uses the highest-ranked available selection when provider details are omitted", async () => {

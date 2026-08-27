@@ -196,10 +196,27 @@ export interface SubagentAttemptResult {
   may_have_side_effects?: boolean;
 }
 
+/** Options accepted by the wait/status read paths. */
+export interface SubagentWaitOptions {
+  /** Return the entire accumulated transcript instead of the incremental tail. */
+  fullOutput?: boolean;
+  /** Return output produced after this caller-owned character offset. */
+  afterOutputChars?: number;
+  /** Internal foreground compatibility: return only the final attempt's complete output. */
+  currentAttemptOnly?: boolean;
+}
+
 /** Result of `wait_for_agent` / `run_agent`. */
 export interface SubagentWaitResult {
   status: SubagentRunStatus;
+  /**
+   * Assistant text after `afterOutputChars`, tail-clipped (tight while running,
+   * generous once settled). `fullOutput` returns the entire accumulated
+   * transcript instead.
+   */
   output: string;
+  /** Full run transcript length and cursor for the next incremental read. */
+  total_output_chars?: number;
   error?: {
     message: string;
     may_have_side_effects: boolean;
