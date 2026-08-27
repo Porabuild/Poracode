@@ -130,6 +130,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
   "dbReplaceThreadRuntimeItems",
   "dbGetThreadCompletedTurns",

@@ -8,6 +8,7 @@ import { closeDatabase, initDatabase } from "./connection";
 import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
+  dbGetLatestThreadGoalItem,
   dbGetThreadContextUsage,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
@@ -475,5 +476,40 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       "assistant-1",
     ]);
     expect(page.nextCursor).toBe(1);
+  });
+
+  it("returns the latest goal even when its position is before the tail window", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "goal-outside-tail",
+        type: "goal",
+        state: "updated",
+        payload: { action: "set", objective: "outside-tail goal" },
+        streams: {},
+      },
+      ...Array.from({ length: 90 }, (_, index) => ({
+        id: `assistant-${index}`,
+        type: "assistant_message" as const,
+        state: "completed" as const,
+        streams: {},
+      })),
+    ]);
+
+    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    expect(tail.items.some((item) => item.id === "goal-outside-tail")).toBe(false);
+    expect(tail.items.at(-1)?.id).toBe("assistant-89");
+
+    expect(dbGetLatestThreadGoalItem("thread-1")?.id).toBe("goal-outside-tail");
+
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "goal-new",
+        itemType: "goal",
+        payload: { action: "updated", objective: "new goal" },
+      },
+    ]);
+    expect(dbGetLatestThreadGoalItem("thread-1")?.id).toBe("goal-new");
   });
 });

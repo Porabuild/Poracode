@@ -28,7 +28,10 @@ import {
 } from "@/renderer/remoteProcedureRouter";
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
 import { useAppStore } from "@/renderer/state/appStore";
-import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
+import {
+  runtimePageOverlapsExistingTranscript,
+  seedOlderThreadRuntimeItemsCursor,
+} from "@/renderer/state/chatRuntimePersister";
 import {
   projectRemoteProject,
   projectRemoteThread,
@@ -1132,16 +1135,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (requestSeq !== openRemoteThreadRequestSeq) return false;
           const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
           const viewThreadId = projectedSnapshot.thread.id;
-          const firstSnapshotItemId = projectedSnapshot.runtimeItems[0]?.id;
           const existingRuntimeItemIds =
             useAppStore.getState().runtimeItemIdsByThread[viewThreadId] ?? [];
           seedOlderThreadRuntimeItemsCursor(
             viewThreadId,
             projectedSnapshot.runtimeNextCursor ?? null,
             {
-              preserveExistingCursor:
-                firstSnapshotItemId !== undefined &&
-                existingRuntimeItemIds.includes(firstSnapshotItemId),
+              preserveExistingCursor: runtimePageOverlapsExistingTranscript(
+                projectedSnapshot.runtimeItems,
+                existingRuntimeItemIds,
+              ),
             },
           );
           applyThreadSnapshot(projectedSnapshot);

@@ -19,6 +19,7 @@ import {
   dbGetThread,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
+  dbGetLatestThreadGoalItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
@@ -148,16 +149,19 @@ export async function buildThreadSnapshot(
   const runtimePage = options.runtimePage
     ? dbGetThreadRuntimeItemsPage(threadId, undefined, 500, options.targetTimelineEntryCount ?? 40)
     : null;
+  const runtimeItems = runtimePage?.items ?? dbGetThreadRuntimeItems(threadId);
+  const latestGoal = runtimePage ? dbGetLatestThreadGoalItem(threadId) : null;
+  const runtimeItemsWithGoal =
+    latestGoal && !runtimeItems.some((item) => item.id === latestGoal.id)
+      ? [latestGoal, ...runtimeItems]
+      : runtimeItems;
   return remoteThreadSnapshotSchema.parse(
     withStableUpdatedAt(`thread:${threadId}`, {
       snapshotSeq: ctx.seq,
       thread,
       // Inline image bytes are replaced by host-minted references: they are ~89%
       // of runtime payload bytes and the client fetches each one on demand.
-      runtimeItems: projectRuntimeItemsImageRefs(
-        threadId,
-        runtimePage?.items ?? dbGetThreadRuntimeItems(threadId),
-      ),
+      runtimeItems: projectRuntimeItemsImageRefs(threadId, runtimeItemsWithGoal),
       ...(runtimePage ? { runtimeNextCursor: runtimePage.nextCursor } : {}),
       completedTurns: dbGetThreadCompletedTurns(threadId),
       contextUsage: dbGetThreadContextUsage(threadId),

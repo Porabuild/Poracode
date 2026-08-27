@@ -15,9 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v5 carries the persisted thread archive timestamp. Older hosts cannot retain
-// or report it accurately across archive, snapshot, and reconnect boundaries.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 5;
+// v6 pins an out-of-window goal before paged runtime history. Older clients
+// mistake that goal for the page anchor and can preserve a disjoint cursor.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 6;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

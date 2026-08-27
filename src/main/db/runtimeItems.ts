@@ -209,6 +209,21 @@ export function dbGetThreadRuntimeItem(
   return row ? mapRuntimeItemRow(row) : null;
 }
 
+/** Reads the latest goal even when it precedes the paged transcript window. */
+export function dbGetLatestThreadGoalItem(threadId: string): PersistedRuntimeItem | null {
+  const sqlite = getSqlite();
+  const row = sqlite
+    .prepare(
+      `SELECT item_id, type, state, payload, streams, parent_item_id
+       FROM thread_runtime_items
+       WHERE thread_id = ? AND type = 'goal'
+       ORDER BY position DESC
+       LIMIT 1`,
+    )
+    .get(threadId) as PersistedRuntimeItemRow | undefined;
+  return row ? mapRuntimeItemRow(row) : null;
+}
+
 export function dbGetThreadRuntimeItemsPage(
   threadId: string,
   beforePosition: number | undefined,
