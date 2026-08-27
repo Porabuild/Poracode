@@ -129,7 +129,7 @@ describe("ThreadChangesBubble", () => {
     expect(bubble.querySelector(".lucide-git-fork")).toBeNull();
   });
 
-  it("shows a danger icon when a review is required despite successful checks", () => {
+  it("shows a warning icon when a review is required despite successful checks", () => {
     const worktreePath = "C:\\repo-worktrees\\calm-viper";
     useGitStore.setState({
       worktreeStatuses: {
@@ -156,7 +156,7 @@ describe("ThreadChangesBubble", () => {
       screen
         .getByRole("button", { name: "Review changes" })
         .querySelector(".lucide-git-pull-request"),
-    ).toHaveClass("text-danger");
+    ).toHaveClass("text-warning");
   });
 
   it("stays hidden for a clean root project", () => {

@@ -26,12 +26,17 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import {
   usePrMergeable,
   usePrMergeStateStatus,
+  usePrReviewDecision,
   usePrState,
   usePrTitle,
   usePrUrl,
   usePrViewerDidAuthor,
 } from "@/renderer/state/gitSelectors";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
+import {
+  isPrBlockedOnlyByPendingChecks,
+  isPrBlockedOnlyByPendingReview,
+} from "@/renderer/utils/prStatus";
 import { pullMergedPrBaseIfPossible } from "@/renderer/actions/gitCommandRunner";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { PrHeaderCard } from "@/renderer/views/PrReviewOverlay/parts/PrHeaderCard";
@@ -128,6 +133,7 @@ export function PrOverviewPage() {
   const checksStatus = usePrCombinedChecksStatus(pr.prKey, pr.cacheKey);
   const mergeStateStatus = usePrMergeStateStatus(pr.prKey);
   const mergeable = usePrMergeable(pr.prKey);
+  const reviewDecision = usePrReviewDecision(pr.prKey);
   const [mergingMethod, setMergingMethod] = useState<PrMergeMethod | null>(null);
 
   const filesCount = files?.length ?? details?.changedFiles ?? 0;
@@ -142,14 +148,19 @@ export function PrOverviewPage() {
   const checks = details?.checks ?? [];
 
   const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
+  const mergeStatus = { reviewDecision, mergeable, mergeStateStatus };
+  const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(checksStatus, mergeStatus);
+  const isAwaitingReview = isPrBlockedOnlyByPendingReview(checksStatus, mergeStatus);
+  const isSoftBlock = isPendingChecksBlock || isAwaitingReview;
   // Only an open (non-draft) PR can be merge-blocked, mirroring the desktop
   // PrSection's `state !== "merged" && state !== "draft"` guard.
   const isBlocked =
     state === "open" &&
-    reasonKey !== undefined &&
-    reasonKey !== "CLEAN" &&
-    reasonKey !== "DRAFT" &&
-    reasonKey !== "UNKNOWN";
+    (isAwaitingReview ||
+      (reasonKey !== undefined &&
+        reasonKey !== "CLEAN" &&
+        reasonKey !== "DRAFT" &&
+        reasonKey !== "UNKNOWN"));
   const blockReason = reasonKey ? BLOCK_REASON[reasonKey] : undefined;
   const canMerge = state === "open" && !isBlocked;
   const canReview =
@@ -282,12 +293,20 @@ export function PrOverviewPage() {
             />
             {isBlocked ? (
               <div className="m-pr-merge">
-                <AlertTriangle className="size-4 shrink-0 text-danger" />
+                <AlertTriangle
+                  className={`size-4 shrink-0 ${isSoftBlock ? "text-warning" : "text-danger"}`}
+                />
                 <span className="m-pr-merge__body">
                   <strong>
-                    <Trans>Unable to merge</Trans>
+                    {isPendingChecksBlock ? (
+                      <Trans>Checks pending</Trans>
+                    ) : isAwaitingReview ? (
+                      <Trans>Awaiting review</Trans>
+                    ) : (
+                      <Trans>Unable to merge</Trans>
+                    )}
                   </strong>
-                  {blockReason ? <span>{t(blockReason)}</span> : null}
+                  {!isSoftBlock && blockReason ? <span>{t(blockReason)}</span> : null}
                 </span>
               </div>
             ) : null}

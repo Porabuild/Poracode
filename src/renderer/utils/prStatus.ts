@@ -169,11 +169,26 @@ export function getPrStatusTone(
   if (state === "draft") return "draft";
   if (state === "closed") return "danger";
   if (isPrBlockedOnlyByPendingChecks(checksStatus, mergeStatus)) return "warning";
+  if (isPrBlockedOnlyByPendingReview(checksStatus, mergeStatus)) return "warning";
   if (isPrMergeBlocked(mergeStatus)) return "danger";
   if (mergeStatus?.mergeStateStatus === "BEHIND") return "warning";
   const checksTone = getChecksStatusTone(normalizeChecksStatus(checksStatus));
   if (checksTone) return checksTone;
   return "success";
+}
+
+function hasHardMergeBlocker(
+  checksStatus: string | undefined,
+  status: PrMergeStatus | null | undefined,
+): boolean {
+  const reviewDecision = status?.reviewDecision?.toUpperCase();
+  return (
+    reviewDecision === "CHANGES_REQUESTED" ||
+    status?.mergeable === "CONFLICTING" ||
+    status?.mergeStateStatus === "DIRTY" ||
+    status?.mergeStateStatus === "HAS_HOOKS" ||
+    normalizeChecksStatus(checksStatus) === "FAILURE"
+  );
 }
 
 /**
@@ -185,27 +200,37 @@ export function isPrBlockedOnlyByPendingChecks(
   checksStatus: string | undefined,
   status: PrMergeStatus | null | undefined,
 ): boolean {
-  if (normalizeChecksStatus(checksStatus) !== "PENDING" || status?.mergeStateStatus !== "BLOCKED") {
-    return false;
-  }
-
-  const reviewDecision = status.reviewDecision?.toUpperCase();
   return (
-    reviewDecision !== "CHANGES_REQUESTED" &&
-    reviewDecision !== "REVIEW_REQUIRED" &&
-    status.mergeable !== "CONFLICTING"
+    normalizeChecksStatus(checksStatus) === "PENDING" &&
+    status?.mergeStateStatus === "BLOCKED" &&
+    !hasHardMergeBlocker(checksStatus, status)
+  );
+}
+
+/**
+ * Waiting for required review approval is a pending state, not a failure.
+ * GitHub's classic merge box still paints this red ("Merging is blocked");
+ * the newer merge widget uses "Awaiting approval", and VS Code lists the
+ * missing review as its own requirement rather than a failed merge.
+ */
+export function isPrBlockedOnlyByPendingReview(
+  checksStatus: string | undefined,
+  status: PrMergeStatus | null | undefined,
+): boolean {
+  return (
+    status?.reviewDecision?.toUpperCase() === "REVIEW_REQUIRED" &&
+    status?.mergeStateStatus !== "BEHIND" &&
+    status?.mergeStateStatus !== "UNSTABLE" &&
+    !hasHardMergeBlocker(checksStatus, status)
   );
 }
 
 export function isPrMergeBlocked(status: PrMergeStatus | null | undefined): boolean {
   const reviewDecision = status?.reviewDecision?.toUpperCase();
   return (
-    reviewDecision === "CHANGES_REQUESTED" ||
+    hasHardMergeBlocker(undefined, status) ||
     reviewDecision === "REVIEW_REQUIRED" ||
-    status?.mergeable === "CONFLICTING" ||
-    status?.mergeStateStatus === "DIRTY" ||
-    status?.mergeStateStatus === "BLOCKED" ||
-    status?.mergeStateStatus === "HAS_HOOKS"
+    status?.mergeStateStatus === "BLOCKED"
   );
 }
 

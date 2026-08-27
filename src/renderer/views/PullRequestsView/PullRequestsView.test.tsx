@@ -188,7 +188,7 @@ describe("PullRequestsView", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows a blocked danger status when approval is required despite green checks", async () => {
+  it("shows awaiting review when approval is required despite green checks", async () => {
     useAppStore.setState({ projects: [windowsProject] });
     bridge.ghListPullRequests.mockResolvedValue({
       pullRequests: [
@@ -207,9 +207,9 @@ describe("PullRequestsView", () => {
     render(<PullRequestsView />);
 
     const row = await screen.findByRole("button", { name: new RegExp(summary.pr.title) });
-    expect(within(row).getByText("Merging is blocked")).toBeInTheDocument();
-    expect(row.querySelector(".lucide-git-pull-request")).toHaveClass("text-danger");
-    expect(row.querySelector(".rounded-full")).toHaveClass("bg-danger");
+    expect(within(row).getByText("Awaiting review")).toBeInTheDocument();
+    expect(row.querySelector(".lucide-git-pull-request")).toHaveClass("text-warning");
+    expect(row.querySelector(".rounded-full")).toHaveClass("bg-warning");
   });
 
   it("shows pending checks when GitHub blocks a PR while CI is running", async () => {

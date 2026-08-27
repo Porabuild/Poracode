@@ -230,6 +230,29 @@ describe("PrOverviewPage", () => {
     expect(reload).toHaveBeenCalledOnce();
   });
 
+  it("blocks merging when approval is required and merge-state data is missing", () => {
+    useGitStore.setState({
+      prData: {
+        "project-1#42": {
+          number: 42,
+          state: "open",
+          title: "Ship mobile review",
+          url: "https://github.test/repo/pull/42",
+          baseBranch: "main",
+          isDraft: false,
+          checksStatus: "SUCCESS",
+          reviewDecision: "REVIEW_REQUIRED",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    });
+
+    renderOverview();
+
+    expect(screen.getByText("Awaiting review")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Merge PR: Squash/ })).not.toBeInTheDocument();
+  });
+
   it("reports failed GitHub link opens from mobile", async () => {
     bridgeMock.openExternal.mockRejectedValueOnce(new Error("open failed"));
     useGitStore.setState({
