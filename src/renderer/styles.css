@@ -3741,6 +3741,45 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
   animation: poracode-tool-call-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* The window supplies the upward motion, so its incoming row only fades. */
+@keyframes poracode-tool-call-window-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.poracode-tool-call-group-windowed .animate-tool-call-enter {
+  animation: poracode-tool-call-window-enter 0.2s steps(8, end) both;
+}
+
+/* Sliding window for a collapsed tool-call group (toolCallWindowShift.ts). The
+   dropped row is re-parented into this out-of-flow ghost so the in-flow row
+   count — and the height the virtualizer measures — never changes mid-slide.
+   The ghost sits in exactly the slot the rows vacate as they translate. */
+.poracode-tool-call-group-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+/* Applied only while a slide is running: clips the incoming row so it is
+   revealed rising into the window instead of overhanging the next chat row.
+   `clip` rather than `hidden` so no scroll container is created. */
+.poracode-tool-call-group-clip {
+  overflow: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tool-call-enter {
+    animation: none;
+  }
+}
+
 @keyframes poracode-compacting-squeeze {
   0%,
   100% {
