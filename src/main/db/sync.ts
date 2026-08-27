@@ -10,6 +10,7 @@ import { getSqlite } from "./connection";
 import { acknowledgeMirroredThreadIds, isMainCreatedThreadUnmirrored } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow } from "./rowMappers";
+import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 
 /**
  * Bulk-sync the full project and thread lists from the renderer store.
@@ -17,12 +18,20 @@ import { projectMutableRow } from "./rowMappers";
  */
 export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJson: string): void {
   const sqlite = getSqlite();
+  const deletedThreadIds = new Set<string>();
 
   sqlite.transaction(() => {
+    const existingThreads = sqlite.prepare("SELECT id, project_id FROM threads").all() as Array<{
+      id: string;
+      project_id: string;
+    }>;
     const existingProjectIds = new Set(
       (sqlite.prepare("SELECT id FROM projects").all() as Array<{ id: string }>).map((r) => r.id),
     );
     const incomingProjectIds = new Set(projectsData.map((p) => p.id));
+    const deletedProjectIds = new Set(
+      [...existingProjectIds].filter((projectId) => !incomingProjectIds.has(projectId)),
+    );
     const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
     const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
     const upsertProject = prepareProjectSyncStatement(sqlite);
@@ -37,21 +46,19 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
       runProjectSync(upsertProject, projectsData[i]!, i);
     }
 
-    const existingThreadIds = new Set(
-      (sqlite.prepare("SELECT id FROM threads").all() as Array<{ id: string }>).map((r) => r.id),
-    );
     const incomingThreadIds = new Set(threadsData.map((t) => t.id));
     const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
     const upsertThread = prepareThreadSyncStatement(sqlite);
 
-    for (const tid of existingThreadIds) {
+    for (const { id: tid, project_id: projectId } of existingThreads) {
       if (incomingThreadIds.has(tid)) continue;
       // A thread main just created (remote `start`, schedule, orchestrator) is
       // absent from this snapshot only because the renderer has not applied the
       // forwarded command yet. Deleting it would cascade away the launch turn's
       // runtime items — most visibly the initial `user_message`.
-      if (isMainCreatedThreadUnmirrored(tid)) continue;
+      if (!deletedProjectIds.has(projectId) && isMainCreatedThreadUnmirrored(tid)) continue;
       deleteThread.run(tid);
+      deletedThreadIds.add(tid);
     }
     for (let i = 0; i < threadsData.length; i++) {
       runThreadSync(upsertThread, threadsData[i]!, i);
@@ -66,6 +73,7 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
       )
       .run(viewJson);
   })();
+  for (const threadId of deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
 }
 
@@ -92,6 +100,7 @@ export function dbPersistExperimentState(payload: DbPersistExperimentStatePayloa
         }),
       );
   })();
+  for (const threadId of payload.deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
 }
 
 type SqliteStatement = ReturnType<InstanceType<typeof Database>["prepare"]>;

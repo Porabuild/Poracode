@@ -133,11 +133,54 @@ export const threadRuntimeItems = sqliteTable(
     type: text("type").notNull(),
     state: text("state").notNull(),
     payload: text("payload"), // JSON, nullable
+    // Head of each stream. Content past the head lives in
+    // `threadRuntimeItemStreamChunks` so appends never rewrite this blob.
     streams: text("streams"), // JSON of Partial<Record<RuntimeContentStreamKind, string>>
     parentItemId: text("parent_item_id"), // sub-agent parent tool_call id, nullable
   },
   (table) => ({
     pk: primaryKey({ columns: [table.threadId, table.itemId] }),
+  }),
+);
+
+/**
+ * Append-only tail of a runtime item's streamed content. One row per appended
+ * chunk, assembled in `seq` order on read. Keeps the cost of a streamed chunk
+ * proportional to that chunk instead of to everything the item has produced.
+ */
+export const threadRuntimeItemStreamChunks = sqliteTable(
+  "thread_runtime_item_stream_chunks",
+  {
+    threadId: text("thread_id").notNull(),
+    itemId: text("item_id").notNull(),
+    stream: text("stream").notNull(),
+    seq: integer("seq").notNull(),
+    // Declared before `text` so size lookups read record headers, not contents.
+    chars: integer("chars").notNull(),
+    text: text("text").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.threadId, table.itemId, table.stream, table.seq] }),
+  }),
+);
+
+/**
+ * Per-stream bookkeeping for the append-only tail: the next sequence number,
+ * how many characters are retained and how many have been dropped. Keeps the
+ * append path free of aggregate queries over the chunk rows.
+ */
+export const threadRuntimeItemStreamState = sqliteTable(
+  "thread_runtime_item_stream_state",
+  {
+    threadId: text("thread_id").notNull(),
+    itemId: text("item_id").notNull(),
+    stream: text("stream").notNull(),
+    nextSeq: integer("next_seq").notNull(),
+    tailChars: integer("tail_chars").notNull(),
+    elidedChars: integer("elided_chars").notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.threadId, table.itemId, table.stream] }),
   }),
 );
 

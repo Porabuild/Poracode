@@ -5,6 +5,7 @@ import { getDb } from "./connection";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
+import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
@@ -195,13 +196,21 @@ export function dbMarkLiveThreadsInactive(): void {
 export function dbDeleteThread(threadId: string): void {
   const db = getDb();
   db.delete(schema.threads).where(eq(schema.threads.id, threadId)).run();
+  dbDiscardThreadRuntimeWrites(threadId);
   forgetMainCreatedThread(threadId);
   notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteProject(projectId: string): void {
   const db = getDb();
+  const threadIds = db
+    .select({ id: schema.threads.id })
+    .from(schema.threads)
+    .where(eq(schema.threads.projectId, projectId))
+    .all()
+    .map((row) => row.id);
   db.delete(schema.projects).where(eq(schema.projects.id, projectId)).run();
   db.delete(schema.projectNotes).where(eq(schema.projectNotes.projectId, projectId)).run();
+  for (const threadId of threadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
 }

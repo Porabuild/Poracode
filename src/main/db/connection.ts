@@ -157,6 +157,28 @@ export function initDatabase(dbPath: string) {
     );
     CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_pos
       ON thread_runtime_items (thread_id, position);
+    CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_chunks (
+      thread_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      stream TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      chars INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      PRIMARY KEY (thread_id, item_id, stream, seq),
+      FOREIGN KEY (thread_id, item_id)
+        REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_state (
+      thread_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      stream TEXT NOT NULL,
+      next_seq INTEGER NOT NULL,
+      tail_chars INTEGER NOT NULL,
+      elided_chars INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (thread_id, item_id, stream),
+      FOREIGN KEY (thread_id, item_id)
+        REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+    );
     CREATE TABLE IF NOT EXISTS thread_completed_turns (
       thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
       idx INTEGER NOT NULL,
@@ -302,9 +324,22 @@ export function getSqlite(): InstanceType<typeof Database> {
   return _sqlite;
 }
 
+/**
+ * Hooks run while the database is still open, before it closes. Registered by
+ * modules that buffer writes (see `runtimeItems.ts`) so nothing queued is lost
+ * on shutdown. Registration order is preserved; a failed hook leaves the
+ * database open so its buffered writes can be retried instead of discarded.
+ */
+const beforeCloseHooks: Array<() => void> = [];
+
+export function registerBeforeDatabaseClose(hook: () => void): void {
+  beforeCloseHooks.push(hook);
+}
+
 export function closeDatabase() {
   const sqlite = _sqlite;
   if (sqlite) {
+    for (const hook of beforeCloseHooks) hook();
     // With journal_mode=WAL + synchronous=NORMAL, committed transactions live
     // in the -wal file and only become durable across an OS crash/power loss
     // after a checkpoint. Fold the WAL back into the main db on shutdown so the
