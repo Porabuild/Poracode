@@ -120,7 +120,7 @@ describe("buildQoderProbeCapabilities", () => {
         { id: "auto", label: "Auto (default)" },
         { id: "ultimate", label: "Ultimate" },
       ],
-      efforts: ["xhigh", "high", "low", "max", "medium", "none"],
+      efforts: ["none", "low", "medium", "high", "xhigh", "max"],
       defaultEffort: "xhigh",
       modes: ["agent", "plan"],
       approvalPolicies: [
@@ -132,7 +132,7 @@ describe("buildQoderProbeCapabilities", () => {
     });
 
     expect(capabilities.models?.map((model) => model.id)).toEqual(["auto", "ultimate"]);
-    expect(capabilities.efforts).toEqual(["xhigh", "high", "low", "max", "medium", "none"]);
+    expect(capabilities.efforts).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
     expect(capabilities.defaultEffort).toBe("xhigh");
     expect(capabilities.modes).toEqual(["agent", "plan"]);
     expect(capabilities.approvalPolicies).toHaveLength(3);
