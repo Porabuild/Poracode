@@ -21,6 +21,7 @@ import type {
   WebSearchPayload,
 } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -41,7 +42,9 @@ import {
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { iconForCommandIntent } from "./CommandExecution";
 import { formatDiffSummaryLabel, formatKindVerb } from "./FileChange";
+import { ToolCallRowOpenContext, useToolCallRowOpenSignal } from "./toolCallRowOpenContext";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
+import { useToolCallWindowShift } from "./useToolCallWindowShift";
 import {
   extractAcpAddedFileText,
   extractAcpArgsPart,
@@ -99,6 +102,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     ),
   );
   const actions = useChatPaneActions();
+  const guiChatFontSize = useSharedSettings((state) => state.guiChatFontSize);
   // Single pass: edit-only groups stay collapsed while live; same-file multi
   // patches also get the compact "N edits: path" header.
   const { editOnly: editOnlyGroup, sameFile: sameFileEditSummary } = analyzeEditToolGroup(items);
@@ -145,10 +149,20 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     }
   }, [items.length, isLive, isExpanded, showAll]);
 
-  if (items.length === 0) return null;
-  const sections = summarizeToolCalls(items);
   const visibleSegments =
     !showAll && hasOverflowRows ? segments.slice(-TOOL_CALL_GROUP_MAX_VISIBLE_ROWS) : segments;
+  // Only a live collapsed window drops rows, so only it has a shift to animate.
+  const isWindowed =
+    isLive && isExpanded && !showAll && hasOverflowRows && !sameFileEditSummary && !editOnlyGroup;
+  const { wrapRef, onRowOpenChange } = useToolCallWindowShift({
+    keys: visibleSegments.map(segmentKey),
+    guiChatFontSize,
+    isWindowed,
+    viewportRef: scrollRef,
+  });
+
+  if (items.length === 0) return null;
+  const sections = summarizeToolCalls(items);
 
   return (
     <div className={chatRowShellClass}>
@@ -226,25 +240,38 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                     </button>
                   </div>
                 ) : null}
+                {/* The wrapper owns the out-of-flow ghost the sliding-window
+                    animation fades out, so the in-flow row count — and the
+                    group height the virtualizer measures — stays constant. */}
                 <div
-                  ref={scrollRef}
-                  className={`poracode-tool-call-group-viewport flex flex-col gap-0.5 pr-1 ${
-                    showAll ? "max-h-[420px] overflow-y-auto" : ""
-                  }`}
+                  ref={wrapRef}
+                  className={`relative ${isWindowed ? "poracode-tool-call-group-windowed" : ""}`}
                 >
-                  {sameFileEditSummary ? (
-                    <SameFileEditGroupBody items={items} />
-                  ) : (
-                    visibleSegments.map((segment) => (
-                      <div key={segmentKey(segment)} className="animate-tool-call-enter">
-                        {segment.kind === "same-file-edits" ? (
-                          <SameFileEditRunInline items={segment.items} summary={segment.summary} />
-                        ) : (
-                          <GroupRowInline item={segment.item} />
-                        )}
-                      </div>
-                    ))
-                  )}
+                  <div
+                    ref={scrollRef}
+                    className={`poracode-tool-call-group-viewport flex flex-col gap-0.5 pr-1 ${
+                      showAll ? "max-h-[420px] overflow-y-auto" : ""
+                    }`}
+                  >
+                    {sameFileEditSummary ? (
+                      <SameFileEditGroupBody items={items} />
+                    ) : (
+                      <ToolCallRowOpenContext.Provider value={onRowOpenChange}>
+                        {visibleSegments.map((segment) => (
+                          <div key={segmentKey(segment)} className="animate-tool-call-enter">
+                            {segment.kind === "same-file-edits" ? (
+                              <SameFileEditRunInline
+                                items={segment.items}
+                                summary={segment.summary}
+                              />
+                            ) : (
+                              <GroupRowInline item={segment.item} />
+                            )}
+                          </div>
+                        ))}
+                      </ToolCallRowOpenContext.Provider>
+                    )}
+                  </div>
                 </div>
               </>
             ) : null}
@@ -273,6 +300,7 @@ function SameFileEditRunInline({
 }) {
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
+  useToolCallRowOpenSignal(isExpanded);
   return (
     <Disclosure
       className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
@@ -401,6 +429,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
+  useToolCallRowOpenSignal(isExpanded);
   const row = getInlineRow(item, isExpanded, t);
   const isRunning = item.state !== "completed";
   const fetchTarget =
@@ -413,7 +442,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
 
   if (!row.hasDetails) {
     return (
-      <div className="flex w-fit max-w-full min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
+      <div className="flex min-h-[18px] w-fit max-w-full min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
         <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
         <InlineRowTitle
           isRunning={isRunning}

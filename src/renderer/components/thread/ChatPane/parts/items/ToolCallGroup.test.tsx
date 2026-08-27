@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -29,7 +29,8 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
     const viewport = getViewport(view.container);
-    const body = viewport.parentElement;
+    // viewport -> sliding-window wrapper -> disclosure body
+    const body = viewport.parentElement?.parentElement;
     if (!body) throw new Error("missing tool group body");
     const showAll = screen.getByRole("button", { name: "Show all" });
 
@@ -1281,3 +1282,250 @@ function findRichViewport(): HTMLElement {
   if (!(viewport instanceof HTMLElement)) throw new Error("rich viewport not found");
   return viewport;
 }
+
+/**
+ * The sliding-window animation itself is unit-tested in toolCallWindowShift.test
+ * against a fake Animation API. These cases only pin the wiring: that the group
+ * hands the rig the right DOM and the right gating flags.
+ */
+describe("ToolCallGroup sliding window", () => {
+  // jsdom ships no Web Animations API. The rig only needs an object it can
+  // rewind, and the assertions here are about the DOM it builds. Restored after
+  // every case: leaving the stub on the prototype leaks into other suites that
+  // share this worker (React Aria transitions call `animate`).
+  const originalAnimate = Element.prototype.animate as Element["animate"] | undefined;
+
+  beforeEach(() => {
+    localStorage.clear();
+    useAppStore.setState({
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      runtimeRequestsByThread: {},
+      runtimeStructuralVersionByThread: {},
+    });
+    Element.prototype.animate = vi.fn<() => unknown>(() => ({
+      currentTime: 0,
+      play: vi.fn<() => void>(),
+      cancel: vi.fn<() => void>(),
+      onfinish: null,
+    })) as unknown as Element["animate"];
+  });
+
+  afterEach(() => {
+    if (originalAnimate) {
+      Element.prototype.animate = originalAnimate;
+    } else {
+      delete (Element.prototype as { animate?: unknown }).animate;
+    }
+  });
+
+  function seedAndRender(count: number) {
+    const threadId = "thread-slide";
+    const items = Array.from({ length: count }, (_, index) =>
+      makeToolItem(`tool-${index + 1}`, `Read file ${index + 1}`),
+    );
+    seedThread(threadId, items);
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+    return { threadId, items, view };
+  }
+
+  function appendItem(
+    threadId: string,
+    items: RuntimeChatItem[],
+    view: ReturnType<typeof renderToolCallGroup>,
+    next: RuntimeChatItem,
+  ) {
+    const all = [...items, next];
+    seedThread(threadId, all);
+    view.rerender(
+      <AppProvider>
+        <ToolCallGroup threadId={threadId} itemIds={all.map((item) => item.id)} isLive />
+      </AppProvider>,
+    );
+    return all;
+  }
+
+  function getGhost(container: HTMLElement): HTMLElement | null {
+    return container.querySelector(".poracode-tool-call-group-ghost");
+  }
+
+  it("lifts the dropped row into an out-of-flow ghost and keeps the row count constant", () => {
+    const { threadId, items, view } = seedAndRender(10);
+    const viewport = getViewport(view.container);
+    expect(getGhost(view.container)).toBeNull();
+
+    appendItem(threadId, items, view, makeToolItem("tool-11", "Read file 11"));
+
+    const ghost = getGhost(view.container);
+    expect(ghost).not.toBeNull();
+    expect(ghost?.getAttribute("aria-hidden")).toBe("true");
+    // The row that scrolled off the top is the one fading, and it is no longer
+    // in flow — so the group's measured height is unchanged.
+    expect(ghost?.textContent).toContain("Read file 3");
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(8);
+    expect(ghost?.parentElement).toBe(viewport.parentElement);
+    expect(viewport.parentElement).toHaveClass("relative");
+    expect(viewport.parentElement).toHaveClass("poracode-tool-call-group-windowed");
+  });
+
+  it("stops animating while the user has a row open", () => {
+    const threadId = "thread-slide";
+    const items: RuntimeChatItem[] = [
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeToolItem(`tool-${index + 1}`, `Read file ${index + 1}`),
+      ),
+      makeReasoningItem("reason-1", "Considering the next step"),
+    ];
+    seedThread(threadId, items);
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    // One shift with everything collapsed: the rig engages.
+    let all = appendItem(threadId, items, view, makeToolItem("tool-10", "Read file 10"));
+    expect(getGhost(view.container)).not.toBeNull();
+
+    // The group header also reports "1 thought"; the row trigger is the one
+    // that does not summarize the reads alongside it.
+    const rowTrigger = screen
+      .getAllByRole("button", { name: /Thought/i })
+      .find((button) => !/reads/i.test(button.textContent ?? ""));
+    if (!rowTrigger) throw new Error("missing reasoning row trigger");
+    fireEvent.click(rowTrigger);
+
+    // An expanded row breaks the uniform pitch the slide is baked against, so
+    // opening it tears the active rig down before another append arrives.
+    expect(getGhost(view.container)).toBeNull();
+
+    all = appendItem(threadId, all, view, makeToolItem("tool-11", "Read file 11"));
+    expect(getGhost(view.container)).toBeNull();
+  });
+
+  it("does not animate when an append drops the expanded oldest row", () => {
+    const threadId = "thread-slide";
+    const items: RuntimeChatItem[] = [
+      makeToolItem("tool-1", "Read file 1"),
+      makeToolItem("tool-2", "Read file 2"),
+      makeReasoningItem("reason-1", "Considering the next step"),
+      ...Array.from({ length: 7 }, (_, index) =>
+        makeToolItem(`tool-${index + 3}`, `Read file ${index + 3}`),
+      ),
+    ];
+    seedThread(threadId, items);
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    const rowTrigger = screen
+      .getAllByRole("button", { name: /Thought/i })
+      .find((button) => !/reads/i.test(button.textContent ?? ""));
+    if (!rowTrigger) throw new Error("missing reasoning row trigger");
+    fireEvent.click(rowTrigger);
+
+    appendItem(threadId, items, view, makeToolItem("tool-10", "Read file 10"));
+
+    expect(getGhost(view.container)).toBeNull();
+  });
+
+  it("does not animate in Show all mode", () => {
+    const { threadId, items, view } = seedAndRender(10);
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+
+    appendItem(threadId, items, view, makeToolItem("tool-11", "Read file 11"));
+
+    expect(getGhost(view.container)).toBeNull();
+  });
+
+  it("does not animate a history group", () => {
+    const threadId = "thread-slide";
+    const items = Array.from({ length: 10 }, (_, index) =>
+      makeToolItem(`tool-${index + 1}`, `Read file ${index + 1}`),
+    );
+    seedThread(threadId, items);
+    const view = render(
+      <AppProvider>
+        <ToolCallGroup threadId={threadId} itemIds={items.map((item) => item.id)} isLive={false} />
+      </AppProvider>,
+    );
+
+    const all = [...items, makeToolItem("tool-11", "Read file 11")];
+    seedThread(threadId, all);
+    view.rerender(
+      <AppProvider>
+        <ToolCallGroup threadId={threadId} itemIds={all.map((item) => item.id)} isLive={false} />
+      </AppProvider>,
+    );
+
+    expect(getGhost(view.container)).toBeNull();
+  });
+
+  it("stops animating once the group scrolls out of view", () => {
+    const observers: Array<{
+      callback: IntersectionObserverCallback;
+      instance: IntersectionObserver;
+    }> = [];
+    const original = globalThis.IntersectionObserver;
+    class FakeIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        observers.push({ callback, instance: this as unknown as IntersectionObserver });
+      }
+      observe = vi.fn<() => void>();
+      unobserve = vi.fn<() => void>();
+      disconnect = vi.fn<() => void>();
+      takeRecords = vi.fn<() => IntersectionObserverEntry[]>(() => []);
+    }
+    globalThis.IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
+    try {
+      const { threadId, items, view } = seedAndRender(10);
+      // On screen by default, so the first shift animates.
+      let all = appendItem(threadId, items, view, makeToolItem("tool-11", "Read file 11"));
+      expect(getGhost(view.container)).not.toBeNull();
+      expect(observers.length).toBeGreaterThan(0);
+
+      const observed = observers.at(-1)!;
+      observed.callback(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        observed.instance,
+      );
+      all = appendItem(threadId, all, view, makeToolItem("tool-12", "Read file 12"));
+
+      expect(getGhost(view.container)).toBeNull();
+
+      observed.callback([{ isIntersecting: true } as IntersectionObserverEntry], observed.instance);
+      appendItem(threadId, all, view, makeToolItem("tool-13", "Read file 13"));
+
+      expect(getGhost(view.container)).not.toBeNull();
+    } finally {
+      globalThis.IntersectionObserver = original;
+    }
+  });
+
+  it("snaps under prefers-reduced-motion", () => {
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("prefers-reduced-motion"),
+          media: query,
+          addEventListener: vi.fn<() => void>(),
+          removeEventListener: vi.fn<() => void>(),
+          addListener: vi.fn<() => void>(),
+          removeListener: vi.fn<() => void>(),
+          onchange: null,
+          dispatchEvent: vi.fn<() => boolean>(),
+        }) as unknown as MediaQueryList,
+    );
+    try {
+      const { threadId, items, view } = seedAndRender(10);
+      appendItem(threadId, items, view, makeToolItem("tool-11", "Read file 11"));
+      expect(getGhost(view.container)).toBeNull();
+    } finally {
+      matchMedia.mockRestore();
+    }
+  });
+});
