@@ -5577,8 +5577,8 @@ msgid "Gitignored files to copy from the main project into each new worktree. Gi
 msgstr "Gitignored 文件从主项目复制到每个新工作树中。 Gitignore 风格的模式，每行一个（例如 <0>.env.*</0>）。"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "GLM 5.2 (optional label)"
-msgstr "GLM 5.2（可选标签）"
+msgid "GLM 5.3 (optional label)"
+msgstr "GLM 5.3（可选标签）"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "global"

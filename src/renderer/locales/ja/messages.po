@@ -5576,8 +5576,8 @@ msgid "Gitignored files to copy from the main project into each new worktree. Gi
 msgstr "メイン プロジェクトから各新しいワークツリーにコピーする、Gitignored ファイル。 Gitignore スタイルのパターン、1 行に 1 つ (例: <0>.env.*</0>)。"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "GLM 5.2 (optional label)"
-msgstr "GLM 5.2（任意のラベル）"
+msgid "GLM 5.3 (optional label)"
+msgstr "GLM 5.3（任意のラベル）"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "global"

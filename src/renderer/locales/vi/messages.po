@@ -5577,8 +5577,8 @@ msgid "Gitignored files to copy from the main project into each new worktree. Gi
 msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào từng cây làm việc mới. Các mẫu kiểu Gitignore, mỗi mẫu một dòng (ví dụ: <0>.env.*</0>)."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "GLM 5.2 (optional label)"
-msgstr "GLM 5.2 (nhãn tùy chọn)"
+msgid "GLM 5.3 (optional label)"
+msgstr "GLM 5.3 (nhãn tùy chọn)"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "global"

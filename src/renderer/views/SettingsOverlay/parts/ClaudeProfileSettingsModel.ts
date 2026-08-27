@@ -21,16 +21,19 @@ export type PresetEnvRow = { key: string; value: string; sensitive: boolean };
 
 /**
  * Canonical z.ai (GLM) environment, per https://docs.z.ai/devpack/tool/claude.
- * `glm-5.2[1m]` is z.ai's real model name for the 1M-context GLM 5.2 — the `[1m]`
+ * `glm-5.3[1m]` is z.ai's real model name for the 1M-context GLM 5.3 — the `[1m]`
  * is part of the id, not Poracode's context selector, so it is sent verbatim.
+ * `glm-5.3-flash[1m]` is the cheaper tier; z.ai lists Flash as its default
+ * mapping for the Sonnet/Haiku slots (its manual-config example keeps the full
+ * model on Sonnet) — we follow the default mapping.
  * `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is required for the 1M context to be usable.
  */
 export const ZAI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "ANTHROPIC_BASE_URL", value: "https://api.z.ai/api/anthropic", sensitive: false },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "glm-5.2[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "glm-5.2[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "glm-4.5-air", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "glm-5.3[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "glm-5.3-flash[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "glm-5.3-flash[1m]", sensitive: false },
   { key: "API_TIMEOUT_MS", value: "3000000", sensitive: false },
   { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "1000000", sensitive: false },
 ];
@@ -154,11 +157,17 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     id: "zai",
     label: msg`z.ai`,
     envRows: ZAI_PRESET_ROWS,
-    // glm-5.2[1m] is z.ai's 1M-context GLM 5.2 (the `[1m]` is part of the id).
-    models: [{ id: "glm-5.2[1m]", label: "GLM 5.2" }],
-    efforts: ["high", "max", "ultracode"],
+    // glm-5.3[1m] is z.ai's 1M-context GLM 5.3 (the `[1m]` is part of the id).
+    models: [
+      { id: "glm-5.3[1m]", label: "GLM 5.3" },
+      { id: "glm-5.3-flash[1m]", label: "GLM 5.3 Flash" },
+    ],
+    efforts: ["low", "high", "max", "ultracode"],
     defaultEffort: "high",
-    modelEfforts: { "glm-5.2[1m]": ["high", "max", "ultracode"] },
+    modelEfforts: {
+      "glm-5.3[1m]": ["low", "high", "max", "ultracode"],
+      "glm-5.3-flash[1m]": ["low", "high", "max", "ultracode"],
+    },
   },
   {
     id: "deepseek",
