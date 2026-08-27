@@ -316,9 +316,12 @@ msgstr "{0} jetons"
 msgid "{0} tokens - {when}"
 msgstr "{0} tokens - {when}"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
+#. placeholder {1}: entry.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0} mis à jour vers v{1}."
 
@@ -7121,8 +7124,8 @@ msgstr "Libellé du modèle"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Model order"
-msgstr "Ordre des modèles"
+#~ msgid "Model order"
+#~ msgstr "Ordre des modèles"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9296,7 +9299,9 @@ msgstr "Utilisation des fournisseurs"
 msgid "providers"
 msgstr "fournisseurs"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Fournisseurs"
@@ -13023,9 +13028,11 @@ msgstr "Impossible de mettre à jour {0} ({envName})."
 msgid "Unable to update {0} hooks."
 msgstr "Impossible de mettre à jour les hooks {0}."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "Impossible de mettre à jour {0} : {1}"
 
@@ -13038,6 +13045,7 @@ msgstr "Impossible de mettre à jour {0} : {detailText}"
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "Impossible de mettre à jour {0}."
 
@@ -13231,10 +13239,16 @@ msgstr "mise à jour"
 msgid "Update"
 msgstr "Mise à jour"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "Mettre à jour {0} vers {updateLabel}"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Update all"
+msgstr "Tout mettre à jour"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
@@ -13292,7 +13306,9 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "Mise à jour vers {updateLabel} pour {0} ({env})"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Update to v{0}"
 msgstr "Mise à jour vers v{0}"
 
@@ -13318,10 +13334,13 @@ msgid "Updated {0}"
 msgstr "{0} mis à jour"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Mise à jour"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Mise à jour de {0}"

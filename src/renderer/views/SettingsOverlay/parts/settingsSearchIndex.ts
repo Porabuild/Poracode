@@ -582,9 +582,10 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   {
     section: "agentsGeneral",
     anchor: "agentsGeneral.modelOrder",
-    title: msg`Model order`,
+    title: msg`Providers`,
     description: msg`Drag to reorder how providers appear in the model picker.`,
-    keywords: "reorder rearrange sort providers drag model picker sequence position",
+    keywords:
+      "reorder rearrange sort providers drag model picker sequence position model order version update upgrade outdated latest agents",
     conditional: true,
   },
   // Dev (only in dev builds)

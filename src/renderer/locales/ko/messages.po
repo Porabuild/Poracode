@@ -316,9 +316,12 @@ msgstr "{0} 토큰"
 msgid "{0} tokens - {when}"
 msgstr "토큰 {0} - {when}"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
+#. placeholder {1}: entry.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0}이 v{1}로 업데이트되었습니다."
 
@@ -7122,8 +7125,8 @@ msgstr "모델 레이블"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Model order"
-msgstr "모델 순서"
+#~ msgid "Model order"
+#~ msgstr "모델 순서"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9297,7 +9300,9 @@ msgstr "공급자 사용량"
 msgid "providers"
 msgstr "공급자"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "공급자"
@@ -13024,9 +13029,11 @@ msgstr "{0}({envName})을 업데이트할 수 없습니다."
 msgid "Unable to update {0} hooks."
 msgstr "{0} 후크를 업데이트할 수 없습니다."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "{0}을(를) 업데이트할 수 없습니다: {1}"
 
@@ -13039,6 +13046,7 @@ msgstr "{0}을(를) 업데이트할 수 없습니다: {detailText}"
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "{0}을(를) 업데이트할 수 없습니다."
 
@@ -13232,10 +13240,16 @@ msgstr "업데이트"
 msgid "Update"
 msgstr "업데이트"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "{0}을(를) {updateLabel}(으)로 업데이트"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Update all"
+msgstr "모두 업데이트"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
@@ -13293,7 +13307,9 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "{0}({env})에 대한 {updateLabel}(으)로 업데이트"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Update to v{0}"
 msgstr "v{0}(으)로 업데이트"
 
@@ -13319,10 +13335,13 @@ msgid "Updated {0}"
 msgstr "{0} 업데이트됨"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "업데이트 중"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0} 업데이트 중"

@@ -316,9 +316,12 @@ msgstr "{0} tokenów"
 msgid "{0} tokens - {when}"
 msgstr "{0} tokenów - {when}"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
+#. placeholder {1}: entry.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0} zaktualizowano do wersji {1}."
 
@@ -7122,8 +7125,8 @@ msgstr "Etykieta modelu"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Model order"
-msgstr "Kolejność modeli"
+#~ msgid "Model order"
+#~ msgstr "Kolejność modeli"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9297,7 +9300,9 @@ msgstr "Użycie dostawców"
 msgid "providers"
 msgstr "dostawcy"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Dostawcy"
@@ -13024,9 +13029,11 @@ msgstr "Nie można zaktualizować {0} ({envName})."
 msgid "Unable to update {0} hooks."
 msgstr "Nie można zaktualizować haków {0}."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "Nie można zaktualizować {0}: {1}"
 
@@ -13039,6 +13046,7 @@ msgstr "Nie można zaktualizować {0}: {detailText}"
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "Nie można zaktualizować {0}."
 
@@ -13232,10 +13240,16 @@ msgstr "aktualizacja"
 msgid "Update"
 msgstr "Aktualizacja"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "Zaktualizuj {0} do {updateLabel}"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Update all"
+msgstr "Zaktualizuj wszystko"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
@@ -13293,7 +13307,9 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "Aktualizacja do {updateLabel} dla {0} ({env})"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Update to v{0}"
 msgstr "Aktualizacja do wersji {0}"
 
@@ -13319,10 +13335,13 @@ msgid "Updated {0}"
 msgstr "Zaktualizowano {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Aktualizowanie"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Aktualizowanie {0}"
