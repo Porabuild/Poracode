@@ -535,14 +535,14 @@ function ClaudeProfileEditor(props: {
               <Input
                 aria-label={t`Model id`}
                 className="min-w-48 flex-[1_1_12rem] font-mono text-xs"
-                placeholder="glm-5.2[1m]"
+                placeholder="glm-5.3[1m]"
                 value={row.id}
                 onChange={(event) => updateModelRow(row.rowId, { id: event.target.value })}
               />
               <Input
                 aria-label={t`Model label`}
                 className="min-w-48 flex-[1_1_12rem] text-xs"
-                placeholder={t`GLM 5.2 (optional label)`}
+                placeholder={t`GLM 5.3 (optional label)`}
                 value={row.label}
                 onChange={(event) => updateModelRow(row.rowId, { label: event.target.value })}
               />

@@ -5577,8 +5577,8 @@ msgid "Gitignored files to copy from the main project into each new worktree. Gi
 msgstr "기본 프로젝트에서 각각의 새 작업 트리로 복사할 Gitignored 파일입니다. Gitignore 스타일 패턴, 한 줄에 하나씩(예: <0>.env.*</0>)"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "GLM 5.2 (optional label)"
-msgstr "GLM 5.2 (선택 레이블)"
+msgid "GLM 5.3 (optional label)"
+msgstr "GLM 5.3 (선택 레이블)"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "global"

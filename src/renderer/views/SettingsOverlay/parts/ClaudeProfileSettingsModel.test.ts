@@ -94,9 +94,9 @@ describe("ClaudeProfileSettingsModel", () => {
         applyPresetEnvRows(ZAI_PRESET_ROWS, [], nextRowId).map((row) => [row.key, row.value]),
       );
       expect(byKey.ANTHROPIC_BASE_URL).toBe("https://api.z.ai/api/anthropic");
-      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("glm-5.2[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("glm-5.2[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("glm-4.5-air");
+      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("glm-5.3[1m]");
+      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("glm-5.3-flash[1m]");
+      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("glm-5.3-flash[1m]");
       expect(byKey.CLAUDE_CODE_AUTO_COMPACT_WINDOW).toBe("1000000");
     });
 
@@ -212,7 +212,7 @@ describe("ClaudeProfileSettingsModel", () => {
         applyPresetEnvRows(ZAI_PRESET_ROWS, existing, nextRowId).map((r) => [r.key, r]),
       );
 
-      expect(byKey.get("ANTHROPIC_DEFAULT_OPUS_MODEL")?.value).toBe("glm-5.2[1m]");
+      expect(byKey.get("ANTHROPIC_DEFAULT_OPUS_MODEL")?.value).toBe("glm-5.3[1m]");
       expect(byKey.get("ANTHROPIC_AUTH_TOKEN")?.value).toBe("lc-safe:v1:sealed");
       expect(byKey.get("MY_CUSTOM")?.value).toBe("keep");
     });

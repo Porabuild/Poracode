@@ -357,14 +357,17 @@ describe("ClaudeProfileProviderSettings", () => {
     expect(screen.getByDisplayValue("https://api.z.ai/api/anthropic")).toBeInTheDocument();
     expect(screen.getByDisplayValue("ANTHROPIC_AUTH_TOKEN")).toBeInTheDocument();
     expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
-    // The preset's GLM 5.2 picker model id keeps its [1m] suffix verbatim.
-    expect(screen.getByLabelText("Model id")).toHaveValue("glm-5.2[1m]");
+    // The preset's GLM 5.3 picker model ids keep their [1m] suffix verbatim.
+    expect(
+      screen.getAllByLabelText("Model id").map((input) => input.getAttribute("value")),
+    ).toEqual(["glm-5.3[1m]", "glm-5.3-flash[1m]"]);
     expect(settingsState.setHiddenModels).toHaveBeenCalledWith("claude:glm", [
       "claude-opus-4-8",
       "claude-opus-4-7",
       "claude-opus-4-6",
       "sonnet",
       "haiku",
+      "glm-5.2[1m]",
     ]);
   });
 
