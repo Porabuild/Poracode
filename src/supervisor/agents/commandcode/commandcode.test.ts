@@ -1,13 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createCommandCodeAdapter } from ".";
 import { buildCommandCodeArgs } from "./argv";
 import {
   buildCommandCodeModelPickerCapabilities,
-  COMMANDCODE_DEFAULT_MODEL_ID,
+  collectCommandCodeModelEfforts,
   commandCodeDetectionSpec,
+  createCommandCodeEffortProbeCache,
+  createCommandCodeModelNameLoader,
   defaultCommandCodeCapabilities,
+  parseCommandCodeModelEfforts,
+  parseCommandCodeModelNames,
   parseCommandCodeModels,
+  resolveCommandCodeModelName,
 } from "./detection";
 import { authJsonHasApiKey, detectCommandCodeInvalidSessionRef } from "./session";
 import {
@@ -130,12 +135,12 @@ describe("buildCommandCodeArgs", () => {
 describe("createCommandCodeAdapter", () => {
   const project: ProjectLocation = { kind: "windows", path: "C:\\demo" };
 
-  it("declares the command-code binary, default-first models, and bypass default", () => {
+  it("declares the command-code binary, live-only models, and bypass default", () => {
     const adapter = createCommandCodeAdapter();
 
     expect(adapter.kind).toBe("commandcode");
     expect(adapter.binary).toBe("command-code");
-    expect(adapter.capabilities.models[0]?.id).toBe(COMMANDCODE_DEFAULT_MODEL_ID);
+    expect(adapter.capabilities.models).toEqual([]);
     expect(adapter.capabilities.approvalPolicies.map((p) => p.id)).toEqual([
       "default",
       "auto_edit",
@@ -143,10 +148,9 @@ describe("createCommandCodeAdapter", () => {
       "yolo",
     ]);
     expect(adapter.capabilities.defaultApprovalPolicy).toBe("yolo");
-    expect(adapter.capabilities.defaultEffort).toBe("high");
-    expect(adapter.capabilities.models).toHaveLength(50);
     expect(defaultCommandCodeCapabilities.presentationModes).toEqual(["terminal"]);
-    expect(adapter.defaultOneShotModel).toBe(COMMANDCODE_DEFAULT_MODEL_ID);
+    expect(adapter.defaultOneShotModel).toBeUndefined();
+    expect(adapter.allowsImplicitOneShotModel).toBe(true);
   });
 
   it("builds a bypass-permissions one-shot subagent command with --yolo", () => {
@@ -248,6 +252,19 @@ describe("createCommandCodeAdapter", () => {
       ],
       stdin: "",
     });
+  });
+
+  it("lets each CLI location choose its own default for an empty one-shot model", () => {
+    const adapter = createCommandCodeAdapter();
+    const command = adapter.buildOneShotCommand?.("", undefined, "summarize");
+    expect(command?.args).not.toContain("--model");
+
+    const subagent = adapter.buildSubagentOneShotCommand?.({
+      model: "",
+      prompt: "do the work",
+      location: project,
+    });
+    expect(subagent?.args).not.toContain("--model");
   });
 });
 
@@ -406,11 +423,33 @@ describe("parseCommandCodeModels", () => {
     expect(parsed.find((m) => m.id === "claude-sonnet-4-6")?.description).toBe(
       "best combo of speed & intelligence",
     );
+    expect(parsed.find((m) => m.id === "claude-sonnet-4-6")).toMatchObject({
+      providerId: "anthropic",
+      providerLabel: "Anthropic",
+    });
   });
 
   it("returns an empty list for unparseable output", () => {
     expect(parseCommandCodeModels("")).toEqual([]);
     expect(parseCommandCodeModels("totally unrelated text\nno models here")).toEqual([]);
+  });
+
+  it("keeps a dropped or wrapped id-like line from redefining the provider section", () => {
+    const parsed = parseCommandCodeModels(
+      [
+        "Anthropic",
+        "",
+        "claude-sonnet-5  smart",
+        // A row printed without its tagline gap (or a wrapped continuation
+        // starting with an id family) must be skipped, not promoted to a
+        // header that would regroup every following row.
+        "moonshotai/kimi-k2",
+        "claude-fable-5  balanced",
+      ].join("\n"),
+    );
+    expect(parsed.map((m) => m.id)).toEqual(["claude-sonnet-5", "claude-fable-5"]);
+    expect(parsed.every((m) => m.providerId === "anthropic")).toBe(true);
+    expect(parsed.some((m) => m.providerLabel?.toLowerCase().includes("kimi"))).toBe(false);
   });
 });
 
@@ -418,13 +457,21 @@ describe("buildCommandCodeModelPickerCapabilities", () => {
   it("labels models, hoists the default first, and groups by sub-provider", () => {
     const caps = buildCommandCodeModelPickerCapabilities(
       parseCommandCodeModels(LIST_MODELS_FIXTURE),
+      {
+        "deepseek/deepseek-v4-flash": ["high", "max"],
+        "gpt-5.5": ["low", "medium", "high", "xhigh"],
+      },
+      {
+        "moonshotai/kimi-k2.7-code": "Kimi K2.7 Code",
+        "gpt-5.5": "GPT-5.5",
+      },
     );
 
     // Default is surfaced first so a fresh thread mirrors the CLI default.
     expect(caps.models[0]?.id).toBe("deepseek/deepseek-v4-flash");
 
     const byId = new Map(caps.models.map((m) => [m.id, m]));
-    // Curated label override wins; humanize is only the fallback.
+    // Labels derive from the live model ids; taglines remain descriptions.
     expect(byId.get("moonshotai/kimi-k2.7-code")?.label).toBe("Kimi K2.7 Code");
     expect(byId.get("gpt-5.5")?.label).toBe("GPT-5.5");
     // The CLI tagline rides along as the (search/tooltip) description.
@@ -432,24 +479,245 @@ describe("buildCommandCodeModelPickerCapabilities", () => {
       "improved long-horizon coding with vision",
     );
 
-    // Un-namespaced ids map explicitly; slash-namespaced ids derive from prefix.
+    // Grouping follows the live CLI sections, independent of id namespaces.
     expect(caps.modelSubProvider?.["claude-fable-5"]).toBe("anthropic");
     expect(caps.modelSubProvider?.["gpt-5.5"]).toBe("openai");
-    expect(caps.modelSubProvider?.["nvidia/nemotron-3-ultra-550b-a55b"]).toBe("nvidia");
+    expect(caps.modelSubProvider?.["nvidia/nemotron-3-ultra-550b-a55b"]).toBe("open-source");
     expect(caps.modelEfforts["deepseek/deepseek-v4-flash"]).toEqual(["high", "max"]);
     expect(caps.modelEfforts["gpt-5.5"]).toEqual(["low", "medium", "high", "xhigh"]);
 
-    // Curated label for a known sub-provider; humanized fallback for nvidia.
+    // Section labels and order come directly from the CLI output.
     const subById = new Map((caps.subProviders ?? []).map((s) => [s.id, s.label]));
-    expect(subById.get("deepseek")).toBe("DeepSeek");
-    expect(subById.get("nvidia")).toBe("NVIDIA");
+    expect(subById.get("open-source")).toBe("Open Source");
+    expect(subById.get("anthropic")).toBe("Anthropic");
   });
 
-  it("falls back to a humanized label for an uncurated id", () => {
-    const caps = buildCommandCodeModelPickerCapabilities([{ id: "acme/new-shiny-model" }]);
-    expect(caps.models[0]?.label).toBe("New Shiny Model");
-    expect(caps.modelSubProvider?.["acme/new-shiny-model"]).toBe("acme");
-    expect((caps.subProviders ?? []).find((s) => s.id === "acme")?.label).toBe("Acme");
+  it("uses stable live BYOK ids despite repeated spaces or duplicate display names", () => {
+    const parsed = parseCommandCodeModels(`Available models  ·  2 models
+
+Available  AI (byok)
+
+audit-local/internal-id  Audit Reasoner
+
+Available  AI (byok)
+
+other-local/other-id  Other Reasoner
+`);
+    const caps = buildCommandCodeModelPickerCapabilities(
+      parsed,
+      { "audit-local/internal-id": ["low", "medium", "xhigh"] },
+      { "audit-local/internal-id": "Wrong Built-in Name" },
+    );
+    expect(caps.models).toEqual([
+      { id: "audit-local/internal-id", label: "Audit Reasoner" },
+      { id: "other-local/other-id", label: "Other Reasoner" },
+    ]);
+    expect(caps.subProviders).toEqual([
+      { id: "audit-local", label: "Available  AI" },
+      { id: "other-local", label: "Available  AI" },
+    ]);
+    expect(caps.modelSubProvider?.["audit-local/internal-id"]).toBe("audit-local");
+    expect(caps.modelSubProvider?.["other-local/other-id"]).toBe("other-local");
+    expect(caps.modelEfforts["audit-local/internal-id"]).toEqual(["low", "medium", "xhigh"]);
+  });
+});
+
+describe("dynamic Command Code effort discovery", () => {
+  it("parses live built-in display names case-insensitively", () => {
+    expect(
+      parseCommandCodeModelNames({
+        object: "list",
+        data: [
+          { id: "moonshotai/Kimi-K3", name: "Kimi K3" },
+          { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
+          { id: "", name: "Missing" },
+          { id: "bad" },
+        ],
+      }),
+    ).toEqual({
+      "moonshotai/kimi-k3": "Kimi K3",
+      "gpt-5.6-sol": "GPT-5.6 Sol",
+    });
+    expect(parseCommandCodeModelNames({ data: "invalid" })).toEqual({});
+  });
+
+  it("resolves a unique dated canonical model id without a static alias table", () => {
+    const names = {
+      "claude-haiku-4-5-20251001": "Claude Haiku 4.5",
+      "gpt-5.6-sol": "GPT-5.6 Sol",
+    };
+    expect(resolveCommandCodeModelName("gpt-5.6-sol", names)).toBe("GPT-5.6 Sol");
+    expect(resolveCommandCodeModelName("claude-haiku-4-5", names)).toBe("Claude Haiku 4.5");
+    expect(
+      resolveCommandCodeModelName("claude-haiku-4-5", {
+        ...names,
+        "claude-haiku-4-5-20260101": "Different Haiku",
+      }),
+    ).toBeUndefined();
+  });
+
+  it("coalesces and briefly caches live model-name requests", async () => {
+    let now = 1_000;
+    let releaseFetch: (() => void) | undefined;
+    const fetchGate = new Promise<void>((resolve) => {
+      releaseFetch = resolve;
+    });
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      await fetchGate;
+      return new Response(JSON.stringify({ data: [{ id: "gpt-5.6-sol", name: "GPT-5.6 Sol" }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const load = createCommandCodeModelNameLoader({ fetchImpl, now: () => now, ttlMs: 100 });
+
+    const first = load();
+    const second = load();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    releaseFetch?.();
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { "gpt-5.6-sol": "GPT-5.6 Sol" },
+      { "gpt-5.6-sol": "GPT-5.6 Sol" },
+    ]);
+
+    await load();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    now += 101;
+    await load();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps coalesced model-name fetches independent from each caller's cancellation", async () => {
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      await firstGate;
+      return new Response(JSON.stringify({ data: [{ id: "gpt", name: "GPT" }] }));
+    });
+    const load = createCommandCodeModelNameLoader({ fetchImpl });
+    const ownerController = new AbortController();
+    const liveController = new AbortController();
+    const cancelledOwner = load(ownerController.signal);
+    const liveWaiter = load(liveController.signal);
+    ownerController.abort();
+    await expect(cancelledOwner).rejects.toMatchObject({ name: "AbortError" });
+    releaseFirst?.();
+    await expect(liveWaiter).resolves.toEqual({ gpt: "GPT" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    let releaseSecond: (() => void) | undefined;
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    const secondFetch = vi.fn<typeof fetch>(async () => {
+      await secondGate;
+      return new Response(JSON.stringify({ data: [{ id: "glm", name: "GLM" }] }));
+    });
+    const secondLoad = createCommandCodeModelNameLoader({ fetchImpl: secondFetch });
+    const cancelledWaiterController = new AbortController();
+    const liveOwner = secondLoad();
+    const cancelledWaiter = secondLoad(cancelledWaiterController.signal);
+    cancelledWaiterController.abort();
+    await expect(cancelledWaiter).rejects.toMatchObject({ name: "AbortError" });
+    releaseSecond?.();
+    await expect(liveOwner).resolves.toEqual({ glm: "GLM" });
+    expect(secondFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("parses supported efforts and models without adjustable effort", () => {
+    expect(
+      parseCommandCodeModelEfforts(
+        'Unknown effort "__poracode_capability_probe__". Supported: low, medium, xhigh.',
+      ),
+    ).toEqual(["low", "medium", "xhigh"]);
+    expect(parseCommandCodeModelEfforts("Kimi K3 has no adjustable reasoning effort.")).toEqual([]);
+    expect(parseCommandCodeModelEfforts("unexpected failure")).toBeUndefined();
+  });
+
+  it("collects efforts with bounded concurrency and reports unresolved probes", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const result = await collectCommandCodeModelEfforts(
+      ["reasoning-a", "plain", "reasoning-b", "failed"],
+      async (modelId) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await Promise.resolve();
+        active -= 1;
+        if (modelId === "plain") return "Plain has no adjustable reasoning effort.";
+        if (modelId === "failed") return "probe failed";
+        return `Unknown effort. Supported: low, high${modelId === "reasoning-b" ? ", max" : ""}.`;
+      },
+      2,
+    );
+    expect(maxActive).toBe(2);
+    expect(result).toEqual({
+      "reasoning-a": ["low", "high"],
+      plain: [],
+      "reasoning-b": ["low", "high", "max"],
+    });
+  });
+
+  it("refuses the fan-out when neither leader probe gets a parseable rejection reply", async () => {
+    const probed: string[] = [];
+    const result = await collectCommandCodeModelEfforts(
+      ["first", "second", "third"],
+      async (modelId) => {
+        probed.push(modelId);
+        return modelId === "first" ? "signed out - run command-code login" : "";
+      },
+      24,
+    );
+    // Only the two serial leaders fire; a real `-p` turn storm is never launched.
+    expect(probed).toEqual(["first", "second"]);
+    expect(result).toEqual({});
+  });
+
+  it("keeps a persistently unparseable first model from vetoing the rest of the list", async () => {
+    const probed: string[] = [];
+    const result = await collectCommandCodeModelEfforts(
+      ["poison", "good-a", "good-b"],
+      async (modelId) => {
+        probed.push(modelId);
+        return modelId === "poison"
+          ? "endpoint rejected the request"
+          : "Unknown effort. Supported: low, high.";
+      },
+      24,
+    );
+    expect(result).toEqual({
+      "good-a": ["low", "high"],
+      "good-b": ["low", "high"],
+    });
+    expect(new Set(probed)).toEqual(new Set(["poison", "good-a", "good-b"]));
+  });
+
+  it("coalesces same-key probes and retains resolved models across cache keys", async () => {
+    const cache = createCommandCodeEffortProbeCache(2);
+    const calls = new Map<string, number>();
+    const probe = async (modelId: string) => {
+      calls.set(modelId, (calls.get(modelId) ?? 0) + 1);
+      await Promise.resolve();
+      return modelId === "flaky" ? "temporary failure" : `Unknown effort. Supported: low, high.`;
+    };
+
+    await Promise.all([
+      cache("native-v1", ["stable", "flaky"], probe),
+      cache("native-v1", ["stable", "flaky"], probe),
+    ]);
+    expect(calls).toEqual(
+      new Map([
+        ["stable", 1],
+        ["flaky", 1],
+      ]),
+    );
+
+    await cache("wsl-v1", ["stable"], probe);
+    await cache("native-v1", ["stable", "flaky"], probe);
+    expect(calls.get("stable")).toBe(2);
+    expect(calls.get("flaky")).toBe(2);
   });
 });
 

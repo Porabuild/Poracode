@@ -91,6 +91,7 @@ export type {
 } from "./types";
 export * from "./terminalHints";
 export * from "./expectedRuntimeError";
+export * from "./oneShotModel";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";

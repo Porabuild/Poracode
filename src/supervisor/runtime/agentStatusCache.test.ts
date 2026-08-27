@@ -227,7 +227,51 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(18);
+    expect(STATUS_CACHE_VERSION).toBe(19);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v18 caches holding Command Code's curated fallback models", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 18,
+        windows: [
+          {
+            kind: "commandcode",
+            label: "Command Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [
+                { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+                { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+              ],
+              modelEfforts: { "deepseek/deepseek-v4-flash": ["high", "max"] },
+              defaultEffort: "high",
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(19);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

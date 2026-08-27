@@ -1,5 +1,5 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import type { AgentAdapter } from "./agents/base";
+import { resolveOneShotEffectiveModel, type AgentAdapter } from "./agents/base";
 import { buildDiffPromptContext, getFilesFromDiff } from "./diffPromptContext";
 import { GitService } from "./git";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
@@ -83,10 +83,9 @@ export async function generatePrSummary(
   effort?: string,
   language?: string,
 ): Promise<{ title: string; description: string }> {
-  const effectiveModel = model ?? adapter.defaultOneShotModel;
-  if (!effectiveModel) {
-    throw new Error(`No default one-shot model configured for ${adapter.label}`);
-  }
+  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+    return new Error(`No default one-shot model configured for ${adapter.label}`);
+  });
 
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
     throw new Error(`${adapter.label} does not support one-shot generation`);

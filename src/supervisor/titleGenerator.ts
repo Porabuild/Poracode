@@ -1,5 +1,9 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import { withCommandBaseSpawnEnv, type AgentAdapter } from "./agents/base";
+import {
+  resolveOneShotEffectiveModel,
+  withCommandBaseSpawnEnv,
+  type AgentAdapter,
+} from "./agents/base";
 import { prepareOneShot } from "./oneShotSpawn";
 
 /**
@@ -79,10 +83,9 @@ export async function generateTitle(
   language?: string,
   fast?: boolean,
 ): Promise<string> {
-  const effectiveModel = model ?? adapter.defaultOneShotModel;
-  if (!effectiveModel) {
-    throw new Error(`No default one-shot model configured for ${adapter.label}`);
-  }
+  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+    return new Error(`No default one-shot model configured for ${adapter.label}`);
+  });
 
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
     throw new Error(`${adapter.label} does not support one-shot generation`);

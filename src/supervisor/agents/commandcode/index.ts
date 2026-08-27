@@ -8,11 +8,7 @@ import {
 } from "../base";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
-import {
-  COMMANDCODE_DEFAULT_MODEL_ID,
-  commandCodeDetectionSpec,
-  defaultCommandCodeCapabilities,
-} from "./detection";
+import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
   installCommandCodePlugin,
   isCommandCodePluginInstalled,
@@ -184,7 +180,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
     optimisticWorkingOnSubmit: true,
     detectInvalidSessionRef: detectCommandCodeInvalidSessionRef,
 
-    defaultOneShotModel: COMMANDCODE_DEFAULT_MODEL_ID,
+    allowsImplicitOneShotModel: true,
 
     buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
@@ -194,8 +190,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
           "--trust",
           "--skip-onboarding",
           "--no-session",
-          "--model",
-          model || COMMANDCODE_DEFAULT_MODEL_ID,
+          ...(model ? ["--model", model] : []),
           ...(effort ? ["--effort", effort] : []),
           "-p",
           prompt,
@@ -216,8 +211,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
           "--skip-onboarding",
           "--no-session",
           "--yolo",
-          "--model",
-          model || COMMANDCODE_DEFAULT_MODEL_ID,
+          ...(model ? ["--model", model] : []),
           ...(effort ? ["--effort", effort] : []),
           "-p",
           prompt,
