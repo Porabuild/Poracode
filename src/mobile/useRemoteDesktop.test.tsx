@@ -255,7 +255,8 @@ vi.mock("./storeSync", () => ({
   resetRemoteStores: (...a: unknown[]) => h.resetRemoteStores(...a),
 }));
 
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>()),
   seedOlderThreadRuntimeItemsCursor: (...a: unknown[]) => h.seedOlderThreadRuntimeItemsCursor(...a),
 }));
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
@@ -1279,11 +1280,16 @@ describe("useRemoteDesktop", () => {
   it("preserves an advanced page cursor when a fresh tail overlaps local history", async () => {
     const desktop = makeDesktop("d1");
     const client = clientFor("d1");
-    useAppStore.setState({ runtimeItemIdsByThread: { t1: ["shared-tail-start"] } });
+    useAppStore.setState({
+      runtimeItemIdsByThread: { t1: ["pinned-goal", "shared-tail-start"] },
+    });
     client.threadHistory.mockResolvedValueOnce({
       snapshotSeq: 2,
       thread: { id: "t1", status: "idle", presentationMode: "gui" },
-      runtimeItems: [{ id: "shared-tail-start" }],
+      runtimeItems: [
+        { id: "pinned-goal", type: "goal" },
+        { id: "shared-tail-start", type: "assistant_message" },
+      ],
       runtimeNextCursor: 80,
       completedTurns: [],
       contextUsage: null,
@@ -1303,11 +1309,16 @@ describe("useRemoteDesktop", () => {
   it("replaces the page cursor when a fresh tail is disjoint from local history", async () => {
     const desktop = makeDesktop("d1");
     const client = clientFor("d1");
-    useAppStore.setState({ runtimeItemIdsByThread: { t1: ["cached-tail-start"] } });
+    useAppStore.setState({
+      runtimeItemIdsByThread: { t1: ["pinned-goal", "cached-tail-start"] },
+    });
     client.threadHistory.mockResolvedValueOnce({
       snapshotSeq: 2,
       thread: { id: "t1", status: "idle", presentationMode: "gui" },
-      runtimeItems: [{ id: "fresh-tail-start" }],
+      runtimeItems: [
+        { id: "pinned-goal", type: "goal" },
+        { id: "fresh-tail-start", type: "assistant_message" },
+      ],
       runtimeNextCursor: 120,
       completedTurns: [],
       contextUsage: null,

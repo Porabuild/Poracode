@@ -1,4 +1,5 @@
 import type { ToolCallPayload } from "@/shared/contracts";
+import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { captureRendererException } from "../diagnostics/sentry";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
@@ -54,6 +55,14 @@ export function seedOlderThreadRuntimeItemsCursor(
   }
   if (currentCursor === null) return;
   olderRuntimePageCursorByThread.set(threadId, Math.min(currentCursor, cursor));
+}
+
+export function runtimePageOverlapsExistingTranscript(
+  runtimeItems: readonly Pick<PersistedRuntimeItem, "id" | "type">[],
+  existingItemIds: readonly string[],
+): boolean {
+  const existingIds = new Set(existingItemIds);
+  return runtimeItems.some((item) => item.type !== "goal" && existingIds.has(item.id));
 }
 
 export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
@@ -148,7 +157,7 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
 
 async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolean> {
   const bridge = readBridge();
-  const [itemsResult, turnsResult, contextResult] = await Promise.allSettled([
+  const [itemsResult, turnsResult, contextResult, latestGoalResult] = await Promise.allSettled([
     Promise.resolve().then(() =>
       bridge.dbGetThreadRuntimeItemsPage({
         threadId,
@@ -158,6 +167,7 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     ),
     Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
     Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
+    Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
   ]);
 
   if (itemsResult.status === "fulfilled") {
@@ -193,6 +203,19 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     captureRendererException(itemsResult.reason, { featureArea: "runtime-persistence" });
   }
 
+  // Goal rows are hidden from the timeline but still drive the composer dock.
+  // Re-pin the latest one when paged hydration omits it.
+  if (latestGoalResult.status === "fulfilled" && latestGoalResult.value) {
+    pinOutOfWindowGoalItem(threadId, latestGoalResult.value);
+  } else if (latestGoalResult.status === "rejected") {
+    console.warn(
+      "[chat] failed to read the latest goal item for thread %s",
+      threadId,
+      latestGoalResult.reason,
+    );
+    captureRendererException(latestGoalResult.reason, { featureArea: "runtime-persistence" });
+  }
+
   if (turnsResult.status === "fulfilled" && turnsResult.value.length > 0) {
     const records: CompletedTurnRecord[] = turnsResult.value.flatMap((row) => {
       const startedAt = new Date(row.startedAt).getTime();
@@ -224,8 +247,25 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
   return (
     itemsResult.status !== "rejected" &&
     turnsResult.status !== "rejected" &&
-    contextResult.status !== "rejected"
+    contextResult.status !== "rejected" &&
+    latestGoalResult.status !== "rejected"
   );
+}
+
+/**
+ * Prepends the thread's latest persisted goal item when the loaded window has
+ * none. The item is older than everything in the tail window, so prepending
+ * keeps insertion order; later older-page loads that contain the same item id
+ * are deduped by `prependThreadRuntimeItems`, and live `item.updated` events
+ * for the goal keep landing on the pinned row.
+ */
+function pinOutOfWindowGoalItem(threadId: string, goalItem: PersistedRuntimeItem): void {
+  const state = useAppStore.getState();
+  const itemIds = state.runtimeItemIdsByThread[threadId];
+  if (!itemIds) return;
+  const itemsById = state.runtimeItemsByIdByThread[threadId];
+  if (itemIds.some((itemId) => itemsById?.[itemId]?.type === "goal")) return;
+  state.prependThreadRuntimeItems(threadId, [toRuntimeChatItem(goalItem)]);
 }
 
 function evictInactiveThreadRuntimeItems(): void {

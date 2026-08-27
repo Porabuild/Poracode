@@ -28,7 +28,10 @@ import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeAction
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { useAppStore } from "@/renderer/state/appStore";
-import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
+import {
+  runtimePageOverlapsExistingTranscript,
+  seedOlderThreadRuntimeItemsCursor,
+} from "@/renderer/state/chatRuntimePersister";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -679,10 +682,11 @@ export function useRemoteDesktop() {
       // Bail if the user opened another thread while the fetch was in flight.
       if (isStaleSelection()) return latest;
       latest = { snapshot: next, fromServer: true };
-      const firstSnapshotItemId = next.runtimeItems[0]?.id;
       const existingRuntimeItemIds = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
-      const tailOverlapsExistingTranscript =
-        firstSnapshotItemId !== undefined && existingRuntimeItemIds.includes(firstSnapshotItemId);
+      const tailOverlapsExistingTranscript = runtimePageOverlapsExistingTranscript(
+        next.runtimeItems,
+        existingRuntimeItemIds,
+      );
       seedOlderThreadRuntimeItemsCursor(threadId, next.runtimeNextCursor ?? null, {
         preserveExistingCursor: tailOverlapsExistingTranscript,
       });

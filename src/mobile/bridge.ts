@@ -289,6 +289,7 @@ const remoteBridgeOverrides = {
     payload.beforePosition === undefined
       ? Promise.resolve({ items: [], nextCursor: null })
       : invokeRemoteIpcProcedure(requireClient(), "dbGetThreadRuntimeItemsPage", payload),
+  dbGetLatestThreadGoalItem: () => Promise.resolve(null),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),
 
