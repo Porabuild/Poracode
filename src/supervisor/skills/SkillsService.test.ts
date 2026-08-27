@@ -11,7 +11,7 @@ import {
 } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join, parse } from "node:path";
+import { dirname, join, parse } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoadedPlugin, ProjectLocation } from "@/shared/contracts";
 import type { InstalledPlugins } from "@/shared/contracts/plugin";
@@ -978,6 +978,48 @@ describe("SkillsService", () => {
     expect(native).toBeUndefined();
   });
 
+  it("inlines a portable WSL skill whose path resolves to a Windows drive", async () => {
+    const wslRoot = join(root, "wsl-inline-symlink");
+    const windowsSkill = join(root, "windows-skill", "SKILL.md");
+    const linuxSkill = "/home/alice/.agents/skills/portable/SKILL.md";
+    const mntSkill = "/mnt/c/Users/alice/.agents/skills/portable/SKILL.md";
+    await mkdir(dirname(windowsSkill), { recursive: true });
+    await writeFile(
+      windowsSkill,
+      "---\nname: portable\ndescription: Portable instructions\n---\n\nWindows-backed instructions\n",
+    );
+    const wslService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      resolveWslHome: async () => "/home/alice",
+      resolveWslRealPaths: async (_distro, paths) =>
+        paths.map((path) => (path === linuxSkill ? mntSkill : path)),
+      resolveWslWindowsPaths: async (_distro, paths) =>
+        paths.map((path) => (path === mntSkill ? windowsSkill : undefined)),
+      wslFsPath: (_distro, linuxPath) => join(wslRoot, ...linuxPath.split("/").filter(Boolean)),
+    });
+    const injected = await wslService.buildTurnSkillInjection({
+      agentKind: "claude",
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/work/project",
+        uncPath: projectPath,
+      },
+      segments: [
+        {
+          kind: "skill",
+          name: "portable",
+          path: linuxSkill,
+          invocation: "/portable",
+          provider: "Shared agents",
+          scope: "global",
+        },
+      ],
+    });
+    expect(injected).toContain("Windows-backed instructions");
+  });
+
   it("leaves a plugin invocation to the provider when its native package is enabled", async () => {
     const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
     const nativeService = new SkillsService({
@@ -1802,7 +1844,11 @@ describe("SkillsService", () => {
       adapters,
       homeDirectory: () => home,
       resolveWslHome: async () => "/home/alice",
-      resolveWslRealPaths: async () => ["/home/alice/.agents/skills/review"],
+      resolveWslRealPaths: async (_distro, paths) =>
+        paths.map((p) =>
+          p === "/home/alice/.claude/skills/review" ? "/home/alice/.agents/skills/review" : p,
+        ),
+      resolveWslWindowsPaths: async () => [],
       wslFsPath: toWslPath,
     });
     const scan = await wslService.scan({ wslDistro: "Ubuntu" });
@@ -1817,6 +1863,111 @@ describe("SkillsService", () => {
       valid: true,
     });
     expect(skill?.invalidReason).toBeUndefined();
+  });
+
+  it("resolves a symlinked WSL global root that points to a Windows drive before scanning", async () => {
+    const wslRoot = join(root, "wsl-symlinked-root");
+    const toWslPath = (_distro: string, linuxPath: string) =>
+      join(wslRoot, ...linuxPath.split("/").filter(Boolean));
+    const windowsRealRoot = join(root, "mnt-c", "Users", "alice", ".agents", "skills");
+    const skillName = "wsl-symlinked-review";
+    const linuxRoot = "/home/alice/.agents/skills";
+    const mntTarget = "/mnt/c/Users/alice/.agents/skills";
+    const importSource = join(
+      toWslPath("Ubuntu", "/home/alice"),
+      ".claude",
+      "skills",
+      "import-source",
+    );
+    await writeSkill(join(windowsRealRoot, skillName), skillName, "Symlinked root resolved");
+    await writeSkill(importSource, "import-source");
+    const wslService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      resolveWslHome: async () => "/home/alice",
+      resolveWslRealPaths: async (_distro, paths) =>
+        paths.map((p) => (p === linuxRoot ? mntTarget : p)),
+      resolveWslWindowsPaths: async (_distro, paths) =>
+        paths.map((p) => (p === mntTarget ? windowsRealRoot : undefined)),
+      wslFsPath: toWslPath,
+    });
+    const scan = await wslService.scan({ wslDistro: "Ubuntu" });
+    const skill = scan.skills.find((entry) => entry.folderName === skillName);
+    expect(skill).toMatchObject({
+      name: skillName,
+      description: "Symlinked root resolved",
+      scope: "global",
+      valid: true,
+      rootPath: windowsRealRoot,
+      skillFilePath: `${linuxRoot}/${skillName}/SKILL.md`,
+    });
+    expect(skill?.linked).toBe(false);
+    await wslService.setEnabled({
+      absolutePath: skill!.absolutePath,
+      enabled: false,
+      wslDistro: "Ubuntu",
+    });
+    const disabled = (await wslService.scan({ wslDistro: "Ubuntu" })).skills.find(
+      (entry) => entry.folderName === skillName,
+    );
+    expect(disabled).toMatchObject({ enabled: false });
+    const imported = await wslService.import({
+      skills: [
+        {
+          sourcePath: importSource,
+          destinationScope: "global",
+          mode: "copy",
+          replace: false,
+          wslDistro: "Ubuntu",
+        },
+      ],
+    });
+    expect(imported.imported).toEqual([join(windowsRealRoot, "import-source")]);
+  });
+
+  it("maps a direct /mnt skill root to its Windows path", async () => {
+    const wslRoot = join(root, "wsl-direct-mnt");
+    const windowsHome = join(root, "windows-home");
+    const linuxHome = "/mnt/c/Users/alice";
+    const linuxSkillsRoot = `${linuxHome}/.claude/skills`;
+    const linuxManagedRoot = `${linuxHome}/.agents/skills`;
+    const windowsSkillsRoot = join(windowsHome, ".claude", "skills");
+    const windowsManagedRoot = join(windowsHome, ".agents", "skills");
+    const toWslPath = (_distro: string, linuxPath: string) =>
+      join(wslRoot, ...linuxPath.split("/").filter(Boolean));
+    await writeSkill(join(windowsSkillsRoot, "direct-mnt-review"), "direct-mnt-review");
+    const wslService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      resolveWslHome: async () => linuxHome,
+      resolveWslRealPaths: async (_distro, paths) =>
+        paths.map((path) => (path === linuxManagedRoot ? undefined : path)),
+      resolveWslWindowsPaths: async (_distro, paths) =>
+        paths.map((path) =>
+          path === linuxSkillsRoot
+            ? windowsSkillsRoot
+            : path === linuxManagedRoot
+              ? windowsManagedRoot
+              : undefined,
+        ),
+      wslFsPath: toWslPath,
+    });
+    const scan = await wslService.scan({ wslDistro: "Ubuntu", agentKind: "claude" });
+    const skill = scan.skills.find((entry) => entry.folderName === "direct-mnt-review");
+    expect(skill).toMatchObject({ rootPath: windowsSkillsRoot, valid: true });
+    expect(scan.effectiveSkillIds).toContain(skill!.id);
+    const imported = await wslService.import({
+      skills: [
+        {
+          sourcePath: skill!.absolutePath,
+          destinationScope: "global",
+          mode: "copy",
+          replace: false,
+          wslDistro: "Ubuntu",
+        },
+      ],
+    });
+    expect(imported.imported).toEqual([join(windowsManagedRoot, "direct-mnt-review")]);
   });
 
   it("manages a WSL user's global skills without requiring a project", async () => {
