@@ -1,4 +1,5 @@
 import type { RuntimeEvent } from "@/shared/contracts";
+import { appendCoalescedRuntimeEvent } from "@/shared/coalesce";
 import { childKey, subAgentKey } from "./helpers";
 
 /**
@@ -60,17 +61,7 @@ export class SubAgentRegistry {
       this.buffers.set(key, [event]);
       return;
     }
-    const previous = buffer.at(-1);
-    if (
-      event.type === "content.delta" &&
-      previous?.type === "content.delta" &&
-      previous.itemId === event.itemId &&
-      previous.stream === event.stream
-    ) {
-      buffer[buffer.length - 1] = { ...previous, delta: previous.delta + event.delta };
-      return;
-    }
-    buffer.push(event);
+    appendCoalescedRuntimeEvent(buffer, event);
   }
 
   /** Drain and remove the buffer for `parentItemId`. Returns `[]` if none. */

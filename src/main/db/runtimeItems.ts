@@ -4,8 +4,18 @@ import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
 import { isSubAgentTool } from "@/shared/toolCallClassification";
-import { getSqlite } from "./connection";
+import { getSqlite, registerBeforeDatabaseClose } from "./connection";
 import { safeParse } from "./rowMappers";
+import {
+  appendStreamDelta,
+  assembleItemStreams,
+  clearThreadStreamChunks,
+  readStreamTails,
+  streamHasContent,
+  type ItemStreamTails,
+  writeItemStreams,
+} from "./runtimeStreamStore";
+import { RuntimeWriteQueue } from "./runtimeWriteQueue";
 
 /**
  * Persisted canonical chat items per thread. Stored as a flat table keyed by
@@ -80,15 +90,37 @@ function runtimeItemState(state: string): PersistedRuntimeItem["state"] {
   return state === "completed" || state === "updated" ? state : "started";
 }
 
-function mapRuntimeItemRow(row: PersistedRuntimeItemRow): PersistedRuntimeItem {
+function mapRuntimeItemRow(
+  row: PersistedRuntimeItemRow,
+  tails?: ItemStreamTails,
+): PersistedRuntimeItem {
+  const head = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
   return {
     id: row.item_id,
     type: row.type,
     state: runtimeItemState(row.state),
     payload: row.payload ? safeParse(row.payload) : undefined,
-    streams: row.streams ? (safeParse(row.streams) as Record<string, string>) : {},
+    streams: assembleItemStreams(head, tails),
     ...(row.parent_item_id ? { parentItemId: row.parent_item_id } : {}),
   };
+}
+
+/**
+ * Map rows to items with their appended stream tails. Chunks are fetched for
+ * the whole batch at once so a 500-row page costs one extra query, not 500.
+ */
+function mapRuntimeItemRows(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+  rows: readonly PersistedRuntimeItemRow[],
+): PersistedRuntimeItem[] {
+  if (rows.length === 0) return [];
+  const tails = readStreamTails(
+    sqlite,
+    threadId,
+    rows.map((row) => row.item_id),
+  );
+  return rows.map((row) => mapRuntimeItemRow(row, tails.get(row.item_id)));
 }
 
 function chunkValues<T>(values: readonly T[], size: number): T[][] {
@@ -177,17 +209,19 @@ export function dbReadThreadRuntimeSummaries(
 export function dbGetThreadRuntimeSummaries(
   threadIds: readonly string[],
 ): Record<string, ThreadRuntimeSummary> {
+  for (const threadId of threadIds) runtimeWriteQueue.flush(threadId);
   return dbReadThreadRuntimeSummaries(getSqlite(), threadIds);
 }
 
 export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[] {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const rows = sqlite
     .prepare(
       "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? ORDER BY position ASC",
     )
     .all(threadId) as PersistedRuntimeItemRow[];
-  return rows.map(mapRuntimeItemRow);
+  return mapRuntimeItemRows(sqlite, threadId, rows);
 }
 
 /**
@@ -200,17 +234,19 @@ export function dbGetThreadRuntimeItem(
   threadId: string,
   itemId: string,
 ): PersistedRuntimeItem | null {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const row = sqlite
     .prepare(
       "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
     )
     .get(threadId, itemId) as PersistedRuntimeItemRow | undefined;
-  return row ? mapRuntimeItemRow(row) : null;
+  return row ? mapRuntimeItemRows(sqlite, threadId, [row])[0]! : null;
 }
 
 /** Reads the latest goal even when it precedes the paged transcript window. */
 export function dbGetLatestThreadGoalItem(threadId: string): PersistedRuntimeItem | null {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const row = sqlite
     .prepare(
@@ -230,6 +266,7 @@ export function dbGetThreadRuntimeItemsPage(
   limit: number,
   targetTimelineEntryCount?: number,
 ): PersistedRuntimePage {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const childParentIds = new Set(
     (
@@ -269,12 +306,12 @@ export function dbGetThreadRuntimeItemsPage(
     // contents of the first already-visible tool/reasoning group.
     while (
       segmentRows.length > 0 &&
-      isRuntimePageGroupItem(segmentRows.at(-1)!, childParentIds) &&
+      isRuntimePageGroupItem(sqlite, threadId, segmentRows.at(-1)!, childParentIds) &&
       lookaheadRows[0] &&
-      isRuntimePageGroupItem(lookaheadRows[0], childParentIds)
+      isRuntimePageGroupItem(sqlite, threadId, lookaheadRows[0], childParentIds)
     ) {
       const boundaryIndex = lookaheadRows.findIndex(
-        (row) => !isRuntimePageGroupItem(row, childParentIds),
+        (row) => !isRuntimePageGroupItem(sqlite, threadId, row, childParentIds),
       );
       if (boundaryIndex >= 0) {
         segmentRows.push(...lookaheadRows.slice(0, boundaryIndex));
@@ -291,7 +328,7 @@ export function dbGetThreadRuntimeItemsPage(
   if (targetTimelineEntryCount === undefined) {
     const page = readPageRows(beforePosition);
     return {
-      items: page.rows.reverse().map(mapRuntimeItemRow),
+      items: mapRuntimeItemRows(sqlite, threadId, page.rows.reverse()),
       nextCursor: page.hasMore ? (page.rows[0]?.position ?? null) : null,
     };
   }
@@ -311,7 +348,7 @@ export function dbGetThreadRuntimeItemsPage(
 
     for (let index = 0; index < scanRows.length; index += 1) {
       const row = scanRows[index]!;
-      if (completingTargetGroup && !isRuntimePageGroupItem(row, childParentIds)) {
+      if (completingTargetGroup && !isRuntimePageGroupItem(sqlite, threadId, row, childParentIds)) {
         hasMore = true;
         break pageScan;
       }
@@ -319,7 +356,7 @@ export function dbGetThreadRuntimeItemsPage(
       pageRows.push(row);
       cursor = row.position;
       if (!completingTargetGroup) {
-        accumulateRuntimeTimelineEntryCount(row, childParentIds, timelineCount);
+        accumulateRuntimeTimelineEntryCount(sqlite, threadId, row, childParentIds, timelineCount);
         if (timelineCount.entries >= targetTimelineEntryCount) {
           completingTargetGroup = timelineCount.insideGroup;
           if (!completingTargetGroup) {
@@ -337,25 +374,29 @@ export function dbGetThreadRuntimeItemsPage(
 
   const nextCursor = hasMore ? (pageRows.at(-1)?.position ?? null) : null;
   return {
-    items: pageRows.reverse().map(mapRuntimeItemRow),
+    items: mapRuntimeItemRows(sqlite, threadId, pageRows.reverse()),
     nextCursor,
   };
 }
 
 function isRuntimePageGroupItem(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
   row: PositionedPersistedRuntimeItemRow,
   childParentIds: ReadonlySet<string>,
 ): boolean {
   // Rows omitted from the top-level timeline do not break a visible tool run.
-  return classifyRuntimeTimelineRow(row, childParentIds) !== "item";
+  return classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds) !== "item";
 }
 
 function accumulateRuntimeTimelineEntryCount(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
   row: PositionedPersistedRuntimeItemRow,
   childParentIds: ReadonlySet<string>,
   state: { entries: number; insideGroup: boolean },
 ): void {
-  const kind = classifyRuntimeTimelineRow(row, childParentIds);
+  const kind = classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds);
   if (kind === "hidden") return;
   if (kind === "group") {
     if (!state.insideGroup) state.entries += 1;
@@ -367,6 +408,8 @@ function accumulateRuntimeTimelineEntryCount(
 }
 
 function classifyRuntimeTimelineRow(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
   row: PositionedPersistedRuntimeItemRow,
   childParentIds: ReadonlySet<string>,
 ): "hidden" | "group" | "item" {
@@ -377,7 +420,17 @@ function classifyRuntimeTimelineRow(
       streams && typeof streams === "object"
         ? (streams as Record<string, unknown>).reasoning_text
         : undefined;
-    if (typeof reasoningText !== "string" || reasoningText.trim().length === 0) return "hidden";
+    if (
+      !streamHasContent(
+        sqlite,
+        threadId,
+        row.item_id,
+        "reasoning_text",
+        typeof reasoningText === "string" ? reasoningText : undefined,
+      )
+    ) {
+      return "hidden";
+    }
   }
   let payload: Record<string, unknown> | undefined;
   if (RUNTIME_PAGE_NAMED_TOOL_TYPES.has(row.type)) {
@@ -401,14 +454,45 @@ function classifyRuntimeTimelineRow(
 }
 
 /**
- * Applies the supervisor's canonical runtime events directly to SQLite. This
- * keeps the main process as the durability owner without rewriting a thread's
- * complete transcript for every streaming batch.
+ * Buffered runtime writes. `dbApplyThreadRuntimeEvents` queues; the queue
+ * coalesces each item's consecutive deltas and writes once per window, so a
+ * streaming item costs a few row rewrites per second instead of one per chunk.
+ * Every reader below drains the queue first, so nothing observes a stale
+ * transcript.
+ */
+const runtimeWriteQueue = new RuntimeWriteQueue((threadId, events) =>
+  applyThreadRuntimeEventsNow(threadId, events),
+);
+
+registerBeforeDatabaseClose(() => runtimeWriteQueue.flush());
+
+/**
+ * Applies the supervisor's canonical runtime events to SQLite. This keeps the
+ * main process as the durability owner without rewriting a thread's complete
+ * transcript for every streaming batch.
  */
 export function dbApplyThreadRuntimeEvents(
   threadId: string,
   events: readonly RuntimeEvent[],
 ): void {
+  if (events.length === 0) return;
+  runtimeWriteQueue.enqueue(threadId, events);
+}
+
+/**
+ * Flush buffered runtime writes so a subsequent read sees them. Callers that
+ * read or rewrite `thread_runtime_items` outside this module must go through
+ * one of the exported readers, which already do this.
+ */
+export function dbFlushThreadRuntimeWrites(threadId?: string): void {
+  runtimeWriteQueue.flush(threadId);
+}
+
+export function dbDiscardThreadRuntimeWrites(threadId: string): void {
+  runtimeWriteQueue.discard(threadId);
+}
+
+function applyThreadRuntimeEventsNow(threadId: string, events: readonly RuntimeEvent[]): void {
   if (events.length === 0) return;
   const sqlite = getSqlite();
   sqlite.transaction(() => {
@@ -429,6 +513,9 @@ export function dbApplyThreadRuntimeEvents(
       `UPDATE thread_runtime_items
        SET state = ?, payload = ?, streams = ?
        WHERE thread_id = ? AND item_id = ?`,
+    );
+    const setItemState = sqlite.prepare(
+      "UPDATE thread_runtime_items SET state = ? WHERE thread_id = ? AND item_id = ?",
     );
     const deleteItem = sqlite.prepare(
       "DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
@@ -490,7 +577,16 @@ export function dbApplyThreadRuntimeEvents(
           const row = readItem(event.itemId);
           if (!row) break;
           const streams = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
-          if (row.type === "reasoning" && !(streams.reasoning_text ?? "").trim()) {
+          if (
+            row.type === "reasoning" &&
+            !streamHasContent(
+              sqlite,
+              threadId,
+              event.itemId,
+              "reasoning_text",
+              streams.reasoning_text,
+            )
+          ) {
             deleteItem.run(threadId, event.itemId);
             break;
           }
@@ -512,12 +608,25 @@ export function dbApplyThreadRuntimeEvents(
         case "content.delta": {
           const row = readItem(event.itemId);
           if (!row) break;
-          const streams = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
-          streams[event.stream] = `${streams[event.stream] ?? ""}${event.delta}`;
+          const head = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
+          const appended = appendStreamDelta(sqlite, {
+            threadId,
+            itemId: event.itemId,
+            stream: event.stream,
+            delta: event.delta,
+            head: head[event.stream] ?? "",
+          });
+          const nextState = row.state === "completed" ? "completed" : "updated";
+          if (appended.head === undefined) {
+            // Content went entirely into the append-only tail, so the item row
+            // only needs its lifecycle state refreshed — no blob rewrite.
+            setItemState.run(nextState, threadId, event.itemId);
+            break;
+          }
           updateItem.run(
-            row.state === "completed" ? "completed" : "updated",
+            nextState,
             row.payload,
-            JSON.stringify(streams),
+            JSON.stringify({ ...head, [event.stream]: appended.head }),
             threadId,
             event.itemId,
           );
@@ -597,6 +706,7 @@ export function dbApplyThreadRuntimeEvents(
 }
 
 export function dbReplaceThreadRuntimeItems(threadId: string, items: PersistedRuntimeItem[]): void {
+  runtimeWriteQueue.discard(threadId);
   const sqlite = getSqlite();
   sqlite.transaction(() => {
     if (!threadExistsInSqlite(sqlite, threadId)) return;
@@ -617,6 +727,8 @@ function replaceThreadRuntimeItemsInSqlite(
   threadId: string,
   items: PersistedRuntimeItem[],
 ): void {
+  // A wholesale replace supplies each item's complete stream text, so any
+  // append-only tail left from streaming is stale and must go with it.
   const replace = sqlite.prepare(
     `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -628,6 +740,7 @@ function replaceThreadRuntimeItemsInSqlite(
        streams = excluded.streams,
        parent_item_id = excluded.parent_item_id`,
   );
+  clearThreadStreamChunks(sqlite, threadId);
   const incomingIds = new Set(items.map((it) => it.id));
   const existing = sqlite
     .prepare("SELECT item_id FROM thread_runtime_items WHERE thread_id = ?")
@@ -649,17 +762,20 @@ function replaceThreadRuntimeItemsInSqlite(
       it.type,
       it.state,
       it.payload === undefined ? null : JSON.stringify(it.payload),
-      JSON.stringify(it.streams ?? {}),
+      "{}",
       it.parentItemId ?? null,
     );
+    writeItemStreams(sqlite, threadId, it.id, it.streams ?? {});
   }
 }
 
 export function dbClearThreadRuntimeItems(threadId: string): void {
+  runtimeWriteQueue.discard(threadId);
   getSqlite().prepare("DELETE FROM thread_runtime_items WHERE thread_id = ?").run(threadId);
 }
 
 export function dbTruncateThreadRuntimeAfter(threadId: string, itemId: string): void {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   sqlite.transaction(() => {
     const checkpoint = sqlite
@@ -696,6 +812,7 @@ export interface PersistedCompletedTurn {
 }
 
 export function dbGetThreadCompletedTurns(threadId: string): PersistedCompletedTurn[] {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const rows = sqlite
     .prepare(
@@ -714,6 +831,7 @@ export function dbGetThreadCompletedTurns(threadId: string): PersistedCompletedT
 }
 
 export function dbAppendThreadCompletedTurn(threadId: string, turn: PersistedCompletedTurn): void {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   sqlite.transaction(() => {
     if (!threadExistsInSqlite(sqlite, threadId)) return;
@@ -733,6 +851,7 @@ export function dbAppendThreadCompletedTurn(threadId: string, turn: PersistedCom
 }
 
 export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string | null {
+  runtimeWriteQueue.flush(threadId);
   const row = getSqlite()
     .prepare(
       `SELECT item_id
@@ -751,6 +870,7 @@ export function dbReplaceThreadCompletedTurns(
   threadId: string,
   turns: PersistedCompletedTurn[],
 ): void {
+  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   sqlite.transaction(() => {
     if (!threadExistsInSqlite(sqlite, threadId)) return;
@@ -764,6 +884,7 @@ export function dbReplaceThreadRuntimeSnapshot(
   turns: PersistedCompletedTurn[],
   contextUsage: ThreadContextUsage | null | undefined,
 ): void {
+  runtimeWriteQueue.discard(threadId);
   const sqlite = getSqlite();
   sqlite.transaction(() => {
     if (!threadExistsInSqlite(sqlite, threadId)) return;
@@ -776,6 +897,7 @@ export function dbReplaceThreadRuntimeSnapshot(
 }
 
 export function dbGetThreadContextUsage(threadId: string): ThreadContextUsage | null {
+  runtimeWriteQueue.flush(threadId);
   return dbGetThreadContextUsageFromSqlite(getSqlite(), threadId);
 }
 

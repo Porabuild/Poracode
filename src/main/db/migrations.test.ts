@@ -40,8 +40,9 @@ describe("database migration registry", () => {
       [33, "project GitHub account"],
       [34, "projects.icon"],
       [35, "threads.archived_at"],
+      [36, "runtime item stream chunks"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(35);
+    expect(LATEST_SCHEMA_VERSION).toBe(36);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

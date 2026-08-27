@@ -1,4 +1,6 @@
 import Database from "better-sqlite3";
+import { HEAD_CHARS } from "./runtimeStreamCap";
+import { writeItemStreams } from "./runtimeStreamStore";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -47,6 +49,36 @@ function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string
       config.contextSize = match[1]!.toLowerCase();
     }
     update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
+function normalizeRuntimeStreams(sqlite: SqliteDatabase): void {
+  const nextRow = sqlite.prepare(
+    `SELECT rowid, thread_id, item_id, streams FROM thread_runtime_items
+     WHERE rowid > ? AND streams IS NOT NULL AND LENGTH(CAST(streams AS BLOB)) > ?
+     ORDER BY rowid ASC LIMIT 1`,
+  );
+  let rowid = 0;
+  for (;;) {
+    const row = nextRow.get(rowid, HEAD_CHARS) as
+      | { rowid: number; thread_id: string; item_id: string; streams: string }
+      | undefined;
+    if (!row) return;
+    rowid = row.rowid;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.streams);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const streams = parsed as Record<string, string>;
+    if (
+      !Object.values(streams).some((text) => typeof text === "string" && text.length > HEAD_CHARS)
+    ) {
+      continue;
+    }
+    writeItemStreams(sqlite, row.thread_id, row.item_id, streams);
   }
 }
 
@@ -392,6 +424,37 @@ export const DATABASE_MIGRATIONS = [
       );
     },
   },
+  {
+    version: 36,
+    name: "runtime item stream chunks",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_chunks (
+          thread_id TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          stream TEXT NOT NULL,
+          seq INTEGER NOT NULL,
+          chars INTEGER NOT NULL,
+          text TEXT NOT NULL,
+          PRIMARY KEY (thread_id, item_id, stream, seq),
+          FOREIGN KEY (thread_id, item_id)
+            REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_state (
+          thread_id TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          stream TEXT NOT NULL,
+          next_seq INTEGER NOT NULL,
+          tail_chars INTEGER NOT NULL,
+          elided_chars INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (thread_id, item_id, stream),
+          FOREIGN KEY (thread_id, item_id)
+            REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+        );
+      `);
+      normalizeRuntimeStreams(sqlite);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -549,6 +612,15 @@ const REQUIRED_COLUMNS = {
     "payload",
     "streams",
     "parent_item_id",
+  ],
+  thread_runtime_item_stream_chunks: ["thread_id", "item_id", "stream", "seq", "chars", "text"],
+  thread_runtime_item_stream_state: [
+    "thread_id",
+    "item_id",
+    "stream",
+    "next_seq",
+    "tail_chars",
+    "elided_chars",
   ],
   scheduled_tasks: [
     "id",

@@ -294,7 +294,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     initDatabase(databasePath);
 
-    expect(dbGetState("schema_version")).toBe("35");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
     const legacyProject = dbGetProject("legacy-project");
     expect(legacyProject).toMatchObject({
       id: "legacy-project",
@@ -480,7 +480,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     initDatabase(databasePath);
 
     expect(dbGetThread("legacy-archived")?.archivedAt).toBe("2026-02-03T04:05:06.000Z");
-    expect(dbGetState("schema_version")).toBe("35");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("repairs blank legacy thread models from schema v29 without changing valid configs", () => {

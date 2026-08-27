@@ -1,4 +1,5 @@
 import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import type { AppStoreState } from "./shared";
@@ -607,41 +608,6 @@ function areContextUsagesEqual(
     const other = rightBreakdown[index];
     return other?.id === entry.id && other.label === entry.label && other.tokens === entry.tokens;
   });
-}
-
-function coalesceRuntimeEvents(events: RuntimeEvent[]): RuntimeEvent[] {
-  const coalesced: RuntimeEvent[] = [];
-  let pendingDelta: Extract<RuntimeEvent, { type: "content.delta" }> | undefined;
-
-  const flushPendingDelta = () => {
-    if (!pendingDelta) return;
-    coalesced.push(pendingDelta);
-    pendingDelta = undefined;
-  };
-
-  for (const event of events) {
-    if (event.type !== "content.delta") {
-      flushPendingDelta();
-      coalesced.push(event);
-      continue;
-    }
-    if (
-      pendingDelta &&
-      pendingDelta.itemId === event.itemId &&
-      pendingDelta.stream === event.stream
-    ) {
-      pendingDelta = {
-        ...pendingDelta,
-        delta: pendingDelta.delta + event.delta,
-      };
-      continue;
-    }
-    flushPendingDelta();
-    pendingDelta = event;
-  }
-
-  flushPendingDelta();
-  return coalesced;
 }
 
 function pruneTrailingInterruptedReasoningItems(
