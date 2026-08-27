@@ -1703,6 +1703,12 @@ msgstr "Kolor awatara"
 msgid "Avatar color {color}"
 msgstr "Kolor awatara {color}"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Awaiting review"
+msgstr "Oczekiwanie na przegląd"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
@@ -2300,6 +2306,7 @@ msgstr "Kontrole zakończone niepowodzeniem"
 msgid "Checks passed"
 msgstr "Kontrole zaliczone"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"

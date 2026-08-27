@@ -1703,6 +1703,12 @@ msgstr "Avatar-Farbe"
 msgid "Avatar color {color}"
 msgstr "Avatar-Farbe {color}"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Awaiting review"
+msgstr "Überprüfung ausstehend"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
@@ -2300,6 +2306,7 @@ msgstr "Prüfungen fehlgeschlagen"
 msgid "Checks passed"
 msgstr "Prüfungen bestanden"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"

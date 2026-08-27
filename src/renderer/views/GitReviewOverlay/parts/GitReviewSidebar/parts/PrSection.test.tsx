@@ -228,34 +228,119 @@ describe("PrSection", () => {
     expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
   });
 
-  it.each(["CHANGES_REQUESTED", "REVIEW_REQUIRED"])(
-    "shows a danger status for %s when merge-state data is missing",
-    (reviewDecision) => {
-      useGitStore.setState({
-        prData: {
-          [prKey]: {
-            number: pr.number,
-            state: pr.state,
-            title: pr.title,
-            url: pr.url,
-            baseBranch: pr.baseBranch,
-            isDraft: pr.isDraft,
-            checksStatus: "SUCCESS",
-            reviewDecision,
-            updatedAt: pr.updatedAt,
-          },
+  it("shows a danger status for requested changes when merge-state data is missing", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          number: pr.number,
+          state: pr.state,
+          title: pr.title,
+          url: pr.url,
+          baseBranch: pr.baseBranch,
+          isDraft: pr.isDraft,
+          checksStatus: "SUCCESS",
+          reviewDecision: "CHANGES_REQUESTED",
+          updatedAt: pr.updatedAt,
         },
-      });
+      },
+    });
 
-      render(<PrSection {...baseProps} />);
+    render(<PrSection {...baseProps} />);
 
-      const indicator = screen
-        .getByText("#42 - Improve PR summary")
-        .parentElement?.querySelector(".rounded-full");
-      expect(indicator).toHaveClass("bg-danger");
-      expect(indicator).not.toHaveClass("bg-success");
-    },
-  );
+    const indicator = screen
+      .getByText("#42 - Improve PR summary")
+      .parentElement?.querySelector(".rounded-full");
+    expect(indicator).toHaveClass("bg-danger");
+    expect(indicator).not.toHaveClass("bg-success");
+  });
+
+  it("blocks merging when approval is required and merge-state data is missing", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          number: pr.number,
+          state: pr.state,
+          title: pr.title,
+          url: pr.url,
+          baseBranch: pr.baseBranch,
+          isDraft: pr.isDraft,
+          checksStatus: "SUCCESS",
+          reviewDecision: "REVIEW_REQUIRED",
+          updatedAt: pr.updatedAt,
+        },
+      },
+    });
+
+    render(<PrSection {...baseProps} />);
+
+    expect(screen.getByText("Awaiting review")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
+  });
+
+  it("shows awaiting review instead of a danger status when only approval is missing", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "SUCCESS",
+          reviewDecision: "REVIEW_REQUIRED",
+          mergeable: "MERGEABLE",
+          mergeStateStatus: "BLOCKED",
+        },
+      },
+    });
+
+    render(<PrSection {...baseProps} />);
+
+    const indicator = screen
+      .getByText("#42 - Improve PR summary")
+      .parentElement?.querySelector(".rounded-full");
+    expect(indicator).toHaveClass("bg-warning");
+    expect(indicator).not.toHaveClass("bg-danger");
+    expect(screen.getByText("Awaiting review").parentElement).toHaveClass("text-warning");
+    expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
+  });
+
+  it("keeps the branch-update reason when approval and a behind branch are both present", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "SUCCESS",
+          reviewDecision: "REVIEW_REQUIRED",
+          mergeStateStatus: "BEHIND",
+        },
+      },
+    });
+
+    render(<PrSection {...baseProps} />);
+
+    expect(screen.getByText("Merging is blocked")).toBeInTheDocument();
+    expect(
+      screen.getByText("Base branch is ahead — branch must be updated first."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Awaiting review")).not.toBeInTheDocument();
+  });
+
+  it("keeps checks pending when a review is also required while CI is running", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "PENDING",
+          reviewDecision: "REVIEW_REQUIRED",
+          mergeStateStatus: "BLOCKED",
+        },
+      },
+    });
+
+    render(<PrSection {...baseProps} />);
+
+    expect(screen.getByText("Checks pending").parentElement).toHaveClass("text-warning");
+    expect(screen.queryByText("Awaiting review")).not.toBeInTheDocument();
+    expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
+  });
 
   it("uses the selected merge method for the primary merge action", () => {
     useSharedSettings.setState({ prMergeMethod: "merge" });
