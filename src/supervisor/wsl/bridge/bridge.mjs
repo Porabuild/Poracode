@@ -51,7 +51,7 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.13.0";
+const BRIDGE_VERSION = "2.14.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -884,6 +884,32 @@ async function processBatchHandler(req, body) {
   return { status: 200, data: { results } };
 }
 
+// Checkpoints are internal, never-published commits, so a repo (or distro) with
+// no configured `user.name`/`user.email` must still snapshot. These env vars
+// outrank config, so they are only applied as a retry after git reports a
+// missing identity — a configured identity keeps authoring its own snapshots.
+const CHECKPOINT_FALLBACK_IDENT_ENV = {
+  GIT_AUTHOR_NAME: "Poracode",
+  GIT_AUTHOR_EMAIL: "checkpoints@poracode.local",
+  GIT_COMMITTER_NAME: "Poracode",
+  GIT_COMMITTER_EMAIL: "checkpoints@poracode.local",
+};
+
+const MISSING_IDENTITY_RE =
+  /identity unknown|unable to auto-detect email|empty ident name|no name was given|no email was given/i;
+
+function commitCheckpointTree(args, cwd, env, input) {
+  // Force English error text so MISSING_IDENTITY_RE can match it regardless
+  // of the distro's system locale.
+  try {
+    return git(args, cwd, { ...env, LC_ALL: "C" }, input);
+  } catch (err) {
+    const text = `${err?.stderr ?? ""} ${err?.message ?? ""}`;
+    if (!MISSING_IDENTITY_RE.test(text)) throw err;
+    return git(args, cwd, { ...env, ...CHECKPOINT_FALLBACK_IDENT_ENV }, input);
+  }
+}
+
 function gitCheckpointSnapshotHandler(req, body) {
   const projectRoot = resolveSafePath(body.projectRoot, body.projectRoot);
   if (!projectRoot) return { status: 400, code: "ESCAPE", message: "projectRoot is invalid" };
@@ -911,7 +937,7 @@ function gitCheckpointSnapshotHandler(req, body) {
       const head = gitMaybe(["rev-parse", "--verify", "HEAD"], projectRoot);
       const commitArgs = ["commit-tree", tree, ...(head ? ["-p", head] : []), "-F", "-"];
       const message = `Poracode checkpoint\n\n${JSON.stringify(body.metadata)}\n`;
-      const commit = git(commitArgs, projectRoot, env, message).trim();
+      const commit = commitCheckpointTree(commitArgs, projectRoot, env, message).trim();
       git(["update-ref", body.ref, commit], projectRoot);
       return { status: 200, data: { commit } };
     } finally {
