@@ -71,6 +71,7 @@ function renderPanel(overrides?: Partial<Parameters<typeof CommitSyncPanel>[0]>)
     handleGenerateMessage: vi.fn<() => Promise<void>>(),
     handleSyncOrPush: vi.fn<() => Promise<void>>(),
     handleSyncAction: vi.fn<() => Promise<void>>(),
+    handlePushAndCreatePr: vi.fn<() => Promise<void>>(),
     handlePullFromSource: vi.fn<() => Promise<void>>(),
   };
   renderWithI18n(<CommitSyncPanel {...props} {...overrides} />);
@@ -158,5 +159,28 @@ describe("CommitSyncPanel in-button step status", () => {
     });
 
     expect(screen.getByRole("button", { name: "Commit" })).toBeDisabled();
+  });
+});
+
+// Committed-but-not-pushed is the gap between the commit split-button (which
+// offers "Commit & Create PR") and the PR section (which offers "Create PR"
+// once pushed): the push row has to carry the chained action there.
+describe("CommitSyncPanel push options", () => {
+  const pushedAhead = {
+    hasRemote: true,
+    hasTracking: true,
+    needsPush: true,
+    ahead: 2,
+  } as const;
+
+  it("offers Push & Create PR while a pushable branch can still open a PR", () => {
+    renderPanel({ ...pushedAhead, canCreatePr: true });
+    expect(screen.getByText("Push & Create PR")).toBeInTheDocument();
+  });
+
+  it("omits Push & Create PR when no PR can be opened", () => {
+    renderPanel({ ...pushedAhead, canCreatePr: false });
+    expect(screen.queryByText("Push & Create PR")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Push (2)").length).toBeGreaterThan(0);
   });
 });

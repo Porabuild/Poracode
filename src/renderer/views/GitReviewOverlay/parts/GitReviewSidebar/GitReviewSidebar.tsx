@@ -185,6 +185,7 @@ export function GitReviewSidebar(props: {
     handleGenerateMessage,
     handleSyncOrPush,
     handleSyncAction,
+    handlePushAndCreatePr,
     handleMergeOnly,
     handleMergeAndRemove,
     handlePullFromSource,
@@ -559,6 +560,7 @@ export function GitReviewSidebar(props: {
               handleGenerateMessage={handleGenerateMessage}
               handleSyncOrPush={handleSyncOrPush}
               handleSyncAction={handleSyncAction}
+              handlePushAndCreatePr={handlePushAndCreatePr}
               hasTracking={hasTracking}
               handlePullFromSource={handlePullFromSource}
             />

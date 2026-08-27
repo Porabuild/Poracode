@@ -9416,6 +9416,10 @@ msgstr "推 ({0})"
 msgid "Push ({ahead})"
 msgstr "推 ({ahead})"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Push & Create PR"
+msgstr "推送并创建 PR"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
 msgid "Push ↑{ahead}"
 msgstr "推送 ↑{ahead}"

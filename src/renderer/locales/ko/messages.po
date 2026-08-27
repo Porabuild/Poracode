@@ -9417,6 +9417,10 @@ msgstr "푸시({0})"
 msgid "Push ({ahead})"
 msgstr "푸시({ahead})"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Push & Create PR"
+msgstr "푸시 및 PR 작성"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
 msgid "Push ↑{ahead}"
 msgstr "푸시 ↑{ahead}"

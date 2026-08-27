@@ -9415,6 +9415,10 @@ msgstr "プッシュ ({0})"
 msgid "Push ({ahead})"
 msgstr "プッシュ ({ahead})"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Push & Create PR"
+msgstr "プッシュして PR を作成"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
 msgid "Push ↑{ahead}"
 msgstr "プッシュ ↑{ahead}"

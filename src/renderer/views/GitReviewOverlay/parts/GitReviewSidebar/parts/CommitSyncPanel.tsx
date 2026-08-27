@@ -60,6 +60,7 @@ export function CommitSyncPanel(props: {
   handleGenerateMessage: () => Promise<void>;
   handleSyncOrPush: () => Promise<void>;
   handleSyncAction: (key: GitSyncCommand) => Promise<void>;
+  handlePushAndCreatePr: () => Promise<void>;
   handlePullFromSource: () => Promise<void>;
 }) {
   const {
@@ -92,6 +93,7 @@ export function CommitSyncPanel(props: {
     handleGenerateMessage,
     handleSyncOrPush,
     handleSyncAction,
+    handlePushAndCreatePr,
     handlePullFromSource,
   } = props;
   const { t } = useLingui();
@@ -323,10 +325,15 @@ export function CommitSyncPanel(props: {
           const showPull = hasTracking && behind > 0;
           const showPush = ahead > 0 || !hasTracking;
           const showSyncBoth = hasTracking && ahead > 0 && behind > 0;
+          // Committed but not pushed yet: offer the chained push + PR here too,
+          // so the flow the commit split-button offers before committing (and
+          // the PR section offers after pushing) stays reachable in between.
+          const showPushPr = showPush && canCreatePr;
           const showPullFromSourceItem = Boolean(
             showPullFromSource && sourceBranch && sourceAhead > 0,
           );
-          const hasSyncOptions = showPull || showPush || showSyncBoth || showPullFromSourceItem;
+          const hasSyncOptions =
+            showPull || showPush || showPushPr || showSyncBoth || showPullFromSourceItem;
 
           const primaryButton = (
             <Button
@@ -389,6 +396,10 @@ export function CommitSyncPanel(props: {
                         void handlePullFromSource();
                         return;
                       }
+                      if (key === "push-pr") {
+                        void handlePushAndCreatePr();
+                        return;
+                      }
                       void handleSyncAction(key as GitSyncCommand);
                     }}
                   >
@@ -420,6 +431,16 @@ export function CommitSyncPanel(props: {
                       >
                         <ArrowUp className="size-3.5" />
                         <Label>{ahead > 0 ? t`Push (${ahead})` : t`Push`}</Label>
+                      </Dropdown.Item>
+                    ) : null}
+                    {showPushPr ? (
+                      <Dropdown.Item
+                        id="push-pr"
+                        textValue={t`Push & Create PR`}
+                        isDisabled={actionInFlight}
+                      >
+                        <GitPullRequest className="size-3.5" />
+                        <Label>{t`Push & Create PR`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showSyncBoth ? (
