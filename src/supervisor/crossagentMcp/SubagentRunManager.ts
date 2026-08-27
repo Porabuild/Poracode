@@ -19,6 +19,7 @@ import type {
   SpawnAgentRequest,
   SubagentRunHost,
   SubagentRunStatus,
+  SubagentWaitOptions,
   SubagentWaitResult,
 } from "./types";
 
@@ -38,6 +39,24 @@ export const MAX_WAIT_TIMEOUT_MS = 240_000;
 export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 4;
 /** Bound terminal result retention for long-lived parent threads. */
 const MAX_RETAINED_RUNS_PER_PARENT = 50;
+/**
+ * Tail cap on the incremental output a wait/status call returns while a run is
+ * still in progress. Mid-run text is process narration the parent rarely needs
+ * verbatim; a long-polling parent otherwise re-ingests the child's entire
+ * growing transcript on every check (observed at 100k+ tokens per poll).
+ */
+export const MAX_RUNNING_OUTPUT_TAIL_CHARS = 1_000;
+/** Tail cap on the incremental output returned once a run has settled. */
+const MAX_SETTLED_OUTPUT_TAIL_CHARS = 16_000;
+/** Tail cap on the per-attempt outputs echoed inside `attempts`. */
+const MAX_ATTEMPT_OUTPUT_TAIL_CHARS = 2_000;
+
+/** Keep the newest `maxChars` of `text`, prefixing a marker for the omitted prefix. */
+function clipOutputTail(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const omitted = text.length - maxChars;
+  return `[…${omitted} earlier chars omitted — pass full_output=true for the complete output]\n${text.slice(-maxChars)}`;
+}
 
 export interface SubagentRunManagerDeps {
   adapters: Map<AgentKind, AgentAdapter>;
@@ -64,6 +83,8 @@ interface RunRecord extends AttemptExecutionState {
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
   output: string;
+  /** Assistant text accumulated across every fallback attempt. */
+  cursorOutput: string;
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
   /**
@@ -191,6 +212,7 @@ export class SubagentRunManager {
       attemptResults: [],
       status: "running",
       output: "",
+      cursorOutput: "",
       stepCount: 0,
       handle: undefined,
       oneShot: undefined,
@@ -231,27 +253,24 @@ export class SubagentRunManager {
     runId: string,
     timeoutMs: number,
     parentThreadId?: string,
+    options?: SubagentWaitOptions,
   ): Promise<SubagentWaitResult> {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) {
       return { status: "failed", output: `Unknown run_id: ${runId}` };
     }
     if (record.status !== "running") {
-      return this.waitResult(record);
+      return this.waitResult(record, options);
     }
-    const timedOut = Symbol("timeout");
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const result = await Promise.race([
-      record.settledPromise.then(() => "settled" as const),
-      new Promise<typeof timedOut>((resolve) => {
-        timer = setTimeout(() => resolve(timedOut), Math.max(0, timeoutMs));
+    await Promise.race([
+      record.settledPromise,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, Math.max(0, timeoutMs));
       }),
     ]);
     if (timer) clearTimeout(timer);
-    if (result === timedOut) {
-      return this.waitResult(record);
-    }
-    return this.waitResult(record);
+    return this.waitResult(record, options);
   }
 
   /** Wait for several already-running children concurrently under one deadline. */
@@ -259,19 +278,29 @@ export class SubagentRunManager {
     runIds: readonly string[],
     timeoutMs: number,
     parentThreadId?: string,
+    options?: SubagentWaitOptions | ((runId: string) => SubagentWaitOptions),
   ): Promise<Array<{ run_id: string } & SubagentWaitResult>> {
     return await Promise.all(
       runIds.map(async (runId) => ({
         run_id: runId,
-        ...(await this.waitFor(runId, timeoutMs, parentThreadId)),
+        ...(await this.waitFor(
+          runId,
+          timeoutMs,
+          parentThreadId,
+          typeof options === "function" ? options(runId) : options,
+        )),
       })),
     );
   }
 
-  getStatus(runId: string, parentThreadId?: string): SubagentWaitResult {
+  getStatus(
+    runId: string,
+    parentThreadId?: string,
+    options?: SubagentWaitOptions,
+  ): SubagentWaitResult {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) return { status: "failed", output: `Unknown run_id: ${runId}` };
-    return this.waitResult(record);
+    return this.waitResult(record, options);
   }
 
   listRuns(parentThreadId: string): SubagentRunSummary[] {
@@ -353,13 +382,40 @@ export class SubagentRunManager {
       : undefined;
   }
 
-  private waitResult(record: RunRecord): SubagentWaitResult {
+  /**
+   * Build a caller-facing wait/status result. The caller owns the incremental
+   * cursor, so retrying the same read is idempotent. `fullOutput` bypasses both
+   * the cursor and the clip for the rare case the complete transcript is
+   * genuinely needed.
+   */
+  private waitResult(record: RunRecord, options?: SubagentWaitOptions): SubagentWaitResult {
+    const fullOutput = options?.fullOutput === true;
+    const incremental = !fullOutput && options?.afterOutputChars !== undefined;
+    const source =
+      incremental || (fullOutput && options?.currentAttemptOnly !== true)
+        ? record.cursorOutput
+        : record.output;
+    const total = record.cursorOutput.length;
+    const offset = incremental ? Math.min(Math.max(0, options.afterOutputChars!), total) : 0;
+    const delta = source.slice(offset);
+    const tailCap =
+      record.status === "running" ? MAX_RUNNING_OUTPUT_TAIL_CHARS : MAX_SETTLED_OUTPUT_TAIL_CHARS;
+    const output = fullOutput ? delta : clipOutputTail(delta, tailCap);
+    const isCompleteTranscript = fullOutput || (offset === 0 && delta.length <= tailCap);
     return {
       status: record.status,
-      output: record.output,
+      output,
+      ...(incremental || !isCompleteTranscript ? { total_output_chars: total } : {}),
       ...(record.error ? { error: record.error } : {}),
       ...(record.plan.attempts.length > 1
-        ? { attempts: record.attemptResults.map((attempt) => ({ ...attempt })) }
+        ? {
+            attempts: record.attemptResults.map((attempt) => ({
+              ...attempt,
+              output: fullOutput
+                ? attempt.output
+                : clipOutputTail(attempt.output, MAX_ATTEMPT_OUTPUT_TAIL_CHARS),
+            })),
+          }
         : {}),
     };
   }
@@ -442,7 +498,10 @@ export class SubagentRunManager {
     }
     switch (event.type) {
       case "content.delta":
-        if (event.stream === "assistant_text") record.output += event.delta;
+        if (event.stream === "assistant_text") {
+          record.output += event.delta;
+          record.cursorOutput += event.delta;
+        }
         this.deps.host.appendRuntimeEvent(
           record.parentThreadId,
           this.retag(record, attemptIndex, event),

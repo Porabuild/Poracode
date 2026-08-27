@@ -1,5 +1,5 @@
 import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./SubagentRunManager";
-import type { McpToolResult } from "./types";
+import type { McpToolResult, SubagentWaitOptions } from "./types";
 
 /** Shared `timeout_s` schema description for the blocking wait tools. */
 export const TIMEOUT_S_DESCRIPTION =
@@ -19,11 +19,45 @@ export function truncate(text: string, maxChars: number): string {
   return `${text.slice(0, maxChars)}… [truncated]`;
 }
 
-/** Caller-supplied `timeout_s` → ms, clamped to [0, {@link MAX_WAIT_TIMEOUT_MS}]. */
-export function parseWaitTimeoutMs(value: unknown): number {
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * Caller-supplied wait timeout → ms, clamped to [0, {@link MAX_WAIT_TIMEOUT_MS}].
+ * Reads `timeout_s` plus the aliases calling agents guess in practice
+ * (`timeout_seconds`, `timeout_ms`) — a misnamed field used to fall back
+ * silently to the default, so the caller waited a different duration than it
+ * believed for the run's whole lifetime.
+ */
+export function parseWaitTimeoutMs(args: Record<string, unknown>): number {
+  const seconds = finiteNumber(args.timeout_s) ?? finiteNumber(args.timeout_seconds);
+  const ms = finiteNumber(args.timeout_ms);
   const requestedMs =
-    typeof value === "number" && Number.isFinite(value)
-      ? Math.max(0, value * 1000)
-      : DEFAULT_WAIT_TIMEOUT_MS;
+    seconds !== undefined
+      ? Math.max(0, seconds * 1000)
+      : ms !== undefined
+        ? Math.max(0, ms)
+        : DEFAULT_WAIT_TIMEOUT_MS;
   return Math.min(requestedMs, MAX_WAIT_TIMEOUT_MS);
+}
+
+export function parseWaitOptions(
+  args: Record<string, unknown>,
+  runId?: string,
+): SubagentWaitOptions {
+  if (args.full_output === true) return { fullOutput: true };
+  const cursors = args.after_output_chars_by_run;
+  const runCursor =
+    runId && cursors && typeof cursors === "object" && !Array.isArray(cursors)
+      ? finiteNumber((cursors as Record<string, unknown>)[runId])
+      : undefined;
+  const afterOutputChars = runCursor ?? finiteNumber(args.after_output_chars);
+  return {
+    fullOutput: false,
+    afterOutputChars:
+      afterOutputChars !== undefined && Number.isInteger(afterOutputChars)
+        ? Math.max(0, afterOutputChars)
+        : 0,
+  };
 }
