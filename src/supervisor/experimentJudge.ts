@@ -6,7 +6,7 @@ import type {
   JudgeExperimentResult,
   ProjectLocation,
 } from "@/shared/contracts";
-import type { AgentAdapter } from "./agents/base";
+import { resolveOneShotEffectiveModel, type AgentAdapter } from "./agents/base";
 import type { UnifiedDiffStats } from "@/shared/lineUnifiedDiff";
 import { msg } from "@/shared/messages";
 import { createExperimentJudgeWorkspace } from "./experimentJudgeWorkspace";
@@ -217,10 +217,9 @@ export async function judgeExperiment(
     throw new Error(msg("experiment.judge.uniqueThreadIds"));
   }
 
-  const effectiveModel = model ?? adapter.defaultOneShotModel;
-  if (!effectiveModel) {
-    throw new Error(msg("experiment.judge.noDefaultModel", { provider: adapter.label }));
-  }
+  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+    return new Error(msg("experiment.judge.noDefaultModel", { provider: adapter.label }));
+  });
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
     throw new Error(msg("experiment.judge.oneShotUnsupported", { provider: adapter.label }));
   }

@@ -263,9 +263,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 15,
-      // v15 mirrors supervisor STATUS_CACHE_VERSION=18 so this localStorage
-      // copy does not keep Cursor Grok grouped under Other models.
+      version: 16,
+      // v16 mirrors supervisor STATUS_CACHE_VERSION=19 so this localStorage
+      // copy does not keep Command Code's pre-live-discovery curated model
+      // table (deepseek fallbacks, static `defaultEffort`) on first paint.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

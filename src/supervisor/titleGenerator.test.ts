@@ -77,4 +77,24 @@ describe("generateTitle CLI spawn", () => {
       }),
     );
   });
+
+  it("allows a CLI adapter to use its target environment's implicit model", async () => {
+    const buildOneShotCommand = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(
+      (_model: string) => ({
+        command: "command-code",
+        args: ["--no-session", "-p", "prompt"],
+      }),
+    );
+    const adapter = cliAdapter({ allowsImplicitOneShotModel: true, buildOneShotCommand });
+    delete adapter.defaultOneShotModel;
+    await generateTitle(windowsProject, adapter, "the login times out");
+
+    expect(buildOneShotCommand).toHaveBeenCalledWith(
+      "",
+      undefined,
+      expect.any(String),
+      windowsProject,
+      undefined,
+    );
+  });
 });

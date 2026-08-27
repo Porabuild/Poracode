@@ -69,8 +69,11 @@ const execFileAsync = promisify(execFile);
  * v18 regroups Cursor first-party models (Grok, Composer, future Cursor ids)
  * into the Cursor Models pool by denylisting known third-party vendor prefixes
  * instead of allowlisting first-party families.
+ * v19 replaces Command Code's curated fallback model tables/static efforts
+ * (and its `defaultEffort`) with live-only discovery, so cached statuses from
+ * before the switch would keep serving a stale deepseek-era picker.
  */
-export const STATUS_CACHE_VERSION = 18;
+export const STATUS_CACHE_VERSION = 19;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

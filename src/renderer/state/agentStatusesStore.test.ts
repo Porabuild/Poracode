@@ -45,9 +45,41 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
+  it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(16);
+    const staleCommandCode = makeStatus({
+      kind: "commandcode",
+      label: "Command Code",
+      capabilities: {
+        ...makeStatus().capabilities,
+        models: [
+          { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+          { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+        ],
+        modelSubProvider: { "deepseek/deepseek-v4-pro": "deepseek" },
+      },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleCommandCode],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      15,
+    );
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(15);
+    expect(options.version).toBe(16);
     const staleLogin = makeStatus({
       kind: "antigravity",
       label: "Antigravity",
@@ -74,7 +106,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(15);
+    expect(options.version).toBe(16);
     const staleCursor = makeStatus({
       kind: "cursor",
       label: "Cursor",
@@ -107,7 +139,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(15);
+    expect(options.version).toBe(16);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -134,7 +166,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(15);
+    expect(options.version).toBe(16);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({

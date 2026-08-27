@@ -1,5 +1,9 @@
 import type { ExtractContextResult, ProjectLocation, SessionRef } from "@/shared/contracts";
-import { withCommandBaseSpawnEnv, type AgentAdapter } from "./agents/base";
+import {
+  resolveOneShotEffectiveModel,
+  withCommandBaseSpawnEnv,
+  type AgentAdapter,
+} from "./agents/base";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
 import { buildOneShotSpec, spawnAgent } from "./oneShotSpawn";
 
@@ -114,10 +118,9 @@ export async function extractContextFromScrollback(
     );
   }
 
-  const effectiveModel = model ?? adapter.defaultOneShotModel;
-  if (!effectiveModel) {
-    throw new Error(`No default one-shot model configured for ${adapter.label}`);
-  }
+  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+    return new Error(`No default one-shot model configured for ${adapter.label}`);
+  });
 
   const buildPromptForCap = (maxChars: number): string => {
     const trimmed =

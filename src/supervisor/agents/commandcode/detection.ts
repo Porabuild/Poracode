@@ -3,6 +3,7 @@ import type { AgentCapability, AgentTerminalAuthMethod, LabeledOption } from "@/
 import {
   envVarAuthProbe,
   type AuthProbe,
+  type DetectProbeCtx,
   type DetectionSpec,
   readAgentCommandOutput,
 } from "../base";
@@ -23,206 +24,20 @@ const COMMANDCODE_SKIP_UPDATES_ENV: Record<string, string> = {
   COMMANDCODE_SKIP_UPDATES: "1",
 };
 
-// Command Code's CLI default (used with no `-m`). We surface it first so a
-// fresh thread mirrors what running `command-code` directly would pick.
-// Source: https://commandcode.ai/docs/reference/cli/models (also `command-code
-// --list-models` for the live, copy-pasteable set). `--model` matching is
-// case-insensitive and accepts either the full id or the part after the `/`.
-export const COMMANDCODE_DEFAULT_MODEL_ID = "deepseek/deepseek-v4-flash";
-
-// Curated sub-provider labels + canonical display order for the model picker.
-// The slash-namespaced ids (`google/…`, `moonshotai/…`) auto-derive a
-// sub-provider from their prefix; the un-namespaced Anthropic/OpenAI ids map
-// explicitly (see `commandCodeModelSubProviderId`). Any namespace the CLI
-// surfaces that isn't listed here still groups — it just falls back to a
-// humanized label and sorts after the curated ones.
-const COMMANDCODE_SUB_PROVIDER_LABELS: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Google",
-  moonshotai: "Moonshot",
-  deepseek: "DeepSeek",
-  "zai-org": "Z.ai",
-  minimaxai: "MiniMax",
-  qwen: "Qwen",
-  stepfun: "StepFun",
-  xiaomi: "Xiaomi",
-  tencent: "Tencent",
-  nvidia: "NVIDIA",
-  thinkingmachines: "Thinking Machines",
-  poolside: "Poolside",
-  inclusionai: "InclusionAI",
-  sakana: "Sakana AI",
-  meta: "Meta",
-  xai: "xAI",
-};
-
-const COMMANDCODE_SUB_PROVIDER_ORDER = [
-  "anthropic",
-  "openai",
-  "google",
-  "moonshotai",
-  "deepseek",
-  "zai-org",
-  "minimaxai",
-  "qwen",
-  "stepfun",
-  "xiaomi",
-  "tencent",
-  "nvidia",
-  "thinkingmachines",
-  "poolside",
-  "inclusionai",
-  "sakana",
-  "meta",
-  "xai",
-];
-
-// Hand-tuned display labels keyed by model id. These exist only to render known
-// ids prettily (correct casing, `4.6` vs `4-6`, dropping a noisy param suffix
-// like `nemotron-3-ultra-550b-a55b`). They are NOT the source of truth for
-// which models exist — that comes from `command-code --list-models` at
-// detection time. A brand-new id we haven't curated still appears, labeled by
-// `humanizeCommandCodeModelLabel` until an override is added here.
-const COMMANDCODE_MODEL_LABELS: Record<string, string> = {
-  "deepseek/deepseek-v4-pro": "DeepSeek V4 Pro",
-  "deepseek/deepseek-v4-flash": "DeepSeek V4 Flash",
-  "moonshotai/kimi-k3": "Kimi K3",
-  "moonshotai/kimi-k2.7-code": "Kimi K2.7 Code",
-  "moonshotai/kimi-k2.7-code-highspeed": "Kimi K2.7 Code Highspeed",
-  "moonshotai/kimi-k2.6": "Kimi K2.6",
-  "moonshotai/kimi-k2.5": "Kimi K2.5",
-  "zai-org/glm-5.2": "GLM-5.2",
-  "zai-org/glm-5.2-fast": "GLM-5.2 Fast",
-  "zai-org/glm-5.1": "GLM-5.1",
-  "zai-org/glm-5": "GLM-5",
-  "minimaxai/minimax-m3": "MiniMax M3",
-  "minimaxai/minimax-m2.7": "MiniMax M2.7",
-  "minimaxai/minimax-m2.5": "MiniMax M2.5",
-  "xiaomi/mimo-v2.5-pro": "MiMo v2.5 Pro",
-  "xiaomi/mimo-v2.5": "MiMo v2.5",
-  "qwen/qwen3.6-max-preview": "Qwen3.6 Max Preview",
-  "qwen/qwen3.6-plus": "Qwen3.6 Plus",
-  "qwen/qwen3.7-max": "Qwen3.7 Max",
-  "qwen/qwen3.7-plus": "Qwen3.7 Plus",
-  "qwen/qwen3.7-flash": "Qwen3.7 Flash",
-  "stepfun/step-3.7-flash": "Step 3.7 Flash",
-  "stepfun/step-3.5-flash": "Step 3.5 Flash",
-  "tencent/hy3-paid": "Hunyuan 3",
-  "nvidia/nemotron-3-ultra-550b-a55b": "Nemotron 3 Ultra",
-  "thinkingmachines/inkling": "Inkling",
-  "thinkingmachines/inkling-small": "Inkling Small",
-  "poolside/laguna-s-2.1-free": "Laguna S 2.1",
-  "inclusionai/ling-3.0-flash-free": "Ling 3.0 Flash",
-  "claude-sonnet-5": "Claude Sonnet 5",
-  "claude-sonnet-4-6": "Claude Sonnet 4.6",
-  "claude-fable-5": "Claude Fable 5",
-  "claude-opus-5": "Claude Opus 5",
-  "claude-opus-4-8": "Claude Opus 4.8",
-  "claude-opus-4-7": "Claude Opus 4.7",
-  "claude-haiku-4-5": "Claude Haiku 4.5",
-  "gpt-5.6-sol": "GPT-5.6 Sol",
-  "gpt-5.6-terra": "GPT-5.6 Terra",
-  "gpt-5.6-luna": "GPT-5.6 Luna",
-  "gpt-5.5": "GPT-5.5",
-  "gpt-5.4": "GPT-5.4",
-  "gpt-5.3-codex": "GPT-5.3 Codex",
-  "gpt-5.4-mini": "GPT-5.4 Mini",
-  "google/gemini-3.6-flash": "Gemini 3.6 Flash",
-  "google/gemini-3.5-flash": "Gemini 3.5 Flash",
-  "google/gemini-3.5-flash-lite": "Gemini 3.5 Flash Lite",
-  "google/gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite",
-  "sakana/fugu-ultra": "Fugu Ultra",
-  "meta/muse-spark-1.1": "Muse Spark 1.1",
-  "xai/grok-4.5": "Grok 4.5",
-};
-
-// Offline fallback model ids (a known-good snapshot of `--list-models`). Used to
-// build `defaultCommandCodeCapabilities` so the picker still has a sensible set
-// before/without a successful probe. The live probe replaces this whenever
-// `command-code --list-models` succeeds, so it never has to stay current.
-const COMMANDCODE_FALLBACK_MODEL_IDS = [
-  "deepseek/deepseek-v4-pro",
-  COMMANDCODE_DEFAULT_MODEL_ID,
-  "moonshotai/kimi-k3",
-  "moonshotai/kimi-k2.7-code",
-  "moonshotai/kimi-k2.7-code-highspeed",
-  "moonshotai/kimi-k2.6",
-  "moonshotai/kimi-k2.5",
-  "zai-org/glm-5.2",
-  "zai-org/glm-5.2-fast",
-  "zai-org/glm-5.1",
-  "zai-org/glm-5",
-  "minimaxai/minimax-m3",
-  "minimaxai/minimax-m2.7",
-  "minimaxai/minimax-m2.5",
-  "xiaomi/mimo-v2.5-pro",
-  "xiaomi/mimo-v2.5",
-  "qwen/qwen3.6-max-preview",
-  "qwen/qwen3.6-plus",
-  "qwen/qwen3.7-max",
-  "qwen/qwen3.7-plus",
-  "qwen/qwen3.7-flash",
-  "stepfun/step-3.7-flash",
-  "stepfun/step-3.5-flash",
-  "tencent/hy3-paid",
-  "nvidia/nemotron-3-ultra-550b-a55b",
-  "thinkingmachines/inkling",
-  "thinkingmachines/inkling-small",
-  "poolside/laguna-s-2.1-free",
-  "inclusionai/ling-3.0-flash-free",
-  "claude-sonnet-5",
-  "claude-sonnet-4-6",
-  "claude-fable-5",
-  "claude-opus-5",
-  "claude-opus-4-8",
-  "claude-opus-4-7",
-  "claude-haiku-4-5",
-  "gpt-5.6-sol",
-  "gpt-5.6-terra",
-  "gpt-5.6-luna",
-  "gpt-5.5",
-  "gpt-5.4",
-  "gpt-5.3-codex",
-  "gpt-5.4-mini",
-  "google/gemini-3.6-flash",
-  "google/gemini-3.5-flash",
-  "google/gemini-3.5-flash-lite",
-  "google/gemini-3.1-flash-lite",
-  "sakana/fugu-ultra",
-  "meta/muse-spark-1.1",
-  "xai/grok-4.5",
-];
-
-const COMMANDCODE_MODEL_EFFORTS: Record<string, string[]> = {
-  "claude-sonnet-5": ["low", "medium", "high", "xhigh", "max"],
-  "claude-sonnet-4-6": ["low", "medium", "high", "xhigh", "max"],
-  "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
-  "claude-opus-5": ["low", "medium", "high", "xhigh", "max"],
-  "claude-opus-4-8": ["low", "medium", "high", "xhigh", "max"],
-  "claude-opus-4-7": ["low", "medium", "high", "xhigh", "max"],
-  "gpt-5.6-sol": ["low", "medium", "high", "xhigh", "max"],
-  "gpt-5.6-terra": ["low", "medium", "high", "xhigh", "max"],
-  "gpt-5.6-luna": ["low", "medium", "high", "xhigh", "max"],
-  "gpt-5.5": ["low", "medium", "high", "xhigh"],
-  "gpt-5.4": ["low", "medium", "high", "xhigh"],
-  "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
-  "gpt-5.4-mini": ["low", "medium", "high"],
-  "deepseek/deepseek-v4-pro": ["high", "max"],
-  "deepseek/deepseek-v4-flash": ["high", "max"],
-  "zai-org/glm-5.2": ["high", "max"],
-  "google/gemini-3.6-flash": ["low", "medium", "high"],
-  "google/gemini-3.5-flash": ["low", "medium", "high"],
-  "google/gemini-3.5-flash-lite": ["low", "medium", "high"],
-  "google/gemini-3.1-flash-lite": ["low", "medium", "high"],
-  "sakana/fugu-ultra": ["high", "xhigh"],
-  "xai/grok-4.5": ["low", "medium", "high"],
-};
+const COMMANDCODE_EFFORT_PROBE_VALUE = "__poracode_capability_probe__";
+const COMMANDCODE_EFFORT_SENTINEL_ATTEMPTS = 2;
+const COMMANDCODE_EFFORT_PROBE_CONCURRENCY = 24;
+const COMMANDCODE_EFFORT_CACHE_SIZE = 8;
+const COMMANDCODE_MODELS_ENDPOINT = "https://api.commandcode.ai/provider/v1/models";
+const COMMANDCODE_MODEL_NAMES_TTL_MS = 5 * 60_000;
 
 export interface ParsedCommandCodeModel {
   id: string;
   description?: string;
   isDefault?: boolean;
+  providerId?: string;
+  providerLabel?: string;
+  isByok?: boolean;
 }
 
 // A model row is `<id><2+ spaces><tagline>`; section headers ("Open Source",
@@ -241,15 +56,44 @@ const COMMANDCODE_NOISE_LINE_RE = /^(?:Available\b|Pass\b|cmd\b|Docs:|Tip:|Loadi
 export function parseCommandCodeModels(output: string): ParsedCommandCodeModel[] {
   const parsed: ParsedCommandCodeModel[] = [];
   const seen = new Set<string>();
+  let providerId: string | undefined;
+  let providerLabel: string | undefined;
+  let isByok = false;
   for (const rawLine of stripAnsi(output).split(/\r?\n/)) {
     const line = rawLine.trim();
-    if (!line || COMMANDCODE_NOISE_LINE_RE.test(line)) continue;
+    if (!line) continue;
+
+    const byokHeader = /^(.*?)\s+\(byok\)$/i.exec(line);
+    if (byokHeader) {
+      providerLabel = byokHeader[1]!.trim();
+      providerId = undefined;
+      isByok = true;
+      continue;
+    }
+    if (COMMANDCODE_NOISE_LINE_RE.test(line)) continue;
 
     const match = COMMANDCODE_MODEL_LINE_RE.exec(line);
-    if (!match) continue;
+    if (!match) {
+      // Only display-name section headers may redefine the provider context.
+      // A lone id-shaped token is a dropped model row (tagline missing), not a
+      // header — promoting it would regroup every later row under a garbage
+      // sub-provider. Multiword headers never contain the id `/` separator.
+      if (!line.includes(" ") && line.includes("/") && COMMANDCODE_MODEL_ID_RE.test(line)) {
+        continue;
+      }
+      isByok = false;
+      providerLabel = line;
+      providerId = providerLabel
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      continue;
+    }
     const id = match[1]!;
     if (!COMMANDCODE_MODEL_ID_RE.test(id) || seen.has(id)) continue;
     seen.add(id);
+    const modelProviderId =
+      isByok && id.includes("/") ? id.slice(0, id.indexOf("/")).toLowerCase() : providerId;
 
     const rawDescription = match[2]!.trim();
     const isDefault = /\(default\)/i.test(rawDescription);
@@ -261,14 +105,220 @@ export function parseCommandCodeModels(output: string): ParsedCommandCodeModel[]
       id,
       ...(description ? { description } : {}),
       ...(isDefault ? { isDefault: true } : {}),
+      ...(modelProviderId ? { providerId: modelProviderId } : {}),
+      ...(providerLabel ? { providerLabel } : {}),
+      ...(isByok ? { isByok: true } : {}),
     });
   }
   return parsed;
 }
 
+export function parseCommandCodeModelEfforts(output: string): string[] | undefined {
+  const cleaned = stripAnsi(output);
+  const supported = /Supported:\s*([^\r\n.]+)\.?/i.exec(cleaned)?.[1];
+  if (supported) {
+    return supported
+      .split(",")
+      .map((effort) => effort.trim())
+      .filter(Boolean);
+  }
+  return /has no adjustable reasoning effort/i.test(cleaned) ? [] : undefined;
+}
+
+export function parseCommandCodeModelNames(body: unknown): Record<string, string> {
+  if (!body || typeof body !== "object" || !Array.isArray((body as { data?: unknown }).data)) {
+    return {};
+  }
+  const names: Record<string, string> = {};
+  for (const item of (body as { data: unknown[] }).data) {
+    if (!item || typeof item !== "object") continue;
+    const { id, name } = item as { id?: unknown; name?: unknown };
+    if (typeof id !== "string" || typeof name !== "string") continue;
+    const normalizedId = id.trim().toLowerCase();
+    const normalizedName = name.trim();
+    if (normalizedId && normalizedName) names[normalizedId] = normalizedName;
+  }
+  return names;
+}
+
+export function resolveCommandCodeModelName(
+  id: string,
+  liveModelNames: Readonly<Record<string, string>>,
+): string | undefined {
+  const normalizedId = id.toLowerCase();
+  const exact = liveModelNames[normalizedId];
+  if (exact) return exact;
+
+  const datedPrefix = `${normalizedId}-`;
+  const datedMatches = Object.entries(liveModelNames).filter(
+    ([candidate]) =>
+      candidate.startsWith(datedPrefix) && /^\d{8}$/.test(candidate.slice(datedPrefix.length)),
+  );
+  return datedMatches.length === 1 ? datedMatches[0]![1] : undefined;
+}
+
+export function createCommandCodeModelNameLoader(
+  options: {
+    fetchImpl?: typeof fetch;
+    now?: () => number;
+    ttlMs?: number;
+  } = {},
+) {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const now = options.now ?? Date.now;
+  const ttlMs = options.ttlMs ?? COMMANDCODE_MODEL_NAMES_TTL_MS;
+  let cached: { names: Record<string, string>; expiresAt: number } | undefined;
+  let pending: Promise<Record<string, string>> | undefined;
+
+  const waitForPending = (
+    request: Promise<Record<string, string>>,
+    signal: AbortSignal | undefined,
+  ): Promise<Record<string, string>> => {
+    if (!signal) return request;
+    signal.throwIfAborted();
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+      request.then(
+        (names) => {
+          signal.removeEventListener("abort", onAbort);
+          resolve(names);
+        },
+        (error: unknown) => {
+          signal.removeEventListener("abort", onAbort);
+          reject(error);
+        },
+      );
+    });
+  };
+
+  return async (signal?: AbortSignal): Promise<Record<string, string>> => {
+    if (cached && cached.expiresAt > now()) return cached.names;
+    if (pending) return waitForPending(pending, signal);
+
+    const staleNames = cached?.names ?? {};
+    pending = (async () => {
+      try {
+        const response = await fetchImpl(COMMANDCODE_MODELS_ENDPOINT, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(4_000),
+        });
+        if (!response.ok) return staleNames;
+        const names = parseCommandCodeModelNames(await response.json());
+        if (Object.keys(names).length > 0) {
+          cached = { names, expiresAt: now() + ttlMs };
+          return names;
+        }
+        return staleNames;
+      } catch {
+        return staleNames;
+      } finally {
+        pending = undefined;
+      }
+    })();
+    return waitForPending(pending, signal);
+  };
+}
+
+export async function collectCommandCodeModelEfforts(
+  modelIds: readonly string[],
+  probe: (modelId: string) => Promise<string>,
+  concurrency = COMMANDCODE_EFFORT_PROBE_CONCURRENCY,
+): Promise<Record<string, string[]>> {
+  const modelEfforts: Record<string, string[]> = {};
+  if (modelIds.length === 0) return modelEfforts;
+
+  // Sentinel gate: effort discovery relies on the CLI rejecting an unknown
+  // `--effort` with a parseable reply ("Supported: …" / "has no adjustable
+  // reasoning effort"). Up to two leaders are probed serially until one
+  // produces such a reply; if neither does — older CLI builds may ignore the
+  // flag and run real `-p` turns instead — refuse the fan-out so a couple of
+  // invocations replace N. Trying a second leader keeps one persistently
+  // broken id (auth-walled BYOK endpoint, transient timeout) from vetoing the
+  // rest of the list forever, while models that merely fail stay retryable on
+  // later passes because they remain absent from the returned map.
+  const probed = new Set<string>();
+  let cursor = 0;
+  const runLeader = async (): Promise<boolean> => {
+    const modelId = modelIds[cursor++]!;
+    probed.add(modelId);
+    const efforts = parseCommandCodeModelEfforts(await probe(modelId));
+    if (efforts === undefined) return false;
+    modelEfforts[modelId] = efforts;
+    return true;
+  };
+  let sawParseableReply = false;
+  while (cursor < Math.min(COMMANDCODE_EFFORT_SENTINEL_ATTEMPTS, modelIds.length)) {
+    sawParseableReply = await runLeader();
+    if (sawParseableReply) break;
+  }
+  if (!sawParseableReply) return modelEfforts;
+
+  const takeNext = (): string | undefined => {
+    while (cursor < modelIds.length && probed.has(modelIds[cursor]!)) cursor++;
+    return cursor < modelIds.length ? modelIds[cursor++] : undefined;
+  };
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, concurrency), modelIds.length - probed.size) },
+    async () => {
+      for (;;) {
+        const modelId = takeNext();
+        if (modelId === undefined) return;
+        const efforts = parseCommandCodeModelEfforts(await probe(modelId));
+        if (efforts !== undefined) modelEfforts[modelId] = efforts;
+      }
+    },
+  );
+  await Promise.all(workers);
+  return modelEfforts;
+}
+
+export function createCommandCodeEffortProbeCache(maxEntries = COMMANDCODE_EFFORT_CACHE_SIZE) {
+  const entries = new Map<
+    string,
+    { modelEfforts: Record<string, string[]>; pending?: Promise<void> }
+  >();
+
+  return async (
+    key: string,
+    modelIds: readonly string[],
+    probe: (modelId: string) => Promise<string>,
+  ): Promise<Record<string, string[]>> => {
+    let entry = entries.get(key);
+    if (entry) {
+      entries.delete(key);
+      entries.set(key, entry);
+    } else {
+      entry = { modelEfforts: {} };
+      entries.set(key, entry);
+      if (entries.size > Math.max(1, maxEntries)) {
+        entries.delete(entries.keys().next().value!);
+      }
+    }
+
+    if (entry.pending) {
+      await entry.pending;
+      return { ...entry.modelEfforts };
+    }
+
+    const missing = modelIds.filter((modelId) => !(modelId in entry.modelEfforts));
+    if (missing.length > 0) {
+      entry.pending = collectCommandCodeModelEfforts(missing, probe)
+        .then((modelEfforts) => {
+          Object.assign(entry.modelEfforts, modelEfforts);
+        })
+        .finally(() => {
+          delete entry.pending;
+        });
+      await entry.pending;
+    }
+    return { ...entry.modelEfforts };
+  };
+}
+
 function humanizeCommandCodeModelLabel(id: string): string {
   // Drop any namespace prefix, then turn `-` separators into spaces and
-  // title-case each segment. Fallback only — curated ids use the override map.
+  // title-case each segment without keeping a provider-owned name table.
   const tail = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id;
   return tail
     .split("-")
@@ -277,49 +327,47 @@ function humanizeCommandCodeModelLabel(id: string): string {
     .join(" ");
 }
 
-function commandCodeModelSubProviderId(id: string): string | undefined {
-  const slash = id.indexOf("/");
-  if (slash > 0) return id.slice(0, slash).toLowerCase();
-  if (/^claude/i.test(id)) return "anthropic";
-  if (/^(?:gpt|o\d|codex)/i.test(id)) return "openai";
-  return undefined;
-}
-
 /**
  * Turn parsed models into the picker's model capabilities: the labeled model
- * list plus the sub-provider grouping (labels + per-model mapping). Shared by
- * the static fallback and the live `--list-models` probe so labels and grouping
- * stay consistent across both paths.
+ * list plus the provider sections emitted by the live `--list-models` probe.
  */
 export function buildCommandCodeModelPickerCapabilities(
   parsed: ParsedCommandCodeModel[],
+  probedModelEfforts: Readonly<Record<string, string[]>> = {},
+  liveModelNames: Readonly<Record<string, string>> = {},
 ): Pick<AgentCapability, "models" | "subProviders" | "modelSubProvider" | "modelEfforts"> {
   const models: LabeledOption[] = [];
   const modelSubProvider: Record<string, string> = {};
   const modelEfforts: Record<string, string[]> = {};
-  const usedSubProviders = new Set<string>();
+  const subProviders: LabeledOption[] = [];
+  const seenSubProviders = new Set<string>();
   const seen = new Set<string>();
   let defaultId: string | undefined;
 
-  for (const { id, description, isDefault } of parsed) {
+  for (const { id, description, isDefault, providerId, providerLabel, isByok } of parsed) {
     if (!id || seen.has(id)) continue;
     seen.add(id);
     if (isDefault && !defaultId) defaultId = id;
 
     const model: LabeledOption = {
       id,
-      label: COMMANDCODE_MODEL_LABELS[id.toLowerCase()] ?? humanizeCommandCodeModelLabel(id),
+      label:
+        isByok && description
+          ? description
+          : (resolveCommandCodeModelName(id, liveModelNames) ?? humanizeCommandCodeModelLabel(id)),
     };
     const desc = description?.trim();
-    if (desc) model.description = desc;
+    if (desc && !isByok) model.description = desc;
     models.push(model);
-    const efforts = COMMANDCODE_MODEL_EFFORTS[id.toLowerCase()];
+    const efforts = probedModelEfforts[id];
     if (efforts) modelEfforts[id] = efforts;
 
-    const sub = commandCodeModelSubProviderId(id);
-    if (sub) {
-      modelSubProvider[id] = sub;
-      usedSubProviders.add(sub);
+    if (providerId && providerLabel) {
+      modelSubProvider[id] = providerId;
+      if (!seenSubProviders.has(providerId)) {
+        seenSubProviders.add(providerId);
+        subProviders.push({ id: providerId, label: providerLabel });
+      }
     }
   }
 
@@ -331,34 +379,15 @@ export function buildCommandCodeModelPickerCapabilities(
     if (idx > 0) models.unshift(models.splice(idx, 1)[0]!);
   }
 
-  const subProviders: LabeledOption[] = [];
-  const emitted = new Set<string>();
-  const pushSubProvider = (subId: string) => {
-    if (emitted.has(subId)) return;
-    emitted.add(subId);
-    subProviders.push({
-      id: subId,
-      label: COMMANDCODE_SUB_PROVIDER_LABELS[subId] ?? humanizeCommandCodeModelLabel(subId),
-    });
-  };
-  for (const subId of COMMANDCODE_SUB_PROVIDER_ORDER) {
-    if (usedSubProviders.has(subId)) pushSubProvider(subId);
-  }
-  // Any namespace the CLI introduced that we don't have a curated order for.
-  for (const subId of usedSubProviders) pushSubProvider(subId);
-
   return { models, subProviders, modelSubProvider, modelEfforts };
 }
 
 export const defaultCommandCodeCapabilities: AgentCapability = {
-  ...buildCommandCodeModelPickerCapabilities(
-    COMMANDCODE_FALLBACK_MODEL_IDS.map((id) => ({
-      id,
-      ...(id === COMMANDCODE_DEFAULT_MODEL_ID ? { isDefault: true } : {}),
-    })),
-  ),
+  models: [],
+  subProviders: [],
+  modelSubProvider: {},
+  modelEfforts: {},
   efforts: [],
-  defaultEffort: "high",
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
@@ -406,6 +435,40 @@ const COMMANDCODE_TERMINAL_AUTH: AgentTerminalAuthMethod = {
   // terminal auth method as it assembles the status.
 };
 
+const readCachedCommandCodeModelEfforts = createCommandCodeEffortProbeCache();
+const loadCommandCodeModelNames = createCommandCodeModelNameLoader();
+
+async function probeCommandCodeModelEfforts(
+  ctx: DetectProbeCtx & { executablePath: string },
+  modelsOutput: string,
+  modelIds: readonly string[],
+): Promise<Record<string, string[]>> {
+  const cacheKey = JSON.stringify([ctx.location, ctx.executablePath, ctx.version, modelsOutput]);
+  return readCachedCommandCodeModelEfforts(cacheKey, modelIds, async (modelId) => {
+    const probe = await readAgentCommandOutput(
+      ctx.location,
+      ctx.executablePath,
+      [
+        "--model",
+        modelId,
+        "--effort",
+        COMMANDCODE_EFFORT_PROBE_VALUE,
+        "--no-session",
+        "-p",
+        "capability probe",
+      ],
+      {
+        timeoutMs: 4_000,
+        wslLinuxCwd: "/tmp",
+        posixCwd: getAgentProbeCwd(ctx.location),
+        ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+        ...(ctx.signal ? { signal: ctx.signal } : {}),
+      },
+    ).catch(() => undefined);
+    return probe ? `${probe.stdout}\n${probe.stderr}` : "";
+  });
+}
+
 export const commandCodeDetectionSpec: DetectionSpec = {
   kind: "commandcode",
   label: "Command Code",
@@ -414,12 +477,13 @@ export const commandCodeDetectionSpec: DetectionSpec = {
   capabilities: defaultCommandCodeCapabilities,
   versionArgs: ["--version"],
   authProbes: [envVarAuthProbe(["COMMAND_CODE_API_KEY"]), storedCredentialsAuthProbe],
-  // Two cheap, no-TUI jobs in one probe: advertise the terminal login method so
-  // the Settings Login button appears, and refresh the model list from
-  // `command-code --list-models` (instant, no auth needed) so newly shipped
-  // models show up without an app release. If the list call fails or parses to
-  // nothing we return auth only, leaving the static fallback models in place
-  // (detectAgentInstall shallow-merges this partial over spec.capabilities).
+  // One probe, three jobs: advertise the terminal login method so the Settings
+  // Login button appears; refresh models from `command-code --list-models`
+  // (instant, no auth needed) so newly shipped ones show up without an app
+  // release; then discover per-model efforts (sentinel-gated CLI probes — see
+  // collectCommandCodeModelEfforts) and pretty display names (HTTP fetch with a
+  // short TTL). If the list call fails or parses to nothing we return auth only
+  // and expose no stale model choices.
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
     const result = await readAgentCommandOutput(
@@ -440,8 +504,20 @@ export const commandCodeDetectionSpec: DetectionSpec = {
       return undefined;
     });
     const parsed = result?.ok ? parseCommandCodeModels(result.stdout) : [];
+    const [modelEfforts, modelNames] = await Promise.all([
+      parsed.length > 0
+        ? probeCommandCodeModelEfforts(
+            { ...ctx, executablePath: ctx.executablePath },
+            result?.stdout ?? "",
+            parsed.map((model) => model.id),
+          )
+        : {},
+      parsed.length > 0 ? loadCommandCodeModelNames(ctx.signal) : {},
+    ]);
     const modelCapabilities =
-      parsed.length > 0 ? buildCommandCodeModelPickerCapabilities(parsed) : undefined;
+      parsed.length > 0
+        ? buildCommandCodeModelPickerCapabilities(parsed, modelEfforts, modelNames)
+        : undefined;
     return { authMethods: [COMMANDCODE_TERMINAL_AUTH], ...modelCapabilities };
   },
   // `command-code update` is the documented self-updater (preferred). `npm`

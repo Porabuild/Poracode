@@ -581,6 +581,8 @@ export interface OneShotGenerationOptions {
 
 export interface AgentOneShotRunner {
   defaultOneShotModel?: string;
+  /** Allow CLI adapters to omit `--model` and use the target environment's own live default. */
+  allowsImplicitOneShotModel?: boolean;
   /**
    * Build a bypass-permissions CLI invocation so an agent WITHOUT a structured
    * (GUI) runtime can still be spawned as a one-shot subagent child. Implemented
