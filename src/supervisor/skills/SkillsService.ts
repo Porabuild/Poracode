@@ -204,6 +204,17 @@ async function resolveWslRealPaths(
   );
 }
 
+async function resolveWslWindowsPaths(
+  distro: string,
+  paths: readonly string[],
+): Promise<readonly (string | undefined)[]> {
+  const results = await batchWslCommandsAsync(
+    distro,
+    paths.map((path) => `wslpath -a -w -- ${quotePosixShellArg(path)}`),
+  );
+  return results.map((result) => (result?.ok && result.stdout ? result.stdout : undefined));
+}
+
 function disabledRoot(rootPath: string): string {
   return `${rootPath}${DISABLED_SUFFIX}`;
 }
@@ -494,6 +505,10 @@ export class SkillsService {
     distro: string,
     paths: readonly string[],
   ) => Promise<readonly (string | undefined)[]>;
+  private readonly resolveWslWindowsPaths: (
+    distro: string,
+    paths: readonly string[],
+  ) => Promise<readonly (string | undefined)[]>;
   private readonly wslFsPath: (distro: string, linuxPath: string) => string;
   private readonly resolveAgentVersion: (kind: AgentKind, wslDistro?: string) => string | undefined;
   private readonly fetchImpl: typeof fetch;
@@ -512,6 +527,7 @@ export class SkillsService {
     this.resolveWslHome = options.resolveWslHome ?? resolveWslHomeDirectoryAsync;
     this.resolveWslEnv = options.resolveWslEnv ?? resolveWslEnvironment;
     this.resolveWslRealPaths = options.resolveWslRealPaths ?? resolveWslRealPaths;
+    this.resolveWslWindowsPaths = options.resolveWslWindowsPaths ?? resolveWslWindowsPaths;
     this.wslFsPath = options.wslFsPath ?? toWslUncPath;
     this.resolveAgentVersion = options.resolveAgentVersion ?? (() => undefined);
     this.fetchImpl = options.fetch ?? fetch;
@@ -527,6 +543,63 @@ export class SkillsService {
       ...(options.resolveWslWindowsPaths
         ? { resolveWslWindowsPaths: options.resolveWslWindowsPaths }
         : {}),
+    });
+  }
+
+  private async mapWslLinuxPathsToFsPaths(
+    distro: string,
+    linuxPaths: readonly string[],
+  ): Promise<Map<string, string>> {
+    if (linuxPaths.length === 0) return new Map();
+    const unique = [...new Set(linuxPaths)];
+    const realPaths = await this.resolveWslRealPaths(distro, unique).catch(
+      () => [] as readonly (string | undefined)[],
+    );
+    const resolved: Array<{ origin: string; real: string }> = [];
+    const map = new Map<string, string>();
+    unique.forEach((origin, index) => {
+      const real = realPaths[index] ?? (origin.startsWith("/mnt/") ? origin : undefined);
+      if (!real || !posix.isAbsolute(real)) return;
+      if (real !== origin || real.startsWith("/mnt/")) resolved.push({ origin, real });
+    });
+    if (resolved.length === 0) return map;
+    const mounted = resolved.filter(({ real }) => real.startsWith("/mnt/"));
+    for (const { origin, real } of resolved) {
+      if (!real.startsWith("/mnt/")) map.set(origin, this.wslFsPath(distro, real));
+    }
+    if (mounted.length > 0) {
+      const windowsPaths = await this.resolveWslWindowsPaths(
+        distro,
+        mounted.map(({ real }) => real),
+      ).catch(() => [] as readonly (string | undefined)[]);
+      mounted.forEach(({ origin, real }, index) => {
+        map.set(origin, windowsPaths[index] ?? this.wslFsPath(distro, real));
+      });
+    }
+    return map;
+  }
+
+  private async resolveWslRoots(roots: readonly LocatedRoot[]): Promise<LocatedRoot[]> {
+    const byDistro = Map.groupBy(
+      roots.filter((root) => root.wslDistro),
+      (root) => root.wslDistro!,
+    );
+    const maps = new Map<string, Map<string, string>>();
+    await Promise.all(
+      [...byDistro].map(async ([distro, distroRoots]) => {
+        maps.set(
+          distro.toLowerCase(),
+          await this.mapWslLinuxPathsToFsPaths(
+            distro,
+            distroRoots.map((root) => root.displayPath),
+          ),
+        );
+      }),
+    );
+    return roots.map((root) => {
+      if (!root.wslDistro) return root;
+      const mapped = maps.get(root.wslDistro.toLowerCase())?.get(root.displayPath);
+      return mapped ? { ...root, fsPath: mapped } : root;
     });
   }
 
@@ -675,7 +748,7 @@ export class SkillsService {
     }
 
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
-    const destinationRoot = this.managedRoot(
+    const destinationRoot = await this.resolvedManagedRoot(
       environment,
       payload.destinationScope,
       payload.availability,
@@ -763,7 +836,7 @@ export class SkillsService {
     const payload = scanSkillsPayloadSchema.parse(input);
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
     const activeAdapter = payload.agentKind ? this.adapters.get(payload.agentKind) : undefined;
-    const roots = this.roots(environment, activeAdapter ? [activeAdapter] : undefined);
+    const roots = await this.roots(environment, activeAdapter ? [activeAdapter] : undefined);
     const issues: SkillScanIssue[] = [];
     const skills: SkillEntry[] = [];
 
@@ -883,7 +956,7 @@ export class SkillsService {
       );
     });
     const effectiveSkillIds = activeAdapter
-      ? this.effectiveSkillIds(activeAdapter, skills, environment)
+      ? this.effectiveSkillIds(activeAdapter, skills, roots)
       : [];
     return skillScanResultSchema.parse({
       skills,
@@ -897,19 +970,14 @@ export class SkillsService {
   private effectiveSkillIds(
     adapter: AgentAdapter,
     skills: SkillEntry[],
-    environment: ResolvedEnvironment,
+    roots: readonly LocatedRoot[],
   ): string[] {
     if (!adapter.skillSupport) return [];
     const disabledNames = new Set(
       (adapter.capabilities.disabledSkillNames ?? []).map((name) => name.toLowerCase()),
     );
     const readableRoots = new Set<string>();
-    for (const root of this.locatedRootsForSpecs(
-      environment,
-      adapter,
-      adapter.skillSupport.roots,
-      () => adapter.label,
-    )) {
+    for (const root of roots.filter((r) => r.origin === "external")) {
       readableRoots.add(normalizePath(root.fsPath));
     }
 
@@ -967,7 +1035,7 @@ export class SkillsService {
   async setEnabled(input: SetSkillEnabledPayload): Promise<void> {
     const payload = setSkillEnabledPayloadSchema.parse(input);
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
-    const root = this.mutableRootForPath(payload.absolutePath, this.roots(environment));
+    const root = this.mutableRootForPath(payload.absolutePath, await this.roots(environment));
     const currentlyDisabled = isDirectChild(disabledRoot(root.fsPath), payload.absolutePath);
     if (payload.enabled === !currentlyDisabled) return;
     const destinationRoot = payload.enabled ? root.fsPath : disabledRoot(root.fsPath);
@@ -1042,7 +1110,7 @@ export class SkillsService {
   async delete(input: DeleteSkillPayload): Promise<void> {
     const payload = deleteSkillPayloadSchema.parse(input);
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
-    this.mutableRootForPath(payload.absolutePath, this.roots(environment));
+    this.mutableRootForPath(payload.absolutePath, await this.roots(environment));
     const backup = join(dirname(payload.absolutePath), `.poracode-delete-${randomUUID()}`);
     await rename(payload.absolutePath, backup);
     try {
@@ -1182,6 +1250,13 @@ export class SkillsService {
       (segment) => !this.nativePluginReplacement(segment, input.nativePlugins),
     );
     if (pending.length === 0) return undefined;
+    const wslFsPaths =
+      environment.wsl && environment.distro
+        ? await this.mapWslLinuxPathsToFsPaths(
+            environment.distro,
+            pending.flatMap((segment) => (segment.path?.startsWith("/") ? [segment.path] : [])),
+          )
+        : new Map<string, string>();
     const sources = [];
     for (const segment of pending) {
       // `selectSkillSegmentsForInjection` already dropped pathless
@@ -1189,11 +1264,11 @@ export class SkillsService {
       const segmentPath = segment.path;
       if (!segmentPath) continue;
       // Segment paths are display paths (Linux form inside WSL environments);
-      // bundled skills keep host paths even there, so only rewrite
-      // posix-absolute paths through the distro's UNC mapping.
+      // bundled skills keep host paths even there, so only resolve
+      // posix-absolute paths through the distro.
       const fsPath =
         environment.wsl && environment.distro && segmentPath.startsWith("/")
-          ? this.wslFsPath(environment.distro, segmentPath)
+          ? (wslFsPaths.get(segmentPath) ?? this.wslFsPath(environment.distro, segmentPath))
           : segmentPath;
       try {
         const buffer = await readFile(fsPath);
@@ -1351,7 +1426,7 @@ export class SkillsService {
       input.sourceProjectLocation || input.sourceWslDistro
         ? await this.resolveEnvironment(input.sourceProjectLocation, input.sourceWslDistro)
         : environment;
-    const sourceRoot = this.rootForPath(input.sourcePath, this.roots(sourceEnvironment));
+    const sourceRoot = this.rootForPath(input.sourcePath, await this.roots(sourceEnvironment));
     if (sourceRoot.origin !== "external") {
       throw new Error("Only skills discovered in an external provider folder can be imported.");
     }
@@ -1364,7 +1439,7 @@ export class SkillsService {
     const invalidReason = validateSkillMetadata(metadata, folderName);
     if (invalidReason) throw new Error(`Cannot import an invalid skill (${invalidReason}).`);
     const sourceHash = input.mode === "copy" ? await hashDirectory(input.sourcePath) : undefined;
-    const destinationRoot = this.managedRoot(
+    const destinationRoot = await this.resolvedManagedRoot(
       environment,
       input.destinationScope,
       input.availability,
@@ -1450,7 +1525,7 @@ export class SkillsService {
       return moves;
     }
     for (const availability of ["shared", "poracode"] as const) {
-      const managedRoot = this.managedRoot(environment, "global", availability);
+      const managedRoot = await this.resolvedManagedRoot(environment, "global", availability);
       const sourceRoot = enabled ? disabledRoot(managedRoot.fsPath) : managedRoot.fsPath;
       const destinationRoot = enabled ? managedRoot.fsPath : disabledRoot(managedRoot.fsPath);
       const linkName = basename(sourcePath);
@@ -1591,11 +1666,11 @@ export class SkillsService {
     }
   }
 
-  private roots(
+  private async roots(
     environment: ResolvedEnvironment,
     selectedAdapters?: readonly AgentAdapter[],
-  ): LocatedRoot[] {
-    const roots: LocatedRoot[] = [
+  ): Promise<LocatedRoot[]> {
+    let roots: LocatedRoot[] = [
       this.managedRoot(environment, "global", "shared"),
       this.managedRoot(environment, "global", "poracode"),
     ];
@@ -1624,8 +1699,13 @@ export class SkillsService {
         roots.push(root);
       }
     }
+    const rawProjections = this.projectionRoots(environment, selectedAdapters);
+    const rootCount = roots.length;
+    const combined = await this.resolveWslRoots([...roots, ...rawProjections]);
+    roots = combined.slice(0, rootCount);
+    const resolvedProjections = combined.slice(rootCount);
     const linkCapableProjections = new Map(
-      this.projectionRoots(environment, selectedAdapters)
+      resolvedProjections
         .filter((root) => root.linkProjectionFromVersion !== undefined)
         .map((root) => [normalizePath(root.fsPath), root] as const),
     );
@@ -1694,6 +1774,15 @@ export class SkillsService {
       mutable: true,
       ...(environment.distro ? { wslDistro: environment.distro } : {}),
     };
+  }
+
+  private async resolvedManagedRoot(
+    environment: ResolvedEnvironment,
+    scope: SkillScope,
+    availability: SkillAvailability = "shared",
+  ): Promise<LocatedRoot> {
+    const root = this.managedRoot(environment, scope, availability);
+    return (await this.resolveWslRoots([root]))[0] ?? root;
   }
 
   /**
@@ -1872,13 +1961,13 @@ export class SkillsService {
     if (wslLinks.length > 0) {
       const distro = wslLinks[0]!.distro;
       const links = wslLinks.filter((link) => link.distro.toLowerCase() === distro.toLowerCase());
-      const targets = await this.resolveWslRealPaths(
+      const fsMap = await this.mapWslLinuxPathsToFsPaths(
         distro,
         links.map((link) => link.linuxPath),
-      ).catch(() => []);
-      links.forEach((link, index) => {
-        const target = targets[index];
-        if (target) resolvedWslLinks.set(link.absolutePath, this.wslFsPath(distro, target));
+      ).catch(() => new Map<string, string>());
+      links.forEach((link) => {
+        const mapped = fsMap.get(link.linuxPath);
+        if (mapped) resolvedWslLinks.set(link.absolutePath, mapped);
       });
     }
 
@@ -2030,7 +2119,7 @@ export class SkillsService {
     await this.removeRetiredProjectionCopies(environment);
     for (const scope of ["global", "project"] as const) {
       if (scope === "project" && !environment.projectFsPath) continue;
-      const managedRoot = this.managedRoot(environment, scope, "shared");
+      const managedRoot = await this.resolvedManagedRoot(environment, scope, "shared");
       const managed = await this.scanRootState(managedRoot, managedRoot.fsPath, true, []);
       // Provider projection roots receive shared skills only. Poracode-only
       // and bundled skills are delivered through prompt injection or path hints.
@@ -2048,9 +2137,11 @@ export class SkillsService {
         return hash;
       };
 
-      for (const projectionRoot of this.projectionRoots(environment, selectedAdapters).filter(
+      const rawProjections = this.projectionRoots(environment, selectedAdapters).filter(
         (root) => root.scope === scope,
-      )) {
+      );
+      const projectionRoots = await this.resolveWslRoots(rawProjections);
+      for (const projectionRoot of projectionRoots) {
         await this.projectInto(projectionRoot, managedRoot.fsPath, sourceByFolder, sourceHashFor);
       }
     }
@@ -2062,10 +2153,10 @@ export class SkillsService {
    * Poracode's projection manifest; ordinary provider skills remain untouched.
    */
   private async removeRetiredProjectionCopies(environment: ResolvedEnvironment): Promise<void> {
-    const activeProjectionRoots = new Set(
-      this.projectionRoots(environment).map((root) => normalizePath(root.fsPath)),
-    );
-    for (const root of this.roots(environment)) {
+    const rawProjections = this.projectionRoots(environment);
+    const projections = await this.resolveWslRoots(rawProjections);
+    const activeProjectionRoots = new Set(projections.map((root) => normalizePath(root.fsPath)));
+    for (const root of await this.roots(environment)) {
       if (!root.mutable || root.origin === "built-in") continue;
       if (activeProjectionRoots.has(normalizePath(root.fsPath))) continue;
       for (const rootPath of [root.fsPath, disabledRoot(root.fsPath)]) {
