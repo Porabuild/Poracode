@@ -70,6 +70,7 @@ export async function extractContext(
         extractionCommand.command,
         extractionCommand.args,
         {
+          markOutput: true,
           ...(extractionCommand.env ? { env: extractionCommand.env } : {}),
         },
       );
