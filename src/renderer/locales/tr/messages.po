@@ -238,6 +238,11 @@ msgstr "{0}, anonimleştirilmiş sohbet yanıtlarını karşılaştırıyor…"
 msgid "{0} is comparing the anonymized diffs…"
 msgstr "{0} anonimleştirilmiş farkları karşılaştırıyor…"
 
+#. placeholder {0}: props.machine.label
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "{0} is offline. Showing last known status."
+msgstr "{0} çevrimdışı. Bilinen son durum gösteriliyor."
+
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0} limit"
@@ -589,6 +594,11 @@ msgstr "{seconds} sn önce"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "{serverCount, plural, one {# server} other {# servers}}"
 msgstr "{serverCount, plural, one {# sunucu} other {# sunucu}}"
+
+#. placeholder {0}: ref.env.distro
+#: src/renderer/utils/machineLabels.ts
+msgid "{serverName} · WSL {0}"
+msgstr "{serverName} · WSL {0}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
@@ -1085,11 +1095,11 @@ msgstr "Temsilci bir hatayla karşılaştı."
 #~ msgid "Agent for candidate {0}"
 #~ msgstr "Aday {0} için ajan"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Agent is active and ready"
 msgstr "Temsilci aktif ve hazır"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Agent is currently disabled"
 msgstr "Temsilci şu anda devre dışı"
 
@@ -1235,6 +1245,10 @@ msgstr "Tüm efor düzeyleri"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "Tüm dosyalar"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "All machines"
+msgstr "Tüm makineler"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -3142,6 +3156,7 @@ msgstr "Bağlanıyor..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Bağlanıyor…"
@@ -4152,6 +4167,14 @@ msgstr "ayrık HEAD"
 #~ msgid "Details"
 #~ msgstr "Ayrıntılar"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Detect"
+msgstr "Algıla"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Detect agents on this machine"
+msgstr "Bu makinedeki ajanları algıla"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #~ msgid "Detect from project files"
 #~ msgstr "Proje dosyalarından algıla"
@@ -4441,6 +4464,11 @@ msgstr "Taslak"
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "Sağlayıcıların model seçicide nasıl görüneceğini yeniden sıralamak için sürükleyin."
 
+#. placeholder {0}: selectedMachine.label
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Drag to reorder providers on {0}."
+msgstr "{0} üzerindeki sağlayıcıları yeniden sıralamak için sürükleyin."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Drag to reorder; double-click to edit"
 msgstr "Yeniden sıralamak için sürükleyin; düzenlemek için çift tıklayın"
@@ -4625,7 +4653,7 @@ msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Bu eklentinin becerilerini ve sunucularını yeni konular için etkinleştirin."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
 msgstr "Etkin"
 
@@ -6089,8 +6117,8 @@ msgid "Install {0}."
 msgstr "{0} yükleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {env}"
-msgstr "{env}'i yükleyin"
+#~ msgid "Install {env}"
+#~ msgstr "{env}'i yükleyin"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install @cursor/sdk to configure its API key."
@@ -6155,6 +6183,10 @@ msgstr "Yönetilen becerileri {0} konumuna yükle."
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için ACP'yi kullanın."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Install on {env}"
+msgstr "{env} üzerine kur"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
 msgstr "Windows'a yükleyin"
@@ -6195,11 +6227,14 @@ msgstr "v{updateVersion} sürümünü yükle"
 msgid "Install v{version}"
 msgstr "v{version} sürümünü yükle"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install, update, and sign-in are not yet available on remote machines."
+msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "Yüklendi"
 
@@ -6282,6 +6317,11 @@ msgstr "Şubeyi Koru"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
 msgstr "Beni yolunda tut"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep one provider order everywhere. Turn off to arrange per machine."
+msgstr "Her yerde tek bir sağlayıcı sırası kullanın. Makine başına düzenlemek için kapatın."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6592,6 +6632,10 @@ msgstr "Konum glifi"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Lock panel to the open thread"
 msgstr "Paneli açık konuya sabitle"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Locking keeps this machine's order and applies it everywhere."
+msgstr "Kilitlemek bu makinenin sırasını korur ve her yere uygular."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
@@ -7370,6 +7414,11 @@ msgstr "Dikkat Edilmesi Gerekiyor · Onay gerekiyor"
 msgid "Needs Attention · Reply required"
 msgstr "Dikkat Edilmesi Gerekiyor · Yanıt gerekli"
 
+#. placeholder {0}: machine.label
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Needs attention on {0}"
+msgstr "{0} üzerinde ilgi gerekiyor"
+
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
@@ -7970,6 +8019,10 @@ msgstr "Konuşma algılanmadı."
 msgid "No staged changes"
 msgstr "Aşamalı değişiklik yok"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "No status reported by this machine yet."
+msgstr "Bu makine henüz durum bildirmedi."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #~ msgid "No steps reported"
 #~ msgstr "Bildirilen adım yok"
@@ -8046,6 +8099,10 @@ msgstr "Git deposu değil"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "Git deposu değil"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Not detected on this machine yet."
+msgstr "Bu makinede henüz algılanmadı."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Not found"
@@ -8129,6 +8186,7 @@ msgstr "Yalnızca resmî kaynaklar"
 
 #: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Offline"
 msgstr "Çevrimdışı"
 
@@ -8147,6 +8205,11 @@ msgstr "açık"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Gün"
+
+#. placeholder {0}: props.machineLabel ?? t`this machine`
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "On {0}"
+msgstr "{0} üzerinde"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On the hour"
@@ -8585,6 +8648,10 @@ msgstr "Portlarını yönlendirmek için Bağlantılar'dan bir masaüstü eşle�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+msgid "Pair a remote machine…"
+msgstr "Uzak makine eşleştir…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts
@@ -10482,6 +10549,11 @@ msgstr "Çalışma zamanı hata ayıklaması"
 msgid "Runtime options"
 msgstr "Çalışma zamanı seçenekleri"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Same provider order on all machines"
+msgstr "Tüm makinelerde aynı sağlayıcı sırası"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Saturation and brightness"
 msgstr "Doygunluk ve parlaklık"
@@ -10545,8 +10617,12 @@ msgstr "Kısayolu kaydet"
 #~ msgstr "Kaydedilmiş API anahtarı"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Saved credentials are shared across all environments."
-msgstr "Kaydedilen kimlik bilgileri tüm ortamlarda paylaşılır."
+#~ msgid "Saved credentials are shared across all environments."
+#~ msgstr "Kaydedilen kimlik bilgileri tüm ortamlarda paylaşılır."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Saved credentials are shared across all machines."
+msgstr "Kaydedilen kimlik bilgileri tüm makineler arasında paylaşılır."
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -10891,6 +10967,10 @@ msgstr "{0} numaralı adayı ({label}) kazanan olarak seç"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Cihaz seç"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+msgid "Select machine"
+msgstr "Makine seç"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Select model"
@@ -11868,6 +11948,10 @@ msgstr "Hızlı modu destekler"
 msgid "Swap notes and to-dos"
 msgstr "Notları ve yapılacak işleri değiştir"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Switch"
+msgstr "Geç"
+
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -12385,6 +12469,10 @@ msgstr "Bu kodun süresi {countdown} içinde doluyor"
 msgid "This code has expired."
 msgstr "Bu kodun süresi doldu."
 
+#: src/renderer/utils/machineLabels.ts
+msgid "This computer"
+msgstr "Bu bilgisayar"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez. Etkinleştirmek için yeniden eşleştirin."
@@ -12423,6 +12511,10 @@ msgstr "Bu HTTPS sayfası düz HTTP kullanan masaüstüne ulaşamadı. Bu siteye
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "Bu bağlantı, Poracode'un ağınızda sunduğu uygulamayı açar. Barındırılan uygulama HTTPS üzerinden sunulduğu için tarayıcılar düz HTTP kullanan bir masaüstüne erişimi engeller."
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "this machine"
+msgstr "bu makine"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
@@ -13338,15 +13430,17 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "{0} ({env}) için {updateLabel} güncellemesi"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: props.latestRegistryVersion
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Update to v{0}"
 msgstr "v{0}'ye güncelleme"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Update to v{latestRegistryVersion}"
-msgstr "v{latestRegistryVersion}'ye güncelleme"
+#~ msgid "Update to v{latestRegistryVersion}"
+#~ msgstr "v{latestRegistryVersion}'ye güncelleme"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update with merge commit"
@@ -13868,7 +13962,6 @@ msgid "Will run in {0}:"
 msgstr "{0} içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -14096,6 +14189,11 @@ msgstr "Bu proje için notlar yazın…"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
 msgstr "WSL"
+
+#. placeholder {0}: env.distro
+#: src/renderer/utils/machineLabels.ts
+msgid "WSL · {0}"
+msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx

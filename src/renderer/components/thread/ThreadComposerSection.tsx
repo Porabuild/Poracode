@@ -62,6 +62,7 @@ import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { buildControls } from "./buildModelPickerControls";
+import { machineKeyForLocation } from "@/shared/machines";
 import { submitComposerPrompt } from "./threadComposerSubmit";
 import {
   filterSlashCommands,
@@ -440,6 +441,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (config) => changeThreadConfig(thread.id, config),
     modelPreferences,
     (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
+    machineKeyForLocation(projectLocation),
   );
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {

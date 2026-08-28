@@ -14,6 +14,8 @@ import { Tooltip } from "@heroui/react";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { effectiveProviderOrder } from "@/shared/machineSettings";
+import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
 import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import { Button } from "../Button";
@@ -66,6 +68,11 @@ export interface ProviderModelMenuProps {
   /** When set, only this provider's rows are rendered. */
   lockedAgentKind?: string;
   presentationMode?: ThreadPresentationMode;
+  /**
+   * Machine whose provider-order preference applies ("local" when omitted).
+   * Only affects ordering while the provider-order lock is off.
+   */
+  machineKey?: string;
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
@@ -284,7 +291,9 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
 
   const favorites = useSharedSettings((s) => s.favoriteModels);
   const recents = useSharedSettings((s) => s.recentModels);
-  const providerOrder = useSharedSettings((s) => s.providerOrder);
+  const providerOrder = useSharedSettings((s) =>
+    effectiveProviderOrder(s, props.machineKey ?? LOCAL_NATIVE_MACHINE_KEY),
+  );
   const hiddenModels = useSharedSettings((s) => s.hiddenModels);
   const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
   const providerConfigs = useSharedSettings((s) => s.providerConfigs);

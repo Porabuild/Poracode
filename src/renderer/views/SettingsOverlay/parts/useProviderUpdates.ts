@@ -9,6 +9,7 @@ import {
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { machineIdForStatus } from "@/renderer/state/machines";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   currentWslDistros,
@@ -92,7 +93,11 @@ function splitKinds(kindsKey: string): string[] {
  * instances update through the registry, every other provider updates its
  * binary once per environment it is installed in (Windows and each WSL distro).
  */
-export function useProviderUpdates(agents: readonly AgentStatus[]): ProviderUpdatesModel {
+export function useProviderUpdates(
+  agents: readonly AgentStatus[],
+  /** Restrict versions and update targets to one machine's statuses. */
+  machineId?: string,
+): ProviderUpdatesModel {
   const { t } = useLingui();
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
@@ -168,7 +173,10 @@ export function useProviderUpdates(agents: readonly AgentStatus[]): ProviderUpda
 
   function installedStatusesFor(kind: string): AgentStatus[] {
     return [...agentStatuses, ...wslAgentStatuses].filter(
-      (status) => status.kind === kind && status.installed,
+      (status) =>
+        status.kind === kind &&
+        status.installed &&
+        (machineId === undefined || machineIdForStatus(status) === machineId),
     );
   }
 

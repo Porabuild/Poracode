@@ -33,6 +33,7 @@ import {
   buildProviderModelMenuProviders,
   patchConfigForModelChange,
 } from "./buildModelPickerControls";
+import { machineKeyForLocation } from "@/shared/machines";
 import {
   agentWithCapabilities,
   formatAgentList,
@@ -975,6 +976,7 @@ export function ThreadDraftView(props: {
       thinking,
       capabilities: filteredCaps,
       presentationMode,
+      machineKey: machineKeyForLocation(project.location),
       onProviderModelChange: (next) => latestProviderModelChangeRef.current(next),
       onConfigPatch: (patch) => latestConfigPatchRef.current(patch),
     });
@@ -989,6 +991,7 @@ export function ThreadDraftView(props: {
     fast,
     thinking,
     presentationMode,
+    project.location,
   ]);
 
   const providerDraftControls = useMemo(() => {

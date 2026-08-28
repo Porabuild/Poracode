@@ -38,7 +38,7 @@ export function AgentInstallEnvironmentRow(props: {
           size="sm"
           variant="tertiary"
           className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-          aria-label={env ? t`Install ${env}` : t`Install`}
+          aria-label={env ? t`Install on ${env}` : t`Install`}
           isPending={props.installPending}
           onPress={() => props.onInstall(props.status)}
         >

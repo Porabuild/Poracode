@@ -1,11 +1,8 @@
 import type { AgentHookPluginEnv, AgentStatus, Project } from "./contracts";
+import { agentEnvForStatus, agentEnvKey } from "./machines";
 
 export function hookEnvKey(env: AgentHookPluginEnv): string {
-  return env.kind === "wsl" ? `wsl:${env.distro}` : "native";
-}
-
-export function hookEnvLabel(env: AgentHookPluginEnv): string {
-  return env.kind === "wsl" ? `WSL · ${env.distro}` : "Native";
+  return agentEnvKey(env);
 }
 
 export function hookEnvForProject(project: Project): AgentHookPluginEnv {
@@ -15,8 +12,5 @@ export function hookEnvForProject(project: Project): AgentHookPluginEnv {
 }
 
 export function hookEnvForAgentStatus(status: AgentStatus): AgentHookPluginEnv {
-  if (status.envKind === "wsl" && status.envDistro) {
-    return { kind: "wsl", distro: status.envDistro };
-  }
-  return { kind: "native" };
+  return agentEnvForStatus(status);
 }

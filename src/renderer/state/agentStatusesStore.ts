@@ -263,10 +263,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 16,
-      // v16 mirrors supervisor STATUS_CACHE_VERSION=19 so this localStorage
-      // copy does not keep Command Code's pre-live-discovery curated model
-      // table (deepseek fallbacks, static `defaultEffort`) on first paint.
+      version: 17,
+      // v17 mirrors supervisor STATUS_CACHE_VERSION=20: detection now resolves
+      // per-machine agent-setting overrides, so statuses cached under
+      // kind-global settings must not survive the upgrade on first paint.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

@@ -219,3 +219,37 @@ describe("shared settings defaults", () => {
     expect(migrated.hiddenModels.qwen).toEqual(["qwen3.8-max"]);
   });
 });
+
+describe("machine-scoped settings normalization", () => {
+  it("defaults pre-machine settings files to today's synced semantics", () => {
+    const normalized = normalizeSharedSettings({
+      providerOrder: ["claude"],
+      agentSettings: { cursor: { structuredRuntime: "sdk" } },
+    });
+    expect(normalized.machineScopeModes).toEqual({
+      providerOrder: "synced",
+      hiddenModels: "synced",
+      disabledAgents: "synced",
+    });
+    expect(normalized.machineSettings).toEqual({});
+    expect(normalized.providerOrder).toEqual(["claude"]);
+  });
+
+  it("drops entries with unparseable machine keys but keeps valid siblings", () => {
+    const normalized = normalizeSharedSettings({
+      machineSettings: {
+        "local/wsl:Ubuntu": { providerOrder: ["codex"] },
+        "not-a-machine": { providerOrder: ["claude"] },
+        "remote:": { providerOrder: ["claude"] },
+        local: { agentSettings: { cursor: { structuredRuntime: "acp" } } },
+        "local/wsl:Debian": { providerOrder: "corrupt" },
+      },
+    });
+    expect(Object.keys(normalized.machineSettings).sort()).toEqual(["local", "local/wsl:Ubuntu"]);
+    expect(normalized.machineSettings["local/wsl:Ubuntu"]).toEqual({ providerOrder: ["codex"] });
+  });
+
+  it("recovers an entirely corrupt machineSettings value", () => {
+    expect(normalizeSharedSettings({ machineSettings: "garbage" }).machineSettings).toEqual({});
+  });
+});

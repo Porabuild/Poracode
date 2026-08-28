@@ -260,7 +260,10 @@ export interface SpawnPipelineContext {
   closeThread(payload: CloseThreadPayload): Promise<void>;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   isCurrentSession(session: SessionRuntime): boolean;
-  resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string>;
+  resolveAgentSettings(
+    adapter: AgentAdapter,
+    location?: ProjectLocation,
+  ): Record<string, boolean | string>;
   emitOptimisticUserMessage(
     threadId: string,
     prompt: string,
@@ -387,6 +390,7 @@ export class SpawnPipeline {
       optimisticMcpLaunchSnapshot,
       adapter,
       payload.threadId,
+      payload.projectLocation,
     );
     if (optimisticUserMessageItemId) {
       this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
@@ -441,6 +445,7 @@ export class SpawnPipeline {
       mcpLaunchSnapshot,
       adapter,
       payload.threadId,
+      payload.projectLocation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: payload.projectLocation,
@@ -595,6 +600,7 @@ export class SpawnPipeline {
       adapter,
       structuredSession?.launchOptions,
       resolvedMcpServers,
+      payload.projectLocation,
     );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
@@ -742,6 +748,7 @@ export class SpawnPipeline {
       mcpLaunchSnapshot,
       session.adapter,
       session.threadId,
+      session.projectLocation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -857,6 +864,7 @@ export class SpawnPipeline {
         session.adapter,
         structuredSession?.launchOptions,
         resolvedMcpServers,
+        session.projectLocation,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -931,7 +939,7 @@ export class SpawnPipeline {
       ctx.options.emit({ type: "thread-reset", threadId: input.threadId });
     }
 
-    const agentEnv = this.resolveAgentProcessEnv(input.adapter);
+    const agentEnv = this.resolveAgentProcessEnv(input.adapter, input.projectLocation);
     const cliHookEnvInjected = Boolean(input.extraEnv?.PORACODE_HOOK_URL);
     // `baseSpawnEnv` underlies every lane; the location-specific `spawnEnv`
     // layers on top so a provider can still override per platform.
@@ -1048,10 +1056,11 @@ export class SpawnPipeline {
     adapter: AgentAdapter,
     launchOptions: AgentLaunchOptions | undefined,
     mcpServers: readonly ResolvedMcpServer[],
+    location?: ProjectLocation,
   ): AgentLaunchOptions {
     return {
       ...(launchOptions ?? {}),
-      agentSettings: this.ctx.resolveAgentSettings(adapter),
+      agentSettings: this.ctx.resolveAgentSettings(adapter, location),
       ...(mcpServers.length > 0 ? { mcpServers } : {}),
     };
   }
@@ -1082,7 +1091,13 @@ export class SpawnPipeline {
       // Provider-level MCP: flags come from the provider's settings page. Drop
       // the general MCP identity; GUI provider-session routing uses its own
       // shared credential, while terminal routing keeps the thread token.
-      config = this.resolveMcpLaunchConfig(config, mcpLaunchSnapshot, adapter, crossagentThreadId);
+      config = this.resolveMcpLaunchConfig(
+        config,
+        mcpLaunchSnapshot,
+        adapter,
+        crossagentThreadId,
+        location,
+      );
       identity = undefined;
       if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
         crossagentThreadId = undefined;
@@ -1130,11 +1145,12 @@ export class SpawnPipeline {
     mcpLaunchSnapshot: McpLaunchSnapshot,
     adapter: AgentAdapter,
     crossagentThreadId?: string,
+    location?: ProjectLocation,
   ): ThreadConfig {
     if (adapter.capabilities.mcpConfigSource !== "agentSettings") return config;
     const withProviderSettings = applyAgentSettingsMcpFlags(
       config,
-      this.ctx.resolveAgentSettings(adapter),
+      this.ctx.resolveAgentSettings(adapter, location),
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       adapter.capabilities.crossagentMcpRouting === "provider-session" &&
         crossagentThreadId !== undefined,
@@ -1252,13 +1268,16 @@ export class SpawnPipeline {
     );
   }
 
-  private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {
+  private resolveAgentProcessEnv(
+    adapter: AgentAdapter,
+    location?: ProjectLocation,
+  ): Record<string, string> {
     const settingDefs = adapter.capabilities.settingDefs ?? [];
     if (settingDefs.length === 0) {
       return {};
     }
 
-    const agentValues = this.ctx.resolveAgentSettings(adapter);
+    const agentValues = this.ctx.resolveAgentSettings(adapter, location);
     const env: Record<string, string> = {};
     for (const definition of settingDefs) {
       if (definition.platforms && !definition.platforms.includes(process.platform)) {
@@ -1303,7 +1322,7 @@ export class SpawnPipeline {
         threadId,
         projectLocation,
         config,
-        agentSettings: this.ctx.resolveAgentSettings(adapter),
+        agentSettings: this.ctx.resolveAgentSettings(adapter, projectLocation),
         ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
         ...(mcpIdentity ? { mcpIdentity } : {}),
         ...(mcpServers.length > 0 || adapter.capabilities.mcpConfigSource === "agentSettings"

@@ -238,6 +238,11 @@ msgstr "{0} 正在比较匿名化的聊天回复…"
 msgid "{0} is comparing the anonymized diffs…"
 msgstr "{0} 正在比较匿名化的差异…"
 
+#. placeholder {0}: props.machine.label
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "{0} is offline. Showing last known status."
+msgstr "{0} 已离线。正在显示最后已知状态。"
+
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0} limit"
@@ -589,6 +594,11 @@ msgstr "{seconds} 秒前"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "{serverCount, plural, one {# server} other {# servers}}"
 msgstr "{serverCount, plural, one {# 个服务器} other {# 个服务器}}"
+
+#. placeholder {0}: ref.env.distro
+#: src/renderer/utils/machineLabels.ts
+msgid "{serverName} · WSL {0}"
+msgstr "{serverName} · WSL {0}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
@@ -1085,11 +1095,11 @@ msgstr "代理遇到错误。"
 #~ msgid "Agent for candidate {0}"
 #~ msgstr "候选项 {0} 的智能体"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Agent is active and ready"
 msgstr "代理已激活并准备就绪"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Agent is currently disabled"
 msgstr "代理当前已禁用"
 
@@ -1235,6 +1245,10 @@ msgstr "全部级别"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "所有文件"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "All machines"
+msgstr "所有设备"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -3142,6 +3156,7 @@ msgstr "连接中..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
@@ -4152,6 +4167,14 @@ msgstr "分离的 HEAD"
 #~ msgid "Details"
 #~ msgstr "详细信息"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Detect"
+msgstr "检测"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Detect agents on this machine"
+msgstr "在此设备上检测代理"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #~ msgid "Detect from project files"
 #~ msgstr "从项目文件检测"
@@ -4441,6 +4464,11 @@ msgstr "草稿"
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "拖动以重新排序提供程序在模型选择器中的显示方式。"
 
+#. placeholder {0}: selectedMachine.label
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Drag to reorder providers on {0}."
+msgstr "拖动以调整 {0} 上提供方的顺序。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Drag to reorder; double-click to edit"
 msgstr "拖动即可重新排序；双击进行编辑"
@@ -4625,7 +4653,7 @@ msgid "Enable this plugin's skills and servers for new threads."
 msgstr "为新会话启用此插件的技能和服务器。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
 msgstr "启用"
 
@@ -6089,8 +6117,8 @@ msgid "Install {0}."
 msgstr "安装{0}。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {env}"
-msgstr "安装{env}"
+#~ msgid "Install {env}"
+#~ msgstr "安装{env}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install @cursor/sdk to configure its API key."
@@ -6155,6 +6183,10 @@ msgstr "将托管技能安装到{0}。"
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "首先安装原生提供程序；使用 ACP 作为附加协议代理。"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Install on {env}"
+msgstr "安装到 {env}"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
 msgstr "在 Windows 上安装"
@@ -6195,11 +6227,14 @@ msgstr "安装 v{updateVersion}"
 msgid "Install v{version}"
 msgstr "安装 v{version}"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install, update, and sign-in are not yet available on remote machines."
+msgstr "远程设备暂不支持安装、更新和登录。"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "已安装"
 
@@ -6282,6 +6317,11 @@ msgstr "保留分支"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
 msgstr "让我保持正轨"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep one provider order everywhere. Turn off to arrange per machine."
+msgstr "在所有设备上保持同一提供方顺序。关闭后可按设备分别排序。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6592,6 +6632,10 @@ msgstr "位置图标"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Lock panel to the open thread"
 msgstr "将面板锁定到打开的线程"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Locking keeps this machine's order and applies it everywhere."
+msgstr "锁定后将保留此设备的顺序并应用到所有设备。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
@@ -7369,6 +7413,11 @@ msgstr "需要注意 · 需要批准"
 msgid "Needs Attention · Reply required"
 msgstr "需要关注 · 需要回复"
 
+#. placeholder {0}: machine.label
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Needs attention on {0}"
+msgstr "{0} 上需要处理"
+
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
@@ -7969,6 +8018,10 @@ msgstr "未检测到语音。"
 msgid "No staged changes"
 msgstr "没有暂存的更改"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "No status reported by this machine yet."
+msgstr "此设备尚未报告状态。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #~ msgid "No steps reported"
 #~ msgstr "未报告任何步骤"
@@ -8045,6 +8098,10 @@ msgstr "不是 git 存储库"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "不是 Git 存储库"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Not detected on this machine yet."
+msgstr "尚未在此设备上检测到。"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Not found"
@@ -8128,6 +8185,7 @@ msgstr "仅官方来源"
 
 #: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Offline"
 msgstr "离线"
 
@@ -8146,6 +8204,11 @@ msgstr "开"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "日期"
+
+#. placeholder {0}: props.machineLabel ?? t`this machine`
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "On {0}"
+msgstr "在 {0} 上"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On the hour"
@@ -8584,6 +8647,10 @@ msgstr "在“连接”中配对一台桌面设备以转发其端口。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "将手机、平板电脑或浏览器与此桌面配对。"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+msgid "Pair a remote machine…"
+msgstr "配对远程设备…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts
@@ -10481,6 +10548,11 @@ msgstr "运行时调试"
 msgid "Runtime options"
 msgstr "运行时选项"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Same provider order on all machines"
+msgstr "所有设备使用相同的提供方顺序"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Saturation and brightness"
 msgstr "饱和度与亮度"
@@ -10544,8 +10616,12 @@ msgstr "保存快捷键"
 #~ msgstr "已保存的 API 密钥"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Saved credentials are shared across all environments."
-msgstr "保存的凭据在所有环境中共享。"
+#~ msgid "Saved credentials are shared across all environments."
+#~ msgstr "保存的凭据在所有环境中共享。"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Saved credentials are shared across all machines."
+msgstr "已保存的凭据在所有设备间共享。"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -10889,6 +10965,10 @@ msgstr "选择候选项 {0}（{label}）作为优胜者"
 
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
+msgstr "选择设备"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+msgid "Select machine"
 msgstr "选择设备"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
@@ -11867,6 +11947,10 @@ msgstr "支持快速模式"
 msgid "Swap notes and to-dos"
 msgstr "切换笔记和待办事项"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Switch"
+msgstr "切换"
+
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -12384,6 +12468,10 @@ msgstr "此代码将在 {countdown} 后过期"
 msgid "This code has expired."
 msgstr "此代码已过期。"
 
+#: src/renderer/utils/machineLabels.ts
+msgid "This computer"
+msgstr "这台电脑"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
@@ -12422,6 +12510,10 @@ msgstr "此 HTTPS 页面无法连接使用纯 HTTP 的桌面。请允许该站�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "此链接会打开 Poracode 在你网络中提供的应用。托管版应用通过 HTTPS 提供，浏览器会因此阻止它连接使用纯 HTTP 的桌面。"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "this machine"
+msgstr "此设备"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
@@ -13337,15 +13429,17 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "将{0}({env})更新到{updateLabel}"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: props.latestRegistryVersion
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Update to v{0}"
 msgstr "更新到 v{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Update to v{latestRegistryVersion}"
-msgstr "更新到 v{latestRegistryVersion}"
+#~ msgid "Update to v{latestRegistryVersion}"
+#~ msgstr "更新到 v{latestRegistryVersion}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update with merge commit"
@@ -13867,7 +13961,6 @@ msgid "Will run in {0}:"
 msgstr "将在{0}运行："
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -14095,6 +14188,11 @@ msgstr "为这个项目写笔记..."
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
 msgstr "WSL"
+
+#. placeholder {0}: env.distro
+#: src/renderer/utils/machineLabels.ts
+msgid "WSL · {0}"
+msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx

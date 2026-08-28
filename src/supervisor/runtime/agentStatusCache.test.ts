@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(19);
+    expect(STATUS_CACHE_VERSION).toBe(20);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,45 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(19);
+    expect(STATUS_CACHE_VERSION).toBe(20);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v19 caches probed under kind-global agent settings", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "poracode-cache-"));
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 19,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    // Detection now resolves per-machine agent-setting overrides
+    // (machineSettings), so pre-v20 statuses must be re-probed.
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

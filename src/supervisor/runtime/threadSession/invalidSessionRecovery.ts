@@ -84,6 +84,7 @@ export class InvalidSessionRecoveryCoordinator {
       mcpLaunchSnapshot,
       session.adapter,
       session.threadId,
+      session.projectLocation,
     );
     const resolvedMcpServers = await context.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -108,7 +109,12 @@ export class InvalidSessionRecoveryCoordinator {
       launchConfig,
       session.launchPrompt,
       undefined,
-      context.spawnPipeline.composeLaunchOptions(session.adapter, undefined, resolvedMcpServers),
+      context.spawnPipeline.composeLaunchOptions(
+        session.adapter,
+        undefined,
+        resolvedMcpServers,
+        session.projectLocation,
+      ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = mergeCliHookExtraArgs(

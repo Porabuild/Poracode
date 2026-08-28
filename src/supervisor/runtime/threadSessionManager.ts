@@ -30,6 +30,8 @@ import {
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
 } from "@/shared/contracts";
+import { effectiveAgentSettings } from "@/shared/machineSettings";
+import { agentEnvForLocation, localMachineKey } from "@/shared/machines";
 import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
@@ -173,7 +175,7 @@ export class ThreadSessionManager {
       closeThread: (payload) => this.closeThread(payload),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       isCurrentSession: (session) => this.isCurrentSession(session),
-      resolveAgentSettings: (adapter) => this.resolveAgentSettings(adapter),
+      resolveAgentSettings: (adapter, location) => this.resolveAgentSettings(adapter, location),
       emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId) =>
         this.structuredTurnQueue.emitOptimisticUserMessage(
           threadId,
@@ -386,6 +388,7 @@ export class ThreadSessionManager {
               session.mcpLaunchSnapshot,
               session.adapter,
               session.threadId,
+              session.projectLocation,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -1253,11 +1256,15 @@ export class ThreadSessionManager {
     return join(this.options.logsDir, `${threadId}.hints.log`);
   }
 
-  private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
+  private resolveAgentSettings(
+    adapter: AgentAdapter,
+    location?: ProjectLocation,
+  ): Record<string, boolean | string> {
     const settings = readSupervisorSharedSettings(this.options.settingsPath);
+    const env = location ? agentEnvForLocation(location) : { kind: "native" as const };
     return {
       ...(adapter.capabilities.agentSettingsDefaults ?? {}),
-      ...(settings.agentSettings[adapter.kind] ?? {}),
+      ...effectiveAgentSettings(settings, localMachineKey(env), adapter.kind),
     };
   }
 }

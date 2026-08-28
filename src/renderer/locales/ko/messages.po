@@ -238,6 +238,11 @@ msgstr "{0}이(가) 익명화된 채팅 응답을 비교하고 있습니다…"
 msgid "{0} is comparing the anonymized diffs…"
 msgstr "{0}이(가) 익명화된 diff를 비교하고 있습니다…"
 
+#. placeholder {0}: props.machine.label
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "{0} is offline. Showing last known status."
+msgstr "{0}이(가) 오프라인입니다. 마지막으로 확인된 상태를 표시합니다."
+
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0} limit"
@@ -589,6 +594,11 @@ msgstr "{seconds}초 전"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "{serverCount, plural, one {# server} other {# servers}}"
 msgstr "{serverCount, plural, one {서버 #개} other {서버 #개}}"
+
+#. placeholder {0}: ref.env.distro
+#: src/renderer/utils/machineLabels.ts
+msgid "{serverName} · WSL {0}"
+msgstr "{serverName} · WSL {0}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
@@ -1085,11 +1095,11 @@ msgstr "에이전트에 오류가 발생했습니다."
 #~ msgid "Agent for candidate {0}"
 #~ msgstr "후보 {0}의 에이전트"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Agent is active and ready"
 msgstr "에이전트가 활성 상태이며 준비되었습니다"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Agent is currently disabled"
 msgstr "에이전트가 현재 비활성화되어 있습니다"
 
@@ -1235,6 +1245,10 @@ msgstr "모든 추론 강도"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "모든 파일"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "All machines"
+msgstr "모든 기기"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -3142,6 +3156,7 @@ msgstr "연결 중..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "연결 중…"
@@ -4152,6 +4167,14 @@ msgstr "분리된 HEAD"
 #~ msgid "Details"
 #~ msgstr "세부 정보"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Detect"
+msgstr "감지"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Detect agents on this machine"
+msgstr "이 기기에서 에이전트 감지"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #~ msgid "Detect from project files"
 #~ msgstr "프로젝트 파일에서 감지"
@@ -4441,6 +4464,11 @@ msgstr "초안"
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "모델 선택기에 공급자가 표시되는 방식을 바꾸려면 드래그하세요."
 
+#. placeholder {0}: selectedMachine.label
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Drag to reorder providers on {0}."
+msgstr "드래그하여 {0}의 프로바이더 순서를 변경하세요."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Drag to reorder; double-click to edit"
 msgstr "드래그하여 재정렬하세요. 편집하려면 두 번 클릭하세요."
@@ -4625,7 +4653,7 @@ msgid "Enable this plugin's skills and servers for new threads."
 msgstr "새 스레드에서 이 플러그인의 스킬과 서버를 사용합니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
 msgstr "활성화됨"
 
@@ -6089,8 +6117,8 @@ msgid "Install {0}."
 msgstr "{0}을(를) 설치합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {env}"
-msgstr "{env} 설치"
+#~ msgid "Install {env}"
+#~ msgstr "{env} 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install @cursor/sdk to configure its API key."
@@ -6155,6 +6183,10 @@ msgstr "관리형 스킬을 {0}에 설치합니다."
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "기본 공급자를 먼저 설치하십시오. 추가 프로토콜 에이전트에는 ACP를 사용하십시오."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Install on {env}"
+msgstr "{env}에 설치"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
 msgstr "Windows에 설치"
@@ -6195,11 +6227,14 @@ msgstr "v{updateVersion} 설치"
 msgid "Install v{version}"
 msgstr "v{version} 설치"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install, update, and sign-in are not yet available on remote machines."
+msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용할 수 없습니다."
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "설치됨"
 
@@ -6282,6 +6317,11 @@ msgstr "브랜치 유지"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
 msgstr "계획대로 진행하기"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep one provider order everywhere. Turn off to arrange per machine."
+msgstr "모든 기기에서 하나의 프로바이더 순서를 유지합니다. 끄면 기기별로 정렬할 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6592,6 +6632,10 @@ msgstr "위치 글리프"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Lock panel to the open thread"
 msgstr "패널을 열린 스레드에 고정"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Locking keeps this machine's order and applies it everywhere."
+msgstr "잠그면 이 기기의 순서가 유지되어 모든 기기에 적용됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
@@ -7370,6 +7414,11 @@ msgstr "주의 필요 · 승인 필요"
 msgid "Needs Attention · Reply required"
 msgstr "주의 필요 · 답변 필요"
 
+#. placeholder {0}: machine.label
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Needs attention on {0}"
+msgstr "{0}에서 확인이 필요합니다"
+
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
@@ -7970,6 +8019,10 @@ msgstr "음성이 감지되지 않았습니다."
 msgid "No staged changes"
 msgstr "단계적 변경 없음"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "No status reported by this machine yet."
+msgstr "이 기기에서 아직 상태가 보고되지 않았습니다."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #~ msgid "No steps reported"
 #~ msgstr "보고된 단계 없음"
@@ -8046,6 +8099,10 @@ msgstr "Git 저장소가 아닙니다."
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "Git 저장소가 아님"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Not detected on this machine yet."
+msgstr "이 기기에서 아직 감지되지 않았습니다."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Not found"
@@ -8129,6 +8186,7 @@ msgstr "공식 소스만"
 
 #: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Offline"
 msgstr "오프라인"
 
@@ -8147,6 +8205,11 @@ msgstr "켜짐"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "요일"
+
+#. placeholder {0}: props.machineLabel ?? t`this machine`
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "On {0}"
+msgstr "{0}에서"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On the hour"
@@ -8585,6 +8648,10 @@ msgstr "연결에서 데스크톱을 페어링하여 포트를 포워딩하세�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어링합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+msgid "Pair a remote machine…"
+msgstr "원격 기기 페어링…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts
@@ -10482,6 +10549,11 @@ msgstr "런타임 디버그"
 msgid "Runtime options"
 msgstr "런타임 옵션"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Same provider order on all machines"
+msgstr "모든 기기에서 동일한 프로바이더 순서"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Saturation and brightness"
 msgstr "채도와 밝기"
@@ -10545,8 +10617,12 @@ msgstr "단축키 저장"
 #~ msgstr "저장된 API 키"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Saved credentials are shared across all environments."
-msgstr "저장된 자격 증명은 모든 환경에서 공유됩니다."
+#~ msgid "Saved credentials are shared across all environments."
+#~ msgstr "저장된 자격 증명은 모든 환경에서 공유됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Saved credentials are shared across all machines."
+msgstr "저장된 자격 증명은 모든 기기에서 공유됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -10890,6 +10966,10 @@ msgstr "후보 {0}({label}): 우승자로 선택"
 
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
+msgstr "기기 선택"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+msgid "Select machine"
 msgstr "기기 선택"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
@@ -11868,6 +11948,10 @@ msgstr "고속 모드 지원"
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"
 
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Switch"
+msgstr "전환"
+
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -12385,6 +12469,10 @@ msgstr "이 코드는 {countdown} 후 만료됩니다"
 msgid "This code has expired."
 msgstr "이 코드는 만료되었습니다."
 
+#: src/renderer/utils/machineLabels.ts
+msgid "This computer"
+msgstr "이 컴퓨터"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
@@ -12423,6 +12511,10 @@ msgstr "이 HTTPS 페이지는 일반 HTTP 데스크톱에 연결할 수 없었�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "이 링크는 Poracode가 네트워크에서 제공하는 앱을 엽니다. 호스팅된 앱은 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱에 연결하는 것을 차단합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+msgid "this machine"
+msgstr "이 기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
@@ -13338,15 +13430,17 @@ msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "{0}({env})에 대한 {updateLabel}(으)로 업데이트"
 
 #. placeholder {0}: agent.version
+#. placeholder {0}: props.latestRegistryVersion
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Update to v{0}"
 msgstr "v{0}(으)로 업데이트"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Update to v{latestRegistryVersion}"
-msgstr "v{latestRegistryVersion}(으)로 업데이트"
+#~ msgid "Update to v{latestRegistryVersion}"
+#~ msgstr "v{latestRegistryVersion}(으)로 업데이트"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update with merge commit"
@@ -13868,7 +13962,6 @@ msgid "Will run in {0}:"
 msgstr "{0}에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -14096,6 +14189,11 @@ msgstr "이 프로젝트에 대한 메모를 작성하세요…"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
 msgstr "WSL"
+
+#. placeholder {0}: env.distro
+#: src/renderer/utils/machineLabels.ts
+msgid "WSL · {0}"
+msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx

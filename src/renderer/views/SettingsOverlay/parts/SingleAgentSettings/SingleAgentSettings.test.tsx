@@ -285,6 +285,12 @@ vi.mock("@/renderer/state/agentStatusesStore", () => ({
   ),
 }));
 
+vi.mock("@/renderer/state/remoteServersStore", () => ({
+  useRemoteServersStore: (
+    selector: (state: { servers: never[]; runtime: Record<string, never> }) => unknown,
+  ) => selector({ servers: [], runtime: {} }),
+}));
+
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (state: typeof sharedSettingsState) => unknown) =>
     selector(sharedSettingsState),
@@ -330,6 +336,7 @@ vi.mock("@/renderer/components/common", () => ({
   ),
 }));
 
+import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { SingleAgentSettings } from "./SingleAgentSettings";
 
@@ -404,7 +411,13 @@ describe("SingleAgentSettings", () => {
     runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     runAgentLoginCommandMock.mockReset().mockReturnValue(true);
     useProviderUsageStore.setState({ snapshots: {} });
+    useMachineSelectionStore.setState({ selectedMachineId: "local" });
   });
+
+  /** Scope the Agents pages to another machine, as the machine bar would. */
+  const selectMachine = (machineId: string) => {
+    act(() => useMachineSelectionStore.getState().setSelectedMachine(machineId));
+  };
 
   it("renders identity metadata as a single compact summary line", () => {
     statusesState.agentStatuses = [
@@ -546,8 +559,9 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="codex" />);
 
-    expect(within(envRow("WSL (Ubuntu)")).queryByText(/ChatGPT Pro/)).not.toBeInTheDocument();
-    expect(within(envRow("Windows")).getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
+    expect(within(envRow("This computer")).getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
+    selectMachine("local/wsl:Ubuntu");
+    expect(within(envRow("WSL · Ubuntu")).queryByText(/ChatGPT Pro/)).not.toBeInTheDocument();
   });
 
   it("renders a Claude profile editor before detection has reported the profile status", () => {
@@ -644,6 +658,7 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="codex" />);
+    selectMachine("local/wsl:Ubuntu");
 
     fireEvent.click(screen.getByRole("button", { name: /login/i }));
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
@@ -709,11 +724,13 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    const windowsRow = envRow("Windows");
-    const wslRow = envRow("WSL (Ubuntu)");
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
+    expect(screen.queryByText(/This computer, WSL · Ubuntu needs authentication/u)).toBeNull();
+
+    selectMachine("local/wsl:Ubuntu");
+    const wslRow = envRow("WSL · Ubuntu");
     expect(within(wslRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Windows, WSL \(Ubuntu\) needs authentication/u)).toBeNull();
 
     fireEvent.click(within(wslRow).getByRole("button", { name: /login/i }));
 
@@ -732,7 +749,7 @@ describe("SingleAgentSettings", () => {
     });
     expect(screen.getByRole("status", { name: /logging in/i })).toBeInTheDocument();
     expect(
-      screen.getByText("Refreshing WSL (Ubuntu) Cursor authentication status."),
+      screen.getByText("Refreshing WSL · Ubuntu Cursor authentication status."),
     ).toBeInTheDocument();
     expect(refreshAgentStatusesMock).toHaveBeenCalledWith(["Ubuntu"], {
       agentKinds: ["cursor"],
@@ -1028,9 +1045,9 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="grok" />);
 
-    const windowsRow = envRow("Windows");
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByText("Not installed")).toBeInTheDocument();
-    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install Windows" }));
+    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install on This computer" }));
 
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith({
       label: "Grok Build",
@@ -1077,10 +1094,11 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="grok" />);
+    selectMachine("local/wsl:Ubuntu");
 
-    const wslRow = envRow("WSL (Ubuntu)");
+    const wslRow = envRow("WSL · Ubuntu");
     expect(within(wslRow).getByText("Not installed")).toBeInTheDocument();
-    fireEvent.click(within(wslRow).getByRole("button", { name: "Install WSL (Ubuntu)" }));
+    fireEvent.click(within(wslRow).getByRole("button", { name: "Install on WSL · Ubuntu" }));
 
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith({
       label: "Grok Build",
@@ -1208,10 +1226,11 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:ready-agent" />);
 
+    expect(within(envRow("This computer")).queryByRole("button", { name: "Login" })).toBeNull();
+    selectMachine("local/wsl:Ubuntu");
     expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
-    expect(within(envRow("Windows")).queryByRole("button", { name: "Login" })).toBeNull();
     expect(
-      within(envRow("WSL (Ubuntu)")).getByRole("button", { name: "Login WSL (Ubuntu)" }),
+      within(envRow("WSL · Ubuntu")).getByRole("button", { name: "Login WSL · Ubuntu" }),
     ).toBeVisible();
   });
 
@@ -1255,8 +1274,9 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
+    selectMachine("local/wsl:Ubuntu");
 
-    const row = envRow("WSL (Ubuntu)");
+    const row = envRow("WSL · Ubuntu");
     await act(async () => {
       fireEvent.click(within(row).getByRole("button", { name: /login/i }));
     });
@@ -1287,13 +1307,12 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
+    selectMachine("local/wsl:Ubuntu");
 
-    const row = envRow("WSL (Ubuntu)");
+    const row = envRow("WSL · Ubuntu");
     fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
-    expect(
-      screen.getByText(/Waiting for WSL \(Ubuntu\) Login authentication/u),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for WSL · Ubuntu Login authentication/u)).toBeInTheDocument();
 
     resolveAuth();
     await waitFor(() => expect(refreshAgentStatusesMock).toHaveBeenCalled());
@@ -1319,13 +1338,12 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    expect(screen.getByText("Windows")).toBeInTheDocument();
+    expect(screen.getByText("This computer")).toBeInTheDocument();
     expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Complete Login sign-in for Windows\./u)).toBeInTheDocument();
-    const windowsRow = envRow("Windows");
+    expect(screen.getByText(/Complete Login sign-in for This computer\./u)).toBeInTheDocument();
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
-    expect(screen.getByText("WSL (Ubuntu)")).toBeInTheDocument();
-    expect(screen.queryByText(/Windows · Authentication/u)).toBeNull();
+    expect(screen.queryByText(/This computer · Authentication/u)).toBeNull();
   });
 
   it("labels the remaining WSL auth action when Windows is already signed in", async () => {
@@ -1349,14 +1367,16 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    // Per-env rows: Windows env gets its own logout action, WSL env gets
-    // its own login action. No combined Re-login button across envs.
-    const windowsRow = envRow("Windows");
-    const wslRow = envRow("WSL (Ubuntu)");
+    // Each machine owns its env row: the local machine shows logout plus an
+    // attention hint pointing at the WSL machine; switching reveals login.
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(screen.getByText("Needs attention on WSL · Ubuntu")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Switch" }));
+    const wslRow = envRow("WSL · Ubuntu");
     expect(within(wslRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /re-login/i })).toBeNull();
-    expect(screen.getByText(/Complete Login sign-in for WSL \(Ubuntu\)\./u)).toBeInTheDocument();
+    expect(screen.getByText(/Complete Login sign-in for WSL · Ubuntu\./u)).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(within(wslRow).getByRole("button", { name: /login/i }));
     });
@@ -1397,7 +1417,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    const windowsRow = envRow("Windows");
+    const windowsRow = envRow("This computer");
     fireEvent.click(within(windowsRow).getByRole("button", { name: /logout/i }));
 
     expect(screen.getByRole("status", { name: /logging out/i })).toBeInTheDocument();
@@ -1436,7 +1456,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="copilot" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /re-login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
@@ -1474,7 +1494,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="copilot" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /re-login/i }));
 
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
@@ -1512,7 +1532,7 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="qwen" />);
-    fireEvent.click(within(envRow("Windows")).getByRole("button", { name: /login/i }));
+    fireEvent.click(within(envRow("This computer")).getByRole("button", { name: /login/i }));
     const loginInput = runAgentLoginCommandMock.mock.calls[0]?.[0];
 
     await act(async () => {
@@ -1537,7 +1557,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
@@ -1561,7 +1581,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /logout/i }));
 
     expect(logoutAcpAgentMock).toHaveBeenCalledWith({
@@ -1597,7 +1617,10 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    const wslRow = envRow("WSL (Ubuntu)");
+    const windowsRow = envRow("This computer");
+    expect(within(windowsRow).queryByRole("button", { name: /Update to v/i })).toBeNull();
+    selectMachine("local/wsl:Ubuntu");
+    const wslRow = envRow("WSL · Ubuntu");
     await waitFor(() =>
       expect(
         within(wslRow).getByRole("button", {
@@ -1605,8 +1628,6 @@ describe("SingleAgentSettings", () => {
         }),
       ).toBeInTheDocument(),
     );
-    const windowsRow = envRow("Windows");
-    expect(within(windowsRow).queryByRole("button", { name: /Update to v/i })).toBeNull();
 
     await act(async () => {
       fireEvent.click(
@@ -1661,47 +1682,56 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    const windowsRow = envRow("Windows");
-    const wslRow = envRow("WSL (Ubuntu)");
     fireEvent.click(
-      await within(windowsRow).findByRole("button", {
+      await within(envRow("This computer")).findByRole("button", {
         name: /Update to v1\.1\.0/i,
       }),
     );
     await waitFor(() =>
       expect(
-        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+        within(envRow("This computer")).getByRole("status", {
+          name: "Updating Cursor (This computer)",
+        }),
       ).toBeInTheDocument(),
     );
 
+    selectMachine("local/wsl:Ubuntu");
     fireEvent.click(
-      within(wslRow).getByRole("button", {
+      await within(envRow("WSL · Ubuntu")).findByRole("button", {
         name: /Update to v1\.1\.0/i,
       }),
     );
-    await waitFor(() => {
+    await waitFor(() =>
       expect(
-        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
-      ).toBeInTheDocument();
-      expect(
-        within(wslRow).getByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
-      ).toBeInTheDocument();
-    });
+        within(envRow("WSL · Ubuntu")).getByRole("status", {
+          name: "Updating Cursor (WSL · Ubuntu)",
+        }),
+      ).toBeInTheDocument(),
+    );
 
     resolveWslUpdate({ ok: false });
     await waitFor(() =>
       expect(
-        within(wslRow).queryByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
+        within(envRow("WSL · Ubuntu")).queryByRole("status", {
+          name: "Updating Cursor (WSL · Ubuntu)",
+        }),
       ).toBeNull(),
     );
+
+    // The Windows loader survives the machine switches independently.
+    selectMachine("local");
     expect(
-      within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+      within(envRow("This computer")).getByRole("status", {
+        name: "Updating Cursor (This computer)",
+      }),
     ).toBeInTheDocument();
 
     resolveWindowsUpdate({ ok: false });
     await waitFor(() =>
       expect(
-        within(windowsRow).queryByRole("status", { name: "Updating Cursor (Windows)" }),
+        within(envRow("This computer")).queryByRole("status", {
+          name: "Updating Cursor (This computer)",
+        }),
       ).toBeNull(),
     );
     platformSpy.mockRestore();

@@ -83,6 +83,7 @@ export type ComposerControl =
       currentAgentKind: string;
       currentModel: string;
       lockedAgentKind?: string;
+      machineKey?: string;
       presentationMode?: ThreadPresentationMode;
       isDisabled?: boolean;
       hideLabelOnWrap?: boolean;
@@ -440,6 +441,7 @@ export function ThreadComposer(props: {
           currentAgentKind={control.currentAgentKind}
           currentModel={control.currentModel}
           {...(control.lockedAgentKind ? { lockedAgentKind: control.lockedAgentKind } : {})}
+          {...(control.machineKey ? { machineKey: control.machineKey } : {})}
           {...(control.presentationMode ? { presentationMode: control.presentationMode } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}

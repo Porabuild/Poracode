@@ -6,6 +6,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
+import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import type { AgentStatus, ProjectLocation } from "@/shared/contracts";
 import type { CSSProperties, ReactNode } from "react";
@@ -98,7 +99,7 @@ export function AgentDiscoveryScreen(props: {
       ? [
           {
             key: `wsl:${wslDistro}`,
-            label: `WSL: ${wslDistro}`,
+            label: localEnvLabel({ kind: "wsl", distro: wslDistro }),
             matches: (status) => status.envKind === "wsl" && status.envDistro === wslDistro,
           },
         ]
@@ -106,12 +107,12 @@ export function AgentDiscoveryScreen(props: {
         ? [
             {
               key: "native",
-              label: t`Windows`,
+              label: localEnvLabel({ kind: "native" }),
               matches: (status) => status.envKind !== "wsl",
             },
             ...props.wslDistros.map((distro) => ({
               key: `wsl:${distro}`,
-              label: `WSL: ${distro}`,
+              label: localEnvLabel({ kind: "wsl", distro }),
               matches: (status: AgentStatus) =>
                 status.envKind === "wsl" && status.envDistro === distro,
             })),
@@ -120,12 +121,12 @@ export function AgentDiscoveryScreen(props: {
           ? [
               {
                 key: "native",
-                label: "Windows",
+                label: localEnvLabel({ kind: "native" }),
                 matches: (status) => status.envKind !== "wsl",
               },
               ...discoveryScope.wslDistros.map((distro) => ({
                 key: `wsl:${distro}`,
-                label: `WSL: ${distro}`,
+                label: localEnvLabel({ kind: "wsl", distro }),
                 matches: (status: AgentStatus) =>
                   status.envKind === "wsl" && status.envDistro === distro,
               })),
