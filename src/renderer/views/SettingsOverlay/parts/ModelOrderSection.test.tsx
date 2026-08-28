@@ -72,6 +72,7 @@ vi.mock("@heroui/react", () => ({
   Button: (props: {
     children?: ReactNode;
     "aria-label"?: string;
+    "aria-disabled"?: boolean;
     isPending?: boolean;
     isDisabled?: boolean;
     onPress?: () => void;
@@ -79,6 +80,7 @@ vi.mock("@heroui/react", () => ({
     <button
       type="button"
       aria-label={props["aria-label"]}
+      aria-disabled={props["aria-disabled"]}
       disabled={props.isDisabled}
       onClick={props.onPress}
     >
@@ -97,7 +99,7 @@ vi.mock("@dnd-kit/react/sortable", () => ({
 }));
 
 vi.mock("@/renderer/components/common", () => ({
-  PixelLoader: () => <span data-testid="loader" />,
+  PixelLoader: () => <span data-testid="loader" role="img" aria-label="Loading" />,
 }));
 
 vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
@@ -169,7 +171,10 @@ describe("ModelOrderSection provider updates", () => {
 
     render(<ModelOrderSection />);
 
-    expect(await screen.findByText("Windows v1.2.3 · WSL (Ubuntu) v1.1.0")).toBeTruthy();
+    expect(await screen.findByText("Windows v1.2.3 · WSL (Ubuntu) v1.1.0")).toHaveClass(
+      "max-w-[45%]",
+      "truncate",
+    );
     expect(screen.getByText("v1.0.0")).toBeTruthy();
   });
 
@@ -230,6 +235,157 @@ describe("ModelOrderSection provider updates", () => {
       "claude",
       "codex",
     ]);
+  });
+
+  it("shows queued, updating, and probing phases during Update all", async () => {
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
+      makeStatus({ kind: "codex", label: "Codex", version: "0.9.0" }),
+    ];
+    bridge.getLatestAgentVersion.mockImplementation(({ agentKind }) =>
+      Promise.resolve({
+        source: "npm",
+        version: agentKind === "claude" ? "1.3.0" : "1.0.0",
+      }),
+    );
+    let resolveClaudeUpdate!: (value: { ok: boolean }) => void;
+    let resolveCodexUpdate!: (value: { ok: boolean }) => void;
+    const resolveRefreshes: Array<(value: AgentStatusesResponse) => void> = [];
+    bridge.updateAgentBinary.mockImplementation(
+      ({ agentKind }) =>
+        new Promise((resolve) => {
+          if (agentKind === "claude") resolveClaudeUpdate = resolve;
+          else resolveCodexUpdate = resolve;
+        }),
+    );
+    bridge.refreshAgentStatuses.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefreshes.push(resolve);
+        }),
+    );
+
+    render(<ModelOrderSection />);
+    const updateAllButton = await screen.findByRole("button", { name: "Update all" });
+    updateAllButton.focus();
+    fireEvent.click(updateAllButton);
+
+    const firstProgress = await screen.findByRole("status", {
+      name: "Updating Claude Code to v1.3.0",
+    });
+    expect(firstProgress.querySelector("span.truncate")).toBeTruthy();
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(document.activeElement).toBe(updateAllButton);
+    expect(updateAllButton).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByRole("img", { name: "Loading" })).toBeNull();
+    expect(screen.getByText("Updating to v1.3.0")).toBeTruthy();
+    expect(screen.getByText("Queued for v1.0.0")).toBeTruthy();
+    expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveClaudeUpdate({ ok: true });
+    });
+
+    expect(await screen.findByRole("status", { name: "Probing Claude Code v1.3.0" })).toBeTruthy();
+    expect(screen.getByText("Probing v1.3.0")).toBeTruthy();
+    expect(screen.getByText("Queued for v1.0.0")).toBeTruthy();
+
+    await act(async () => {
+      resolveRefreshes.shift()?.({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
+    });
+
+    expect(await screen.findByText("Updating Codex to v1.0.0")).toBeTruthy();
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(screen.getByText("Updating to v1.0.0")).toBeTruthy();
+    expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveCodexUpdate({ ok: true });
+    });
+
+    expect(await screen.findByRole("status", { name: "Probing Codex v1.0.0" })).toBeTruthy();
+    expect(screen.getByText("Probing v1.0.0")).toBeTruthy();
+
+    await act(async () => {
+      resolveRefreshes.shift()?.({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
+    });
+  });
+
+  it("keeps an individual provider's versioned row status until refresh finishes", async () => {
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
+    let resolveUpdate!: (value: { ok: boolean }) => void;
+    bridge.updateAgentBinary.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    let resolveRefresh!: (value: AgentStatusesResponse) => void;
+    bridge.refreshAgentStatuses.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    const view = render(<ModelOrderSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update Claude Code to v1.3.0" }));
+
+    const rowStatus = await screen.findByRole("status", {
+      name: "Updating Claude Code to v1.3.0",
+    });
+    expect(rowStatus).toHaveClass("min-w-[6.5rem]", "max-w-[45%]", "shrink-0");
+    expect(rowStatus.querySelector("span.truncate")).toHaveTextContent("Updating to v1.3.0");
+
+    await act(async () => {
+      resolveUpdate({ ok: true });
+    });
+
+    await waitFor(() => expect(bridge.refreshAgentStatuses).toHaveBeenCalled());
+    expect(screen.getByRole("status", { name: "Probing Claude Code v1.3.0" })).toHaveTextContent(
+      "Probing v1.3.0",
+    );
+
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.3.0" }),
+    ];
+    view.rerender(<ModelOrderSection />);
+
+    expect(screen.getByRole("status", { name: "Probing Claude Code v1.3.0" })).toHaveTextContent(
+      "Probing v1.3.0",
+    );
+
+    await act(async () => {
+      resolveRefresh({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
+    });
+  });
+
+  it("offers updates only on base providers, not their profiles", async () => {
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
+      makeStatus({ kind: "claude:work", label: "Claude Z AI", version: "1.2.3" }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
+
+    render(<ModelOrderSection />);
+
+    expect(
+      await screen.findByRole("button", { name: "Update Claude Code to v1.3.0" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Update Claude Z AI to v1.3.0" })).toBeNull();
+    expect(bridge.getLatestAgentVersion).toHaveBeenCalledTimes(1);
+    expect(bridge.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "claude" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Update all" }));
+
+    await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1));
+    expect(bridge.updateAgentBinary).toHaveBeenCalledWith({
+      agentKind: "claude",
+      envKind: "posix",
+    });
   });
 
   it("updates each outdated environment of a provider once", async () => {

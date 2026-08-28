@@ -81,7 +81,7 @@ function SortableProviderRow(props: {
         className="size-3.5 shrink-0"
       />
       <span className="truncate text-foreground">{agent.label}</span>
-      <span className="ml-auto shrink-0 tabular-nums text-muted/60">
+      <span className="ml-auto min-w-0 max-w-[45%] truncate tabular-nums text-muted/60">
         {update.environments.length > 0
           ? update.environments
               .map((env) => `${env.label} ${env.version ? `v${env.version}` : "—"}`.trim())
@@ -90,13 +90,37 @@ function SortableProviderRow(props: {
             ? `v${update.installedVersion}`
             : "—"}
       </span>
-      {update.isPending ? (
+      {update.updatePhase ? (
         <div
-          className="flex size-5 shrink-0 items-center justify-center"
-          role="status"
-          aria-label={t`Updating ${agent.label}`}
+          className="flex h-5 min-w-[6.5rem] max-w-[45%] shrink-0 items-center gap-1 text-[10px] text-muted"
+          {...(isBulkUpdating && update.updatePhase !== "queued"
+            ? { "aria-hidden": true }
+            : isBulkUpdating
+              ? {}
+              : {
+                  role: "status",
+                  "aria-label":
+                    update.updatePhase === "probing"
+                      ? t`Probing ${agent.label} v${update.targetVersion}`
+                      : t`Updating ${agent.label} to v${update.targetVersion}`,
+                })}
         >
-          <PixelLoader size="xs" />
+          {update.updatePhase === "queued" ? null : (
+            <span aria-hidden="true">
+              <PixelLoader size="xs" />
+            </span>
+          )}
+          {update.targetVersion ? (
+            <span className="truncate">
+              {update.updatePhase === "queued" ? (
+                <Trans>Queued for v{update.targetVersion}</Trans>
+              ) : update.updatePhase === "probing" ? (
+                <Trans>Probing v{update.targetVersion}</Trans>
+              ) : (
+                <Trans>Updating to v{update.targetVersion}</Trans>
+              )}
+            </span>
+          ) : null}
         </div>
       ) : update.targetVersion ? (
         <Button
@@ -131,6 +155,12 @@ export function ModelOrderSection() {
 
   const isCustomized = providerOrder.length > 0;
   const updates = useProviderUpdates(orderedAgents);
+  const updateAllProgress = updates.updateAllProgress;
+  const updateAllProgressLabel = updateAllProgress
+    ? updateAllProgress.phase === "probing"
+      ? t`Probing ${updateAllProgress.agentLabel} v${updateAllProgress.targetVersion}`
+      : t`Updating ${updateAllProgress.agentLabel} to v${updateAllProgress.targetVersion}`
+    : "";
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -168,21 +198,41 @@ export function ModelOrderSection() {
             <RotateCcw className="size-3" />
           </button>
         ) : null}
-        {updates.outdatedKinds.length > 0 ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto h-6 min-h-6 gap-1 px-2 text-[11px]"
-            isPending={updates.isUpdatingAll}
-            onPress={updates.updateAll}
+        {updateAllProgress || updates.outdatedKinds.length > 0 ? (
+          <div
+            className="ml-auto flex min-w-0 justify-end"
+            {...(updateAllProgress
+              ? {
+                  role: "status",
+                  "aria-live": "polite" as const,
+                  "aria-label": updateAllProgressLabel,
+                }
+              : {})}
           >
-            {updates.isUpdatingAll ? (
-              <PixelLoader size="xs" />
-            ) : (
-              <ArrowUpCircle className="size-3" />
-            )}
-            {updates.isUpdatingAll ? t`Updating` : t`Update all`}
-          </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 min-h-6 max-w-full gap-1 px-2 text-[11px]"
+              aria-label={updateAllProgress ? updateAllProgressLabel : t`Update all`}
+              {...(updates.isUpdatingAll
+                ? { "aria-disabled": true }
+                : { onPress: updates.updateAll })}
+            >
+              {updateAllProgress ? (
+                <>
+                  <span aria-hidden="true">
+                    <PixelLoader size="xs" />
+                  </span>
+                  <span className="truncate">{updateAllProgressLabel}</span>
+                </>
+              ) : (
+                <>
+                  <ArrowUpCircle className="size-3" />
+                  <Trans>Update all</Trans>
+                </>
+              )}
+            </Button>
+          </div>
         ) : null}
       </div>
       <p className="text-xs text-muted">
