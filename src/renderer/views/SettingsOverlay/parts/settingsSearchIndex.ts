@@ -588,6 +588,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
       "reorder rearrange sort providers drag model picker sequence position model order version update upgrade outdated latest agents",
     conditional: true,
   },
+  {
+    section: "agentsGeneral",
+    anchor: "agentsGeneral.providerOrderLock",
+    title: msg`Same provider order on all machines`,
+    description: msg`Keep one provider order everywhere. Turn off to arrange per machine.`,
+    keywords: "machine wsl remote lock sync provider order per machine scope",
+    conditional: true,
+  },
   // Dev (only in dev builds)
   {
     section: "dev",

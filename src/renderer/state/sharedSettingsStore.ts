@@ -43,6 +43,12 @@ import {
   uninstallPlugin as removeInstalledPlugin,
 } from "@/shared/plugins/catalog";
 import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
+import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
+import {
+  effectiveProviderOrder,
+  type MachineScopeMode,
+  type MachineScopeModes,
+} from "@/shared/machineSettings";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -88,6 +94,16 @@ interface SharedSettingsState extends SharedSettings {
   setCrossagentProviderPaused: (agentKind: string, paused: boolean) => void;
   setCrossagentHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setProviderOrder: (order: string[]) => void;
+  setMachineScopeMode: (domain: keyof MachineScopeModes, mode: MachineScopeMode) => void;
+  setMachineProviderOrder: (machineId: string, order: string[]) => void;
+  /** Relock: adopt `machineId`'s effective order globally and clear overrides. */
+  lockProviderOrderToMachine: (machineId: string) => void;
+  setMachineAgentSetting: (
+    machineId: string,
+    agentKind: string,
+    key: string,
+    value: boolean | string,
+  ) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
   setCliPickerTarget: (value: CliPickerTarget) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
@@ -470,6 +486,58 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     const next = [...new Set(order.filter((kind) => typeof kind === "string" && kind.length > 0))];
     if (current.length === next.length && current.every((kind, i) => kind === next[i])) return;
     set({ providerOrder: next });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMachineScopeMode: (domain, mode) => {
+    const current = get().machineScopeModes;
+    if (current[domain] === mode) return;
+    set({ machineScopeModes: { ...current, [domain]: mode } });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMachineProviderOrder: (machineId, order) => {
+    const machineSettings = get().machineSettings;
+    const next = [...new Set(order.filter((kind) => typeof kind === "string" && kind.length > 0))];
+    // An empty order removes the override — the machine falls back to the
+    // global order (mirrors the global reset semantics).
+    const { providerOrder: _previousOrder, ...entry } = machineSettings[machineId] ?? {};
+    set({
+      machineSettings: {
+        ...machineSettings,
+        [machineId]: next.length > 0 ? { ...entry, providerOrder: next } : entry,
+      },
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  lockProviderOrderToMachine: (machineId) => {
+    const state = get();
+    const adopted = [...effectiveProviderOrder(state, machineId)];
+    const machineSettings = Object.fromEntries(
+      Object.entries(state.machineSettings).map(([key, entry]) => {
+        const { providerOrder: _providerOrder, ...rest } = entry;
+        return [key, rest];
+      }),
+    );
+    set({
+      providerOrder: adopted,
+      machineScopeModes: { ...state.machineScopeModes, providerOrder: "synced" },
+      machineSettings,
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMachineAgentSetting: (machineId, agentKind, key, value) => {
+    // Secrets are sealed per host and must never be machine-keyed.
+    if (isSensitiveAgentSetting(agentKind, key)) {
+      throw new Error(`Refusing to store sensitive agent setting per machine: ${key}`);
+    }
+    const machineSettings = get().machineSettings;
+    const entry = machineSettings[machineId];
+    const agentSettings = {
+      ...entry?.agentSettings,
+      [agentKind]: { ...entry?.agentSettings?.[agentKind], [key]: value },
+    };
+    set({
+      machineSettings: { ...machineSettings, [machineId]: { ...entry, agentSettings } },
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setCollapseTerminalComposer: (collapseTerminalComposer) => {
@@ -1006,6 +1074,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslConflictResolverFast: state.wslConflictResolverFast,
     wslConflictResolverPresentationMode: state.wslConflictResolverPresentationMode,
     agentSettings: state.agentSettings,
+    machineScopeModes: state.machineScopeModes,
+    machineSettings: state.machineSettings,
     hiddenModels: state.hiddenModels,
     disabledAgents: state.disabledAgents,
     providerOrder: state.providerOrder,

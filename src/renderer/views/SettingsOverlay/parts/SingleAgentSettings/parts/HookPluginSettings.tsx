@@ -3,7 +3,8 @@ import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Download, Trash2 } from "lucide-react";
 import type { AgentHookPluginEnv, AgentHookPluginStatus, AgentStatus } from "@/shared/contracts";
-import { hookEnvForAgentStatus, hookEnvKey, hookEnvLabel } from "@/shared/agentHookPluginEnv";
+import { hookEnvForAgentStatus, hookEnvKey } from "@/shared/agentHookPluginEnv";
+import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { readBridge } from "@/renderer/bridge";
 
 function HookPluginEnvironmentRow(props: {
@@ -46,7 +47,7 @@ function HookPluginEnvironmentRow(props: {
     action({ agentKind: props.agentKind, env: status.env })
       .then((result) => {
         props.onRefresh(result.status);
-        const envName = hookEnvLabel(status.env);
+        const envName = localEnvLabel(status.env);
         toast.success(
           mode === "uninstall"
             ? t`${props.agentLabel} hooks removed for ${envName}.`
@@ -64,7 +65,7 @@ function HookPluginEnvironmentRow(props: {
   return (
     <div className="flex items-center justify-between gap-4 py-1.5">
       <div className="flex min-w-0 items-center gap-2 text-sm">
-        <span className="shrink-0 font-medium text-foreground/90">{hookEnvLabel(status.env)}</span>
+        <span className="shrink-0 font-medium text-foreground/90">{localEnvLabel(status.env)}</span>
         <span className="shrink-0 tabular-nums text-xs text-muted/60">{versionText}</span>
         {isOutdated ? (
           <span className="shrink-0 text-[10px] text-warning">

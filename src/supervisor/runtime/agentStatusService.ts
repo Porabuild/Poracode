@@ -16,6 +16,8 @@ import {
   type RefreshAgentScopeEnv,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { effectiveAgentSettings } from "@/shared/machineSettings";
+import { localMachineKey, type AgentEnv } from "@/shared/machines";
 import { normalizeSharedSettings } from "@/shared/settings";
 import {
   getWindowsSystemCommand,
@@ -72,10 +74,34 @@ const execFileAsync = promisify(execFile);
  * v19 replaces Command Code's curated fallback model tables/static efforts
  * (and its `defaultEffort`) with live-only discovery, so cached statuses from
  * before the switch would keep serving a stale deepseek-era picker.
+ * v20 resolves per-machine agent-setting overrides (`machineSettings`) into
+ * detection, so statuses cached under kind-global settings must be re-probed.
  */
-export const STATUS_CACHE_VERSION = 19;
+export const STATUS_CACHE_VERSION = 20;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
+
+/**
+ * Agent settings effective for a local env's machine, or undefined when no
+ * value exists — detection contexts historically omit `agentSettings` rather
+ * than passing an empty object.
+ */
+function machineAgentSettingsFor(
+  settings: Pick<
+    ReturnType<typeof normalizeSharedSettings>,
+    | "agentSettings"
+    | "machineScopeModes"
+    | "machineSettings"
+    | "providerOrder"
+    | "hiddenModels"
+    | "disabledAgents"
+  >,
+  env: AgentEnv,
+  agentKind: string,
+): Record<string, boolean | string> | undefined {
+  const merged = effectiveAgentSettings(settings, localMachineKey(env), agentKind);
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
   if (definition.type === "toggle" || definition.type === "select") {
@@ -181,14 +207,17 @@ export async function detectWslAgentStatuses(
   distros: readonly string[],
   disabled?: ReadonlySet<string>,
   onStatus?: (status: AgentStatus) => void,
-  agentSettings?: Readonly<Record<string, Record<string, boolean | string>>>,
+  agentSettingsFor?: (
+    agentKind: string,
+    distro: string,
+  ) => Record<string, boolean | string> | undefined,
 ): Promise<AgentStatus[]> {
   const adapterList = [...adapters];
   const statuses = await Promise.all(
     distros.map(async (distro) => {
       return Promise.all(
         adapterList.map(async (adapter) => {
-          const settings = agentSettings?.[adapter.kind];
+          const settings = agentSettingsFor?.(adapter.kind, distro);
           const ctx: AgentEnvContext = {
             envKind: "wsl",
             wslDistro: distro,
@@ -436,7 +465,12 @@ export class AgentStatusService {
     const probed = await Promise.all(
       targetAdapters.flatMap((adapter) =>
         targetEnvs.map((env) =>
-          this.probeScopedStatus(adapter, env, disabled, settings.agentSettings[adapter.kind]),
+          this.probeScopedStatus(
+            adapter,
+            env,
+            disabled,
+            machineAgentSettingsFor(settings, env, adapter.kind),
+          ),
         ),
       ),
     );
@@ -670,7 +704,11 @@ export class AgentStatusService {
           };
         } else {
           try {
-            const agentSettings = settings.agentSettings[adapter.kind];
+            const agentSettings = machineAgentSettingsFor(
+              settings,
+              { kind: "native" },
+              adapter.kind,
+            );
             const detected = await adapter.detectInstall({
               envKind: nativeEnvKind,
               ...(agentSettings ? { agentSettings } : {}),
@@ -706,7 +744,7 @@ export class AgentStatusService {
       (status) => {
         this.options.emit({ type: "agent-detected", status });
       },
-      settings.agentSettings,
+      (agentKind, distro) => machineAgentSettingsFor(settings, { kind: "wsl", distro }, agentKind),
     )
       .then((statuses) => {
         this.options.emit({ type: "wsl-agent-statuses", statuses });

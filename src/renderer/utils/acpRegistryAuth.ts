@@ -8,6 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import { localEnvLabel } from "@/renderer/utils/machineLabels";
 
 type StatusAuthMethod = NonNullable<AgentStatus["authMethods"]>[number];
 
@@ -101,8 +102,10 @@ export function statusUpdateScope(status: AgentStatus): {
 }
 
 export function envLabelForStatus(status: AgentStatus): string {
-  if (status.envKind === "wsl") return status.envDistro ? `WSL (${status.envDistro})` : "WSL";
-  if (status.envKind === "windows") return "Windows";
+  if (status.envKind === "wsl") {
+    return status.envDistro ? localEnvLabel({ kind: "wsl", distro: status.envDistro }) : "WSL";
+  }
+  if (status.envKind === "windows") return localEnvLabel({ kind: "native" });
   return "";
 }
 

@@ -17,7 +17,16 @@ const statusesState = {
 
 const settingsState = {
   providerOrder: [] as string[],
+  machineScopeModes: {
+    providerOrder: "synced" as const,
+    hiddenModels: "synced" as const,
+    disabledAgents: "synced" as const,
+  },
+  machineSettings: {} as Record<string, { providerOrder?: string[] }>,
   setProviderOrder: vi.fn<(order: string[]) => void>(),
+  setMachineScopeMode: vi.fn<(domain: string, mode: string) => void>(),
+  setMachineProviderOrder: vi.fn<(machineId: string, order: string[]) => void>(),
+  lockProviderOrderToMachine: vi.fn<(machineId: string) => void>(),
   acpRegistryInstalledAgents: {} as Record<string, InstalledAcpRegistryAgent>,
   syncAcpRegistryInstalledAgents: vi.fn<(installed: InstalledAcpRegistryAgent[]) => void>(),
 };
@@ -67,6 +76,12 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
+vi.mock("@/renderer/state/remoteServersStore", () => ({
+  useRemoteServersStore: (
+    selector: (state: { servers: never[]; runtime: Record<string, never> }) => unknown,
+  ) => selector({ servers: [], runtime: {} }),
+}));
+
 vi.mock("@heroui/react", () => ({
   toast: toastMock,
   Button: (props: {
@@ -100,6 +115,9 @@ vi.mock("@dnd-kit/react/sortable", () => ({
 
 vi.mock("@/renderer/components/common", () => ({
   PixelLoader: () => <span data-testid="loader" role="img" aria-label="Loading" />,
+  ToggleSwitch: (props: { "aria-label"?: string; isSelected?: boolean }) => (
+    <input type="checkbox" aria-label={props["aria-label"]} checked={props.isSelected} readOnly />
+  ),
 }));
 
 vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
@@ -147,7 +165,7 @@ describe("ModelOrderSection provider updates", () => {
     expect(screen.getByText("—")).toBeTruthy();
   });
 
-  it("breaks the version out per environment only when they disagree", async () => {
+  it("scopes each provider row's version to the selected machine", async () => {
     statusesState.agentStatuses = [
       makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3", envKind: "windows" }),
       makeStatus({ kind: "codex", label: "Codex", version: "1.0.0", envKind: "windows" }),
@@ -171,11 +189,11 @@ describe("ModelOrderSection provider updates", () => {
 
     render(<ModelOrderSection />);
 
-    expect(await screen.findByText("Windows v1.2.3 · WSL (Ubuntu) v1.1.0")).toHaveClass(
-      "max-w-[45%]",
-      "truncate",
-    );
+    // The default scope is the local machine, so only its versions render —
+    // the WSL copy belongs to the "local/wsl:Ubuntu" machine.
+    expect(await screen.findByText("v1.2.3")).toBeTruthy();
     expect(screen.getByText("v1.0.0")).toBeTruthy();
+    expect(screen.queryByText(/WSL/)).toBeNull();
   });
 
   it("offers a per-provider update when the published version is newer", async () => {
@@ -388,10 +406,12 @@ describe("ModelOrderSection provider updates", () => {
     });
   });
 
-  it("updates each outdated environment of a provider once", async () => {
+  it("updates only the selected machine's environment", async () => {
     statusesState.agentStatuses = [
       makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3", envKind: "windows" }),
     ];
+    // A WSL copy belongs to another machine and must not be touched by an
+    // update-all run scoped to the local machine.
     statusesState.wslAgentStatuses = [
       makeStatus({
         kind: "claude",
@@ -407,10 +427,9 @@ describe("ModelOrderSection provider updates", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Update all" }));
 
-    await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1));
     expect(bridge.updateAgentBinary.mock.calls.map(([payload]) => payload)).toEqual([
       { agentKind: "claude", envKind: "windows" },
-      { agentKind: "claude", envKind: "wsl", wslDistro: "Ubuntu" },
     ]);
   });
 
@@ -433,34 +452,20 @@ describe("ModelOrderSection provider updates", () => {
     expect(toastMock.success).not.toHaveBeenCalled();
   });
 
-  it("still updates the remaining environments when one environment fails", async () => {
+  it("reports a failed machine update without claiming success", async () => {
     statusesState.agentStatuses = [
       makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3", envKind: "windows" }),
     ];
-    statusesState.wslAgentStatuses = [
-      makeStatus({
-        kind: "claude",
-        label: "Claude Code",
-        version: "1.1.0",
-        envKind: "wsl",
-        envDistro: "Ubuntu",
-      }),
-    ];
     bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
-    bridge.updateAgentBinary.mockImplementation(({ envKind }) =>
-      Promise.resolve(
-        envKind === "windows" ? { ok: true } : { ok: false, output: "npm ERR! EACCES" },
-      ),
-    );
+    bridge.updateAgentBinary.mockResolvedValue({ ok: false, output: "npm ERR! EACCES" });
 
     render(<ModelOrderSection />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Update Claude Code to v1.3.0" }));
 
-    await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1));
     expect(bridge.updateAgentBinary.mock.calls.map(([payload]) => payload)).toEqual([
       { agentKind: "claude", envKind: "windows" },
-      { agentKind: "claude", envKind: "wsl", wslDistro: "Ubuntu" },
     ]);
     expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Claude Code: npm ERR! EACCES");
     expect(toastMock.success).not.toHaveBeenCalled();

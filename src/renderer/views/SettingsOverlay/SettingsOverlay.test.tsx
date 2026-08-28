@@ -62,6 +62,8 @@ vi.mock("@/renderer/components/layout/PageLayout", () => ({
 
 vi.mock("@/renderer/components/common", () => ({
   PixelLoader: () => <span />,
+  TuxIcon: () => <span />,
+  Select: () => <span data-testid="machine-select" />,
   SidebarButton: (props: {
     icon?: ReactNode;
     label: string;

@@ -7,6 +7,7 @@ import type {
   UsageSnapshot,
 } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
+import { agentEnvForStatus, agentEnvKey } from "@/shared/machines";
 import {
   envLabelForStatus,
   isAgentAuthMethod,
@@ -134,7 +135,7 @@ export function findTerminalLoginStatus(statuses: readonly AgentStatus[]): Agent
 }
 
 export function statusEnvKey(status: AgentStatus): string {
-  return status.envKind === "wsl" && status.envDistro ? `wsl:${status.envDistro}` : "native";
+  return agentEnvKey(agentEnvForStatus(status));
 }
 
 export function supportsAcpLogoutStatus(

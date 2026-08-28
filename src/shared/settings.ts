@@ -22,6 +22,12 @@ import {
   installedPluginsSchema,
   workspaceListSchema,
 } from "./contracts";
+import {
+  defaultMachineScopeModes,
+  machineScopeModesSchema,
+  machineSettingsEntrySchema,
+} from "./machineSettings";
+import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
@@ -311,6 +317,19 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverPresentationMode: threadPresentationModeSchema,
   /** Per-agent settings keyed by agent kind, then setting key. */
   agentSettings: z.record(z.string(), z.record(z.string(), z.union([z.boolean(), z.string()]))),
+  /**
+   * Lock state per machine-scopable settings domain. "synced" (the default)
+   * keeps one global value for every machine; "per-machine" activates the
+   * `machineSettings` overrides for that domain.
+   */
+  machineScopeModes: machineScopeModesSchema,
+  /**
+   * Sparse per-machine overrides keyed by `machineKey` ("local",
+   * "local/wsl:<distro>", "remote:<desktopId>", …). Resolved against the
+   * global values by the `effective*` helpers in `machineSettings.ts`.
+   * Entries with unparseable machine keys are dropped on normalize.
+   */
+  machineSettings: z.record(z.string(), machineSettingsEntrySchema),
   /** Per-agent hidden model IDs keyed by agent kind. */
   hiddenModels: z.record(z.string(), z.array(z.string())),
   /** Agent kinds that the user has disabled (hidden from the agent picker). */
@@ -661,6 +680,8 @@ export const defaultSharedSettings: SharedSettings = {
   wslConflictResolverFast: false,
   wslConflictResolverPresentationMode: "gui",
   agentSettings: {},
+  machineScopeModes: defaultMachineScopeModes,
+  machineSettings: {},
   hiddenModels: {},
   disabledAgents: [],
   providerOrder: [],
@@ -875,6 +896,23 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
   };
 }
 
+/**
+ * Per-entry tolerant parse of `machineSettings`: entries with unparseable
+ * machine keys or malformed values are dropped individually instead of
+ * resetting the whole map (which the per-field schema fallback would do).
+ */
+function normalizeMachineSettings(value: unknown): SharedSettings["machineSettings"] {
+  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  if (!parsed.success) return {};
+  const result: SharedSettings["machineSettings"] = {};
+  for (const [key, entry] of Object.entries(parsed.data)) {
+    if (parseMachineKey(key) === undefined) continue;
+    const parsedEntry = machineSettingsEntrySchema.safeParse(entry);
+    if (parsedEntry.success) result[key] = parsedEntry.data;
+  }
+  return result;
+}
+
 export function normalizeSharedSettings(value: unknown): SharedSettings {
   const normalized = normalizeObjectFromSchema(
     sharedSettingsSchema.shape,
@@ -912,6 +950,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     : undefined;
   return migrateRetiredQwenPreviewModel({
     ...normalized,
+    machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
     sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
     prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
     preventSleep: migratedPreventSleep,

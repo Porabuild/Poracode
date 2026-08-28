@@ -49,6 +49,8 @@ export type BuildModelPickerControlsInput = {
   capabilities: AgentCapability;
   presentationMode?: ThreadPresentationMode;
   lockedAgentKind?: string;
+  /** Machine whose provider-order preference applies to the picker. */
+  machineKey?: string;
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   includeFastToggle?: boolean;
@@ -211,6 +213,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     capabilities: filteredCaps,
     presentationMode,
     lockedAgentKind,
+    machineKey,
     isDisabled,
     hideLabelOnWrap = true,
     includeFastToggle = true,
@@ -239,6 +242,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       currentAgentKind: selectedAgentKind,
       currentModel: model,
       ...(lockedAgentKind ? { lockedAgentKind } : {}),
+      ...(machineKey ? { machineKey } : {}),
       ...(presentationMode ? { presentationMode } : {}),
       ...(isDisabled !== undefined ? { isDisabled } : {}),
       hideLabelOnWrap,
@@ -364,6 +368,7 @@ export function buildControls(
   onConfigChange: (config: ThreadConfig) => void,
   modelPreferences?: Record<string, ProviderModelPreference>,
   onModelPreferenceChange?: (model: string, preference: ProviderModelPreference) => void,
+  machineKey?: string,
 ): ComposerControl[] {
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
@@ -407,6 +412,7 @@ export function buildControls(
       ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
       capabilities: filteredCaps,
       lockedAgentKind: thread.agentKind,
+      ...(machineKey ? { machineKey } : {}),
       presentationMode,
       isDisabled,
       onProviderModelChange: ({ model }) => {

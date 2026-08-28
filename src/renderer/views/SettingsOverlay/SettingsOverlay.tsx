@@ -39,6 +39,7 @@ import { PluginsSettings } from "./parts/PluginsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
 import { WorkspacesSettings } from "./parts/WorkspacesSettings";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
+import { AgentsMachineBar } from "./parts/machineScope/AgentsMachineBar";
 import type { SettingsSection } from "./parts/types";
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
@@ -189,6 +190,8 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       .map((status) => status.kind),
   );
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
+  const isMachineScopedSection =
+    activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const section = renderSection(activeSection, navigateToSection);
 
@@ -247,17 +250,23 @@ export function SettingsOverlay(props: { onClose: () => void }) {
             {section}
           </div>
         ) : (
-          <div
-            key={activeSection}
-            data-settings-scroll-area="true"
-            className="relative h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable]"
-          >
-            {section}
-            {isAgentsSectionActive && isRefreshingAgents ? (
-              <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
-                <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
-              </div>
-            ) : null}
+          <div className="relative flex h-full min-h-0 flex-col">
+            <div
+              key={activeSection}
+              data-settings-scroll-area="true"
+              className="relative min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable]"
+            >
+              {section}
+              {isAgentsSectionActive && isRefreshingAgents ? (
+                <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
+                  <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
+                </div>
+              ) : null}
+            </div>
+            {/* Floats over the scroll area rather than living in the section's
+                flow, so it keeps its position and state across agent-section
+                remounts (`key={activeSection}`). */}
+            {isMachineScopedSection ? <AgentsMachineBar onNavigate={navigateToSection} /> : null}
           </div>
         )
       }

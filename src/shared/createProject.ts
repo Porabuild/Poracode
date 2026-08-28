@@ -1,12 +1,13 @@
 import type { ProjectLocation } from "./contracts";
+import type { AgentEnv } from "./machines";
 import { parseWslUncPath, toWslUncPath } from "./wsl";
 
 /**
  * Where a new project should be created. `native` resolves to the host's own
  * filesystem (windows or posix depending on platform); `wsl` targets a named
- * WSL distribution.
+ * WSL distribution. Alias of the shared `AgentEnv` union.
  */
-export type RuntimeChoice = { kind: "native" } | { kind: "wsl"; distro: string };
+export type RuntimeChoice = AgentEnv;
 
 /** Concrete `ProjectLocation` kind, once a platform is known. */
 export type ScratchKind = ProjectLocation["kind"];

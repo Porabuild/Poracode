@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentEnvSchema, type AgentEnv } from "../machines";
 import {
   agentKindSchema,
   authStateSchema,
@@ -460,11 +461,8 @@ export const agentStatusSchema = z.object({
 });
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 
-export const refreshAgentScopeEnvSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("native") }),
-  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
-]);
-export type RefreshAgentScopeEnv = z.infer<typeof refreshAgentScopeEnvSchema>;
+export const refreshAgentScopeEnvSchema = agentEnvSchema;
+export type RefreshAgentScopeEnv = AgentEnv;
 
 export const refreshAgentScopeSchema = z.object({
   agentKinds: z.array(z.string().min(1)).min(1),
@@ -586,11 +584,8 @@ export const updateAgentBinaryPayloadSchema = z.object({
 });
 export type UpdateAgentBinaryPayload = z.infer<typeof updateAgentBinaryPayloadSchema>;
 
-export const agentHookPluginEnvSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("native") }),
-  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
-]);
-export type AgentHookPluginEnv = z.infer<typeof agentHookPluginEnvSchema>;
+export const agentHookPluginEnvSchema = agentEnvSchema;
+export type AgentHookPluginEnv = AgentEnv;
 
 export const agentHookPluginPayloadSchema = z.object({
   agentKind: agentKindSchema,
