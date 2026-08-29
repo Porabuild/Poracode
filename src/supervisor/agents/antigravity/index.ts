@@ -28,6 +28,7 @@ import {
   readNewestAntigravityConversationIdAsync,
   resolveAntigravityWatchPaths,
 } from "./session";
+import { AntigravityPrintSession } from "./printSession";
 import {
   detectAntigravityTerminalStatus,
   syncAntigravityConfigFromTerminalState,
@@ -304,6 +305,11 @@ export function createAntigravityAdapter(): AgentAdapter {
         stdin: "",
         ...(usePtyForPrint ? { pty: true } : {}),
       };
+    },
+
+    async createStructuredSession(input) {
+      if (input.presentationMode !== "gui") return undefined;
+      return AntigravityPrintSession.create(input, supportsSeparateModelEffort, defaultModel);
     },
   };
 }

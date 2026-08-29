@@ -45,7 +45,7 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
-  presentationModes: ["terminal"],
+  presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
   // No dedicated-server hosting path in any presentation.

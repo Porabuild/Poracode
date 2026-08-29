@@ -220,6 +220,19 @@ describe("createAntigravityAdapter", () => {
     expect(adapter.buildAcpLogoutCommand).toBeUndefined();
   });
 
+  it("creates a GUI structured session via agy print mode", async () => {
+    const adapter = createAntigravityAdapter();
+    expect(adapter.capabilities.presentationModes).toContain("gui");
+    const session = await adapter.createStructuredSession?.({
+      threadId: "thread-antigravity-gui",
+      projectLocation: project,
+      config: { model: ANTIGRAVITY_DEFAULT_MODEL_ID },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+    expect(session?.startTurn).toBeTypeOf("function");
+  });
+
   it("builds project-bound agy launch, resume, and one-shot commands", () => {
     const adapter = createAntigravityAdapter();
     const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
