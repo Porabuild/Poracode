@@ -446,8 +446,9 @@ function parseHeadFileView(command: string): PipedFileView | null {
   const parts = splitShellPipeline(command);
   // A filter between the reader and head (`cat f | grep x | head`) changes what
   // head sees, so only the direct `<reader> | head` and bare `head file` forms
-  // map cleanly to a 1..N window of a single file.
-  if (parts.length > 2) return null;
+  // map cleanly to a 1..N window of a single file. An empty pipeline (blank or
+  // pipe-only command) has no segment to inspect.
+  if (parts.length === 0 || parts.length > 2) return null;
   const invocation = parseHeadInvocation(splitShellWords(parts[parts.length - 1]!));
   if (!invocation) return null;
 

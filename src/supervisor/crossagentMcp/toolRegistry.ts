@@ -226,12 +226,9 @@ const RAW_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
       },
-      // Keep every root union branch explicitly object-typed. Some OpenAI-compatible
-      // providers reject `required`-only branches because they also match non-objects.
-      oneOf: [
-        { type: "object", required: ["prompt"] },
-        { type: "object", required: ["tasks"] },
-      ],
+      // No root-level union here: Cursor's backend rejects tool schemas that carry
+      // `oneOf` at the root and fails the whole turn with a provider error. Callers
+      // pass either `prompt` or `tasks`; the request parser enforces that.
     },
   },
   {
@@ -288,11 +285,7 @@ const RAW_TOOLS: ToolSpec[] = [
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
         after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
       },
-      // See the spawn_agent schema above for why these branches repeat the root type.
-      oneOf: [
-        { type: "object", required: ["run_id"] },
-        { type: "object", required: ["run_ids"] },
-      ],
+      // No root-level union — see the spawn_agent schema above.
     },
   },
   {

@@ -136,4 +136,24 @@ describe("Cursor runtime installation", () => {
     expect(canUpdateCursorSdk(projectStatus)).toBe(false);
     expect(cursorSdkUpdateCommand(projectStatus, posixProject)).toBeUndefined();
   });
+
+  it("updates global installs the discovery reports as inferred or explicit", () => {
+    // A Node prefix of its own (~/.local, nvm, fnm, volta, Homebrew) matches a
+    // filesystem candidate before the `npm root -g` probe runs, so the source is
+    // never "global-npm". Requiring the probe sources left the update action
+    // dead and the agent updater refreshed the CLI instead of the SDK.
+    for (const installationSource of ["global-inferred", "global-explicit"]) {
+      const globalStatus = status(true, true, { installationSource });
+      expect(canUpdateCursorSdk(globalStatus)).toBe(true);
+      expect(cursorSdkUpdateCommand(globalStatus, posixProject)).toContain(
+        "npm install -g '@cursor/sdk@^1.0.24'",
+      );
+    }
+
+    for (const installationSource of ["configured", "node-path"]) {
+      const scopedStatus = status(true, true, { installationSource });
+      expect(canUpdateCursorSdk(scopedStatus)).toBe(false);
+      expect(cursorSdkUpdateCommand(scopedStatus, posixProject)).toBeUndefined();
+    }
+  });
 });

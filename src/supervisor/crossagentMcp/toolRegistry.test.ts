@@ -529,11 +529,17 @@ describe("subagent tool registration", () => {
 
   it("declares required fields on the subagent tool schemas", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    // Cursor's backend rejects tool schemas with a root-level union and fails the
+    // whole turn with a provider error, so the prompt/tasks choice is documented
+    // in the tool description and enforced by the request parser instead.
+    expect(byName.get("spawn_agent")!.inputSchema).not.toHaveProperty("oneOf");
+    expect(byName.get("wait_for_agent")!.inputSchema).not.toHaveProperty("oneOf");
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
-      oneOf: [
-        { type: "object", required: ["prompt"] },
-        { type: "object", required: ["tasks"] },
-      ],
+      type: "object",
+      properties: expect.objectContaining({
+        prompt: expect.anything(),
+        tasks: expect.anything(),
+      }),
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
     expect(byName.get("set_routing_preference")!.inputSchema).toMatchObject({
@@ -543,10 +549,11 @@ describe("subagent tool registration", () => {
       required: ["tags"],
     });
     expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
-      oneOf: [
-        { type: "object", required: ["run_id"] },
-        { type: "object", required: ["run_ids"] },
-      ],
+      type: "object",
+      properties: expect.objectContaining({
+        run_id: expect.anything(),
+        run_ids: expect.anything(),
+      }),
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
