@@ -32,6 +32,7 @@ import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reach
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
@@ -468,9 +469,13 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
       ? applyHomeScopePermissions(launch.project.location, launch.config, agentStatus.capabilities)
       : launch.config;
 
+  // Home threads stay local to the workspace they were started in; threads in
+  // real projects scope through their project's workspaceId instead.
+  const homeWorkspaceId = isHomeProject(launch.project) ? getActiveWorkspaceId() : null;
   const thread = store.createThread({
     ...(launch.threadId ? { threadId: launch.threadId } : {}),
     projectId: launch.project.id,
+    ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
     agentKind: launch.agentKind,
     config,
     prompt: titlePrompt,

@@ -151,19 +151,20 @@ function runProjectSync(stmt: SqliteStatement, project: Project, sortOrder: numb
 function prepareThreadSyncStatement(sqlite: InstanceType<typeof Database>): SqliteStatement {
   return sqlite.prepare(`
     INSERT INTO threads (
-      id, project_id, title, agent_kind, agent_instance_id, config, status,
+      id, project_id, workspace_id, title, agent_kind, agent_instance_id, config, status,
       attention, can_resume_with_config, session_ref, terminal_prompt, worktree_path,
       worktree_branch, pr_number, group_id, group_name, parent_thread_id, archived, archived_at, done, done_at,
       starred, presentation_mode, sort_order, created_at, updated_at,
       active_turn_started_at, last_turn_started_at, last_turn_ended_at
     ) VALUES (
-      @id, @projectId, @title, @agentKind, @agentInstanceId, @config, @status,
+      @id, @projectId, @workspaceId, @title, @agentKind, @agentInstanceId, @config, @status,
       @attention, @canResumeWithConfig, @sessionRef, NULL, @worktreePath,
       @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @archived, @archivedAt, @done, @doneAt,
       @starred, @presentationMode, @sortOrder, @createdAt, @updatedAt,
       @activeTurnStartedAt, @lastTurnStartedAt, @lastTurnEndedAt
     )
     ON CONFLICT(id) DO UPDATE SET
+      workspace_id = excluded.workspace_id,
       title = excluded.title,
       agent_instance_id = excluded.agent_instance_id,
       config = excluded.config,
@@ -196,6 +197,9 @@ function runThreadSync(stmt: SqliteStatement, thread: Thread, sortOrder: number)
   stmt.run({
     id: thread.id,
     projectId: thread.projectId,
+    // Kept in the sync so "Move to Workspace" survives the renderer's periodic
+    // full-store persist, exactly like the single-row dbUpsertThread path.
+    workspaceId: thread.workspaceId ?? null,
     title: thread.title,
     agentKind: thread.agentKind,
     agentInstanceId: thread.agentInstanceId ?? null,

@@ -99,6 +99,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
     .values({
       id: thread.id,
       projectId: thread.projectId,
+      workspaceId: thread.workspaceId ?? null,
       title: thread.title,
       agentKind: thread.agentKind,
       agentInstanceId: thread.agentInstanceId ?? null,
@@ -131,6 +132,8 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
     .onConflictDoUpdate({
       target: schema.threads.id,
       set: {
+        // Kept in the update set so "Move to Workspace" survives full syncs.
+        workspaceId: thread.workspaceId ?? null,
         title: thread.title,
         agentInstanceId: thread.agentInstanceId ?? null,
         config: JSON.stringify(thread.config),

@@ -145,6 +145,39 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
+  it("round-trips the thread workspace through the threads table", () => {
+    dbUpsertThread(testThread({ workspaceId: "ws-work" }), 0);
+    expect(dbGetThread("thread-1")?.workspaceId).toBe("ws-work");
+
+    // Conflict-update path: "Move to Workspace" must survive a full re-sync.
+    dbUpsertThread(testThread({ workspaceId: "ws-side" }), 0);
+    expect(dbGetThread("thread-1")?.workspaceId).toBe("ws-side");
+
+    // Un-filing ("All workspaces") clears the column rather than leaving the
+    // previous value behind.
+    dbUpsertThread(testThread(), 0);
+    expect(dbGetThread("thread-1")?.workspaceId).toBeUndefined();
+  });
+
+  it("keeps pre-upgrade threads untagged after the v37 workspace migration", () => {
+    dbUpsertThread(testThread(), 0);
+    // Simulate a pre-v37 database: the column absent, the version rewound.
+    getSqlite().exec("ALTER TABLE threads DROP COLUMN workspace_id");
+    dbSetState("schema_version", "36");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+    const columns = getSqlite().prepare("PRAGMA table_info(threads)").all() as {
+      name: string;
+    }[];
+    expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
+    // Untagged = visible in every workspace, so upgraded threads keep today's
+    // behavior instead of vanishing from sidebars.
+    expect(dbGetThread("thread-1")?.workspaceId).toBeUndefined();
+  });
+
   it("round-trips project MCP servers through the projects table", () => {
     dbUpsertProject(
       {

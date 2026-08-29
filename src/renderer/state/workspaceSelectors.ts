@@ -1,5 +1,11 @@
 import { useShallow } from "zustand/react/shallow";
-import { isProjectInWorkspace, type Project, type Workspace } from "@/shared/contracts";
+import {
+  isProjectInWorkspace,
+  isThreadInWorkspace,
+  type Project,
+  type Thread,
+  type Workspace,
+} from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "./appStore";
 import { useSharedSettings } from "./sharedSettingsStore";
@@ -30,6 +36,17 @@ export function useWorkspaceProjectFilter(): (project: Project) => boolean {
   const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
   const activeWorkspaceId = useActiveWorkspaceId();
   return (project) => isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
+}
+
+/**
+ * Reactive predicate for "is this thread in the active workspace". Only Home
+ * threads can fail it — threads in real projects scope through their project
+ * (see `isThreadInWorkspace` in `@/shared/contracts/workspace`).
+ */
+export function useWorkspaceThreadFilter(): (thread: Thread) => boolean {
+  const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
+  const activeWorkspaceId = useActiveWorkspaceId();
+  return (thread) => isThreadInWorkspace(thread, activeWorkspaceId, knownWorkspaceIds);
 }
 
 /** Ids of projects the active workspace shows, in store order. Excludes Home. */

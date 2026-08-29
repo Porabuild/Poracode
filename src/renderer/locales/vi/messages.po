@@ -1267,6 +1267,7 @@ msgstr "Tất cả luồng trong mục Xong sẽ được lưu trữ."
 msgid "All threads in Done will be permanently deleted."
 msgstr "Tất cả luồng trong mục Xong sẽ bị xóa vĩnh viễn."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
@@ -7296,6 +7297,7 @@ msgstr "Di chuyển bảng điều khiển"
 msgid "Move to clean worktree"
 msgstr "Chuyển sang cây làm việc sạch"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Chuyển tới không gian làm việc"

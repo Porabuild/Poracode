@@ -455,6 +455,15 @@ export const DATABASE_MIGRATIONS = [
       normalizeRuntimeStreams(sqlite);
     },
   },
+  {
+    version: 37,
+    name: "threads.workspace_id",
+    // Workspace a Home thread was created in. Existing rows deliberately stay
+    // NULL: an untagged Home thread remains visible in every workspace (the
+    // same unfiled rule projects use), so pre-upgrade threads keep today's
+    // behavior instead of vanishing from sidebars.
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "workspace_id", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;

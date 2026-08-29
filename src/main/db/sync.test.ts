@@ -107,4 +107,27 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetThread("thread-remote")).toBeNull();
     expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
   });
+
+  it("persists thread workspace tags through a full renderer sync", () => {
+    const tagged: Thread = {
+      ...remoteStartedThread(),
+      id: "thread-tagged",
+      workspaceId: "ws-work",
+    };
+    const untagged: Thread = { ...remoteStartedThread(), id: "thread-untagged" };
+
+    // Insert path: a fresh row carries its tag through the first sync.
+    dbSyncAll([project], [tagged, untagged], JSON.stringify({ kind: "home" }));
+    expect(dbGetThread("thread-tagged")?.workspaceId).toBe("ws-work");
+    expect(dbGetThread("thread-untagged")?.workspaceId).toBeUndefined();
+
+    // Conflict-update path: moving the thread files it under the new workspace…
+    dbSyncAll([project], [{ ...tagged, workspaceId: "ws-side" }, untagged], "{}");
+    expect(dbGetThread("thread-tagged")?.workspaceId).toBe("ws-side");
+
+    // …and un-filing clears the column instead of leaving the old value.
+    const { workspaceId: _dropped, ...unfiled } = tagged;
+    dbSyncAll([project], [unfiled, untagged], "{}");
+    expect(dbGetThread("thread-tagged")?.workspaceId).toBeUndefined();
+  });
 });
