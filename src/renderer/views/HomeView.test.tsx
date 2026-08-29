@@ -6,12 +6,15 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { HomeView } from "./HomeView";
 
 describe("HomeView", () => {
   beforeEach(() => {
     localStorage.clear();
-    useSharedSettings.setState({ homeScopeEnabled: true });
+    useSharedSettings.setState({ homeScopeEnabled: true, workspaces: [] } as never);
+    useWorkspaceStore.setState({ activeWorkspaceId: null });
     useAppStore.setState((state) => ({
       ...state,
       projects: [makeProject()],
@@ -93,6 +96,46 @@ describe("HomeView", () => {
 
     expect(screen.getByText("First project thread")).toBeInTheDocument();
     expect(screen.getByText("Second project thread")).toBeInTheDocument();
+  });
+
+  it("hides Home recents filed under another workspace but keeps untagged ones", () => {
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+        { id: "w2", name: "Side Hustle", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+      ],
+    } as never);
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+    useAppStore.setState({
+      projects: [
+        {
+          ...makeProject({ id: HOME_PROJECT_ID, name: HOME_PROJECT_NAME }),
+          disabled: true,
+        },
+        makeProject(),
+      ],
+      threads: [
+        makeThread({
+          id: "h-mine",
+          title: "My Home thread",
+          projectId: HOME_PROJECT_ID,
+          workspaceId: "w1",
+        }),
+        makeThread({
+          id: "h-other",
+          title: "Other workspace Home thread",
+          projectId: HOME_PROJECT_ID,
+          workspaceId: "w2",
+        }),
+        makeThread({ id: "h-legacy", title: "Legacy Home thread", projectId: HOME_PROJECT_ID }),
+      ],
+    });
+
+    render(<HomeView />);
+
+    expect(screen.getByText("My Home thread")).toBeInTheDocument();
+    expect(screen.getByText("Legacy Home thread")).toBeInTheDocument();
+    expect(screen.queryByText("Other workspace Home thread")).not.toBeInTheDocument();
   });
 
   it("opens a draft from the workspace row's new-thread button", () => {

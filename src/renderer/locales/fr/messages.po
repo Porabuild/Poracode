@@ -1267,6 +1267,7 @@ msgstr "Tous les fils de la section Terminé seront archivés."
 msgid "All threads in Done will be permanently deleted."
 msgstr "Tous les fils de la section Terminé seront définitivement supprimés."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
@@ -7295,6 +7296,7 @@ msgstr "Déplacer le panneau"
 msgid "Move to clean worktree"
 msgstr "Déplacer vers un worktree propre"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Déplacer vers un espace de travail"

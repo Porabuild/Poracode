@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Project, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -998,6 +999,29 @@ describe("threadActions", () => {
 
       switchToAdjacentThread(only, "next");
       expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    });
+
+    it("skips Home threads filed under other workspaces but keeps untagged ones", async () => {
+      useSharedSettings.setState({
+        workspaces: [
+          { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+          { id: "w2", name: "Side", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+        ] as Workspace[],
+      });
+      useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+      const threads = [
+        makeThread({ id: "a", projectId: HOME_PROJECT_ID, workspaceId: "w1" }),
+        makeThread({ id: "hidden", projectId: HOME_PROJECT_ID, workspaceId: "w2" }),
+        makeThread({ id: "b", projectId: HOME_PROJECT_ID }),
+      ];
+      useAppStore.setState((state) => ({ ...state, threads }));
+
+      // "hidden" is invisible in this workspace's sidebar, so Next must land on
+      // the untagged (visible-everywhere) thread instead.
+      switchToAdjacentThread(threads[0]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b"] }),
+      );
     });
   });
 });

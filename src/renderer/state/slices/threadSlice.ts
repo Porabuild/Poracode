@@ -65,6 +65,8 @@ export interface ThreadSlice {
   createThread: (input: {
     threadId?: string;
     projectId: string;
+    /** Workspace tag for Home threads; see {@link Thread}'s `workspaceId`. */
+    workspaceId?: string;
     remoteServerId?: string;
     remoteId?: string;
     agentKind: Thread["agentKind"];
@@ -87,6 +89,8 @@ export interface ThreadSlice {
   }) => Thread;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
+  /** Re-file a Home thread into a workspace; `undefined` = visible in every workspace. */
+  setThreadWorkspace: (threadId: string, workspaceId: string | undefined) => void;
   setThreadWorktree: (
     threadId: string,
     worktreePath: string,
@@ -173,6 +177,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   createThread: ({
     threadId,
     projectId,
+    workspaceId,
     remoteServerId,
     remoteId,
     agentKind,
@@ -194,6 +199,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     const thread: Thread = {
       id: threadId ?? crypto.randomUUID(),
       projectId,
+      ...(workspaceId ? { workspaceId } : {}),
       ...(remoteServerId ? { remoteServerId } : {}),
       ...(remoteId ? { remoteId } : {}),
       title: title ?? makeThreadTitle(prompt),
@@ -324,6 +330,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, title } : thread,
       ),
     })),
+  setThreadWorkspace: (threadId, workspaceId) =>
+    set((state) => {
+      const thread = state.threads.find((t) => t.id === threadId);
+      if (!thread || thread.workspaceId === workspaceId) return {};
+      return {
+        threads: state.threads.map((t) => {
+          if (t.id !== threadId) return t;
+          const { workspaceId: _dropped, ...rest } = t;
+          return {
+            ...rest,
+            ...(workspaceId ? { workspaceId } : {}),
+            updatedAt: new Date().toISOString(),
+          };
+        }),
+      };
+    }),
   setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>
     set((state) => {
       const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =

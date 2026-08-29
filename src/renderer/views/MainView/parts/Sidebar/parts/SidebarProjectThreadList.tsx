@@ -9,6 +9,7 @@ import {
 import { useDragSource } from "@/renderer/dnd";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
+import { useWorkspaceThreadFilter } from "@/renderer/state/workspaceSelectors";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
 import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows } from "./sidebarProjectRows";
@@ -17,7 +18,9 @@ import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 
 export function SidebarProjectThreadList(props: { project: Project; sortMode: ThreadSortMode }) {
   const { project, sortMode } = props;
-  const projectThreads = useProjectThreads(project.id);
+  const isThreadVisible = useWorkspaceThreadFilter();
+  // No-op for real projects; hides Home threads filed under other workspaces.
+  const projectThreads = useProjectThreads(project.id).filter(isThreadVisible);
   const experimentCandidateOrder = useExperimentCandidateOrder(project.id);
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);

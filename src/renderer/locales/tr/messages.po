@@ -1267,6 +1267,7 @@ msgstr "Bitti bölümündeki tüm iş parçacıkları arşivlenecek."
 msgid "All threads in Done will be permanently deleted."
 msgstr "Bitti bölümündeki tüm iş parçacıkları kalıcı olarak silinecek."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
@@ -7296,6 +7297,7 @@ msgstr "Paneli taşı"
 msgid "Move to clean worktree"
 msgstr "Temiz çalışma ağacına taşı"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Çalışma alanına taşı"

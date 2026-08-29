@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
+import { HOME_PROJECT_ID } from "../homeScope";
 import {
   isProjectInWorkspace,
+  isThreadInWorkspace,
   nextWorkspaceIconId,
   workspaceListSchema,
   workspaceSchema,
@@ -73,5 +75,47 @@ describe("isProjectInWorkspace", () => {
   test("no active workspace shows unfiled projects but not filed ones", () => {
     expect(isProjectInWorkspace({}, null, KNOWN)).toBe(true);
     expect(isProjectInWorkspace({ workspaceId: "ws-work" }, null, KNOWN)).toBe(false);
+  });
+});
+
+describe("isThreadInWorkspace", () => {
+  test("threads in real projects always pass — the project rule governs them", () => {
+    expect(
+      isThreadInWorkspace({ projectId: "proj-1", workspaceId: "ws-side" }, "ws-work", KNOWN),
+    ).toBe(true);
+    expect(isThreadInWorkspace({ projectId: "proj-1" }, "ws-work", KNOWN)).toBe(true);
+  });
+
+  test("a Home thread shows only in the workspace it is filed under", () => {
+    expect(
+      isThreadInWorkspace({ projectId: HOME_PROJECT_ID, workspaceId: "ws-work" }, "ws-work", KNOWN),
+    ).toBe(true);
+    expect(
+      isThreadInWorkspace({ projectId: HOME_PROJECT_ID, workspaceId: "ws-side" }, "ws-work", KNOWN),
+    ).toBe(false);
+  });
+
+  test("an untagged Home thread stays visible in every workspace", () => {
+    expect(isThreadInWorkspace({ projectId: HOME_PROJECT_ID }, "ws-work", KNOWN)).toBe(true);
+    expect(
+      isThreadInWorkspace({ projectId: HOME_PROJECT_ID, workspaceId: undefined }, "ws-side", KNOWN),
+    ).toBe(true);
+  });
+
+  test("a dangling workspace tag stays visible rather than hiding the thread", () => {
+    expect(
+      isThreadInWorkspace(
+        { projectId: HOME_PROJECT_ID, workspaceId: "ws-deleted" },
+        "ws-work",
+        KNOWN,
+      ),
+    ).toBe(true);
+  });
+
+  test("no active workspace hides filed Home threads but keeps unfiled ones", () => {
+    expect(isThreadInWorkspace({ projectId: HOME_PROJECT_ID }, null, KNOWN)).toBe(true);
+    expect(
+      isThreadInWorkspace({ projectId: HOME_PROJECT_ID, workspaceId: "ws-work" }, null, KNOWN),
+    ).toBe(false);
   });
 });

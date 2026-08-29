@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 
 function deferred<T>() {
@@ -69,6 +70,7 @@ const mocks = vi.hoisted(() => {
     remoteState,
     remoteClient,
     bridge,
+    activeWorkspaceId: "ws-work" as string | null,
     createWorktree:
       vi.fn<
         (
@@ -127,6 +129,10 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   },
 }));
 
+vi.mock("@/renderer/state/workspaceStore", () => ({
+  getActiveWorkspaceId: () => mocks.activeWorkspaceId,
+}));
+
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => mocks.bridge,
 }));
@@ -176,6 +182,7 @@ const remoteProject: Project = {
 describe("startThreadFromDraft host transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.activeWorkspaceId = "ws-work";
     mocks.appState.view = { kind: "home" };
     mocks.appState.projects = [];
     mocks.appState.threads = [];
@@ -402,6 +409,58 @@ describe("startThreadFromDraft host transport", () => {
         initialSize: expect.objectContaining({ cols: expect.any(Number) }),
       }),
     );
+  });
+
+  it("tags a Home thread with the active workspace at creation", async () => {
+    const homeProject: Project = {
+      id: HOME_PROJECT_ID,
+      name: "Home",
+      location: { kind: "windows", path: "C:\\Users\\me" },
+      disabled: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    await startThreadFromDraft(homeProject, {
+      agentKind: "claude",
+      config: { model: "sonnet" },
+      prompt: "restart the service",
+      presentationMode: "gui",
+    });
+
+    expect(mocks.appState.createThread).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: HOME_PROJECT_ID, workspaceId: "ws-work" }),
+    );
+  });
+
+  it("leaves a Home thread untagged when no workspace is active", async () => {
+    mocks.activeWorkspaceId = null;
+    const homeProject: Project = {
+      id: HOME_PROJECT_ID,
+      name: "Home",
+      location: { kind: "windows", path: "C:\\Users\\me" },
+      disabled: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    await startThreadFromDraft(homeProject, {
+      agentKind: "claude",
+      config: { model: "sonnet" },
+      prompt: "restart the service",
+      presentationMode: "gui",
+    });
+
+    expect(mocks.appState.createThread.mock.calls[0]?.[0]).not.toHaveProperty("workspaceId");
+  });
+
+  it("never tags a real project's thread with a workspace", async () => {
+    await startThreadFromDraft(localProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      presentationMode: "gui",
+    });
+
+    expect(mocks.appState.createThread.mock.calls[0]?.[0]).not.toHaveProperty("workspaceId");
   });
 
   it("marks a local non-worktree thread failed when the bridge launch fails", async () => {

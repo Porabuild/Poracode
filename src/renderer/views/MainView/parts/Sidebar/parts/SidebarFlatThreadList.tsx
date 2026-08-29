@@ -21,7 +21,10 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
-import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
+import {
+  useWorkspaceProjectIds,
+  useWorkspaceThreadFilter,
+} from "@/renderer/state/workspaceSelectors";
 import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChrome";
 import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
@@ -116,8 +119,12 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
       : new Set(filteredVisibleIds);
 
   const allThreads = useAppStore((s) => s.threads);
+  // Home stays in every workspace, but its threads are workspace-scoped
+  // individually (isThreadInWorkspace) — a no-op for real projects' threads.
+  const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
   const visibleThreads = allThreads.filter(
-    (thread) => !thread.archived && projectsById.has(thread.projectId),
+    (thread) =>
+      !thread.archived && projectsById.has(thread.projectId) && isThreadInActiveWorkspace(thread),
   );
   const threadCounts = new Map<string, number>();
   for (const thread of visibleThreads) {

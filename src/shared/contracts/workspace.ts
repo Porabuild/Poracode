@@ -88,15 +88,46 @@ export function nextWorkspaceIconId(workspaces: readonly Workspace[]): Workspace
  * longer exists stays visible rather than vanishing — losing track of a project
  * is far worse than showing it in the wrong group, and the Workspaces settings
  * section lets the user file it deliberately. Home is synthetic and never filed,
- * so it belongs to every workspace by the same rule.
+ * so it belongs to every workspace by the same rule — but its *threads* are
+ * workspace-scoped individually via the companion rule
+ * {@link isThreadInWorkspace}, which the same surfaces must also apply.
  */
+/**
+ * Shared core of the unfiled rule: an absent tag, or one naming a workspace
+ * that no longer exists, stays visible rather than vanishing — losing track of
+ * the item is far worse than showing it in the wrong group.
+ */
+function isUnfiledOrActiveWorkspace(
+  assigned: string | undefined,
+  activeWorkspaceId: string | null,
+  knownWorkspaceIds: ReadonlySet<string>,
+): boolean {
+  if (!assigned || !knownWorkspaceIds.has(assigned)) return true;
+  return assigned === activeWorkspaceId;
+}
+
 export function isProjectInWorkspace(
   project: { id?: string; workspaceId?: string | undefined },
   activeWorkspaceId: string | null,
   knownWorkspaceIds: ReadonlySet<string>,
 ): boolean {
   if (isHomeProjectId(project.id)) return true;
-  const assigned = project.workspaceId;
-  if (!assigned || !knownWorkspaceIds.has(assigned)) return true;
-  return assigned === activeWorkspaceId;
+  return isUnfiledOrActiveWorkspace(project.workspaceId, activeWorkspaceId, knownWorkspaceIds);
+}
+
+/**
+ * Companion to {@link isProjectInWorkspace} for individual threads. Threads in
+ * real projects always pass — their project decides workspace membership. Home
+ * threads carry their own `workspaceId` (the workspace active when they were
+ * created) so projectless chats stay local to that workspace instead of
+ * cluttering every sidebar. An absent or dangling tag keeps the thread visible
+ * everywhere, mirroring the unfiled-project rule above.
+ */
+export function isThreadInWorkspace(
+  thread: { projectId: string; workspaceId?: string | undefined },
+  activeWorkspaceId: string | null,
+  knownWorkspaceIds: ReadonlySet<string>,
+): boolean {
+  if (!isHomeProjectId(thread.projectId)) return true;
+  return isUnfiledOrActiveWorkspace(thread.workspaceId, activeWorkspaceId, knownWorkspaceIds);
 }

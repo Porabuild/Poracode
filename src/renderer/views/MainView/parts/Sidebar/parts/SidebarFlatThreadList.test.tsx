@@ -63,7 +63,12 @@ vi.mock("./SidebarProjectFilter", () => ({
   ),
 }));
 
-function makeThread(id: string, projectId: string, updatedAt: string): Thread {
+function makeThread(
+  id: string,
+  projectId: string,
+  updatedAt: string,
+  overrides: Partial<Thread> = {},
+): Thread {
   return {
     id,
     projectId,
@@ -75,6 +80,7 @@ function makeThread(id: string, projectId: string, updatedAt: string): Thread {
     createdAt: updatedAt,
     updatedAt,
     agentKind: "claude",
+    ...overrides,
   } as unknown as Thread;
 }
 
@@ -257,6 +263,48 @@ describe("SidebarFlatThreadList", () => {
     );
     const localRow = screen.getByText(/thread:p1 in Poracode/).closest("[data-testid=row]");
     expect(localRow).not.toHaveTextContent("WSL");
+  });
+
+  it("scopes Home threads to the workspace they were filed under", () => {
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Side Hustle" },
+        { id: "w2", name: "Work" },
+      ],
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [
+        makeThread("h-mine", HOME_PROJECT_ID, "2026-08-04T10:00:00.000Z", { workspaceId: "w1" }),
+        makeThread("h-other", HOME_PROJECT_ID, "2026-08-03T10:00:00.000Z", { workspaceId: "w2" }),
+        // Legacy/headless Home threads carry no tag and stay visible everywhere.
+        makeThread("h-legacy", HOME_PROJECT_ID, "2026-08-02T10:00:00.000Z"),
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:h-mine in Home/)).toBeInTheDocument();
+    expect(screen.getByText(/thread:h-legacy in Home/)).toBeInTheDocument();
+    expect(screen.queryByText(/thread:h-other/)).not.toBeInTheDocument();
+    expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
+  });
+
+  it("keeps a Home thread with a dangling workspace tag visible", () => {
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [
+        makeThread("h-dangling", HOME_PROJECT_ID, "2026-08-02T10:00:00.000Z", {
+          workspaceId: "w-deleted",
+        }),
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:h-dangling in Home/)).toBeInTheDocument();
   });
 
   it("hides Home threads when home scope is disabled", () => {

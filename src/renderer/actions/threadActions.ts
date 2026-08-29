@@ -2,6 +2,7 @@ import { startTransition } from "react";
 import { toast } from "@heroui/react";
 import {
   isProjectInWorkspace,
+  isThreadInWorkspace,
   type Project,
   type RemoteThreadCommand,
   type Thread,
@@ -24,7 +25,11 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
-import { getActiveWorkspaceId, getLastWorkspaceProjectId } from "@/renderer/state/workspaceStore";
+import {
+  getActiveWorkspaceId,
+  getKnownWorkspaceIds,
+  getLastWorkspaceProjectId,
+} from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -281,8 +286,15 @@ export function openThread(
  */
 export function switchToAdjacentThread(current: Thread, direction: "next" | "previous"): void {
   const store = useAppStore.getState();
+  const knownWorkspaceIds = getKnownWorkspaceIds();
+  const activeWorkspaceId = getActiveWorkspaceId();
   const projectThreads = store.threads.filter(
-    (thread) => thread.projectId === current.projectId && !thread.archived,
+    (thread) =>
+      thread.projectId === current.projectId &&
+      !thread.archived &&
+      // Home threads filed under other workspaces are hidden from the sidebar,
+      // so the shortcuts must not wrap into them either.
+      isThreadInWorkspace(thread, activeWorkspaceId, knownWorkspaceIds),
   );
   if (projectThreads.length < 2) return;
 
