@@ -33,6 +33,7 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "../composer/MentionInput";
+import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import {
   storableAttachment,
   useAttachments,
@@ -332,6 +333,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   ];
   const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
   const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  const threadMentionToolsAvailable = useAppStore(
+    (s) => s.threadMentionToolsAvailableByThreadId[thread.id],
+  );
+  const threadMentions = useThreadMentionItems(
+    { kind: "project", projectId: thread.projectId },
+    thread.id,
+    threadMentionToolsAvailable,
+  );
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     effectiveAgentStatus?.capabilities.slashCommands,
@@ -840,6 +849,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       projectId={thread.projectId}
                       mcpMentions={mcpMentions}
                       pluginMentions={pluginMentions}
+                      threadMentions={threadMentions}
                       onTextChange={(hasText) => {
                         setHasContent(hasText);
                         latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];

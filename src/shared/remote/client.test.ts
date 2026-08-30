@@ -675,6 +675,16 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("rejects a v7 host that predates thread prompt segments", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(7, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
   it("forwards providerSwitch on a thread start so the host records the handoff divider", async () => {
     let startBody: unknown;
     const client = new RemoteDesktopClient(

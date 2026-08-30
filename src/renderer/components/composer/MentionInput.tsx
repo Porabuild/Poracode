@@ -6,10 +6,15 @@ import type {
   ProjectLocation,
   PromptSegment,
 } from "@/shared/contracts";
-import { fileNameFromPath, skillSegmentFromSlashCommand } from "@/shared/promptContent";
+import {
+  fileNameFromPath,
+  skillSegmentFromSlashCommand,
+  threadMentionLabel,
+} from "@/shared/promptContent";
 import { createDiffCommentChipElement } from "./DiffCommentChip";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
 import { createMcpMentionChipElement } from "./McpMentionChip";
+import { createThreadMentionChipElement } from "./ThreadMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
@@ -40,15 +45,24 @@ export interface PluginMentionItem {
   command: AgentSlashCommand;
 }
 
+export interface ThreadMentionItem {
+  threadId: string;
+  title: string;
+  updatedAt: string;
+  projectName?: string;
+}
+
 /** Stable empty list so an omitted `mcpMentions` prop doesn't churn renders. */
 const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
 const EMPTY_PLUGIN_MENTIONS: readonly PluginMentionItem[] = [];
+const EMPTY_THREAD_MENTIONS: readonly ThreadMentionItem[] = [];
 
 export function buildMentionResults(
   fileResults: FileEntry[],
   query: string,
   mcpMentions: readonly McpMentionItem[] = EMPTY_MCP_MENTIONS,
   pluginMentions: readonly PluginMentionItem[] = EMPTY_PLUGIN_MENTIONS,
+  threadMentions: readonly ThreadMentionItem[] = EMPTY_THREAD_MENTIONS,
 ): MentionEntry[] {
   const q = query.trim().toLowerCase();
   // Case-insensitive prefix match on the display name or a stable alias.
@@ -73,7 +87,25 @@ export function buildMentionResults(
       detail: item.detail,
       command: item.command,
     }));
-  return [...pluginResults, ...mcpResults, ...fileResults];
+  // Recency order comes from the producer (useThreadMentionItems); only the
+  // query filter and result cap apply here.
+  const threadResults: MentionEntry[] = threadMentions
+    .filter(
+      (item) =>
+        q.length === 0 ||
+        threadMentionLabel(item).toLowerCase().includes(q) ||
+        item.projectName?.toLowerCase().includes(q),
+    )
+    .slice(0, q.length === 0 ? 3 : 5)
+    .map((item) => ({
+      type: "thread" as const,
+      path: item.threadId,
+      name: threadMentionLabel(item),
+      detail: item.projectName
+        ? `${item.projectName} · ${item.threadId.slice(-8)}`
+        : item.threadId.slice(-8),
+    }));
+  return [...pluginResults, ...mcpResults, ...threadResults, ...fileResults];
 }
 
 export interface MentionInputHandle {
@@ -179,7 +211,7 @@ function detectTriggerRange(triggerChar: string): Range | null {
 function hasEditorContent(editor: HTMLDivElement): boolean {
   if (
     editor.querySelector(
-      "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id]",
+      "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id], [data-thread-mention-id]",
     )
   ) {
     return true;
@@ -248,6 +280,10 @@ function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
       parent.appendChild(createDiffCommentChipElement(segment));
     } else if (segment.kind === "mcp") {
       parent.appendChild(createMcpMentionChipElement({ id: segment.id, name: segment.name }));
+    } else if (segment.kind === "thread") {
+      parent.appendChild(
+        createThreadMentionChipElement({ threadId: segment.threadId, title: segment.title }),
+      );
     }
   }
 }
@@ -271,6 +307,7 @@ export const MentionInput = forwardRef<
      */
     mcpMentions?: readonly McpMentionItem[];
     pluginMentions?: readonly PluginMentionItem[];
+    threadMentions?: readonly ThreadMentionItem[];
     onMcpMentionSelect?: (id: string) => void;
     onSlashCommandChange?: (query: string | null) => void;
     commandListId?: string;
@@ -303,10 +340,14 @@ export const MentionInput = forwardRef<
   } = props;
   const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
   const pluginMentions = props.pluginMentions ?? EMPTY_PLUGIN_MENTIONS;
+  const threadMentions = props.threadMentions ?? EMPTY_THREAD_MENTIONS;
   // Stable dependency key: which MCP mentions are offered, independent of the
   // array's per-render identity (mirrors the old boolean flags in the effect).
   const mcpMentionKey = mcpMentions.map((item) => `${item.id}:${item.enabled}`).join(",");
   const pluginMentionKey = pluginMentions.map((item) => item.id).join(",");
+  const threadMentionKey = threadMentions
+    .map((item) => `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}`)
+    .join(",");
   const editorRef = useRef<HTMLDivElement>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
@@ -324,11 +365,12 @@ export const MentionInput = forwardRef<
     mention?.query ?? "",
     mcpMentions,
     pluginMentions,
+    threadMentions,
   );
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [mention?.query, fileResults, mcpMentionKey, pluginMentionKey]);
+  }, [mention?.query, fileResults, mcpMentionKey, pluginMentionKey, threadMentionKey]);
 
   function insertPlainText(text: string) {
     const editor = editorRef.current;
@@ -613,6 +655,26 @@ export const MentionInput = forwardRef<
     const range = detectTriggerRange("@");
     if (!range) return;
 
+    if (entry.type === "thread") {
+      const sel = window.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      range.deleteContents();
+      const chip = createThreadMentionChipElement({ threadId: entry.path, title: entry.name });
+      range.insertNode(chip);
+      const space = document.createTextNode("\u00a0");
+      chip.after(space);
+      const nextRange = document.createRange();
+      nextRange.setStartAfter(space);
+      nextRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(nextRange);
+      setMention(null);
+      notifyTextChange();
+      return;
+    }
+
     if (entry.type === "mcp" || entry.type === "plugin") {
       const pluginSegment =
         entry.type === "plugin" ? skillSegmentFromSlashCommand(entry.command) : undefined;
@@ -746,7 +808,8 @@ export const MentionInput = forwardRef<
             prev?.dataset?.mentionPath ||
             prev?.dataset?.slashCommand ||
             prev?.dataset?.diffCommentPath ||
-            prev?.dataset?.mcpId
+            prev?.dataset?.mcpId ||
+            prev?.dataset?.threadMentionId
           ) {
             e.preventDefault();
             prev.remove();
@@ -761,7 +824,8 @@ export const MentionInput = forwardRef<
             child?.dataset?.mentionPath ||
             child?.dataset?.slashCommand ||
             child?.dataset?.diffCommentPath ||
-            child?.dataset?.mcpId
+            child?.dataset?.mcpId ||
+            child?.dataset?.threadMentionId
           ) {
             e.preventDefault();
             child.remove();

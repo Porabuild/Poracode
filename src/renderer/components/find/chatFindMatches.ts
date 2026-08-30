@@ -31,6 +31,8 @@ function blocksToText(payload: unknown): string {
       path?: unknown;
       source?: unknown;
       name?: unknown;
+      title?: unknown;
+      threadId?: unknown;
     };
     if (record.kind === "text" && typeof record.text === "string") {
       out += record.text;
@@ -43,6 +45,12 @@ function blocksToText(payload: unknown): string {
     } else if (record.kind === "mcp" && typeof record.name === "string") {
       // Keep the badge's `@Name` directive findable in the transcript.
       out += `@${record.name}`;
+    } else if (
+      record.kind === "thread" &&
+      typeof record.title === "string" &&
+      typeof record.threadId === "string"
+    ) {
+      out += `@${record.title || record.threadId}`;
     }
   }
   return out;

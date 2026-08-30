@@ -44,6 +44,7 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "@/renderer/components/composer/MentionInput";
+import { useThreadMentionItems } from "@/renderer/components/composer/useThreadMentionItems";
 import {
   storableAttachment,
   useAttachments,
@@ -425,6 +426,9 @@ export function ThreadDraftComposerArea(props: {
   const showCommandPanel = filteredCommands.length > 0;
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
+  const threadMentions = useThreadMentionItems(
+    isHomeScope ? { kind: "workspace" } : { kind: "project", projectId: props.project.id },
+  );
   // Registry-driven MCP toggles. The "+" add menu now flips the *persistent*
   // enablement (a standing default applied to every new thread), keyed by MCP
   // id — not the per-thread config flag. A new MCP server means adding one
@@ -1189,6 +1193,7 @@ export function ThreadDraftComposerArea(props: {
             }}
             mcpMentions={mcpMentions}
             pluginMentions={pluginMentions}
+            threadMentions={threadMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
               void attachments

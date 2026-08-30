@@ -290,7 +290,10 @@ export function ThreadRoute() {
   // Opening (store watch + snapshot load) is owned by ThreadDetail's effect: it
   // also covers the fallback-selected thread on reloads, which a check against
   // remote.selectedThread here would wrongly consider already open.
-  const thread = remote.activeThreads.find((entry) => entry.id === threadId) ?? null;
+  const thread =
+    remote.activeThreads.find((entry) => entry.id === threadId) ??
+    remote.archivedThreads.find((entry) => entry.id === threadId) ??
+    null;
   if (!isWide && narrowShellOwnsThread) return null;
   return <ThreadDetail thread={thread} hideHeader={!isWide} />;
 }

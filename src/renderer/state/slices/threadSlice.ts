@@ -45,6 +45,8 @@ export interface ThreadSlice {
   lastRuntimeConfigByThreadId: Record<string, ThreadConfig>;
   /** Supervisor-owned effective launch config for active runtime-only MCP state. */
   runtimeLaunchConfigByThreadId: Record<string, ThreadConfig>;
+  /** Launch-time availability for structured @thread references in each live session. */
+  threadMentionToolsAvailableByThreadId: Record<string, boolean>;
   /**
    * Ephemeral timestamp (ms) of the last time each thread was visible in a
    * pane. Used by `sweepStaleThreads` so that opening an old thread resets its
@@ -114,6 +116,7 @@ export interface ThreadSlice {
       config?: ThreadConfig;
       /** Undefined preserves the current snapshot; null clears an authoritative snapshot. */
       launchConfig?: ThreadConfig | null;
+      threadMentionToolsAvailable?: boolean;
       sessionRef?: SessionRef;
       slashCommands?: Thread["slashCommands"];
       canResumeWithConfig: boolean;
@@ -169,6 +172,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   provisioningWorktreeThreadIds: {},
   lastRuntimeConfigByThreadId: {},
   runtimeLaunchConfigByThreadId: {},
+  threadMentionToolsAvailableByThreadId: {},
   lastViewedAtByThreadId: {},
   mcpLaunchCustomServerNamesByThreadId: {},
   setThreadMcpLaunchCustomServerNames: (threadId, names) =>
@@ -195,8 +199,16 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         };
       });
 
-      const hasLaunchConfigs = Object.keys(state.runtimeLaunchConfigByThreadId).length > 0;
-      return changed || hasLaunchConfigs ? { threads, runtimeLaunchConfigByThreadId: {} } : {};
+      const hasLaunchState =
+        Object.keys(state.runtimeLaunchConfigByThreadId).length > 0 ||
+        Object.keys(state.threadMentionToolsAvailableByThreadId).length > 0;
+      return changed || hasLaunchState
+        ? {
+            threads,
+            runtimeLaunchConfigByThreadId: {},
+            threadMentionToolsAvailableByThreadId: {},
+          }
+        : {};
     }),
   createThread: ({
     threadId,
@@ -322,6 +334,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       // that no longer exists; drop it so the new provider's first launch owns it.
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
+      const { [threadId]: _droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
+        state.threadMentionToolsAvailableByThreadId;
       // Any approval or user-input prompt still open belongs to the session
       // being abandoned. Nothing resolves it once that session is gone, so
       // leaving it would block the pane on an answer no agent is waiting for.
@@ -338,6 +352,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       return {
         threads,
         runtimeLaunchConfigByThreadId,
+        threadMentionToolsAvailableByThreadId,
         ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),
         ...(state.runtimeContextByThread[threadId] ? { runtimeContextByThread } : {}),
         ...(state.pendingSteerByThreadId[threadId] ? { pendingSteerByThreadId } : {}),
@@ -377,6 +392,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.lastRuntimeConfigByThreadId;
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
+      const { [threadId]: _droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
+        state.threadMentionToolsAvailableByThreadId;
       const { [threadId]: _droppedLastViewed, ...lastViewedAtByThreadId } =
         state.lastViewedAtByThreadId;
       const { [threadId]: _droppedMcpLaunch, ...mcpLaunchCustomServerNamesByThreadId } =
@@ -409,6 +426,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         runtimeCompletedTurnsByThread,
         lastRuntimeConfigByThreadId,
         runtimeLaunchConfigByThreadId,
+        threadMentionToolsAvailableByThreadId,
         lastViewedAtByThreadId,
         keepAlivePaneIds,
         view: nextView,
@@ -621,9 +639,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
                 },
               };
       }
+      const mentionToolsPatch =
+        input.threadMentionToolsAvailable === undefined
+          ? undefined
+          : {
+              threadMentionToolsAvailableByThreadId: {
+                ...state.threadMentionToolsAvailableByThreadId,
+                [threadId]: input.threadMentionToolsAvailable,
+              },
+            };
 
       if (!changed) {
-        return { ...(runtimeConfigMapPatch ?? {}), ...(launchConfigMapPatch ?? {}) };
+        return {
+          ...(runtimeConfigMapPatch ?? {}),
+          ...(launchConfigMapPatch ?? {}),
+          ...(mentionToolsPatch ?? {}),
+        };
       }
       const turnsChanged =
         turnUpdate.runtimeCompletedTurnsByThread !== state.runtimeCompletedTurnsByThread;
@@ -632,6 +663,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(turnsChanged ? turnUpdate : {}),
         ...(runtimeConfigMapPatch ?? {}),
         ...(launchConfigMapPatch ?? {}),
+        ...(mentionToolsPatch ?? {}),
       };
     }),
   archiveThread: (threadId) =>
@@ -799,14 +831,24 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         turnUpdate.runtimeCompletedTurnsByThread !== state.runtimeCompletedTurnsByThread;
       const { [threadId]: droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
+      const { [threadId]: droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
+        state.threadMentionToolsAvailableByThreadId;
       const launchConfigPatch = droppedLaunchConfig ? { runtimeLaunchConfigByThreadId } : undefined;
+      const mentionToolsPatch = droppedMentionTools
+        ? { threadMentionToolsAvailableByThreadId }
+        : undefined;
       if (!changed) {
-        return { ...(turnsChanged ? turnUpdate : {}), ...(launchConfigPatch ?? {}) };
+        return {
+          ...(turnsChanged ? turnUpdate : {}),
+          ...(launchConfigPatch ?? {}),
+          ...(mentionToolsPatch ?? {}),
+        };
       }
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
         ...(launchConfigPatch ?? {}),
+        ...(mentionToolsPatch ?? {}),
       };
     }),
   touchThread: (threadId) =>
@@ -848,6 +890,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       const runtimeLaunchConfigByThreadId = Object.fromEntries(
         snapshots.flatMap((snapshot) =>
           snapshot.launchConfig ? [[snapshot.threadId, snapshot.launchConfig]] : [],
+        ),
+      );
+      const threadMentionToolsAvailableByThreadId = Object.fromEntries(
+        snapshots.flatMap((snapshot) =>
+          snapshot.threadMentionToolsAvailable === undefined
+            ? []
+            : [[snapshot.threadId, snapshot.threadMentionToolsAvailable]],
         ),
       );
       let changed = false;
@@ -968,6 +1017,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...(turnsChanged ? turnUpdate : {}),
           ...(runtimeConfigPatch ?? {}),
           runtimeLaunchConfigByThreadId,
+          threadMentionToolsAvailableByThreadId,
         };
       }
       return {
@@ -975,6 +1025,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(turnsChanged ? turnUpdate : {}),
         ...(runtimeConfigPatch ?? {}),
         runtimeLaunchConfigByThreadId,
+        threadMentionToolsAvailableByThreadId,
       };
     }),
   reorderThreads: (sourceId, targetId, placement) =>

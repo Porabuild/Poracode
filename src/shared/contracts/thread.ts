@@ -86,6 +86,8 @@ export interface ThreadRuntimeSnapshot {
   config?: z.infer<typeof threadConfigSchema>;
   /** Effective launch-time config after plugin and global MCP policy is applied. */
   launchConfig?: z.infer<typeof threadConfigSchema>;
+  /** Whether this live session launched with Poracode's read_thread tool available. */
+  threadMentionToolsAvailable?: boolean;
   sessionRef?: z.infer<typeof sessionRefSchema>;
   canResumeWithConfig: boolean;
   errorMessage?: string;
@@ -141,6 +143,11 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     pluginName: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
+  z.object({
+    kind: z.literal("thread"),
+    threadId: z.string().min(1),
+    title: z.string(),
+  }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 

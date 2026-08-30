@@ -3,6 +3,7 @@ export {
   type MentionInputHandle,
   type McpMentionItem,
   type PluginMentionItem,
+  type ThreadMentionItem,
 } from "./MentionInput";
 export { AttachmentBar, ComputerUseChip, McpChip } from "./AttachmentBar";
 export { ComposerAddMenu, type ComposerMcpMenuItem } from "./ComposerAddMenu";

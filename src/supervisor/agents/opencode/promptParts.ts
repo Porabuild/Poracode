@@ -216,6 +216,7 @@ export function buildOpenCodePromptParts(
         parts.push({ type: "text", text: segment.invocation });
         continue;
       }
+      if (!("path" in segment)) continue;
       const segmentPath = segment.path;
       if (segmentPath === undefined) continue;
       const absolute = resolveAbsolutePath(location, segmentPath);

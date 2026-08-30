@@ -130,12 +130,18 @@ export function resolveLocalFileUrlPath(
   return platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
 }
 
+/** Display label for a thread mention: its title, falling back to the id. */
+export function threadMentionLabel(mention: { threadId: string; title: string }): string {
+  return mention.title || mention.threadId;
+}
+
 /**
  * Inline text form of a non-attachment prompt segment for a single-line prompt
- * or thread title: `@path` for file mentions, the invocation for skills, and
- * the raw text otherwise. Callers handle attachments separately (dropping them
- * or shortening their paths) and filter them out before mapping, so the
- * `attachment` case here is only a total-function fallback.
+ * or thread title: `@path` for file mentions, `@title` for thread mentions,
+ * the invocation for skills, and the raw text otherwise. Callers handle
+ * attachments separately (dropping them or shortening their paths) and filter
+ * them out before mapping, so the `attachment` case here is only a
+ * total-function fallback.
  */
 export function inlinePromptSegmentText(segment: PromptSegment): string {
   switch (segment.kind) {
@@ -148,6 +154,8 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
       return formatDiffCommentPrompt(segment);
     case "mcp":
       return `@${segment.name}`;
+    case "thread":
+      return `@${threadMentionLabel(segment)}`;
     case "text":
       return segment.content;
   }
@@ -213,6 +221,11 @@ export function buildPromptContentBlocks(
 
     if (segment.kind === "mcp") {
       content.push({ kind: "mcp", name: segment.name });
+      continue;
+    }
+
+    if (segment.kind === "thread") {
+      content.push({ kind: "thread", threadId: segment.threadId, title: segment.title });
       continue;
     }
 

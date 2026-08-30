@@ -1,7 +1,22 @@
-import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
-import { Link, Surface, Tooltip } from "@heroui/react";
+import {
+  memo,
+  type MouseEvent,
+  type ReactNode,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { Link, Surface, toast, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown, ChevronUp, MessageSquareText, Plug, Sparkles } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  MessageSquareText,
+  MessagesSquare,
+  Plug,
+  Sparkles,
+} from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
@@ -12,6 +27,7 @@ import {
   fileNameFromPath,
   formatDiffCommentPrompt,
   isImagePath,
+  threadMentionLabel,
 } from "@/shared/promptContent";
 import { isRemoteSession } from "@/renderer/bridge";
 import {
@@ -20,6 +36,7 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
@@ -94,6 +111,7 @@ export const UserMessage = memo(function UserMessage({
       block.kind === "skill" ||
       block.kind === "diff_comment" ||
       block.kind === "mcp" ||
+      block.kind === "thread" ||
       (block.kind === "file" && block.source !== "attachment"),
   );
   const attachments = enrichWithSelectorPayloads(
@@ -126,7 +144,7 @@ export const UserMessage = memo(function UserMessage({
           nextHasVisualOverflow,
         })
       ) {
-        actions?.onContentHeightChange();
+        actions?.onContentHeightChange?.();
       }
     }
     if (!hasMeasuredRef.current) {
@@ -295,7 +313,7 @@ export const UserMessage = memo(function UserMessage({
                 // tail inside the shorter box.
                 if (isExpanded && bodyRef.current) bodyRef.current.scrollTop = 0;
                 setIsExpanded((prev) => !prev);
-                actions?.onContentHeightChange();
+                actions?.onContentHeightChange?.();
               }}
               className="absolute bottom-1 right-2 flex size-5 items-center justify-center text-muted transition-colors hover:text-foreground"
             >
@@ -344,6 +362,7 @@ function firstInlineContentBlock(
       block.kind === "skill" ||
       block.kind === "diff_comment" ||
       block.kind === "mcp" ||
+      block.kind === "thread" ||
       (block.kind === "file" && block.source !== "attachment")
     );
   });
@@ -357,6 +376,7 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
         return block.pluginName ? `@${block.pluginName}` : block.invocation;
       if (block.kind === "diff_comment") return formatDiffCommentPrompt(block);
       if (block.kind === "mcp") return `@${block.name}`;
+      if (block.kind === "thread") return `@${threadMentionLabel(block)}`;
       if (block.kind === "file" && block.source !== "attachment") return block.path;
       return "";
     })
@@ -440,6 +460,20 @@ function renderUserMessageInlineContent(
       return;
     }
 
+    if (block.kind === "thread") {
+      // A thread mention is never part of a leading /slash-command prefix, so
+      // it can render directly from the original canonical block.
+      nodes.push(
+        <UserMessageThreadChip
+          key={`thread-${index}-${block.threadId}`}
+          icon={<MessagesSquare aria-hidden="true" />}
+          threadId={block.threadId}
+          threadTitle={block.title}
+        />,
+      );
+      return;
+    }
+
     if (block.kind === "file") {
       if (block.source === "attachment") return;
       if (remainingSkip >= block.path.length) {
@@ -493,6 +527,50 @@ function UserMessageSlashChip({
       <span className="poracode-slash-chip__slash">{icon}</span>
       <span className="poracode-slash-chip__name">{label}</span>
     </span>
+  );
+}
+
+function UserMessageThreadChip({
+  icon,
+  threadId,
+  threadTitle,
+}: {
+  icon: ReactNode;
+  threadId: string;
+  threadTitle: string;
+}) {
+  const { t } = useLingui();
+  const actions = useChatPaneActions();
+  const label = threadMentionLabel({ threadId, title: threadTitle });
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const threadExists = useAppStore.getState().threads.some((thread) => thread.id === threadId);
+    if (!threadExists) {
+      toast.danger(t`Thread not found`);
+      return;
+    }
+    if (actions?.openThread) {
+      actions.openThread(threadId);
+      return;
+    }
+    openThread(threadId);
+  };
+
+  return (
+    <button
+      type="button"
+      className="poracode-slash-chip poracode-thread-mention-chip mr-1.5"
+      title={label}
+      aria-label={t`Open ${label}`}
+      data-thread-mention-id={threadId}
+      {...(threadTitle ? { "data-thread-mention-title": threadTitle } : {})}
+      onClick={handleClick}
+    >
+      <span className="poracode-slash-chip__slash">{icon}</span>
+      <span className="poracode-slash-chip__name">{label}</span>
+    </button>
   );
 }
 

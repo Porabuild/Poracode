@@ -1,5 +1,6 @@
 import type { ProjectLocation, StartShellPayload } from "@/shared/contracts";
 import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
+import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import { msg } from "@/shared/messages";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import {
@@ -8,7 +9,11 @@ import {
   type RemoteIpcAdapterProcedureName,
   type RemoteProcedureOwner,
 } from "@/shared/remote";
-import { isProjectedRemoteEntityId } from "@/renderer/state/remoteProjection";
+import {
+  isProjectedRemoteEntityId,
+  projectRemoteRuntimeItems,
+  unprojectRemoteThreadId,
+} from "@/renderer/state/remoteProjection";
 import {
   isRemoteRoutableProcedure,
   REMOTE_PROCEDURE_ROUTES,
@@ -121,6 +126,8 @@ export function routeRemoteProcedure<Name extends IpcProcedureName>(
       projectOwnedResult(
         await invokeRemoteProcedure(procedure, spec, client, route),
         route.projectedProjectId,
+        route.desktopId,
+        procedure,
       ),
     ) as Promise<IpcProcedureResult<Name>>,
   };
@@ -179,14 +186,27 @@ async function invokeRemoteProcedure(
   }
 }
 
-function projectOwnedResult(result: unknown, projectedProjectId: string | undefined): unknown {
-  if (!projectedProjectId || !result || typeof result !== "object" || Array.isArray(result)) {
+function projectOwnedResult(
+  result: unknown,
+  projectedProjectId: string | undefined,
+  remoteServerId: string,
+  procedure: IpcProcedureName,
+): unknown {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
     return result;
   }
   const record = result as Record<string, unknown>;
-  return typeof record.projectId === "string"
-    ? { ...record, projectId: projectedProjectId }
-    : result;
+  const output =
+    projectedProjectId && typeof record.projectId === "string"
+      ? { ...record, projectId: projectedProjectId }
+      : record;
+  if (procedure === "dbGetThreadRuntimeItemsPage" && Array.isArray(record.items)) {
+    return {
+      ...output,
+      items: projectRemoteRuntimeItems(remoteServerId, record.items as PersistedRuntimeItem[]),
+    };
+  }
+  return output;
 }
 
 function resolveRemoteRoute(
@@ -238,10 +258,33 @@ function resolveThreadRoute(
     return undefined;
   }
   assertSingleOwner(locations, owner.desktopId);
+  const payload = unprojectRemotePayload(input) as Record<string, unknown>;
+  if (Array.isArray(input.segments)) {
+    payload.segments = input.segments.map((segment) => {
+      if (!segment || typeof segment !== "object" || Array.isArray(segment)) return segment;
+      const candidate = segment as Record<string, unknown>;
+      if (candidate.kind !== "thread" || typeof candidate.threadId !== "string") {
+        return segment;
+      }
+      const mentionedOwner = remoteHost.resolveThreadOwner(candidate.threadId);
+      const mentionedRemoteId =
+        mentionedOwner?.desktopId === owner.desktopId
+          ? mentionedOwner.remoteId
+          : unprojectRemoteThreadId(owner.desktopId, candidate.threadId);
+      if (mentionedRemoteId) return { ...candidate, threadId: mentionedRemoteId };
+      // A mention of a thread this host does not own (local or another
+      // desktop's) degrades to plain text: the host's agent could never
+      // resolve the id with read_thread.
+      return {
+        kind: "text",
+        content: `@${typeof candidate.title === "string" && candidate.title ? candidate.title : candidate.threadId}`,
+      };
+    });
+  }
   return {
     desktopId: owner.desktopId,
     payload: {
-      ...(unprojectRemotePayload(input) as Record<string, unknown>),
+      ...payload,
       threadId: owner.remoteId,
     },
   };

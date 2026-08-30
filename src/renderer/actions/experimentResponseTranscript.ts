@@ -10,6 +10,14 @@ function textFromRuntimeContentBlock(block: unknown): string {
   if (!record) return "";
   if (record.kind === "text" && typeof record.text === "string") return record.text;
   if (record.kind === "file" && typeof record.path === "string") return `@${record.path}`;
+  if (record.kind === "mcp" && typeof record.name === "string") return `@${record.name}`;
+  if (
+    record.kind === "thread" &&
+    typeof record.title === "string" &&
+    typeof record.threadId === "string"
+  ) {
+    return `@${record.title || record.threadId}`;
+  }
   if (record.kind === "image") {
     if (typeof record.path === "string") return `@${record.path}`;
     if (typeof record.name === "string") return `[image: ${record.name}]`;

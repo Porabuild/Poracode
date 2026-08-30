@@ -14,6 +14,7 @@ import {
   type RemoteProcedureHost,
   type RemoteRouteDecision,
 } from "./remoteProcedureRouter";
+import { projectRemoteThreadEvent } from "./state/remoteProjection";
 import { NON_ROUTER_PROJECT_PROCEDURES, REMOTE_PROCEDURE_ROUTES } from "./remoteProcedureRoutes";
 
 const remoteLocation = {
@@ -105,6 +106,10 @@ describe("remote procedure routing registry", () => {
   const truncateThreadRuntimeAfter = vi.fn<RemoteDesktopClient["truncateThreadRuntimeAfter"]>(
     async () => {},
   );
+  const threadRuntimeItemsPage = vi.fn<RemoteDesktopClient["threadRuntimeItemsPage"]>(async () => ({
+    items: [],
+    nextCursor: null,
+  }));
   const uploadAttachment = vi.fn<RemoteDesktopClient["uploadAttachment"]>(
     async () => "/remote/attachment",
   );
@@ -124,6 +129,7 @@ describe("remote procedure routing registry", () => {
     clearPendingSteer,
     resolveRequest,
     truncateThreadRuntimeAfter,
+    threadRuntimeItemsPage,
     uploadAttachment,
     startShell,
     closeShell,
@@ -161,6 +167,203 @@ describe("remote procedure routing registry", () => {
       itemId: "item-2",
     });
     expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("unprojects thread mention ids for the same remote host", async () => {
+    registerRemoteProcedureHost({
+      ...host,
+      resolveThreadOwner: (threadId) => {
+        if (threadId === "projected-thread") {
+          return { desktopId: "d1", remoteId: "remote-thread" };
+        }
+        if (threadId === "projected-source") {
+          return { desktopId: "d1", remoteId: "remote-source" };
+        }
+        return undefined;
+      },
+    });
+
+    await remoteResult(
+      decide("sendThreadInput", {
+        threadId: "projected-thread",
+        prompt: "use this context",
+        config: { model: "test-model" },
+        segments: [{ kind: "thread", threadId: "projected-source", title: "Source" }],
+      }),
+    );
+
+    expect(sendThreadInput).toHaveBeenCalledWith({
+      threadId: "remote-thread",
+      prompt: "use this context",
+      config: { model: "test-model" },
+      segments: [{ kind: "thread", threadId: "remote-source", title: "Source" }],
+    });
+  });
+
+  it("unprojects deleted same-host thread mentions from their projected id", async () => {
+    await remoteResult(
+      decide("sendThreadInput", {
+        threadId: "projected-thread",
+        prompt: "use this context",
+        config: { model: "test-model" },
+        segments: [
+          { kind: "thread", threadId: "remote:d1:thread:deleted-source", title: "Source" },
+        ],
+      }),
+    );
+
+    expect(sendThreadInput).toHaveBeenCalledWith({
+      threadId: "remote-thread",
+      prompt: "use this context",
+      config: { model: "test-model" },
+      segments: [{ kind: "thread", threadId: "deleted-source", title: "Source" }],
+    });
+  });
+
+  it("degrades cross-host thread mentions to text instead of an unresolvable id", async () => {
+    await remoteResult(
+      decide("sendThreadInput", {
+        threadId: "projected-thread",
+        prompt: "use this context",
+        config: { model: "test-model" },
+        segments: [
+          { kind: "thread", threadId: "local-thread", title: "Local" },
+          { kind: "thread", threadId: "remote:d2:thread:foreign", title: "Foreign" },
+        ],
+      }),
+    );
+
+    expect(sendThreadInput).toHaveBeenCalledWith({
+      threadId: "remote-thread",
+      prompt: "use this context",
+      config: { model: "test-model" },
+      segments: [
+        { kind: "text", content: "@Local" },
+        { kind: "text", content: "@Foreign" },
+      ],
+    });
+  });
+
+  it("projects thread mention ids in remote runtime history", async () => {
+    threadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [
+        {
+          id: "user-1",
+          type: "user_message",
+          state: "completed",
+          payload: {
+            content: [{ kind: "thread", threadId: "remote-source", title: "Source" }],
+          },
+          streams: {},
+        },
+      ],
+      nextCursor: null,
+    });
+
+    await expect(
+      remoteResult(
+        decide("dbGetThreadRuntimeItemsPage", {
+          threadId: "projected-thread",
+          beforePosition: 10,
+          limit: 500,
+        }),
+      ),
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          payload: {
+            content: [
+              { kind: "thread", threadId: "remote:d1:thread:remote-source", title: "Source" },
+            ],
+          },
+        }),
+      ],
+      nextCursor: null,
+    });
+    expect(threadRuntimeItemsPage).toHaveBeenCalledWith({
+      threadId: "remote-thread",
+      beforePosition: 10,
+      limit: 500,
+    });
+  });
+
+  it("projects thread mention ids in live runtime events", () => {
+    expect(
+      projectRemoteThreadEvent("d1", {
+        type: "thread-runtime-event",
+        threadId: "remote-thread",
+        event: {
+          type: "item.started",
+          threadId: "remote-thread",
+          itemId: "user-1",
+          itemType: "user_message",
+          payload: {
+            content: [{ kind: "thread", threadId: "remote-source", title: "Source" }],
+          },
+        },
+      }),
+    ).toEqual({
+      type: "thread-runtime-event",
+      threadId: "remote:d1:thread:remote-thread",
+      event: {
+        type: "item.started",
+        threadId: "remote:d1:thread:remote-thread",
+        itemId: "user-1",
+        itemType: "user_message",
+        payload: {
+          content: [
+            { kind: "thread", threadId: "remote:d1:thread:remote-source", title: "Source" },
+          ],
+        },
+      },
+    });
+  });
+
+  it("keeps already-projected thread mention ids intact instead of double-wrapping", () => {
+    const foreignBlock = {
+      kind: "thread",
+      threadId: "remote:d2:thread:foreign",
+      title: "Foreign",
+    };
+    expect(
+      projectRemoteThreadEvent("d1", {
+        type: "thread-runtime-event",
+        threadId: "remote-thread",
+        event: {
+          type: "item.started",
+          threadId: "remote-thread",
+          itemId: "user-1",
+          itemType: "user_message",
+          payload: { content: [foreignBlock] },
+        },
+      }),
+    ).toMatchObject({
+      event: { payload: { content: [foreignBlock] } },
+    });
+  });
+
+  it("projects thread mention ids inside pending-steer events", () => {
+    expect(
+      projectRemoteThreadEvent("d1", {
+        type: "thread-pending-steer",
+        threadId: "remote-thread",
+        pending: {
+          id: "steer-1",
+          prompt: "[thread mention] …",
+          stagedAt: 1,
+          segments: [{ kind: "thread", threadId: "remote-source", title: "Source" }],
+        },
+      }),
+    ).toEqual({
+      type: "thread-pending-steer",
+      threadId: "remote:d1:thread:remote-thread",
+      pending: {
+        id: "steer-1",
+        prompt: "[thread mention] …",
+        stagedAt: 1,
+        segments: [{ kind: "thread", threadId: "remote:d1:thread:remote-source", title: "Source" }],
+      },
+    });
   });
 
   it.each(Object.entries(REMOTE_PROCEDURE_SPECS).filter(([, spec]) => spec.owner !== "none"))(
