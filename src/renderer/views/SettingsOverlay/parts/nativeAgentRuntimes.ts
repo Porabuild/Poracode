@@ -1,4 +1,5 @@
 import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import type { AcpRegistryAgent, AgentStatus, Project } from "@/shared/contracts";
 
 /**
@@ -112,6 +113,26 @@ export function installedRuntimeIds(
       .filter((slot) => statuses.some((status) => detectAgentRuntime(slot, status).installed))
       .map((slot) => slot.id),
   );
+}
+
+/**
+ * `CLI v1.1.22 · ACP not installed` — every declared runtime, whether or not
+ * it is detected. The agent settings page shows this next to the environment
+ * name so a half-installed provider reads at a glance from the same row every
+ * other provider uses, instead of needing a panel of its own.
+ */
+export function runtimeStateSummaryText(
+  slots: NativeAgentRuntimeSlots,
+  status: AgentStatus,
+  translate: RuntimeLabelTranslator,
+): string {
+  return slots.runtimes
+    .map((slot) => {
+      const detection = detectAgentRuntime(slot, status);
+      if (!detection.installed) return `${slot.badge} ${translate(msg`not installed`)}`;
+      return detection.version ? `${slot.badge} v${detection.version}` : slot.badge;
+    })
+    .join(" · ");
 }
 
 /** `ACP v1.2.3 · SDK v1.0.31 (global npm)` for one detected environment. */
