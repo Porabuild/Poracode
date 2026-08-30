@@ -27,6 +27,7 @@ function addColumnIfMissing(
 }
 
 function createRuntimeItemParentIndex(sqlite: SqliteDatabase): void {
+  addColumnIfMissing(sqlite, "thread_runtime_items", "parent_item_id", "TEXT");
   sqlite.exec(
     "CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_parent " +
       "ON thread_runtime_items (thread_id, parent_item_id)",
