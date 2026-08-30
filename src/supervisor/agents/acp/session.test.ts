@@ -1365,37 +1365,40 @@ describe("ACP client protocol helpers", () => {
     expect(prompt[2]).toEqual({ type: "text", text: "review" });
   });
 
-  it("reads WSL project files through the host UNC root for embedded context", async () => {
-    const projectRoot = makePosixProject();
-    writeFileSync(join(projectRoot, "notes.ts"), "export const marker = true;");
-    const location = {
-      kind: "wsl" as const,
-      distro: "Ubuntu",
-      linuxPath: "/workspace",
-      uncPath: projectRoot,
-    };
-    const { connection, session } = makeConfigSyncSession({
-      agentPromptCapabilities: { embeddedContext: true },
-    });
-    (session as unknown as Record<string, unknown>)["projectLocation"] = location;
+  it.runIf(process.platform === "win32")(
+    "reads WSL project files through the host UNC root for embedded context",
+    async () => {
+      const projectRoot = makePosixProject();
+      writeFileSync(join(projectRoot, "notes.ts"), "export const marker = true;");
+      const location = {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/workspace",
+        uncPath: projectRoot,
+      };
+      const { connection, session } = makeConfigSyncSession({
+        agentPromptCapabilities: { embeddedContext: true },
+      });
+      (session as unknown as Record<string, unknown>)["projectLocation"] = location;
 
-    await session.startTurn("review", { model: "model-a" }, [{ kind: "file", path: "notes.ts" }]);
+      await session.startTurn("review", { model: "model-a" }, [{ kind: "file", path: "notes.ts" }]);
 
-    expect(connection.prompt).toHaveBeenCalledWith({
-      sessionId: "session-1",
-      prompt: [
-        {
-          type: "resource",
-          resource: {
-            uri: toAcpResourceUri(location, "notes.ts"),
-            mimeType: "text/plain",
-            text: "export const marker = true;",
+      expect(connection.prompt).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        prompt: [
+          {
+            type: "resource",
+            resource: {
+              uri: toAcpResourceUri(location, "notes.ts"),
+              mimeType: "text/plain",
+              text: "export const marker = true;",
+            },
           },
-        },
-        { type: "text", text: "review" },
-      ],
-    });
-  });
+          { type: "text", text: "review" },
+        ],
+      });
+    },
+  );
 
   it("implements ACP terminal create/output/wait/release over a real PTY", async () => {
     const projectRoot = makePosixProject();

@@ -468,6 +468,8 @@ describe("ACP registry installs", () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-wsl-"));
     const settingsPath = join(dir, "settings.json");
     const distroRoot = mkdtempSync(join(tmpdir(), "poracode-wsl-home-"));
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     const registry = antigravityRegistry("1.0.0");
     registry.agents[0]!.distribution.binary!["linux-x86_64"] = {
       archive: "https://dl.google.com/antigravity/antigravity-acp-1.0.0.zip",
@@ -517,6 +519,7 @@ describe("ACP registry installs", () => {
         expect.stringContaining("chmod 755 '/home/tester/.poracode/acp-registry/"),
       ]);
     } finally {
+      Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
       vi.unstubAllGlobals();
     }
   });
