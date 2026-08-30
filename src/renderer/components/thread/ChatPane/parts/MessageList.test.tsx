@@ -180,7 +180,7 @@ vi.mock("./items/ChatItemRow", () => ({
         type="button"
         onClick={() => {
           props.onHeightChange?.();
-          actions?.onContentHeightChange();
+          actions?.onContentHeightChange?.();
         }}
       >
         {props.entry.id}

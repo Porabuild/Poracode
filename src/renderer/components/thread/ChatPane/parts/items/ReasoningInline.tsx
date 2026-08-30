@@ -58,7 +58,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
       isExpanded={isExpanded}
       onExpandedChange={(next) => {
         setIsExpanded(next);
-        actions?.onContentHeightChange();
+        actions?.onContentHeightChange?.();
       }}
     >
       <Disclosure.Heading>

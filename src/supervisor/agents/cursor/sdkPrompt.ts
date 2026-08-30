@@ -95,7 +95,7 @@ export async function buildCursorSdkUserMessage(
         });
         continue;
       }
-      text.push(`@${cursorSdkPromptPath(location, segment.path)}`);
+      if ("path" in segment) text.push(`@${cursorSdkPromptPath(location, segment.path)}`);
     }
   } else {
     text.push(prompt);

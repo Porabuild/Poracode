@@ -2762,6 +2762,15 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   cursor: default;
 }
 
+.poracode-thread-mention-chip {
+  cursor: var(--interactive-cursor, pointer);
+}
+
+.poracode-thread-mention-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .poracode-slash-chip[data-skill-name],
 .poracode-slash-chip[data-mcp-name] {
   gap: 0.25em;

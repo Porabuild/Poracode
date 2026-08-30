@@ -8337,6 +8337,7 @@ msgstr "Ouvrir"
 msgid "Open {0}"
 msgstr "Ouvrir {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Open {label}"
 msgstr "Ouvrir {label}"
@@ -12790,6 +12791,10 @@ msgstr "Options de la liste des fils"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Mode fil de discussion"
+
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Thread not found"
+msgstr "Fil de discussion introuvable"
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

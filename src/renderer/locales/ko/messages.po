@@ -8338,6 +8338,7 @@ msgstr "열기"
 msgid "Open {0}"
 msgstr "{0} 열기"
 
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Open {label}"
 msgstr "{label} 열기"
@@ -12791,6 +12792,10 @@ msgstr "스레드 목록 옵션"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "스레드 모드"
+
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Thread not found"
+msgstr "스레드를 찾을 수 없습니다"
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

@@ -1,6 +1,7 @@
 import { Loader2, Send, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { PendingSteerState } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
   ThreadDockHeader,
   ThreadDockIconButton,
@@ -23,7 +24,13 @@ interface ThreadPendingSteerStripProps {
 export function ThreadPendingSteerStrip(props: ThreadPendingSteerStripProps) {
   const { pending, onCancel } = props;
   const { t } = useLingui();
-  const preview = pending.prompt.trim();
+  // Segment-carrying steers preview from the original display segments — the
+  // provider prompt inlines mention instructions the user never typed.
+  const preview = (
+    pending.segments && pending.segments.length > 0
+      ? pending.segments.map(inlinePromptSegmentText).join("")
+      : pending.prompt
+  ).trim();
   return (
     <ThreadDockSection placement="composer" collapsed={false}>
       <ThreadDockHeader

@@ -27,7 +27,12 @@ import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
-import { remoteOwner, remoteThreadId } from "@/renderer/state/remoteProjection";
+import {
+  downgradeProjectedThreadMentionSegments,
+  remoteOwner,
+  remoteThreadId,
+  unprojectRemoteThreadMentionSegments,
+} from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -128,6 +133,15 @@ export async function performInitialThreadLaunch(input: {
         threadId: owner.remoteId,
         projectLocation: unprojectProjectLocation(projectLocation),
         ...startInput,
+        ...(startInput.segments
+          ? {
+              segments: unprojectRemoteThreadMentionSegments(
+                owner.desktopId,
+                startInput.segments,
+                useAppStore.getState().threads,
+              ),
+            }
+          : {}),
       }),
     );
   } else {
@@ -135,6 +149,9 @@ export async function performInitialThreadLaunch(input: {
       threadId: thread.id,
       projectLocation,
       ...startInput,
+      ...(startInput.segments
+        ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
+        : {}),
       ...mcpLaunchSnapshot,
     });
   }

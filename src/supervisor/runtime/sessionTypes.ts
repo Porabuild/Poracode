@@ -24,6 +24,8 @@ export interface QueuedStructuredTurn {
   prompt: string;
   config: ThreadConfig;
   segments?: PromptSegment[];
+  /** Original renderer segments used for the durable/optimistic user message. */
+  displaySegments?: PromptSegment[];
   userMessageItemId?: string;
   /** Inlined SKILL.md instructions for skills the provider can't load natively. */
   inlineInstructions?: string;
@@ -57,6 +59,8 @@ export interface SessionRuntime {
   launchConfig?: ThreadConfig;
   /** MCP launch snapshot reused by restart and recovery paths. */
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  /** True only when the resolved launch server set contains app-controls/read_thread. */
+  threadMentionToolsAvailable?: boolean;
   /** Provider-native plugin packages that replace matching Poracode contributions. */
   nativePlugins?: readonly AgentNativePlugin[];
   sessionRef?: SessionRef;

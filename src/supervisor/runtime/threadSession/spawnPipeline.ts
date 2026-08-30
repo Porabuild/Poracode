@@ -64,6 +64,7 @@ import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
+import { resolveThreadMentionSegments } from "../threadMentionResolver";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
@@ -104,6 +105,7 @@ export interface SpawnThreadInput {
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
   nativePlugins?: readonly AgentNativePlugin[];
 }
@@ -241,6 +243,11 @@ export function composeResolvedMcpServers(
   ].filter((server): server is ResolvedMcpServer => server !== undefined);
 }
 
+function hasThreadMentionTools(servers: readonly ResolvedMcpServer[]): boolean {
+  const appControls = servers.find((server) => server.id === "app-controls");
+  return appControls !== undefined && !appControls.disabledTools?.includes("read_thread");
+}
+
 /**
  * Everything the spawn pipeline borrows from the manager. The pipeline owns
  * process creation (structured-session bring-up, argv assembly, PTY spawn,
@@ -320,8 +327,11 @@ export class SpawnPipeline {
       payload.agentKind,
     )) ?? { mcpServers: [], builtInMcpServerIds: [], nativePlugins: [] };
     const nativePlugins = pluginContributions.nativePlugins;
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
           preservePdfAttachments:
             useStructuredFlow && adapter.capabilities.readsPdfAttachmentsFromHost === true,
@@ -385,7 +395,7 @@ export class SpawnPipeline {
         ? ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
-            effectiveSegments,
+            payload.segments,
             payload.userMessageItemId,
           )
         : undefined;
@@ -475,6 +485,15 @@ export class SpawnPipeline {
       adapter,
       presentationMode: requestedPresentation,
     });
+    const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
+    if (
+      payload.segments?.some((segment) => segment.kind === "thread") &&
+      !threadMentionToolsAvailable
+    ) {
+      throw new Error(
+        "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
+      );
+    }
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -541,7 +560,7 @@ export class SpawnPipeline {
           optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
-            effectiveSegments,
+            payload.segments,
             payload.userMessageItemId,
           );
           this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
@@ -567,6 +586,7 @@ export class SpawnPipeline {
         suppressInitialStructuredIdle:
           optimisticUserMessageItemId !== undefined && !startInterrupted,
         mcpLaunchSnapshot,
+        threadMentionToolsAvailable,
         launchConfig,
         nativePlugins,
       });
@@ -714,6 +734,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       mcpLaunchSnapshot,
+      threadMentionToolsAvailable,
       launchConfig,
       nativePlugins,
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
@@ -852,6 +873,7 @@ export class SpawnPipeline {
         structuredSession,
         sessionRef: session.sessionRef,
         mcpLaunchSnapshot,
+        threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
         launchConfig,
         ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
@@ -863,7 +885,11 @@ export class SpawnPipeline {
         // path owns the first canonical paint and must emit it now.
         const optimisticItemId =
           turn.userMessageItemId ??
-          ctx.emitOptimisticUserMessage(session.threadId, prompt, turn.segments);
+          ctx.emitOptimisticUserMessage(
+            session.threadId,
+            prompt,
+            turn.displaySegments ?? turn.segments,
+          );
         const startOptions = {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
@@ -953,6 +979,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: session.sessionRef,
       mcpLaunchSnapshot,
+      threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
       launchConfig,
       ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
@@ -1052,6 +1079,9 @@ export class SpawnPipeline {
       projectLocation: input.projectLocation,
       config: input.config,
       mcpLaunchSnapshot,
+      ...(input.threadMentionToolsAvailable !== undefined
+        ? { threadMentionToolsAvailable: input.threadMentionToolsAvailable }
+        : {}),
       ...(input.nativePlugins ? { nativePlugins: input.nativePlugins } : {}),
       launchConfig:
         input.launchConfig ??

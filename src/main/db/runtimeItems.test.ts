@@ -13,6 +13,7 @@ import {
   dbGetLatestThreadGoalItem,
   dbGetThreadContextUsage,
   dbGetLatestThreadRuntimeAnchorItemId,
+  dbGetThreadConversationItemsPage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbReplaceThreadRuntimeItems,
@@ -384,6 +385,42 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     dbTruncateThreadRuntimeAfter("thread-1", "item-124");
     expect(dbGetThreadRuntimeItems("thread-1")).toHaveLength(125);
     expect(dbGetThreadRuntimeItems("thread-1").at(-1)?.id).toBe("item-124");
+  });
+
+  it("pages exact user and assistant messages without tool activity consuming the limit", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      { id: "user-0", type: "user_message", state: "completed", streams: {} },
+      { id: "tool-0", type: "tool_call", state: "completed", streams: { output: "tool" } },
+      {
+        id: "assistant-0",
+        type: "assistant_message",
+        state: "completed",
+        streams: { text: "first" },
+      },
+      { id: "reasoning-0", type: "reasoning", state: "completed", streams: {} },
+      {
+        id: "assistant-child",
+        type: "assistant_message",
+        state: "completed",
+        streams: { text: "subagent detail" },
+        parentItemId: "tool-0",
+      },
+      { id: "user-1", type: "user_message", state: "completed", streams: {} },
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { text: "second" },
+      },
+    ]);
+
+    const latest = dbGetThreadConversationItemsPage("thread-1", undefined, 2);
+    expect(latest.items.map((item) => item.id)).toEqual(["user-1", "assistant-1"]);
+    expect(latest.nextCursor).not.toBeNull();
+
+    const older = dbGetThreadConversationItemsPage("thread-1", latest.nextCursor ?? undefined, 2);
+    expect(older.items.map((item) => item.id)).toEqual(["user-0", "assistant-0"]);
+    expect(older.nextCursor).toBeNull();
   });
 
   it("keeps a groupable run intact when a page boundary lands inside it", () => {

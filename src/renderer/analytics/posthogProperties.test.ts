@@ -131,6 +131,7 @@ describe("posthog product analytics properties", () => {
       segment_count: 4,
       skill_segment_count: 1,
       text_segment_count: 1,
+      thread_segment_count: 0,
       work_mode: "plan",
     });
     expect(sanitizeProductAnalyticsProperties(properties)).toEqual(properties);

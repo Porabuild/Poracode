@@ -71,6 +71,11 @@ export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("mcp"), name: z.string() }),
   z.object({
+    kind: z.literal("thread"),
+    threadId: z.string().min(1),
+    title: z.string(),
+  }),
+  z.object({
     kind: z.literal("diff_comment"),
     path: z.string(),
     lineNumber: z.number().int().positive(),

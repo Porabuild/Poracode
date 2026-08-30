@@ -20,6 +20,7 @@ import type {
   ThreadConfig,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { threadMentionLabel } from "@/shared/promptContent";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
@@ -367,7 +368,7 @@ export function MessageList({
         outcome: providerRollbackSucceeded ? "complete" : "local_only",
         rollback_turn_count: rollbackTurns,
       });
-      parentActions?.onContentHeightChange();
+      parentActions?.onContentHeightChange?.();
     },
     [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
   );
@@ -756,7 +757,9 @@ function getTimelineEntryType(
           ? block.text.length
           : block.kind === "skill"
             ? block.invocation.length
-            : 0),
+            : block.kind === "thread"
+              ? threadMentionLabel(block).length + 1
+              : 0),
       0,
     ) ?? 0;
   const textLength = growingStreamLength(item) + payloadTextLength;

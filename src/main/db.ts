@@ -40,6 +40,7 @@ export {
   dbGetLatestThreadGoalItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
+  dbGetThreadConversationItemsPage,
   dbTruncateThreadRuntimeAfter,
   dbApplyThreadRuntimeEvents,
   dbReplaceThreadRuntimeItems,

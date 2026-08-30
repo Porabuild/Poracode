@@ -137,6 +137,14 @@ describe("buildPromptContentBlocks", () => {
       { kind: "text", text: " open the page" },
     ]);
   });
+
+  it("preserves thread mention segments as thread blocks for badge rendering", () => {
+    expect(
+      buildPromptContentBlocks("@Fix the composer", [
+        { kind: "thread", threadId: "thread-1", title: "Fix the composer" },
+      ]),
+    ).toEqual([{ kind: "thread", threadId: "thread-1", title: "Fix the composer" }]);
+  });
 });
 
 describe("toFileUrl", () => {

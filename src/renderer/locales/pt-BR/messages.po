@@ -8338,6 +8338,7 @@ msgstr "Abrir"
 msgid "Open {0}"
 msgstr "Abrir {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Open {label}"
 msgstr "Abrir {label}"
@@ -12791,6 +12792,10 @@ msgstr "Opções da lista de tópicos"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Modo de tópico"
+
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Thread not found"
+msgstr "Tópico não encontrado"
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

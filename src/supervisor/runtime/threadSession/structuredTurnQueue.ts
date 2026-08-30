@@ -38,7 +38,7 @@ export class StructuredTurnQueue {
         ? this.emitOptimisticUserMessage(
             session.threadId,
             turn.prompt,
-            turn.segments,
+            turn.displaySegments ?? turn.segments,
             turn.userMessageItemId,
           )
         : undefined;
@@ -89,14 +89,17 @@ export class StructuredTurnQueue {
     prompt: string,
     segments?: PromptSegment[],
     requestedItemId?: string,
+    options?: { includeTurn?: boolean },
   ): string {
     const turnId = `turn-${randomUUID()}`;
     const itemId = requestedItemId ?? `user-${randomUUID()}`;
-    this.ctx.emit({
-      type: "thread-runtime-event",
-      threadId,
-      event: { type: "turn.started", threadId, turnId },
-    });
+    if (options?.includeTurn !== false) {
+      this.ctx.emit({
+        type: "thread-runtime-event",
+        threadId,
+        event: { type: "turn.started", threadId, turnId },
+      });
+    }
     this.ctx.emit({
       type: "thread-runtime-event",
       threadId,

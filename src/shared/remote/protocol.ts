@@ -15,11 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v7 emits provider_handoff runtime items. Older clients drop the live
-// item.started, then hydrate the same row from a snapshot (whose type field is
-// untyped) and misresolve completed-turn anchors onto a divider that records
-// no work of its own.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 7;
+// v8 adds thread prompt segments and canonical thread content blocks. Older
+// clients cannot paint or preserve those structured mentions correctly.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 8;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
