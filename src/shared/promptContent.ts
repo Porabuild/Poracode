@@ -14,6 +14,53 @@ export const IMAGE_EXTENSIONS = [
 
 const IMAGE_EXTENSION_SET = new Set<string>(IMAGE_EXTENSIONS);
 
+const TEXT_FILE_EXTENSIONS = new Set([
+  "bash",
+  "c",
+  "cc",
+  "conf",
+  "cpp",
+  "cs",
+  "css",
+  "csv",
+  "cxx",
+  "diff",
+  "env",
+  "go",
+  "graphql",
+  "h",
+  "hpp",
+  "html",
+  "java",
+  "js",
+  "jsx",
+  "kt",
+  "log",
+  "lua",
+  "markdown",
+  "mjs",
+  "patch",
+  "php",
+  "ps1",
+  "py",
+  "rb",
+  "rs",
+  "scss",
+  "sh",
+  "sql",
+  "svelte",
+  "swift",
+  "toml",
+  "ts",
+  "tsx",
+  "txt",
+  "vue",
+  "xml",
+  "yaml",
+  "yml",
+  "zsh",
+]);
+
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -24,6 +71,18 @@ const MIME_BY_EXT: Record<string, string> = {
   bmp: "image/bmp",
   ico: "image/x-icon",
   avif: "image/avif",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  flac: "audio/flac",
+  aac: "audio/aac",
+  opus: "audio/opus",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  json: "application/json",
+  md: "text/markdown",
 };
 
 function getExtension(path: string): string {
@@ -58,9 +117,24 @@ export function isImagePath(path: string, mimeType?: string): boolean {
   return mimeType?.startsWith("image/") === true || IMAGE_EXTENSION_SET.has(getExtension(path));
 }
 
+export function isAudioPath(path: string, mimeType?: string): boolean {
+  return (
+    mimeType?.startsWith("audio/") === true || mimeForPath(path)?.startsWith("audio/") === true
+  );
+}
+
+export function isTextFilePath(path: string): boolean {
+  return TEXT_FILE_EXTENSIONS.has(getExtension(path));
+}
+
+export function mimeForPath(path: string): string | undefined {
+  return MIME_BY_EXT[getExtension(path)] ?? (isTextFilePath(path) ? "text/plain" : undefined);
+}
+
 /** The image MIME type implied by a path's extension, when it is a known one. */
 export function mimeForImagePath(path: string): string | undefined {
-  return MIME_BY_EXT[getExtension(path)];
+  const mimeType = mimeForPath(path);
+  return mimeType?.startsWith("image/") ? mimeType : undefined;
 }
 
 export function isPdfPath(path: string, mimeType?: string): boolean {

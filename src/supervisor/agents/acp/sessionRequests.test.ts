@@ -74,6 +74,22 @@ function kimiQuestionPermissionRequest(): RequestPermissionRequest {
   };
 }
 
+function bareOptionQuestionPermissionRequest(): RequestPermissionRequest {
+  return {
+    sessionId: "session-1",
+    toolCall: {
+      toolCallId: "tool-question",
+      title: "Choose a smoke option",
+      kind: "other",
+      rawInput: {},
+    },
+    options: [
+      { optionId: "1", name: "Alpha", kind: "allow_once" },
+      { optionId: "2", name: "Beta", kind: "allow_once" },
+    ],
+  };
+}
+
 function droidQuestionnairePermissionRequest(): RequestPermissionRequest {
   return {
     sessionId: "session-1",
@@ -330,6 +346,52 @@ describe("AcpSessionRequests permissions", () => {
     await expect(response).resolves.toEqual({
       outcome: { outcome: "selected", optionId: "q0_opt_1" },
       answers: { "0": "Log in via browser" },
+    });
+  });
+
+  it("maps a title-only question whose ACP permission options are answer choices", async () => {
+    const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests();
+    const response = requests.requestPermission(bareOptionQuestionPermissionRequest());
+
+    expect(setRequestAttention).toHaveBeenCalledExactlyOnceWith("needs_reply");
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "acp-perm-0",
+        requestType: "tool_user_input",
+        payload: {
+          summary: "Choose a smoke option",
+          details: {
+            userInputForm: {
+              questions: [
+                {
+                  id: "0",
+                  header: "Choose a smoke option",
+                  question: "Choose a smoke option",
+                  options: [
+                    { optionId: "1", label: "Alpha" },
+                    { optionId: "2", label: "Beta" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          },
+          options: [
+            { optionId: "1", label: "Alpha" },
+            { optionId: "2", label: "Beta" },
+          ],
+          multiSelect: false,
+        },
+      },
+    ]);
+
+    requests.resolve("acp-perm-0", { answers: { "0": "2" } });
+
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "2" },
+      answers: { "0": "Beta" },
     });
   });
 

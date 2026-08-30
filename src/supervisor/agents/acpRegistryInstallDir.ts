@@ -6,7 +6,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 export const ACP_REGISTRY_INSTALL_DIR = "acp-registry";
 
 /** Marker prefix for install dirs that couldn't be unlinked yet. */
-const PENDING_DELETE_PREFIX = ".pending-delete-";
+export const PENDING_DELETE_PREFIX = ".pending-delete-";
 
 /**
  * Windows releases a handle on a just-exited process's executable a little

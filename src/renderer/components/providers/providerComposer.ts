@@ -1,4 +1,5 @@
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import type { MessageDescriptor } from "@lingui/core";
 import type {
   AgentCapability,
   AgentStatus,
@@ -97,4 +98,40 @@ export function registerComposerRuntimeUpdate(
 
 export function getComposerRuntimeUpdate(kind: string): ComposerRuntimeUpdateResolver | undefined {
   return lookupProviderRegistration(composerRuntimeUpdateRegistry, kind);
+}
+
+export type CombinedRuntimeUpdateChannel =
+  | { kind: "agent-binary" }
+  | { kind: "acp-registry"; agentId: string };
+
+export interface CombinedRuntimeUpdate {
+  id: string;
+  label: MessageDescriptor;
+  installed: boolean;
+  installedVersion?: string;
+  channel: CombinedRuntimeUpdateChannel;
+}
+
+type CombinedRuntimeUpdatesResolver = (input: {
+  agentStatus: AgentStatus;
+}) => readonly CombinedRuntimeUpdate[];
+
+const combinedRuntimeUpdatesRegistry = new Map<string, CombinedRuntimeUpdatesResolver>();
+
+/**
+ * Registers independently versioned runtimes that one provider exposes as a
+ * single update action. Shared UI probes and updates the declared channels;
+ * provider-specific binary knowledge stays in the provider plugin.
+ */
+export function registerCombinedRuntimeUpdates(
+  kind: string,
+  resolver: CombinedRuntimeUpdatesResolver,
+) {
+  combinedRuntimeUpdatesRegistry.set(kind, resolver);
+}
+
+export function getCombinedRuntimeUpdates(
+  kind: string,
+): CombinedRuntimeUpdatesResolver | undefined {
+  return lookupProviderRegistration(combinedRuntimeUpdatesRegistry, kind);
 }

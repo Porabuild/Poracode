@@ -1,10 +1,16 @@
 export * from "./AntigravityIcon";
 
+import { msg } from "@lingui/core/macro";
 import { AntigravityIcon } from "./AntigravityIcon";
 import providerManifest from "./manifest";
+import { ANTIGRAVITY_ACP_REGISTRY_ID } from "@/shared/agents/antigravity";
 import { standardPlanApprovalControls } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
-import { registerComposerControls } from "../providerComposer";
+import {
+  registerCombinedRuntimeUpdates,
+  registerComposerControls,
+  registerConfigNormalizer,
+} from "../providerComposer";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
@@ -12,6 +18,26 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, AntigravityIcon);
+registerCombinedRuntimeUpdates(PROVIDER_KIND, ({ agentStatus }) => {
+  const cli = agentStatus.runtimeVariants?.cli;
+  const acp = agentStatus.runtimeVariants?.acp;
+  return [
+    {
+      id: "cli",
+      label: msg`agy CLI`,
+      installed: cli?.installed === true,
+      ...(cli?.version ? { installedVersion: cli.version } : {}),
+      channel: { kind: "agent-binary" },
+    },
+    {
+      id: "acp",
+      label: msg`Antigravity ACP`,
+      installed: acp?.installed === true,
+      ...(acp?.version ? { installedVersion: acp.version } : {}),
+      channel: { kind: "acp-registry", agentId: ANTIGRAVITY_ACP_REGISTRY_ID },
+    },
+  ];
+});
 
 // Antigravity runs the same Google models as the Gemini provider, expressed
 // through its per-variant effort suffix (Low/Medium/High). A local benchmark
@@ -41,3 +67,20 @@ registerConflictResolverDefaults(PROVIDER_KIND, {
 });
 
 registerComposerControls(PROVIDER_KIND, (input) => standardPlanApprovalControls(input));
+registerConfigNormalizer(PROVIDER_KIND, ({ capabilities, config }) => {
+  const policyIds = capabilities.approvalPolicies.map((policy) => policy.id);
+  if (policyIds.length === 0) return {};
+  const equivalentPolicy =
+    config.approvalPolicy === "yolo" && policyIds.includes("never")
+      ? "never"
+      : config.approvalPolicy === "never" && policyIds.includes("yolo")
+        ? "yolo"
+        : config.approvalPolicy;
+  const approvalPolicy =
+    equivalentPolicy && policyIds.includes(equivalentPolicy)
+      ? equivalentPolicy
+      : capabilities.defaultApprovalPolicy && policyIds.includes(capabilities.defaultApprovalPolicy)
+        ? capabilities.defaultApprovalPolicy
+        : policyIds[0]!;
+  return approvalPolicy === config.approvalPolicy ? {} : { approvalPolicy };
+});

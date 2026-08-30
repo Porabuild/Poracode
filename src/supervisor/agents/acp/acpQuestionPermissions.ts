@@ -29,7 +29,7 @@ type AcpQuestionPermissionResponse = RequestPermissionResponse & {
 };
 
 /**
- * AskUserQuestion is carried over ACP's requestPermission method in three
+ * AskUserQuestion is carried over ACP's requestPermission method in four
  * provider-native shapes, all normalized to the same AcpPermissionQuestion
  * contract so shared runtime and renderer code stays provider-agnostic:
  *  - Qwen Code sends a structured `rawInput.questions` array (header, question,
@@ -42,6 +42,8 @@ type AcpQuestionPermissionResponse = RequestPermissionResponse & {
  *    (`"1. [question] ..."`, `"[topic] ..."`, `"[option] ..."` lines, with
  *    `(multi)` on the question line opting into multi-select) that is parsed
  *    back into the same question list.
+ *  - Some agents send only a question title plus non-permission option labels.
+ *    This is recognized from the payload shape, not the provider identity.
  */
 export function parseAcpPermissionQuestions(
   request: RequestPermissionRequest,
@@ -53,7 +55,8 @@ export function parseAcpPermissionQuestions(
   if (isRecord(rawInput) && typeof rawInput.questionnaire === "string") {
     return parseQuestionnairePermissionQuestions(rawInput.questionnaire);
   }
-  return parseContentPermissionQuestion(request);
+  const contentQuestion = parseContentPermissionQuestion(request);
+  return contentQuestion.length > 0 ? contentQuestion : parseBareOptionPermissionQuestion(request);
 }
 
 /** Qwen shape: structured questions embedded in the tool call's rawInput. */
@@ -183,6 +186,43 @@ function parseContentPermissionQuestion(
   if (options.length === 0) return [];
   return [
     { id: "0", header: question, question, options, multiSelect: false, optionsAreAnswers: true },
+  ];
+}
+
+const PERMISSION_OPTION_LABEL =
+  /^(?:allow|approve|accept|continue|proceed|deny|decline|reject|cancel|abort)(?:\b|_)/iu;
+
+function parseBareOptionPermissionQuestion(
+  request: RequestPermissionRequest,
+): AcpPermissionQuestion[] {
+  const title = typeof request.toolCall?.title === "string" ? request.toolCall.title.trim() : "";
+  if (!title || extractToolCallContentText(request.toolCall?.content)?.trim()) return [];
+  const rawInput = request.toolCall?.rawInput;
+  if (isRecord(rawInput) && Object.keys(rawInput).length > 0) return [];
+  if (request.options.length < 2) return [];
+  if (
+    request.options.some(
+      (option) =>
+        isRejectionOptionKind(option.kind) ||
+        PERMISSION_OPTION_LABEL.test(option.name) ||
+        PERMISSION_OPTION_LABEL.test(option.optionId),
+    )
+  ) {
+    return [];
+  }
+  const options = request.options.map((option) => ({
+    optionId: option.optionId,
+    label: option.name || option.optionId,
+  }));
+  return [
+    {
+      id: "0",
+      header: title,
+      question: title,
+      options,
+      multiSelect: false,
+      optionsAreAnswers: true,
+    },
   ];
 }
 

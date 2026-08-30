@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button, Card, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { AlertTriangle, LogIn, LogOut, Save } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, LogIn, LogOut, Save } from "lucide-react";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import type {
   AgentOwnedAuthMethod,
@@ -42,6 +42,8 @@ import {
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
+import { CombinedRuntimeVersionList } from "@/renderer/components/providers/CombinedRuntimeVersionList";
+import { useCombinedProviderRuntimeUpdates } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
 import { SAVED_CREDENTIAL_MASK } from "../secretMask";
@@ -134,6 +136,12 @@ export function SingleAgentSettings(props: {
   // Everything actionable on this page — env rows, auth, versions, provider
   // panel — is scoped to the selected machine.
   const installedStatuses = machineStatuses.filter((a) => a.installed);
+  const combinedRuntimeUpdates = useCombinedProviderRuntimeUpdates(installedStatuses);
+  const combinedRuntimeEntries = installedStatuses.map((status) => ({
+    status,
+    entry: combinedRuntimeUpdates.entryFor(status),
+  }));
+  const hasCombinedRuntimeUpdates = combinedRuntimeEntries.some(({ entry }) => entry.supported);
   const nativeRegistryEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
     (entry) => entry.id === props.agentKind,
   );
@@ -206,7 +214,7 @@ export function SingleAgentSettings(props: {
   // "installed". Skipped for ACP-registry agents since they have their own
   // version-comparison path above.
   useEffect(() => {
-    if (registryAgentId) return;
+    if (registryAgentId || hasCombinedRuntimeUpdates) return;
     let cancelled = false;
     const kind = props.agentKind;
     readBridge()
@@ -226,7 +234,7 @@ export function SingleAgentSettings(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.agentKind, registryAgentId]);
+  }, [hasCombinedRuntimeUpdates, props.agentKind, registryAgentId]);
 
   // Resolve the provider account on open. Resolvers may briefly spawn a
   // helper process (e.g. Antigravity's `agy` language server), so this can
@@ -707,9 +715,11 @@ export function SingleAgentSettings(props: {
         canLogout={!isRemoteMachine && supportsAcpLogoutStatus(status, acpInstanceId)}
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKeys.has(envKey)}
-        latestNpmVersion={isRemoteMachine ? undefined : latestNpmVersion}
+        latestNpmVersion={
+          isRemoteMachine || hasCombinedRuntimeUpdates ? undefined : latestNpmVersion
+        }
         livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
-        newestInstalledVersion={newestInstalledVersion}
+        newestInstalledVersion={hasCombinedRuntimeUpdates ? undefined : newestInstalledVersion}
         pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
         status={status}
         onLogin={(method) => {
@@ -771,11 +781,55 @@ export function SingleAgentSettings(props: {
           updateAvailable={updateAvailable}
           updatePending={updatePending}
           latestRegistryVersion={latestRegistryVersion}
-          toggleDisabled={binaryUpdatePendingEnvKeys.size > 0}
+          toggleDisabled={
+            binaryUpdatePendingEnvKeys.size > 0 ||
+            combinedRuntimeEntries.some(({ entry }) => entry.pending)
+          }
           wslDistros={wslDistros}
           onPerformUpdate={performUpdate}
           onSetAgentDisabled={setAgentDisabled}
         />
+
+        {hasCombinedRuntimeUpdates && !isRemoteMachine ? (
+          <Card className="mb-3 gap-2 rounded-xl border border-border bg-surface-secondary p-3 shadow-none">
+            <Card.Header className="flex-row items-center justify-between gap-3 p-0">
+              <Card.Title className="text-sm">
+                <Trans>Runtime</Trans>
+              </Card.Title>
+            </Card.Header>
+            <Card.Content className="flex flex-col gap-2 p-0">
+              {combinedRuntimeEntries.map(({ status, entry }) =>
+                entry.supported ? (
+                  <div
+                    key={statusEnvKey(status)}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-surface px-2.5 py-2"
+                  >
+                    <div className="min-w-0">
+                      {combinedRuntimeEntries.length > 1 ? (
+                        <p className="mb-1 text-[11px] font-medium text-muted">
+                          {envLabelForStatus(status)}
+                        </p>
+                      ) : null}
+                      <CombinedRuntimeVersionList entry={entry} className="text-xs" />
+                    </div>
+                    {entry.updateAvailable ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
+                        isPending={entry.pending}
+                        onPress={() => void combinedRuntimeUpdates.updateStatus(status)}
+                      >
+                        <ArrowUpCircle className="size-3" />
+                        <Trans>Update</Trans>
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null,
+              )}
+            </Card.Content>
+          </Card>
+        ) : null}
 
         {panelOwnsInstallRows && !isRemoteMachine ? null : (
           <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>

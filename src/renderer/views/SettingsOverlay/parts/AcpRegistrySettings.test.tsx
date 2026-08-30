@@ -6,8 +6,10 @@ import type {
   AgentStatus,
   InstalledAcpRegistryAgent,
   Project,
+  AcpRegistryInstallTarget,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
 
 const statusesState = {
@@ -29,10 +31,22 @@ const bridge = {
   listAcpRegistry: vi.fn<() => Promise<AcpRegistryListResult>>(),
   getAgentStatuses: vi.fn<() => Promise<AgentStatusesResponse>>(),
   refreshAgentStatuses: vi.fn<() => Promise<AgentStatusesResponse>>(),
-  installAcpRegistryAgent:
-    vi.fn<(payload: { agentId: string }) => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
-  updateAcpRegistryAgent:
-    vi.fn<(payload: { agentId: string }) => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
+  installAcpRegistryAgent: vi.fn<
+    (payload: { agentId: string; target?: AcpRegistryInstallTarget }) => Promise<{
+      installed: InstalledAcpRegistryAgent[];
+    }>
+  >(),
+  updateAcpRegistryAgent: vi.fn<
+    (payload: { agentId: string; target?: AcpRegistryInstallTarget }) => Promise<{
+      installed: InstalledAcpRegistryAgent[];
+    }>
+  >(),
+  updateAgentBinary: vi.fn<
+    (payload: { agentKind: string; envKind: string; wslDistro?: string }) => Promise<{
+      ok: boolean;
+      output?: string;
+    }>
+  >(),
   removeAcpRegistryAgent:
     vi.fn<(payload: { agentId: string }) => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
   authenticateAcpAgent:
@@ -70,9 +84,11 @@ vi.mock("@/renderer/state/agentStatusesStore", () => {
   return { useAgentStatusesStore };
 });
 
-vi.mock("@/renderer/state/appStore", () => ({
-  useAppStore: (selector: (state: typeof appState) => unknown) => selector(appState),
-}));
+vi.mock("@/renderer/state/appStore", () => {
+  const useAppStore = (selector: (state: typeof appState) => unknown) => selector(appState);
+  useAppStore.getState = () => appState;
+  return { useAppStore };
+});
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
@@ -96,9 +112,11 @@ vi.mock("@/renderer/components/common", () => ({
 
 vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
   ProviderIcon: (props: { fallbackLabel?: string }) => <span>{props.fallbackLabel}</span>,
+  registerProviderIcon: vi.fn<() => void>(),
 }));
 
 import { AcpRegistrySettings } from "./AcpRegistrySettings";
+import "@/renderer/components/providers/antigravity";
 import {
   APP_SUPPORTED_ACP_AGENT_IDS,
   KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS,
@@ -117,6 +135,7 @@ describe("native ACP registry aliases", () => {
     expect(new Set(aliasIds).size).toBe(aliasIds.length);
     expect([...KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS].toSorted()).toEqual(aliasIds.toSorted());
     expect(REGISTRY_AGENT_FAMILY_KIND).toEqual({
+      "antigravity-acp": "antigravity",
       "claude-acp": "claude",
       "codex-acp": "codex",
       cursor: "cursor",
@@ -139,6 +158,7 @@ describe("native ACP registry aliases", () => {
 
     expect([...APP_SUPPORTED_ACP_AGENT_IDS].toSorted()).toEqual(aliasesWithNativeSupport);
     expect([...APP_SUPPORTED_ACP_AGENT_IDS].toSorted()).toEqual([
+      "antigravity-acp",
       "cursor",
       "factory-droid",
       "gemini",
@@ -218,6 +238,36 @@ function makeCursorStatus(input: {
   });
 }
 
+function makeAntigravityStatus(input: {
+  cliInstalled: boolean;
+  acpInstalled: boolean;
+  cliVersion?: string;
+  acpVersion?: string;
+}): AgentStatus {
+  return makeStatus("antigravity", {
+    label: "Antigravity",
+    envKind: bridge.platform === "win32" ? "windows" : "posix",
+    runtimeVariants: {
+      cli: {
+        presentationMode: "terminal",
+        installed: input.cliInstalled,
+        ...(input.cliVersion ? { version: input.cliVersion } : {}),
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: baseCapabilities,
+      },
+      acp: {
+        presentationMode: "gui",
+        installed: input.acpInstalled,
+        ...(input.acpVersion ? { version: input.acpVersion } : {}),
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: { ...baseCapabilities, presentationMode: "gui", liveInputMode: "server" },
+      },
+    },
+  });
+}
+
 function makeProject(input: { id: string; name: string; location: Project["location"] }): Project {
   return {
     id: input.id,
@@ -286,6 +336,22 @@ const registry: AcpRegistryListResult = {
       },
     },
     {
+      id: "antigravity-acp",
+      name: "Google Antigravity",
+      version: "1.0.0",
+      description: "Official Antigravity registry runtime",
+      authors: ["Google LLC"],
+      license: "proprietary",
+      distribution: {
+        binary: {
+          "darwin-aarch64": {
+            archive: "https://dl.google.com/antigravity/antigravity-acp.zip",
+            cmd: "./agy_acp_server.par",
+          },
+        },
+      },
+    },
+    {
       id: "factory-droid",
       name: "Factory Droid",
       version: "0.170.0",
@@ -315,6 +381,7 @@ function installedRecord(input: {
 
 describe("AcpRegistrySettings", () => {
   beforeEach(() => {
+    resetAcpRegistryListingCache();
     bridge.platform = "darwin";
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
@@ -325,6 +392,7 @@ describe("AcpRegistrySettings", () => {
     bridge.refreshAgentStatuses.mockReset().mockResolvedValue(emptyStatusesResponse);
     bridge.installAcpRegistryAgent.mockReset().mockResolvedValue({ installed: [] });
     bridge.updateAcpRegistryAgent.mockReset().mockResolvedValue({ installed: [] });
+    bridge.updateAgentBinary.mockReset().mockResolvedValue({ ok: true });
     bridge.removeAcpRegistryAgent.mockReset().mockResolvedValue({ installed: [] });
     bridge.authenticateAcpAgent.mockReset().mockResolvedValue(undefined);
     bridge.focusWindow.mockReset().mockResolvedValue(undefined);
@@ -338,6 +406,20 @@ describe("AcpRegistrySettings", () => {
         installed.map((record) => [record.id, record]),
       );
     });
+  });
+
+  it("loads the registry through one shared listing on mount", async () => {
+    // listAcpRegistry runs the supervisor's registry auto-update sweep; the
+    // page mount and the combined-runtime probes must share one listing, not
+    // race two sweeps into the same install dirs.
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({ cliInstalled: true, acpInstalled: true }),
+    ];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    await vi.waitFor(() => expect(bridge.listAcpRegistry).toHaveBeenCalledTimes(1));
   });
 
   it("shows detected native providers without offering a native install", async () => {
@@ -475,43 +557,472 @@ describe("AcpRegistrySettings", () => {
     ).toBeNull();
   });
 
-  it("offers Antigravity as a native install", async () => {
+  it("fresh-installs both Antigravity prerequisites from the built-in card", async () => {
+    bridge.refreshAgentStatuses
+      .mockResolvedValueOnce({
+        windows: [makeAntigravityStatus({ cliInstalled: true, acpInstalled: false })],
+        wsl: [],
+        fromCache: false,
+      })
+      .mockResolvedValueOnce({
+        windows: [
+          makeAntigravityStatus({ cliInstalled: true, acpInstalled: true, acpVersion: "1.0.0" }),
+        ],
+        wsl: [],
+        fromCache: false,
+      });
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const antigravityCard = screen
-      .getByText(/First-class Antigravity CLI integration/u)
+      .getByText(/First-class Antigravity integration/u)
       .closest(".rounded-lg");
     expect(antigravityCard).toBeTruthy();
 
     fireEvent.click(
-      within(antigravityCard as HTMLElement).getByRole("button", { name: "Install" }),
+      within(antigravityCard as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
     );
-
-    await waitFor(() => {
-      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          label: "Antigravity",
-        }),
-      );
-    });
-    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
-      | { command: (project: Project) => string }
+    expect(screen.queryByRole("menuitem", { name: /Install Antigravity/u })).toBeNull();
+    const installInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { command: (project: Project) => string; onCommandComplete: (code: number) => void }
       | undefined;
     expect(
       installInput?.command(
         makeProject({
-          id: "wsl-project",
-          name: "WSL Project",
-          location: {
-            kind: "wsl",
-            distro: "Ubuntu",
-            linuxPath: "/home/demo/project",
-            uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
-          },
+          id: "posix-project",
+          name: "Project",
+          location: { kind: "posix", path: "/repo" },
         }),
       ),
     ).toContain("https://antigravity.google/cli/install.sh");
+    await act(async () => installInput?.onCommandComplete(0));
+    await waitFor(() => {
+      expect(bridge.installAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+  });
+
+  it("does not install Chat when the Terminal prerequisite is still undetected", async () => {
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    fireEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+    );
+    const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { onCommandComplete: (code: number) => void }
+      | undefined;
+    await act(async () => input?.onCommandComplete(0));
+
+    expect(await screen.findByText("Unable to refresh Antigravity status.")).toBeInTheDocument();
+    expect(bridge.installAcpRegistryAgent).not.toHaveBeenCalled();
+  });
+
+  it("reconciles Chat from the unified card for a CLI-only Antigravity install", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({ cliInstalled: true, acpInstalled: false, cliVersion: "1.2.0" }),
+    ];
+    bridge.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [
+        makeAntigravityStatus({
+          cliInstalled: true,
+          acpInstalled: true,
+          cliVersion: "1.2.0",
+          acpVersion: "1.0.0",
+        }),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    expect(card).toBeTruthy();
+    expect(within(card as HTMLElement).getByText("agy CLI").parentElement).toHaveTextContent(
+      "agy CLIv1.2.0",
+    );
+    expect(
+      within(card as HTMLElement).getByText("Antigravity ACP").parentElement,
+    ).toHaveTextContent("Antigravity ACPNot installed → v1.0.0");
+    expect(within(card as HTMLElement).queryByText("ACP not installed")).toBeNull();
+    fireEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+    );
+
+    await waitFor(() => {
+      expect(bridge.installAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+    expect(runAgentInstallCommandMock).not.toHaveBeenCalled();
+  });
+
+  it("reconciles Terminal from the unified card for an ACP-only Antigravity install", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({ cliInstalled: false, acpInstalled: true, acpVersion: "1.0.0" }),
+    ];
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    expect(card).toBeTruthy();
+    expect(within(card as HTMLElement).getByText("agy CLI").parentElement).toHaveTextContent(
+      "agy CLINot installed",
+    );
+    expect(
+      within(card as HTMLElement).getByText("Antigravity ACP").parentElement,
+    ).toHaveTextContent("Antigravity ACPv1.0.0");
+    fireEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+    );
+
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "Antigravity", command: expect.any(Function) }),
+    );
+    expect(bridge.installAcpRegistryAgent).not.toHaveBeenCalled();
+  });
+
+  it("updates outdated Chat while reconciling Terminal through one Antigravity action", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({ cliInstalled: false, acpInstalled: true, acpVersion: "0.9.0" }),
+    ];
+    bridge.refreshAgentStatuses
+      .mockResolvedValueOnce({
+        windows: [
+          makeAntigravityStatus({ cliInstalled: true, acpInstalled: true, acpVersion: "0.9.0" }),
+        ],
+        wsl: [],
+        fromCache: false,
+      })
+      .mockResolvedValueOnce({
+        windows: [
+          makeAntigravityStatus({ cliInstalled: true, acpInstalled: true, acpVersion: "0.9.0" }),
+        ],
+        wsl: [],
+        fromCache: false,
+      })
+      .mockResolvedValueOnce({
+        windows: [
+          makeAntigravityStatus({ cliInstalled: true, acpInstalled: true, acpVersion: "1.0.0" }),
+        ],
+        wsl: [],
+        fromCache: false,
+      });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    expect(card).toBeTruthy();
+    expect(within(card as HTMLElement).queryByRole("button", { name: "Update" })).toBeNull();
+    fireEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+    );
+    const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { onCommandComplete: (code: number) => void }
+      | undefined;
+    await act(async () => input?.onCommandComplete(0));
+
+    await waitFor(() => {
+      expect(bridge.updateAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+    expect(bridge.installAcpRegistryAgent).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(within(card as HTMLElement).queryByText("Installing")).toBeNull();
+    });
+    expect(screen.queryByText("Unable to refresh Antigravity status.")).toBeNull();
+  });
+
+  it("offers and completes an Antigravity Chat update from the live registry version", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({
+        cliInstalled: true,
+        acpInstalled: true,
+        cliVersion: "1.2.0",
+        acpVersion: "1.0.0-beta",
+      }),
+    ];
+    bridge.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [
+        makeAntigravityStatus({
+          cliInstalled: true,
+          acpInstalled: true,
+          cliVersion: "1.2.0",
+          acpVersion: "1.0.0",
+        }),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    fireEvent.click(await within(card as HTMLElement).findByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(bridge.updateAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+  });
+
+  it("accepts newer CLI and Chat versions published while the combined update runs", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({
+        cliInstalled: true,
+        acpInstalled: true,
+        cliVersion: "1.2.0",
+        acpVersion: "0.9.0",
+      }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
+    bridge.updateAcpRegistryAgent.mockResolvedValueOnce({
+      installed: [
+        {
+          ...installedRecord({
+            id: "antigravity-acp",
+            name: "Google Antigravity",
+            version: "1.1.0",
+            adapterKind: "antigravity",
+          }),
+          installKind: "first-class",
+          installations: {
+            native: {
+              version: "1.1.0",
+              target: "darwin-aarch64",
+              installedAt: new Date(0).toISOString(),
+            },
+          },
+        },
+      ],
+    });
+    bridge.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [
+        makeAntigravityStatus({
+          cliInstalled: true,
+          acpInstalled: true,
+          cliVersion: "1.4.0",
+          acpVersion: "1.1.0",
+        }),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    await within(card as HTMLElement).findByText("agy CLI");
+    const runtimeRows = within(card as HTMLElement).getAllByRole("listitem");
+    expect(runtimeRows[0]).toHaveTextContent("agy CLIv1.2.0 → v1.3.0");
+    expect(runtimeRows[1]).toHaveTextContent("Antigravity ACPv0.9.0 → v1.0.0");
+
+    fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(bridge.updateAgentBinary).toHaveBeenCalledWith({
+        agentKind: "antigravity",
+        envKind: "posix",
+      });
+      expect(bridge.updateAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+    await waitFor(() => {
+      expect(within(card as HTMLElement).queryByRole("button", { name: "Update" })).toBeNull();
+    });
+    expect(screen.queryByText("Unable to refresh Antigravity status.")).toBeNull();
+  });
+
+  it("re-probes combined versions when the registry is refreshed without remounting", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({
+        cliInstalled: true,
+        acpInstalled: true,
+        cliVersion: "1.2.0",
+        acpVersion: "1.0.0",
+      }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.2.0" });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    await within(card as HTMLElement).findByText("Antigravity ACP");
+    expect(within(card as HTMLElement).queryByRole("button", { name: "Update" })).toBeNull();
+
+    bridge.listAcpRegistry.mockResolvedValue({
+      ...registry,
+      agents: registry.agents.map((agent) =>
+        agent.id === "antigravity-acp" ? { ...agent, version: "1.1.0" } : agent,
+      ),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh registry" }));
+
+    const refreshedCard = await waitFor(() => {
+      const nextCard = screen
+        .getByText(/First-class Antigravity integration/u)
+        .closest(".rounded-lg");
+      expect(
+        within(nextCard as HTMLElement).getByRole("button", { name: "Update" }),
+      ).toBeInTheDocument();
+      return nextCard;
+    });
+    const acpRow = within(refreshedCard as HTMLElement).getByText("Antigravity ACP").parentElement;
+    expect(acpRow).toHaveTextContent("Antigravity ACPv1.0.0 → v1.1.0");
+  });
+
+  it("reports an Antigravity Chat detection failure after updating", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({
+        cliInstalled: true,
+        acpInstalled: true,
+        cliVersion: "1.2.0",
+        acpVersion: "0.9.0",
+      }),
+    ];
+    bridge.refreshAgentStatuses.mockRejectedValueOnce(new Error("Chat detection failed"));
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    fireEvent.click(await within(card as HTMLElement).findByRole("button", { name: "Update" }));
+
+    expect(await screen.findByText("Chat detection failed")).toBeInTheDocument();
+  });
+
+  it("does not report a successful Chat update when refreshed detection is missing", async () => {
+    statusesState.agentStatuses = [
+      makeAntigravityStatus({
+        cliInstalled: true,
+        acpInstalled: true,
+        cliVersion: "1.2.0",
+        acpVersion: "0.9.0",
+      }),
+    ];
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    fireEvent.click(await within(card as HTMLElement).findByRole("button", { name: "Update" }));
+
+    expect(await screen.findByText("Unable to refresh Antigravity status.")).toBeInTheDocument();
+  });
+
+  it("keeps a pre-adoption generic install of a native-support alias listed", async () => {
+    settingsState.acpRegistryInstalledAgents = {
+      gemini: installedRecord({
+        id: "gemini",
+        name: "Gemini",
+        version: "1.0.0",
+        adapterKind: "acp-generic:gemini",
+      }),
+    };
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    // Hiding it would strip the only surface that can update or remove it.
+    expect(screen.getByText("Gemini through ACP")).toBeInTheDocument();
+  });
+
+  it("never renders antigravity-acp as a duplicate registry provider after adoption", async () => {
+    settingsState.acpRegistryInstalledAgents = {
+      "antigravity-acp": {
+        ...installedRecord({
+          id: "antigravity-acp",
+          name: "Google Antigravity",
+          version: "1.0.0",
+          adapterKind: "antigravity",
+        }),
+        installKind: "first-class",
+      },
+    };
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    expect(screen.queryByText("Official Antigravity registry runtime")).not.toBeInTheDocument();
+    expect(screen.getByText(/First-class Antigravity integration/u)).toBeInTheDocument();
+  });
+
+  it("routes combined Antigravity installation into the selected WSL distro", async () => {
+    bridge.platform = "win32";
+    const project = makeProject({
+      id: "wsl-project",
+      name: "WSL Project",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      },
+    });
+    appState.projects = [project];
+    bridge.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [],
+      wsl: [
+        {
+          ...makeAntigravityStatus({ cliInstalled: true, acpInstalled: false }),
+          envKind: "wsl",
+          envDistro: "Ubuntu",
+        },
+      ],
+      fromCache: false,
+    });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    fireEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+    );
+    const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { project?: Project; onCommandComplete: (code: number) => void }
+      | undefined;
+    expect(input?.project).toBe(project);
+    await act(async () => input?.onCommandComplete(0));
+
+    await waitFor(() => {
+      expect(bridge.installAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "wsl", distro: "Ubuntu" },
+      });
+    });
+  });
+
+  it("re-detects a successful CLI partial install when the ACP download fails", async () => {
+    bridge.installAcpRegistryAgent.mockRejectedValueOnce(new Error("ACP download failed"));
+    bridge.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [makeAntigravityStatus({ cliInstalled: true, acpInstalled: false })],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    fireEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+    );
+    const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { onCommandComplete: (code: number) => void }
+      | undefined;
+    await act(async () => input?.onCommandComplete(0));
+
+    expect(await screen.findByText("ACP download failed")).toBeInTheDocument();
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledWith([], {
+      agentKinds: ["antigravity"],
+    });
   });
 
   it("offers app-supported providers as native installs", async () => {
@@ -618,7 +1129,7 @@ describe("AcpRegistrySettings", () => {
       "npm install -g opencode-ai",
     );
     expect(entries.get("antigravity")?.installCommand(wslProject)).toContain(
-      "curl -fsSL https://antigravity.google/cli/install.sh | bash",
+      "curl -fsSL https://antigravity.google/cli/install.sh -o",
     );
     expect(entries.get("grok")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://x.ai/cli/install.sh | bash",

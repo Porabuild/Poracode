@@ -161,6 +161,8 @@ const agentPresentationCapabilityOverrideSchema = z
   .object({
     /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
     runtimeLabel: z.string().min(1).optional(),
+    /** Keep runtime identity but omit its suffix from model-picker provider labels. */
+    showRuntimeLabelInPicker: z.boolean().optional(),
     models: z.array(labeledOptionSchema),
     /**
      * Provider-owned initial model visibility. Applied only while the user has
@@ -237,6 +239,8 @@ export function resolveComposerMcpScope(
 export const agentCapabilitySchema = z.object({
   /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
   runtimeLabel: z.string().min(1).optional(),
+  /** Keep runtime identity but omit its suffix from model-picker provider labels. */
+  showRuntimeLabelInPicker: z.boolean().optional(),
   models: z.array(labeledOptionSchema).default([]),
   /**
    * Provider-owned initial model visibility. An explicit user list (including
@@ -385,6 +389,11 @@ export const agentRuntimeVariantSchema = z.object({
   installationSource: z.string().min(1).optional(),
   authState: authStateSchema,
   authUsesProviderLogin: z.boolean(),
+  /** Runtime-specific login controls for providers with independently authenticated surfaces. */
+  loginCommand: z.string().min(1).optional(),
+  preferTerminalLogin: z.boolean().optional(),
+  authMethods: z.array(agentAuthMethodSchema).optional(),
+  authLogoutSupported: z.boolean().optional(),
   capabilities: agentCapabilitySchema,
   /**
    * Runtime-specific account identity. Cursor's SDK key is a different login
@@ -533,16 +542,42 @@ export const installedAcpRegistryAgentSchema = z.object({
   installedAt: z.string().min(1),
   adapterKind: agentKindSchema,
   installKind: z.enum(["first-class", "generic"]),
+  /** Per-environment registry artifact versions. Absent means a legacy native install. */
+  installations: z
+    .object({
+      native: z
+        .object({ version: z.string().min(1), target: z.string().min(1), installedAt: z.string() })
+        .optional(),
+      wsl: z
+        .record(
+          z.string().min(1),
+          z.object({
+            version: z.string().min(1),
+            target: z.string().min(1),
+            installedAt: z.string(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
 });
 export type InstalledAcpRegistryAgent = z.infer<typeof installedAcpRegistryAgentSchema>;
 
+export const acpRegistryInstallTargetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("native") }),
+  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
+]);
+export type AcpRegistryInstallTarget = z.infer<typeof acpRegistryInstallTargetSchema>;
+
 export const installAcpRegistryAgentPayloadSchema = z.object({
   agentId: z.string().min(1),
+  target: acpRegistryInstallTargetSchema.optional(),
 });
 export type InstallAcpRegistryAgentPayload = z.infer<typeof installAcpRegistryAgentPayloadSchema>;
 
 export const updateAcpRegistryAgentPayloadSchema = z.object({
   agentId: z.string().min(1),
+  target: acpRegistryInstallTargetSchema.optional(),
 });
 export type UpdateAcpRegistryAgentPayload = z.infer<typeof updateAcpRegistryAgentPayloadSchema>;
 

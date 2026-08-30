@@ -5,6 +5,7 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { LATEST_SCHEMA_VERSION } from "./migrations";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
@@ -546,7 +547,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
       .get() as { value: string };
     expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
-    expect(schemaVersion.value).toBe("38");
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("repairs a missing parent lookup column when upgrading a drifted schema v37", () => {
@@ -566,7 +567,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
       .get() as { value: string };
     expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
-    expect(schemaVersion.value).toBe("38");
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("repairs a missing parent lookup index at the current schema version", () => {
@@ -579,6 +580,25 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
       .all() as Array<{ name: string }>;
     expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+  });
+
+  it("repairs the parent lookup index from the prerelease Antigravity schema v40", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      UPDATE app_state SET value = '40' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("keeps buffered stream writes readable before the flush window elapses", () => {

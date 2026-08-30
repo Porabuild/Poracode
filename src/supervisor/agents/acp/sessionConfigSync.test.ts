@@ -321,6 +321,34 @@ describe("AcpSessionConfigSync", () => {
     expect(connection.request).not.toHaveBeenCalled();
   });
 
+  it("maps Antigravity's base model and effort to its exact ACP variant", async () => {
+    const modelOption = {
+      id: "model",
+      category: "model",
+      type: "select",
+      currentValue: "gemini-3-flash-agent",
+      options: [
+        { value: "gemini-3-flash-agent", name: "Gemini 3.5 Flash (High)" },
+        { value: "gemini-3.5-flash-low", name: "Gemini 3.5 Flash (Medium)" },
+        { value: "gemini-3.5-flash-extra-low", name: "Gemini 3.5 Flash (Low)" },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({ configOptions: [modelOption] });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "gemini-3.5-flash", effort: "Medium" },
+      previousConfig,
+    );
+
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "model",
+      value: "gemini-3.5-flash-low",
+    });
+    expect(connection.request).not.toHaveBeenCalled();
+  });
+
   it("prioritizes Cursor-style effort aliases over the base ACP model alias", async () => {
     const modelOption = {
       id: "model",

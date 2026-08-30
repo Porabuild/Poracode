@@ -263,10 +263,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 17,
-      // v17 mirrors supervisor STATUS_CACHE_VERSION=20: detection now resolves
-      // per-machine agent-setting overrides, so statuses cached under
-      // kind-global settings must not survive the upgrade on first paint.
+      version: 18,
+      // v18 mirrors supervisor STATUS_CACHE_VERSION=21: Antigravity now reports
+      // terminal and ACP runtimes independently and ACP resume is probe-driven.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
