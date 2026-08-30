@@ -299,7 +299,7 @@ final class SessionCredentialRepositoryTests: XCTestCase {
 
         let futureJSON: [String: Any] = [
             "version": 99,
-            "protocolVersion": 3,
+            "protocolVersion": 8,
             "profile": [
                 "desktopId": "desk-x",
                 "label": "X",
@@ -308,7 +308,7 @@ final class SessionCredentialRepositoryTests: XCTestCase {
                 "appVersion": "9",
                 "scopes": ["session:read"],
                 "pairedAt": "2020-01-01T00:00:00Z",
-                "protocolVersion": 3,
+                "protocolVersion": 8,
             ],
             "accessToken": "future-tok",
         ]
@@ -401,11 +401,11 @@ final class SessionCredentialRepositoryTests: XCTestCase {
 
         let futureJSON: [String: Any] = [
             "version": 99,
-            "protocolVersion": 3,
+            "protocolVersion": 8,
             "accessToken": "future",
             "profile": ["desktopId": "f", "label": "F", "httpBaseURL": "https://f.test",
                         "wsBaseURL": "wss://f.test", "appVersion": "1", "scopes": [],
-                        "pairedAt": "2020-01-01T00:00:00Z", "protocolVersion": 3],
+                        "pairedAt": "2020-01-01T00:00:00Z", "protocolVersion": 8],
         ]
         let data = try JSONSerialization.data(withJSONObject: futureJSON)
         try await repo.seedV2Document(data)
@@ -494,7 +494,7 @@ final class SessionCredentialOwnershipTests: XCTestCase {
         let api = FakeRemoteAPI()
         api.environmentResult = .success(
             RemoteEnvironmentDescriptor(
-                protocolVersion: 3,
+                protocolVersion: 8,
                 hostMode: nil,
                 desktopId: "desk-a",
                 label: "Desktop A",

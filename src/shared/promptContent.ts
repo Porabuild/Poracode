@@ -1,6 +1,6 @@
 import type { AgentSlashCommand, CanonicalContentBlock, PromptSegment } from "./contracts";
 
-const IMAGE_EXTENSIONS = new Set([
+export const IMAGE_EXTENSIONS = [
   "png",
   "jpg",
   "jpeg",
@@ -10,6 +10,55 @@ const IMAGE_EXTENSIONS = new Set([
   "bmp",
   "ico",
   "avif",
+] as const;
+
+const IMAGE_EXTENSION_SET = new Set<string>(IMAGE_EXTENSIONS);
+
+const TEXT_FILE_EXTENSIONS = new Set([
+  "bash",
+  "c",
+  "cc",
+  "conf",
+  "cpp",
+  "cs",
+  "css",
+  "csv",
+  "cxx",
+  "diff",
+  "env",
+  "go",
+  "graphql",
+  "h",
+  "hpp",
+  "html",
+  "java",
+  "js",
+  "jsx",
+  "kt",
+  "log",
+  "lua",
+  "markdown",
+  "mjs",
+  "patch",
+  "php",
+  "ps1",
+  "py",
+  "rb",
+  "rs",
+  "scss",
+  "sh",
+  "sql",
+  "svelte",
+  "swift",
+  "toml",
+  "ts",
+  "tsx",
+  "txt",
+  "vue",
+  "xml",
+  "yaml",
+  "yml",
+  "zsh",
 ]);
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -22,6 +71,18 @@ const MIME_BY_EXT: Record<string, string> = {
   bmp: "image/bmp",
   ico: "image/x-icon",
   avif: "image/avif",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  flac: "audio/flac",
+  aac: "audio/aac",
+  opus: "audio/opus",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  json: "application/json",
+  md: "text/markdown",
 };
 
 function getExtension(path: string): string {
@@ -53,12 +114,27 @@ export function formatDiffCommentPrompt(comment: DiffCommentSegment): string {
 }
 
 export function isImagePath(path: string, mimeType?: string): boolean {
-  return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
+  return mimeType?.startsWith("image/") === true || IMAGE_EXTENSION_SET.has(getExtension(path));
+}
+
+export function isAudioPath(path: string, mimeType?: string): boolean {
+  return (
+    mimeType?.startsWith("audio/") === true || mimeForPath(path)?.startsWith("audio/") === true
+  );
+}
+
+export function isTextFilePath(path: string): boolean {
+  return TEXT_FILE_EXTENSIONS.has(getExtension(path));
+}
+
+export function mimeForPath(path: string): string | undefined {
+  return MIME_BY_EXT[getExtension(path)] ?? (isTextFilePath(path) ? "text/plain" : undefined);
 }
 
 /** The image MIME type implied by a path's extension, when it is a known one. */
 export function mimeForImagePath(path: string): string | undefined {
-  return MIME_BY_EXT[getExtension(path)];
+  const mimeType = mimeForPath(path);
+  return mimeType?.startsWith("image/") ? mimeType : undefined;
 }
 
 export function isPdfPath(path: string, mimeType?: string): boolean {
@@ -128,12 +204,18 @@ export function resolveLocalFileUrlPath(
   return platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
 }
 
+/** Display label for a thread mention: its title, falling back to the id. */
+export function threadMentionLabel(mention: { threadId: string; title: string }): string {
+  return mention.title || mention.threadId;
+}
+
 /**
  * Inline text form of a non-attachment prompt segment for a single-line prompt
- * or thread title: `@path` for file mentions, the invocation for skills, and
- * the raw text otherwise. Callers handle attachments separately (dropping them
- * or shortening their paths) and filter them out before mapping, so the
- * `attachment` case here is only a total-function fallback.
+ * or thread title: `@path` for file mentions, `@title` for thread mentions,
+ * the invocation for skills, and the raw text otherwise. Callers handle
+ * attachments separately (dropping them or shortening their paths) and filter
+ * them out before mapping, so the `attachment` case here is only a
+ * total-function fallback.
  */
 export function inlinePromptSegmentText(segment: PromptSegment): string {
   switch (segment.kind) {
@@ -146,6 +228,8 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
       return formatDiffCommentPrompt(segment);
     case "mcp":
       return `@${segment.name}`;
+    case "thread":
+      return `@${threadMentionLabel(segment)}`;
     case "text":
       return segment.content;
   }
@@ -211,6 +295,11 @@ export function buildPromptContentBlocks(
 
     if (segment.kind === "mcp") {
       content.push({ kind: "mcp", name: segment.name });
+      continue;
+    }
+
+    if (segment.kind === "thread") {
+      content.push({ kind: "thread", threadId: segment.threadId, title: segment.title });
       continue;
     }
 

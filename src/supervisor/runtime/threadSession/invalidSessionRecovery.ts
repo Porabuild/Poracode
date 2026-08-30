@@ -5,12 +5,12 @@ import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookAr
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { PtyLifecycle } from "./ptyLifecycle";
-import { effectiveLaunchConfig, type SpawnPipeline } from "./spawnPipeline";
+import { workspaceLaunchConfig, type SpawnPipeline } from "./spawnPipeline";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
   SpawnPipeline,
-  "resolveMcpServersForLaunch" | "composeLaunchOptions" | "spawnThread"
+  "resolveMcpLaunchConfig" | "resolveMcpServersForLaunch" | "composeLaunchOptions" | "spawnThread"
 >;
 
 export interface InvalidSessionRecoveryContext {
@@ -73,10 +73,18 @@ export class InvalidSessionRecoveryCoordinator {
       return;
     }
 
-    const launchConfig = effectiveLaunchConfig(
-      session.config,
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    const launchConfig = context.spawnPipeline.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        session.projectLocation,
+        session.config,
+        session.adapter,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      mcpLaunchSnapshot,
+      session.adapter,
+      session.threadId,
+      session.projectLocation,
     );
     const resolvedMcpServers = await context.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -101,7 +109,12 @@ export class InvalidSessionRecoveryCoordinator {
       launchConfig,
       session.launchPrompt,
       undefined,
-      context.spawnPipeline.composeLaunchOptions(session.adapter, undefined, resolvedMcpServers),
+      context.spawnPipeline.composeLaunchOptions(
+        session.adapter,
+        undefined,
+        resolvedMcpServers,
+        session.projectLocation,
+      ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = mergeCliHookExtraArgs(

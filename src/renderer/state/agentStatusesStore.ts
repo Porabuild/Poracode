@@ -74,12 +74,28 @@ function capabilitiesEqual(
   for (let i = 0; i < a.efforts.length; i++) {
     if (a.efforts[i] !== b.efforts[i]) return false;
   }
+  if ((a.defaultEffort ?? "") !== (b.defaultEffort ?? "")) return false;
+  if (JSON.stringify(a.modelEfforts) !== JSON.stringify(b.modelEfforts)) return false;
+  if (JSON.stringify(a.modelDefaultEfforts ?? {}) !== JSON.stringify(b.modelDefaultEfforts ?? {})) {
+    return false;
+  }
+  if (JSON.stringify(a.thinkingModels ?? []) !== JSON.stringify(b.thinkingModels ?? [])) {
+    return false;
+  }
   if (!areAgentSlashCommandsEqual(a.slashCommands, b.slashCommands)) return false;
   // Compared so a status persisted before `supportsOneShot` existed (flag
   // absent) is treated as different from a freshly-detected one (flag set) and
   // gets replaced — otherwise the one-shot AI selectors would keep hiding
   // one-shot-capable providers for the whole first post-upgrade session.
   if ((a.supportsOneShot ?? false) !== (b.supportsOneShot ?? false)) return false;
+  // Codex context-window lists are user-editable. A detection that only
+  // changes those fields must replace the cached status or the composer keeps
+  // the previous picker after settings save / next launch.
+  if (JSON.stringify(a.contextSizes ?? []) !== JSON.stringify(b.contextSizes ?? [])) return false;
+  if (JSON.stringify(a.modelContextSizes ?? {}) !== JSON.stringify(b.modelContextSizes ?? {})) {
+    return false;
+  }
+  if ((a.defaultContextSize ?? "") !== (b.defaultContextSize ?? "")) return false;
   return true;
 }
 
@@ -93,6 +109,7 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
       x.icon === b[i]!.icon &&
       x.version === b[i]!.version &&
       x.authState === b[i]!.authState &&
+      x.acpSessionEstablished === b[i]!.acpSessionEstablished &&
       areAgentPresentationRuntimeFieldsEqual(x, b[i]!) &&
       x.loginCommand === b[i]!.loginCommand &&
       x.envKind === b[i]!.envKind &&
@@ -246,12 +263,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 7,
-      // v7 drops the v6 status written when the macOS Grok ACP probe lost the
-      // login-shell PATH and could not start its Node-backed executable. This
-      // prevents the UI from hydrating that stale 0/0 before detection reruns.
-      // This mirrors the supervisor STATUS_CACHE_VERSION=10 bump, which only
-      // invalidates the supervisor's on-disk cache, not this localStorage copy.
+      version: 18,
+      // v18 mirrors supervisor STATUS_CACHE_VERSION=21: Antigravity now reports
+      // terminal and ACP runtimes independently and ACP resume is probe-driven.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

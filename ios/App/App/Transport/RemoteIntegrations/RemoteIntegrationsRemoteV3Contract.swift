@@ -12,7 +12,7 @@ struct RemoteIntegrationsRouteMetadata: Equatable, Sendable {
 /// Stable names for the generated remote-v3 codecs used by native remote integrations.
 /// Hash-derived generated symbols remain confined to this boundary.
 enum RemoteIntegrationsRemoteV3Contract {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
 
   static let routes: [RemoteIntegrationsRouteMetadata] = [
     route("host-update", "GET", "/api/host-update", .projectsManage, 200, "empty"),
@@ -23,6 +23,8 @@ enum RemoteIntegrationsRemoteV3Contract {
     route("schedule-runs-read", "GET", "/api/schedules/runs", .sessionRead, 200, "empty"),
     route("pr-watch-read", "GET", "/api/pr-watches", .sessionRead, 200, "empty"),
     route("pr-watch-check", "POST", "/api/pr-watches/check", .sessionOperate, 200, "json"),
+    route(
+      "pr-watch-agent-sync", "POST", "/api/pr-watches/agent", .sessionOperate, 200, "json"),
     route("pr-watch-upsert", "POST", "/api/pr-watches", .sessionOperate, 200, "json"),
     route("pr-watch-delete", "DELETE", "/api/pr-watches", .sessionOperate, 200, "json"),
   ]
@@ -131,6 +133,22 @@ enum RemoteIntegrationsRemoteV3Contract {
       data,
       codec: RemoteRootCodecs.routeU2EPrU2DWatchU2DCheckU2EResponse,
       boundary: "PR watch check response"
+    )
+  }
+
+  static func prWatchAgentSyncRequest(_ data: Data) throws -> Data {
+    try canonical(
+      data,
+      codec: RemoteRootCodecs.routeU2EPrU2DWatchU2DAgentU2DSyncU2ERequest,
+      boundary: "PR watch agent sync request"
+    )
+  }
+
+  static func prWatchAgentSyncResponse(_ data: Data) throws -> Data {
+    try canonical(
+      data,
+      codec: RemoteRootCodecs.routeU2EPrU2DWatchU2DAgentU2DSyncU2EResponse,
+      boundary: "PR watch agent sync response"
     )
   }
 

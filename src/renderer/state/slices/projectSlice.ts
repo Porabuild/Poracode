@@ -6,6 +6,7 @@ import type {
   ProjectSearchSettings,
   ProjectWorktreeLocation,
   AppView,
+  GitHubAccountRef,
   McpServer,
 } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
@@ -55,10 +56,14 @@ export interface ProjectSlice {
     projectId: string,
     worktreeLocation: ProjectWorktreeLocation | undefined,
   ) => void;
+  /** `undefined` clears the override (supervisor auto-detects the account). */
+  updateProjectGhAccount: (projectId: string, ghAccount: GitHubAccountRef | undefined) => void;
   /** An empty list clears the project override entirely. */
   updateProjectMcpServers: (projectId: string, mcpServers: McpServer[]) => void;
   updateProjectLocation: (projectId: string, location: ProjectLocation) => void;
   renameProject: (projectId: string, name: string) => void;
+  /** `undefined` clears the custom icon back to the location-kind glyph. */
+  updateProjectIcon: (projectId: string, icon: string | undefined) => void;
   /** Move a project into a workspace; `undefined` unfiles it (visible in every workspace). */
   setProjectWorkspace: (projectId: string, workspaceId: string | undefined) => void;
   /**
@@ -236,6 +241,17 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
         return { ...project, worktreeLocation };
       }),
     })),
+  updateProjectGhAccount: (projectId, ghAccount) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (!ghAccount) {
+          const { ghAccount: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, ghAccount };
+      }),
+    })),
   updateProjectMcpServers: (projectId, mcpServers) =>
     set((state) => ({
       projects: state.projects.map((project) => {
@@ -258,6 +274,17 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       projects: state.projects.map((project) =>
         project.id === projectId ? { ...project, name } : project,
       ),
+    })),
+  updateProjectIcon: (projectId, icon) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (!icon) {
+          const { icon: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, icon };
+      }),
     })),
   setProjectWorkspace: (projectId, workspaceId) =>
     set((state) => {

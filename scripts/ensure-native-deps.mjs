@@ -145,7 +145,7 @@ function validateElectronNativeDependencies() {
 
 function rebuildElectronNativeDependencies() {
   const rebuildCli = join(dirname(require.resolve("@electron/rebuild")), "cli.js");
-  const result = spawnSync(process.execPath, [rebuildCli, "--only", "better-sqlite3"], {
+  const result = spawnSync(process.execPath, [rebuildCli, "--force", "--only", "better-sqlite3"], {
     stdio: "inherit",
   });
   if (result.status !== 0) {

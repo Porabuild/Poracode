@@ -86,7 +86,7 @@ class SettingsIntegrationsCompositionTest {
         appVersion = "1",
         scopes = listOf("session:read", "session:operate"),
         pairedAtEpochMs = 10,
-        protocolVersion = 3,
+        protocolVersion = 8,
     )
 
     private fun project(id: String, path: String) = RemoteProject(

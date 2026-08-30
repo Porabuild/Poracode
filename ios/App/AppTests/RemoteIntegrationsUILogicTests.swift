@@ -275,7 +275,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
       appVersion: "1",
       scopes: ["session:read", "session:operate", "projects:manage:extra"],
       pairedAt: Date(timeIntervalSince1970: 0),
-      protocolVersion: 3
+      protocolVersion: 8
     )
     session.state.selectedConnectionId = connectionID
     session.state.hosts = [
@@ -288,7 +288,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
         appVersion: profile.appVersion,
         scopes: ["session:read", "projects:manage"],
         pairedAt: profile.pairedAt,
-        protocolVersion: 3
+        protocolVersion: 8
       )
     ]
     session.state.profile = profile
@@ -314,7 +314,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
     XCTAssertEqual(selection?.name, "Registry Label")
     XCTAssertEqual(selection?.lease.connectionID, connectionID)
     XCTAssertEqual(selection?.lease.generation, UInt64(session.state.workGeneration))
-    XCTAssertEqual(selection?.access.protocolVersion, 3)
+    XCTAssertEqual(selection?.access.protocolVersion, 8)
     XCTAssertEqual(selection?.access.capabilities, [.sessionRead])
     XCTAssertTrue(selection?.access.isOnline == true)
     XCTAssertTrue(selection?.access.isReady == true)

@@ -56,7 +56,7 @@ final class SessionPoolTests: XCTestCase {
         let api = FakeRemoteAPI(endpoint: endpoint, accessToken: token)
         api.environmentResult = .success(
             RemoteEnvironmentDescriptor(
-                protocolVersion: 3,
+                protocolVersion: 8,
                 hostMode: nil,
                 desktopId: "desk",
                 label: "Desk",

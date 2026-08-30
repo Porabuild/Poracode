@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
 import {
+  applyHomeScopePermissions,
+  type UnrestrictedPermissionCapabilities,
+} from "@/shared/agents/unrestrictedPermissions";
+import {
   type AgentKind,
   type CloseThreadPayload,
   type ProjectLocation,
@@ -53,12 +57,14 @@ import {
   injectWslEnv,
   primeProjectShellEnv,
   resolveLaunchSpec,
+  mergeSpawnEnv,
 } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
+import { resolveThreadMentionSegments } from "../threadMentionResolver";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
@@ -99,6 +105,7 @@ export interface SpawnThreadInput {
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
   nativePlugins?: readonly AgentNativePlugin[];
 }
@@ -128,6 +135,25 @@ export function effectiveLaunchConfig(
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
   if (disabledBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = false;
   return next;
+}
+
+/**
+ * Launch config for a workspace: MCP flag gating plus Home-scope unrestricted
+ * approval/sandbox so every agent (not just ACP) can read and write anywhere
+ * when the session is the projectless Home folder.
+ */
+export function workspaceLaunchConfig(
+  location: ProjectLocation,
+  config: ThreadConfig,
+  adapter: { capabilities: UnrestrictedPermissionCapabilities },
+  disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+  pluginBuiltInMcpServerIds: readonly BuiltInMcpServerId[] = [],
+): ThreadConfig {
+  return applyHomeScopePermissions(
+    location,
+    effectiveLaunchConfig(config, disabledBuiltInMcpServerIds, pluginBuiltInMcpServerIds),
+    adapter.capabilities,
+  );
 }
 
 /**
@@ -217,6 +243,11 @@ export function composeResolvedMcpServers(
   ].filter((server): server is ResolvedMcpServer => server !== undefined);
 }
 
+function hasThreadMentionTools(servers: readonly ResolvedMcpServer[]): boolean {
+  const appControls = servers.find((server) => server.id === "app-controls");
+  return appControls !== undefined && !appControls.disabledTools?.includes("read_thread");
+}
+
 /**
  * Everything the spawn pipeline borrows from the manager. The pipeline owns
  * process creation (structured-session bring-up, argv assembly, PTY spawn,
@@ -236,11 +267,20 @@ export interface SpawnPipelineContext {
   closeThread(payload: CloseThreadPayload): Promise<void>;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   isCurrentSession(session: SessionRuntime): boolean;
-  resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string>;
+  resolveAgentSettings(
+    adapter: AgentAdapter,
+    location?: ProjectLocation,
+  ): Record<string, boolean | string>;
   emitOptimisticUserMessage(
     threadId: string,
     prompt: string,
     segments?: PromptSegment[],
+    requestedItemId?: string,
+  ): string;
+  emitProviderHandoff(
+    threadId: string,
+    fromAgentKind: string,
+    toAgentKind: string,
     requestedItemId?: string,
   ): string;
 }
@@ -258,6 +298,15 @@ export class SpawnPipeline {
     payload: StartThreadPayload & { threadId: string },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
+    // A provider switch abandons whatever turn the old session still has open.
+    // Complete it locally — the same close-out the Stop watchdog applies when a
+    // provider never acknowledges — BEFORE teardown: teardown itself never
+    // completes items, so without this the half-streamed rows strand as
+    // forever-running output above the handoff divider, live and in SQLite.
+    if (payload.providerSwitch) {
+      ctx.sessions.get(payload.threadId)?.structuredSession?.forceCompleteTurn?.();
+      ctx.runtimeEventRouter.flush();
+    }
     await ctx.closeThread({ threadId: payload.threadId });
     if (ctx.pendingStartAborts.delete(payload.threadId)) {
       ctx.pendingStartInterrupts.delete(payload.threadId);
@@ -265,6 +314,7 @@ export class SpawnPipeline {
     }
 
     const adapter = this.requireAdapter(payload.agentKind);
+
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
     // Per-thread mode wins over the adapter default. Chat-mode threads route
     // input/output through the structured session even for adapters whose
@@ -277,8 +327,11 @@ export class SpawnPipeline {
       payload.agentKind,
     )) ?? { mcpServers: [], builtInMcpServerIds: [], nativePlugins: [] };
     const nativePlugins = pluginContributions.nativePlugins;
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
           preservePdfAttachments:
             useStructuredFlow && adapter.capabilities.readsPdfAttachmentsFromHost === true,
@@ -334,19 +387,39 @@ export class SpawnPipeline {
     // newSession/loadSession) runs. When the renderer has already painted an
     // optimistic message and shipped its id with the payload, we reuse that
     // id end-to-end so the chat pane never sees a duplicate.
-    const optimisticUserMessageItemId =
-      !usesTerminalPresentation && initialPrompt.length > 0 && !payload.sessionRef
+    let optimisticUserMessageItemId =
+      !payload.providerSwitch &&
+      !usesTerminalPresentation &&
+      initialPrompt.length > 0 &&
+      !payload.sessionRef
         ? ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
-            effectiveSegments,
+            payload.segments,
             payload.userMessageItemId,
           )
         : undefined;
-    const optimisticLaunchConfig = effectiveLaunchConfig(
-      payload.config,
-      payload.disabledBuiltInMcpServerIds ?? [],
-      pluginContributions.builtInMcpServerIds,
+    const mcpLaunchSnapshotBase = {
+      disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
+      disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
+      pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
+    };
+    const optimisticMcpLaunchSnapshot: McpLaunchSnapshot = {
+      mcpServers: [],
+      ...mcpLaunchSnapshotBase,
+    };
+    const optimisticLaunchConfig = this.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        payload.projectLocation,
+        payload.config,
+        adapter,
+        optimisticMcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        optimisticMcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      optimisticMcpLaunchSnapshot,
+      adapter,
+      payload.threadId,
+      payload.projectLocation,
     );
     if (optimisticUserMessageItemId) {
       this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
@@ -388,14 +461,20 @@ export class SpawnPipeline {
     }
     const mcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers,
-      disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
-      disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
-      pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
+      ...mcpLaunchSnapshotBase,
     };
-    const launchConfig = effectiveLaunchConfig(
-      payload.config,
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    const launchConfig = this.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        payload.projectLocation,
+        payload.config,
+        adapter,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      mcpLaunchSnapshot,
+      adapter,
+      payload.threadId,
+      payload.projectLocation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: payload.projectLocation,
@@ -406,6 +485,15 @@ export class SpawnPipeline {
       adapter,
       presentationMode: requestedPresentation,
     });
+    const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
+    if (
+      payload.segments?.some((segment) => segment.kind === "thread") &&
+      !threadMentionToolsAvailable
+    ) {
+      throw new Error(
+        "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
+      );
+    }
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -461,6 +549,23 @@ export class SpawnPipeline {
           `Agent ${payload.agentKind} does not support ${requestedPresentation} presentation.`,
         );
       }
+      if (payload.providerSwitch) {
+        ctx.emitProviderHandoff(
+          payload.threadId,
+          payload.providerSwitch.fromAgentKind,
+          payload.agentKind,
+          payload.providerSwitch.handoffItemId,
+        );
+        if (initialPrompt.length > 0) {
+          optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
+            payload.threadId,
+            initialPrompt,
+            payload.segments,
+            payload.userMessageItemId,
+          );
+          this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
+        }
+      }
       const resolvedSessionRef =
         payload.sessionRef ??
         (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
@@ -481,6 +586,7 @@ export class SpawnPipeline {
         suppressInitialStructuredIdle:
           optimisticUserMessageItemId !== undefined && !startInterrupted,
         mcpLaunchSnapshot,
+        threadMentionToolsAvailable,
         launchConfig,
         nativePlugins,
       });
@@ -550,6 +656,7 @@ export class SpawnPipeline {
       adapter,
       structuredSession?.launchOptions,
       resolvedMcpServers,
+      payload.projectLocation,
     );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
@@ -627,6 +734,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       mcpLaunchSnapshot,
+      threadMentionToolsAvailable,
       launchConfig,
       nativePlugins,
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
@@ -686,10 +794,18 @@ export class SpawnPipeline {
     }
 
     const mcpIdentity = { threadId: session.threadId };
-    const launchConfig = effectiveLaunchConfig(
-      config,
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    const launchConfig = this.resolveMcpLaunchConfig(
+      workspaceLaunchConfig(
+        session.projectLocation,
+        config,
+        session.adapter,
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      ),
+      mcpLaunchSnapshot,
+      session.adapter,
+      session.threadId,
+      session.projectLocation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -757,6 +873,7 @@ export class SpawnPipeline {
         structuredSession,
         sessionRef: session.sessionRef,
         mcpLaunchSnapshot,
+        threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
         launchConfig,
         ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
@@ -768,7 +885,11 @@ export class SpawnPipeline {
         // path owns the first canonical paint and must emit it now.
         const optimisticItemId =
           turn.userMessageItemId ??
-          ctx.emitOptimisticUserMessage(session.threadId, prompt, turn.segments);
+          ctx.emitOptimisticUserMessage(
+            session.threadId,
+            prompt,
+            turn.displaySegments ?? turn.segments,
+          );
         const startOptions = {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
@@ -805,6 +926,7 @@ export class SpawnPipeline {
         session.adapter,
         structuredSession?.launchOptions,
         resolvedMcpServers,
+        session.projectLocation,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -857,6 +979,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: session.sessionRef,
       mcpLaunchSnapshot,
+      threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
       launchConfig,
       ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
@@ -879,12 +1002,16 @@ export class SpawnPipeline {
       ctx.options.emit({ type: "thread-reset", threadId: input.threadId });
     }
 
-    const agentEnv = this.resolveAgentProcessEnv(input.adapter);
+    const agentEnv = this.resolveAgentProcessEnv(input.adapter, input.projectLocation);
     const cliHookEnvInjected = Boolean(input.extraEnv?.PORACODE_HOOK_URL);
-    const providerEnv =
+    // `baseSpawnEnv` underlies every lane; the location-specific `spawnEnv`
+    // layers on top so a provider can still override per platform.
+    const providerEnv = mergeSpawnEnv(
+      input.adapter.baseSpawnEnv,
       input.projectLocation.kind === "wsl"
         ? input.adapter.spawnEnv?.wsl
-        : input.adapter.spawnEnv?.native;
+        : input.adapter.spawnEnv?.native,
+    );
     if (providerEnv) {
       Object.assign(agentEnv, providerEnv);
     }
@@ -952,11 +1079,16 @@ export class SpawnPipeline {
       projectLocation: input.projectLocation,
       config: input.config,
       mcpLaunchSnapshot,
+      ...(input.threadMentionToolsAvailable !== undefined
+        ? { threadMentionToolsAvailable: input.threadMentionToolsAvailable }
+        : {}),
       ...(input.nativePlugins ? { nativePlugins: input.nativePlugins } : {}),
       launchConfig:
         input.launchConfig ??
-        effectiveLaunchConfig(
+        workspaceLaunchConfig(
+          input.projectLocation,
           input.config,
+          input.adapter,
           mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
           mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
         ),
@@ -990,10 +1122,11 @@ export class SpawnPipeline {
     adapter: AgentAdapter,
     launchOptions: AgentLaunchOptions | undefined,
     mcpServers: readonly ResolvedMcpServer[],
+    location?: ProjectLocation,
   ): AgentLaunchOptions {
     return {
       ...(launchOptions ?? {}),
-      agentSettings: this.ctx.resolveAgentSettings(adapter),
+      agentSettings: this.ctx.resolveAgentSettings(adapter, location),
       ...(mcpServers.length > 0 ? { mcpServers } : {}),
     };
   }
@@ -1015,9 +1148,6 @@ export class SpawnPipeline {
     adapter?: AgentAdapter;
     presentationMode?: ThreadPresentationMode;
   }): Promise<ResolvedMcpServer[]> {
-    const crossagentRoutingAvailable =
-      adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
-      crossagentThreadId !== undefined;
     const providerSessionCrossagents = usesProviderSessionCrossagentRouting(
       adapter,
       presentationMode,
@@ -1027,16 +1157,12 @@ export class SpawnPipeline {
       // Provider-level MCP: flags come from the provider's settings page. Drop
       // the general MCP identity; GUI provider-session routing uses its own
       // shared credential, while terminal routing keeps the thread token.
-      config = applyAgentSettingsMcpFlags(
+      config = this.resolveMcpLaunchConfig(
         config,
-        this.ctx.resolveAgentSettings(adapter),
-        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-        crossagentRoutingAvailable,
-      );
-      config = effectiveLaunchConfig(
-        config,
-        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-        mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+        mcpLaunchSnapshot,
+        adapter,
+        crossagentThreadId,
+        location,
       );
       identity = undefined;
       if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
@@ -1077,6 +1203,28 @@ export class SpawnPipeline {
       computerUseMcp,
       chromeMcp,
       appControlsMcp,
+    );
+  }
+
+  resolveMcpLaunchConfig(
+    config: ThreadConfig,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
+    adapter: AgentAdapter,
+    crossagentThreadId?: string,
+    location?: ProjectLocation,
+  ): ThreadConfig {
+    if (adapter.capabilities.mcpConfigSource !== "agentSettings") return config;
+    const withProviderSettings = applyAgentSettingsMcpFlags(
+      config,
+      this.ctx.resolveAgentSettings(adapter, location),
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      adapter.capabilities.crossagentMcpRouting === "provider-session" &&
+        crossagentThreadId !== undefined,
+    );
+    return effectiveLaunchConfig(
+      withProviderSettings,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
   }
 
@@ -1186,13 +1334,16 @@ export class SpawnPipeline {
     );
   }
 
-  private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {
+  private resolveAgentProcessEnv(
+    adapter: AgentAdapter,
+    location?: ProjectLocation,
+  ): Record<string, string> {
     const settingDefs = adapter.capabilities.settingDefs ?? [];
     if (settingDefs.length === 0) {
       return {};
     }
 
-    const agentValues = this.ctx.resolveAgentSettings(adapter);
+    const agentValues = this.ctx.resolveAgentSettings(adapter, location);
     const env: Record<string, string> = {};
     for (const definition of settingDefs) {
       if (definition.platforms && !definition.platforms.includes(process.platform)) {
@@ -1237,7 +1388,8 @@ export class SpawnPipeline {
         threadId,
         projectLocation,
         config,
-        agentSettings: this.ctx.resolveAgentSettings(adapter),
+        agentSettings: this.ctx.resolveAgentSettings(adapter, projectLocation),
+        ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
         ...(mcpIdentity ? { mcpIdentity } : {}),
         ...(mcpServers.length > 0 || adapter.capabilities.mcpConfigSource === "agentSettings"
           ? { mcpServers }

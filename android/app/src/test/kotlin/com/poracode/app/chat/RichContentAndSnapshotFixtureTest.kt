@@ -12,7 +12,7 @@ import org.junit.Test
 
 class RichContentAndSnapshotFixtureTest {
     @Test
-    fun decodesAllSixCanonicalBlocksAndRejectsInvalidOnes() {
+    fun decodesAllSevenCanonicalBlocksAndRejectsInvalidOnes() {
         val fixture = readRichFixture("rich-content-blocks.json")
         val accepted = fixture.getValue("accepted").jsonArray.map { entry ->
             RichContentDecoder.decodeBlock(entry.jsonObject.getValue("block"))
@@ -23,6 +23,7 @@ class RichContentAndSnapshotFixtureTest {
                 RichContentBlock.Text::class,
                 RichContentBlock.Skill::class,
                 RichContentBlock.Mcp::class,
+                RichContentBlock.Thread::class,
                 RichContentBlock.DiffComment::class,
                 RichContentBlock.Image::class,
                 RichContentBlock.File::class,

@@ -6,6 +6,108 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutesettingsU2DReadResponseU2DSettings_57f3fe3c43(
+    @SerialName("agentSettings") val agentSettings: RoutesettingsU2DReadResponseU2DSettingsU2DAgentSettings_deb61378c1,
+    @SerialName("commitGenEffort") val commitGenEffort: String,
+    @SerialName("commitGenFast") val commitGenFast: Boolean,
+    @SerialName("commitGenModel") val commitGenModel: String,
+    @SerialName("commitGenProvider") val commitGenProvider: String,
+    @SerialName("conflictResolverEffort") val conflictResolverEffort: String,
+    @SerialName("conflictResolverFast") val conflictResolverFast: Boolean,
+    @SerialName("conflictResolverModel") val conflictResolverModel: String,
+    @SerialName("conflictResolverPresentationMode") val conflictResolverPresentationMode: ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6,
+    @SerialName("conflictResolverProvider") val conflictResolverProvider: String,
+    @SerialName("disabledAgents") val disabledAgents: List<String>,
+    @SerialName("disabledBuiltInMcpServers") val disabledBuiltInMcpServers: RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServers_65899fb957,
+    @SerialName("enabledMcpServers") val enabledMcpServers: RoutesettingsU2DReadResponseU2DSettingsU2DEnabledMcpServers_2d677fb041,
+    @SerialName("hiddenModels") val hiddenModels: RoutesettingsU2DReadResponseU2DSettingsU2DHiddenModels_86d5d72e84,
+    @SerialName("prAutomationDefault") val prAutomationDefault: RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8,
+    @SerialName("prMergeMethod") val prMergeMethod: RoutesettingsU2DReadResponseU2DSettingsU2DPrMergeMethod_9c01de6b08,
+    @SerialName("providerOrder") val providerOrder: List<String>,
+    @SerialName("searchExclude") val searchExclude: RemoteField<RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1U2DExclude_cda18ebe4a> = RemoteField.Missing,
+    @SerialName("searchUseIgnoreFiles") val searchUseIgnoreFiles: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("titleGenEffort") val titleGenEffort: String,
+    @SerialName("titleGenFast") val titleGenFast: Boolean,
+    @SerialName("titleGenModel") val titleGenModel: String,
+    @SerialName("titleGenProvider") val titleGenProvider: String,
+    @SerialName("usage") val usage: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DUsage_18dc352c9a> = RemoteField.Missing,
+    @SerialName("worktreeBasePath") val worktreeBasePath: String,
+    @SerialName("worktreeStorageMode") val worktreeStorageMode: RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocationU2DOptionU2D1U2DMode_953c573b19,
+    @SerialName("wslCommitGenEffort") val wslCommitGenEffort: String,
+    @SerialName("wslCommitGenFast") val wslCommitGenFast: Boolean,
+    @SerialName("wslCommitGenModel") val wslCommitGenModel: String,
+    @SerialName("wslCommitGenProvider") val wslCommitGenProvider: String,
+    @SerialName("wslConflictResolverEffort") val wslConflictResolverEffort: String,
+    @SerialName("wslConflictResolverFast") val wslConflictResolverFast: Boolean,
+    @SerialName("wslConflictResolverModel") val wslConflictResolverModel: String,
+    @SerialName("wslConflictResolverPresentationMode") val wslConflictResolverPresentationMode: ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6,
+    @SerialName("wslConflictResolverProvider") val wslConflictResolverProvider: String,
+    @SerialName("wslTitleGenEffort") val wslTitleGenEffort: String,
+    @SerialName("wslTitleGenFast") val wslTitleGenFast: Boolean,
+    @SerialName("wslTitleGenModel") val wslTitleGenModel: String,
+    @SerialName("wslTitleGenProvider") val wslTitleGenProvider: String,
+    @SerialName("wslWorktreeBasePath") val wslWorktreeBasePath: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("agentSettings", "RoutesettingsU2DReadResponseU2DSettingsU2DAgentSettings_deb61378c1", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("commitGenEffort", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("commitGenFast", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("commitGenModel", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("commitGenProvider", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("conflictResolverEffort", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("conflictResolverFast", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("conflictResolverModel", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("conflictResolverPresentationMode", "ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("conflictResolverProvider", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("disabledAgents", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("disabledBuiltInMcpServers", "RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServers_65899fb957", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("enabledMcpServers", "RoutesettingsU2DReadResponseU2DSettingsU2DEnabledMcpServers_2d677fb041", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("hiddenModels", "RoutesettingsU2DReadResponseU2DSettingsU2DHiddenModels_86d5d72e84", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prAutomationDefault", "RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prMergeMethod", "RoutesettingsU2DReadResponseU2DSettingsU2DPrMergeMethod_9c01de6b08", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("providerOrder", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("searchExclude", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1U2DExclude_cda18ebe4a", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("searchUseIgnoreFiles", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("titleGenEffort", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("titleGenFast", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("titleGenModel", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("titleGenProvider", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("usage", "RoutesettingsU2DReadResponseU2DSettingsU2DUsage_18dc352c9a", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("worktreeBasePath", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("worktreeStorageMode", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocationU2DOptionU2D1U2DMode_953c573b19", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslCommitGenEffort", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslCommitGenFast", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslCommitGenModel", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslCommitGenProvider", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslConflictResolverEffort", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslConflictResolverFast", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslConflictResolverModel", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslConflictResolverPresentationMode", "ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslConflictResolverProvider", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslTitleGenEffort", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslTitleGenFast", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslTitleGenModel", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslTitleGenProvider", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wslWorktreeBasePath", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutesettingsU2DReadResponse_cb1609a78d(
+    @SerialName("settings") val settings: RoutesettingsU2DReadResponseU2DSettings_57f3fe3c43,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("settings", "RoutesettingsU2DReadResponseU2DSettings_57f3fe3c43", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias RoutesettingsU2DWriteRequestU2DDisabledBuiltInMcpServers_79608b5ece = Map<String, Boolean>
+
+@Serializable
 data class RoutesettingsU2DWriteRequestU2DUsage_b6aaa17d32(
     @SerialName("autoRefresh") val autoRefresh: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("collapsedProviders") val collapsedProviders: RemoteField<List<String>> = RemoteField.Missing,
@@ -343,72 +445,3 @@ data class RouteshellU2DSnapshotResponseU2DGitSummariesByThreadU2DValue_b2a9cad3
 typealias RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78 = Map<String, RouteshellU2DSnapshotResponseU2DGitSummariesByThreadU2DValue_b2a9cad3f0>
 
 typealias RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DContextUsage_e47ad2358c = ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b?
-
-@Serializable
-enum class RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a {
-    @SerialName("started") STARTED,
-    @SerialName("updated") UPDATED,
-    @SerialName("completed") COMPLETED,
-}
-
-@Serializable
-data class RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e(
-    @SerialName("contextUsage") val contextUsage: RemoteField<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b> = RemoteField.Missing,
-    @SerialName("itemCount") val itemCount: Long,
-    @SerialName("latestItemId") val latestItemId: RemoteField<String> = RemoteField.Missing,
-    @SerialName("latestItemState") val latestItemState: RemoteField<RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a> = RemoteField.Missing,
-    @SerialName("latestItemType") val latestItemType: RemoteField<String> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("contextUsage", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b", false, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("itemCount", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("latestItemId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("latestItemState", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("latestItemType", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-typealias RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26 = Map<String, RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e>
-
-@Serializable
-enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7 {
-    @SerialName("none") NONE,
-    @SerialName("working") WORKING,
-    @SerialName("needs_approval") NEEDSU5FAPPROVAL,
-    @SerialName("needs_reply") NEEDSU5FREPLY,
-    @SerialName("error") ERROR,
-}
-
-@Serializable
-data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionRef_3b70e9f118(
-    @SerialName("discoveredAt") val discoveredAt: String,
-    @SerialName("providerSessionId") val providerSessionId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("discoveredAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("providerSessionId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DStatus_8c61ed237d {
-    @SerialName("inactive") INACTIVE,
-    @SerialName("launching") LAUNCHING,
-    @SerialName("working") WORKING,
-    @SerialName("idle") IDLE,
-    @SerialName("finished") FINISHED,
-    @SerialName("needs_approval") NEEDSU5FAPPROVAL,
-    @SerialName("needs_reply") NEEDSU5FREPLY,
-    @SerialName("error") ERROR,
-}
-
-@Serializable
-enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DThreadStatusSource_8f73948792 {
-    @SerialName("cli_hook") CLIU5FHOOK,
-    @SerialName("terminal_parse") TERMINALU5FPARSE,
-    @SerialName("server") SERVER,
-}

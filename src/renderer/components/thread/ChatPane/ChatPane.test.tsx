@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { toast } from "@heroui/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
@@ -1191,6 +1192,43 @@ describe("ChatPane", () => {
     expect(screen.queryByLabelText("error")).not.toBeInTheDocument();
   });
 
+  it.each([
+    { subAgentStatus: "cancelled" as const, status: "error" as const, label: "cancelled" },
+    { subAgentStatus: "paused" as const, status: "success" as const, label: "Paused" },
+  ])("shows a $subAgentStatus native subagent without an error indicator", async (terminal) => {
+    const thread = makeThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: `subagent-${terminal.subAgentStatus}`,
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        isSubAgent: true,
+        subAgentStatus: "running",
+      },
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: `subagent-${terminal.subAgentStatus}`,
+      payload: {
+        name: "Agent",
+        status: terminal.status,
+        isSubAgent: true,
+        subAgentStatus: terminal.subAgentStatus,
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const row = await screen.findByRole("button", { name: /Open subagent:/ });
+    expect(row).toHaveTextContent(terminal.label);
+    expect(screen.queryByLabelText("error")).not.toBeInTheDocument();
+  });
+
   it("separates the collapsed Agent label from its step count", async () => {
     const thread = makeThread();
     useAppStore.getState().applyRuntimeEvent(thread.id, {
@@ -1361,6 +1399,41 @@ describe("ChatPane", () => {
     expect(screen.queryByText("$simplify")).not.toBeInTheDocument();
   });
 
+  it("renders slash-invoked skills as skill badges instead of command chips", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "skill", name: "code-review", invocation: "/code-review" },
+      { kind: "text", text: " check the diff" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-skill-name="code-review"]');
+    expect(badge).toHaveTextContent("code-review");
+    expect(badge).toHaveAttribute("aria-label", "Skill: code-review");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(badge?.querySelector(".poracode-slash-chip__slash")?.textContent).not.toBe("/");
+    expect(screen.getByText(/check the diff/)).toBeInTheDocument();
+  });
+
+  it("keeps a leading slash command when a later skill chip is present", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "text", text: "/goal plan this " },
+      { kind: "skill", name: "code-review", invocation: "/code-review" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
+    expect(screen.getByText("goal").previousElementSibling).toHaveTextContent("/");
+    const skill = container.querySelector('[data-skill-name="code-review"]');
+    expect(skill).toHaveTextContent("code-review");
+    expect(skill?.querySelector("svg")).toBeInTheDocument();
+  });
+
   it("renders MCP mentions in user messages as badges", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [{ kind: "mcp", name: "Browser" }]);
@@ -1373,6 +1446,81 @@ describe("ChatPane", () => {
     expect(badge?.querySelector("svg")).toBeInTheDocument();
     // The raw `@Browser` directive text is replaced by the badge.
     expect(screen.queryByText("@Browser")).not.toBeInTheDocument();
+  });
+
+  it("renders thread mentions in user messages as clean badges", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: "source-thread", title: "Source discussion" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-thread-mention-title="Source discussion"]');
+    expect(badge).toHaveTextContent("Source discussion");
+    expect(badge).toHaveAttribute("data-thread-mention-id", "source-thread");
+    expect(badge).toHaveAttribute("type", "button");
+    expect(badge).toHaveAttribute("aria-label", "Open Source discussion");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("@Source discussion")).not.toBeInTheDocument();
+  });
+
+  it("opens an existing thread mention when its chip is clicked", async () => {
+    const thread = makeThread();
+    const sourceThread = { ...makeThread(), id: "source-thread", title: "Source discussion" };
+    const onOpenThread = vi.fn<(threadId: string) => void>();
+    useAppStore.setState({ projects: [project], threads: [thread, sourceThread] });
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: sourceThread.id, title: sourceThread.title },
+    ]);
+
+    renderChatPane(thread, { onOpenThread });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Source discussion" }));
+
+    expect(onOpenThread).toHaveBeenCalledWith(sourceThread.id);
+  });
+
+  it("routes a Home-scope thread mention chip through onOpenThread", async () => {
+    const thread = { ...makeThread(), projectId: HOME_PROJECT_ID };
+    const sourceThread = { ...makeThread(), id: "source-thread", title: "Source discussion" };
+    const onOpenThread = vi.fn<(threadId: string) => void>();
+    useAppStore.setState({ projects: [project], threads: [thread, sourceThread] });
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: sourceThread.id, title: sourceThread.title },
+    ]);
+
+    const { rerender } = renderChatPane(thread, { onOpenThread });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Source discussion" }));
+    expect(onOpenThread).toHaveBeenCalledWith(sourceThread.id);
+
+    // The handler is routed through a ref: a fresh caller arrow must be the
+    // one invoked next, without the paneActions memo re-running.
+    const nextOnOpenThread = vi.fn<(threadId: string) => void>();
+    rerender(
+      <AppProvider>
+        <ChatPane {...chatPaneProps(thread)} onOpenThread={nextOnOpenThread} />
+      </AppProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open Source discussion" }));
+    expect(onOpenThread).toHaveBeenCalledTimes(1);
+    expect(nextOnOpenThread).toHaveBeenCalledWith(sourceThread.id);
+  });
+
+  it("shows a toast when a thread mention no longer exists", async () => {
+    const thread = makeThread();
+    useAppStore.setState({ projects: [project], threads: [thread] });
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: "missing-thread", title: "Missing discussion" },
+    ]);
+
+    renderChatPane(thread);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Missing discussion" }));
+
+    expect(toastDangerSpy).toHaveBeenCalledWith("Thread not found");
   });
 
   it("copies user message text from the inline action", async () => {
@@ -1457,8 +1605,25 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    expect(screen.getByText("simplify").parentElement).toHaveClass("poracode-slash-chip");
+    const badge = screen.getByText("simplify").parentElement;
+    expect(badge).toHaveClass("poracode-slash-chip");
+    expect(badge).toHaveAttribute("data-skill-name", "simplify");
+    expect(badge).toHaveAttribute("aria-label", "Skill: simplify");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
     expect(screen.queryByText("skill:simplify")).not.toBeInTheDocument();
+  });
+
+  it("renders mixed-case ACP skill commands with the skill icon", async () => {
+    const thread = makeThread();
+    seedUserMessage(thread.id, "/Skill:simplify review these changes");
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = screen.getByText("simplify").parentElement;
+    expect(badge).toHaveAttribute("data-skill-name", "simplify");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("Skill:simplify")).not.toBeInTheDocument();
   });
 
   it("reports failed user message link opens", async () => {

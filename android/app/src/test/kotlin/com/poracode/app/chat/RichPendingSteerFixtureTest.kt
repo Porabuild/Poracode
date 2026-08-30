@@ -17,6 +17,10 @@ class RichPendingSteerFixtureTest {
 
         assertEquals("Please include the attachment.", input.prompt)
         assertTrue(input.segments!![1] is RichPromptSegment.Attachment)
+        assertEquals(
+            RichPromptSegment.Thread("thread-related", "Related investigation"),
+            input.segments!![2],
+        )
         assertEquals("thread-rich", broadcasts.first().threadKey.threadId)
         assertEquals("steer-rich-1", broadcasts.first().pending!!.id)
         assertEquals(1_786_557_600_000.0, broadcasts.first().pending!!.stagedAtEpochMs, 0.0)

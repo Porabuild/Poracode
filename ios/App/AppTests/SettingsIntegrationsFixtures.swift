@@ -239,7 +239,7 @@ func settingsIntegrationsContext(
 
 func settingsIntegrationsAccess(
   _ context: SettingsIntegrationsContext,
-  protocolVersion: Int = 3,
+  protocolVersion: Int = 8,
   online: Bool = true,
   ready: Bool = true,
   scopes: Set<SettingsIntegrationsScope> = Set(SettingsIntegrationsScope.allCases)

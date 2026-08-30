@@ -26,7 +26,7 @@ class RepositoryBrowserMirrorTransportProvider(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(ClientConnectionId(lease.connectionId))
         } ?: return null
-        if (credentials.profile.protocolVersion != 3) return null
+        if (credentials.profile.protocolVersion != 8) return null
         val socket = wireSocketProvider() ?: return null
         val http = BrowserMirrorHttpClient(
             endpoint = credentials.profile.httpBaseUrl,

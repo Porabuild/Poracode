@@ -5,6 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
   AgentStatus,
+  GitBranchInfo,
   Project,
   PromptSegment,
   ThreadConfig,
@@ -34,6 +35,7 @@ import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
   mcpTogglePatch,
+  providerMcpSettingEnabled,
   providerOwnsMcpConfig,
 } from "@/renderer/components/composer/composerMcpServers";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
@@ -43,7 +45,9 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "@/renderer/components/composer/MentionInput";
+import { useThreadMentionItems } from "@/renderer/components/composer/useThreadMentionItems";
 import {
+  storableAttachment,
   useAttachments,
   type SaveClipboardImage,
 } from "@/renderer/components/composer/useAttachments";
@@ -93,6 +97,13 @@ import {
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { WorktreeModeSelect, type WorktreeMode } from "./WorktreeModeSelect";
+import {
+  isCurrentCheckoutRef,
+  localBranchNameFromRef,
+  resolveWorktreeOriginRef,
+} from "@/renderer/components/common/BranchSelector/parts/worktreeBaseRef";
+
+const EMPTY_BRANCHES: GitBranchInfo[] = [];
 
 // Optional fields admit explicit `undefined` so wire shapes with
 // `prop?: T | undefined` (e.g. the zod-parsed quick-composer submission)
@@ -224,6 +235,7 @@ function DraftComposerAfterControls(props: {
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
   isDisabled: boolean;
+  readOnlyMcp?: boolean;
   experiment?: {
     enabled: boolean;
     disabled: boolean;
@@ -242,6 +254,12 @@ function DraftComposerAfterControls(props: {
       <ComposerAddMenu
         mcpServers={props.mcpServers}
         customMcpServers={props.customMcpServers}
+        {...(props.readOnlyMcp
+          ? {
+              readOnly: true,
+              readOnlyCaption: <Trans>Change servers in provider settings</Trans>,
+            }
+          : {})}
         showFileOption
         onPickFiles={props.onPickFiles}
         computerUse={props.computerUse}
@@ -314,6 +332,7 @@ export function ThreadDraftComposerArea(props: {
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
   const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
+  const providerMcpSettings = useSharedSettings((s) => s.agentSettings[props.selectedAgent.kind]);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments({
@@ -322,6 +341,9 @@ export function ThreadDraftComposerArea(props: {
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = props.project.remoteServerId;
+  const hostUpdateRestarting = useRemoteServersStore((state) =>
+    remoteDesktopId ? state.hostUpdateRestarts[remoteDesktopId] !== undefined : false,
+  );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
@@ -412,6 +434,9 @@ export function ThreadDraftComposerArea(props: {
   const showCommandPanel = filteredCommands.length > 0;
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
+  const threadMentions = useThreadMentionItems(
+    isHomeScope ? { kind: "workspace" } : { kind: "project", projectId: props.project.id },
+  );
   // Registry-driven MCP toggles. The "+" add menu now flips the *persistent*
   // enablement (a standing default applied to every new thread), keyed by MCP
   // id — not the per-thread config flag. A new MCP server means adding one
@@ -419,44 +444,73 @@ export function ThreadDraftComposerArea(props: {
   const availableComposerMcpServers = composerMcpServers.filter(
     (descriptor) => disabledBuiltInMcpServers[descriptor.id] !== true,
   );
+  const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
+  // A desktop remote project launches on the paired host, whose provider
+  // settings are not present in this renderer. The mobile remote bridge does
+  // hydrate the shared store from that same host, so it can still render the
+  // provider-owned MCP set.
+  const providerOwnsMcpForComposer = providerOwnsMcp && (!props.isRemote || isRemoteSurface);
   const mcpServers = availableComposerMcpServers.map((descriptor) => ({
     descriptor,
-    enabled: persistentMcpServers[descriptor.id] === true,
-    visible:
-      descriptor.getScope(
-        props.selectedAgent.capabilities,
-        props.presentationMode,
-        props.project.location,
-      ) !== "none",
-    onToggle: (next: boolean) => setMcpServerEnabled(descriptor.id, next),
+    enabled: providerOwnsMcpForComposer
+      ? providerMcpSettingEnabled(
+          props.selectedAgent.capabilities,
+          providerMcpSettings,
+          descriptor.configKey,
+        )
+      : persistentMcpServers[descriptor.id] === true,
+    visible: providerOwnsMcp
+      ? providerOwnsMcpForComposer &&
+        descriptor.isAvailable(props.project.location) &&
+        providerMcpSettingEnabled(
+          props.selectedAgent.capabilities,
+          providerMcpSettings,
+          descriptor.configKey,
+        )
+      : descriptor.getScope(
+          props.selectedAgent.capabilities,
+          props.presentationMode,
+          props.project.location,
+        ) !== "none",
+    onToggle: (next: boolean) => {
+      if (!providerOwnsMcp) {
+        setMcpServerEnabled(descriptor.id, next);
+      }
+    },
   }));
   // User-configured MCP servers (global + this project's workspace scope).
   // Toggling flips the server's persistent `enabled` flag — the same switch as
   // the MCP Servers settings page — because custom servers bind at launch from
   // settings, not from per-thread config. The launch-time merge helper decides
   // which workspace entries override global ones, so the menu can't drift from
-  // what actually launches. Providers whose MCP set lives on their settings
-  // page show no rows here at all.
-  const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
+  // what actually launches. Provider-owned MCP rows are shown read-only here;
+  // their settings page remains the single place that changes them.
   const projectCustomMcpServers = props.project.mcpServers ?? [];
   const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
-  const mergedCustomMcpServers = providerOwnsMcp
-    ? []
-    : mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
-  const customMcpServers: ComposerCustomMcpItem[] = mergedCustomMcpServers.map((server) => {
+  const mergedCustomMcpServers = mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
+  const visibleCustomMcpServers = providerOwnsMcp
+    ? providerOwnsMcpForComposer
+      ? mergedCustomMcpServers.filter((server) => server.enabled)
+      : []
+    : mergedCustomMcpServers;
+  const customMcpServers: ComposerCustomMcpItem[] = visibleCustomMcpServers.map((server) => {
     const isProject = projectCustomMcpIds.has(server.id);
     const scopedServers = isProject ? projectCustomMcpServers : userCustomMcpServers;
     return {
       id: `${isProject ? "project" : "user"}:${server.id}`,
       name: server.name,
       enabled: server.enabled,
-      onToggle: (next: boolean) => {
-        const nextServers = scopedServers.map((item) =>
-          item.id === server.id ? { ...item, enabled: next } : item,
-        );
-        if (isProject) updateProjectMcpServers(props.project.id, nextServers);
-        else setUserCustomMcpServers(nextServers);
-      },
+      ...(!providerOwnsMcp
+        ? {
+            onToggle: (next: boolean) => {
+              const nextServers = scopedServers.map((item) =>
+                item.id === server.id ? { ...item, enabled: next } : item,
+              );
+              if (isProject) updateProjectMcpServers(props.project.id, nextServers);
+              else setUserCustomMcpServers(nextServers);
+            },
+          }
+        : {}),
     };
   });
   // Composer chips represent per-thread *mentions* only: a server whose config
@@ -464,21 +518,24 @@ export function ThreadDraftComposerArea(props: {
   // enabled servers are on for every thread and show no chip.
   const mentionedMcpServers = availableComposerMcpServers.filter(
     (descriptor) =>
-      props.config[descriptor.configKey] === true && persistentMcpServers[descriptor.id] !== true,
+      props.config[descriptor.configKey] === true &&
+      persistentMcpServers[descriptor.id] !== true &&
+      (!providerOwnsMcp || providerOwnsMcpForComposer),
   );
 
   // Worktree creation lives in the composer toolbar. The "bring over uncommitted
   // changes" affordance only appears when the new worktree forks from the
   // current (dirty) checkout — the only case where transferring is meaningful.
   const projectStatus = useGitStore((s) => s.statuses[props.project.id]);
+  const projectBranches = useGitStore(
+    (s) => s.branches[props.project.id]?.branches ?? EMPTY_BRANCHES,
+  );
   const hasUncommittedChanges =
     !!projectStatus && projectStatus.staged.length + projectStatus.unstaged.length > 0;
   const trackingWorktreeBase =
     projectStatus &&
     props.gitBranch &&
     projectStatus.branch === props.gitBranch &&
-    projectStatus.behind > 0 &&
-    projectStatus.ahead === 0 &&
     projectStatus.tracking
       ? projectStatus.tracking
       : undefined;
@@ -505,6 +562,10 @@ export function ThreadDraftComposerArea(props: {
       ? "new-with-changes"
       : "new";
 
+  function resolveOriginBase(branchName: string): string {
+    return resolveWorktreeOriginRef(branchName, projectBranches, projectStatus?.tracking);
+  }
+
   function selectNewWorktree(overrides?: Partial<BranchSelection>) {
     const base = overrides?.baseBranch ?? worktreeBase ?? props.gitBranch ?? "";
     setBranchSelection({ branch: base, baseBranch: base, isWorktree: true, ...overrides });
@@ -520,10 +581,41 @@ export function ThreadDraftComposerArea(props: {
     // Keep an existing worktree selection (e.g. a worktreePath from "New thread
     // in worktree") intact rather than rebuilding it into a brand-new branch.
     if (branchSelection?.worktreePath) return;
-    const baseBranch = mode === "new-with-changes" ? props.gitBranch : defaultWorktreeBase;
+    // Worktree + changes must fork from the local checkout so uncommitted
+    // files can be copied. Plain worktree uses the origin ref (T3-style).
+    const localBase = props.gitBranch;
+    const originBase = defaultWorktreeBase ? resolveOriginBase(defaultWorktreeBase) : localBase;
+    const baseBranch = mode === "new-with-changes" ? localBase : originBase;
     selectNewWorktree({
       ...(baseBranch ? { baseBranch } : {}),
       transferUncommitted: mode === "new-with-changes",
+    });
+  }
+
+  function handleBranchSelect(selection: BranchSelection) {
+    if (selection.worktreePath || !selection.isWorktree) {
+      setBranchSelection(selection);
+      return;
+    }
+    const selected = selection.baseBranch ?? selection.branch;
+    const keepChanges =
+      (shouldTransferUncommitted || selection.transferUncommitted === true) &&
+      isCurrentCheckoutRef(selected, props.gitBranch, projectStatus?.tracking);
+    if (keepChanges) {
+      const localName = localBranchNameFromRef(selected, projectBranches);
+      setBranchSelection({
+        ...selection,
+        branch: localName,
+        baseBranch: localName,
+        transferUncommitted: true,
+      });
+      return;
+    }
+    const originBase = resolveOriginBase(selected);
+    setBranchSelection({
+      ...selection,
+      branch: originBase,
+      baseBranch: originBase,
     });
   }
 
@@ -537,11 +629,19 @@ export function ThreadDraftComposerArea(props: {
           readBridge()?.platform,
         );
   const computerUseEnabled = props.config.computerUse === true;
+  const providerComputerUseEnabled =
+    providerOwnsMcpForComposer &&
+    disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
+    readBridge()?.platform !== "linux" &&
+    props.project.location.kind !== "wsl" &&
+    providerMcpSettingEnabled(props.selectedAgent.capabilities, providerMcpSettings, "computerUse");
   const computerUsePersistent = persistentMcpServers[COMPUTER_USE_MCP_ID] === true;
   // Same chip rule as the registry servers: a chip only for a per-thread mention,
   // never for the persistent standing default.
   const showComputerUseChip =
-    computerUseScope !== "none" && computerUseEnabled && !computerUsePersistent;
+    (providerOwnsMcp ? providerOwnsMcpForComposer : computerUseScope !== "none") &&
+    computerUseEnabled &&
+    !computerUsePersistent;
   const onConfigChange = props.onConfigChange;
   // `@`-mention affordances: disabled servers enable the capability for this
   // draft; already-effective servers remain available and insert a textual
@@ -560,29 +660,49 @@ export function ThreadDraftComposerArea(props: {
         ]
       : []),
     ...availableComposerMcpServers
-      .filter(
-        (descriptor) =>
-          descriptor.getScope(
-            props.selectedAgent.capabilities,
-            props.presentationMode,
-            props.project.location,
-          ) !== "none",
+      .filter((descriptor) =>
+        providerOwnsMcp
+          ? providerOwnsMcpForComposer &&
+            descriptor.isAvailable(props.project.location) &&
+            providerMcpSettingEnabled(
+              props.selectedAgent.capabilities,
+              providerMcpSettings,
+              descriptor.configKey,
+            )
+          : descriptor.getScope(
+              props.selectedAgent.capabilities,
+              props.presentationMode,
+              props.project.location,
+            ) !== "none",
       )
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
         icon: descriptor.icon,
         detail: t`MCP server`,
-        enabled: props.config[descriptor.configKey] === true,
+        enabled: providerOwnsMcp ? true : props.config[descriptor.configKey] === true,
       })),
-    ...(computerUseScope !== "none"
+    ...visibleCustomMcpServers
+      .filter((server) => server.enabled)
+      .map((server) => ({
+        id: server.id,
+        name: server.name,
+        icon: Webhook,
+        detail: t`MCP server`,
+        enabled: true,
+      })),
+    ...((
+      providerOwnsMcp
+        ? providerOwnsMcpForComposer && providerComputerUseEnabled
+        : computerUseScope !== "none"
+    )
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
             name: t`Computer Use`,
             icon: Monitor,
             detail: t`Computer Use`,
-            enabled: computerUseEnabled,
+            enabled: providerOwnsMcpForComposer ? true : computerUseEnabled,
           },
         ]
       : []),
@@ -639,6 +759,7 @@ export function ThreadDraftComposerArea(props: {
   }
 
   function submitSegments(allSegments: PromptSegment[], fallbackPrompt = "") {
+    if (hostUpdateRestarting) return;
     if (experimentMode) {
       void runExperiment(allSegments, fallbackPrompt);
       return;
@@ -919,7 +1040,12 @@ export function ThreadDraftComposerArea(props: {
     return () => {
       if (submittedRef.current) return;
       if (useAppStore.getState().consumeDraftContentDiscard(pid)) return;
-      const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
+      // Stash path-only attachment copies: `previewUrl` object URLs belong to
+      // this composer's live session and are revoked when it unmounts.
+      const content = {
+        segments: latestSegmentsRef.current,
+        attachments: attachmentsRef.current.map(storableAttachment),
+      };
       if (isDraftContentNonEmpty(content)) {
         saveDraftContent(pid, content);
       }
@@ -1075,6 +1201,7 @@ export function ThreadDraftComposerArea(props: {
             }}
             mcpMentions={mcpMentions}
             pluginMentions={pluginMentions}
+            threadMentions={threadMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
               void attachments
@@ -1121,6 +1248,7 @@ export function ThreadDraftComposerArea(props: {
         submitDisabled={
           authRequired ||
           agentUpdating ||
+          hostUpdateRestarting ||
           isSubmitting ||
           !(hasContent || attachments.attachments.length > 0) ||
           (experimentMode && experimentCandidates.length < 2)
@@ -1148,6 +1276,7 @@ export function ThreadDraftComposerArea(props: {
                 .catch((error: unknown) => toast.danger(friendlyError(error)));
             }}
             customMcpServers={customMcpServers}
+            readOnlyMcp={providerOwnsMcpForComposer}
             showVoiceInputButton={showVoiceInputButton}
             isDisabled={authRequired || agentUpdating || isSubmitting}
             {...(!isHomeScope && !usesRemoteTransport && !isQuickComposer && props.gitBranch
@@ -1158,12 +1287,11 @@ export function ThreadDraftComposerArea(props: {
                     onToggle: (next: boolean) => {
                       setExperimentMode(next);
                       if (next) {
-                        setExperimentBaseBranch(
+                        const rawBase =
                           branchSelection?.baseBranch ??
-                            branchSelection?.branch ??
-                            defaultWorktreeBase ??
-                            null,
-                        );
+                          branchSelection?.branch ??
+                          defaultWorktreeBase;
+                        setExperimentBaseBranch(rawBase ? resolveOriginBase(rawBase) : null);
                       } else {
                         setExperimentCandidates([]);
                         setExperimentBaseBranch(null);
@@ -1175,9 +1303,19 @@ export function ThreadDraftComposerArea(props: {
             mentionRef={mentionRef}
             voiceInputRef={voiceInputRef}
             computerUse={{
-              enabled: computerUsePersistent,
-              visible: computerUseScope !== "none",
-              onToggle: (next) => setMcpServerEnabled(COMPUTER_USE_MCP_ID, next),
+              enabled: providerOwnsMcpForComposer
+                ? providerComputerUseEnabled
+                : providerOwnsMcp
+                  ? false
+                  : computerUsePersistent,
+              visible: providerOwnsMcpForComposer
+                ? providerComputerUseEnabled
+                : providerOwnsMcp
+                  ? false
+                  : computerUseScope !== "none",
+              onToggle: (next) => {
+                if (!providerOwnsMcp) setMcpServerEnabled(COMPUTER_USE_MCP_ID, next);
+              },
             }}
           />
         }
@@ -1213,8 +1351,11 @@ export function ThreadDraftComposerArea(props: {
             {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
             onSelect={
               experimentMode
-                ? (selection) => setExperimentBaseBranch(selection.baseBranch ?? selection.branch)
-                : setBranchSelection
+                ? (selection) =>
+                    setExperimentBaseBranch(
+                      resolveOriginBase(selection.baseBranch ?? selection.branch),
+                    )
+                : handleBranchSelect
             }
             onSwitchBranch={props.onSwitchBranch}
             hideWorktreeToggle

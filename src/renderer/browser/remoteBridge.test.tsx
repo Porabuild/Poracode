@@ -164,6 +164,7 @@ describe("remote bridge", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     };
     const getPrWatch = vi.fn<(input: PrWatchKey) => Promise<PrWatch | null>>(async () => watch);
     const checkPrWatch = vi.fn<(input: PrWatchKey) => Promise<void>>(async () => undefined);

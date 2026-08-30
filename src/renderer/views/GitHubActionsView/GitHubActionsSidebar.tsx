@@ -7,14 +7,21 @@ import {
   PanelLeftClose,
   Pin,
   Play,
+  UserRound,
   Workflow,
 } from "lucide-react";
-import type { GitHubActionsWorkflow, Project } from "@/shared/contracts";
+import type {
+  GitHubAccount,
+  GitHubAccountRef,
+  GitHubActionsWorkflow,
+  Project,
+} from "@/shared/contracts";
 import { SidebarButton } from "@/renderer/components/common";
 import {
   ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
+import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
   overlaySidebarColumnClass,
   overlaySidebarSurfaceClass,
@@ -33,6 +40,9 @@ const workflowIconButtonHoverClass =
 export function GitHubActionsSidebar(props: {
   projects: Project[];
   selectedProjectId: string | null;
+  accounts: GitHubAccount[];
+  selectedAccount?: GitHubAccountRef;
+  resolvedAccount?: GitHubAccountRef;
   workflows: GitHubActionsWorkflow[];
   selectedWorkflowId: number | null;
   pinnedWorkflowIds: number[];
@@ -55,6 +65,18 @@ export function GitHubActionsSidebar(props: {
     if (aPinned !== bPinned) return aPinned ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
+  // Informational only: account scoping is automatic (an explicit per-project
+  // override wins, then whichever signed-in account can see the repository).
+  const effectiveAccount =
+    props.selectedAccount ??
+    props.resolvedAccount ??
+    (props.accounts.length === 1 ? props.accounts[0] : undefined);
+  const accountHostIsAmbiguous = effectiveAccount
+    ? props.accounts.some(
+        (account) =>
+          account.login === effectiveAccount.login && account.host !== effectiveAccount.host,
+      )
+    : false;
 
   return (
     <div className={`relative h-full ${overlaySidebarSurfaceClass}`}>
@@ -120,7 +142,14 @@ export function GitHubActionsSidebar(props: {
                     {props.projects.map((project) => {
                       const remote = remoteServerFor(project);
                       return (
-                        <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                        <Dropdown.Item
+                          key={project.id}
+                          id={project.id}
+                          textValue={project.name}
+                          // An offline machine can't serve workflows, so its
+                          // projects stay visible but unpickable.
+                          isDisabled={isRemoteProjectStatusUnreachable(project, remote.status)}
+                        >
                           <ProjectSelectorIcon project={project} remote={remote} />
                           <Label>{project.name}</Label>
                           {remote.serverName ? (
@@ -133,6 +162,18 @@ export function GitHubActionsSidebar(props: {
                   </Dropdown.Menu>
                 </Dropdown.Popover>
               </Dropdown>
+
+              {effectiveAccount ? (
+                <div className="flex h-8 w-full min-w-0 items-center gap-2 rounded-3xl px-2 text-sm text-muted">
+                  <UserRound className="size-4 shrink-0" />
+                  <span className="min-w-0 truncate">{effectiveAccount.login}</span>
+                  {accountHostIsAmbiguous ? (
+                    <span className="min-w-0 shrink truncate text-xs text-muted/60">
+                      {effectiveAccount.host}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

@@ -21,6 +21,7 @@ import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/b
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 import type { MentionInputHandle } from "../composer/MentionInput";
+import { storableAttachment } from "../composer/useAttachments";
 import type { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import type { TerminalPaneHandle } from "./TerminalPane";
@@ -229,9 +230,11 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (ctx.isCurrentSession()) {
         restoreSubmittedComposer();
       } else {
+        // Stash path-only attachment copies: `previewUrl` object URLs belong to
+        // the composer session that submitted and are revoked when it clears.
         useAppStore.getState().saveThreadDraftContent(thread.id, {
           segments: submittedInputSegments,
-          attachments: submittedAttachments,
+          attachments: submittedAttachments.map(storableAttachment),
         });
       }
       toast.danger(friendlyError(error));

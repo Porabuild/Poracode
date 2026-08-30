@@ -1,8 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
-import { useSharedSettings } from "./sharedSettingsStore";
+import { useSharedSettings, waitForPendingSharedSettings } from "./sharedSettingsStore";
+
+const originalPoracodeBridge = window.poracode;
 
 describe("sharedSettingsStore", () => {
+  afterEach(() => {
+    if (originalPoracodeBridge) window.poracode = originalPoracodeBridge;
+    else Reflect.deleteProperty(window, "poracode");
+  });
+
   beforeEach(() => {
     localStorage.clear();
     seedBuiltInPlugins();
@@ -17,6 +24,7 @@ describe("sharedSettingsStore", () => {
         useWebGpu: true,
       },
       providerConfigs: {},
+      providerModelPreferences: {},
       agentInstances: {},
       hiddenModels: {},
       agentSettings: {},
@@ -42,6 +50,47 @@ describe("sharedSettingsStore", () => {
   it("switches theme mode", () => {
     useSharedSettings.getState().setThemeMode("light");
     expect(useSharedSettings.getState().themeMode).toBe("light");
+  });
+
+  it("updates the Windows shell path and arguments", () => {
+    useSharedSettings.getState().setWindowsShellPath("C:\\Tools\\pwsh.exe");
+    useSharedSettings.getState().setWindowsInternalShellPath("C:\\Tools\\pwsh-preview.exe");
+    useSharedSettings.getState().setWindowsShellArguments("-NoProfile");
+
+    expect(useSharedSettings.getState()).toMatchObject({
+      windowsShellPath: "C:\\Tools\\pwsh.exe",
+      windowsInternalShellPath: "C:\\Tools\\pwsh-preview.exe",
+      windowsShellArguments: "-NoProfile",
+    });
+  });
+
+  it("clamps Windows shell arguments to the shared settings maximum", () => {
+    useSharedSettings.getState().setWindowsShellArguments("x".repeat(8_193));
+    expect(useSharedSettings.getState().windowsShellArguments).toHaveLength(8_192);
+  });
+
+  it("exposes pending settings persistence as a launch barrier", async () => {
+    let finishWrite!: () => void;
+    const setSharedSettings = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          finishWrite = resolve;
+        }),
+    );
+    window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+    useSharedSettings.getState().setThemeMode("dark");
+    let barrierFinished = false;
+    const barrier = waitForPendingSharedSettings().then(() => {
+      barrierFinished = true;
+    });
+    await Promise.resolve();
+
+    expect(setSharedSettings).toHaveBeenCalledOnce();
+    expect(barrierFinished).toBe(false);
+    finishWrite();
+    await barrier;
+    expect(barrierFinished).toBe(true);
   });
 
   it("updates the stale thread unload timing", () => {
@@ -113,6 +162,35 @@ describe("sharedSettingsStore", () => {
       contextSize: "200k",
       fast: true,
       thinking: true,
+    });
+  });
+
+  it("keeps effort and Fast preferences independent for subprovider model ids", () => {
+    const state = useSharedSettings.getState();
+    state.setProviderModelPreference("opencode", "openai/gpt-5.6-sol", {
+      effort: "high",
+      fast: false,
+    });
+    state.setProviderModelPreference("opencode", "openai/gpt-5.6-luna", {
+      effort: "max",
+      fast: true,
+    });
+    state.setProviderModelPreference("opencode", "github-copilot/gpt-5.6-luna", {
+      effort: "medium",
+      fast: false,
+    });
+    state.setProviderModelPreference("codex", "openai/gpt-5.6-luna", {
+      effort: "low",
+      fast: false,
+    });
+
+    expect(useSharedSettings.getState().providerModelPreferences.opencode).toEqual({
+      "openai/gpt-5.6-sol": { effort: "high", fast: false },
+      "openai/gpt-5.6-luna": { effort: "max", fast: true },
+      "github-copilot/gpt-5.6-luna": { effort: "medium", fast: false },
+    });
+    expect(useSharedSettings.getState().providerModelPreferences.codex).toEqual({
+      "openai/gpt-5.6-luna": { effort: "low", fast: false },
     });
   });
 
@@ -255,5 +333,22 @@ describe("sharedSettingsStore", () => {
     expect(state.favoriteModels).toEqual([]);
     expect(state.recentModels).toEqual([]);
     expect(state.providerOrder).toEqual(["claude"]);
+  });
+
+  it("removes Cursor profile-scoped settings with the profile instance", () => {
+    useSharedSettings.getState().setAgentInstance({
+      id: "work",
+      driver: "cursor",
+      displayName: "Work",
+    });
+    useSharedSettings.setState({
+      agentSettings: { "cursor:work": { structuredRuntime: "sdk" } },
+      providerOrder: ["cursor", "cursor:work"],
+    });
+
+    useSharedSettings.getState().removeAgentInstance("work");
+
+    expect(useSharedSettings.getState().agentSettings["cursor:work"]).toBeUndefined();
+    expect(useSharedSettings.getState().providerOrder).toEqual(["cursor"]);
   });
 });

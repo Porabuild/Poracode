@@ -333,6 +333,26 @@ describe("runUpdateCommandWithFallback", () => {
       { timeoutMs: 5 * 60 * 1000 },
     );
   });
+
+  it("does not apply adapter baseSpawnEnv to the explicit update spawn", async () => {
+    readAgentCommandOutputMock.mockResolvedValue({ ok: true, stdout: "updated", stderr: "" });
+    const adapter = {
+      ...makeAdapter("antigravity"),
+      baseSpawnEnv: { AGY_CLI_DISABLE_AUTO_UPDATE: "1" },
+    };
+    const status = makeStatus({
+      kind: "antigravity",
+      executablePath: "C:\\agy.exe",
+    });
+
+    const result = await runUpdateCommandWithFallback(adapter, status, NATIVE_WIN);
+
+    expect(result).toEqual({ ok: true, strategy: "built-in", output: "updated" });
+    expect(readAgentCommandOutputMock).toHaveBeenCalledWith(expect.anything(), "agy", ["update"], {
+      timeoutMs: 5 * 60 * 1000,
+    });
+    expect(readAgentCommandOutputMock.mock.calls[0]?.[3]).not.toHaveProperty("env");
+  });
 });
 
 describe("getLatestVersionForAdapter", () => {

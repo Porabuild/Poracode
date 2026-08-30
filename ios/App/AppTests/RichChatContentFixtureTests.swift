@@ -14,13 +14,14 @@ final class RichChatContentFixtureTests: XCTestCase {
       let object = try richFixtureObject(entry)
       return try RichContentDecoder.decodeBlock(try XCTUnwrap(object["block"]))
     }
-    XCTAssertEqual(decoded.count, 6)
+    XCTAssertEqual(decoded.count, 7)
     XCTAssertTrue(matches(decoded[0], case: "text"))
     XCTAssertTrue(matches(decoded[1], case: "skill"))
     XCTAssertTrue(matches(decoded[2], case: "mcp"))
-    XCTAssertTrue(matches(decoded[3], case: "diff"))
-    XCTAssertTrue(matches(decoded[4], case: "image"))
-    XCTAssertTrue(matches(decoded[5], case: "file"))
+    XCTAssertTrue(matches(decoded[3], case: "thread"))
+    XCTAssertTrue(matches(decoded[4], case: "diff"))
+    XCTAssertTrue(matches(decoded[5], case: "image"))
+    XCTAssertTrue(matches(decoded[6], case: "file"))
 
     let rejected = try richFixtureArray(try XCTUnwrap(fixture["rejected"]))
     for entry in rejected {
@@ -135,7 +136,7 @@ final class RichChatContentFixtureTests: XCTestCase {
 
   private func matches(_ block: RichContentBlock, case expected: String) -> Bool {
     switch (block, expected) {
-    case (.text, "text"), (.skill, "skill"), (.mcp, "mcp"),
+    case (.text, "text"), (.skill, "skill"), (.mcp, "mcp"), (.thread, "thread"),
       (.diffComment, "diff"), (.image, "image"), (.file, "file"):
       true
     default:

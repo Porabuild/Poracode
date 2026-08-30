@@ -17,6 +17,11 @@ final class RichChatSteerMediaFixtureTests: XCTestCase {
     }
     XCTAssertEqual(path, "/tmp/fixture.txt")
     XCTAssertEqual(mime, "text/plain")
+    guard case .thread(let threadID, let title)? = input.segments?[safe: 2] else {
+      return XCTFail("Expected thread segment")
+    }
+    XCTAssertEqual(threadID, "thread-related")
+    XCTAssertEqual(title, "Related investigation")
     XCTAssertTrue(
       RichPendingSteerDecoder.isValidClearBody(
         try XCTUnwrap(fixture["clearBody"])
@@ -67,7 +72,7 @@ final class RichChatSteerMediaFixtureTests: XCTestCase {
     }
 
     let blocks = try loadRichChatFixture("rich-content-blocks.json")
-    let imageEntry = try richFixtureArray(try XCTUnwrap(blocks["accepted"]))[4]
+    let imageEntry = try richFixtureArray(try XCTUnwrap(blocks["accepted"]))[5]
     let image = try RichContentDecoder.decodeBlock(
       try XCTUnwrap(try richFixtureObject(imageEntry)["block"])
     )

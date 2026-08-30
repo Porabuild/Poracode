@@ -198,6 +198,7 @@ object RichTimeline {
         if (item.streams["assistant_text"].orEmpty().any { !it.isWhitespace() }) return true
         return RichContentDecoder.decodeMessageContent(item.payload)?.any { block ->
             block is RichContentBlock.Image ||
+                block is RichContentBlock.Thread ||
                 (block is RichContentBlock.Text && block.text.any { !it.isWhitespace() })
         } == true
     }

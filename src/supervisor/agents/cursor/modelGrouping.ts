@@ -2,20 +2,19 @@ import type { AgentCapability, LabeledOption } from "@/shared/contracts";
 import { parseCursorModelId } from "@/shared/cursorModelId";
 
 /**
- * Sub-provider grouping shared by every Cursor model picker projection (CLI
- * terminal models, ACP models, and the SDK catalog). Kept in its own module so
- * the SDK projection doesn't have to import the detection module's process
- * probes just to classify a model id.
+ * Sub-provider grouping for CLI, ACP, and SDK picker projections. Cursor's
+ * catalog has no usage-pool field: known third-party vendor prefixes are Other
+ * models; remaining ids are the first-party Cursor Models pool.
  */
 
 export const CURSOR_MODEL_GROUP_ID = "cursor";
 export const OTHER_MODEL_GROUP_ID = "other";
 
-const CURSOR_FIRST_PARTY_MODEL_RE = /^(?:default$|auto(?:-smart)?|composer(?:-|$))/iu;
+const CURSOR_THIRD_PARTY_MODEL_RE = /^(?:gpt|claude|gemini|kimi|glm|opus|sonnet|haiku)(?:-|$)/iu;
 
 export function cursorModelGroup(modelId: string): "cursor" | "other" {
   const baseId = parseCursorModelId(modelId).baseId;
-  return CURSOR_FIRST_PARTY_MODEL_RE.test(baseId) ? CURSOR_MODEL_GROUP_ID : OTHER_MODEL_GROUP_ID;
+  return CURSOR_THIRD_PARTY_MODEL_RE.test(baseId) ? OTHER_MODEL_GROUP_ID : CURSOR_MODEL_GROUP_ID;
 }
 
 export function cursorModelGrouping(

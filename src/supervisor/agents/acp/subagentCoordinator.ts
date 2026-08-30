@@ -14,6 +14,7 @@ import {
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
   PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
+  PORACODE_ACP_SUBAGENT_STATUS_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping/subagents";
 
@@ -48,7 +49,7 @@ export interface AcpSubagentCompletionInput {
   sessionId: string;
   toolCallId?: string;
   taskId?: string;
-  status: "completed" | "failed" | "cancelled";
+  status: "completed" | "failed" | "cancelled" | "paused";
   result?: string;
   childOutput?: string;
   parentReply?: string;
@@ -67,6 +68,7 @@ export interface AcpSubagentCoordinator {
     agentId?: string;
   }): AcpBackgroundSubagentLaunch | undefined;
   resolveBackgroundToolCallId(taskId: string): string | undefined;
+  hasBackgroundTasks(): boolean;
   complete(input: AcpSubagentCompletionInput): SessionNotification[];
   forgetCall(toolCallId: string): void;
 }
@@ -152,6 +154,10 @@ export function createAcpSubagentCoordinator(): AcpSubagentCoordinator {
 
     resolveBackgroundToolCallId(taskId) {
       return toolCallIdByTaskId.get(taskId);
+    },
+
+    hasBackgroundTasks() {
+      return toolCallIdByTaskId.size > 0;
     },
 
     complete(input) {
@@ -246,7 +252,7 @@ function createAcpSubagentCompletionNotifications(input: {
   sessionId: string;
   toolCallId: string;
   descriptor: AcpSubagentDescriptor;
-  status: "completed" | "failed" | "cancelled";
+  status: "completed" | "failed" | "cancelled" | "paused";
   result?: string;
   childOutput?: string;
   parentReply?: string;
@@ -279,12 +285,13 @@ function createAcpSubagentCompletionNotifications(input: {
     sessionNotification(input.sessionId, {
       sessionUpdate: "tool_call_update",
       toolCallId: input.toolCallId,
-      status: input.status === "completed" ? "completed" : "failed",
+      status: input.status === "completed" || input.status === "paused" ? "completed" : "failed",
       rawInput: buildCanonicalAcpSubagentInput(input.descriptor),
       ...(input.result ? { rawOutput: input.result } : {}),
       _meta: {
         ...input.terminalMeta,
         [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: input.toolCallId,
+        [PORACODE_ACP_SUBAGENT_STATUS_META_KEY]: input.status,
         ...(input.synthesizeResultProgress
           ? { [PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY]: true }
           : {}),

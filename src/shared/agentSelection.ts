@@ -26,6 +26,25 @@ export function authStateForPresentation(
   return status.presentationAuthStates?.[presentationMode] ?? status.authState;
 }
 
+/**
+ * Whether Settings should flag this provider as needing sign-in. Providers with
+ * independently authenticated runtimes (Cursor CLI vs SDK) are ready when any
+ * installed runtime is signed in — picking SDK on the main tile must not look
+ * like a CLI logout.
+ */
+export function agentStatusNeedsAuthAttention(
+  status: Pick<AgentStatus, "installed" | "authState" | "runtimeVariants">,
+): boolean {
+  if (!status.installed) return false;
+  const variants = status.runtimeVariants;
+  if (variants && Object.keys(variants).length > 0) {
+    const installed = Object.values(variants).filter((variant) => variant.installed);
+    if (installed.length === 0) return status.authState === "missing";
+    return !installed.some((variant) => variant.authState === "authenticated");
+  }
+  return status.authState === "missing";
+}
+
 export function authStatusForPresentation(
   status: AgentStatus,
   presentationMode: ThreadPresentationMode,
@@ -48,7 +67,13 @@ function stripProviderLogin(status: AgentStatus): AgentStatus {
   return withoutProviderLogin;
 }
 
-function restoreProviderLogin(source: AgentStatus, status: AgentStatus): AgentStatus {
+function restoreProviderLogin(
+  source: Pick<
+    AgentStatus,
+    "loginCommand" | "authMethods" | "authLogoutSupported" | "preferTerminalLogin"
+  >,
+  status: AgentStatus,
+): AgentStatus {
   return {
     ...status,
     ...(source.loginCommand !== undefined ? { loginCommand: source.loginCommand } : {}),
@@ -123,8 +148,10 @@ export function agentStatusForPresentation(
     return presentationStatus;
   }
 
+  const { providerMetadata: _providerMetadata, ...presentationWithoutMetadata } =
+    presentationStatus;
   const runtimeStatus: AgentStatus = {
-    ...presentationStatus,
+    ...presentationWithoutMetadata,
     installed: runtimeVariant.installed,
     authState: runtimeVariant.authState,
     presentationAuthStates: {
@@ -136,9 +163,20 @@ export function agentStatusForPresentation(
       [presentationMode]: runtimeVariant.authUsesProviderLogin,
     },
     capabilities: runtimeVariant.capabilities,
+    ...(runtimeVariant.providerMetadata
+      ? { providerMetadata: runtimeVariant.providerMetadata }
+      : {}),
   };
+  const hasRuntimeLogin =
+    runtimeVariant.loginCommand !== undefined ||
+    runtimeVariant.authMethods !== undefined ||
+    runtimeVariant.authLogoutSupported !== undefined ||
+    runtimeVariant.preferTerminalLogin !== undefined;
   return runtimeVariant.authUsesProviderLogin
-    ? restoreProviderLogin(status, runtimeStatus)
+    ? restoreProviderLogin(
+        hasRuntimeLogin ? runtimeVariant : status,
+        stripProviderLogin(runtimeStatus),
+      )
     : stripProviderLogin(runtimeStatus);
 }
 
@@ -150,8 +188,14 @@ function runtimeVariantForSession(
   const providerSessionId = sessionRef?.providerSessionId;
   const variants = status.runtimeVariants;
   const routing = status.sessionRuntimeRouting;
-  if (!providerSessionId || !variants || !routing) {
+  if (!variants) {
     return undefined;
+  }
+  if (!providerSessionId || !routing) {
+    const candidates = Object.values(variants).filter(
+      (variant) => variant.presentationMode === presentationMode,
+    );
+    return candidates.length === 1 ? candidates[0] : undefined;
   }
 
   let matchedRuntime: string | undefined;

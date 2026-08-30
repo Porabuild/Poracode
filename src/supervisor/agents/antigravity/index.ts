@@ -1,7 +1,12 @@
-import { statSync } from "node:fs";
-import { join } from "node:path";
-import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentInstanceConfig,
+  PromptSegment,
+  ProjectLocation,
+} from "@/shared/contracts";
+import { ANTIGRAVITY_ACP_REGISTRY_ID } from "@/shared/agents/antigravity";
 import { compareVersions } from "@/shared/changelog";
+import { isHomeScopeLocation } from "@/shared/homeScope";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
@@ -9,6 +14,7 @@ import {
   detectAgentInstall,
   watchSessionPaths,
   type AgentAdapter,
+  inheritBaseSpawnEnv,
 } from "../base";
 import { probeAntigravityAccount } from "./antigravityAccountProbe";
 import { buildAntigravityArgs, buildAntigravityModelArgs } from "./argv";
@@ -32,6 +38,7 @@ import {
   detectAntigravityTerminalStatus,
   syncAntigravityConfigFromTerminalState,
 } from "./terminal";
+import { applyAntigravityAcpStatus, createAntigravityAcpRuntime } from "./acp";
 
 export { detectAntigravityInvalidSessionRef } from "./session";
 
@@ -39,22 +46,27 @@ export function shouldUseAntigravityPrintPty(version: string | undefined): boole
   return !version || compareVersions(version, "1.1.1") < 0;
 }
 
-function isLinkedGitWorktree(location: ProjectLocation): boolean {
-  const root = location.kind === "wsl" ? location.uncPath : location.path;
-  try {
-    return statSync(join(root, ".git")).isFile();
-  } catch {
-    return false;
-  }
-}
-
-export function createAntigravityAdapter(): AgentAdapter {
-  let capabilities: AgentCapability = defaultAntigravityCapabilities;
+export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): AgentAdapter {
+  const acpRuntime = createAntigravityAcpRuntime(acpInstance);
+  const createAcpSession = acpRuntime?.createStructuredSession;
+  const buildAcpAuthCommand = acpRuntime?.buildAcpAuthCommand;
+  let terminalCapabilities: AgentCapability = defaultAntigravityCapabilities;
+  let capabilities: AgentCapability = acpRuntime
+    ? {
+        ...defaultAntigravityCapabilities,
+        presentationModes: ["terminal", "gui"],
+        mcpScope: { terminal: "none", gui: "launch" },
+        presentationCapabilities: { gui: acpRuntime.capabilities },
+      }
+    : defaultAntigravityCapabilities;
   let preSpawnConversationIds = new Set<string>();
   let preSpawnLastConversationForCwd: string | undefined;
   let preSpawnStartedAt = 0;
   let supportsSeparateModelEffort = false;
   let usePtyForPrint = true;
+  // Detection updates this; `true` until the first probe keeps the CLI lane
+  // for anything that reads the adapter before a status refresh lands.
+  let cliRuntimeInstalled = true;
   let defaultModel = ANTIGRAVITY_DEFAULT_MODEL_ID;
   const detectionSpec = createAntigravityDetectionSpec((probe) => {
     supportsSeparateModelEffort = probe.dialect.separateModelEffort;
@@ -65,6 +77,7 @@ export function createAntigravityAdapter(): AgentAdapter {
     kind: detectionSpec.kind,
     label: detectionSpec.label,
     binary: detectionSpec.binary,
+    firstClassAcpRegistryId: ANTIGRAVITY_ACP_REGISTRY_ID,
     skillSupport: {
       roots: [
         {
@@ -103,15 +116,24 @@ export function createAntigravityAdapter(): AgentAdapter {
     spawnEnv: {
       wsl: { BROWSER: "/bin/true" },
     },
+    // Stops `agy`'s background self-updater from detaching out of the thread's
+    // pseudoconsole and popping a stray terminal window.
+    ...inheritBaseSpawnEnv(detectionSpec),
 
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, detectionSpec);
-      capabilities = status.capabilities;
+      const [status, acpStatus] = await Promise.all([
+        detectAgentInstall(ctx, detectionSpec),
+        acpRuntime?.detectInstall(ctx),
+      ]);
+      terminalCapabilities = status.capabilities;
+      cliRuntimeInstalled = status.installed;
+      const merged = applyAntigravityAcpStatus(status, acpStatus);
+      capabilities = merged.capabilities;
       supportsSeparateModelEffort ||= Boolean(
         status.version && compareVersions(status.version, "1.1.5") >= 0,
       );
       usePtyForPrint = shouldUseAntigravityPrintPty(status.version);
-      return status;
+      return merged;
     },
 
     async resolveAccount({ status, wslDistros }) {
@@ -150,9 +172,9 @@ export function createAntigravityAdapter(): AgentAdapter {
         supportsSeparateModelEffort,
         defaultModel,
       );
-      // agy's default project loses linked-worktree scope when its Git watcher
-      // rejects worktreeConfig; an explicit project keeps file tools in this cwd.
-      if (isLinkedGitWorktree(location)) args.unshift("--new-project");
+      // Keep file tools in the selected project. Home remains projectless so it
+      // can continue to serve as an OS-level session spanning user folders.
+      if (!isHomeScopeLocation(location)) args.unshift("--new-project");
       return { binary: "agy", args };
     },
 
@@ -244,12 +266,19 @@ export function createAntigravityAdapter(): AgentAdapter {
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     detectTerminalStatus(text) {
-      return detectAntigravityTerminalStatus(text, capabilities);
+      return detectAntigravityTerminalStatus(text, terminalCapabilities);
     },
     syncConfigFromTerminalState(input) {
-      return syncAntigravityConfigFromTerminalState(input, capabilities);
+      return syncAntigravityConfigFromTerminalState(input, terminalCapabilities);
     },
     detectInvalidSessionRef: detectAntigravityInvalidSessionRef,
+    // The one-shot child lane runs `agy`, so it is only usable while the CLI
+    // runtime is detected. On a machine with just the ACP chat artifact the
+    // structured runtime is the child lane instead (as the pre-adoption
+    // registry provider was).
+    get subagentExecutionPreference() {
+      return cliRuntimeInstalled ? ("one-shot" as const) : ("structured" as const);
+    },
 
     get defaultOneShotModel() {
       return defaultModel;
@@ -291,17 +320,14 @@ export function createAntigravityAdapter(): AgentAdapter {
       };
     },
 
-    // Antigravity has no structured (GUI) runtime, so it joins the subagent
-    // roster via the one-shot child lane. Unlike title/commit generation this
-    // does NOT isolate the cwd — a child runs in the parent's project directory
-    // so it can actually read/edit the repo. Since agy 1.1.3, headless mode
-    // soft-denies tools requiring confirmation, so subagents need the explicit
-    // bypass to perform their assigned project work.
+    // Subagents stay on the agy one-shot lane so the terminal CLI remains the
+    // execution source for child work. Unlike title/commit generation this does
+    // NOT isolate the cwd — a child runs in the parent's project directory.
     buildSubagentOneShotCommand({ model, effort, prompt, location }) {
       return {
         command: "agy",
         args: [
-          ...(isLinkedGitWorktree(location) ? ["--new-project"] : []),
+          ...(!isHomeScopeLocation(location) ? ["--new-project"] : []),
           ...buildAntigravityModelArgs(model, effort, supportsSeparateModelEffort, defaultModel),
           "--dangerously-skip-permissions",
           "-p",
@@ -311,5 +337,19 @@ export function createAntigravityAdapter(): AgentAdapter {
         ...(usePtyForPrint ? { pty: true } : {}),
       };
     },
+
+    ...(createAcpSession
+      ? {
+          createStructuredSession: async (input) => {
+            if (input.presentationMode !== "gui") return undefined;
+            return createAcpSession(input);
+          },
+        }
+      : {}),
+    ...(buildAcpAuthCommand
+      ? {
+          buildAcpAuthCommand: (ctx) => buildAcpAuthCommand(ctx),
+        }
+      : {}),
   };
 }

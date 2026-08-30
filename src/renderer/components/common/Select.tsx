@@ -72,11 +72,6 @@ export function Select(props: SelectProps) {
             <span className={`min-w-0 flex-1 truncate ${selectedOption ? "" : "text-muted"}`}>
               {selectedOption?.label ?? placeholder}
             </span>
-            {selectedOption?.detail ? (
-              <span className="min-w-0 shrink truncate text-xs text-muted/60">
-                {selectedOption.detail}
-              </span>
-            ) : null}
             <ChevronDown className="size-4 shrink-0 text-muted" />
           </button>
         }
@@ -96,12 +91,14 @@ export function Select(props: SelectProps) {
                 }}
               >
                 {option.icon}
-                <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                {option.detail ? (
-                  <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">
-                    {option.detail}
-                  </span>
-                ) : null}
+                <div className="flex min-w-0 flex-1 flex-col items-start text-left">
+                  <span className="min-w-0 truncate">{option.label}</span>
+                  {option.detail ? (
+                    <span className="min-w-0 truncate font-mono text-[11px] text-muted/70">
+                      {option.detail}
+                    </span>
+                  ) : null}
+                </div>
                 {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
               </button>
             );
@@ -118,17 +115,26 @@ export function Select(props: SelectProps) {
         // rule but later in import order, collapsing the end padding that
         // reserves room for the checkmark so it overlaps long labels. The
         // `pe-7` utility (utilities layer) restores it.
-        <ListBox.Item key={option.id} id={option.id} textValue={option.label} className="pe-7">
+        <ListBox.Item
+          key={option.id}
+          id={option.id}
+          textValue={option.label}
+          className="relative pe-7"
+        >
           {option.icon || option.detail ? (
-            <>
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
               {option.icon}
-              <div className="flex min-w-0 flex-1 flex-col">
-                <Label className="truncate">{option.label}</Label>
+              <div className="flex min-w-0 flex-1 flex-col py-0.5">
+                <Label className="truncate text-sm font-medium text-foreground">
+                  {option.label}
+                </Label>
                 {option.detail ? (
-                  <Description className="truncate">{option.detail}</Description>
+                  <Description className="truncate font-mono text-[11px] text-muted">
+                    {option.detail}
+                  </Description>
                 ) : null}
               </div>
-            </>
+            </div>
           ) : (
             option.label
           )}
@@ -147,21 +153,15 @@ export function Select(props: SelectProps) {
       {label ? <Label>{label}</Label> : null}
       <HeroSelect.Trigger>
         <HeroSelect.Value>
-          {({ defaultChildren, isPlaceholder }) =>
-            !isPlaceholder && selectedOption?.icon ? (
+          {({ defaultChildren, isPlaceholder }) => {
+            if (isPlaceholder || !selectedOption) return defaultChildren;
+            return (
               <span className="flex min-w-0 items-center gap-2">
                 {selectedOption.icon}
                 <span className="min-w-0 truncate">{selectedOption.label}</span>
-                {selectedOption.detail ? (
-                  <span className="min-w-0 shrink truncate text-xs text-muted/60">
-                    {selectedOption.detail}
-                  </span>
-                ) : null}
               </span>
-            ) : (
-              defaultChildren
-            )
-          }
+            );
+          }}
         </HeroSelect.Value>
         <HeroSelect.Indicator />
       </HeroSelect.Trigger>

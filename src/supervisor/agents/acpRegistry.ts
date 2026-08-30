@@ -1,22 +1,29 @@
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
-import { copyFileSync, chmodSync, existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
+import { copyFileSync, chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import {
   acpGenericKind,
   acpRegistryListResultSchema,
+  parseAcpGenericInstanceConfig,
   type AcpRegistryAgent,
+  type AcpRegistryInstallTarget,
   type AcpRegistryListResult,
+  type AcpGenericCommandConfig,
+  type AcpGenericInstanceConfig,
   type AgentInstanceConfig,
   type AgentInstanceEnvVar,
   type AgentKind,
   type InstalledAcpRegistryAgent,
 } from "@/shared/contracts";
 import {
+  ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS,
   defaultSharedSettings,
   normalizeSharedSettings,
+  normalizeSharedSettingsState,
+  pickAntigravityAcpAliasMigratedFields,
   type SharedSettings,
 } from "@/shared/settings";
 import { downloadToFile } from "../runtime/download";
@@ -29,12 +36,50 @@ import {
   clearNpxExecutionCache,
   isNpxCacheCorruptionError,
 } from "./acpRegistryNpx";
-import { buildAgentCommand, type AgentEnvContext } from "./base";
+import {
+  ACP_REGISTRY_INSTALL_DIR,
+  acpRegistryAgentInstallDir,
+  PENDING_DELETE_PREFIX,
+  removeAcpRegistryInstallDir,
+} from "./acpRegistryInstallDir";
+import {
+  batchWslCommandsAsync,
+  buildAgentCommand,
+  quotePosixShellArg,
+  resolveWslHomeDirectoryAsync,
+  type AgentEnvContext,
+} from "./base";
+import { toWslUncPath } from "@/shared/wsl";
 
 const execFileAsync = promisify(execFile);
 
 const ACP_REGISTRY_URL = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json";
-const ACP_REGISTRY_INSTALL_DIR = "acp-registry";
+
+export function wslAcpRegistryAgentInstallDir(
+  distro: string,
+  home: string,
+  agentId: string,
+): string {
+  return toWslUncPath(distro, `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agentId}`);
+}
+
+/**
+ * Sweep WSL-side `.pending-delete-*` dirs parked by
+ * {@link removeAcpRegistryInstallDir} when a running ACP server held the binary
+ * lock. The Windows-side launch sweep cannot reach into a distro, so recorded
+ * WSL installs get this equivalent at launch. Best-effort.
+ */
+export async function pruneWslAcpRegistryPendingDeletes(distro: string): Promise<void> {
+  const home = await resolveWslHomeDirectoryAsync(distro).catch(() => undefined);
+  if (!home) return;
+  const [result] = await batchWslCommandsAsync(distro, [
+    `find ${quotePosixShellArg(`${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}`)} -maxdepth 3 -type d ` +
+      `-name ${quotePosixShellArg(`${PENDING_DELETE_PREFIX}*`)} -exec rm -rf {} +`,
+  ]).catch(() => []);
+  if (!result?.ok) {
+    console.warn(`[acp-registry] WSL pending-delete sweep failed for ${distro}`);
+  }
+}
 
 export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
   const response = await fetch(ACP_REGISTRY_URL);
@@ -194,19 +239,95 @@ function writeAcpRegistrySettings(settingsPath: string, settings: SharedSettings
   writeFileAtomic(settingsPath, JSON.stringify(encrypted, null, 2), { encoding: "utf8" });
 }
 
+/**
+ * Persist the unversioned shared-settings alias migration once legacy
+ * Antigravity ACP state is observed. Overlaying only the fields the migration
+ * can rewrite (see `ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS`) keeps the rest of the
+ * raw file — secrets in their encrypted form included — byte-for-byte.
+ */
+export function persistAcpRegistrySettingsMigrations(settingsPath: string): boolean {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(settingsPath, "utf8"));
+  } catch {
+    return false;
+  }
+  const { settings: migrated, acpAliasMigrated } = normalizeSharedSettingsState(raw);
+  if (!acpAliasMigrated) return false;
+  const overlay: Partial<
+    Pick<SharedSettings, (typeof ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS)[number]>
+  > = { ...pickAntigravityAcpAliasMigratedFields(migrated) };
+  // A schema-level parse failure collapses a whole collection to its default
+  // (e.g. one malformed instance id empties `agentInstances`). These
+  // collections never have keys renamed by the alias migration, so a raw key
+  // missing from the normalized value means parsing dropped data — keep the
+  // raw collection instead of persisting the collapse.
+  const collectionsThatNeverRenameKeys = [
+    "agentInstances",
+    "acpRegistryInstalledAgents",
+    "machineSettings",
+  ] as const;
+  const rawRecord = raw as Record<string, unknown>;
+  for (const key of collectionsThatNeverRenameKeys) {
+    const rawValue = rawRecord[key];
+    const nextValue = overlay[key];
+    if (
+      rawValue === null ||
+      typeof rawValue !== "object" ||
+      nextValue === null ||
+      typeof nextValue !== "object"
+    ) {
+      continue;
+    }
+    if (!Object.keys(rawValue).every((inner) => inner in nextValue)) {
+      delete overlay[key];
+    }
+  }
+  const persisted = { ...rawRecord, ...overlay };
+  writeFileAtomic(settingsPath, JSON.stringify(persisted, null, 2), { encoding: "utf8" });
+  return true;
+}
+
 function registryInstallRecord(
   agent: AcpRegistryAgent,
   adapterKind: AgentKind,
   installKind: InstalledAcpRegistryAgent["installKind"],
+  target: AcpRegistryInstallTarget,
+  targetName: string,
+  existing: InstalledAcpRegistryAgent | undefined,
 ): InstalledAcpRegistryAgent {
+  const installedAt = new Date().toISOString();
+  const previousInstallations =
+    existing?.installations ??
+    (existing
+      ? {
+          native: {
+            version: existing.version,
+            target: "legacy-native",
+            installedAt: existing.installedAt,
+          },
+        }
+      : {});
+  const installations = {
+    ...previousInstallations,
+    ...(target.kind === "native"
+      ? { native: { version: agent.version, target: targetName, installedAt } }
+      : {
+          wsl: {
+            ...(previousInstallations.wsl ?? {}),
+            [target.distro]: { version: agent.version, target: targetName, installedAt },
+          },
+        }),
+  };
   return {
     id: agent.id,
     name: agent.name,
     version: agent.version,
     ...(agent.icon ? { icon: agent.icon } : {}),
-    installedAt: new Date().toISOString(),
+    installedAt,
     adapterKind,
     installKind,
+    installations,
   };
 }
 
@@ -241,11 +362,23 @@ function packageInstance(agent: AcpRegistryAgent, command: "npx" | "uvx"): Agent
   };
 }
 
-function currentBinaryTarget(): string {
+function nativeBinaryTarget(): string {
   const os =
     process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "windows" : "linux";
   const arch = process.arch === "arm64" ? "aarch64" : "x86_64";
   return `${os}-${arch}`;
+}
+
+async function binaryTargetForInstall(target: AcpRegistryInstallTarget): Promise<string> {
+  if (target.kind === "native") return nativeBinaryTarget();
+  if (process.platform !== "win32") {
+    throw new Error("WSL ACP registry installs are only available on Windows");
+  }
+  const [result] = await batchWslCommandsAsync(target.distro, ["uname -m"]);
+  const arch = result?.ok ? result.stdout.trim().toLowerCase() : "";
+  if (arch === "x86_64" || arch === "amd64") return "linux-x86_64";
+  if (arch === "aarch64" || arch === "arm64") return "linux-aarch64";
+  throw new Error(`Unsupported WSL architecture for ${target.distro}: ${arch || "unknown"}`);
 }
 
 function archiveFileName(url: string): string {
@@ -265,11 +398,16 @@ async function extractArchive(archivePath: string, installDir: string): Promise<
           "-NoLogo",
           "-NoProfile",
           "-Command",
-          "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
-          archivePath,
-          installDir,
+          "Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
         ],
-        { windowsHide: true },
+        {
+          windowsHide: true,
+          env: {
+            ...process.env,
+            PORACODE_ACP_ARCHIVE_PATH: archivePath,
+            PORACODE_ACP_INSTALL_DIR: installDir,
+          },
+        },
       );
     } else {
       await execFileAsync("unzip", ["-q", "-o", archivePath, "-d", installDir], {
@@ -297,16 +435,28 @@ function resolveInstalledCommandPath(installDir: string, cmd: string): string {
 async function binaryInstance(
   agent: AcpRegistryAgent,
   baseDir: string,
-): Promise<AgentInstanceConfig> {
-  const targetName = currentBinaryTarget();
+  installTarget: AcpRegistryInstallTarget,
+): Promise<{ instance: AgentInstanceConfig; targetName: string; installDir: string }> {
+  const targetName = await binaryTargetForInstall(installTarget);
   const target = agent.distribution.binary?.[targetName];
   if (!target) {
     throw new Error(`${agent.name} does not publish a binary for ${targetName}`);
   }
 
   const rootDir = join(baseDir, ACP_REGISTRY_INSTALL_DIR, agent.id, agent.version);
-  const installDir = join(rootDir, "bin");
-  rmSync(installDir, { recursive: true, force: true });
+  let installDir: string;
+  let commandPath: string;
+  if (installTarget.kind === "wsl") {
+    const home = await resolveWslHomeDirectoryAsync(installTarget.distro);
+    if (!home) throw new Error(`Unable to resolve home directory for WSL ${installTarget.distro}`);
+    const linuxInstallDir = `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agent.id}/${agent.version}/bin`;
+    installDir = toWslUncPath(installTarget.distro, linuxInstallDir);
+    commandPath = `${linuxInstallDir}/${target.cmd.replace(/^\.\//, "")}`;
+  } else {
+    installDir = join(rootDir, "bin");
+    commandPath = resolveInstalledCommandPath(installDir, target.cmd);
+  }
+  await removeAcpRegistryInstallDir(installDir);
   mkdirSync(installDir, { recursive: true });
 
   const archiveName = archiveFileName(target.archive);
@@ -314,43 +464,61 @@ async function binaryInstance(
   await downloadToFile(target.archive, archivePath);
   await extractArchive(archivePath, installDir);
 
-  const commandPath = resolveInstalledCommandPath(installDir, target.cmd);
-  if (!existsSync(commandPath)) {
-    copyFileSync(archivePath, commandPath);
+  const readableCommandPath =
+    installTarget.kind === "wsl"
+      ? resolveInstalledCommandPath(installDir, target.cmd)
+      : commandPath;
+  if (!existsSync(readableCommandPath)) {
+    copyFileSync(archivePath, readableCommandPath);
   }
-  if (process.platform !== "win32") {
+  if (installTarget.kind === "wsl") {
+    const [chmod] = await batchWslCommandsAsync(installTarget.distro, [
+      `chmod 755 ${quotePosixShellArg(commandPath)}`,
+    ]);
+    if (!chmod?.ok) throw new Error(`Unable to mark ${agent.name} executable in WSL`);
+  } else if (process.platform !== "win32") {
     chmodSync(commandPath, 0o755);
   }
 
-  const env = target.env
-    ? Object.fromEntries(
-        Object.entries(target.env).map(([key, value]) => [key, { value, sensitive: false }]),
-      )
-    : undefined;
-  return {
-    id: agent.id,
-    driver: "acp-generic",
-    displayName: agent.name,
+  const command: AcpGenericCommandConfig = {
+    binary: commandPath,
+    args: target.args ?? [],
+    ...(target.env ? { env: target.env } : {}),
     version: agent.version,
-    ...(agent.icon ? { icon: agent.icon } : {}),
-    enabled: true,
-    ...(env ? { environment: env } : {}),
-    config: {
-      binary: commandPath,
-      args: target.args ?? [],
-      cwd: "project",
-      authMode: "none",
+  };
+  const environmentCommands: NonNullable<AcpGenericInstanceConfig["environmentCommands"]> =
+    installTarget.kind === "wsl"
+      ? { wsl: { [installTarget.distro]: command } }
+      : { native: command };
+  return {
+    instance: {
+      id: agent.id,
+      driver: "acp-generic",
+      displayName: agent.name,
+      version: agent.version,
+      ...(agent.icon ? { icon: agent.icon } : {}),
+      enabled: true,
+      config: {
+        binary: commandPath,
+        args: target.args ?? [],
+        cwd: "project",
+        authMode: "none",
+        environmentCommands,
+      },
     },
+    targetName,
+    installDir,
   };
 }
 
 async function genericInstance(
   agent: AcpRegistryAgent,
   baseDir: string,
-): Promise<AgentInstanceConfig> {
-  if (agent.distribution.npx) return packageInstance(agent, "npx");
-  if (agent.distribution.uvx) return packageInstance(agent, "uvx");
-  if (agent.distribution.binary) return binaryInstance(agent, baseDir);
+  target: AcpRegistryInstallTarget,
+): Promise<{ instance: AgentInstanceConfig; targetName: string; installDir?: string }> {
+  if (agent.distribution.npx) return { instance: packageInstance(agent, "npx"), targetName: "npx" };
+  if (agent.distribution.uvx) return { instance: packageInstance(agent, "uvx"), targetName: "uvx" };
+  if (agent.distribution.binary) return binaryInstance(agent, baseDir, target);
   throw new Error(`${agent.name} does not include a supported distribution`);
 }
 
@@ -364,14 +532,53 @@ function mergeRegistryInstance(
   existing: AgentInstanceConfig | undefined,
 ): AgentInstanceConfig {
   if (!existing) return built;
+  const builtConfig = parseAcpGenericInstanceConfig(built.config);
+  const existingConfig = parseAcpGenericInstanceConfig(existing.config);
+  const commandEnvNames = new Set(
+    [
+      builtConfig.environmentCommands?.native,
+      ...Object.values(builtConfig.environmentCommands?.wsl ?? {}),
+      existingConfig.environmentCommands?.native,
+      ...Object.values(existingConfig.environmentCommands?.wsl ?? {}),
+    ].flatMap((command) => Object.keys(command?.env ?? {})),
+  );
   const mergedEnv: Record<string, AgentInstanceEnvVar> = { ...(built.environment ?? {}) };
   for (const [key, value] of Object.entries(existing.environment ?? {})) {
-    if (value.sensitive || !(key in mergedEnv)) {
+    if (value.sensitive || (!commandEnvNames.has(key) && !(key in mergedEnv))) {
       mergedEnv[key] = value;
     }
   }
   const hasEnv = Object.keys(mergedEnv).length > 0;
   const next: AgentInstanceConfig = { ...built };
+  if (builtConfig.environmentCommands) {
+    const legacyNativeCommand: AcpGenericCommandConfig | undefined =
+      existingConfig.environmentCommands
+        ? undefined
+        : {
+            binary: existingConfig.binary,
+            ...(existingConfig.args ? { args: existingConfig.args } : {}),
+            ...(existingConfig.env ? { env: existingConfig.env } : {}),
+            ...(existing.version ? { version: existing.version } : {}),
+          };
+    const native =
+      builtConfig.environmentCommands.native ??
+      existingConfig.environmentCommands?.native ??
+      legacyNativeCommand;
+    const wsl = {
+      ...(existingConfig.environmentCommands?.wsl ?? {}),
+      ...(builtConfig.environmentCommands.wsl ?? {}),
+    };
+    const primary = native ?? Object.values(wsl)[0] ?? builtConfig;
+    next.config = {
+      ...builtConfig,
+      binary: primary.binary,
+      ...(primary.args ? { args: primary.args } : {}),
+      environmentCommands: {
+        ...(native ? { native } : {}),
+        ...(Object.keys(wsl).length > 0 ? { wsl } : {}),
+      },
+    };
+  }
   if (hasEnv) {
     next.environment = mergedEnv;
   } else {
@@ -441,19 +648,24 @@ async function prefetchNpxDistribution(agent: AcpRegistryAgent): Promise<void> {
 async function warmRegistryInstall(
   agent: AcpRegistryAgent,
   instance: AgentInstanceConfig,
-): Promise<void> {
+  target: AcpRegistryInstallTarget,
+): Promise<boolean> {
   if (agent.distribution.npx) {
     await prefetchNpxDistribution(agent);
   }
   try {
-    await probeAcpGenericInstance(instance, undefined, {
+    const ctx: AgentEnvContext | undefined =
+      target.kind === "wsl" ? { envKind: "wsl", wslDistro: target.distro } : undefined;
+    const result = await probeAcpGenericInstance(instance, ctx, {
       timeoutMs: REGISTRY_INSTALL_PROBE_TIMEOUT_MS,
     });
+    return result !== undefined;
   } catch (error) {
     console.warn(
       `[acp-registry] install probe failed for ${agent.id}:`,
       error instanceof Error ? error.message : String(error),
     );
+    return false;
   }
 }
 
@@ -463,6 +675,10 @@ export async function installAcpRegistryAgent(input: {
   settingsPath: string;
   iconsDir: string;
   registry?: AcpRegistryListResult;
+  target?: AcpRegistryInstallTarget;
+  adapterKind?: AgentKind;
+  installKind?: InstalledAcpRegistryAgent["installKind"];
+  respectAutoInstallOptOut?: boolean;
 }): Promise<InstalledAcpRegistryAgent[]> {
   const registry = input.registry ?? (await fetchAcpRegistry());
   const agent = registry.agents.find((entry) => entry.id === input.agentId);
@@ -483,16 +699,77 @@ export async function installAcpRegistryAgent(input: {
   const cachedAgent: AcpRegistryAgent = { ...agent, ...(cachedIcon ? { icon: cachedIcon } : {}) };
 
   const settings = readAcpRegistrySettings(input.settingsPath);
-  const built = await genericInstance(cachedAgent, input.baseDir);
-  const instance = mergeRegistryInstance(built, settings.agentInstances[agent.id]);
-  settings.agentInstances = { ...settings.agentInstances, [agent.id]: instance };
-  settings.acpRegistryInstalledAgents = {
-    ...settings.acpRegistryInstalledAgents,
-    [agent.id]: registryInstallRecord(cachedAgent, acpGenericKind(agent.id), "generic"),
+  if (input.respectAutoInstallOptOut && settings.acpRegistryAutoInstallOptOuts.includes(agent.id)) {
+    throw new Error(`${agent.name} ACP auto-install was disabled`);
+  }
+  const target = input.target ?? { kind: "native" };
+  const built = await genericInstance(cachedAgent, input.baseDir, target);
+  const instance = mergeRegistryInstance(built.instance, settings.agentInstances[agent.id]);
+  const probeSucceeded = await warmRegistryInstall(agent, instance, target);
+  if (input.installKind === "first-class" && agent.distribution.binary && !probeSucceeded) {
+    // The re-extraction has already replaced the target dir by this point, so
+    // for a repair of the exact command the recorded instance points at there
+    // is no earlier artifact left to protect — refuse-and-delete would leave
+    // settings pointing at a removed path. Keep the fresh extraction and warn
+    // so a flaky probe cannot kill a same-version repair. A new version/dir
+    // still gets the strict treatment — refuse and clean up.
+    const existingInstance = settings.agentInstances[agent.id];
+    const existingConfig = existingInstance
+      ? parseAcpGenericInstanceConfig(existingInstance.config)
+      : undefined;
+    const existingCommandForTarget =
+      target.kind === "wsl"
+        ? (existingConfig?.environmentCommands?.wsl?.[target.distro]?.binary ??
+          existingConfig?.binary)
+        : (existingConfig?.environmentCommands?.native?.binary ?? existingConfig?.binary);
+    const reinstallsSameCommand =
+      existingCommandForTarget !== undefined &&
+      existingCommandForTarget === parseAcpGenericInstanceConfig(built.instance.config).binary;
+    if (!reinstallsSameCommand) {
+      if (built.installDir) await removeAcpRegistryInstallDir(built.installDir);
+      throw new Error(`${agent.name} ACP server did not complete initialization`);
+    }
+    console.warn(
+      `[acp-registry] ${agent.id} probe failed after reinstalling the same artifact; keeping it`,
+    );
+  }
+  // The download and probe can take minutes. Re-read immediately before the
+  // write so a concurrent Settings save is not replaced by the stale snapshot
+  // captured above, and so a removal that happened during the probe wins over
+  // the background auto-install.
+  const latestSettings = readAcpRegistrySettings(input.settingsPath);
+  if (
+    input.respectAutoInstallOptOut &&
+    latestSettings.acpRegistryAutoInstallOptOuts.includes(agent.id)
+  ) {
+    if (built.installDir) await removeAcpRegistryInstallDir(built.installDir);
+    throw new Error(`${agent.name} ACP auto-install was disabled`);
+  }
+  const latestInstance = mergeRegistryInstance(
+    built.instance,
+    latestSettings.agentInstances[agent.id],
+  );
+  latestSettings.agentInstances = {
+    ...latestSettings.agentInstances,
+    [agent.id]: latestInstance,
   };
-  writeAcpRegistrySettings(input.settingsPath, settings);
-  await warmRegistryInstall(agent, instance);
-  return Object.values(settings.acpRegistryInstalledAgents);
+  // An install (explicit or auto) is the user having the agent again, so it
+  // clears any earlier removal opt-out.
+  latestSettings.acpRegistryAutoInstallOptOuts =
+    latestSettings.acpRegistryAutoInstallOptOuts.filter((id) => id !== agent.id);
+  latestSettings.acpRegistryInstalledAgents = {
+    ...latestSettings.acpRegistryInstalledAgents,
+    [agent.id]: registryInstallRecord(
+      cachedAgent,
+      input.adapterKind ?? acpGenericKind(agent.id),
+      input.installKind ?? "generic",
+      target,
+      built.targetName,
+      latestSettings.acpRegistryInstalledAgents[agent.id],
+    ),
+  };
+  writeAcpRegistrySettings(input.settingsPath, latestSettings);
+  return Object.values(latestSettings.acpRegistryInstalledAgents);
 }
 
 export async function updateAcpRegistryAgent(input: {
@@ -501,6 +778,9 @@ export async function updateAcpRegistryAgent(input: {
   settingsPath: string;
   iconsDir: string;
   registry?: AcpRegistryListResult;
+  target?: AcpRegistryInstallTarget;
+  adapterKind?: AgentKind;
+  installKind?: InstalledAcpRegistryAgent["installKind"];
 }): Promise<InstalledAcpRegistryAgent[]> {
   const settings = readAcpRegistrySettings(input.settingsPath);
   if (!settings.agentInstances[input.agentId]) {
@@ -510,22 +790,29 @@ export async function updateAcpRegistryAgent(input: {
 }
 
 /**
- * Refresh every installed ACP registry agent whose registry version differs
- * from the locally-recorded version. Best-effort: individual update failures
- * (e.g. binary download errors) are swallowed so listing the registry stays
- * resilient — the user can retry manually from the settings UI.
+ * Refresh generic ACP registry agents whose registry version differs from the
+ * locally-recorded version. First-class aliases update through their built-in
+ * provider card. Best-effort: individual update failures (e.g. binary download
+ * errors) are swallowed so listing the registry stays resilient.
  */
 export async function autoUpdateAcpRegistryAgents(input: {
   registry: AcpRegistryListResult;
   baseDir: string;
   settingsPath: string;
   iconsDir: string;
-}): Promise<{ updated: string[]; failed: { id: string; error: string }[] }> {
+  firstClassAgents?: Readonly<Record<string, AgentKind>>;
+}): Promise<{
+  updated: string[];
+  changed: string[];
+  failed: { id: string; error: string }[];
+}> {
   const settings = readAcpRegistrySettings(input.settingsPath);
   const agentsById = new Map(input.registry.agents.map((agent) => [agent.id, agent]));
   const updated: string[] = [];
+  const changed: string[] = [];
   const failed: { id: string; error: string }[] = [];
   for (const [id, record] of Object.entries(settings.acpRegistryInstalledAgents)) {
+    if (record.installKind === "first-class" || input.firstClassAgents?.[id]) continue;
     const agent = agentsById.get(id);
     if (!agent) continue;
     const instance = settings.agentInstances[id];
@@ -538,29 +825,60 @@ export async function autoUpdateAcpRegistryAgents(input: {
         ? instance.config.args
         : [];
     const correctedArgs = applyAcpRegistryNpxArgsOverride(id, configuredArgs);
-    if (record.version === agent.version && correctedArgs === configuredArgs) continue;
-    try {
-      await installAcpRegistryAgent({
-        agentId: id,
-        baseDir: input.baseDir,
-        settingsPath: input.settingsPath,
-        iconsDir: input.iconsDir,
-        registry: input.registry,
-      });
-      updated.push(id);
-    } catch (error) {
-      failed.push({ id, error: error instanceof Error ? error.message : String(error) });
+    const targets: Array<{
+      target: AcpRegistryInstallTarget;
+      version: string;
+    }> = record.installations
+      ? [
+          ...(record.installations.native
+            ? [
+                {
+                  target: { kind: "native" as const },
+                  version: record.installations.native.version,
+                },
+              ]
+            : []),
+          ...Object.entries(record.installations.wsl ?? {}).map(([distro, installation]) => ({
+            target: { kind: "wsl" as const, distro },
+            version: installation.version,
+          })),
+        ]
+      : [{ target: { kind: "native" }, version: record.version }];
+    const targetsToUpdate = targets.filter(
+      ({ version }) => version !== agent.version || correctedArgs !== configuredArgs,
+    );
+    if (targetsToUpdate.length === 0) continue;
+    let failedUpdate = false;
+    let changedInstall = false;
+    for (const { target } of targetsToUpdate) {
+      try {
+        await installAcpRegistryAgent({
+          agentId: id,
+          baseDir: input.baseDir,
+          settingsPath: input.settingsPath,
+          iconsDir: input.iconsDir,
+          registry: input.registry,
+          target,
+        });
+        changedInstall = true;
+      } catch (error) {
+        failedUpdate = true;
+        failed.push({ id, error: error instanceof Error ? error.message : String(error) });
+      }
     }
+    if (changedInstall) changed.push(id);
+    if (!failedUpdate) updated.push(id);
   }
-  return { updated, failed };
+  return { updated, changed, failed };
 }
 
-export function removeAcpRegistryAgent(input: {
+export async function removeAcpRegistryAgent(input: {
   agentId: string;
   baseDir: string;
   settingsPath: string;
-}): InstalledAcpRegistryAgent[] {
+}): Promise<InstalledAcpRegistryAgent[]> {
   const settings = readAcpRegistrySettings(input.settingsPath);
+  const installRecord = settings.acpRegistryInstalledAgents[input.agentId];
   const agentKind = acpGenericKind(input.agentId);
 
   const nextInstalled = { ...settings.acpRegistryInstalledAgents };
@@ -595,6 +913,11 @@ export function removeAcpRegistryAgent(input: {
     settings.wslConflictResolverProvider = "auto";
 
   settings.acpRegistryInstalledAgents = nextInstalled;
+  // Remember the removal so a provider that auto-installs its registry runtime
+  // alongside a detected CLI cannot bring it back on the next detection pass.
+  settings.acpRegistryAutoInstallOptOuts = [
+    ...new Set([...settings.acpRegistryAutoInstallOptOuts, input.agentId]),
+  ];
   settings.agentInstances = nextInstances;
   settings.providerConfigs = nextProviderConfigs;
   settings.lastPresentationModeByAgent = nextLastPresentation;
@@ -605,10 +928,29 @@ export function removeAcpRegistryAgent(input: {
   settings.recentModels = nextRecentModels;
   settings.agentHookSupport = nextHookSupport;
 
+  // A recorded distro can be deleted or refuse to start. Cleaning its install
+  // dir is best-effort so a stale environment can never make the agent
+  // impossible to remove from settings.
+  const wslInstallDirs =
+    process.platform === "win32"
+      ? (
+          await Promise.all(
+            Object.keys(installRecord?.installations?.wsl ?? {}).map(async (distro) => {
+              const home = await resolveWslHomeDirectoryAsync(distro).catch(() => undefined);
+              if (!home) {
+                console.warn(
+                  `[acp-registry] could not resolve WSL ${distro} home; leaving ${input.agentId} files in place`,
+                );
+                return undefined;
+              }
+              return wslAcpRegistryAgentInstallDir(distro, home, input.agentId);
+            }),
+          )
+        ).filter((dir) => dir !== undefined)
+      : [];
+  await removeAcpRegistryInstallDir(acpRegistryAgentInstallDir(input.baseDir, input.agentId));
+  await Promise.all(wslInstallDirs.map((dir) => removeAcpRegistryInstallDir(dir)));
   writeAcpRegistrySettings(input.settingsPath, settings);
-
-  const installDir = join(input.baseDir, ACP_REGISTRY_INSTALL_DIR, input.agentId);
-  rmSync(installDir, { recursive: true, force: true });
 
   return Object.values(settings.acpRegistryInstalledAgents);
 }

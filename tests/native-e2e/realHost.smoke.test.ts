@@ -81,7 +81,7 @@ describe("real production host smoke", () => {
         protocolVersion: number;
         endpoints: unknown;
       };
-      expect(descriptor.protocolVersion).toBe(3);
+      expect(descriptor.protocolVersion).toBe(8);
 
       const pairing = await host.pair();
       const credential = pairingTokenFromUrl(pairing.pairingUrl);

@@ -10,6 +10,8 @@ import com.poracode.remote.v3.generated.routeU2EHostU2DUpdateU2DInstallU2ERespon
 import com.poracode.remote.v3.generated.routeU2EHostU2DUpdateU2EResponse
 import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DCheckU2ERequest
 import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DCheckU2EResponse
+import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DAgentU2DSyncU2ERequest
+import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DAgentU2DSyncU2EResponse
 import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DDeleteU2ERequest
 import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DDeleteU2EResponse
 import com.poracode.remote.v3.generated.routeU2EPrU2DWatchU2DReadU2EQuery
@@ -30,6 +32,7 @@ enum class IntegrationRouteId(val wireId: String) {
     SchedulesCommand("schedules-command"),
     PrWatchRead("pr-watch-read"),
     PrWatchCheck("pr-watch-check"),
+    PrWatchAgentSync("pr-watch-agent-sync"),
     PrWatchUpsert("pr-watch-upsert"),
     PrWatchDelete("pr-watch-delete"),
 }
@@ -114,6 +117,16 @@ object RemoteV3IntegrationsContract {
 
     fun prWatchCheckResponse(raw: String) = canonical(
         RemoteRootCodecs.routeU2EPrU2DWatchU2DCheckU2EResponse,
+        raw,
+    )
+
+    fun prWatchAgentSyncRequest(raw: String): String = canonical(
+        RemoteRootCodecs.routeU2EPrU2DWatchU2DAgentU2DSyncU2ERequest,
+        raw,
+    )
+
+    fun prWatchAgentSyncResponse(raw: String) = canonical(
+        RemoteRootCodecs.routeU2EPrU2DWatchU2DAgentU2DSyncU2EResponse,
         raw,
     )
 

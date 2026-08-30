@@ -136,6 +136,8 @@ struct RichChatMessageSupplementView: View {
       compactRow(systemImage: "sparkles", title: pluginName ?? name, subtitle: "/\(name)")
     case .mcp(let name):
       compactRow(systemImage: "externaldrive.connected.to.line.below", title: "@\(name)")
+    case .thread(_, let title):
+      compactRow(systemImage: "bubble.left.and.bubble.right", title: "@\(title)")
     case .diffComment(let target, let body):
       VStack(alignment: .leading, spacing: 4) {
         Label(target, systemImage: "text.bubble")

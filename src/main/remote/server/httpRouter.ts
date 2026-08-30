@@ -24,6 +24,7 @@ import {
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
+  prWatchAgentSyncSchema,
   prWatchInputSchema,
   prWatchKeySchema,
   profileIdentitySchema,
@@ -55,6 +56,7 @@ import {
   dbGetProject,
   dbGetProjectNotes,
   dbGetThread,
+  dbGetThreads,
   dbSetProjectNotes,
   dbTruncateThreadRuntimeAfter,
 } from "../../db";
@@ -105,7 +107,12 @@ import {
   buildThreadRuntimeItemsPage,
   descriptor,
 } from "./snapshots";
-import { applyRemoteThreadCommand, runProjectCommand, runRemoteProcedure } from "./threadCommands";
+import {
+  applyRemoteThreadCommand,
+  applyRemoteThreadSwitch,
+  runProjectCommand,
+  runRemoteProcedure,
+} from "./threadCommands";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 
 export function threadIdFromPath(pathname: string, suffix: string): string | null {
@@ -748,6 +755,13 @@ export async function handleHttp(
       writeJson(res, 200, { ok: true });
       return;
     }
+    if (req.method === "POST" && url.pathname === "/api/pr-watches/agent") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const agent = prWatchAgentSyncSchema.parse(await readJsonBody(req));
+      ctx.requirePrWatchesGateway().syncAgent(agent);
+      writeJson(res, 200, { ok: true });
+      return;
+    }
     if (req.method === "POST" && url.pathname === "/api/pr-watches") {
       ctx.security.requireBearer(req, ["session:operate"]);
       const input = prWatchInputSchema.parse(await readJsonBody(req));
@@ -938,22 +952,25 @@ export async function handleHttp(
     if (req.method === "POST" && url.pathname === "/api/threads/start") {
       ctx.security.requireBearer(req, ["session:operate"]);
       const payload = startThreadPayloadSchema.parse(await readJsonBody(req));
-      if (!payload.threadId) {
+      const threadId = payload.threadId;
+      if (!threadId) {
         throw new RemoteHttpError(
           "thread_id_required",
           "Remote thread start requires an existing thread id.",
           400,
         );
       }
-      const thread = dbGetThread(payload.threadId);
+      const thread = dbGetThread(threadId);
       if (!thread) {
         throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
       }
-      assertRemoteThreadStartExperimentSafe(payload.threadId);
+      assertRemoteThreadStartExperimentSafe(threadId);
       const mcpSnapshot =
         ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
       const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
-        ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
+        payload.providerSwitch
+          ? applyRemoteThreadSwitch(ctx, { ...payload, threadId, ...mcpSnapshot })
+          : ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
       );
       writeJson(res, 200, result);
       return;
@@ -988,8 +1005,35 @@ export async function handleHttp(
         ...(typeof body === "object" && body !== null ? body : {}),
         threadId: commandThreadId,
       });
+      if (command.kind === "start" && command.providerSwitch) {
+        throw new RemoteHttpError(
+          "provider_switch_route_invalid",
+          "Provider switches must use the existing-thread start endpoint.",
+          400,
+        );
+      }
       assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
+        if (command.kind === "delete-worktree-group") {
+          const linkedThreadIds = dbGetThreads()
+            .filter(
+              (thread) =>
+                thread.projectId === command.projectId &&
+                thread.worktreePath === command.worktreePath,
+            )
+            .map((thread) => thread.id);
+          const requestedThreadIds = new Set(command.threadIds);
+          if (
+            requestedThreadIds.size !== linkedThreadIds.length ||
+            linkedThreadIds.some((threadId) => !requestedThreadIds.has(threadId))
+          ) {
+            throw new RemoteHttpError(
+              "worktree_threads_changed",
+              msg("remote.worktree.threadsChanged"),
+              409,
+            );
+          }
+        }
         if (command.kind === "start" && command.isNewWorktree && command.worktreePath) {
           await applyRemoteThreadCommand(ctx, {
             kind: "prepare-worktree",

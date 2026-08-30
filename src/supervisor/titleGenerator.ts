@@ -1,5 +1,9 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import type { AgentAdapter } from "./agents/base";
+import {
+  resolveOneShotEffectiveModel,
+  withCommandBaseSpawnEnv,
+  type AgentAdapter,
+} from "./agents/base";
 import { prepareOneShot } from "./oneShotSpawn";
 
 /**
@@ -79,10 +83,9 @@ export async function generateTitle(
   language?: string,
   fast?: boolean,
 ): Promise<string> {
-  const effectiveModel = model ?? adapter.defaultOneShotModel;
-  if (!effectiveModel) {
-    throw new Error(`No default one-shot model configured for ${adapter.label}`);
-  }
+  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+    return new Error(`No default one-shot model configured for ${adapter.label}`);
+  });
 
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
@@ -123,7 +126,12 @@ async function runViaCli(
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
-  const { spec, spawn } = prepareOneShot(location, cmd);
+  // Same wrap as commit/PR/judge one-shots: title gen is a Poracode-made CLI
+  // spawn, so updater opt-outs have to ride it. Command-declared env wins.
+  const { spec, spawn } = prepareOneShot(
+    location,
+    withCommandBaseSpawnEnv(cmd, adapter.baseSpawnEnv),
+  );
   return spawn(spec, cmd.stdin ?? prompt, TITLE_GEN_TIMEOUT_MS);
 }
 

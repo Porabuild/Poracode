@@ -53,6 +53,7 @@ vi.mock("@/renderer/components/common", () => ({
     onChange?: (event: { target: { value: string } }) => void;
     onFocus?: () => void;
     onBlur?: (event: unknown) => void;
+    onKeyDown?: (event: { key: string; preventDefault: () => void }) => void;
   }) => (
     <input
       aria-label={props["aria-label"]}
@@ -62,19 +63,42 @@ vi.mock("@/renderer/components/common", () => ({
       onChange={props.onChange}
       onFocus={props.onFocus}
       onBlur={props.onBlur}
+      onKeyDown={props.onKeyDown}
     />
   ),
+  PixelLoader: () => <span data-testid="pixel-loader" />,
+  // The shared profile list confirms removals before touching settings.
+  ConfirmDialog: (props: {
+    isOpen: boolean;
+    title: string;
+    body: unknown;
+    confirmLabel: string;
+    onConfirm: () => void;
+    onClose: () => void;
+  }) =>
+    props.isOpen ? (
+      <div role="alertdialog" aria-label={props.title}>
+        <button type="button" onClick={props.onConfirm}>
+          {props.confirmLabel}
+        </button>
+      </div>
+    ) : null,
 }));
 
 const refreshAgentStatusesMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
-const setClaudeProfileEnvironmentMock = vi.hoisted(() =>
+const setProfileEnvironmentMock = vi.hoisted(() =>
   vi.fn<(payload: unknown) => Promise<AgentInstanceConfig>>(),
 );
+const createProfileMock = vi.hoisted(() =>
+  vi.fn<(payload: { id: string; displayName: string }) => Promise<AgentInstanceConfig>>(),
+);
+const flushSharedSettingsMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
-    setClaudeProfileEnvironment: setClaudeProfileEnvironmentMock,
+    setProfileEnvironment: setProfileEnvironmentMock,
+    createProfile: createProfileMock,
   }),
 }));
 
@@ -94,10 +118,21 @@ const statusState = {
   removeAgentStatus: vi.fn<(kind: string) => void>(),
 };
 
-vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
-    selector(settingsState),
-}));
+vi.mock("@/renderer/state/sharedSettingsStore", () => {
+  // The shared profile list also reads the store imperatively (snapshot for the
+  // removal rollback) and flushes it, so the stub carries those entry points.
+  const useSharedSettings = ((selector: (state: typeof settingsState) => unknown) =>
+    selector(settingsState)) as unknown as {
+    (selector: (state: typeof settingsState) => unknown): unknown;
+    getState: () => typeof settingsState;
+    setState: (patch: Partial<typeof settingsState>) => void;
+  };
+  useSharedSettings.getState = () => settingsState;
+  useSharedSettings.setState = (patch) => {
+    Object.assign(settingsState, patch);
+  };
+  return { useSharedSettings, flushSharedSettings: flushSharedSettingsMock };
+});
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: (selector: (state: typeof statusState) => unknown) =>
@@ -157,22 +192,23 @@ describe("ClaudeProfileSettings", () => {
     statusState.wslAgentStatuses = [];
     statusState.removeAgentStatus.mockReset();
     refreshAgentStatusesMock.mockReset().mockResolvedValue();
-    setClaudeProfileEnvironmentMock.mockReset().mockImplementation(async () => claudeProfile());
+    setProfileEnvironmentMock.mockReset().mockImplementation(async () => claudeProfile());
+    createProfileMock
+      .mockReset()
+      .mockImplementation(async ({ id, displayName }) => ({ id, driver: "claude", displayName }));
+    flushSharedSettingsMock.mockReset().mockResolvedValue();
     toastMock.success.mockReset();
     toastMock.danger.mockReset();
   });
 
   it("hides the add form until the add button is pressed", () => {
     render(<ClaudeProfileSettings />);
-    expect(screen.queryByLabelText("New Claude profile name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New profile name")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
 
-    expect(screen.getByLabelText("New Claude profile name")).toHaveValue("");
-    expect(screen.getByLabelText("New Claude profile name")).toHaveAttribute(
-      "placeholder",
-      "e.g. Work",
-    );
+    expect(screen.getByLabelText("New profile name")).toHaveValue("");
+    expect(screen.getByLabelText("New profile name")).toHaveAttribute("placeholder", "e.g. Work");
     expect(screen.getByLabelText("New Claude profile config directory")).toHaveAttribute(
       "placeholder",
       "~/.poracode/claude-profiles/profile",
@@ -183,10 +219,10 @@ describe("ClaudeProfileSettings", () => {
     render(<ClaudeProfileSettings />);
     fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
 
-    const addButton = screen.getByRole("button", { name: "Add Claude profile" });
+    const addButton = screen.getByRole("button", { name: "Create profile" });
     expect(addButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText("New Claude profile name"), {
+    fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
 
@@ -197,38 +233,44 @@ describe("ClaudeProfileSettings", () => {
     );
   });
 
-  it("adds a profile with the derived config dir when the dir is left empty", () => {
+  it("adds a profile with the derived config dir when the dir is left empty", async () => {
     render(<ClaudeProfileSettings />);
     fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
-    fireEvent.change(screen.getByLabelText("New Claude profile name"), {
+    fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add Claude profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
 
-    expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
-      id: "work",
-      driver: "claude",
-      displayName: "Work",
-      config: { configDir: "~/.poracode/claude-profiles/work" },
-    });
+    // Every provider's profile is created through the one sealing main-local
+    // write, so a credential-carrying provider needs no separate path.
+    await vi.waitFor(() =>
+      expect(createProfileMock).toHaveBeenCalledWith({
+        driver: "claude",
+        id: "work",
+        displayName: "Work",
+        config: { configDir: "~/.poracode/claude-profiles/work" },
+      }),
+    );
     // The form collapses back to the add button after a successful add.
-    expect(screen.queryByLabelText("New Claude profile name")).not.toBeInTheDocument();
-    expect(toastMock.success).toHaveBeenCalledWith("Claude Work profile added.");
+    await vi.waitFor(() =>
+      expect(screen.queryByLabelText("New profile name")).not.toBeInTheDocument(),
+    );
+    expect(toastMock.success).toHaveBeenCalledWith("Profile Work added.");
   });
 
   it("discards the draft on cancel", () => {
     render(<ClaudeProfileSettings />);
     fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
-    fireEvent.change(screen.getByLabelText("New Claude profile name"), {
+    fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Cancel new Claude profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel new profile" }));
 
-    expect(screen.queryByLabelText("New Claude profile name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New profile name")).not.toBeInTheDocument();
     expect(settingsState.setAgentInstance).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
-    expect(screen.getByLabelText("New Claude profile name")).toHaveValue("");
+    expect(screen.getByLabelText("New profile name")).toHaveValue("");
   });
 
   it("opens a profile's own page from its row", () => {
@@ -242,26 +284,33 @@ describe("ClaudeProfileSettings", () => {
     expect(onOpenProfile).toHaveBeenCalledWith("claude:glm");
   });
 
-  it("opens the new profile's page after adding", () => {
+  it("opens the new profile's page after adding", async () => {
     const onOpenProfile = vi.fn<(kind: string) => void>();
     render(<ClaudeProfileSettings onOpenProfile={onOpenProfile} />);
     fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
-    fireEvent.change(screen.getByLabelText("New Claude profile name"), {
+    fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add Claude profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
 
-    expect(onOpenProfile).toHaveBeenCalledWith("claude:work");
+    await vi.waitFor(() => expect(onOpenProfile).toHaveBeenCalledWith("claude:work"));
   });
 
-  it("removes a profile from settings and agent statuses", () => {
+  it("removes a profile only after the shared confirmation", async () => {
     settingsState.agentInstances = { glm: claudeProfile() };
     render(<ClaudeProfileSettings />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Claude profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove profile GLM" }));
+    // Claude profiles used to delete on the first click; the shared list makes
+    // every provider confirm first.
+    expect(settingsState.removeAgentInstance).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
     expect(settingsState.removeAgentInstance).toHaveBeenCalledWith("glm");
-    expect(statusState.removeAgentStatus).toHaveBeenCalledWith("claude:glm");
+    await vi.waitFor(() =>
+      expect(statusState.removeAgentStatus).toHaveBeenCalledWith("claude:glm"),
+    );
   });
 });
 
@@ -270,7 +319,7 @@ describe("ClaudeProfileProviderSettings", () => {
     settingsState.agentInstances = { glm: claudeProfile() };
     settingsState.setAgentInstance.mockReset();
     refreshAgentStatusesMock.mockReset().mockResolvedValue();
-    setClaudeProfileEnvironmentMock.mockReset().mockImplementation(async () => claudeProfile());
+    setProfileEnvironmentMock.mockReset().mockImplementation(async () => claudeProfile());
     toastMock.success.mockReset();
     toastMock.danger.mockReset();
   });
@@ -293,7 +342,7 @@ describe("ClaudeProfileProviderSettings", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save Claude profile" }));
 
-    expect(setClaudeProfileEnvironmentMock).toHaveBeenCalledWith({
+    expect(setProfileEnvironmentMock).toHaveBeenCalledWith({
       instanceId: "glm",
       environment: { ANTHROPIC_BASE_URL: { value: "https://api.z.ai/api/anthropic" } },
     });
@@ -308,14 +357,17 @@ describe("ClaudeProfileProviderSettings", () => {
     expect(screen.getByDisplayValue("https://api.z.ai/api/anthropic")).toBeInTheDocument();
     expect(screen.getByDisplayValue("ANTHROPIC_AUTH_TOKEN")).toBeInTheDocument();
     expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
-    // The preset's GLM 5.2 picker model id keeps its [1m] suffix verbatim.
-    expect(screen.getByLabelText("Model id")).toHaveValue("glm-5.2[1m]");
+    // The preset's GLM 5.3 picker model ids keep their [1m] suffix verbatim.
+    expect(
+      screen.getAllByLabelText("Model id").map((input) => input.getAttribute("value")),
+    ).toEqual(["glm-5.3[1m]", "glm-5.3-flash[1m]"]);
     expect(settingsState.setHiddenModels).toHaveBeenCalledWith("claude:glm", [
       "claude-opus-4-8",
       "claude-opus-4-7",
       "claude-opus-4-6",
       "sonnet",
       "haiku",
+      "glm-5.2[1m]",
     ]);
   });
 
@@ -329,7 +381,7 @@ describe("ClaudeProfileProviderSettings", () => {
     expect(screen.getByDisplayValue("CLAUDE_CODE_SUBAGENT_MODEL")).toBeInTheDocument();
     expect(
       screen.getAllByLabelText("Model id").map((input) => input.getAttribute("value")),
-    ).toEqual(["deepseek-v4-pro[1m]", "deepseek-v4-flash"]);
+    ).toEqual(["deepseek-v4-pro-0813[1m]", "deepseek-v4-flash"]);
     expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
       id: "glm",
       driver: "claude",
@@ -337,13 +389,13 @@ describe("ClaudeProfileProviderSettings", () => {
       config: {
         configDir: "~/.poracode/claude-profiles/glm",
         models: [
-          { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
+          { id: "deepseek-v4-pro-0813[1m]", label: "DeepSeek V4 Pro 0813" },
           { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
         ],
         efforts: ["max"],
         defaultEffort: "max",
         modelEfforts: {
-          "deepseek-v4-pro[1m]": ["max"],
+          "deepseek-v4-pro-0813[1m]": ["max"],
           "deepseek-v4-flash": ["max"],
         },
       },
@@ -422,18 +474,21 @@ describe("ClaudeProfileProviderSettings", () => {
       "qwen3.7-plus",
       "qwen3.6-flash",
       "glm-5.2",
-      "deepseek-v4-pro",
+      "deepseek-v4-pro-0813",
       "deepseek-v4-flash-0731",
     ]);
     expect(config).toMatchObject({
       configDir: "~/.poracode/claude-profiles/glm",
-      efforts: ["low", "medium", "xHigh"],
+      efforts: ["low", "medium", "high", "xHigh", "max"],
       defaultEffort: "xHigh",
       modelEfforts: {
         "qwen3.8-max": ["low", "medium", "xHigh"],
-        "qwen3.7-max": ["low", "medium", "xHigh"],
-        "qwen3.7-plus": ["low", "medium", "xHigh"],
-        "qwen3.6-flash": ["low", "medium", "xHigh"],
+        "qwen3.7-max": [],
+        "qwen3.7-plus": [],
+        "qwen3.6-flash": [],
+        "glm-5.2": ["high", "max"],
+        "deepseek-v4-pro-0813": ["high", "max"],
+        "deepseek-v4-flash-0731": ["low", "high", "max"],
       },
     });
   });
@@ -463,7 +518,7 @@ describe("ClaudeProfileProviderSettings", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save Claude profile" }));
     });
 
-    expect(setClaudeProfileEnvironmentMock).toHaveBeenCalledWith({
+    expect(setProfileEnvironmentMock).toHaveBeenCalledWith({
       instanceId: "glm",
       environment: {
         ANTHROPIC_AUTH_TOKEN: { value: "lc-safe:v1:sealed", sensitive: true },

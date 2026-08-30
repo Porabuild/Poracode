@@ -139,7 +139,7 @@ class GeneratedSettingsIntegrationsSessionGateway(
     ) {
         val current = session.value
         if (current == null || current.key != lease.key) fail(409, "stale_lease")
-        if (current.protocolVersion != 3 || lease.protocolVersion != 3) fail(409, "protocol_version_mismatch")
+        if (current.protocolVersion != 8 || lease.protocolVersion != 8) fail(409, "protocol_version_mismatch")
         if (!current.ready) fail(409, "session_not_ready")
         if (!current.online) fail(0, "offline")
         if (capability.scope !in current.scopes) fail(403, "missing_scope")

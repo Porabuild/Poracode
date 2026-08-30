@@ -54,6 +54,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
   ResolvedMcpServer,
+  McpTransportKind,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -81,9 +82,11 @@ import { AcpSessionConfigSync } from "./sessionConfigSync";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-import { toAcpFsRequestError } from "./sessionFsErrors";
+import { isMissingPathError, toAcpFsRequestError } from "./sessionFsErrors";
 import { AcpPlanModeToolTracker } from "./sessionPlanMode";
 import {
+  isAcpHomeScopeLocation,
+  resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveAcpWritableHostFsPath,
@@ -94,6 +97,8 @@ import {
 } from "./sessionPaths";
 
 export {
+  isAcpHomeScopeLocation,
+  resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveAcpWritableHostFsPath,
@@ -213,6 +218,8 @@ export interface AcpStructuredSessionOptions {
   /** Paint canonical state for this provider's `/goal` command family. */
   goalCommands?: boolean;
   extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
+  /** Vendor capability requests sent on ACP initialize. */
+  initializeMeta?: Record<string, unknown>;
   /**
    * Vendor ACP extension notifications (e.g. Cursor `cursor/task`) that are
    * not surfaced as standard `session/update` messages.
@@ -228,6 +235,14 @@ export interface AcpStructuredSessionOptions {
    * still falls back to the strictly gated set if opening fails.
    */
   assumedMcpCapabilities?: AcpMcpCapabilities;
+  /**
+   * MCP transports relayed optimistically: sent on the first open attempt and
+   * excluded from the compatibility-failure retry set. For agents that fail
+   * session-open on a transport the ACP schema gives them no way to decline
+   * (stdio has no capability flag) — see `acpOptimisticMcpTransports` in the
+   * adapter contract.
+   */
+  optimisticMcpTransports?: readonly McpTransportKind[];
   /**
    * Home-relative directories (posix-style, e.g. ".kimi-code") the agent may
    * read and write through the ACP fs bridge even though they sit outside the
@@ -260,6 +275,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
   private extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
 
+  private readonly initializeMeta: Record<string, unknown> | undefined;
+
   private readonly goalCommands: boolean;
 
   private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
@@ -273,6 +290,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly assumedMcpCapabilities: AcpMcpCapabilities | undefined;
+  private readonly optimisticMcpTransports: readonly McpTransportKind[] | undefined;
   private readonly fsAgentHomeDirs: readonly string[];
   private readonly fsTextCapability: boolean;
   private planModeToolTrackerInstance: AcpPlanModeToolTracker | undefined;
@@ -436,11 +454,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (options?.extensionSessionUpdateTransform) {
       this.extensionSessionUpdateTransform = options.extensionSessionUpdateTransform;
     }
+    this.initializeMeta = options?.initializeMeta;
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
     this.mcpServers = options?.mcpServers ?? [];
     this.assumedMcpCapabilities = options?.assumedMcpCapabilities;
+    this.optimisticMcpTransports = options?.optimisticMcpTransports;
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
     this.fsTextCapability = options?.fsTextCapability !== false;
   }
@@ -706,6 +726,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         elicitation: { form: {}, url: {} },
         terminal: true,
       },
+      ...(this.initializeMeta ? { _meta: this.initializeMeta } : {}),
     });
     this.agentPromptCapabilities = initResult.agentCapabilities?.promptCapabilities;
     this.agentSessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
@@ -754,27 +775,44 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private async openWithMcpServers<T>(
     open: (mcpServers: ProtocolMcpServer[]) => Promise<T>,
   ): Promise<T> {
-    const built = buildAcpMcpServers(this.mcpServers);
-    const assumed = this.gateMcpServers(
-      built,
-      resolveAcpMcpCapabilities(this.agentMcpCapabilities, this.assumedMcpCapabilities),
+    const capabilities = resolveAcpMcpCapabilities(
+      this.agentMcpCapabilities,
+      this.assumedMcpCapabilities,
     );
-    const advertised =
-      this.agentMcpCapabilities === undefined && this.assumedMcpCapabilities !== undefined
-        ? gateAcpMcpServers(built, this.agentMcpCapabilities)
-        : assumed;
-    if (advertised.length === assumed.length) return open(assumed);
+    const built = buildAcpMcpServers(this.mcpServers);
+    const attempted = this.gateMcpServers(built, capabilities);
+    const optimisticTransports = this.optimisticMcpTransports;
+    let fallback: ProtocolMcpServer[];
+    if (optimisticTransports !== undefined && optimisticTransports.length > 0) {
+      // Optimistic transports ride along on the first attempt only; the retry
+      // set excludes them so a compatibility failure can still open the
+      // session without them.
+      fallback = gateAcpMcpServers(
+        buildAcpMcpServers(
+          this.mcpServers.filter((server) => !optimisticTransports.includes(server.transport.type)),
+        ),
+        capabilities,
+      );
+    } else if (
+      this.agentMcpCapabilities === undefined &&
+      this.assumedMcpCapabilities !== undefined
+    ) {
+      fallback = gateAcpMcpServers(built, this.agentMcpCapabilities);
+    } else {
+      fallback = attempted;
+    }
+    if (fallback.length === attempted.length) return open(attempted);
 
     try {
-      return await open(assumed);
+      return await open(attempted);
     } catch (error) {
       if (!isAssumedMcpCompatibilityError(error)) throw error;
       console.log(
         "[acp] session open failed with %d assumed-transport MCP server(s) (ACP error %d); retrying without them",
-        assumed.length - advertised.length,
+        attempted.length - fallback.length,
         error.code,
       );
-      return open(advertised);
+      return open(fallback);
     }
   }
 
@@ -800,7 +838,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.sessionConfigSync.rememberOptions([], []);
 
     if (sessionRef) {
-      if (this.agentSessionCapabilities?.resume !== undefined) {
+      if (this.agentSessionCapabilities?.resume != null) {
         console.log("[acp] resuming session:", sessionRef.providerSessionId);
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
@@ -1139,6 +1177,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private reportTransportOutcome(errorMessage: string | undefined): void {
     if (this.transportOutcomeReported) return;
     this.transportOutcomeReported = true;
+    this.sessionRequests.cancelPending();
     if (errorMessage) {
       this.listener?.onError(errorMessage);
     }
@@ -1202,11 +1241,25 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       params.path,
       this.fsAgentHomeDirs,
     );
-    const fullContent = await readFile(path, "utf8").catch((error: unknown) => {
+    try {
+      const fullContent = await readFile(path, "utf8");
+      return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
+    } catch (error: unknown) {
+      const fallbackPath = resolveAcpGlobalSkillFallbackHostFsPath(
+        this.projectLocation,
+        params.path,
+      );
+      if (fallbackPath && fallbackPath !== path && isMissingPathError(error)) {
+        try {
+          const fullContent = await readFile(fallbackPath, "utf8");
+          return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
+        } catch {
+          // Keep the original project-path error so a missing skill stays
+          // resource-not-found for the path the agent asked about.
+        }
+      }
       throw toAcpFsRequestError(error, params.path);
-    });
-    const content = sliceTextFileContent(fullContent, params.line, params.limit);
-    return { content };
+    }
   }
 
   private async handleWriteTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
@@ -1281,9 +1334,28 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       !this.isReplayingHistory &&
       Date.now() >= (this.replayHistoryUntil || 0)
     ) {
-      const recovered = this.extensionSessionUpdateTransform(method, params);
-      if (recovered) {
-        this.handleSessionUpdate(recovered);
+      const recovered = this.extensionSessionUpdateTransform(method, params, {
+        request: (requestMethod, requestParams) =>
+          this.connection.extMethod(requestMethod, requestParams),
+      });
+      if (recovered && typeof (recovered as Promise<unknown>).then === "function") {
+        void (
+          recovered as Promise<SessionNotification | readonly SessionNotification[] | undefined>
+        )
+          .then((notifications) => this.ingestExtensionSessionUpdates(notifications))
+          .catch((error: unknown) => {
+            console.warn(
+              "[acp] extension session update transform failed:",
+              error instanceof Error ? error.message : String(error),
+            );
+          });
+        return;
+      }
+      if (
+        this.ingestExtensionSessionUpdates(
+          recovered as SessionNotification | readonly SessionNotification[] | undefined,
+        )
+      ) {
         return;
       }
     }
@@ -1300,6 +1372,19 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.emitRuntimeEvents(events);
       }
     }
+  }
+
+  private ingestExtensionSessionUpdates(
+    notifications: SessionNotification | readonly SessionNotification[] | undefined,
+  ): boolean {
+    if (!notifications) return false;
+    if (this.isDisposed || this.isReplayingHistory || Date.now() < (this.replayHistoryUntil || 0)) {
+      return true;
+    }
+    for (const notification of Array.isArray(notifications) ? notifications : [notifications]) {
+      this.handleSessionUpdate(notification);
+    }
+    return true;
   }
 
   private rememberAcpToolCallItemId(

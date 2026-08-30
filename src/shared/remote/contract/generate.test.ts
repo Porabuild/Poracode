@@ -46,12 +46,12 @@ describe("remote v3 generator", () => {
       procedures: Array<{ name: string }>;
     };
     expect(ir.doNotEdit).toMatch(/Do not edit/i);
-    expect(ir.protocolVersion).toBe(3);
+    expect(ir.protocolVersion).toBe(8);
     expect(ir.bindingFormatVersion).toBe(2);
     expect(ir.generatorVersion).toBe(3);
     expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(ir.inventory.routes).toBe(60);
+    expect(ir.inventory.routes).toBe(61);
     expect(ir.inventory.procedures).toBe(100);
     expect(ir.inventory.voidProcedureResults).toBe(36);
     expect(ir.inventory.jsonProcedureResults).toBe(64);

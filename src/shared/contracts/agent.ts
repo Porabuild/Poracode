@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentEnvSchema, type AgentEnv } from "../machines";
 import {
   agentKindSchema,
   authStateSchema,
@@ -160,6 +161,8 @@ const agentPresentationCapabilityOverrideSchema = z
   .object({
     /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
     runtimeLabel: z.string().min(1).optional(),
+    /** Keep runtime identity but omit its suffix from model-picker provider labels. */
+    showRuntimeLabelInPicker: z.boolean().optional(),
     models: z.array(labeledOptionSchema),
     /**
      * Provider-owned initial model visibility. Applied only while the user has
@@ -236,6 +239,8 @@ export function resolveComposerMcpScope(
 export const agentCapabilitySchema = z.object({
   /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
   runtimeLabel: z.string().min(1).optional(),
+  /** Keep runtime identity but omit its suffix from model-picker provider labels. */
+  showRuntimeLabelInPicker: z.boolean().optional(),
   models: z.array(labeledOptionSchema).default([]),
   /**
    * Provider-owned initial model visibility. An explicit user list (including
@@ -326,10 +331,10 @@ export const agentCapabilitySchema = z.object({
    * - absent / "thread": per-thread `ThreadConfig` flags set by the composer
    *   MCP controls (the default for every provider).
    * - "agentSettings": provider-level — flags are read from
-   *   `sharedSettings.agentSettings[kind]` at launch, the composer shows no
-   *   MCP controls at all, and the MCP set is identical across the provider's
-   *   threads (letting pooled servers stay stable). Configured from the
-   *   provider's settings page.
+   *   `sharedSettings.agentSettings[kind]` at launch, the composer shows the
+   *   effective MCP set read-only, and the MCP set is identical across the
+   *   provider's threads (letting pooled servers stay stable). Configured from
+   *   the provider's settings page.
    */
   mcpConfigSource: z.enum(["thread", "agentSettings"]).optional(),
   /**
@@ -384,7 +389,17 @@ export const agentRuntimeVariantSchema = z.object({
   installationSource: z.string().min(1).optional(),
   authState: authStateSchema,
   authUsesProviderLogin: z.boolean(),
+  /** Runtime-specific login controls for providers with independently authenticated surfaces. */
+  loginCommand: z.string().min(1).optional(),
+  preferTerminalLogin: z.boolean().optional(),
+  authMethods: z.array(agentAuthMethodSchema).optional(),
+  authLogoutSupported: z.boolean().optional(),
   capabilities: agentCapabilitySchema,
+  /**
+   * Runtime-specific account identity. Cursor's SDK key is a different login
+   * from the CLI/ACP session, so the SDK card must not reuse root metadata.
+   */
+  providerMetadata: agentProviderMetadataSchema.optional(),
 });
 export type AgentRuntimeVariant = z.infer<typeof agentRuntimeVariantSchema>;
 
@@ -408,6 +423,8 @@ export const agentStatusSchema = z.object({
   version: z.string().optional(),
   update: agentUpdateInfoSchema.optional(),
   authState: authStateSchema,
+  /** ACP session setup succeeded, which proves readiness but not authentication. */
+  acpSessionEstablished: z.boolean().optional(),
   /**
    * Authentication can differ between presentation runtimes even when they
    * share one provider tile. For example, Cursor's terminal/ACP surfaces use
@@ -453,11 +470,8 @@ export const agentStatusSchema = z.object({
 });
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 
-export const refreshAgentScopeEnvSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("native") }),
-  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
-]);
-export type RefreshAgentScopeEnv = z.infer<typeof refreshAgentScopeEnvSchema>;
+export const refreshAgentScopeEnvSchema = agentEnvSchema;
+export type RefreshAgentScopeEnv = AgentEnv;
 
 export const refreshAgentScopeSchema = z.object({
   agentKinds: z.array(z.string().min(1)).min(1),
@@ -528,16 +542,42 @@ export const installedAcpRegistryAgentSchema = z.object({
   installedAt: z.string().min(1),
   adapterKind: agentKindSchema,
   installKind: z.enum(["first-class", "generic"]),
+  /** Per-environment registry artifact versions. Absent means a legacy native install. */
+  installations: z
+    .object({
+      native: z
+        .object({ version: z.string().min(1), target: z.string().min(1), installedAt: z.string() })
+        .optional(),
+      wsl: z
+        .record(
+          z.string().min(1),
+          z.object({
+            version: z.string().min(1),
+            target: z.string().min(1),
+            installedAt: z.string(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
 });
 export type InstalledAcpRegistryAgent = z.infer<typeof installedAcpRegistryAgentSchema>;
 
+export const acpRegistryInstallTargetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("native") }),
+  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
+]);
+export type AcpRegistryInstallTarget = z.infer<typeof acpRegistryInstallTargetSchema>;
+
 export const installAcpRegistryAgentPayloadSchema = z.object({
   agentId: z.string().min(1),
+  target: acpRegistryInstallTargetSchema.optional(),
 });
 export type InstallAcpRegistryAgentPayload = z.infer<typeof installAcpRegistryAgentPayloadSchema>;
 
 export const updateAcpRegistryAgentPayloadSchema = z.object({
   agentId: z.string().min(1),
+  target: acpRegistryInstallTargetSchema.optional(),
 });
 export type UpdateAcpRegistryAgentPayload = z.infer<typeof updateAcpRegistryAgentPayloadSchema>;
 
@@ -579,11 +619,8 @@ export const updateAgentBinaryPayloadSchema = z.object({
 });
 export type UpdateAgentBinaryPayload = z.infer<typeof updateAgentBinaryPayloadSchema>;
 
-export const agentHookPluginEnvSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("native") }),
-  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
-]);
-export type AgentHookPluginEnv = z.infer<typeof agentHookPluginEnvSchema>;
+export const agentHookPluginEnvSchema = agentEnvSchema;
+export type AgentHookPluginEnv = AgentEnv;
 
 export const agentHookPluginPayloadSchema = z.object({
   agentKind: agentKindSchema,

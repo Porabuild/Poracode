@@ -1,7 +1,7 @@
 {
   "id": "remote-v3-replay-git-state-parity",
   "format": "remote-v3-transition-tape",
-  "protocolVersion": 3,
+  "protocolVersion": 8,
   "versionBoundary": "fixture-only-additive",
   "lifecycle": {
     "transitions": [

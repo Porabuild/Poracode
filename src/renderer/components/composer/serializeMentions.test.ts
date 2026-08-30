@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { PromptSegment } from "@/shared/contracts";
 import { createDiffCommentChipElement } from "./DiffCommentChip";
 import { createMcpMentionChipElement } from "./McpMentionChip";
+import { createThreadMentionChipElement } from "./ThreadMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import {
   rebuildEditedPromptSegments,
@@ -77,6 +78,28 @@ describe("serializeComposerContent", () => {
       { kind: "text", content: " open the page" },
     ]);
     expect(serializeComposerContent(container)).toBe("@Browser open the page");
+  });
+
+  it("serializes a thread mention chip as a thread segment that flattens to @title", () => {
+    container.appendChild(
+      createThreadMentionChipElement({ threadId: "thread-1", title: "Fix the composer" }),
+    );
+    container.appendChild(document.createTextNode(" please"));
+
+    expect(serializeToSegments(container)).toEqual([
+      { kind: "thread", threadId: "thread-1", title: "Fix the composer" },
+      { kind: "text", content: " please" },
+    ]);
+    expect(serializeComposerContent(container)).toBe("@Fix the composer please");
+  });
+
+  it("keeps a thread mention chip when its title is empty", () => {
+    container.appendChild(createThreadMentionChipElement({ threadId: "thread-1", title: "" }));
+
+    expect(serializeToSegments(container)).toEqual([
+      { kind: "thread", threadId: "thread-1", title: "" },
+    ]);
+    expect(serializeComposerContent(container)).toBe("@thread-1");
   });
 
   it("serializes BR as newline", () => {
@@ -216,7 +239,10 @@ describe("serializeComposerContent", () => {
     });
     container.appendChild(chip);
 
-    expect(chip.textContent).toBe("/simplify");
+    expect(chip.textContent).toBe("simplify");
+    expect(chip.querySelector("svg")).not.toBeNull();
+    expect(chip.dataset.skillName).toBe("simplify");
+    expect(chip.getAttribute("aria-label")).toBe("Skill: simplify");
     expect(serializeComposerContent(container)).toBe("/skill:simplify");
   });
 

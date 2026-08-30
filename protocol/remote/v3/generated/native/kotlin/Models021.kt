@@ -6,11 +6,81 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37(
+enum class RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a {
+    @SerialName("started") STARTED,
+    @SerialName("updated") UPDATED,
+    @SerialName("completed") COMPLETED,
+}
+
+@Serializable
+data class RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e(
+    @SerialName("contextUsage") val contextUsage: RemoteField<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b> = RemoteField.Missing,
+    @SerialName("itemCount") val itemCount: Long,
+    @SerialName("latestItemId") val latestItemId: RemoteField<String> = RemoteField.Missing,
+    @SerialName("latestItemState") val latestItemState: RemoteField<RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a> = RemoteField.Missing,
+    @SerialName("latestItemType") val latestItemType: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("contextUsage", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("itemCount", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("latestItemId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("latestItemState", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("latestItemType", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26 = Map<String, RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e>
+
+@Serializable
+enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7 {
+    @SerialName("none") NONE,
+    @SerialName("working") WORKING,
+    @SerialName("needs_approval") NEEDSU5FAPPROVAL,
+    @SerialName("needs_reply") NEEDSU5FREPLY,
+    @SerialName("error") ERROR,
+}
+
+@Serializable
+data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionRef_3b70e9f118(
+    @SerialName("discoveredAt") val discoveredAt: String,
+    @SerialName("providerSessionId") val providerSessionId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("discoveredAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("providerSessionId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DStatus_8c61ed237d {
+    @SerialName("inactive") INACTIVE,
+    @SerialName("launching") LAUNCHING,
+    @SerialName("working") WORKING,
+    @SerialName("idle") IDLE,
+    @SerialName("finished") FINISHED,
+    @SerialName("needs_approval") NEEDSU5FAPPROVAL,
+    @SerialName("needs_reply") NEEDSU5FREPLY,
+    @SerialName("error") ERROR,
+}
+
+@Serializable
+enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DThreadStatusSource_8f73948792 {
+    @SerialName("cli_hook") CLIU5FHOOK,
+    @SerialName("terminal_parse") TERMINALU5FPARSE,
+    @SerialName("server") SERVER,
+}
+
+@Serializable
+data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_4f064dbe9d(
     @SerialName("activeTurnStartedAt") val activeTurnStartedAt: RemoteField<String> = RemoteField.Missing,
     @SerialName("agentInstanceId") val agentInstanceId: RemoteField<String> = RemoteField.Missing,
     @SerialName("agentKind") val agentKind: String,
     @SerialName("archived") val archived: Boolean,
+    @SerialName("archivedAt") val archivedAt: RemoteField<String> = RemoteField.Missing,
     @SerialName("attention") val attention: RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7,
     @SerialName("canResumeWithConfig") val canResumeWithConfig: Boolean,
     @SerialName("config") val config: ProcedurerollbackThreadConversationRequestU2DConfig_03b0262a8a,
@@ -36,6 +106,7 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37(
     @SerialName("threadStatusSource") val threadStatusSource: RemoteField<RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DThreadStatusSource_8f73948792> = RemoteField.Missing,
     @SerialName("title") val title: String,
     @SerialName("updatedAt") val updatedAt: String,
+    @SerialName("workspaceId") val workspaceId: RemoteField<String> = RemoteField.Missing,
     @SerialName("worktreeBranch") val worktreeBranch: RemoteField<String> = RemoteField.Missing,
     @SerialName("worktreePath") val worktreePath: RemoteField<String> = RemoteField.Missing,
 ) {
@@ -45,6 +116,7 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37(
             RemoteFieldDescriptor("agentInstanceId", "String", false, false, null, null, 1, 120, null, null, "^[a-z0-9][a-z0-9_\\-:.]*$", null, listOf()),
             RemoteFieldDescriptor("agentKind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("archived", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("archivedAt", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("attention", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("canResumeWithConfig", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("config", "ProcedurerollbackThreadConversationRequestU2DConfig_03b0262a8a", true, false, null, null, null, null, null, null, null, null, listOf()),
@@ -70,6 +142,7 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37(
             RemoteFieldDescriptor("threadStatusSource", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DThreadStatusSource_8f73948792", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("title", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("workspaceId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("worktreeBranch", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("worktreePath", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
@@ -77,23 +150,23 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37(
 }
 
 @Serializable
-data class RouteshellU2DSnapshotResponse_611f9fdfa6(
+data class RouteshellU2DSnapshotResponse_5b5b57b156(
     @SerialName("gitState") val gitState: RemoteField<RouteshellU2DSnapshotResponseU2DGitState_4331716fe2> = RemoteField.Missing,
     @SerialName("gitSummariesByThread") val gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = RemoteField.Missing,
-    @SerialName("projects") val projects: List<RouteprojectU2DCommandResponseU2DProject_1bee38d9c4>,
+    @SerialName("projects") val projects: List<RouteprojectU2DCommandResponseU2DProject_ac236eb5ec>,
     @SerialName("runtimeSummariesByThread") val runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26,
     @SerialName("snapshotSeq") val snapshotSeq: Long,
-    @SerialName("threads") val threads: List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37>,
+    @SerialName("threads") val threads: List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_4f064dbe9d>,
     @SerialName("updatedAt") val updatedAt: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("gitState", "RouteshellU2DSnapshotResponseU2DGitState_4331716fe2", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("gitSummariesByThread", "RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projects", "List<RouteprojectU2DCommandResponseU2DProject_1bee38d9c4>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projects", "List<RouteprojectU2DCommandResponseU2DProject_ac236eb5ec>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("runtimeSummariesByThread", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threads", "List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_85fe4f2f37>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threads", "List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_4f064dbe9d>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -113,11 +186,18 @@ data class RouteterminalU2DResizeRequest_55ee222c09(
 }
 
 @Serializable
-data class RouteterminalU2DStartRequest_142a10f7fa(
+enum class RouteterminalU2DStartRequestU2DWindowsShellRuntime_9368b22ce4 {
+    @SerialName("preferred") PREFERRED,
+    @SerialName("powershell") POWERSHELL,
+}
+
+@Serializable
+data class RouteterminalU2DStartRequest_b03238f553(
     @SerialName("initialSize") val initialSize: RemoteField<RouteterminalU2DResizeRequest_55ee222c09> = RemoteField.Missing,
     @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
     @SerialName("shellId") val shellId: String,
     @SerialName("startInHome") val startInHome: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("windowsShellRuntime") val windowsShellRuntime: RemoteField<RouteterminalU2DStartRequestU2DWindowsShellRuntime_9368b22ce4> = RemoteField.Missing,
     @SerialName("worktreePath") val worktreePath: RemoteField<String> = RemoteField.Missing,
 ) {
     companion object {
@@ -126,6 +206,7 @@ data class RouteterminalU2DStartRequest_142a10f7fa(
             RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("shellId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("startInHome", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("windowsShellRuntime", "RouteterminalU2DStartRequestU2DWindowsShellRuntime_9368b22ce4", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("worktreePath", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -233,7 +314,22 @@ enum class RoutethreadU2DCommandRequestU2DOptionU2D2U2DKind_60fc988aef {
 }
 
 @Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D2_1abd482e22(
+data class RoutethreadU2DCommandRequestU2DOptionU2D2U2DProviderSwitch_3c69c646f1(
+    @SerialName("fromAgentKind") val fromAgentKind: String,
+    @SerialName("handoffItemId") val handoffItemId: RemoteField<String> = RemoteField.Missing,
+    @SerialName("previousStatus") val previousStatus: RemoteField<RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DStatus_8c61ed237d> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("fromAgentKind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("handoffItemId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("previousStatus", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DStatus_8c61ed237d", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D2_6dc9070cd5(
     @SerialName("agentInstanceId") val agentInstanceId: RemoteField<String> = RemoteField.Missing,
     @SerialName("agentKind") val agentKind: String,
     @SerialName("config") val config: ProcedurerollbackThreadConversationRequestU2DConfig_03b0262a8a,
@@ -248,7 +344,8 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D2_1abd482e22(
     @SerialName("presentationMode") val presentationMode: RemoteField<ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6> = RemoteField.Missing,
     @SerialName("projectId") val projectId: String,
     @SerialName("prompt") val prompt: String,
-    @SerialName("segments") val segments: RemoteField<List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00>> = RemoteField.Missing,
+    @SerialName("providerSwitch") val providerSwitch: RemoteField<RoutethreadU2DCommandRequestU2DOptionU2D2U2DProviderSwitch_3c69c646f1> = RemoteField.Missing,
+    @SerialName("segments") val segments: RemoteField<List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754>> = RemoteField.Missing,
     @SerialName("title") val title: RemoteField<String> = RemoteField.Missing,
     @SerialName("userMessageItemId") val userMessageItemId: RemoteField<String> = RemoteField.Missing,
     @SerialName("worktreeBranch") val worktreeBranch: RemoteField<String> = RemoteField.Missing,
@@ -270,7 +367,8 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D2_1abd482e22(
             RemoteFieldDescriptor("presentationMode", "ProcedurescanSkillsRequestU2DPresentationMode_6508684ba6", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("prompt", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("segments", "List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00>", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("providerSwitch", "RoutethreadU2DCommandRequestU2DOptionU2D2U2DProviderSwitch_3c69c646f1", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("segments", "List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("title", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("userMessageItemId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("worktreeBranch", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
@@ -345,64 +443,6 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D6U2DKind_4ec1299a98", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_a9e065ca18 {
-    @SerialName("set-done") SETU2DDONE,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc(
-    @SerialName("done") val done: Boolean,
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_a9e065ca18,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("done", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_a9e065ca18", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_833ef472e7 {
-    @SerialName("set-starred") SETU2DSTARRED,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_833ef472e7,
-    @SerialName("starred") val starred: Boolean,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_833ef472e7", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("starred", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D9U2DKind_49f72e8cc5 {
-    @SerialName("set-worktree") SETU2DWORKTREE,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de(
-    @SerialName("isNewWorktree") val isNewWorktree: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D9U2DKind_49f72e8cc5,
-    @SerialName("worktreeBranch") val worktreeBranch: RemoteField<String> = RemoteField.Missing,
-    @SerialName("worktreePath") val worktreePath: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("isNewWorktree", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D9U2DKind_49f72e8cc5", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreeBranch", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreePath", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

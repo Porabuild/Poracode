@@ -17,9 +17,9 @@ import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } f
 import { sharedSettingsSchema } from "../settings";
 import { userNotificationSchema } from "../threadNotification";
 
-// v3 makes worktree placement settings host-scoped so browser clients never
-// edit local values that the selected remote host will not use.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 3;
+// v8 adds thread prompt segments and canonical thread content blocks. Older
+// clients cannot paint or preserve those structured mentions correctly.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 8;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -401,12 +401,14 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     projectId: z.string().min(1),
     patch: z.object({
       name: projectSchema.shape.name.optional(),
+      icon: projectSchema.shape.icon.unwrap().nullable().optional(),
       scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
       searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
       worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
       // Project values default an omitted list to [], but a patch must
       // distinguish "not supplied" from an explicit empty list.
       mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
+      ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),

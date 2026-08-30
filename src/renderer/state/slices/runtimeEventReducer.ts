@@ -1,5 +1,7 @@
 import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
+import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import type { AppStoreState } from "./shared";
 import {
   type CompletedTurnRecord,
@@ -51,13 +53,52 @@ export function applyRuntimeEventBatchesToState(
   };
   let changed = false;
   const structuralBumpThreadIds = new Set<string>();
+  const structuralChangedItemIdsByThread = new Map<string, Set<string> | null>();
 
   for (const batch of batches) {
     if (batch.events.length === 0) continue;
     const { threadId, events } = batch;
+    const coalescedEvents = coalesceRuntimeEvents(events);
     let batchChanged = false;
-    for (const event of coalesceRuntimeEvents(events)) {
+    for (let eventIndex = 0; eventIndex < coalescedEvents.length;) {
+      const event = coalescedEvents[eventIndex]!;
+      if (isRuntimeItemEvent(event)) {
+        let itemRunEnd = eventIndex + 1;
+        while (
+          itemRunEnd < coalescedEvents.length &&
+          isRuntimeItemEvent(coalescedEvents[itemRunEnd]!)
+        ) {
+          itemRunEnd += 1;
+        }
+        if (itemRunEnd - eventIndex > 1) {
+          const itemBatch = applyRuntimeItemEvents(
+            nextState,
+            threadId,
+            coalescedEvents.slice(eventIndex, itemRunEnd),
+            true,
+          );
+          if (itemBatch) {
+            nextState = itemBatch.state;
+            batchChanged = true;
+            if (itemBatch.structuralItemIds === null || itemBatch.structuralItemIds.size > 0) {
+              structuralBumpThreadIds.add(threadId);
+              if (itemBatch.structuralItemIds === null) {
+                structuralChangedItemIdsByThread.set(threadId, null);
+              } else {
+                mergeStructuralChangedItemIds(
+                  structuralChangedItemIdsByThread,
+                  threadId,
+                  itemBatch.structuralItemIds,
+                );
+              }
+            }
+          }
+          eventIndex = itemRunEnd;
+          continue;
+        }
+      }
       const patch = applyRuntimeEventToRuntimeState(nextState, threadId, event);
+      eventIndex += 1;
       if (Object.keys(patch).length === 0) continue;
       nextState = { ...nextState, ...patch };
       const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
@@ -65,7 +106,17 @@ export function applyRuntimeEventBatchesToState(
         nextState = { ...nextState, ...reopenPatch };
       }
       batchChanged = true;
-      if (eventAffectsStructuralVersion(event)) structuralBumpThreadIds.add(threadId);
+      if (eventAffectsStructuralVersion(event)) {
+        structuralBumpThreadIds.add(threadId);
+        if (
+          event.type === "item.completed" &&
+          !nextState.runtimeItemsByIdByThread[threadId]?.[event.itemId]
+        ) {
+          structuralChangedItemIdsByThread.set(threadId, null);
+        } else {
+          noteStructuralChangedEvent(structuralChangedItemIdsByThread, threadId, event);
+        }
+      }
     }
     if (batchChanged) {
       changed = true;
@@ -76,16 +127,228 @@ export function applyRuntimeEventBatchesToState(
   if (structuralBumpThreadIds.size > 0) {
     let runtimeStructuralVersionByThread = nextState.runtimeStructuralVersionByThread;
     for (const threadId of structuralBumpThreadIds) {
+      const nextVersion = (runtimeStructuralVersionByThread[threadId] ?? 0) + 1;
       runtimeStructuralVersionByThread = {
         ...runtimeStructuralVersionByThread,
-        [threadId]: (runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        [threadId]: nextVersion,
       };
+      recordRuntimeStructuralChangeHint(
+        threadId,
+        nextVersion,
+        structuralChangedItemIdsByThread.get(threadId) ?? null,
+      );
     }
     nextState = { ...nextState, runtimeStructuralVersionByThread };
   }
   return {
     ...nextState,
   };
+}
+
+/**
+ * Buffered sub-agent history is delivered as one batch containing hundreds of
+ * item lifecycle events. Reuse the thread's item index and clone its id array
+ * only if membership changes; copying a large index for every live batch makes
+ * active long threads progressively slower.
+ */
+function applyRuntimeItemEvents(
+  state: RuntimeEventState,
+  threadId: string,
+  events: RuntimeEvent[],
+  applyReopen: boolean,
+): { state: RuntimeEventState; structuralItemIds: ReadonlySet<string> | null } | null {
+  if (!events.every(isRuntimeItemEvent)) return null;
+
+  const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
+  const draft: RuntimeItemDraft = {
+    itemIds: existingIds,
+    itemIdsChanged: false,
+    // The outer per-thread map is replaced below, so item selectors are still
+    // notified when their item object changes. Keep the inner index mutable:
+    // cloning every entry for each structural batch makes active long threads
+    // progressively slower even though a batch only touches its tail items.
+    items: existingItems,
+  };
+  let nextState: RuntimeEventState = {
+    ...state,
+    runtimeItemsByIdByThread: {
+      ...state.runtimeItemsByIdByThread,
+      [threadId]: draft.items,
+    },
+  };
+  let changed = false;
+  let structuralItemIds: Set<string> | null = new Set<string>();
+
+  for (const event of events) {
+    const itemIdsChangedBefore = draft.itemIdsChanged;
+    const itemBefore = draft.items[event.itemId];
+    const eventChanged = applyRuntimeItemEvent(draft, event);
+    if (!eventChanged) continue;
+    changed = true;
+    if (eventAffectsStructuralVersion(event)) {
+      if (itemBefore && !draft.items[event.itemId]) {
+        structuralItemIds = null;
+      } else if (structuralItemIds) {
+        structuralItemIds.add(event.itemId);
+        if (event.type === "item.started" && event.parentItemId) {
+          structuralItemIds.add(event.parentItemId);
+        }
+      }
+    }
+    if (!itemIdsChangedBefore && draft.itemIdsChanged) {
+      nextState = {
+        ...nextState,
+        runtimeItemIdsByThread: {
+          ...nextState.runtimeItemIdsByThread,
+          [threadId]: draft.itemIds,
+        },
+      };
+    }
+    if (applyReopen) {
+      const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
+      if (Object.keys(reopenPatch).length > 0) {
+        nextState = { ...nextState, ...reopenPatch };
+      }
+    }
+  }
+
+  return changed ? { state: nextState, structuralItemIds } : null;
+}
+
+function noteStructuralChangedEvent(
+  changes: Map<string, Set<string> | null>,
+  threadId: string,
+  event: RuntimeEvent,
+): void {
+  if (!isRuntimeItemEvent(event)) {
+    changes.set(threadId, null);
+    return;
+  }
+  const itemIds = changes.get(threadId);
+  if (itemIds === null) return;
+  const nextItemIds = itemIds ?? new Set<string>();
+  nextItemIds.add(event.itemId);
+  if (event.type === "item.started" && event.parentItemId) {
+    nextItemIds.add(event.parentItemId);
+  }
+  changes.set(threadId, nextItemIds);
+}
+
+function mergeStructuralChangedItemIds(
+  changes: Map<string, Set<string> | null>,
+  threadId: string,
+  itemIds: ReadonlySet<string>,
+): void {
+  const existing = changes.get(threadId);
+  if (existing === null) return;
+  const merged = existing ?? new Set<string>();
+  for (const itemId of itemIds) merged.add(itemId);
+  changes.set(threadId, merged);
+}
+
+interface RuntimeItemDraft {
+  itemIds: readonly string[];
+  itemIdsChanged: boolean;
+  items: Record<string, RuntimeChatItem>;
+}
+
+function mutableRuntimeItemIds(draft: RuntimeItemDraft): string[] {
+  if (!draft.itemIdsChanged) {
+    draft.itemIds = [...draft.itemIds];
+    draft.itemIdsChanged = true;
+  }
+  return draft.itemIds as string[];
+}
+
+function applyRuntimeItemEvent(
+  draft: RuntimeItemDraft,
+  event: Extract<
+    RuntimeEvent,
+    { type: "item.started" | "item.updated" | "item.completed" | "content.delta" }
+  >,
+): boolean {
+  switch (event.type) {
+    case "item.started": {
+      if (draft.items[event.itemId]) return false;
+      const item: RuntimeChatItem = {
+        id: event.itemId,
+        type: event.itemType,
+        state: "started",
+        ...(isDelegatedAgentTool(event.payload as ToolCallPayload | undefined)
+          ? { startedAt: Date.now() }
+          : {}),
+        payload: event.payload,
+        streams: {},
+        observedLive: true,
+        ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
+      };
+      mutableRuntimeItemIds(draft).push(event.itemId);
+      draft.items[event.itemId] = item;
+      return true;
+    }
+    case "item.updated": {
+      const prev = draft.items[event.itemId];
+      if (!prev) return false;
+      const payload = mergePayload(prev.payload, event.payload);
+      draft.items[event.itemId] = {
+        ...prev,
+        state: prev.state === "completed" ? "completed" : "updated",
+        ...(prev.startedAt === undefined &&
+        isDelegatedAgentTool(payload as ToolCallPayload | undefined)
+          ? { startedAt: Date.now() }
+          : {}),
+        payload,
+      };
+      return true;
+    }
+    case "item.completed": {
+      const prev = draft.items[event.itemId];
+      if (!prev) return false;
+      const next: RuntimeChatItem = {
+        ...prev,
+        state: "completed",
+        ...(prev.startedAt !== undefined ? { completedAt: Date.now() } : {}),
+        payload:
+          event.payload !== undefined ? mergePayload(prev.payload, event.payload) : prev.payload,
+      };
+      if (next.type === "reasoning" && !(next.streams.reasoning_text ?? "").trim()) {
+        const itemIds = mutableRuntimeItemIds(draft);
+        itemIds.splice(itemIds.indexOf(event.itemId), 1);
+        delete draft.items[event.itemId];
+      } else {
+        draft.items[event.itemId] = next;
+      }
+      return true;
+    }
+    case "content.delta": {
+      const prev = draft.items[event.itemId];
+      if (!prev) return false;
+      draft.items[event.itemId] = {
+        ...prev,
+        state: prev.state === "completed" ? "completed" : "updated",
+        streams: {
+          ...prev.streams,
+          [event.stream]: (prev.streams[event.stream] ?? "") + event.delta,
+        },
+      };
+      return true;
+    }
+  }
+}
+
+function isRuntimeItemEvent(
+  event: RuntimeEvent,
+): event is Extract<
+  RuntimeEvent,
+  { type: "item.started" | "item.updated" | "item.completed" | "content.delta" }
+> {
+  return (
+    event.type === "item.started" ||
+    event.type === "item.updated" ||
+    event.type === "item.completed" ||
+    event.type === "content.delta"
+  );
 }
 
 function reopenGuiTurnForLiveRuntimeActivity(
@@ -153,7 +416,8 @@ function isLiveAssistantActivity(
       event.itemType !== "user_message" &&
       event.itemType !== "error" &&
       event.itemType !== "plan" &&
-      event.itemType !== "goal"
+      event.itemType !== "goal" &&
+      event.itemType !== "provider_handoff"
     );
   }
   if (event.type !== "item.updated" && event.type !== "content.delta") return false;
@@ -163,7 +427,8 @@ function isLiveAssistantActivity(
     item.state !== "completed" &&
     item.type !== "user_message" &&
     item.type !== "plan" &&
-    item.type !== "goal"
+    item.type !== "goal" &&
+    item.type !== "provider_handoff"
   );
 }
 
@@ -214,6 +479,10 @@ function applyRuntimeEventToRuntimeState(
   threadId: string,
   event: RuntimeEvent,
 ): Partial<RuntimeEventState> {
+  if (isRuntimeItemEvent(event)) {
+    return applyRuntimeItemEvents(state, threadId, [event], false)?.state ?? {};
+  }
+
   switch (event.type) {
     case "session.started":
     case "session.exited":
@@ -245,113 +514,6 @@ function applyRuntimeEventToRuntimeState(
           : { runtimeOpenTurnByThread: { ...state.runtimeOpenTurnByThread, [threadId]: false } };
       if (event.state !== "interrupted" && event.state !== "cancelled") return closeTurnPatch;
       return { ...closeTurnPatch, ...pruneTrailingInterruptedReasoningItems(state, threadId) };
-    }
-
-    case "item.started": {
-      const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
-      const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-      if (existingItems[event.itemId]) return {};
-      const item: RuntimeChatItem = {
-        id: event.itemId,
-        type: event.itemType,
-        state: "started",
-        ...(isDelegatedAgentTool(event.payload as ToolCallPayload | undefined)
-          ? { startedAt: Date.now() }
-          : {}),
-        payload: event.payload,
-        streams: {},
-        observedLive: true,
-        ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
-      };
-      return {
-        runtimeItemIdsByThread: {
-          ...state.runtimeItemIdsByThread,
-          [threadId]: [...existingIds, event.itemId],
-        },
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...existingItems, [event.itemId]: item },
-        },
-      };
-    }
-
-    case "item.updated": {
-      const items = state.runtimeItemsByIdByThread[threadId];
-      const prev = items?.[event.itemId];
-      if (!prev || !items) return {};
-      const payload = mergePayload(prev.payload, event.payload);
-      const next: RuntimeChatItem = {
-        ...prev,
-        state: prev.state === "completed" ? "completed" : "updated",
-        ...(prev.startedAt === undefined &&
-        isDelegatedAgentTool(payload as ToolCallPayload | undefined)
-          ? { startedAt: Date.now() }
-          : {}),
-        payload,
-      };
-      return {
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...items, [event.itemId]: next },
-        },
-      };
-    }
-
-    case "item.completed": {
-      const items = state.runtimeItemsByIdByThread[threadId];
-      const prev = items?.[event.itemId];
-      if (!prev || !items) return {};
-      const next: RuntimeChatItem = {
-        ...prev,
-        state: "completed",
-        ...(prev.startedAt !== undefined ? { completedAt: Date.now() } : {}),
-        payload:
-          event.payload !== undefined ? mergePayload(prev.payload, event.payload) : prev.payload,
-      };
-      // A reasoning item that completes with no streamed text is a bracket
-      // some agents emit before producing nothing — keeping it in the
-      // timeline would split otherwise-adjacent tool calls into separate
-      // groups. Drop it from the data so grouping naturally fuses them.
-      if (next.type === "reasoning" && !(next.streams.reasoning_text ?? "").trim()) {
-        const ids = state.runtimeItemIdsByThread[threadId];
-        if (!ids) return {};
-        const { [event.itemId]: _dropped, ...remaining } = items;
-        return {
-          runtimeItemIdsByThread: {
-            ...state.runtimeItemIdsByThread,
-            [threadId]: ids.filter((id) => id !== event.itemId),
-          },
-          runtimeItemsByIdByThread: {
-            ...state.runtimeItemsByIdByThread,
-            [threadId]: remaining,
-          },
-        };
-      }
-      return {
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...items, [event.itemId]: next },
-        },
-      };
-    }
-
-    case "content.delta": {
-      const items = state.runtimeItemsByIdByThread[threadId];
-      const prev = items?.[event.itemId];
-      if (!prev || !items) return {};
-      const prevStream = prev.streams[event.stream] ?? "";
-      const next: RuntimeChatItem = {
-        ...prev,
-        state: prev.state === "completed" ? "completed" : "updated",
-        streams: { ...prev.streams, [event.stream]: prevStream + event.delta },
-      };
-      items[event.itemId] = next;
-      return {
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: items,
-        },
-      };
     }
 
     case "context.updated": {
@@ -448,41 +610,6 @@ function areContextUsagesEqual(
     const other = rightBreakdown[index];
     return other?.id === entry.id && other.label === entry.label && other.tokens === entry.tokens;
   });
-}
-
-function coalesceRuntimeEvents(events: RuntimeEvent[]): RuntimeEvent[] {
-  const coalesced: RuntimeEvent[] = [];
-  let pendingDelta: Extract<RuntimeEvent, { type: "content.delta" }> | undefined;
-
-  const flushPendingDelta = () => {
-    if (!pendingDelta) return;
-    coalesced.push(pendingDelta);
-    pendingDelta = undefined;
-  };
-
-  for (const event of events) {
-    if (event.type !== "content.delta") {
-      flushPendingDelta();
-      coalesced.push(event);
-      continue;
-    }
-    if (
-      pendingDelta &&
-      pendingDelta.itemId === event.itemId &&
-      pendingDelta.stream === event.stream
-    ) {
-      pendingDelta = {
-        ...pendingDelta,
-        delta: pendingDelta.delta + event.delta,
-      };
-      continue;
-    }
-    flushPendingDelta();
-    pendingDelta = event;
-  }
-
-  flushPendingDelta();
-  return coalesced;
 }
 
 function pruneTrailingInterruptedReasoningItems(

@@ -5,6 +5,7 @@ import { getDb, getSqlite } from "./connection";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
+import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
@@ -101,6 +102,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         .values({
           id: thread.id,
           projectId: thread.projectId,
+          workspaceId: thread.workspaceId ?? null,
           title: thread.title,
           agentKind: thread.agentKind,
           agentInstanceId: thread.agentInstanceId ?? null,
@@ -118,6 +120,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
           groupName: thread.groupName ?? null,
           parentThreadId: thread.parentThreadId ?? null,
           archived: thread.archived,
+          archivedAt: thread.archivedAt ?? null,
           done: thread.done,
           doneAt: thread.doneAt ?? null,
           starred: thread.starred,
@@ -132,7 +135,9 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         .onConflictDoUpdate({
           target: schema.threads.id,
           set: {
+            workspaceId: thread.workspaceId ?? null,
             title: thread.title,
+            agentKind: thread.agentKind,
             agentInstanceId: thread.agentInstanceId ?? null,
             config: JSON.stringify(thread.config),
             status: thread.status,
@@ -148,6 +153,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
             groupName: thread.groupName ?? null,
             parentThreadId: thread.parentThreadId ?? null,
             archived: thread.archived,
+            archivedAt: thread.archivedAt ?? null,
             done: thread.done,
             doneAt: thread.doneAt ?? null,
             starred: thread.starred,
@@ -198,13 +204,21 @@ export function dbMarkLiveThreadsInactive(): void {
 export function dbDeleteThread(threadId: string): void {
   const db = getDb();
   db.delete(schema.threads).where(eq(schema.threads.id, threadId)).run();
+  dbDiscardThreadRuntimeWrites(threadId);
   forgetMainCreatedThread(threadId);
   notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteProject(projectId: string): void {
   const db = getDb();
+  const threadIds = db
+    .select({ id: schema.threads.id })
+    .from(schema.threads)
+    .where(eq(schema.threads.projectId, projectId))
+    .all()
+    .map((row) => row.id);
   db.delete(schema.projects).where(eq(schema.projects.id, projectId)).run();
   db.delete(schema.projectNotes).where(eq(schema.projectNotes.projectId, projectId)).run();
+  for (const threadId of threadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
 }

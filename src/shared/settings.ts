@@ -22,9 +22,31 @@ import {
   installedPluginsSchema,
   workspaceListSchema,
 } from "./contracts";
+import {
+  defaultMachineScopeModes,
+  machineScopeModesSchema,
+  machineSettingsEntrySchema,
+} from "./machineSettings";
+import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
+import {
+  ANTIGRAVITY_ACP_REGISTRY_ID,
+  LEGACY_ANTIGRAVITY_ACP_KIND,
+  normalizePersistedAntigravityModelSelection,
+} from "./agents/antigravity";
+
+export const WINDOWS_SHELL_AUTO = "auto";
+export const WINDOWS_SHELL_ARGUMENTS_MAX = 8_192;
+export type WindowsShellKind = "pwsh" | "powershell" | "cmd";
+
+export interface AvailableWindowsShell {
+  path: string;
+  kind: WindowsShellKind;
+  /** Product/folder version when known, e.g. "7.2" or "7.6.1". */
+  version?: string;
+}
 
 const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
@@ -41,6 +63,12 @@ export const agentSelectionUsageEntrySchema = z.object({
   lastUsedAt: z.number().int().nonnegative(),
 });
 export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
+
+export const providerModelPreferenceSchema = z.object({
+  effort: z.string().optional(),
+  fast: z.boolean().optional(),
+});
+export type ProviderModelPreference = z.infer<typeof providerModelPreferenceSchema>;
 
 export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
 export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
@@ -246,6 +274,12 @@ export const sharedSettingsSchema = z.object({
    */
   gitTextLanguage: z.enum(AI_LANGUAGE_VALUES).default("en"),
   terminalPosition: terminalPositionSchema,
+  /** Absolute detected executable path, or "auto" for preferred-shell detection. */
+  windowsShellPath: z.string(),
+  /** PowerShell host used for internal commands and agent launch wrappers. */
+  windowsInternalShellPath: z.string(),
+  /** Additional argv passed directly to each interactive Windows shell. */
+  windowsShellArguments: z.string().max(WINDOWS_SHELL_ARGUMENTS_MAX),
   commitGenProvider: z.string(),
   commitGenModel: z.string(),
   commitGenEffort: z.string(),
@@ -288,6 +322,19 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverPresentationMode: threadPresentationModeSchema,
   /** Per-agent settings keyed by agent kind, then setting key. */
   agentSettings: z.record(z.string(), z.record(z.string(), z.union([z.boolean(), z.string()]))),
+  /**
+   * Lock state per machine-scopable settings domain. "synced" (the default)
+   * keeps one global value for every machine; "per-machine" activates the
+   * `machineSettings` overrides for that domain.
+   */
+  machineScopeModes: machineScopeModesSchema,
+  /**
+   * Sparse per-machine overrides keyed by `machineKey` ("local",
+   * "local/wsl:<distro>", "remote:<desktopId>", …). Resolved against the
+   * global values by the `effective*` helpers in `machineSettings.ts`.
+   * Entries with unparseable machine keys are dropped on normalize.
+   */
+  machineSettings: z.record(z.string(), machineSettingsEntrySchema),
   /** Per-agent hidden model IDs keyed by agent kind. */
   hiddenModels: z.record(z.string(), z.array(z.string())),
   /** Agent kinds that the user has disabled (hidden from the agent picker). */
@@ -299,6 +346,13 @@ export const sharedSettingsSchema = z.object({
   providerOrder: z.array(z.string()),
   /** User-installed registry agents keyed by ACP registry id. */
   acpRegistryInstalledAgents: z.record(z.string(), installedAcpRegistryAgentSchema),
+  /**
+   * ACP registry ids the user explicitly removed. A provider whose registry
+   * artifact is auto-installed alongside its detected CLI must not resurrect it
+   * on the next detection pass, so removal records an opt-out here and a later
+   * explicit install clears it.
+   */
+  acpRegistryAutoInstallOptOuts: z.array(z.string()),
   /** User-registered agent instances, currently used by generic ACP registry installs. */
   agentInstances: agentInstanceConfigMapSchema,
   /** When true, the composer in terminal-native threads starts collapsed. */
@@ -429,6 +483,11 @@ export const sharedSettingsSchema = z.object({
   commitDefaultAction: commitDefaultActionSchema,
   /** Per-provider last-used draft config (model, effort, mode, etc.). App-wide. */
   providerConfigs: z.record(z.string(), providerDraftConfigSchema),
+  /** Per-provider and model effort/Fast choices. App-wide. */
+  providerModelPreferences: z.record(
+    z.string(),
+    z.record(z.string(), providerModelPreferenceSchema),
+  ),
   /**
    * Per-provider last-picked thread presentation mode (terminal vs gui chat).
    * Read by ThreadDraftView so a provider that supports both modes remembers
@@ -599,6 +658,9 @@ export const defaultSharedSettings: SharedSettings = {
   locale: "system",
   gitTextLanguage: "en",
   terminalPosition: "bottom",
+  windowsShellPath: WINDOWS_SHELL_AUTO,
+  windowsInternalShellPath: WINDOWS_SHELL_AUTO,
+  windowsShellArguments: "",
   commitGenProvider: "auto",
   commitGenModel: "",
   commitGenEffort: "",
@@ -630,10 +692,13 @@ export const defaultSharedSettings: SharedSettings = {
   wslConflictResolverFast: false,
   wslConflictResolverPresentationMode: "gui",
   agentSettings: {},
+  machineScopeModes: defaultMachineScopeModes,
+  machineSettings: {},
   hiddenModels: {},
   disabledAgents: [],
   providerOrder: [],
   acpRegistryInstalledAgents: {},
+  acpRegistryAutoInstallOptOuts: [],
   agentInstances: {},
   collapseTerminalComposer: false,
   cliPickerTarget: "ask",
@@ -668,6 +733,7 @@ export const defaultSharedSettings: SharedSettings = {
   prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
   providerConfigs: {},
+  providerModelPreferences: {},
   lastPresentationModeByAgent: {},
   lastUsedProjectDirs: {},
   editorLspEnabled: false,
@@ -758,6 +824,21 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
           qwen: { ...qwenProviderConfig, model: QWEN_DEFAULT_MODEL_ID },
         }
       : settings.providerConfigs;
+  const qwenModelPreferences = settings.providerModelPreferences.qwen;
+  const retiredQwenModelPreference = qwenModelPreferences?.[QWEN_RETIRED_PREVIEW_MODEL_ID];
+  let providerModelPreferences = settings.providerModelPreferences;
+  if (qwenModelPreferences && retiredQwenModelPreference) {
+    const currentQwenModelPreferences = { ...qwenModelPreferences };
+    delete currentQwenModelPreferences[QWEN_RETIRED_PREVIEW_MODEL_ID];
+    providerModelPreferences = {
+      ...settings.providerModelPreferences,
+      qwen: {
+        ...currentQwenModelPreferences,
+        [QWEN_DEFAULT_MODEL_ID]:
+          currentQwenModelPreferences[QWEN_DEFAULT_MODEL_ID] ?? retiredQwenModelPreference,
+      },
+    };
+  }
 
   const seenFavorites = new Set<string>();
   const favoriteModels = settings.favoriteModels
@@ -787,6 +868,7 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
   return {
     ...settings,
     providerConfigs,
+    providerModelPreferences,
     hiddenModels,
     commitGenModel: migrateUtilityModel(settings.commitGenProvider, settings.commitGenModel),
     titleGenModel: migrateUtilityModel(settings.titleGenProvider, settings.titleGenModel),
@@ -827,14 +909,558 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
   };
 }
 
-export function normalizeSharedSettings(value: unknown): SharedSettings {
+function moveRecordKey<T>(
+  record: Record<string, T>,
+  from: string,
+  to: string,
+  merge: (legacy: T, current: T) => T = (_legacy, current) => current,
+): Record<string, T> {
+  if (!(from in record)) return record;
+  const next = { ...record };
+  next[to] = to in next ? merge(next[from]!, next[to]!) : next[from]!;
+  delete next[from];
+  return next;
+}
+
+/** Hook-support cache keys can carry an environment suffix (`<kind>:…`); those move with the kind. */
+function hasLegacyHookSupportKey(record: SharedSettings["agentHookSupport"]): boolean {
+  return Object.keys(record).some(
+    (key) =>
+      key === LEGACY_ANTIGRAVITY_ACP_KIND || key.startsWith(`${LEGACY_ANTIGRAVITY_ACP_KIND}:`),
+  );
+}
+
+function migrateHookSupportKeys(
+  record: SharedSettings["agentHookSupport"],
+): SharedSettings["agentHookSupport"] {
+  if (!hasLegacyHookSupportKey(record)) return record;
+  const next = { ...record };
+  for (const key of Object.keys(next)) {
+    if (key === LEGACY_ANTIGRAVITY_ACP_KIND) {
+      if (!("antigravity" in next)) next.antigravity = next[key]!;
+      delete next[key];
+    } else if (key.startsWith(`${LEGACY_ANTIGRAVITY_ACP_KIND}:`)) {
+      const target = `antigravity${key.slice(LEGACY_ANTIGRAVITY_ACP_KIND.length)}`;
+      if (!(target in next)) next[target] = next[key]!;
+      delete next[key];
+    }
+  }
+  return next;
+}
+
+function migrateAntigravityAcpAliasState(settings: SharedSettings): {
+  settings: SharedSettings;
+  acpAliasMigrated: boolean;
+} {
+  const record = settings.acpRegistryInstalledAgents[ANTIGRAVITY_ACP_REGISTRY_ID];
+  const legacyProviderConfigOnly =
+    LEGACY_ANTIGRAVITY_ACP_KIND in settings.providerConfigs &&
+    !("antigravity" in settings.providerConfigs);
+  const legacyProviderPreferencesOnly =
+    LEGACY_ANTIGRAVITY_ACP_KIND in settings.providerModelPreferences &&
+    !("antigravity" in settings.providerModelPreferences);
+  const legacyHiddenModelsOnly =
+    LEGACY_ANTIGRAVITY_ACP_KIND in settings.hiddenModels &&
+    !("antigravity" in settings.hiddenModels);
+  const legacyCrossagentHiddenModelsOnly =
+    LEGACY_ANTIGRAVITY_ACP_KIND in settings.crossagentHiddenModels &&
+    !("antigravity" in settings.crossagentHiddenModels);
+  const legacyMachineHiddenModelsOnly = new Set(
+    Object.entries(settings.machineSettings)
+      .filter(
+        ([, entry]) =>
+          LEGACY_ANTIGRAVITY_ACP_KIND in (entry.hiddenModels ?? {}) &&
+          !("antigravity" in (entry.hiddenModels ?? {})),
+      )
+      .map(([key]) => key),
+  );
+  // Every field this function rewrites has to be able to trigger it, otherwise a
+  // profile whose only remnant is e.g. `providerOrder` keeps the dead kind.
+  const hasLegacySettings =
+    record?.adapterKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
+    [
+      settings.providerConfigs,
+      settings.providerModelPreferences,
+      settings.lastPresentationModeByAgent,
+      settings.agentSettings,
+      settings.hiddenModels,
+      settings.crossagentHiddenModels,
+    ].some((byKind) => LEGACY_ANTIGRAVITY_ACP_KIND in byKind) ||
+    [settings.disabledAgents, settings.providerOrder, settings.crossagentPausedProviders].some(
+      (list) => list.includes(LEGACY_ANTIGRAVITY_ACP_KIND),
+    ) ||
+    [
+      settings.favoriteModels,
+      settings.recentModels,
+      settings.agentSelectionUsage,
+      settings.crossagentSelectionUsage,
+      settings.crossagentRoutingOverrides,
+    ].some((entries) => entries.some((entry) => entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND)) ||
+    [
+      settings.commitGenProvider,
+      settings.titleGenProvider,
+      settings.conflictResolverProvider,
+      settings.experimentJudgeProvider,
+      settings.wslCommitGenProvider,
+      settings.wslTitleGenProvider,
+      settings.wslConflictResolverProvider,
+    ].includes(LEGACY_ANTIGRAVITY_ACP_KIND) ||
+    hasLegacyHookSupportKey(settings.agentHookSupport) ||
+    Object.values(settings.machineSettings).some(
+      (entry) =>
+        entry.providerOrder?.includes(LEGACY_ANTIGRAVITY_ACP_KIND) ||
+        entry.disabledAgents?.includes(LEGACY_ANTIGRAVITY_ACP_KIND) ||
+        LEGACY_ANTIGRAVITY_ACP_KIND in (entry.hiddenModels ?? {}) ||
+        LEGACY_ANTIGRAVITY_ACP_KIND in (entry.agentSettings ?? {}),
+    );
+  const migrateEntry = <T extends { agentKind: string }>(entry: T): T => {
+    if (entry.agentKind !== LEGACY_ANTIGRAVITY_ACP_KIND) return entry;
+    const modelId =
+      "modelId" in entry && typeof entry.modelId === "string" ? entry.modelId : undefined;
+    const effort = "effort" in entry && typeof entry.effort === "string" ? entry.effort : undefined;
+    const normalized = modelId
+      ? normalizePersistedAntigravityModelSelection(modelId, effort, true)
+      : undefined;
+    return {
+      ...entry,
+      agentKind: "antigravity",
+      ...(normalized
+        ? {
+            modelId: normalized.model,
+            ...(normalized.effort ? { effort: normalized.effort } : {}),
+          }
+        : {}),
+    } as T;
+  };
+  const migrateProvider = (provider: string) =>
+    provider === LEGACY_ANTIGRAVITY_ACP_KIND ? "antigravity" : provider;
+  const uniqueStrings = (values: string[]) => [...new Set(values.map(migrateProvider))];
+  // The legacy kind was the ACP chat provider on its own. Rewriting a disable
+  // or crossagents pause onto "antigravity" would hide the provider's whole
+  // surface — the `agy` CLI included — so those entries are dropped and the
+  // adopted chat runtime is disabled below instead.
+  const withoutLegacy = (values: string[]) =>
+    values.filter((k) => k !== LEGACY_ANTIGRAVITY_ACP_KIND);
+  const hadLegacyChatDisable =
+    settings.disabledAgents.includes(LEGACY_ANTIGRAVITY_ACP_KIND) ||
+    settings.crossagentPausedProviders.includes(LEGACY_ANTIGRAVITY_ACP_KIND) ||
+    Object.values(settings.machineSettings).some((entry) =>
+      entry.disabledAgents?.includes(LEGACY_ANTIGRAVITY_ACP_KIND),
+    );
+  const adoptedInstance = settings.agentInstances[ANTIGRAVITY_ACP_REGISTRY_ID];
+  const mergeObjects = <T extends object>(legacy: T, current: T): T => ({
+    ...legacy,
+    ...current,
+  });
+  const mergeStringArrays = (legacy: string[], current: string[]) => [
+    ...new Set([...legacy, ...current]),
+  ];
+  const machineSettings = Object.fromEntries(
+    Object.entries(settings.machineSettings).map(([key, entry]) => [
+      key,
+      {
+        ...entry,
+        ...(entry.providerOrder ? { providerOrder: uniqueStrings(entry.providerOrder) } : {}),
+        ...(entry.disabledAgents ? { disabledAgents: withoutLegacy(entry.disabledAgents) } : {}),
+        ...(entry.hiddenModels
+          ? {
+              hiddenModels: moveRecordKey(
+                entry.hiddenModels,
+                LEGACY_ANTIGRAVITY_ACP_KIND,
+                "antigravity",
+                mergeStringArrays,
+              ),
+            }
+          : {}),
+        ...(entry.agentSettings
+          ? {
+              agentSettings: moveRecordKey(
+                entry.agentSettings,
+                LEGACY_ANTIGRAVITY_ACP_KIND,
+                "antigravity",
+                mergeObjects,
+              ),
+            }
+          : {}),
+      },
+    ]),
+  );
+
+  const migrated: SharedSettings = hasLegacySettings
+    ? {
+        ...settings,
+        acpRegistryInstalledAgents: record
+          ? {
+              ...settings.acpRegistryInstalledAgents,
+              [ANTIGRAVITY_ACP_REGISTRY_ID]: {
+                ...record,
+                adapterKind: "antigravity",
+                installKind: "first-class",
+              },
+            }
+          : settings.acpRegistryInstalledAgents,
+        providerConfigs: moveRecordKey(
+          settings.providerConfigs,
+          LEGACY_ANTIGRAVITY_ACP_KIND,
+          "antigravity",
+          mergeObjects,
+        ),
+        providerModelPreferences: moveRecordKey(
+          settings.providerModelPreferences,
+          LEGACY_ANTIGRAVITY_ACP_KIND,
+          "antigravity",
+          mergeObjects,
+        ),
+        lastPresentationModeByAgent: moveRecordKey(
+          settings.lastPresentationModeByAgent,
+          LEGACY_ANTIGRAVITY_ACP_KIND,
+          "antigravity",
+        ),
+        agentSettings: moveRecordKey(
+          settings.agentSettings,
+          LEGACY_ANTIGRAVITY_ACP_KIND,
+          "antigravity",
+          mergeObjects,
+        ),
+        hiddenModels: moveRecordKey(
+          settings.hiddenModels,
+          LEGACY_ANTIGRAVITY_ACP_KIND,
+          "antigravity",
+          mergeStringArrays,
+        ),
+        crossagentHiddenModels: moveRecordKey(
+          settings.crossagentHiddenModels,
+          LEGACY_ANTIGRAVITY_ACP_KIND,
+          "antigravity",
+          mergeStringArrays,
+        ),
+        machineSettings,
+        // Disabling the chat provider must not disable the CLI it was adopted
+        // into; the chat runtime itself is what the user opted out of.
+        disabledAgents: withoutLegacy(settings.disabledAgents),
+        providerOrder: uniqueStrings(settings.providerOrder),
+        crossagentPausedProviders: withoutLegacy(settings.crossagentPausedProviders),
+        agentInstances: adoptedInstance
+          ? {
+              ...settings.agentInstances,
+              [ANTIGRAVITY_ACP_REGISTRY_ID]: hadLegacyChatDisable
+                ? { ...adoptedInstance, enabled: false }
+                : adoptedInstance,
+            }
+          : settings.agentInstances,
+        // `enabled: false` alone cannot keep the runtime down: the supervisor
+        // auto-installs the artifact wherever the CLI is detected, and an
+        // install rebuilds the instance enabled. Record the opt-out so a
+        // removal-grade opt-out survives the adoption; an explicit install
+        // clears it again.
+        acpRegistryAutoInstallOptOuts: hadLegacyChatDisable
+          ? [...new Set([...settings.acpRegistryAutoInstallOptOuts, ANTIGRAVITY_ACP_REGISTRY_ID])]
+          : settings.acpRegistryAutoInstallOptOuts,
+        agentHookSupport: migrateHookSupportKeys(settings.agentHookSupport),
+        favoriteModels: settings.favoriteModels.map(migrateEntry),
+        recentModels: settings.recentModels.map(migrateEntry),
+        agentSelectionUsage: settings.agentSelectionUsage.map(migrateEntry),
+        crossagentSelectionUsage: settings.crossagentSelectionUsage.map(migrateEntry),
+        crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map(migrateEntry),
+        commitGenProvider: migrateProvider(settings.commitGenProvider),
+        titleGenProvider: migrateProvider(settings.titleGenProvider),
+        conflictResolverProvider: migrateProvider(settings.conflictResolverProvider),
+        experimentJudgeProvider: migrateProvider(settings.experimentJudgeProvider),
+        wslCommitGenProvider: migrateProvider(settings.wslCommitGenProvider),
+        wslTitleGenProvider: migrateProvider(settings.wslTitleGenProvider),
+        wslConflictResolverProvider: migrateProvider(settings.wslConflictResolverProvider),
+      }
+    : settings;
+
+  const normalizeConfig = <T extends { model: string; effort?: string | undefined }>(
+    config: T,
+    acpOrigin = false,
+  ): T => {
+    const normalized = normalizePersistedAntigravityModelSelection(
+      config.model,
+      config.effort,
+      acpOrigin,
+    );
+    return normalized.model === config.model ? config : ({ ...config, ...normalized } as T);
+  };
+  const normalizeModelIds = (models: string[], acpOrigin = false) => [
+    ...new Set(
+      models.map(
+        (model) => normalizePersistedAntigravityModelSelection(model, undefined, acpOrigin).model,
+      ),
+    ),
+  ];
+  const normalizePreferences = (
+    preferences: Record<string, ProviderModelPreference>,
+    currentConfig: { model: string; effort?: string | undefined } | undefined,
+    acpOrigin = false,
+  ): Record<string, ProviderModelPreference> => {
+    const normalized: Record<string, ProviderModelPreference> = {};
+    for (const [model, preference] of Object.entries(preferences)) {
+      const selection = normalizePersistedAntigravityModelSelection(
+        model,
+        preference.effort,
+        acpOrigin,
+      );
+      if (selection.model === model) continue;
+      normalized[selection.model] = {
+        ...normalized[selection.model],
+        ...preference,
+        ...(selection.effort ? { effort: selection.effort } : {}),
+      };
+    }
+    for (const [model, preference] of Object.entries(preferences)) {
+      const selection = normalizePersistedAntigravityModelSelection(
+        model,
+        preference.effort,
+        acpOrigin,
+      );
+      if (selection.model !== model) continue;
+      normalized[model] = { ...normalized[model], ...preference };
+    }
+    if (currentConfig) {
+      const current = normalizePersistedAntigravityModelSelection(
+        currentConfig.model,
+        currentConfig.effort,
+        acpOrigin,
+      );
+      if (current.model !== currentConfig.model) {
+        const currentPreference = preferences[currentConfig.model];
+        normalized[current.model] = {
+          ...normalized[current.model],
+          ...currentPreference,
+          ...(current.effort ? { effort: current.effort } : {}),
+        };
+      }
+    }
+    return normalized;
+  };
+  const normalizeSelectionEntry = <
+    T extends { agentKind: string; modelId: string; effort?: string | undefined },
+  >(
+    entry: T,
+  ): T => {
+    if (entry.agentKind !== "antigravity") return entry;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      entry.modelId,
+      entry.effort,
+      "presentationMode" in entry && entry.presentationMode === "gui",
+    );
+    return normalized.model === entry.modelId
+      ? entry
+      : ({
+          ...entry,
+          modelId: normalized.model,
+          ...(normalized.effort ? { effort: normalized.effort } : {}),
+        } as T);
+  };
+  const normalizeUtilityModel = (
+    provider: string,
+    model: string,
+    effort: string,
+    acpOrigin = false,
+  ) => {
+    if (provider !== "antigravity") return { model, effort };
+    const normalized = normalizePersistedAntigravityModelSelection(model, effort, acpOrigin);
+    return { model: normalized.model, effort: normalized.effort ?? effort };
+  };
+  const commitGen = normalizeUtilityModel(
+    migrated.commitGenProvider,
+    migrated.commitGenModel,
+    migrated.commitGenEffort,
+    settings.commitGenProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const titleGen = normalizeUtilityModel(
+    migrated.titleGenProvider,
+    migrated.titleGenModel,
+    migrated.titleGenEffort,
+    settings.titleGenProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const conflictResolver = normalizeUtilityModel(
+    migrated.conflictResolverProvider,
+    migrated.conflictResolverModel,
+    migrated.conflictResolverEffort,
+    settings.conflictResolverProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const experimentJudge = normalizeUtilityModel(
+    migrated.experimentJudgeProvider,
+    migrated.experimentJudgeModel,
+    migrated.experimentJudgeEffort,
+    settings.experimentJudgeProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const wslCommitGen = normalizeUtilityModel(
+    migrated.wslCommitGenProvider,
+    migrated.wslCommitGenModel,
+    migrated.wslCommitGenEffort,
+    settings.wslCommitGenProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const wslTitleGen = normalizeUtilityModel(
+    migrated.wslTitleGenProvider,
+    migrated.wslTitleGenModel,
+    migrated.wslTitleGenEffort,
+    settings.wslTitleGenProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const wslConflictResolver = normalizeUtilityModel(
+    migrated.wslConflictResolverProvider,
+    migrated.wslConflictResolverModel,
+    migrated.wslConflictResolverEffort,
+    settings.wslConflictResolverProvider === LEGACY_ANTIGRAVITY_ACP_KIND,
+  );
+  const antigravityConfig = migrated.providerConfigs.antigravity;
+
+  const normalized: SharedSettings = {
+    ...migrated,
+    providerConfigs: antigravityConfig
+      ? {
+          ...migrated.providerConfigs,
+          antigravity: normalizeConfig(antigravityConfig, legacyProviderConfigOnly),
+        }
+      : migrated.providerConfigs,
+    providerModelPreferences: migrated.providerModelPreferences.antigravity
+      ? {
+          ...migrated.providerModelPreferences,
+          antigravity: normalizePreferences(
+            migrated.providerModelPreferences.antigravity,
+            antigravityConfig,
+            legacyProviderPreferencesOnly,
+          ),
+        }
+      : migrated.providerModelPreferences,
+    hiddenModels: migrated.hiddenModels.antigravity
+      ? {
+          ...migrated.hiddenModels,
+          antigravity: normalizeModelIds(migrated.hiddenModels.antigravity, legacyHiddenModelsOnly),
+        }
+      : migrated.hiddenModels,
+    crossagentHiddenModels: migrated.crossagentHiddenModels.antigravity
+      ? {
+          ...migrated.crossagentHiddenModels,
+          antigravity: normalizeModelIds(
+            migrated.crossagentHiddenModels.antigravity,
+            legacyCrossagentHiddenModelsOnly,
+          ),
+        }
+      : migrated.crossagentHiddenModels,
+    machineSettings: Object.fromEntries(
+      Object.entries(migrated.machineSettings).map(([key, entry]) => [
+        key,
+        entry.hiddenModels?.antigravity
+          ? {
+              ...entry,
+              hiddenModels: {
+                ...entry.hiddenModels,
+                antigravity: normalizeModelIds(
+                  entry.hiddenModels.antigravity,
+                  legacyMachineHiddenModelsOnly.has(key),
+                ),
+              },
+            }
+          : entry,
+      ]),
+    ),
+    favoriteModels: migrated.favoriteModels.map(normalizeSelectionEntry),
+    recentModels: migrated.recentModels.map(normalizeSelectionEntry),
+    agentSelectionUsage: migrated.agentSelectionUsage.map(normalizeSelectionEntry),
+    crossagentSelectionUsage: migrated.crossagentSelectionUsage.map(normalizeSelectionEntry),
+    crossagentRoutingOverrides: migrated.crossagentRoutingOverrides.map((entry) => {
+      if (!entry.modelId || entry.agentKind !== "antigravity") return entry;
+      const selection = normalizePersistedAntigravityModelSelection(entry.modelId, entry.effort);
+      return selection.model === entry.modelId
+        ? entry
+        : {
+            ...entry,
+            modelId: selection.model,
+            ...(selection.effort ? { effort: selection.effort } : {}),
+          };
+    }),
+    commitGenModel: commitGen.model,
+    commitGenEffort: commitGen.effort,
+    titleGenModel: titleGen.model,
+    titleGenEffort: titleGen.effort,
+    conflictResolverModel: conflictResolver.model,
+    conflictResolverEffort: conflictResolver.effort,
+    experimentJudgeModel: experimentJudge.model,
+    experimentJudgeEffort: experimentJudge.effort,
+    wslCommitGenModel: wslCommitGen.model,
+    wslCommitGenEffort: wslCommitGen.effort,
+    wslTitleGenModel: wslTitleGen.model,
+    wslTitleGenEffort: wslTitleGen.effort,
+    wslConflictResolverModel: wslConflictResolver.model,
+    wslConflictResolverEffort: wslConflictResolver.effort,
+  };
+  return { settings: normalized, acpAliasMigrated: hasLegacySettings };
+}
+
+/**
+ * Settings keys `migrateAntigravityAcpAliasState` can rewrite. The
+ * supervisor's `persistAcpRegistrySettingsMigrations` overlays exactly these
+ * onto the raw file, so the migration and the persist path cannot drift.
+ */
+export const ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS = [
+  "acpRegistryInstalledAgents",
+  "providerConfigs",
+  "providerModelPreferences",
+  "lastPresentationModeByAgent",
+  "agentSettings",
+  "hiddenModels",
+  "crossagentHiddenModels",
+  "machineSettings",
+  "disabledAgents",
+  "providerOrder",
+  "crossagentPausedProviders",
+  "favoriteModels",
+  "recentModels",
+  "agentSelectionUsage",
+  "crossagentSelectionUsage",
+  "crossagentRoutingOverrides",
+  "commitGenProvider",
+  "titleGenProvider",
+  "conflictResolverProvider",
+  "experimentJudgeProvider",
+  "wslCommitGenProvider",
+  "wslTitleGenProvider",
+  "wslConflictResolverProvider",
+  "agentInstances",
+  "acpRegistryAutoInstallOptOuts",
+  "agentHookSupport",
+] as const satisfies readonly (keyof SharedSettings)[];
+
+export function pickAntigravityAcpAliasMigratedFields(
+  settings: SharedSettings,
+): Pick<SharedSettings, (typeof ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS)[number]> {
+  return Object.fromEntries(
+    ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS.map((key) => [key, settings[key]]),
+  ) as Pick<SharedSettings, (typeof ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS)[number]>;
+}
+
+/**
+ * Per-entry tolerant parse of `machineSettings`: entries with unparseable
+ * machine keys or malformed values are dropped individually instead of
+ * resetting the whole map (which the per-field schema fallback would do).
+ */
+function normalizeMachineSettings(value: unknown): SharedSettings["machineSettings"] {
+  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  if (!parsed.success) return {};
+  const result: SharedSettings["machineSettings"] = {};
+  for (const [key, entry] of Object.entries(parsed.data)) {
+    if (parseMachineKey(key) === undefined) continue;
+    const parsedEntry = machineSettingsEntrySchema.safeParse(entry);
+    if (parsedEntry.success) result[key] = parsedEntry.data;
+  }
+  return result;
+}
+
+function normalizeSharedSettingsStateImpl(value: unknown): {
+  settings: SharedSettings;
+  acpAliasMigrated: boolean;
+} {
   const normalized = normalizeObjectFromSchema(
     sharedSettingsSchema.shape,
     defaultSharedSettings,
     value,
   );
   const parsed = z.record(z.string(), z.unknown()).safeParse(value);
-  if (!parsed.success) return normalized;
+  if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
 
   const hasAutomationMode = prAutomationModeSchema.safeParse(
     parsed.data.prAutomationDefault,
@@ -862,18 +1488,39 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
     : undefined;
-  return migrateRetiredQwenPreviewModel({
-    ...normalized,
-    sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
-    prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
-    preventSleep: migratedPreventSleep,
-    usage: {
-      ...normalized.usage,
-      disabledProviders: disabledProviders?.success ? disabledProviders.data : [],
-    },
-    enabledMcpServers: {
-      ...defaultSharedSettings.enabledMcpServers,
-      ...normalized.enabledMcpServers,
-    },
-  });
+  return migrateAntigravityAcpAliasState(
+    migrateRetiredQwenPreviewModel({
+      ...normalized,
+      machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
+      sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
+      prAutomationDefault: hasAutomationMode
+        ? normalized.prAutomationDefault
+        : legacyAutomationMode,
+      preventSleep: migratedPreventSleep,
+      usage: {
+        ...normalized.usage,
+        disabledProviders: disabledProviders?.success ? disabledProviders.data : [],
+      },
+      enabledMcpServers: {
+        ...defaultSharedSettings.enabledMcpServers,
+        ...normalized.enabledMcpServers,
+      },
+    }),
+  );
+}
+
+export function normalizeSharedSettings(value: unknown): SharedSettings {
+  return normalizeSharedSettingsState(value).settings;
+}
+
+/**
+ * `normalizeSharedSettings` plus whether the Antigravity ACP alias migration
+ * applied, so the supervisor can decide whether the migrated fields still need
+ * to be persisted back to the raw file.
+ */
+export function normalizeSharedSettingsState(value: unknown): {
+  settings: SharedSettings;
+  acpAliasMigrated: boolean;
+} {
+  return normalizeSharedSettingsStateImpl(value);
 }

@@ -54,6 +54,7 @@ function managerElement(options: {
   workspaceServers?: McpServer[];
   defaultScope?: "user" | "workspace";
   projectLocation?: McpProbePayload["projectLocation"];
+  projectIcon?: string;
   onUserChange?: (servers: McpServer[]) => void;
   onWorkspaceChange?: (servers: McpServer[]) => void;
   additionalProjects?: McpImportProjectTarget[];
@@ -69,6 +70,7 @@ function managerElement(options: {
     workspaceServers,
     defaultScope = "user",
     projectLocation,
+    projectIcon,
     onUserChange = () => undefined,
     onWorkspaceChange = () => undefined,
     additionalProjects = [],
@@ -92,6 +94,7 @@ function managerElement(options: {
                 projectId: "p1",
                 projectName: "Demo project",
                 ...(projectLocation ? { projectLocation } : {}),
+                ...(projectIcon ? { projectIcon } : {}),
               },
             }
           : {}),
@@ -103,6 +106,7 @@ function managerElement(options: {
                 id: "p1",
                 name: "Demo project",
                 location: workspaceLocation,
+                ...(projectIcon ? { icon: projectIcon } : {}),
                 servers: workspaceServers,
                 onChange: onWorkspaceChange,
               },
@@ -501,6 +505,7 @@ describe("McpServersManager", () => {
       managerElement({
         workspaceServers: [],
         defaultScope: "workspace",
+        projectIcon: "file:public/favicon.png",
         projectLocation: {
           kind: "posix",
           path: "/remote/project",

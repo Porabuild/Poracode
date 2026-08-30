@@ -57,6 +57,22 @@ const GROK_45_META = {
   ],
 };
 
+// grok-4.6 as returned live by `grok agent stdio` 1.0.5. Note that it flags
+// BOTH xhigh and high `default: true`; only `reasoningEffort` names the tier a
+// session actually starts on.
+const GROK_46_META = {
+  totalContextTokens: 500_000,
+  agentType: "grok-build-plan",
+  supportsReasoningEffort: true,
+  reasoningEffort: "high",
+  reasoningEfforts: [
+    { id: "xhigh", value: "xhigh", label: "Extra High Effort", default: true },
+    { id: "high", value: "high", label: "High Effort", default: true },
+    { id: "medium", value: "medium", label: "Medium Effort", default: false },
+    { id: "low", value: "low", label: "Low Effort", default: false },
+  ],
+};
+
 const MODEL_WITHOUT_EFFORT_META = {
   totalContextTokens: 200_000,
   agentType: "cursor",
@@ -74,6 +90,20 @@ beforeEach(() => {
 });
 
 describe("Grok capability detection", () => {
+  it("preserves ACP thinking model capabilities", async () => {
+    probeAcpCapabilitiesMock.mockResolvedValue({
+      models: [{ id: "grok-4.6", label: "Grok 4.6" }],
+      thinkingModels: ["grok-4.6"],
+    });
+
+    const result = await grokDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/repo" },
+      executablePath: "grok",
+    });
+
+    expect(result?.thinkingModels).toEqual(["grok-4.6"]);
+  });
+
   it("forwards the login-shell environment to the ACP process", async () => {
     const location: ProjectLocation = { kind: "posix", path: "/Users/demo/project" };
 
@@ -130,6 +160,46 @@ describe("mapGrokEffortCapabilities", () => {
     });
     expect(caps.modelEfforts["m"]).toEqual(["low", "turbo", "hyper"]);
     expect(caps.defaultEffort).toBe("low");
+  });
+
+  it("prefers the advertised reasoningEffort when several tiers claim default", () => {
+    const caps = mapGrokEffortCapabilities({
+      "grok-4.6": GROK_46_META,
+      "grok-4.5": GROK_45_META,
+    });
+    // grok-4.6 flags xhigh and high both `default: true`; `reasoningEffort`
+    // breaks the tie the way the CLI itself does.
+    expect(caps.defaultEffort).toBe("high");
+    expect(caps.efforts).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(caps.modelEfforts).toEqual({
+      "grok-4.6": ["low", "medium", "high", "xhigh"],
+      "grok-4.5": ["low", "medium", "high"],
+    });
+  });
+
+  it("falls back to the flagged tier when the model omits reasoningEffort", () => {
+    const caps = mapGrokEffortCapabilities({
+      m: {
+        reasoningEfforts: [
+          { id: "high", default: true },
+          { id: "low", default: false },
+        ],
+      },
+    });
+    expect(caps.defaultEffort).toBe("high");
+  });
+
+  it("ignores a reasoningEffort that names no advertised tier", () => {
+    const caps = mapGrokEffortCapabilities({
+      m: {
+        reasoningEffort: "ludicrous",
+        reasoningEfforts: [
+          { id: "high", default: true },
+          { id: "low", default: false },
+        ],
+      },
+    });
+    expect(caps.defaultEffort).toBe("high");
   });
 
   it("returns empty capabilities when metadata is missing or malformed", () => {

@@ -8,8 +8,9 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 
 - `kind` / `label` — Provider identifier and display name.
 - `capabilities` — Declares models, efforts, modes, approval policies, sandbox modes, resume/direct-input support, live input mode (terminal | server), presentation mode (terminal | gui).
-- `spawnEnv?` — Optional `{ native?, wsl? }` env records the runtime merges into the PTY spawn (e.g. `BROWSER=/bin/true` under WSL for OAuth-flow providers). Runtime owns no provider-specific env.
-- `detectInstall(ctx?)` — Typically one line: `return detectAgentInstall(ctx, spec)`. Declare a `DetectionSpec` (binary, capabilities, versionArgs?, authProbes?, capabilitiesProbe?) and let the engine own the WSL vs native probe + binary resolution + version + auth/capability merge.
+- `spawnEnv?` — Optional `{ native?, wsl? }` env records the runtime merges into the PTY spawn (e.g. `BROWSER=/bin/true` under WSL for OAuth-flow providers). Location-specific only — env that must ride EVERY spawn of the CLI belongs in `baseSpawnEnv` instead.
+- `baseSpawnEnv?` — Env applied to every Poracode-made spawn of this CLI in every lane (detection probes, terminal login, PTY launch, ACP session/auth/logout, one-shots, context extraction, subagent children), merged UNDER lane-specific env. Declare it once on the `DetectionSpec`; the adapter re-exposes it via `...inheritBaseSpawnEnv(spec)` so the two can never drift. Shared runtime fans it out — never repeat it per command builder. Deliberately NOT applied to `update` commands so the user-driven "update agent" action still reaches the CLI's own updater. WSL caveat: the shared merge sets spawn-level env; env that must reach the distro still has to be baked into the wsl.exe login-shell script by the command builder (`buildAgentCommand` does this) — keep the same map reference there, as factory does.
+- `detectInstall(ctx?)` — Typically one line: `return detectAgentInstall(ctx, spec)`. Declare a `DetectionSpec` (binary, capabilities, versionArgs?, authProbes?, capabilitiesProbe?, baseSpawnEnv?) and let the engine own the WSL vs native probe + binary resolution + version + auth/capability merge.
 - `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
 - `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
 
@@ -63,9 +64,35 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)                          |
 | OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                   |
 | Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                   |
-| Antigravity  | auto (managed by `agy`)                                                  | (none)                                   | terminal              | No                                 |
+| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                           | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`)   |
 | Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                                 |
 | Muse Code    | muse-spark-1.2 / 1.1 / 1.2-contributor                                   | none…ultra                               | terminal              | No (no ACP mode yet; GUI deferred) |
+
+Antigravity is one built-in agent and one registry card with two managed runtime
+prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry
+artifact backs Chat. Install reconciles whichever prerequisite is missing; the
+registry alias is not exposed as a second provider (a pre-adoption
+`installKind: "generic"` install keeps its own registry card so it stays
+updatable and removable). When detection finds the CLI
+in an environment where the artifact is missing, the supervisor installs it for
+that environment in the background (once per environment per session), so chat
+works without a manual second install. Removing the artifact records an opt-out
+in `acpRegistryAutoInstallOptOuts`, so a deliberate removal is never undone; the
+next explicit install clears it. Composer, registry-card, and
+provider-settings update surfaces compare both installed versions with their
+independent latest sources, then one action updates whichever runtimes are stale.
+
+### ACP session ownership
+
+Poracode's persisted threads are the sole conversation list and source of truth.
+Do not call or expose provider-native ACP `session/list`, and do not import a
+provider's independent conversation history, even when the agent advertises the
+capability. This is an intentional product boundary, not missing provider support.
+
+ACP `session/resume` and legacy `session/load` are used only with a provider
+session ID already associated with a Poracode thread. Provider detection may
+advertise resume support, but it must not turn provider session discovery into a
+second thread index.
 
 ## Adding a New Provider — Full Checklist
 
@@ -97,6 +124,11 @@ most often forgotten.
         "Re-login" for a never-signed-in user (and the inverse if you then drop
         the probe). Return `authenticated` when the credential exists, else
         `missing`. (Providers that only auth on first TUI launch may skip this.)
+  - [ ] ⚠️ `baseSpawnEnv` — if the CLI runs a background self-updater (or other
+        opt-out-able side effect) on spawn, declare the opt-out env ONCE here.
+        Shared runtime applies it to every spawn lane except the explicit
+        `update` command; never repeat it per command builder. Re-expose it on
+        the adapter via `...inheritBaseSpawnEnv(spec)` (see the `index.ts` item).
 - [ ] `argv.ts` — `build<Kind>Args(config, prompt, …)`. Map `config.mode`/`approvalPolicy`/
       `sandboxMode` to flags. Pass a trust/skip-prompt flag so the PTY never blocks.
 - [ ] `terminal.ts` — `detect<Kind>TerminalStatus` hint table (working/needs_approval/idle).
@@ -106,7 +138,9 @@ most often forgotten.
 - [ ] `index.ts` — `create<Kind>Adapter()`: `buildLaunchArgv`/`buildResumeArgv`,
       `buildDirectInput`, `formatPromptSegments`, `detectTerminalStatus`,
       `detectInvalidSessionRef`, `defaultOneShotModel` + `buildOneShotCommand`,
-      `spawnEnv` (`BROWSER=/bin/true` under WSL for OAuth providers).
+      `spawnEnv` (`BROWSER=/bin/true` under WSL for OAuth providers), and
+      `...inheritBaseSpawnEnv(spec)` when the spec declares `baseSpawnEnv`
+      (derive it — never re-declare the literal on the adapter).
   - [ ] ⚠️ Re-expose `update` on the returned adapter object:
         `...(spec.update ? { update: spec.update } : {})`. The shared updater reads
         `status.update ?? adapter.update`, but the registry card's latest-version
@@ -167,9 +201,50 @@ most often forgotten.
 - [ ] OSC status (title spinner / iTerm2 progress) → `handleOscTitle`/
       `handleOscNotification` (see Grok). Only wire when the CLI actually emits OSC.
 
-> Reference template for a **TUI-only, no-ACP, no-plugin** CLI: `antigravity/`
-> (single managed model) or `commandcode/` (multi-model + npm install/update + a
-> synthesized terminal Login method).
+> Reference template for a **TUI-only, no-ACP, no-plugin** CLI: `commandcode/`
+> (multi-model + npm install/update + a synthesized terminal Login method).
+
+## Giving a Provider Multiple Profiles
+
+A **profile** is a second account or configuration of a provider that already
+exists as a built-in agent (a second Claude account, a Cursor key for another
+org). Each profile is an `AgentInstanceConfig` whose `driver` is the provider
+id; it surfaces as the instance-scoped agent kind `<driver>:<instanceId>` and
+gets its own adapter, sidebar entry, model-picker group, and settings page.
+
+Everything generic already handles profiles — the sealing settings writer, the
+`createProfile` / `setProfileEnvironment` IPC, the sidebar nesting, the instance
+badge on the provider icon, the profile list UI, and `removeAgentInstance`'s
+cleanup of profile-scoped settings. Adding profiles to a provider is four
+declarations, none of which is a new branch in shared code:
+
+- [ ] **Register the driver** — add `{ driver: "<id>" }` (plus
+      `credentialEnvVar` when the provider authenticates with a single secret)
+      to `AGENT_PROFILE_DRIVERS` in `src/shared/contracts/agentProfiles.ts`.
+      This is what makes shared code treat `<id>:<instance>` kinds as profiles.
+- [ ] **Supervisor adapter factory** — export `create<Provider>ProfileAdapter(instance)`
+      from the provider's module and add it to `profileAdapterFactories` in
+      `src/supervisor/agents/registry.ts`. Build it from your normal adapter
+      factory with an overridden `kind`/`label` and the profile's credential in
+      `baseSpawnEnv`, so detection probes and every launch lane use that
+      credential (see `cursor/index.ts`). Throw when the profile is unusable:
+      the registry skips it with a warning instead of failing.
+- [ ] **Profile descriptor** — set `profiles: <provider>ProfileSupport` on the
+      provider's `NATIVE_AGENT_REGISTRY_ENTRIES` entry. The descriptor supplies
+      only what differs: the one extra add-form field, the row subtitle
+      component, the removal-consequence copy, and `createPayload`. Optional
+      `onCreated` pins provider settings that must exist before the first
+      detection pass (Cursor pins its GUI runtime there).
+- [ ] **Profile page** — the provider's `settingsPanel` already receives
+      instance-scoped kinds; branch on your own
+      `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
+      editor instead of the base page.
+
+Do NOT add per-provider profile branches to `mergeManagedSharedSettings`,
+`ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface —
+they are all driven by the registry above. Reference implementations:
+`cursor` (single sealed credential) and `claude` (free-form environment plus an
+opaque per-profile `config`).
 
 ## Plugin Architecture
 

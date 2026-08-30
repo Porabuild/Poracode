@@ -25,7 +25,7 @@ class ForegroundNetworkGateTest {
             MockResponse()
                 .setBodyDelay(2, TimeUnit.SECONDS)
                 .setBody(
-                    """{"protocolVersion":3,"desktopId":"d","label":"L","appVersion":"1","auth":{"scopes":["session:read"]}}""",
+                    """{"protocolVersion":8,"desktopId":"d","label":"L","appVersion":"1","auth":{"scopes":["session:read"]}}""",
                 ),
         )
         server.start()

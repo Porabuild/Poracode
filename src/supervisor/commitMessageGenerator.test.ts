@@ -32,11 +32,13 @@ const getDiffMock = vi.hoisted(() =>
   >(),
 );
 
-vi.mock("node:child_process", () => ({
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
   spawn: spawnMock,
 }));
 
-vi.mock("./agents/base", () => ({
+vi.mock("./agents/base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./agents/base")>()),
   buildAgentCommand: buildAgentCommandMock,
 }));
 

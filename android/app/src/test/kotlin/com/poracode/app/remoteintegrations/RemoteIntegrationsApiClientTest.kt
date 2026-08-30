@@ -35,6 +35,7 @@ class RemoteIntegrationsApiClientTest {
             IntegrationRouteId.SchedulesCommand to "session:operate",
             IntegrationRouteId.PrWatchRead to "session:read",
             IntegrationRouteId.PrWatchCheck to "session:operate",
+            IntegrationRouteId.PrWatchAgentSync to "session:operate",
             IntegrationRouteId.PrWatchUpsert to "session:operate",
             IntegrationRouteId.PrWatchDelete to "session:operate",
         )
@@ -44,14 +45,14 @@ class RemoteIntegrationsApiClientTest {
     }
 
     @Test
-    fun callsAllNineRoutesWithExactWireShapesAndBearer() = runBlocking {
+    fun callsAllTenRoutesWithExactWireShapesAndBearer() = runBlocking {
         val fixture = fixture()
         val server = MockWebServer()
         listOf(
             fixture.getValue("host").toString(), fixture.getValue("host").toString(), "{}",
             fixture.getValue("schedules").toString(), fixture.getValue("schedules").toString(),
             fixture.getValue("watch").toString(), "{\"ok\":true}",
-            fixture.getValue("watch").toString(), "{\"ok\":true}",
+            "{\"ok\":true}", fixture.getValue("watch").toString(), "{\"ok\":true}",
         ).forEachIndexed { index, body ->
             server.enqueue(MockResponse().setResponseCode(if (index == 2) 202 else 200).setBody(body))
         }
@@ -71,6 +72,7 @@ class RemoteIntegrationsApiClientTest {
                 "POST" to "/prefix/api/schedules/command",
                 "GET" to "/prefix/api/pr-watches",
                 "POST" to "/prefix/api/pr-watches/check",
+                "POST" to "/prefix/api/pr-watches/agent",
                 "POST" to "/prefix/api/pr-watches",
                 "DELETE" to "/prefix/api/pr-watches",
             )
@@ -81,7 +83,7 @@ class RemoteIntegrationsApiClientTest {
                 assertEquals("Bearer secret", request.getHeader("Authorization"))
                 if (index == 5) assertEquals("project one", request.requestUrl!!.queryParameter("projectId"))
             }
-            assertEquals(9, server.requestCount)
+            assertEquals(10, server.requestCount)
         } finally { server.shutdown() }
     }
 

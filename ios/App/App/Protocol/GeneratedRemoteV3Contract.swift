@@ -5,7 +5,7 @@ import Foundation
 /// Hash-derived generated model names must remain behind this boundary. App code exchanges
 /// canonical JSON data and continues to project it into the stable domain models it owns.
 enum GeneratedRemoteV3Contract {
-  static let expectedProtocolVersion = 3
+  static let expectedProtocolVersion = 8
   static let expectedBindingFormatVersion = 2
   static let expectedGeneratorVersion = 3
   static let expectedNativeBundleManifestFormatVersion = 1

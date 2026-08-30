@@ -117,6 +117,7 @@ class AppSession(
     private lateinit var pairing: PairingCoordinator
     private lateinit var hosts: HostSessionController
     private lateinit var bootstrapController: SessionBootstrapController
+    private lateinit var lifecycleCoordinator: AppSessionLifecycleCoordinator
     @Volatile
     private var richChatEventSink:
         ((Int, kotlinx.serialization.json.JsonElement) -> Unit)? = null
@@ -316,6 +317,20 @@ class AppSession(
             hasEndpointPermission = hasEndpointPermission,
             updateState = { _state.update(it) },
         )
+        lifecycleCoordinator = AppSessionLifecycleCoordinator(
+            networkGate = networkGate,
+            live = live,
+            threads = threads,
+            pairing = pairing,
+            hosts = hosts,
+            resync = resync,
+            jobs = jobs,
+            scope = scope,
+            state = { _state.value },
+            updateState = { _state.update(it) },
+            hasEndpointPermission = hasEndpointPermission,
+            bootstrap = ::bootstrap,
+        )
         // Browser-mirror sink binding is driven by the live-socket lifecycle via onLiveSocketInstalled.
     }
 
@@ -340,68 +355,14 @@ class AppSession(
     internal fun authoritativeRefreshRequiredForTests(): Boolean =
         resync.authoritativeRefreshRequired
 
-    fun onAppBackground() {
-        networkGate.closeAndCancelAll()
-        live.closeLifecycleGate()
-        threads.parkHydrationForBackground()
-        pairing.clearPendingPairSecret()
-        hosts.onBackground()
-        val cancelled = live.cancelAndSuspendForBackground()
-        resync.abandonForBackground()
-        if (cancelled.isNotEmpty()) {
-            scope.launch {
-                cancelled.forEach { job ->
-                    runCatching { job.join() }
-                }
-            }
-        }
-    }
+    fun onAppBackground() = lifecycleCoordinator.onBackground()
 
-    fun onAppForeground() {
-        val s = _state.value
-        val token = live.accessToken
-        val profile = s.profile
-        if (profile != null && !hasEndpointPermission(profile.httpBaseUrl)) {
-            networkGate.closeAndCancelAll()
-            live.closeLifecycleGate()
-            _state.update { it.copy(phase = Phase.LocalNetworkPermissionRequired) }
-            return
-        }
-        networkGate.openForForeground()
-        live.openLifecycleGate()
-        hosts.onForeground()
-        if (s.phase == Phase.Launching &&
-            profile == null &&
-            live.api == null &&
-            token.isNullOrBlank()
-        ) {
-            bootstrap()
-            return
-        }
-        if (live.api == null && profile != null && !token.isNullOrBlank()) {
-            val job = scope.launch {
-                live.connectWithStoredSession(profile, token)
-            }
-            jobs.replace(SessionLifecycleJobs.LIVE_START, job)
-            return
-        }
-        threads.restartHydrationIfNeeded()
-        live.onForeground(resync) { live.refreshSnapshot() }
-    }
+    fun onAppForeground() = lifecycleCoordinator.onForeground()
 
     fun clearGlobalError() {
         _state.update { it.copy(globalError = null) }
     }
-    fun onLocalNetworkPermissionGranted() {
-        val profile = _state.value.profile ?: return
-        val token = live.accessToken ?: return
-        if (!hasEndpointPermission(profile.httpBaseUrl)) return
-        networkGate.openForForeground()
-        live.openLifecycleGate()
-        hosts.onForeground()
-        val job = scope.launch { live.connectWithStoredSession(profile, token) }
-        jobs.replace(SessionLifecycleJobs.LIVE_START, job)
-    }
+    fun onLocalNetworkPermissionGranted() = lifecycleCoordinator.onLocalNetworkPermissionGranted()
 
     fun handleIncomingPairingUrl(raw: String, external: Boolean = true) {
         pairing.handleIncomingPairingUrl(raw, external = external)

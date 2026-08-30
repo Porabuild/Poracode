@@ -6,6 +6,58 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac(
+    @SerialName("kind") val kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c,
+    @SerialName("mimeType") val mimeType: RemoteField<String> = RemoteField.Missing,
+    @SerialName("path") val path: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("mimeType", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("path", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c {
+    @SerialName("diff_comment") DIFFU5FCOMMENT,
+}
+
+@Serializable
+enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e {
+    @SerialName("old") OLD,
+    @SerialName("new") NEW,
+}
+
+@Serializable
+data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da(
+    @SerialName("body") val body: String,
+    @SerialName("kind") val kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c,
+    @SerialName("lineNumber") val lineNumber: Long,
+    @SerialName("path") val path: String,
+    @SerialName("side") val side: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e,
+    @SerialName("staged") val staged: Boolean,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("body", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lineNumber", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("path", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("side", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("staged", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKind_2a65cef1bc {
+    @SerialName("skill") SKILL,
+}
+
+@Serializable
 data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0(
     @SerialName("invocation") val invocation: String,
     @SerialName("kind") val kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKind_2a65cef1bc,
@@ -50,30 +102,52 @@ data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_50122
     }
 }
 
-@Serializable(with = ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00.Serializer::class)
-sealed interface ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 {
-    data class Option1(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00
-    data class Option2(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00
-    data class Option3(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00
-    data class Option4(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00
-    data class Option5(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00
-    data class Option6(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00
-    object Serializer : KSerializer<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00")
-        override fun deserialize(decoder: Decoder): ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 supports JSON only")
+@Serializable
+enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c {
+    @SerialName("thread") THREAD,
+}
+
+@Serializable
+data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da(
+    @SerialName("kind") val kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c,
+    @SerialName("threadId") val threadId: String,
+    @SerialName("title") val title: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("title", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754.Serializer::class)
+sealed interface ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754 {
+    data class Option1(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    data class Option2(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    data class Option3(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    data class Option4(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    data class Option5(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    data class Option6(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    data class Option7(val value: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da) : ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754
+    object Serializer : KSerializer<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754")
+        override fun deserialize(decoder: Decoder): ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754 supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00>>()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754>>()
             RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("text")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782>(element)) }
             RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("file")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc>(element)) }
             RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("attachment")))) { Option3(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac>(element)) }
             RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("diff_comment")))) { Option4(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da>(element)) }
             RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("skill")))) { Option5(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0>(element)) }
             RemoteUnionCodec.tryOption(matches, 6, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("mcp")))) { Option6(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb>(element)) }
-            return RemoteUnionCodec.single("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00", matches)
+            RemoteUnionCodec.tryOption(matches, 7, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("thread")))) { Option7(jsonDecoder.json.decodeFromJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da>(element)) }
+            return RemoteUnionCodec.single("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754", matches)
         }
-        override fun serialize(encoder: Encoder, value: ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 supports JSON only")
+        override fun serialize(encoder: Encoder, value: ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754 supports JSON only")
             val element = when (value) {
                 is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782>(value.value)
                 is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc>(value.value)
@@ -81,6 +155,7 @@ sealed interface ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 {
                 is Option4 -> jsonEncoder.json.encodeToJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da>(value.value)
                 is Option5 -> jsonEncoder.json.encodeToJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0>(value.value)
                 is Option6 -> jsonEncoder.json.encodeToJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb>(value.value)
+                is Option7 -> jsonEncoder.json.encodeToJsonElement<ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }
@@ -88,15 +163,15 @@ sealed interface ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 {
 }
 
 @Serializable
-data class ProcedurestageThreadInputRequest_03ea8730a2(
+data class ProcedurestageThreadInputRequest_d4db039cba(
     @SerialName("prompt") val prompt: String,
-    @SerialName("segments") val segments: RemoteField<List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00>> = RemoteField.Missing,
+    @SerialName("segments") val segments: RemoteField<List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754>> = RemoteField.Missing,
     @SerialName("threadId") val threadId: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("prompt", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("segments", "List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00>", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("segments", "List<ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -371,70 +446,4 @@ enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DStat
 @Serializable
 enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DType_cdcee850f2 {
     @SerialName("turn.completed") TURNU2ECOMPLETED,
-}
-
-@Serializable
-data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4_85d2dd31fd(
-    @SerialName("state") val state: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DState_115555b2d2,
-    @SerialName("threadId") val threadId: String,
-    @SerialName("turnId") val turnId: String,
-    @SerialName("type") val type: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DType_cdcee850f2,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("state", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DState_115555b2d2", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("turnId", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DType_cdcee850f2", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_9fed07fec8 {
-    @SerialName("user_message") USERU5FMESSAGE,
-    @SerialName("assistant_message") ASSISTANTU5FMESSAGE,
-    @SerialName("reasoning") REASONING,
-    @SerialName("plan") PLAN,
-    @SerialName("goal") GOAL,
-    @SerialName("command_execution") COMMANDU5FEXECUTION,
-    @SerialName("file_change") FILEU5FCHANGE,
-    @SerialName("tool_call") TOOLU5FCALL,
-    @SerialName("mcp_tool_call") MCPU5FTOOLU5FCALL,
-    @SerialName("image_view") IMAGEU5FVIEW,
-    @SerialName("dynamic_tool_call") DYNAMICU5FTOOLU5FCALL,
-    @SerialName("web_search") WEBU5FSEARCH,
-    @SerialName("question_answer") QUESTIONU5FANSWER,
-    @SerialName("error") ERROR,
-}
-
-@Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DType_441bce375b {
-    @SerialName("item.started") ITEMU2ESTARTED,
-}
-
-@Serializable
-data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_fc5c2dcf18(
-    @SerialName("itemId") val itemId: String,
-    @SerialName("itemType") val itemType: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_9fed07fec8,
-    @SerialName("parentItemId") val parentItemId: RemoteField<String> = RemoteField.Missing,
-    @SerialName("payload") val payload: RemoteField<JsonElement> = RemoteField.Missing,
-    @SerialName("threadId") val threadId: String,
-    @SerialName("type") val type: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DType_441bce375b,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("itemId", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("itemType", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_9fed07fec8", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("parentItemId", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("payload", "JsonElement", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DType_441bce375b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6U2DType_9189c3f251 {
-    @SerialName("item.updated") ITEMU2EUPDATED,
 }

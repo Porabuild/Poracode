@@ -95,6 +95,11 @@ export const dbProcedures = {
     PersistedRuntimePage,
     "main-local"
   >("dbGetThreadRuntimeItemsPage", "main-local", dbGetRuntimeItemsPagePayloadSchema),
+  dbGetLatestThreadGoalItem: definePayloadProcedure<
+    z.infer<typeof dbGetRuntimeItemsPayloadSchema>,
+    PersistedRuntimeItem | null,
+    "main-local"
+  >("dbGetLatestThreadGoalItem", "main-local", dbGetRuntimeItemsPayloadSchema),
   dbTruncateThreadRuntimeAfter: definePayloadProcedure<
     z.infer<typeof dbTruncateRuntimeItemsPayloadSchema>,
     void,

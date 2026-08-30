@@ -11,6 +11,7 @@ import com.poracode.app.model.settings.ProfileIdentitySnapshot
 import com.poracode.app.model.settings.ProfileStatsRequest
 import com.poracode.app.model.settings.ProfileTokenStatsSnapshot
 import com.poracode.app.model.settings.ProviderUsageSnapshot
+import com.poracode.app.protocol.ProtocolConstants
 import kotlinx.coroutines.flow.StateFlow
 
 data class SettingsHostLease(
@@ -98,7 +99,9 @@ internal fun StateFlow<SettingsHostLease?>.currentSettingsLease(
     capability: SettingsCapability,
 ): Pair<SettingsHostLease?, SettingsOperationFailure?> {
     val lease = value ?: return null to SettingsOperationFailure.NoSession
-    if (lease.protocolVersion != 3) return lease to SettingsOperationFailure.ProtocolMismatch
+    if (lease.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) {
+        return lease to SettingsOperationFailure.ProtocolMismatch
+    }
     if (!lease.online) return lease to SettingsOperationFailure.Offline
     if (!lease.ready) return lease to SettingsOperationFailure.SessionNotReady
     if (capability.scope !in lease.scopes) {
@@ -110,7 +113,7 @@ internal fun StateFlow<SettingsHostLease?>.currentSettingsLease(
 internal fun StateFlow<SettingsHostLease?>.isCurrent(lease: SettingsHostLease): Boolean {
     val current = value ?: return false
     return current.key == lease.key &&
-        current.protocolVersion == 3 &&
+        current.protocolVersion == ProtocolConstants.REMOTE_PROTOCOL_VERSION &&
         current.online &&
         current.ready
 }

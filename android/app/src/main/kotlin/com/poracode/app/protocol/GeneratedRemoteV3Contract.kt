@@ -44,7 +44,7 @@ import kotlinx.serialization.json.put
  * snapshots and continue projecting them into the app's stable domain models.
  */
 object GeneratedRemoteV3Contract {
-    const val PROTOCOL_VERSION = 3
+    const val PROTOCOL_VERSION = 8
     const val BINDING_FORMAT_VERSION = 2
     const val GENERATOR_VERSION = 3
 

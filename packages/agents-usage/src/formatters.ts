@@ -50,7 +50,7 @@ const KNOWN_WINDOW_LABELS: Record<string, string> = {
   "weekly-fable": "Weekly · Fable",
   monthly: "Monthly",
   "extra-usage": "Extra usage",
-  "cursor-auto": "Auto + Composer",
+  "cursor-auto": "Cursor Models",
   "cursor-api": "API",
 };
 

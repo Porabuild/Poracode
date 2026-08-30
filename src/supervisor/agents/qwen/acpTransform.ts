@@ -19,8 +19,11 @@ import {
   withAcpDetachedSubagentActivity,
   withAcpSubagentParent,
   withAcpTopLevelToolCall,
+  type AcpSubagentCompletionInput,
 } from "../acp/subagentCoordinator";
 import type { AcpSessionUpdateTransform } from "../base";
+import type { AcpExtensionSessionUpdateTransform } from "../base/types";
+import { createQwenAcpTaskStatusTracker } from "./acpTaskStatus";
 
 // Qwen 0.21 renamed the launch result field from `agentId` to `task_id`.
 // Accept both so resumed sessions created by older CLIs still correlate.
@@ -28,18 +31,24 @@ const BACKGROUND_TASK_ID_RE = /\b(?:agentId|task_id):\s*([^\s(]+)/iu;
 const QWEN_BACKGROUND_END_TURN_METHOD = "_qwencode/end_turn";
 
 export interface QwenAcpSessionBridge {
+  initializeMeta: Record<string, unknown>;
   sessionUpdateTransform: AcpSessionUpdateTransform;
-  extensionSessionUpdateTransform: (
-    method: string,
-    params: Record<string, unknown>,
-  ) => SessionNotification | undefined;
+  extensionSessionUpdateTransform: AcpExtensionSessionUpdateTransform;
 }
 
 export function createQwenAcpSessionBridge(): QwenAcpSessionBridge {
-  const sessionUpdateTransform = createQwenAcpSessionUpdateTransform();
+  const subagents = createAcpSubagentCoordinator();
+  const backgroundToolCallIds = new Set<string>();
+  const controller = createQwenAcpSessionUpdateController(subagents, backgroundToolCallIds);
+  const taskStatus = createQwenAcpTaskStatusTracker(subagents, {
+    completeTask: controller.completeBackgroundTask,
+  });
   return {
-    sessionUpdateTransform,
-    extensionSessionUpdateTransform(method, params) {
+    initializeMeta: taskStatus.initializeMeta,
+    sessionUpdateTransform: controller.transform,
+    extensionSessionUpdateTransform(method, params, ctx) {
+      const taskUpdates = taskStatus.handleNotification(method, params, ctx);
+      if (taskUpdates) return taskUpdates;
       if (
         method !== QWEN_BACKGROUND_END_TURN_METHOD ||
         readString(params, "source") !== "background_notification"
@@ -64,10 +73,25 @@ export function createQwenAcpSessionBridge(): QwenAcpSessionBridge {
   };
 }
 
-export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
-  const subagents = createAcpSubagentCoordinator();
+export function createQwenAcpSessionUpdateTransform(
+  subagents = createAcpSubagentCoordinator(),
+): AcpSessionUpdateTransform {
+  return createQwenAcpSessionUpdateController(subagents, new Set()).transform;
+}
+
+interface QwenAcpSessionUpdateController {
+  transform: AcpSessionUpdateTransform;
+  completeBackgroundTask: (
+    input: AcpSubagentCompletionInput & { toolCallId: string },
+  ) => SessionNotification | undefined;
+}
+
+function createQwenAcpSessionUpdateController(
+  subagents: ReturnType<typeof createAcpSubagentCoordinator>,
+  backgroundToolCallIds: Set<string>,
+): QwenAcpSessionUpdateController {
   const parentReplyByToolCallId = new Map<string, string>();
-  const backgroundToolCallIds = new Set<string>();
+  const terminalStatusByToolCallId = new Map<string, AcpSubagentCompletionInput["status"]>();
   let pendingBoundaryToolCallId: string | undefined;
   let activeGoalObjective: string | undefined;
   let activeGoalStartedAtSeconds: number | undefined;
@@ -86,7 +110,28 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
     };
   };
 
-  return (notification) => {
+  const completeBackgroundTask = (
+    input: AcpSubagentCompletionInput & { toolCallId: string },
+  ): SessionNotification | undefined => {
+    const result = input.result ?? parentReplyByToolCallId.get(input.toolCallId);
+    parentReplyByToolCallId.delete(input.toolCallId);
+    if (pendingBoundaryToolCallId === input.toolCallId) pendingBoundaryToolCallId = undefined;
+    backgroundToolCallIds.delete(input.toolCallId);
+    terminalStatusByToolCallId.delete(input.toolCallId);
+    const completed = subagents
+      .complete({
+        ...input,
+        ...(result ? { result } : {}),
+      })
+      .at(-1);
+    if (!completed) return undefined;
+    const pausedGoal = pausedGoalUpdate();
+    return pausedGoal && backgroundToolCallIds.size === 0
+      ? withPausedGoalMeta(completed, pausedGoal)
+      : completed;
+  };
+
+  const transform: AcpSessionUpdateTransform = (notification) => {
     const update = notification.update as Record<string, unknown>;
     const sessionUpdate = readString(update, "sessionUpdate");
     const meta = plainRecord(update._meta);
@@ -184,6 +229,8 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
       : undefined;
     if (backgroundToolCallId) {
       pendingBoundaryToolCallId = backgroundToolCallId;
+      const terminalStatus = readQwenBackgroundTaskStatus(backgroundTask);
+      if (terminalStatus) terminalStatusByToolCallId.set(backgroundToolCallId, terminalStatus);
       if (readString(meta, "source") === "background_notification_response") {
         const text = readTextContent(update.content);
         if (text) parentReplyByToolCallId.set(backgroundToolCallId, text);
@@ -196,21 +243,16 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
       pendingBoundaryToolCallId = undefined;
       const result = parentReplyByToolCallId.get(completingToolCallId);
       parentReplyByToolCallId.delete(completingToolCallId);
-      backgroundToolCallIds.delete(completingToolCallId);
-      const completed =
-        subagents
-          .complete({
-            sessionId: notification.sessionId,
-            toolCallId: completingToolCallId,
-            status: "completed",
-            ...(result ? { result } : {}),
-            terminalMeta: plainRecord(update._meta),
-            synthesizeResultProgress: true,
-          })
-          .at(-1) ?? notification;
-      const pausedGoal = pausedGoalUpdate();
-      if (!pausedGoal || backgroundToolCallIds.size > 0) return completed;
-      return withPausedGoalMeta(completed, pausedGoal);
+      return (
+        completeBackgroundTask({
+          sessionId: notification.sessionId,
+          toolCallId: completingToolCallId,
+          status: terminalStatusByToolCallId.get(completingToolCallId) ?? "completed",
+          ...(result ? { result } : {}),
+          terminalMeta: plainRecord(update._meta),
+          synthesizeResultProgress: true,
+        }) ?? notification
+      );
     }
 
     if (pendingBoundaryToolCallId && isAgentContentUpdate(sessionUpdate)) {
@@ -219,6 +261,8 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
 
     return notification;
   };
+
+  return { transform, completeBackgroundTask };
 }
 
 function withUpdate(
@@ -255,6 +299,21 @@ function extractBackgroundTaskId(content: unknown): string | undefined {
 
 function isAgentContentUpdate(sessionUpdate: string | undefined): boolean {
   return sessionUpdate === "agent_message_chunk" || sessionUpdate === "agent_thought_chunk";
+}
+
+function readQwenBackgroundTaskStatus(
+  task: Record<string, unknown>,
+): AcpSubagentCompletionInput["status"] | undefined {
+  const status = readString(task, "status")?.toLowerCase();
+  if (
+    status === "completed" ||
+    status === "failed" ||
+    status === "cancelled" ||
+    status === "paused"
+  ) {
+    return status;
+  }
+  return status === "canceled" ? "cancelled" : undefined;
 }
 
 function isQwenGoalLoopPausedMessage(text: string | undefined): boolean {

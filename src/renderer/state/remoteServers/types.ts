@@ -75,14 +75,16 @@ export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
   hostUpdates: Record<string, RemoteHostUpdateState>;
+  /** Expected version while a remotely installed desktop update restarts its host. */
+  hostUpdateRestarts: Record<string, string>;
   /**
    * Remote (server-side) project ids the user excluded from sync, keyed by
    * desktopId. Local-only state, so a project can be dropped from — or restored
    * to — the sidebar while its server is offline. See `projectSync.ts`.
    */
   excludedProjectIds: Record<string, readonly string[]>;
-  /** Local workspace assignments for mirrored projects, keyed by desktop and remote project id. */
-  projectWorkspaceIds: Record<string, Readonly<Record<string, string>>>;
+  /** Local workspace overrides for mirrored projects; null explicitly means unfiled. */
+  projectWorkspaceIds: Record<string, Readonly<Record<string, string | null>>>;
   /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
   /** Last discovered host projects, retained so offline servers keep their sidebar rows. */

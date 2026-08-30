@@ -238,7 +238,7 @@ class PushRouteCoordinatorTest {
             wsBaseUrl = "wss://10.0.0.2:9999/secret-token",
             appVersion = "1.5.0",
             pairedAtEpochMs = 0L,
-            protocolVersion = 3,
+            protocolVersion = 8,
         )
     }
 

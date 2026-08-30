@@ -34,6 +34,8 @@ export interface SettingsSearchEntry {
   devOnly?: boolean;
   /** Only rendered in the desktop app, not remote/PWA sessions. */
   desktopOnly?: boolean;
+  /** Renders only in the native Windows desktop app. */
+  windowsOnly?: boolean;
   /** Renders only under a runtime/platform condition; the drift test skips it. */
   conditional?: boolean;
 }
@@ -228,6 +230,37 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "terminal",
+    anchor: "terminal.windowsShell",
+    title: msg`Terminal panel shell`,
+    description: msg`Used for new interactive Terminal-panel sessions.`,
+    keywords: "windows terminal shell pwsh powershell command prompt cmd version executable",
+    desktopOnly: true,
+    windowsOnly: true,
+    conditional: true,
+  },
+  {
+    section: "terminal",
+    anchor: "terminal.windowsInternalShell",
+    title: msg`Internal commands and agents`,
+    description: msg`Used for agents, authentication, installs, and Poracode's internal commands.`,
+    keywords:
+      "windows terminal shell internal commands agents authentication install pwsh powershell executable",
+    desktopOnly: true,
+    windowsOnly: true,
+    conditional: true,
+  },
+  {
+    section: "terminal",
+    anchor: "terminal.windowsShellArguments",
+    title: msg`Terminal shell arguments`,
+    description: msg`Additional arguments passed to each new Terminal-panel shell. Quote values containing spaces.`,
+    keywords: "windows terminal shell arguments argv flags options profile logo",
+    desktopOnly: true,
+    windowsOnly: true,
+    conditional: true,
+  },
+  {
+    section: "terminal",
     anchor: "terminal.collapseTerminalComposer",
     title: msg`Collapse terminal composer`,
     description: msg`Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal.`,
@@ -295,6 +328,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Default thread removal`,
     description: msg`Action for the quick-remove button on sidebar threads.`,
     keywords: "default thread removal delete archive quick remove sidebar",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.confirmThreadDelete",
+    title: msg`Confirm before deleting threads`,
+    description: msg`Show a confirmation before permanently deleting a thread.`,
+    keywords: "confirm delete thread worktree remove ask warning",
     desktopOnly: true,
   },
 
@@ -548,9 +589,18 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   {
     section: "agentsGeneral",
     anchor: "agentsGeneral.modelOrder",
-    title: msg`Model order`,
+    title: msg`Providers`,
     description: msg`Drag to reorder how providers appear in the model picker.`,
-    keywords: "reorder rearrange sort providers drag model picker sequence position",
+    keywords:
+      "reorder rearrange sort providers drag model picker sequence position model order version update upgrade outdated latest agents",
+    conditional: true,
+  },
+  {
+    section: "agentsGeneral",
+    anchor: "agentsGeneral.providerOrderLock",
+    title: msg`Same provider order on all machines`,
+    description: msg`Keep one provider order everywhere. Turn off to arrange per machine.`,
+    keywords: "machine wsl remote lock sync provider order per machine scope",
     conditional: true,
   },
   // Dev (only in dev builds)
@@ -594,7 +644,12 @@ function truncate(text: string, max = SNIPPET_MAX): string {
 export function searchSettings(
   query: string,
   t: Translate,
-  opts?: { devMode?: boolean; remoteSession?: boolean; index?: readonly SettingsSearchEntry[] },
+  opts?: {
+    devMode?: boolean;
+    remoteSession?: boolean;
+    windows?: boolean;
+    index?: readonly SettingsSearchEntry[];
+  },
 ): SettingsSearchResult[] {
   const needle = query.trim().toLowerCase();
   if (needle === "") return [];
@@ -603,6 +658,7 @@ export function searchSettings(
   for (const entry of index) {
     if (entry.devOnly && !opts?.devMode) continue;
     if (entry.desktopOnly && opts?.remoteSession) continue;
+    if (entry.windowsOnly && !opts?.windows) continue;
     const title = t(entry.title);
     const description = entry.description ? t(entry.description) : "";
     const titleMatch = title.toLowerCase().includes(needle);

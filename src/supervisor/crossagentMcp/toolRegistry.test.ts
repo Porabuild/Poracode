@@ -152,6 +152,25 @@ describe("buildSpawnableAgents", () => {
     expect(agent?.execution).toBe("one-shot");
   });
 
+  it("honors an explicit one-shot preference when both child lanes exist", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "antigravity" as AgentKind,
+        {
+          createStructuredSession: async () => ({}),
+          buildSubagentOneShotCommand: () => ({ command: "agy", args: ["-p"] }),
+          subagentExecutionPreference: "one-shot",
+        } as unknown as AgentAdapter,
+      ],
+    ]);
+
+    expect(
+      buildSpawnableAgents(adapters, [
+        makeStatus({ kind: "antigravity" as AgentKind, label: "Antigravity" }),
+      ])[0]?.execution,
+    ).toBe("one-shot");
+  });
+
   it("excludes agents that support neither a structured session nor a one-shot child", () => {
     const adapters = new Map<AgentKind, AgentAdapter>([
       ["claude" as AgentKind, {} as unknown as AgentAdapter],
@@ -561,10 +580,127 @@ describe("subagent tool registration", () => {
     });
   });
 
-  it("documents background runs as an explicit join that never injects a message", () => {
+  it("documents background runs as an explicit join that keeps working across wait timeouts", () => {
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("never injects a new message");
-    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("call wait_for_agent once");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "keep waiting across as many wait_for_agent calls as necessary",
+    );
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "Never cancel or abandon a run solely because 180 seconds",
+    );
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).not.toContain("delivered back automatically");
+  });
+
+  it("does not describe an elapsed wait as a reason to cancel an active run", () => {
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
+      properties: {
+        timeout_s: {
+          description: expect.stringContaining("leaves the subagent running"),
+        },
+      },
+    });
+    expect(byName.get("wait_for_agent")!.description).toContain(
+      "wait call timed out while the child stayed active",
+    );
+    expect(byName.get("cancel")!.description).toContain(
+      "Never cancel solely because a wait timed out",
+    );
+  });
+
+  it("documents cursor-based incremental output with a full_output escape hatch", () => {
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("wait_for_agent")!.description).toContain("incremental");
+    expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
+      properties: {
+        full_output: { type: "boolean" },
+        after_output_chars: { type: "integer", minimum: 0 },
+        after_output_chars_by_run: {
+          type: "object",
+          additionalProperties: { type: "integer", minimum: 0 },
+        },
+      },
+    });
+    expect(byName.get("get_status")!.description).toContain("incremental output");
+    expect(byName.get("get_status")!.inputSchema).toMatchObject({
+      properties: {
+        full_output: { type: "boolean" },
+        after_output_chars: { type: "integer", minimum: 0 },
+      },
+    });
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("full_output=true");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("after_output_chars");
+  });
+
+  it("passes full_output and aliased timeouts through to the run manager", async () => {
+    const { ctx } = makeToolContext();
+    const calls: Array<{ timeoutMs?: number; options?: unknown }> = [];
+    ctx.runManager = {
+      waitFor: async (
+        _runId: string,
+        timeoutMs: number,
+        _parent: string | undefined,
+        options: unknown,
+      ) => {
+        calls.push({ timeoutMs, options });
+        return { status: "completed", output: "x" };
+      },
+      getStatus: (_runId: string, _parent: string | undefined, options: unknown) => {
+        calls.push({ options });
+        return { status: "running", output: "" };
+      },
+    } as unknown as SubagentRunManager;
+
+    // `timeout_seconds` is a common miss for `timeout_s` — it must not silently
+    // fall back to the default wait duration.
+    await dispatchTool("wait_for_agent", { run_id: "r", timeout_seconds: 30 }, ctx);
+    await dispatchTool("wait_for_agent", { run_id: "r", full_output: true }, ctx);
+    await dispatchTool("get_status", { run_id: "r", after_output_chars: 25 }, ctx);
+    expect(calls).toEqual([
+      { timeoutMs: 30_000, options: { fullOutput: false, afterOutputChars: 0 } },
+      { timeoutMs: 120_000, options: { fullOutput: true } },
+      { options: { fullOutput: false, afterOutputChars: 25 } },
+    ]);
+  });
+
+  it("passes independent cursors for a batch wait", async () => {
+    const { ctx } = makeToolContext();
+    const optionsByRun: unknown[] = [];
+    ctx.runManager = {
+      waitForMany: async (
+        _runIds: readonly string[],
+        _timeoutMs: number,
+        _parentThreadId: string | undefined,
+        options: unknown,
+      ) => {
+        if (typeof options === "function") {
+          const resolveOptions = options as (runId: string) => unknown;
+          optionsByRun.push(resolveOptions("a"), resolveOptions("b"));
+        }
+        return [];
+      },
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "wait_for_agent",
+      {
+        run_ids: ["a", "b"],
+        after_output_chars_by_run: { a: 100, b: 20 },
+      },
+      ctx,
+    );
+
+    expect(optionsByRun).toEqual([
+      { fullOutput: false, afterOutputChars: 100 },
+      { fullOutput: false, afterOutputChars: 20 },
+    ]);
+  });
+
+  it("tells namespacing hosts to resolve bare tool names against the crossagents server", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("crossagents__list_agents");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "never the same bare name under another server",
+    );
   });
 
   it("requires an explicit user ask in the thread before delegating", () => {
@@ -575,6 +711,22 @@ describe("subagent tool registration", () => {
     );
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
+    expect(byName.get("spawn_agent")!.description).toContain(
+      "root provider/model/reasoning/fast/permissions are batch defaults",
+    );
+  });
+
+  it("asks parents to give every spawned run a descriptive task label", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("Always set name");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("appends those automatically");
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
+      properties: {
+        name: {
+          description: expect.stringContaining("describing what this run does"),
+        },
+      },
+    });
   });
 
   it("returns an isError result (not a throw) for removed full-thread tools", async () => {
@@ -638,6 +790,78 @@ describe("subagent tool registration", () => {
     ]);
   });
 
+  it("applies a batch-level selection to tasks unless a task overrides it", async () => {
+    const { ctx } = makeToolContext();
+    const received: unknown[] = [];
+    const listSpawnableAgents = ctx.listSpawnableAgents;
+    ctx.listSpawnableAgents = async (tags) =>
+      (await listSpawnableAgents(tags)).map((agent) => ({
+        ...agent,
+        models: agent.models.map((model) => ({
+          ...model,
+          reasoning: { values: ["low", "high"], default: "low" },
+          fast: { available: true },
+        })),
+        ...(agent.preference
+          ? { preference: { ...agent.preference, reasoning: "low", fast: false } }
+          : {}),
+      }));
+    ctx.runManager = {
+      spawnMany: (_parentThreadId: string, requests: unknown[]) => {
+        received.push(...requests);
+        return requests.map((_, index) => ({ runId: `run-${index + 1}` }));
+      },
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "spawn_agent",
+      {
+        provider: "claude",
+        model: "sonnet",
+        reasoning: "high",
+        fast: true,
+        permissions: "full-access",
+        tasks: [
+          {
+            name: "inherited",
+            provider: "",
+            model: null,
+            reasoning: "",
+            permissions: null,
+            prompt: "inspect",
+          },
+          {
+            name: "overridden",
+            provider: "codex",
+            model: "gpt-5.5",
+            reasoning: "low",
+            fast: false,
+            prompt: "review",
+          },
+        ],
+      },
+      ctx,
+    );
+
+    expect(received).toEqual([
+      {
+        agent: "claude",
+        model: "sonnet",
+        effort: "high",
+        fast: true,
+        prompt: "inspect",
+        name: "inherited",
+      },
+      {
+        agent: "codex",
+        model: "gpt-5.5",
+        effort: "low",
+        prompt: "review",
+        name: "overridden",
+      },
+    ]);
+  });
+
   it("rejects oversized task batches before resolving their providers", async () => {
     const { ctx } = makeToolContext();
     const listSpawnableAgents = vi.fn<typeof ctx.listSpawnableAgents>(ctx.listSpawnableAgents);
@@ -690,9 +914,18 @@ describe("subagent tool registration", () => {
 
   it("waits by default when spawn_agent is foregrounded", async () => {
     const { ctx } = makeToolContext();
+    let waitOptions: unknown;
     ctx.runManager = {
       spawn: () => ({ runId: "run-fg" }),
-      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+      waitFor: async (
+        _runId: string,
+        _timeoutMs: number,
+        _parentThreadId: string | undefined,
+        options: unknown,
+      ) => {
+        waitOptions = options;
+        return { status: "completed" as const, output: "done" };
+      },
     } as unknown as SubagentRunManager;
 
     const result = await dispatchTool(
@@ -705,6 +938,40 @@ describe("subagent tool registration", () => {
       status: "completed",
       output: "done",
     });
+    expect(waitOptions).toEqual({ fullOutput: true, currentAttemptOnly: true });
+  });
+
+  it("requests complete output for a foreground task batch", async () => {
+    const { ctx } = makeToolContext();
+    let waitOptions: unknown;
+    ctx.runManager = {
+      spawnMany: () => [{ runId: "run-1" }, { runId: "run-2" }],
+      waitForMany: async (
+        _runIds: readonly string[],
+        _timeoutMs: number,
+        _parentThreadId: string | undefined,
+        options: unknown,
+      ) => {
+        waitOptions = options;
+        return [
+          { run_id: "run-1", status: "completed" as const, output: "one" },
+          { run_id: "run-2", status: "completed" as const, output: "two" },
+        ];
+      },
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "spawn_agent",
+      {
+        tasks: [
+          { provider: "codex", prompt: "one" },
+          { provider: "claude", prompt: "two" },
+        ],
+      },
+      ctx,
+    );
+
+    expect(waitOptions).toEqual({ fullOutput: true, currentAttemptOnly: true });
   });
 
   it("uses the highest-ranked available selection when provider details are omitted", async () => {

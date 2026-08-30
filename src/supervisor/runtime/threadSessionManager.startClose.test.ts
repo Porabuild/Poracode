@@ -1,10 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
+import type { WindowsShellPreference } from "../shellPreference";
 import type { SessionRuntime } from "./sessionTypes";
 
 const captureSupervisorException = vi.hoisted(() =>
@@ -20,6 +21,7 @@ vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
   return {
     ...actual,
+    getRefreshedWindowsPath: vi.fn<() => string | undefined>(() => undefined),
     primeProjectShellEnv: vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(() =>
       Promise.resolve(undefined),
     ),
@@ -37,6 +39,7 @@ vi.mock("node:timers/promises", async (importActual) => {
 });
 
 import { ThreadSessionManager } from "./threadSessionManager";
+import { spawn as spawnPty } from "node-pty";
 
 vi.mock("node-pty", () => ({
   spawn: vi.fn<
@@ -74,6 +77,11 @@ function createManager(
   agentKind: AgentKind,
   adapter: AgentAdapter,
   emit: (event: SupervisorEvent) => void = vi.fn<(event: SupervisorEvent) => void>(),
+  resolveWindowsShell: () => WindowsShellPreference = () => ({
+    shell: "powershell.exe",
+    kind: "powershell" as const,
+    args: ["-NoLogo"],
+  }),
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
@@ -84,7 +92,7 @@ function createManager(
     settingsPath: join(tempDir, "settings.json"),
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
-    windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    resolveWindowsShell,
   });
   managersToDispose.push(manager);
   return manager;
@@ -202,6 +210,68 @@ describe("ThreadSessionManager provider-session routing", () => {
 
     delete adapter.capabilities.crossagentMcpRouting;
     expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
+describe("ThreadSessionManager Windows shells", () => {
+  const originalPlatform = process.platform;
+
+  beforeEach(() => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    vi.mocked(spawnPty).mockClear();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+  });
+
+  it("resolves the current shell preference for every shell launch", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const resolveWindowsShell = vi.fn<() => WindowsShellPreference>(() => ({
+      shell: "C:\\Program Files\\WindowsApps\\PowerShell\\pwsh.exe",
+      kind: "pwsh" as const,
+      args: ["-NoLogo", "-NoProfile"],
+    }));
+    const manager = createManager("codex", adapter, undefined, resolveWindowsShell);
+
+    await manager.startShell({
+      shellId: "shell:preferred",
+      projectLocation: { kind: "windows", path: process.cwd() },
+    });
+
+    expect(resolveWindowsShell).toHaveBeenCalledWith("preferred");
+    expect(spawnPty).toHaveBeenCalledWith(
+      "C:\\Program Files\\WindowsApps\\PowerShell\\pwsh.exe",
+      ["-NoLogo", "-NoProfile"],
+      expect.objectContaining({ cwd: process.cwd() }),
+    );
+  });
+
+  it("requests a PowerShell host for login and install overlays", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const resolveWindowsShell = vi.fn<
+      (runtime?: "preferred" | "powershell") => WindowsShellPreference
+    >(() => ({
+      shell: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      kind: "powershell" as const,
+      args: ["-NoLogo"],
+    }));
+    const manager = createManager("codex", adapter, undefined, resolveWindowsShell);
+
+    await manager.startShell({
+      shellId: "login:preferred",
+      projectLocation: { kind: "windows", path: process.cwd() },
+      windowsShellRuntime: "powershell",
+    });
+
+    expect(resolveWindowsShell).toHaveBeenCalledWith("powershell");
+    expect(spawnPty).toHaveBeenCalledWith(
+      "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      ["-NoLogo"],
+      expect.objectContaining({ cwd: process.cwd() }),
+    );
   });
 });
 
@@ -522,22 +592,71 @@ describe("ThreadSessionManager start guards", () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("opencode", structuredSession);
     adapter.capabilities.mcpConfigSource = "agentSettings";
-    const manager = createManager("opencode", adapter);
+    adapter.capabilities.agentSettingsDefaults = { crossagentMcp: true };
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("opencode", adapter, (event) => events.push(event));
 
     await manager.startThread({
       threadId: "thread-opencode-empty-mcp",
       projectLocation: { kind: "windows", path: "C:\\repo" },
       agentKind: "opencode",
       config: { model: "opencode/model" },
-      prompt: "",
+      prompt: "hello",
       initialSize: { cols: 80, rows: 24 },
       presentationMode: "gui",
       disabledBuiltInMcpServerIds: ["app-controls"],
     });
 
     expect(adapter.createStructuredSession).toHaveBeenCalledWith(
-      expect.objectContaining({ mcpServers: [] }),
+      expect.objectContaining({
+        config: expect.objectContaining({ crossagentMcp: true }),
+        mcpServers: [],
+      }),
     );
+    expect(manager.getThreadSnapshots()[0]?.launchConfig).toEqual(
+      expect.objectContaining({ crossagentMcp: true }),
+    );
+    expect(manager.getThreadSnapshots()[0]?.threadMentionToolsAvailable).toBe(false);
+    expect(
+      events.find((event) => event.type === "thread-state" && event.status === "working"),
+    ).toEqual(
+      expect.objectContaining({ launchConfig: expect.objectContaining({ crossagentMcp: true }) }),
+    );
+  });
+
+  it("does not emit a stale launch state after an MCP reload's session closes", async () => {
+    const updateMcpServers = vi.fn<NonNullable<StructuredSessionHandle["updateMcpServers"]>>();
+    const update = deferred<void>();
+    updateMcpServers.mockReturnValue(update.promise);
+    const structuredSession = createStructuredSession(Promise.resolve());
+    structuredSession.updateMcpServers = updateMcpServers;
+    const adapter = createAdapter("opencode", structuredSession);
+    adapter.capabilities.mcpConfigSource = "agentSettings";
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("opencode", adapter, (event) => events.push(event));
+
+    await manager.startThread({
+      threadId: "thread-reload-race",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "opencode",
+      config: { model: "opencode/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+
+    const reload = manager.reloadAgentMcpServers({ agentKind: "opencode" });
+    await vi.waitFor(() => expect(updateMcpServers).toHaveBeenCalled());
+    await manager.closeThread({ threadId: "thread-reload-race" });
+    const eventCountAfterClose = events.length;
+
+    update.resolve();
+    await reload;
+
+    expect(
+      events.slice(eventCountAfterClose).filter((event) => event.type === "thread-state"),
+    ).toEqual([]);
   });
 
   it.each(guardedStructuredProviders)(

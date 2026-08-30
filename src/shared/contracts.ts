@@ -13,6 +13,7 @@ export * from "./contracts/appView";
 export * from "./contracts/agentEvent";
 export * from "./contracts/runtimeEvent";
 export * from "./contracts/agentInstance";
+export * from "./contracts/agentProfiles";
 export * from "./contracts/workflowTranscript";
 export * from "./contracts/usage";
 export * from "./contracts/notes";

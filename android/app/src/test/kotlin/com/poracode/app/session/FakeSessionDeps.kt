@@ -325,7 +325,7 @@ class FakeApiGateway(
             ),
         ): RemoteEnvironmentDescriptor =
             RemoteEnvironmentDescriptor(
-                protocolVersion = 3,
+                protocolVersion = 8,
                 hostMode = "desktop",
                 desktopId = desktopId,
                 label = label,

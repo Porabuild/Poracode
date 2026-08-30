@@ -76,6 +76,8 @@ export type IpcProcedureResult<Name extends IpcProcedureName> =
 export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "pickFolder",
   "pickFiles",
+  "detectProjectIcon",
+  "listProjectIconFiles",
   "saveClipboardImage",
   "saveHandoffContext",
   "saveImageFile",
@@ -114,7 +116,8 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "removeCrossagentRoutingOverride",
   "removeCrossagentMemoryEntry",
   "updateCrossagentMemoryEntryTags",
-  "setClaudeProfileEnvironment",
+  "setProfileEnvironment",
+  "createProfile",
   "setWindowChrome",
   "dbGetProjects",
   "dbGetThreads",
@@ -128,6 +131,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
   "dbReplaceThreadRuntimeItems",
   "dbGetThreadCompletedTurns",
@@ -136,6 +140,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbGetThreadContextUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
+  "getUpdateStatus",
   "checkForUpdate",
   "startUpdateDownload",
   "installUpdate",
@@ -195,6 +200,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "checkPrWatch",
   "upsertPrWatch",
   "deletePrWatch",
+  "syncPrWatchAgent",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

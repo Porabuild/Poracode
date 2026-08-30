@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentCapability, AgentStatus, SessionRef } from "./contracts";
 import {
   agentStatusForPresentation,
+  agentStatusNeedsAuthAttention,
   authStatusForPresentation,
   authStateForPresentation,
   capabilitiesForPresentation,
@@ -302,5 +303,140 @@ describe("agent selection", () => {
     const terminal = agentStatusForPresentation(status, "terminal", sessionRef("run:sdk:123"));
     expect(terminal.installed).toBe(true);
     expect(terminal.capabilities.models[0]?.id).toBe("terminal-model");
+  });
+
+  it("resolves the only runtime of a presentation when the draft has no session yet", () => {
+    const status: AgentStatus = {
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: true,
+      authState: "authenticated",
+      capabilities,
+      runtimeVariants: {
+        cli: {
+          presentationMode: "terminal",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: { ...capabilities, models: [{ id: "cli-model", label: "CLI" }] },
+        },
+        acp: {
+          presentationMode: "gui",
+          installed: false,
+          authState: "missing",
+          authUsesProviderLogin: true,
+          capabilities: { ...capabilities, models: [{ id: "acp-model", label: "ACP" }] },
+        },
+      },
+    };
+
+    const gui = agentStatusForPresentation(status, "gui");
+    expect(gui.installed).toBe(false);
+    expect(gui.authState).toBe("missing");
+    expect(gui.capabilities.models[0]?.id).toBe("acp-model");
+
+    const terminal = agentStatusForPresentation(status, "terminal");
+    expect(terminal.installed).toBe(true);
+    expect(terminal.capabilities.models[0]?.id).toBe("cli-model");
+  });
+
+  it("keeps a session-less draft on the provider status when a presentation has several runtimes", () => {
+    const status: AgentStatus = {
+      kind: "cursor",
+      label: "Cursor",
+      installed: true,
+      authState: "authenticated",
+      capabilities,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: { ...capabilities, models: [{ id: "acp-model", label: "ACP" }] },
+        },
+        sdk: {
+          presentationMode: "gui",
+          installed: false,
+          authState: "missing",
+          authUsesProviderLogin: false,
+          capabilities: { ...capabilities, models: [{ id: "sdk-model", label: "SDK" }] },
+        },
+      },
+    };
+
+    const gui = agentStatusForPresentation(status, "gui");
+    expect(gui.installed).toBe(true);
+    expect(gui.capabilities.models[0]?.id).toBe("chat-model");
+  });
+
+  it("does not flag Cursor as needing login when the SDK runtime is authenticated", () => {
+    expect(
+      agentStatusNeedsAuthAttention({
+        installed: true,
+        authState: "missing",
+        runtimeVariants: {
+          acp: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "missing",
+            authUsesProviderLogin: true,
+            capabilities,
+          },
+          sdk: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "authenticated",
+            authUsesProviderLogin: false,
+            capabilities,
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      agentStatusNeedsAuthAttention({
+        installed: true,
+        authState: "missing",
+        runtimeVariants: {
+          acp: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "missing",
+            authUsesProviderLogin: true,
+            capabilities,
+          },
+          sdk: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "missing",
+            authUsesProviderLogin: false,
+            capabilities,
+          },
+        },
+      }),
+    ).toBe(true);
+    expect(agentStatusNeedsAuthAttention({ installed: true, authState: "missing" })).toBe(true);
+    expect(
+      agentStatusNeedsAuthAttention({
+        installed: true,
+        authState: "missing",
+        runtimeVariants: {
+          acp: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "missing",
+            authUsesProviderLogin: true,
+            capabilities,
+          },
+          sdk: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "unknown",
+            authUsesProviderLogin: false,
+            capabilities,
+          },
+        },
+      }),
+    ).toBe(true);
   });
 });

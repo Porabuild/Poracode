@@ -1,14 +1,14 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
-import { detectAgentInstall, type AgentAdapter, type TerminalStatusHint } from "../base";
+import {
+  detectAgentInstall,
+  type AgentAdapter,
+  type TerminalStatusHint,
+  inheritBaseSpawnEnv,
+} from "../base";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
-import {
-  COMMANDCODE_DEFAULT_MODEL_ID,
-  COMMANDCODE_SKIP_UPDATES_ENV,
-  commandCodeDetectionSpec,
-  defaultCommandCodeCapabilities,
-} from "./detection";
+import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
   installCommandCodePlugin,
   isCommandCodePluginInstalled,
@@ -83,13 +83,12 @@ export function createCommandCodeAdapter(): AgentAdapter {
     // `command-code login` opens a browser for OAuth; BROWSER=/bin/true keeps
     // the WSL flow from trying to `xdg-open` inside the distro and hanging the
     // PTY (the user completes auth via the printed URL instead).
-    // COMMANDCODE_SKIP_UPDATES disables the CLI's background self-updater so an
-    // interactive/login launch doesn't spawn a detached `npm i` terminal window
-    // (see COMMANDCODE_SKIP_UPDATES_ENV in detection.ts).
     spawnEnv: {
-      native: COMMANDCODE_SKIP_UPDATES_ENV,
-      wsl: { BROWSER: "/bin/true", ...COMMANDCODE_SKIP_UPDATES_ENV },
+      wsl: { BROWSER: "/bin/true" },
     },
+    // Disables the CLI's background self-updater so no lane can spawn a
+    // detached `npm i` terminal window.
+    ...inheritBaseSpawnEnv(commandCodeDetectionSpec),
 
     // ── CLI hook plugin support ──────────────────────────────────────────
     // Command Code emits no OSC; its Claude-compatible hook system is the only
@@ -181,7 +180,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
     optimisticWorkingOnSubmit: true,
     detectInvalidSessionRef: detectCommandCodeInvalidSessionRef,
 
-    defaultOneShotModel: COMMANDCODE_DEFAULT_MODEL_ID,
+    allowsImplicitOneShotModel: true,
 
     buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
@@ -191,15 +190,12 @@ export function createCommandCodeAdapter(): AgentAdapter {
           "--trust",
           "--skip-onboarding",
           "--no-session",
-          "--model",
-          model || COMMANDCODE_DEFAULT_MODEL_ID,
+          ...(model ? ["--model", model] : []),
           ...(effort ? ["--effort", effort] : []),
           "-p",
           prompt,
         ],
         stdin: "",
-        // Don't let a one-shot utility run trigger the CLI's background updater.
-        env: COMMANDCODE_SKIP_UPDATES_ENV,
       };
     },
 
@@ -215,14 +211,12 @@ export function createCommandCodeAdapter(): AgentAdapter {
           "--skip-onboarding",
           "--no-session",
           "--yolo",
-          "--model",
-          model || COMMANDCODE_DEFAULT_MODEL_ID,
+          ...(model ? ["--model", model] : []),
           ...(effort ? ["--effort", effort] : []),
           "-p",
           prompt,
         ],
         stdin: "",
-        env: COMMANDCODE_SKIP_UPDATES_ENV,
       };
     },
   };

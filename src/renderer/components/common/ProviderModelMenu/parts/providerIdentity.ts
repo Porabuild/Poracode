@@ -1,4 +1,4 @@
-import type { ThreadPresentationMode } from "@/shared/contracts";
+import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 
 type ProviderIdentityInput = {
   kind: string;
@@ -8,7 +8,10 @@ type ProviderIdentityInput = {
   modelPickerKey?: string;
   hiddenModelsKey?: string;
   /** Adapter-declared runtime badge for the surface (`AgentCapability.runtimeLabel`). */
-  capabilities?: { runtimeLabel?: string | undefined };
+  capabilities?: {
+    runtimeLabel?: string | undefined;
+    showRuntimeLabelInPicker?: boolean | undefined;
+  };
 };
 
 /**
@@ -55,7 +58,8 @@ function resolveRuntimeVariantId(
 ): string | undefined {
   if (presentationMode !== "gui") return undefined;
   return (
-    runtimeVariant?.toLowerCase() ?? legacySurfaceIdentity[agentKind]?.defaultGuiRuntimeVariant
+    runtimeVariant?.toLowerCase() ??
+    legacySurfaceIdentity[baseAgentKind(agentKind)]?.defaultGuiRuntimeVariant
   );
 }
 
@@ -71,9 +75,10 @@ export function modelVisibilityKey(
 
 export function providerLabelForPresentation(provider: ProviderIdentityInput): string {
   const label = provider.label ?? provider.kind;
+  if (provider.capabilities?.showRuntimeLabelInPicker === false) return label;
   const runtimeLabel =
     provider.presentationMode === "terminal"
-      ? legacySurfaceIdentity[provider.kind]?.terminalRuntimeLabel
+      ? legacySurfaceIdentity[baseAgentKind(provider.kind)]?.terminalRuntimeLabel
       : provider.capabilities?.runtimeLabel;
   if (!runtimeLabel) return label;
   // Callers may pass a provider whose label was already qualified by this

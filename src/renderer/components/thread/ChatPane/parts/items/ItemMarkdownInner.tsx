@@ -1,6 +1,7 @@
 import { Link } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ExternalLink } from "lucide-react";
+import type { ProjectLocation } from "@/shared/contracts";
 import {
   Children,
   cloneElement,
@@ -56,11 +57,76 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): RehypePlugins {
   return Object.entries(defaultRehypePlugins)
     .filter(([key]) => key !== "harden")
-    .flatMap(([key, plugin]) =>
-      key === "sanitize"
-        ? [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)]
-        : [plugin],
-    ) as RehypePlugins;
+    .flatMap(([key, plugin]): RehypePlugins[number][] => {
+      // Streamdown checks the raw plugin by identity to preserve raw HTML
+      // nodes. Guard pathological fragments while keeping its plugin intact.
+      if (key === "raw") return [guardRawHtmlNesting, plugin];
+      if (key === "sanitize") {
+        return [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)];
+      }
+      return [plugin];
+    }) as RehypePlugins;
+}
+
+const MAX_RAW_HTML_NESTING = 1_000;
+const RAW_HTML_TAG_RE = /<!--[^]*?-->|<![^>]*>|<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*?)?\/?>/g;
+const RAW_HTML_VOID_ELEMENTS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+function guardRawHtmlNesting() {
+  return (tree: MarkdownHastNode): void => {
+    const pending = [tree];
+    const state = { depth: 0 };
+    while (pending.length > 0) {
+      const node = pending.pop();
+      if (!node) continue;
+      if (node.type === "raw" && typeof node.value === "string") {
+        if (scanRawHtmlNesting(node.value, state)) {
+          replaceRawHtmlWithText(node);
+          state.depth = 0;
+        }
+        continue;
+      }
+      if (node.children) {
+        for (let index = node.children.length - 1; index >= 0; index--) {
+          const child = node.children[index];
+          if (child) pending.push(child);
+        }
+      }
+    }
+  };
+}
+
+function scanRawHtmlNesting(value: string, state: { depth: number }): boolean {
+  RAW_HTML_TAG_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = RAW_HTML_TAG_RE.exec(value)) !== null) {
+    const tagName = match[1]?.toLowerCase();
+    if (!tagName) continue;
+    if (value[match.index + 1] === "/") {
+      state.depth = Math.max(0, state.depth - 1);
+      continue;
+    }
+    if (value[match.index + match[0].length - 2] === "/") continue;
+    if (RAW_HTML_VOID_ELEMENTS.has(tagName)) continue;
+    state.depth += 1;
+    if (state.depth > MAX_RAW_HTML_NESTING) return true;
+  }
+  return false;
 }
 
 interface ItemMarkdownInnerProps {
@@ -96,8 +162,9 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
           }),
           parsePathRef: (token: string) => {
             const ref = parseProjectPathRef(token, { rootNames });
-            if (ref || !actions) return ref;
-            const normalized = normalizeChatProjectPath(token, actions.projectLocation);
+            const projectLocation = actions?.projectLocation;
+            if (ref || !projectLocation) return ref;
+            const normalized = normalizeChatProjectPath(token, projectLocation);
             return normalized === token ? null : parseProjectPathRef(normalized, { rootNames });
           },
         },
@@ -232,9 +299,19 @@ const transformMarkdownUrl: UrlTransform = (url, key, node) =>
     : defaultUrlTransform(url, key, node);
 
 interface MarkdownHastNode {
+  type?: string;
+  value?: string;
   tagName?: string;
   properties?: Record<string, unknown>;
   children?: MarkdownHastNode[];
+}
+
+function replaceRawHtmlWithText(node: MarkdownHastNode): void {
+  node.type = "text";
+  node.value = node.value ?? "";
+  delete node.tagName;
+  delete node.properties;
+  delete node.children;
 }
 
 function rehypeLocalImageUrls(options?: { remoteLocalImageUrl?: (url: string) => string }) {
@@ -310,10 +387,10 @@ function MdCode(props: { className: string; isBlock?: boolean; children?: ReactN
   if (isBlock) {
     return <code className={props.className || undefined}>{props.children}</code>;
   }
-  if (actions) {
+  if (actions?.projectLocation) {
     const ref = parseProjectPathRef(text, { rootNames: actions.projectRootNames });
     if (ref) {
-      return renderPathChip(ref, actions);
+      return renderPathChip(ref, actions.projectLocation, actions);
     }
   }
   return <code className={inlineCodeChipClass}>{props.children}</code>;
@@ -359,7 +436,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
   if (!href) return <span>{props.children}</span>;
 
   if (
-    actions &&
+    actions?.projectLocation &&
     (href.startsWith(AUTO_PATH_FILE_PREFIX) || href.startsWith(AUTO_PATH_FILE_HREF_PREFIX))
   ) {
     const rest = decodeAutoPathHref(
@@ -377,10 +454,10 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
           ...(lineMatch[3] ? { endLine: Number.parseInt(lineMatch[3], 10) } : {}),
         }
       : { kind: "file", path };
-    return renderPathChip(ref, actions);
+    return renderPathChip(ref, actions.projectLocation, actions);
   }
   if (
-    actions &&
+    actions?.projectLocation &&
     (href.startsWith(AUTO_PATH_FOLDER_PREFIX) || href.startsWith(AUTO_PATH_FOLDER_HREF_PREFIX))
   ) {
     const path = decodeAutoPathHref(
@@ -388,7 +465,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
         ? href.slice(AUTO_PATH_FOLDER_HREF_PREFIX.length)
         : href.slice(AUTO_PATH_FOLDER_PREFIX.length),
     );
-    return renderPathChip({ kind: "folder", path }, actions);
+    return renderPathChip({ kind: "folder", path }, actions.projectLocation, actions);
   }
 
   if (/^(https?|mailto):/i.test(href)) {
@@ -410,15 +487,16 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
       </Link>
     );
   }
-  if (actions) {
-    const ref = parseHrefProjectPathRef(href, actions);
+  if (actions?.projectLocation) {
+    const projectLocation = actions.projectLocation;
+    const ref = parseHrefProjectPathRef(href, projectLocation, actions.projectRootNames);
     if (ref?.kind === "folder") {
-      const folderPath = normalizeChatProjectPath(ref.path, actions.projectLocation);
+      const folderPath = normalizeChatProjectPath(ref.path, projectLocation);
       return (
         <button
           type="button"
           className="inline cursor-pointer rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-accent underline-offset-2 [overflow-wrap:anywhere] hover:bg-foreground/15 hover:underline"
-          onClick={() => actions.revealProjectFolderInTree(folderPath)}
+          onClick={() => actions.revealProjectFolderInTree?.(folderPath)}
         >
           {props.children}
         </button>
@@ -431,11 +509,11 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
           className="inline cursor-pointer rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-accent underline-offset-2 [overflow-wrap:anywhere] hover:bg-foreground/15 hover:underline"
           onClick={() => {
             void actions
-              .openProjectRelativePath(
-                normalizeChatProjectPath(ref.path, actions.projectLocation),
+              .openProjectRelativePath?.(
+                normalizeChatProjectPath(ref.path, projectLocation),
                 ref.line,
               )
-              .catch(() => {});
+              ?.catch(() => {});
           }}
         >
           {props.children}
@@ -467,22 +545,23 @@ function normalizeIncompleteProjectLinkTail(text: string): string {
 
 function parseHrefProjectPathRef(
   href: string,
-  actions: NonNullable<ReturnType<typeof useChatPaneActions>>,
+  projectLocation: ProjectLocation,
+  rootNames: ReadonlySet<string> | undefined,
 ): ProjectPathRef | null {
-  const rootNames = actions.projectRootNames;
   const direct = parseProjectPathRef(href, { rootNames });
   if (direct) return direct;
 
-  const normalized = normalizeChatProjectPath(href, actions.projectLocation);
+  const normalized = normalizeChatProjectPath(href, projectLocation);
   if (normalized === href) return null;
   return parseProjectPathRef(normalized, { rootNames });
 }
 
 function renderPathChip(
   ref: ProjectPathRef,
+  projectLocation: ProjectLocation,
   actions: NonNullable<ReturnType<typeof useChatPaneActions>>,
 ) {
-  const normalized = normalizeChatProjectPath(ref.path, actions.projectLocation);
+  const normalized = normalizeChatProjectPath(ref.path, projectLocation);
   if (ref.kind === "file") {
     return (
       <InlineFilePathChip

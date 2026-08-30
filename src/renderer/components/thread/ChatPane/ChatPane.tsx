@@ -56,6 +56,7 @@ interface ChatPaneProps {
   hasSupplementaryContent?: boolean;
   layoutChangeToken?: string | null;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  onOpenThread?: ((threadId: string) => void) | undefined;
   onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
   onOpenSubAgent?:
     | ((parentItemId: string, projectLocation: ProjectLocation | undefined) => void)
@@ -94,6 +95,7 @@ export function ChatPane(props: ChatPaneProps) {
     hasSupplementaryContent = false,
     layoutChangeToken,
     onOpenProjectRelativePath,
+    onOpenThread,
     onRevealProjectFolderInTree,
     onOpenSubAgent,
     canShowProjectEntryInExplorer,
@@ -150,8 +152,21 @@ export function ChatPane(props: ChatPaneProps) {
     targetContext?.projectLocation,
   ]);
 
+  // `onOpenThread` arrives as an inline arrow whose identity churns per parent
+  // render (mobile re-renders on every streaming tick). Route it through a ref
+  // so the paneActions memo — the context value every chat row subscribes to —
+  // stays stable; only the handler's presence can invalidate it.
+  const hasOpenThread = onOpenThread !== undefined;
+  const onOpenThreadRef = useRef(onOpenThread);
+  onOpenThreadRef.current = onOpenThread;
   const paneActions: ChatPaneActions | null = useMemo(() => {
-    if (!project || !targetContext || isHomeScope) return null;
+    const openThread = hasOpenThread
+      ? (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId)
+      : undefined;
+    // Home scope has no project file context, but a referenced thread can
+    // still be opened — the only action a Home thread gets.
+    if (isHomeScope) return openThread ? { openThread } : null;
+    if (!project || !targetContext) return null;
     return {
       openProjectRelativePath: async (path, lineNumber) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
@@ -166,6 +181,7 @@ export function ChatPane(props: ChatPaneProps) {
         }
         await openFileInEditor(project, worktreePath, branch, resolvedPath, lineNumber);
       },
+      ...(openThread ? { openThread } : {}),
       revealProjectFolderInTree: (path) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
         if (onRevealProjectFolderInTree) {
@@ -232,6 +248,7 @@ export function ChatPane(props: ChatPaneProps) {
     projectRootNames,
     markdownImageRoots,
     onOpenProjectRelativePath,
+    hasOpenThread,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
     thread.remoteServerId,

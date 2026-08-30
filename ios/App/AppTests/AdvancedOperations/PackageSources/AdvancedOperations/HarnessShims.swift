@@ -18,7 +18,7 @@ struct RemoteClientError: Error, Equatable, Sendable {
 }
 
 enum ProtocolConstants {
-  static let remoteProtocolVersion = 3
+  static let remoteProtocolVersion = 8
   static let bearerTokenType = "Bearer"
 }
 

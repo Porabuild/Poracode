@@ -17,6 +17,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
   ThreadGoalControl,
+  McpTransportKind,
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
@@ -168,6 +169,12 @@ export interface CreateStructuredSessionInput {
   config: ThreadConfig;
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
+  /**
+   * {@link AgentMetadata.baseSpawnEnv}, supplied by the shared runtime so the
+   * ACP session factory can apply it without every ACP provider remembering to
+   * put it on its own launch argv.
+   */
+  baseSpawnEnv?: Record<string, string>;
   mcpIdentity?: McpThreadIdentity;
   mcpServers?: readonly ResolvedMcpServer[];
   sessionRef?: SessionRef;
@@ -197,6 +204,8 @@ export interface CreateStructuredSessionInput {
    * lifecycle boundaries on an extension method instead of the ACP stream.
    */
   acpExtensionSessionUpdateTransform?: AcpExtensionSessionUpdateTransform;
+  /** Vendor metadata added to the ACP `initialize` request. */
+  acpInitializeMeta?: Record<string, unknown>;
   /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
@@ -222,6 +231,16 @@ export interface CreateStructuredSessionInput {
    * is the same content the bridge would have served.
    */
   acpFsTextCapability?: boolean;
+  /**
+   * MCP transports relayed optimistically: included in the first
+   * `session/new` / `session/load` attempt and dropped from the retry set if
+   * opening fails with a protocol compatibility error. Use for agents that
+   * fail session-open on a transport the ACP schema gives them no way to
+   * decline (stdio has no capability flag): the worst case is one failed
+   * roundtrip per launch, and an agent that grows support for the transport
+   * picks its servers up with no code change here.
+   */
+  acpOptimisticMcpTransports?: readonly McpTransportKind[];
 }
 
 export type AcpEmptyResponseErrorResolver = (input: {
@@ -236,7 +255,18 @@ export type AcpSessionUpdateTransform = (
 export type AcpExtensionSessionUpdateTransform = (
   method: string,
   params: Record<string, unknown>,
-) => import("@agentclientprotocol/sdk").SessionNotification | undefined;
+  ctx?: {
+    request: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  },
+) =>
+  | import("@agentclientprotocol/sdk").SessionNotification
+  | readonly import("@agentclientprotocol/sdk").SessionNotification[]
+  | undefined
+  | Promise<
+      | import("@agentclientprotocol/sdk").SessionNotification
+      | readonly import("@agentclientprotocol/sdk").SessionNotification[]
+      | undefined
+    >;
 
 export type AcpExtensionNotificationHandler = (
   method: string,
@@ -262,7 +292,10 @@ export interface DetectProbeCtx {
   version?: string | undefined;
   signal?: AbortSignal;
   agentSettings?: Record<string, boolean | string>;
-  /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
+  /**
+   * The merged {@link DetectionSpec.baseSpawnEnv} + {@link DetectionSpec.probeEnv},
+   * so `capabilitiesProbe`/`statusProbe` can forward it to their own spawns.
+   */
   probeEnv?: Record<string, string> | undefined;
 }
 
@@ -314,14 +347,29 @@ export interface DetectionSpec {
   update?: AgentUpdateInfo;
   versionArgs?: string[];
   /**
-   * Env merged onto the `--version` probe spawn. Used to neutralize a CLI's own
-   * background self-updater during detection — e.g. `command-code` spawns a
-   * detached npm install on every invocation unless `COMMANDCODE_SKIP_UPDATES`
-   * is set, which otherwise surfaces as a stray terminal window on app launch.
-   * Also exposed to `capabilitiesProbe`/`statusProbe` via `DetectProbeCtx.probeEnv`
-   * so they can forward it to their own `readAgentCommandOutput` calls.
+   * Detection-only env layered ON TOP of {@link DetectionSpec.baseSpawnEnv} for
+   * the `--version` probe spawn. Use this for overlays that must not leak into
+   * interactive sessions (a unique probe cache dir, a probe-only flag).
+   * Updater/telemetry opt-outs belong on `baseSpawnEnv` — they have to ride
+   * every spawn, not just detection. Exposed to `capabilitiesProbe`/`statusProbe`
+   * via {@link DetectProbeCtx.probeEnv} as the already-merged map so they can
+   * forward it to their own `readAgentCommandOutput` calls.
    */
   probeEnv?: Record<string, string>;
+  /**
+   * Env applied to EVERY spawn of this CLI that Poracode makes, in every lane:
+   * detection probes, terminal login, PTY thread launches, launch/resume argv,
+   * one-shot generation, context extraction, and subagent children. Shared
+   * runtime merges it at each launch point, so a provider declares its
+   * updater/telemetry opt-outs once here and a NEW launch point picks them up
+   * for free — instead of every command builder having to remember its own
+   * `env`. Deliberately NOT applied to `update` commands, so an explicit
+   * "update agent" action can still reach the CLI's own updater.
+   *
+   * The adapter re-exposes the same map as {@link AgentMetadata.baseSpawnEnv}
+   * for the lanes that run off the adapter rather than the detection spec.
+   */
+  baseSpawnEnv?: Record<string, string>;
   /** Provider-specific version probe for CLIs whose Windows shim cannot be spawned safely. */
   versionProbe?: (ctx: DetectProbeCtx) => Promise<string | undefined>;
   statusProbe?: StatusProbe;
@@ -335,10 +383,20 @@ export interface AgentMetadata {
   binary?: string;
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;
+  /** ACP Registry artifact adopted as a runtime of this built-in provider. */
+  firstClassAcpRegistryId?: string;
   spawnEnv?: {
     native?: Record<string, string>;
     wsl?: Record<string, string>;
   };
+  /**
+   * {@link DetectionSpec.baseSpawnEnv}, re-exposed so the adapter-driven lanes
+   * (PTY launch, one-shots, context extraction, subagent children) can apply it
+   * without reaching for the detection spec. Providers must derive it with
+   * `...inheritBaseSpawnEnv(spec)` rather than repeating the literal, so the
+   * two can never drift.
+   */
+  baseSpawnEnv?: Record<string, string>;
 }
 
 export interface AgentLauncher {
@@ -524,11 +582,15 @@ export interface OneShotGenerationOptions {
 }
 
 export interface AgentOneShotRunner {
+  /** Explicit child-lane choice when an adapter supports both structured and one-shot execution. */
+  readonly subagentExecutionPreference?: "structured" | "one-shot";
   defaultOneShotModel?: string;
+  /** Allow CLI adapters to omit `--model` and use the target environment's own live default. */
+  allowsImplicitOneShotModel?: boolean;
   /**
-   * Build a bypass-permissions CLI invocation so an agent WITHOUT a structured
-   * (GUI) runtime can still be spawned as a one-shot subagent child. Implemented
-   * only by CLI-only providers (e.g. Command Code, Antigravity). Distinct from
+   * Build a bypass-permissions CLI invocation so an agent can be spawned as a
+   * one-shot subagent child. Implemented by CLI-only providers and providers
+   * that explicitly retain their CLI child lane. Distinct from
    * {@link buildOneShotCommand} — that lane is read-only title/commit generation
    * and may isolate the cwd; this one runs real work in the project cwd with
    * permissions unlocked.

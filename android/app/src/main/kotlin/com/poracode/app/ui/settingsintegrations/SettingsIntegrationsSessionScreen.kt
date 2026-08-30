@@ -63,7 +63,7 @@ fun SettingsIntegrationsSessionScreen(
     }
     val access = SettingsIntegrationsAccess(
         hostSelected = lease != null,
-        protocolCompatible = lease?.protocolVersion == 3,
+        protocolCompatible = lease?.protocolVersion == 8,
         ready = lease?.ready == true,
         online = lease?.online == true,
         canRead = "session:read" in lease?.scopes.orEmpty(),

@@ -12,6 +12,7 @@ object RichContentDecoder {
             "text" -> decodeText(objectValue)
             "skill" -> decodeSkill(objectValue)
             "mcp" -> decodeMcp(objectValue)
+            "thread" -> decodeThread(objectValue)
             "diff_comment" -> decodeDiffComment(objectValue)
             "image" -> decodeImage(objectValue)
             "file" -> decodeFile(objectValue)
@@ -77,6 +78,12 @@ object RichContentDecoder {
 
     private fun decodeMcp(value: JsonObject): RichContentBlock? =
         value.requiredString("name")?.let(RichContentBlock::Mcp)
+
+    private fun decodeThread(value: JsonObject): RichContentBlock? {
+        val threadId = value.requiredString("threadId", allowEmpty = false) ?: return null
+        val title = value.requiredString("title") ?: return null
+        return RichContentBlock.Thread(threadId, title)
+    }
 
     private fun decodeDiffComment(value: JsonObject): RichContentBlock? {
         val path = value.requiredString("path") ?: return null

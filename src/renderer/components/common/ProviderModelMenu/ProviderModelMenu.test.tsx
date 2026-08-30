@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/opencode";
+import "@/renderer/components/providers/cursor";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderModelMenu, type ProviderModelMenuProvider } from "./ProviderModelMenu";
 
@@ -129,6 +130,8 @@ describe("ProviderModelMenu", () => {
       favoriteModels: [],
       recentModels: [],
       hiddenModels: {},
+      providerConfigs: {},
+      providerModelPreferences: {},
     });
   });
 
@@ -170,6 +173,25 @@ describe("ProviderModelMenu", () => {
 
     fireEvent.keyDown(listbox, { key: "ArrowDown" });
     expect(listbox.querySelector('[data-active="true"]')).not.toBeNull();
+  });
+
+  it("uses a renamed Cursor profile label for the trigger badge", () => {
+    const provider = makeCursorProvider();
+    provider.kind = "cursor:work";
+    provider.label = "Cursor Day job";
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="cursor:work"
+        currentModel="gpt-5.1-codex"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Select model" });
+    expect(trigger).toHaveTextContent("D");
+    expect(trigger).not.toHaveTextContent("W");
+    expect(trigger).toHaveTextContent("Codex 5.1 Max");
   });
 
   it("hides the list scrollbar for long model lists", async () => {
@@ -219,6 +241,68 @@ describe("ProviderModelMenu", () => {
     expect(listbox.closest(".w-96")).toBe(fixedWidthPopover);
   });
 
+  it("navigates and selects search results without moving focus out of search", async () => {
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[makeProvider(3)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const search = await screen.findByPlaceholderText("Search models...");
+    const listbox = screen.getByRole("listbox", { name: "Models" });
+    await waitFor(() => expect(search).toHaveFocus());
+
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+
+    expect(search).toHaveFocus();
+    expect(listbox).toHaveAttribute("aria-activedescendant", expect.stringContaining("model-2"));
+    expect(search).toHaveAttribute("aria-controls", listbox.id);
+    expect(search).toHaveAttribute("aria-activedescendant", expect.stringContaining("model-2"));
+
+    fireEvent.keyDown(search, { key: "ArrowUp" });
+
+    expect(search).toHaveFocus();
+    expect(listbox).toHaveAttribute("aria-activedescendant", expect.stringContaining("model-1"));
+
+    fireEvent.change(search, { target: { value: "Model 3" } });
+    await waitFor(() => expect(within(listbox).getAllByRole("option")).toHaveLength(1));
+    expect(search).toHaveFocus();
+
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(onChange).toHaveBeenCalledWith({ agentKind: "codex", model: "model-3" });
+  });
+
+  it("selects from the current query when Enter follows typing immediately", async () => {
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[makeProvider(3)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const search = await screen.findByPlaceholderText("Search models...");
+
+    fireEvent.change(search, { target: { value: "No match" } });
+    await screen.findByText("No models found");
+    expect(search).not.toHaveAttribute("aria-activedescendant");
+
+    fireEvent.change(search, { target: { value: "Model 3" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(onChange).toHaveBeenCalledWith({ agentKind: "codex", model: "model-3" });
+  });
+
   it("renders normalized model rate descriptions as muted row hints", async () => {
     const provider = makeProvider(1);
     provider.capabilities.models = [
@@ -241,6 +325,57 @@ describe("ProviderModelMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select model" }));
 
     expect(await screen.findByRole("option", { name: /Opus/u })).toHaveTextContent("· 2x");
+  });
+
+  it("shows each fast-capable model's saved Fast preference", async () => {
+    const provider = makeProvider(2);
+    provider.capabilities.fastModels = ["model-1", "model-2"];
+    useSharedSettings.setState({
+      providerModelPreferences: {
+        codex: {
+          "model-1": { fast: false },
+          "model-2": { fast: true },
+        },
+      },
+    });
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getByRole("img", { name: "Supports Fast mode" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("img", { name: "Fast mode" })).toBeInTheDocument();
+  });
+
+  it("uses the model default when a saved preference omits Fast", async () => {
+    const provider = makeProvider(1);
+    provider.capabilities.fastModels = ["model-1"];
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "model-1", fast: false } },
+      providerModelPreferences: { codex: { "model-1": { effort: "high" } } },
+    });
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getByRole("img", { name: "Fast mode" })).toBeInTheDocument();
   });
 
   it("ignores provider prose model descriptions", async () => {

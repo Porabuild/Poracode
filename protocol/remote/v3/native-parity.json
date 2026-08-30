@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 3,
+  "protocolVersion": 8,
   "entries": {
     "httpRoutes": [
       {
@@ -533,6 +533,25 @@
             "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
             "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
             "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
+          ]
+        }
+      },
+      {
+        "id": "pr-watch-agent-sync",
+        "batch": "settings-integrations",
+        "note": "Native clients synchronize the selected PR-watch helper before persisting the watch so the host can validate and launch the configured provider.",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteV3Contract.swift"
+          ]
+        },
+        "android": {
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/remoteintegrations/RemoteV3IntegrationsContract.kt"
           ]
         }
       },

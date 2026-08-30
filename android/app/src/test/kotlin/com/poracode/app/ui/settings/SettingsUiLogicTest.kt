@@ -25,7 +25,7 @@ class SettingsUiLogicTest {
         val lease = SettingsHostLease(
             connectionId = HOST_A,
             generation = 7,
-            protocolVersion = 3,
+            protocolVersion = 8,
             scopes = setOf("session:read", "session:operate"),
             online = true,
             ready = true,
@@ -128,7 +128,7 @@ class SettingsUiLogicTest {
         appVersion = version,
         scopes = listOf("session:read", "session:operate"),
         pairedAtEpochMs = 1,
-        protocolVersion = 3,
+        protocolVersion = 8,
     )
 
     companion object {

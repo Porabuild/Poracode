@@ -38,6 +38,7 @@ import {
 } from "./githubMappers";
 import { parseGitHubActionsWorkflowYaml } from "./githubWorkflowDefinition";
 import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThreads";
+import { msg as sharedMsg } from "@/shared/messages";
 
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
@@ -50,6 +51,8 @@ const execFileAsync = promisify(execFile);
 const GH_TIMEOUT = 30_000;
 // Cloning can pull a lot of history; give it room before timing out.
 const GH_CLONE_TIMEOUT = 600_000;
+// Per-account repo probe when auto-detecting which account sees a repository.
+const GH_ACCOUNT_PROBE_TIMEOUT = 15_000;
 // Repos per page and the page cap for the picker. The list is sorted by most
 // recent push, so the first few hundred cover the realistic clone targets; the
 // renderer adds client-side search over whatever we return.
@@ -77,6 +80,28 @@ const PR_CHECK_PENDING_STATES = new Set([
   "REQUESTED",
   "WAITING",
 ]);
+// `attempt` is newer than some installed gh versions, which reject unknown
+// `--json` fields outright; GitHubService retries once without it and then
+// remembers the capability for the session.
+const RUN_LIST_JSON_FIELDS = [
+  "attempt",
+  "conclusion",
+  "createdAt",
+  "databaseId",
+  "displayTitle",
+  "event",
+  "headBranch",
+  "headSha",
+  "name",
+  "number",
+  "startedAt",
+  "status",
+  "updatedAt",
+  "url",
+  "workflowDatabaseId",
+  "workflowName",
+];
+const RUN_VIEW_JSON_FIELDS = [...RUN_LIST_JSON_FIELDS, "jobs"];
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -172,6 +197,22 @@ function isWorkflowDefinitionUnavailable(error: unknown): boolean {
   return msg.toLowerCase().includes("could not find workflow file");
 }
 
+// gh reports unsupported `--json` fields as `Unknown JSON field: "<name>"`
+// and exits non-zero instead of ignoring them.
+function isUnknownJsonFieldError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.toLowerCase().includes("unknown json field");
+}
+
+// `gh` prints an empty body instead of `[]` when a repository has nothing to
+// list (e.g. no workflows yet), which JSON.parse rejects.
+function parseJsonListOutput(stdout: string): unknown[] {
+  const trimmed = stdout.trim();
+  if (!trimmed) return [];
+  const raw = JSON.parse(trimmed) as unknown;
+  return Array.isArray(raw) ? raw : [];
+}
+
 function classifyError(error: unknown, operation: string): Error {
   const msg = error instanceof Error ? error.message : String(error);
   const lower = msg.toLowerCase();
@@ -184,6 +225,12 @@ function classifyError(error: unknown, operation: string): Error {
     return new Error(
       `GitHub CLI (gh) is not installed or not on PATH. Install it from https://cli.github.com`,
     );
+  }
+
+  // Account-scoped failures name the account; keep them actionable instead of
+  // collapsing into the generic "not authenticated" message below.
+  if (lower.includes("couldn't access the github account")) {
+    return error instanceof Error ? error : new Error(msg);
   }
 
   if (
@@ -220,9 +267,80 @@ function isMachineReadableGhCommand(args: readonly string[]): boolean {
  * be sent to an unrelated repository.
  */
 function projectGhEnvironment(overrides?: Record<string, string>): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, ...overrides };
+  const env: NodeJS.ProcessEnv = { ...process.env };
   delete env.GH_REPO;
-  return env;
+  return { ...env, ...overrides };
+}
+
+function accountGhEnvironment(
+  account: GitHubAccountRef,
+  token: string,
+  repository?: string,
+): Record<string, string> {
+  const enterpriseServer =
+    account.host !== "github.com" && !account.host.toLowerCase().endsWith(".ghe.com");
+  return {
+    GH_HOST: account.host,
+    GH_TOKEN: enterpriseServer ? "" : token,
+    GH_ENTERPRISE_TOKEN: enterpriseServer ? token : "",
+    ...(repository ? { GH_REPO: repository } : {}),
+  };
+}
+
+function repositoryFromRemoteUrl(url: string): { host: string; repository: string } | undefined {
+  let host: string;
+  let path: string;
+  if (url.includes("://")) {
+    try {
+      const parsed = new URL(url);
+      host = parsed.hostname;
+      path = parsed.pathname;
+    } catch {
+      return undefined;
+    }
+  } else {
+    const parsed = /^[^@]+@([^:]+):(.+)$/.exec(url);
+    if (!parsed) return undefined;
+    host = parsed[1]!;
+    path = parsed[2]!;
+  }
+  const [owner, rawRepo] = path.replace(/^\/+|\/+$/g, "").split("/");
+  const repo = rawRepo?.replace(/\.git$/, "");
+  if (!owner || !repo) return undefined;
+  return { host, repository: `${host}/${owner}/${repo}` };
+}
+
+function repositoryScopeForAccount(
+  remoteOutput: string,
+  defaultRepository: string | undefined,
+  account: GitHubAccountRef,
+): { matchesHost: boolean; repository?: string } {
+  if (defaultRepository) {
+    const parts = defaultRepository.trim().split("/");
+    if (parts.length >= 2) {
+      const host = parts.length === 2 ? "github.com" : parts[0]!;
+      if (host.toLowerCase() !== account.host.toLowerCase()) return { matchesHost: false };
+      return {
+        matchesHost: true,
+        repository: `${host}/${parts.at(-2)!}/${parts.at(-1)!}`,
+      };
+    }
+  }
+
+  const repositories = new Set<string>();
+  for (const line of remoteOutput.split(/\r?\n/)) {
+    const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line);
+    if (!match) continue;
+    const parsed = repositoryFromRemoteUrl(match[2]!);
+    if (!parsed || parsed.host.toLowerCase() !== account.host.toLowerCase()) continue;
+    repositories.add(parsed.repository);
+  }
+  return {
+    matchesHost: repositories.size > 0,
+    // With multiple same-host remotes, leave resolution to gh so its configured
+    // default remains authoritative instead of guessing origin.
+    ...(repositories.size === 1 ? { repository: [...repositories][0] } : {}),
+  };
 }
 
 async function runGh(
@@ -245,7 +363,7 @@ async function runGh(
       timeoutMs,
       // The bridge cannot delete a forwarded variable, so explicitly clear it
       // inside the WSL process. Local invocations remove it below.
-      env: { ...options?.env, GH_REPO: "" },
+      env: { GH_REPO: "", ...options?.env },
     });
     if (result.ok) return result.stdout;
     throw processResultToError(result);
@@ -255,14 +373,15 @@ async function runGh(
   // include Homebrew or other user-managed binary directories. Machine-readable
   // commands must run directly so login-shell startup output cannot corrupt JSON,
   // but they still need the PATH captured from that shell first.
-  if (machineReadable && location.kind === "posix") {
+  const scopedPosix = location.kind === "posix" && options?.env !== undefined;
+  if ((machineReadable || scopedPosix) && location.kind === "posix") {
     await primeProjectShellEnv(location.path);
   }
   const spec = buildAgentCommand(location, "gh", args, undefined, options?.env);
   const cwd = spec.cwd ?? location.path;
   const { stdout } = await execFileAsync(
-    machineReadable ? "gh" : spec.command,
-    machineReadable ? args : spec.args,
+    machineReadable || scopedPosix ? "gh" : spec.command,
+    machineReadable || scopedPosix ? args : spec.args,
     {
       windowsHide: true,
       timeout: timeoutMs,
@@ -370,6 +489,10 @@ function locationKey(location: ProjectLocation): string {
 export class GitHubService {
   /** `gh api user` is the same answer per (kind, path) — cache to avoid one call per PR fetch. */
   private viewerLoginCache = new Map<string, string | null>();
+  /** Detected account per location that can see the project's repository; null = detection found none. */
+  private actionsAccountCache = new Map<string, GitHubAccountRef | null>();
+  /** Locations whose gh install rejects the `attempt` run field. */
+  private unsupportedRunAttemptFieldLocations = new Set<string>();
   private wslClient: WslBridgeClient | undefined;
 
   setWslClient(client: WslBridgeClient | undefined): void {
@@ -384,11 +507,73 @@ export class GitHubService {
     return runGh(location, args, this.wslClient, options);
   }
 
+  private async listGitRemotes(location: ProjectLocation): Promise<string> {
+    if (location.kind === "wsl") {
+      if (!this.wslClient) {
+        throw new Error(`WSL bridge unavailable for Git in distro "${location.distro}"`);
+      }
+      const result = await this.wslClient.processExec(location, {
+        command: "git",
+        cwd: location.linuxPath,
+        args: ["remote", "-v"],
+        loginEnv: true,
+        timeoutMs: GH_TIMEOUT,
+      });
+      if (result.ok) return result.stdout;
+      throw processResultToError(result);
+    }
+    if (location.kind === "posix") await primeProjectShellEnv(location.path);
+    const spec = buildAgentCommand(location, "git", ["remote", "-v"]);
+    const { stdout } = await execFileAsync(spec.command, spec.args, {
+      windowsHide: true,
+      timeout: GH_TIMEOUT,
+      cwd: spec.cwd ?? location.path,
+      env: projectGhEnvironment(spec.env),
+    });
+    return stdout;
+  }
+
+  private async actionsDefaultRepository(location: ProjectLocation): Promise<string | undefined> {
+    try {
+      const output = await this.runGh(location, ["repo", "set-default", "--view"]);
+      return output.trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private runGhBatch(
     location: ProjectLocation & { kind: "wsl" },
     commands: string[][],
   ): Promise<WslProcessExecResult[]> {
     return runGhBatch(location, commands, this.wslClient);
+  }
+
+  /**
+   * `gh run {list,view} --json` with a fallback for gh builds older than the
+   * `attempt` field: they reject the whole call, so drop the field, retry
+   * once, and skip it on every later call for this session.
+   */
+  private async runGhRunsJson(
+    location: ProjectLocation,
+    baseArgs: string[],
+    fields: readonly string[],
+    options?: RunGhOptions,
+  ): Promise<string> {
+    const invoke = (list: readonly string[]) =>
+      this.runGh(location, [...baseArgs, "--json", list.join(",")], options);
+    const withoutAttempt = fields.filter((field) => field !== "attempt");
+    const locationCacheKey = locationKey(location);
+    if (this.unsupportedRunAttemptFieldLocations.has(locationCacheKey)) {
+      return invoke(withoutAttempt);
+    }
+    try {
+      return await invoke(fields);
+    } catch (error) {
+      if (!isUnknownJsonFieldError(error)) throw error;
+      this.unsupportedRunAttemptFieldLocations.add(locationCacheKey);
+      return invoke(withoutAttempt);
+    }
   }
 
   async checkGhAvailable(location: ProjectLocation): Promise<GhCheckAvailableResult> {
@@ -440,11 +625,133 @@ export class GitHubService {
       token = "";
     }
     if (!token) {
-      throw new Error(
-        `Couldn't access the GitHub account "${account.login}". Run "gh auth login" and try again.`,
-      );
+      throw new Error(sharedMsg("github.accountUnavailable", { login: account.login }));
     }
     return token;
+  }
+
+  /** True when a failed gh call might succeed under another signed-in account. */
+  private isActionsScopeCandidate(error: unknown): boolean {
+    const lower = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    return lower.includes("http 404") || isRepoNotFoundError(error);
+  }
+
+  /**
+   * Scope Actions `gh` calls to a project's repository: an explicit
+   * `ghAccount` override wins, then the detected-account cache. Returns no env
+   * when there is nothing to scope, preserving gh's active-account default.
+   */
+  private async resolveActionsScope(
+    location: ProjectLocation,
+    ghAccount?: GitHubAccountRef,
+  ): Promise<{ env?: Record<string, string>; account?: GitHubAccountRef }> {
+    if (ghAccount) {
+      const [remoteOutput, defaultRepository] = await Promise.all([
+        this.listGitRemotes(location),
+        this.actionsDefaultRepository(location),
+      ]);
+      const scope = repositoryScopeForAccount(remoteOutput, defaultRepository, ghAccount);
+      if (!scope.matchesHost) {
+        throw new Error(
+          sharedMsg("github.accountHostMismatch", {
+            login: ghAccount.login,
+            host: ghAccount.host,
+          }),
+        );
+      }
+      const token = await this.getAccountToken(location, ghAccount);
+      return { env: accountGhEnvironment(ghAccount, token, scope.repository), account: ghAccount };
+    }
+    const key = locationKey(location);
+    const cached = this.actionsAccountCache.get(key);
+    if (cached === null) return {};
+    if (cached) {
+      try {
+        const [remoteOutput, defaultRepository] = await Promise.all([
+          this.listGitRemotes(location),
+          this.actionsDefaultRepository(location),
+        ]);
+        const scope = repositoryScopeForAccount(remoteOutput, defaultRepository, cached);
+        if (!scope.matchesHost)
+          throw new Error("cached account host no longer matches the project remote");
+        const token = await this.getAccountToken(location, cached);
+        return { env: accountGhEnvironment(cached, token, scope.repository), account: cached };
+      } catch {
+        this.actionsAccountCache.delete(key);
+      }
+    }
+    return {};
+  }
+
+  /**
+   * Probe the signed-in accounts (active first) with `gh repo view` for one
+   * that can see the project's repository, and cache the answer so later
+   * calls skip detection.
+   */
+  private async detectActionsAccount(
+    location: ProjectLocation,
+  ): Promise<{ env?: Record<string, string>; account?: GitHubAccountRef }> {
+    const key = locationKey(location);
+    const { accounts } = await this.listAccounts(location);
+    if (accounts.length < 2) {
+      this.actionsAccountCache.set(key, null);
+      return {};
+    }
+    const [remoteOutput, defaultRepository] = await Promise.all([
+      this.listGitRemotes(location),
+      this.actionsDefaultRepository(location),
+    ]);
+    const ordered = [...accounts.filter((a) => a.active), ...accounts.filter((a) => !a.active)];
+    const probes = await Promise.all(
+      ordered.map(async (account) => {
+        try {
+          const accountRef = { host: account.host, login: account.login };
+          const scope = repositoryScopeForAccount(remoteOutput, defaultRepository, accountRef);
+          if (!scope.matchesHost) return null;
+          const token = await this.getAccountToken(location, account);
+          const env = accountGhEnvironment(account, token, scope.repository);
+          await this.runGh(location, ["repo", "view", "--json", "name,owner"], {
+            env,
+            timeoutMs: GH_ACCOUNT_PROBE_TIMEOUT,
+          });
+          return { account: accountRef, env };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const winner = probes.find((probe): probe is NonNullable<typeof probe> => probe !== null);
+    if (!winner) {
+      this.actionsAccountCache.set(key, null);
+      return {};
+    }
+    this.actionsAccountCache.set(key, winner.account);
+    return { env: winner.env, account: winner.account };
+  }
+
+  /**
+   * Run an Actions operation under the resolved account scope. When an
+   * unscoped call 404s — the repository is visible only to another signed-in
+   * account — detect the right account and retry once.
+   */
+  private async runActions<T>(
+    location: ProjectLocation,
+    ghAccount: GitHubAccountRef | undefined,
+    operation: (options?: RunGhOptions) => Promise<T>,
+  ): Promise<{
+    result: T;
+    scope: { env?: Record<string, string>; account?: GitHubAccountRef };
+  }> {
+    const scope = await this.resolveActionsScope(location, ghAccount);
+    try {
+      return { result: await operation(scope.env ? { env: scope.env } : undefined), scope };
+    } catch (err) {
+      if (ghAccount || !this.isActionsScopeCandidate(err)) throw err;
+      if (scope.env) this.actionsAccountCache.delete(locationKey(location));
+      const detected = await this.detectActionsAccount(location);
+      if (!detected.env) throw err;
+      return { result: await operation({ env: detected.env }), scope: detected };
+    }
   }
 
   /**
@@ -986,24 +1293,34 @@ export class GitHubService {
     }
   }
 
-  async listWorkflows(location: ProjectLocation): Promise<GhListWorkflowsResult> {
+  async listWorkflows(
+    location: ProjectLocation,
+    ghAccount?: GitHubAccountRef,
+  ): Promise<GhListWorkflowsResult> {
     try {
-      const stdout = await this.runGh(location, [
-        "workflow",
-        "list",
-        "--all",
-        "--limit",
-        String(WORKFLOW_LIST_LIMIT),
-        "--json",
-        "id,name,path,state",
-      ]);
-      const raw = JSON.parse(stdout) as unknown;
-      const workflows = Array.isArray(raw)
-        ? raw
+      const { result: workflows, scope } = await this.runActions(
+        location,
+        ghAccount,
+        async (options) => {
+          const stdout = await this.runGh(
+            location,
+            [
+              "workflow",
+              "list",
+              "--all",
+              "--limit",
+              String(WORKFLOW_LIST_LIMIT),
+              "--json",
+              "id,name,path,state",
+            ],
+            options,
+          );
+          return parseJsonListOutput(stdout)
             .map(mapGitHubActionsWorkflow)
-            .filter((workflow): workflow is NonNullable<typeof workflow> => workflow !== null)
-        : [];
-      return { workflows };
+            .filter((workflow): workflow is NonNullable<typeof workflow> => workflow !== null);
+        },
+      );
+      return { workflows, ...(scope.account ? { account: scope.account } : {}) };
     } catch (err) {
       throw classifyError(err, "workflow list");
     }
@@ -1012,38 +1329,26 @@ export class GitHubService {
   async listWorkflowRuns(
     location: ProjectLocation,
     workflowId?: number,
+    ghAccount?: GitHubAccountRef,
   ): Promise<GhListWorkflowRunsResult> {
     try {
-      const stdout = await this.runGh(location, [
-        "run",
-        "list",
-        "--limit",
-        String(WORKFLOW_RUN_LIST_LIMIT),
-        ...(workflowId ? ["--workflow", String(workflowId)] : []),
-        "--json",
-        [
-          "attempt",
-          "conclusion",
-          "createdAt",
-          "databaseId",
-          "displayTitle",
-          "event",
-          "headBranch",
-          "headSha",
-          "name",
-          "number",
-          "startedAt",
-          "status",
-          "updatedAt",
-          "url",
-          "workflowDatabaseId",
-          "workflowName",
-        ].join(","),
-      ]);
-      const raw = JSON.parse(stdout) as unknown;
-      const runs = Array.isArray(raw)
-        ? raw.map(mapGitHubActionsRun).filter((run): run is NonNullable<typeof run> => run !== null)
-        : [];
+      const { result: runs } = await this.runActions(location, ghAccount, async (options) => {
+        const stdout = await this.runGhRunsJson(
+          location,
+          [
+            "run",
+            "list",
+            "--limit",
+            String(WORKFLOW_RUN_LIST_LIMIT),
+            ...(workflowId ? ["--workflow", String(workflowId)] : []),
+          ],
+          RUN_LIST_JSON_FIELDS,
+          options,
+        );
+        return parseJsonListOutput(stdout)
+          .map(mapGitHubActionsRun)
+          .filter((run): run is NonNullable<typeof run> => run !== null);
+      });
       return { runs };
     } catch (err) {
       throw classifyError(err, "run list");
@@ -1054,83 +1359,69 @@ export class GitHubService {
     location: ProjectLocation,
     workflowId: number,
     ref?: string,
+    ghAccount?: GitHubAccountRef,
   ): Promise<GhGetWorkflowDefinitionResult> {
     try {
-      const defaultBranch = await this.runGh(location, [
-        "repo",
-        "view",
-        "--json",
-        "defaultBranchRef",
-        "--jq",
-        ".defaultBranchRef.name",
-      ]);
-      const defaultBranchName = defaultBranch.trim();
-      const resolvedRef = ref ?? defaultBranchName;
-      let yaml: string;
-      try {
-        yaml = await this.runGh(location, [
-          "workflow",
-          "view",
-          String(workflowId),
-          "--yaml",
-          "--ref",
-          resolvedRef,
-        ]);
-      } catch (error) {
-        if (!isWorkflowDefinitionUnavailable(error)) throw error;
+      const { result } = await this.runActions(location, ghAccount, async (options) => {
+        const defaultBranch = await this.runGh(
+          location,
+          ["repo", "view", "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"],
+          options,
+        );
+        const defaultBranchName = defaultBranch.trim();
+        const resolvedRef = ref ?? defaultBranchName;
+        let yaml: string;
+        try {
+          yaml = await this.runGh(
+            location,
+            ["workflow", "view", String(workflowId), "--yaml", "--ref", resolvedRef],
+            options,
+          );
+        } catch (error) {
+          if (!isWorkflowDefinitionUnavailable(error)) throw error;
+          return {
+            definition: {
+              workflowId,
+              ref: resolvedRef,
+              defaultBranch: defaultBranchName,
+              dispatchable: false,
+              triggers: [],
+              inputs: [],
+            },
+          };
+        }
         return {
           definition: {
             workflowId,
             ref: resolvedRef,
             defaultBranch: defaultBranchName,
-            dispatchable: false,
-            triggers: [],
-            inputs: [],
+            ...parseGitHubActionsWorkflowYaml(yaml),
           },
         };
-      }
-      return {
-        definition: {
-          workflowId,
-          ref: resolvedRef,
-          defaultBranch: defaultBranchName,
-          ...parseGitHubActionsWorkflowYaml(yaml),
-        },
-      };
+      });
+      return result;
     } catch (err) {
       throw classifyError(err, "workflow view");
     }
   }
 
-  async getWorkflowRun(location: ProjectLocation, runId: number): Promise<GhGetWorkflowRunResult> {
+  async getWorkflowRun(
+    location: ProjectLocation,
+    runId: number,
+    ghAccount?: GitHubAccountRef,
+  ): Promise<GhGetWorkflowRunResult> {
     try {
-      const stdout = await this.runGh(location, [
-        "run",
-        "view",
-        String(runId),
-        "--json",
-        [
-          "attempt",
-          "conclusion",
-          "createdAt",
-          "databaseId",
-          "displayTitle",
-          "event",
-          "headBranch",
-          "headSha",
-          "jobs",
-          "name",
-          "number",
-          "startedAt",
-          "status",
-          "updatedAt",
-          "url",
-          "workflowDatabaseId",
-          "workflowName",
-        ].join(","),
-      ]);
-      const run = mapGitHubActionsRun(JSON.parse(stdout));
-      if (!run) throw new Error("GitHub returned an invalid workflow run.");
+      const { result: run } = await this.runActions(location, ghAccount, async (options) => {
+        const stdout = await this.runGhRunsJson(
+          location,
+          ["run", "view", String(runId)],
+          RUN_VIEW_JSON_FIELDS,
+          options,
+        );
+        const mapped = mapGitHubActionsRun(JSON.parse(stdout));
+        if (!mapped) throw new Error("GitHub returned an invalid workflow run.");
+        return mapped;
+      });
       return { run };
     } catch (err) {
       throw classifyError(err, "run view");
@@ -1142,6 +1433,7 @@ export class GitHubService {
     workflowId: number,
     ref: string | undefined,
     inputs: Record<string, string>,
+    ghAccount?: GitHubAccountRef,
   ): Promise<void> {
     const args = [
       "workflow",
@@ -1151,7 +1443,7 @@ export class GitHubService {
       ...Object.entries(inputs).flatMap(([key, value]) => ["--raw-field", `${key}=${value}`]),
     ];
     try {
-      await this.runGh(location, args);
+      await this.runActions(location, ghAccount, (options) => this.runGh(location, args, options));
     } catch (err) {
       throw classifyError(err, "workflow run");
     }
@@ -1161,30 +1453,44 @@ export class GitHubService {
     location: ProjectLocation,
     runId: number,
     failedOnly: boolean,
+    ghAccount?: GitHubAccountRef,
   ): Promise<void> {
     try {
-      await this.runGh(location, [
-        "run",
-        "rerun",
-        String(runId),
-        ...(failedOnly ? ["--failed"] : []),
-      ]);
+      await this.runActions(location, ghAccount, (options) =>
+        this.runGh(
+          location,
+          ["run", "rerun", String(runId), ...(failedOnly ? ["--failed"] : [])],
+          options,
+        ),
+      );
     } catch (err) {
       throw classifyError(err, "run rerun");
     }
   }
 
-  async cancelWorkflowRun(location: ProjectLocation, runId: number): Promise<void> {
+  async cancelWorkflowRun(
+    location: ProjectLocation,
+    runId: number,
+    ghAccount?: GitHubAccountRef,
+  ): Promise<void> {
     try {
-      await this.runGh(location, ["run", "cancel", String(runId)]);
+      await this.runActions(location, ghAccount, (options) =>
+        this.runGh(location, ["run", "cancel", String(runId)], options),
+      );
     } catch (err) {
       throw classifyError(err, "run cancel");
     }
   }
 
-  async deleteWorkflowRun(location: ProjectLocation, runId: number): Promise<void> {
+  async deleteWorkflowRun(
+    location: ProjectLocation,
+    runId: number,
+    ghAccount?: GitHubAccountRef,
+  ): Promise<void> {
     try {
-      await this.runGh(location, ["run", "delete", String(runId)]);
+      await this.runActions(location, ghAccount, (options) =>
+        this.runGh(location, ["run", "delete", String(runId)], options),
+      );
     } catch (err) {
       throw classifyError(err, "run delete");
     }

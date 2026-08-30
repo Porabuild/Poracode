@@ -10,6 +10,10 @@
 const messages = {
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
+  "github.accountUnavailable":
+    'Couldn\'t access the GitHub account "{login}". Run "gh auth login" and try again.',
+  "github.accountHostMismatch":
+    'The GitHub account "{login}" belongs to {host}, which does not match this project\'s GitHub remote.',
 
   // ── Git: branch / switch ──────────────────────────────────
   "git.switch.dirtyWorktree": "Cannot switch branches — commit or stash your changes first",
@@ -119,6 +123,10 @@ const messages = {
   "supervisor.notRunning": "Background process is not running",
   "supervisor.proposedPlan": "Proposed plan",
 
+  // ── ACP ───────────────────────────────────────────────────
+  "acp.authenticationUnverified":
+    "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
+
   // ── Kimi Code ─────────────────────────────────────────────
   "kimi.credentialsLocked":
     "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",
@@ -148,6 +156,8 @@ const messages = {
   "remote.project.runningThreads": "Stop the project's running threads before changing its folder.",
   "remote.project.experimentsOwned":
     "Remove the project's experiments before removing the project.",
+  "remote.worktree.threadsChanged":
+    "The threads linked to this worktree changed. Refresh and try again.",
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
@@ -223,12 +233,19 @@ export function errorDetail(err: unknown): string {
  */
 const pullDirtyWorktreePattern =
   /(?:\bgit\s+pull\b[\s\S]*(?:local changes|unstaged changes|would be overwritten)|cannot pull\b[\s\S]*(?:changes|stash)|local changes[\s\S]*(?:before|during)[\s\S]*(?:merge|pull)|please commit or stash[\s\S]*(?:merge|pull))/i;
+const acpAuthenticationUnverifiedPattern =
+  /^(.+) reported authentication success, but Poracode could not verify it\. Configure \1 directly, then try again\.$/;
 
 const errorPatterns: Array<{
   test: RegExp;
   key: MessageKey;
   params?: (raw: string) => Record<string, string>;
 }> = [
+  {
+    test: acpAuthenticationUnverifiedPattern,
+    key: "acp.authenticationUnverified",
+    params: (raw) => ({ agent: raw.slice(0, raw.indexOf(" reported authentication success")) }),
+  },
   {
     test: pullDirtyWorktreePattern,
     key: "git.pull.localChanges",
@@ -300,6 +317,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   project_not_found: "remote.project.notFound",
   project_has_running_threads: "remote.project.runningThreads",
   experiment_owned: "remote.project.experimentsOwned",
+  worktree_threads_changed: "remote.worktree.threadsChanged",
 };
 
 function remoteErrorMessageKey(error: unknown): MessageKey | undefined {

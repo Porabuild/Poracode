@@ -45,7 +45,7 @@ class RemoteIntegrationsControllerTest {
     }
 
     private fun lease(generation: Long) = IntegrationHostLease(
-        ClientConnectionId("11111111-1111-4111-8111-111111111111"), generation, 3,
+        ClientConnectionId("11111111-1111-4111-8111-111111111111"), generation, 8,
         setOf("session:read", "session:operate", "projects:manage"), true, true,
     )
 

@@ -12,6 +12,13 @@ import { i18n } from "./i18n";
  */
 const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "git.commandFailed": msg({ message: "Git {command} failed: {detail}" }),
+  "github.accountUnavailable": msg({
+    message: 'Couldn\'t access the GitHub account "{login}". Run "gh auth login" and try again.',
+  }),
+  "github.accountHostMismatch": msg({
+    message:
+      'The GitHub account "{login}" belongs to {host}, which does not match this project\'s GitHub remote.',
+  }),
   "git.switch.dirtyWorktree": msg({
     message: "Cannot switch branches — commit or stash your changes first",
   }),
@@ -175,6 +182,10 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
   "supervisor.proposedPlan": msg({ message: "Proposed plan" }),
+  "acp.authenticationUnverified": msg({
+    message:
+      "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
+  }),
   "kimi.credentialsLocked": msg({
     message:
       "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",
@@ -224,6 +235,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "remote.project.experimentsOwned": msg({
     message: "Remove the project's experiments before removing the project.",
+  }),
+  "remote.worktree.threadsChanged": msg({
+    message: "The threads linked to this worktree changed. Refresh and try again.",
   }),
   "remote.session.expired": msg({
     message: "Pairing expired — pair again to reconnect.",

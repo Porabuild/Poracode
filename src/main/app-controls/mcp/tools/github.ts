@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ProjectLocation } from "@/shared/contracts";
+import { branchNameFromRemoteRef } from "@/shared/gitUtils";
 import {
   capDiff,
   projectIdProp,
@@ -185,11 +186,19 @@ export const githubTools: ToolDomain = {
       // PR is from a worktree, infer it from the worktree's source branch.
       let resolvedBase = baseBranch;
       if (!resolvedBase && worktreePath) {
-        const { sourceBranch } = await ctx.supervisor.gitGetWorktreeSourceBranch({
-          projectLocation: project.location,
-          branch,
-        });
-        resolvedBase = sourceBranch ?? undefined;
+        const [{ sourceBranch }, branches] = await Promise.all([
+          ctx.supervisor.gitGetWorktreeSourceBranch({
+            projectLocation: project.location,
+            branch,
+          }),
+          ctx.supervisor.gitListBranches({
+            projectLocation: project.location,
+            includeRemote: true,
+          }),
+        ]);
+        resolvedBase = sourceBranch
+          ? branchNameFromRemoteRef(sourceBranch, branches.branches)
+          : undefined;
       }
       if (!resolvedBase) {
         throw new Error(

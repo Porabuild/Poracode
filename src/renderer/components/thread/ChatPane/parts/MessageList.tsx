@@ -20,6 +20,7 @@ import type {
   ThreadConfig,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { threadMentionLabel } from "@/shared/promptContent";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
@@ -89,6 +90,7 @@ interface MessageListProps {
   onPointerDownCapture?: PointerEventHandler<HTMLDivElement>;
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
   onStartReached?: () => void;
+  drawDistance?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
    * late provider events cannot append onto a truncated timeline.
@@ -144,6 +146,7 @@ export function MessageList({
   onPointerDownCapture,
   onKeyDownCapture,
   onStartReached,
+  drawDistance,
   canRevertCheckpoints = true,
   checkpointGuard,
   checkpointActions,
@@ -365,7 +368,7 @@ export function MessageList({
         outcome: providerRollbackSucceeded ? "complete" : "local_only",
         rollback_turn_count: rollbackTurns,
       });
-      parentActions?.onContentHeightChange();
+      parentActions?.onContentHeightChange?.();
     },
     [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
   );
@@ -442,6 +445,7 @@ export function MessageList({
         }}
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
+        {...(drawDistance !== undefined ? { drawDistance } : {})}
         {...(onStartReached ? { onStartReached, onStartReachedThreshold: 0.75 } : {})}
         recycleItems={false}
         renderItem={({ item: entry, index }) => (
@@ -753,7 +757,9 @@ function getTimelineEntryType(
           ? block.text.length
           : block.kind === "skill"
             ? block.invocation.length
-            : 0),
+            : block.kind === "thread"
+              ? threadMentionLabel(block).length + 1
+              : 0),
       0,
     ) ?? 0;
   const textLength = growingStreamLength(item) + payloadTextLength;
@@ -806,6 +812,7 @@ function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean
     case "assistant_message":
     case "plan":
     case "question_answer":
+    case "provider_handoff":
     case "error":
       return true;
     default:

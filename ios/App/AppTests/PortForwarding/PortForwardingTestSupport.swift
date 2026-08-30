@@ -31,7 +31,7 @@ enum PortForwardingTestValues {
   ) -> PortForwardingHostAccess {
     PortForwardingHostAccess(
       lease: lease,
-      protocolVersion: 3,
+      protocolVersion: 8,
       isOnline: online,
       isReady: ready,
       isForeground: foreground,

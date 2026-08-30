@@ -12,9 +12,14 @@ import {
 } from "./detection";
 import { createFactoryAdapter } from "./index";
 
+const probeAcpCapabilitiesMock = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<undefined>>(),
+);
+
 vi.mock("../acp", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../acp")>()),
   createAcpStructuredSession: vi.fn<() => undefined>(() => undefined),
+  probeAcpCapabilities: probeAcpCapabilitiesMock,
 }));
 
 describe("Factory Droid detection", () => {
@@ -27,7 +32,7 @@ describe("Factory Droid detection", () => {
         builtIn: { binary: "droid", args: ["update"] },
         npm: "droid",
       },
-      probeEnv: FACTORY_DISABLE_AUTO_UPDATE_ENV,
+      baseSpawnEnv: FACTORY_DISABLE_AUTO_UPDATE_ENV,
     });
     expect(factoryDetectionSpec.capabilities).toMatchObject({
       liveInputMode: "server",
@@ -48,6 +53,30 @@ describe("Factory Droid detection", () => {
       cwd: "C:\\repo",
       env: expect.objectContaining(FACTORY_DISABLE_AUTO_UPDATE_ENV),
     });
+  });
+
+  it("forwards the shared probe-env merge into the ACP capabilities probe spawn", async () => {
+    probeAcpCapabilitiesMock.mockReset();
+    probeAcpCapabilitiesMock.mockResolvedValue(undefined);
+
+    const probeEnv = { ...FACTORY_DISABLE_AUTO_UPDATE_ENV, PROBE_ONLY: "1" };
+    await factoryDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "windows", path: "C:\\repo" },
+      executablePath: "C:\\bin\\droid.exe",
+      // What detectAgentInstall passes: mergeSpawnEnv(baseSpawnEnv, probeEnv).
+      probeEnv,
+    });
+
+    // The probe lane honors the single declaration point via ctx.probeEnv
+    // instead of hardcoding the constant.
+    expect(probeAcpCapabilitiesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        env: expect.objectContaining(probeEnv),
+      }),
+    );
   });
 
   it("keeps the Factory token rate compact while retaining the full tooltip", () => {
@@ -137,7 +166,6 @@ describe("Factory Droid adapter", () => {
     ).toEqual({
       command: "droid",
       args: ["exec", "--output-format", "text", "--model", "model-a", "--reasoning-effort", "high"],
-      env: FACTORY_DISABLE_AUTO_UPDATE_ENV,
     });
   });
 
@@ -148,10 +176,11 @@ describe("Factory Droid adapter", () => {
     ).toEqual({
       binary: "droid",
       args: [...FACTORY_ACP_ARGS],
-      env: FACTORY_DISABLE_AUTO_UPDATE_ENV,
     });
-    const authCommand = await adapter.buildAcpAuthCommand?.();
-    expect(authCommand?.env).toEqual(expect.objectContaining(FACTORY_DISABLE_AUTO_UPDATE_ENV));
+    // The updater opt-out is no longer repeated on the argv: shared runtime
+    // applies `baseSpawnEnv` at the ACP session/auth lanes (see
+    // baseSpawnEnv.test.ts), so the adapter declares it exactly once.
+    expect(adapter.baseSpawnEnv).toEqual(FACTORY_DISABLE_AUTO_UPDATE_ENV);
   });
 
   it("declares HTTP MCP support Droid never advertises so built-in servers reach it", async () => {

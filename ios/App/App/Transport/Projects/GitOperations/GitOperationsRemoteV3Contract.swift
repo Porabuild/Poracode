@@ -2,7 +2,7 @@ import Foundation
 
 /// The sole bridge between stable GitOperations models and generated remote-v3 symbols.
 enum GitOperationsRemoteV3Contract {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
   static let procedurePath = "/api/git/call"
 
   static func metadata(for procedure: GitOperationProcedure) -> GitOperationMetadata {

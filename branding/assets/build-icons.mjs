@@ -26,13 +26,23 @@ async function macPng(svg, size) {
     .toBuffer();
 }
 
-async function trayPng(svg, size, accent) {
+// Tray glyph colors follow the brand tokens (BRAND.md §6): moon P on dark
+// shells, ink P on light shells. Ice is too faint against a light taskbar, so
+// the nightly accent deepens for the ink variant.
+const TRAY_VARIANTS = [
+  { name: "tray-icon", glyph: "#EAF0FB", accent: "#8B7BFF" },
+  { name: "tray-icon-dark", glyph: "#0E0E14", accent: "#8B7BFF" },
+  { name: "tray-icon-nightly", glyph: "#EAF0FB", accent: "#5EE6E0" },
+  { name: "tray-icon-nightly-dark", glyph: "#0E0E14", accent: "#0E9C97" },
+];
+
+async function trayPng(svg, size, { glyph, accent }) {
   const source = (await readFile(svg, "utf8"))
     .replace(
       'viewBox="0 0 1024 1024" width="1024" height="1024"',
       'viewBox="256 254 522 522" width="522" height="522"',
     )
-    .replace('fill="currentColor"', 'fill="#EAF0FB"')
+    .replace('fill="currentColor"', `fill="${glyph}"`)
     .replace("#8B7BFF", accent);
   return sharp(Buffer.from(source), { density: 512 })
     .resize(size, size, { fit: "contain" })
@@ -130,12 +140,23 @@ async function buildVariant(name, svg, dir) {
   console.log(`  ✓ ${name}: png ladder + .ico + .icns`);
 }
 
-async function buildTrayVariant(name, svg, dir, accent) {
+async function buildTrayVariant(name, svg, dir, colors) {
   const frames = await Promise.all(
-    [16, 20, 24, 32].map(async (size) => ({ size, buf: await trayPng(svg, size, accent) })),
+    [16, 20, 24, 32].map(async (size) => ({ size, buf: await trayPng(svg, size, colors) })),
   );
   await writeFile(`${dir}/${name}.ico`, buildIco(frames));
   console.log(`  ✓ ${name}: 16/20/24/32px .ico`);
+}
+
+// Windows draws the tray glyph directly on the (theme-colored) taskbar with no
+// template-image support, so each channel ships two glyph colors: the default
+// moon glyph for dark shells and the `-dark` ink variant for light ones.
+async function buildTrayIcons(dir) {
+  const svg = `${HERE}poracode-glyph.svg`;
+  for (const variant of TRAY_VARIANTS) {
+    await buildTrayVariant(variant.name, svg, dir, variant);
+  }
+  await buildTrayMacTemplate(svg, dir);
 }
 
 // One PWA icon set per release channel. Stable and nightly are installed side
@@ -185,8 +206,9 @@ async function buildTrayMacTemplate(svg, dir) {
 
 // Optional section filter (`node build-icons.mjs pwa`). The `build` section
 // shells out to macOS `iconutil` for .icns, so contributors on other hosts can
-// still regenerate the `website` and `pwa` sections on their own.
-const SECTIONS = ["build", "website", "pwa"];
+// still regenerate the `tray`, `website`, and `pwa` sections on their own.
+// `tray` writes into out/build/ additively (no iconutil needed).
+const SECTIONS = ["build", "tray", "website", "pwa"];
 const only = process.argv[2];
 if (only && !SECTIONS.includes(only)) {
   console.error(`unknown section "${only}"; expected one of ${SECTIONS.join(", ")}`);
@@ -203,14 +225,12 @@ async function main() {
     console.log("build/ (app icons):");
     await buildVariant("icon", `${HERE}poracode-icon.svg`, `${OUT}/build`);
     await buildVariant("icon-nightly", `${HERE}poracode-icon-nightly.svg`, `${OUT}/build`);
-    await buildTrayVariant("tray-icon", `${HERE}poracode-glyph.svg`, `${OUT}/build`, "#8B7BFF");
-    await buildTrayVariant(
-      "tray-icon-nightly",
-      `${HERE}poracode-glyph.svg`,
-      `${OUT}/build`,
-      "#5EE6E0",
-    );
-    await buildTrayMacTemplate(`${HERE}poracode-glyph.svg`, `${OUT}/build`);
+    await buildTrayIcons(`${OUT}/build`);
+  }
+
+  if (wants("tray")) {
+    console.log("build/ (tray icons):");
+    await buildTrayIcons(`${OUT}/build`);
   }
 
   if (wants("website")) {

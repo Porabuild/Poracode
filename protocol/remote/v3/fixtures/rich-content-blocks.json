@@ -13,6 +13,14 @@
     },
     { "id": "mcp", "block": { "kind": "mcp", "name": "github" } },
     {
+      "id": "thread",
+      "block": {
+        "kind": "thread",
+        "threadId": "thread-related",
+        "title": "Related investigation"
+      }
+    },
+    {
       "id": "diff-comment",
       "block": {
         "kind": "diff_comment",

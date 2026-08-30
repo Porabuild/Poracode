@@ -47,11 +47,39 @@ describe("shared message i18n integration", () => {
     expect(translated).not.toContain("{cleanup}");
   });
 
+  it("keeps GitHub account error placeholders aligned with each message", async () => {
+    await dynamicActivate("es");
+    const unavailable = msg("github.accountUnavailable", { login: "octocat" });
+    expect(unavailable).toContain("octocat");
+    expect(unavailable).toContain("gh auth login");
+    expect(unavailable).not.toContain("{host}");
+
+    const mismatch = msg("github.accountHostMismatch", {
+      login: "octocat",
+      host: "ghe.example.com",
+    });
+    expect(mismatch).toContain("octocat");
+    expect(mismatch).toContain("ghe.example.com");
+  });
+
   it("translates pattern-matched friendly errors", async () => {
     await dynamicActivate("es");
     const summary = friendlyError(new Error("CONFLICT (content): Merge conflict in src/x.ts"));
     expect(summary).not.toBe("Merge has conflicts");
     expect(summary.length).toBeGreaterThan(0);
+  });
+
+  it("translates wrapped ACP authentication verification errors", async () => {
+    await dynamicActivate("es");
+    const summary = friendlyError(
+      new Error(
+        "Error invoking remote method 'poracode:authenticate-acp-agent': Error: My ACP reported authentication success, but Poracode could not verify it. Configure My ACP directly, then try again.",
+      ),
+    );
+
+    expect(summary).toBe(
+      "My ACP informó que la autenticación se realizó correctamente, pero Poracode no pudo verificarla. Configura My ACP directamente y vuelve a intentarlo.",
+    );
   });
 
   it("translates main-process SSH manifest errors and preserves their path", async () => {

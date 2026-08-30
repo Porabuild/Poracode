@@ -99,6 +99,7 @@ const ALLOWED_PROPERTY_KEYS = new Set([
   "text_segment_count",
   "thinking",
   "thread_count",
+  "thread_segment_count",
   "view_kind",
   "winner_source",
   "work_mode",

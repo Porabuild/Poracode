@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import {
   dbDeleteThread,
   dbGetProject,
@@ -18,7 +17,11 @@ import {
 } from "@/main/app-controls";
 import type { AppControlsMcpIngressDeps } from "@/main/app-controls/AppControlsMcpIngress";
 import { createGitStateExecutor, GitStateService } from "@/main/gitState";
-import { createDevicePrWatchService, type PrWatchService } from "@/main/prWatch";
+import {
+  buildPrWatchExecutionDeps,
+  createDevicePrWatchService,
+  type PrWatchService,
+} from "@/main/prWatch";
 import {
   createDeviceScheduleService,
   ensureHomeProjectRow,
@@ -123,7 +126,10 @@ export class BackendDurableServices {
         const status = dbGetThread(threadId)?.status;
         return status !== undefined && isThreadTurnActive(status);
       },
-      worktreeExists: existsSync,
+      ...buildPrWatchExecutionDeps({
+        call: (name, payload) => supervisor.call(name, payload),
+        getSharedSettings: options.getSharedSettings,
+      }),
     });
     this.appControls = new AppControlsMcpIngress({
       scheduleService: this.scheduleService,

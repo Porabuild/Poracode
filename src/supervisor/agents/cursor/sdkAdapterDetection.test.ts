@@ -8,7 +8,13 @@ const mocks = vi.hoisted(() => ({
   detectAgentInstall:
     vi.fn<(ctx: AgentEnvContext | undefined, spec: DetectionSpec) => Promise<AgentStatus>>(),
   probeCursorSdkRuntime:
-    vi.fn<(ctx: AgentEnvContext | undefined) => Promise<CursorSdkRuntimeProbe>>(),
+    vi.fn<
+      (
+        ctx: AgentEnvContext | undefined,
+        dependencies?: unknown,
+        explicitApiKey?: string,
+      ) => Promise<CursorSdkRuntimeProbe>
+    >(),
   applyCursorSdkProbe:
     vi.fn<
       (
@@ -38,7 +44,7 @@ vi.mock("../base/processRuntime", async (importActual) => {
   return { ...actual, resolveWslShellPath: () => "/bin/bash" };
 });
 
-import { createCursorAdapter } from "./index";
+import { createCursorAdapter, createCursorProfileAdapter } from "./index";
 
 const cliStatus: AgentStatus = {
   kind: "cursor",
@@ -104,6 +110,38 @@ describe("Cursor adapter SDK detection selection", () => {
       expect.objectContaining({ models: [{ id: "sdk-model", displayName: "SDK Model" }] }),
       "acp",
     );
+  });
+
+  it("probes a profile through the SDK only and never runs cursor-agent", async () => {
+    mocks.applyCursorSdkProbe.mockImplementation((status, probe) => ({
+      ...status,
+      installed: probe.installed,
+      authState: probe.authState,
+    }));
+    const adapter = createCursorProfileAdapter({
+      id: "work",
+      driver: "cursor",
+      environment: { CURSOR_API_KEY: { value: "profile-key", sensitive: true } },
+    });
+
+    const result = await adapter.detectInstall({ envKind: "posix" });
+
+    expect(mocks.detectAgentInstall).not.toHaveBeenCalled();
+    expect(mocks.probeCursorSdkRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ envKind: "posix" }),
+      {},
+      "profile-key",
+    );
+    expect(mocks.applyCursorSdkProbe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "cursor:work",
+        installed: false,
+        capabilities: expect.objectContaining({ presentationModes: ["gui"] }),
+      }),
+      expect.objectContaining({ models: [{ id: "sdk-model", displayName: "SDK Model" }] }),
+      "sdk",
+    );
+    expect(result.authState).toBe("authenticated");
   });
 
   it("keeps process-wide routing immutable across divergent environment probes", async () => {

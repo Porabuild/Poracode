@@ -188,7 +188,7 @@ val verifyRemoteV3NativeBindings = tasks.register("verifyRemoteV3NativeBindings"
                 "Incompatible remote-v3 $name: expected $expected, found $actual"
             }
         }
-        version("protocolVersion", 3)
+        version("protocolVersion", 8)
         version("bindingFormatVersion", 2)
         version("generatorVersion", 3)
         version("formatVersion", 1)

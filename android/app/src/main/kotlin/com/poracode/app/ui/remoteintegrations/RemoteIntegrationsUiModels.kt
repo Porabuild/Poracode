@@ -21,7 +21,7 @@ data class RemoteIntegrationsAccess(
 ) {
     companion object {
         fun from(lease: IntegrationHostLease?): RemoteIntegrationsAccess {
-            val compatible = lease?.protocolVersion == 3
+            val compatible = lease?.protocolVersion == 8
             val ready = lease?.ready == true
             val online = lease?.online == true
             fun scope(value: String) = compatible && ready && online && value in lease!!.scopes

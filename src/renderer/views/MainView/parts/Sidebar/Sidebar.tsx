@@ -50,6 +50,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useProjectIdsHiddenByWorkspace,
   useWorkspaceProjectIds,
+  useWorkspaceThreadFilter,
 } from "@/renderer/state/workspaceSelectors";
 import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
 import { SidebarFooterNav } from "./parts/SidebarFooterNav";
@@ -141,6 +142,7 @@ function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string
 function CollapsedThreadRail() {
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const showProjectName = usePanelStore((s) => s.threadListLayout === "flat");
+  const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
   const projects = useAppStore((s) => s.projects);
   const projectsById = new Map(projects.map((project) => [project.id, project]));
   const activeThreads = useAppStore(
@@ -150,7 +152,8 @@ function CollapsedThreadRail() {
           thread.status !== "inactive" &&
           !thread.done &&
           !thread.archived &&
-          (homeScopeEnabled || !isHomeProjectId(thread.projectId)),
+          (homeScopeEnabled || !isHomeProjectId(thread.projectId)) &&
+          isThreadInActiveWorkspace(thread),
       ),
     ),
   );

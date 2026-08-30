@@ -36,10 +36,21 @@ describe("database migration registry", () => {
       [29, "project workspace"],
       [30, "repair empty thread models"],
       [31, "project worktree location"],
-      [32, "main-created thread ownership"],
-      [33, "terminal scrollback"],
+      [32, "pr watch blocked reason"],
+      [33, "project GitHub account"],
+      [34, "projects.icon"],
+      [35, "threads.archived_at"],
+      [36, "runtime item stream chunks"],
+      [37, "threads.workspace_id"],
+      [38, "runtime item parent index"],
+      [39, "adopt Antigravity ACP provider"],
+      [40, "normalize Antigravity ACP model variants"],
+      [41, "repair Antigravity persisted model variants"],
+      [42, "main-created thread ownership"],
+      [43, "terminal scrollback"],
+      [44, "repair divergent schema 32 and 33"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(33);
+    expect(LATEST_SCHEMA_VERSION).toBe(44);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

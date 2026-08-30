@@ -27,12 +27,13 @@ export function isSteerDrainableStatus(status: ThreadStatus): boolean {
  * can paint/clear the steer strip. */
 function emitPendingSteer(session: SessionRuntime, emit: (event: SupervisorEvent) => void): void {
   const slot = session.pendingSteer;
+  const segments = slot?.displaySegments ?? slot?.segments;
   const pending: PendingSteerState | null = slot
     ? {
         id: slot.id,
         prompt: slot.prompt,
         stagedAt: slot.stagedAt,
-        ...(slot.segments ? { segments: slot.segments } : {}),
+        ...(segments ? { segments } : {}),
       }
     : null;
   emit({
@@ -59,6 +60,13 @@ export interface SteerCoordinatorContext {
   sessions: Map<string, SessionRuntime>;
   interruptStructuredTurn(session: SessionRuntime): Promise<void>;
   startStructuredTurn(session: SessionRuntime, turn: QueuedStructuredTurn): void;
+  emitOptimisticUserMessage(
+    threadId: string,
+    prompt: string,
+    segments?: PromptSegment[],
+    requestedItemId?: string,
+    options?: { includeTurn?: boolean },
+  ): string;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   /** Portable-skills fallback for a steer turn (see managerOptions). */
   resolveSkillTurnInjection(
@@ -174,6 +182,7 @@ export class SteerCoordinator {
       prompt: slot.prompt,
       config: slot.config,
       ...(slot.segments ? { segments: slot.segments } : {}),
+      ...(slot.displaySegments ? { displaySegments: slot.displaySegments } : {}),
       ...(slot.userMessageItemId ? { userMessageItemId: slot.userMessageItemId } : {}),
       ...(slot.inlineInstructions ? { inlineInstructions: slot.inlineInstructions } : {}),
     };
@@ -185,7 +194,10 @@ export class SteerCoordinator {
    * renderer calls this when submit-while-working happens on a GUI thread.
    * Drain is automatic on cancelled-stopReason via {@link maybeDrainPendingSteer}.
    */
-  async setPendingSteer(session: SessionRuntime, payload: SetPendingSteerPayload): Promise<void> {
+  async setPendingSteer(
+    session: SessionRuntime,
+    payload: SetPendingSteerPayload & { displaySegments?: PromptSegment[] },
+  ): Promise<void> {
     if (session.presentationMode !== "gui") {
       throw new Error("Pending steer is only supported for GUI-presentation threads.");
     }
@@ -210,6 +222,7 @@ export class SteerCoordinator {
       prompt,
       config: payload.config,
       ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+      ...(payload.displaySegments ? { displaySegments: payload.displaySegments } : {}),
       ...(inlineInstructions ? { inlineInstructions } : {}),
     };
     // Capability-based: non-interrupting steer enqueues onto the running turn
@@ -236,16 +249,26 @@ export class SteerCoordinator {
    * Steer an in-flight turn via the session's `steerTurn` capability: enqueue
    * the user message onto the running turn without interrupting it (no
    * subagents killed, no error result, no pending-steer/watchdog dance). The
-   * session emits its own optimistic user_message item, so pass the renderer's
-   * id through when present to keep it deduped. Providers without `steerTurn`
-   * never reach here — callers keep the interrupt-drain path for them.
+   * coordinator emits the user_message item before the provider round-trip so
+   * the original display segments are durable; pass the renderer's id through
+   * when present to keep it deduped. Providers without `steerTurn` never reach
+   * here — callers keep the interrupt-drain path for them.
    */
   steerStructuredTurn(session: SessionRuntime, turn: QueuedStructuredTurn): void {
     const steerTurn = session.structuredSession?.steerTurn;
     if (!steerTurn) return;
+    const hasThreadMention = turn.displaySegments?.some((segment) => segment.kind === "thread");
     const optimisticItemId =
       session.presentationMode === "gui" && turn.prompt.length > 0
-        ? turn.userMessageItemId
+        ? hasThreadMention
+          ? this.ctx.emitOptimisticUserMessage(
+              session.threadId,
+              turn.prompt,
+              turn.displaySegments ?? turn.segments,
+              turn.userMessageItemId,
+              { includeTurn: false },
+            )
+          : turn.userMessageItemId
         : undefined;
     const steerOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),

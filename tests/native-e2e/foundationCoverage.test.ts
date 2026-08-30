@@ -112,6 +112,6 @@ describe("foundation coverage ledger completeness", () => {
     expect(incomplete).toEqual([]);
     expect(snapshot.foundationComplete).toBe(true);
     expect(snapshot.complete).toBe(false);
-    expect(snapshot.keyCount).toBe(206);
+    expect(snapshot.keyCount).toBe(207);
   });
 });

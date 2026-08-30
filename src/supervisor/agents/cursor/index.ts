@@ -1,10 +1,13 @@
-import type { PromptSegment } from "@/shared/contracts";
+import type { AgentInstanceConfig, AgentStatus, PromptSegment } from "@/shared/contracts";
+import { cursorProfileKind } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
+  inheritBaseSpawnEnv,
+  mergeSpawnEnv,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -49,6 +52,25 @@ const CURSOR_PLUGIN_VERSION = readBundledCursorPluginVersion();
 
 warnIfPluginManifestMissing("cursor", CURSOR_PLUGIN_VERSION);
 
+interface CursorAdapterOptions {
+  kind?: string;
+  label?: string;
+  apiKey?: string;
+}
+
+export function createCursorProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const apiKey = instance.environment?.CURSOR_API_KEY?.value.trim();
+  if (!apiKey) {
+    throw new Error("Cursor profiles require a CURSOR_API_KEY.");
+  }
+  const profileLabel = instance.displayName ?? instance.id;
+  return createCursorAdapter({
+    kind: cursorProfileKind(instance.id),
+    label: `Cursor ${profileLabel}`,
+    apiKey,
+  });
+}
+
 /**
  * Hook coverage gap: Cursor's `beforeShellExecution` / `beforeMCPExecution`
  * fire on every command, not only when the user is being prompted for
@@ -58,6 +80,22 @@ warnIfPluginManifestMissing("cursor", CURSOR_PLUGIN_VERSION);
  */
 function cursorHookActiveTerminalFallback(hint: TerminalStatusHint): boolean {
   return hint.status === "needs_approval";
+}
+
+function cursorProfileCliStub(kind: string, label: string): AgentStatus {
+  return {
+    kind,
+    label,
+    installed: false,
+    authState: "unknown",
+    capabilities: {
+      ...cursorDefaultCapabilities,
+      presentationMode: "gui",
+      presentationModes: ["gui"],
+      liveInputMode: "server",
+      supportsOneShot: false,
+    },
+  };
 }
 
 /**
@@ -72,22 +110,27 @@ export function rewriteCursorLoadSessionError(error: unknown, _sessionId: string
   return Object.assign(new Error(message), { cause: error });
 }
 
-export function createCursorAdapter(): AgentAdapter {
+export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAdapter {
+  const kind = options.kind ?? cursorDetectionSpec.kind;
+  const label = options.label ?? cursorDetectionSpec.label;
+  const isProfile = Boolean(options.apiKey);
+  const detectionSpec = isProfile ? { ...cursorDetectionSpec, kind, label } : cursorDetectionSpec;
+  const profileKeyEnv = options.apiKey ? { CURSOR_API_KEY: options.apiKey } : undefined;
   return {
-    kind: cursorDetectionSpec.kind,
-    label: cursorDetectionSpec.label,
-    binary: cursorDetectionSpec.binary,
+    kind,
+    label,
+    binary: detectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "cursor",
-          label: cursorDetectionSpec.label,
+          label,
           globalPath: ".cursor/skills",
           projectPath: ".cursor/skills",
         },
         {
           id: "cursor-legacy",
-          label: cursorDetectionSpec.label,
+          label,
           globalPath: ".cursor/skills-cursor",
         },
         {
@@ -119,12 +162,21 @@ export function createCursorAdapter(): AgentAdapter {
         project: ["cursor", "agents", "claude", "codex"],
       },
     },
-    ...(cursorDetectionSpec.update ? { update: cursorDetectionSpec.update } : {}),
+    ...(isProfile || !detectionSpec.update ? {} : { update: detectionSpec.update }),
+    ...inheritBaseSpawnEnv(detectionSpec),
     // Detection returns environment-scoped capabilities through AgentStatus.
     // Keep the adapter's process-wide fallback immutable: native and WSL
     // probes run concurrently, and a mutable singleton lets the last probe
     // change routing for every other environment.
-    capabilities: cursorDefaultCapabilities,
+    capabilities: isProfile
+      ? {
+          ...cursorDefaultCapabilities,
+          presentationMode: "gui",
+          presentationModes: ["gui"],
+          liveInputMode: "server",
+          supportsOneShot: false,
+        }
+      : cursorDefaultCapabilities,
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
     pluginId: "poracode-status@cursor",
     pluginVersion: CURSOR_PLUGIN_VERSION,
@@ -148,12 +200,19 @@ export function createCursorAdapter(): AgentAdapter {
     },
 
     detectInstall: async (ctx) => {
-      const [cliStatus, sdkProbe] = await Promise.all([
-        detectAgentInstall(ctx, cursorDetectionSpec),
+      // Cursor CLI stores one machine-wide login. Profiles are a second
+      // account via User API key, so they never probe or spawn `cursor-agent`
+      // — that would share (or overwrite) the main tile's CLI/ACP session.
+      if (options.apiKey) {
+        const sdkProbe = await probeCursorSdkRuntime(ctx, {}, options.apiKey);
+        return applyCursorSdkProbe(cursorProfileCliStub(kind, label), sdkProbe, "sdk");
+      }
+      const [detectedCliStatus, sdkProbe] = await Promise.all([
+        detectAgentInstall(ctx, detectionSpec),
         probeCursorSdkRuntime(ctx),
       ]);
       return applyCursorSdkProbe(
-        cliStatus,
+        detectedCliStatus,
         sdkProbe,
         configuredCursorStructuredRuntime(ctx?.agentSettings),
       );
@@ -178,14 +237,28 @@ export function createCursorAdapter(): AgentAdapter {
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       if (input.presentationMode === "gui") {
-        const resolved = resolveCursorStructuredRuntime(input.agentSettings, input.sessionRef);
+        const agentSettings = options.apiKey
+          ? {
+              ...input.agentSettings,
+              sdkApiKey: options.apiKey,
+              ...(input.sessionRef ? {} : { structuredRuntime: "sdk" as const }),
+            }
+          : input.agentSettings;
+        const resolved = resolveCursorStructuredRuntime(agentSettings, input.sessionRef);
         if (resolved.runtime === "sdk") {
-          return CursorSdkSession.create(input);
+          const env = mergeSpawnEnv(input.env, mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv));
+          return CursorSdkSession.create({
+            ...input,
+            ...(agentSettings ? { agentSettings } : {}),
+            ...(env ? { env } : {}),
+          });
         }
       }
       const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);
+      const acpEnv = mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv);
       return createAcpStructuredSession(command, {
         ...input,
+        ...(acpEnv ? { baseSpawnEnv: acpEnv } : {}),
         loadSessionErrorRewriter: rewriteCursorLoadSessionError,
         acpSessionUpdateTransform: transformCursorAcpSessionUpdate,
         acpExtensionNotificationHandler: handleCursorAcpExtensionNotification,

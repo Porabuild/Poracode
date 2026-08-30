@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 3,
+  "protocolVersion": 8,
   "hostMode": "desktop",
   "desktopId": "desktop-fixture-cursor-sync",
   "label": "Cursor Sync Fixture",

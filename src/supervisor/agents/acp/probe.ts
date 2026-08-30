@@ -21,8 +21,13 @@ import {
   type SessionMode,
 } from "@agentclientprotocol/sdk";
 import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contracts";
+import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { findThoughtLevelConfigOption } from "./thoughtLevel";
+import {
+  findThoughtLevelConfigOption,
+  isToggleOnlyThoughtLevelConfig,
+  resolveThoughtLevelToggleValues,
+} from "./thoughtLevel";
 import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 import {
   readUnstableInitializeModels,
@@ -57,12 +62,15 @@ export interface AcpProbeResult {
   authMethods?: AuthMethod[];
   authLogoutSupported?: boolean;
   sessionEstablished?: boolean;
+  supportsResume?: boolean;
   /**
-   * Auth state derived directly from the ACP handshake — `"authenticated"`
+   * Operational auth signal derived from the ACP handshake — `"authenticated"`
    * when `newSession` succeeded, `"missing"` when the agent returned the
-   * `auth_required` JSON-RPC error (code -32000). Left undefined when the
-   * probe couldn't decide (spawn / transport / non-auth errors), so callers
-   * fall back to their own heuristics.
+   * `auth_required` JSON-RPC error (code -32000). ACP does not guarantee that
+   * session setup validates credentials, so callers with advertised auth
+   * methods must not treat the success value as proof of authentication. Left
+   * undefined when the probe couldn't decide (spawn / transport / non-auth
+   * errors), so callers fall back to their own heuristics.
    */
   authState?: AuthState;
   models?: Array<{ id: string; label: string; description?: string; tooltipDescription?: string }>;
@@ -80,6 +88,8 @@ export interface AcpProbeResult {
   modelEfforts?: Record<string, string[]>;
   /** Per-model default thought level, read while the sweep has that model active. */
   modelDefaultEfforts?: Record<string, string>;
+  /** Models whose ACP thought-level selector is a thinking on/off toggle. */
+  thinkingModels?: string[];
   modes?: ThreadMode[];
   approvalPolicies?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
@@ -130,6 +140,7 @@ const INITIAL_SLASH_COMMANDS_TIMEOUT_MS = 2_000;
  * ACP mode ID → Poracode mode + optional approval policy ID.
  *
  * Labels come from the ACP `SessionMode.name` field, not hardcoded here.
+ * They are normalized for display by `humanizeAcpModeName`.
  */
 const MODE_MAP: Record<string, { mode: ThreadMode; approvalPolicyId?: string }> = {
   default: { mode: "agent", approvalPolicyId: "default" },
@@ -149,8 +160,20 @@ export function normalizeAcpModeId(modeId: string): string {
 }
 
 /**
+ * Normalize an ACP-provided mode label for display. Some agents (goose) return
+ * the raw mode id as `SessionMode.name` (`smart_approve`), so swap underscores
+ * for spaces and capitalize the first letter. Labels that already read as prose
+ * pass through unchanged.
+ */
+export function humanizeAcpModeName(name: string): string {
+  const spaced = name.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  if (!spaced) return name.trim();
+  return spaced[0]!.toUpperCase() + spaced.slice(1);
+}
+
+/**
  * Map ACP `SessionMode[]` to Poracode modes and approval policies.
- * Labels are taken from ACP's `SessionMode.name`.
+ * Labels are taken from ACP's `SessionMode.name`, normalized for display.
  */
 export function mapAcpModes(availableModes: SessionMode[]): {
   modes: ThreadMode[];
@@ -164,12 +187,15 @@ export function mapAcpModes(availableModes: SessionMode[]): {
     const mapped = MODE_MAP[normalizedModeId];
     if (!mapped) {
       modes.add("agent");
-      approvalPolicies.push({ id: normalizedModeId, label: acpMode.name });
+      approvalPolicies.push({ id: normalizedModeId, label: humanizeAcpModeName(acpMode.name) });
       continue;
     }
     modes.add(mapped.mode);
     if (mapped.approvalPolicyId) {
-      approvalPolicies.push({ id: mapped.approvalPolicyId, label: acpMode.name });
+      approvalPolicies.push({
+        id: mapped.approvalPolicyId,
+        label: humanizeAcpModeName(acpMode.name),
+      });
     }
   }
 
@@ -296,6 +322,7 @@ function findSelectConfigOption(
 export function mapAcpThoughtLevels(configOptions: unknown): {
   efforts: string[];
   defaultEffort?: string;
+  toggleOnly?: boolean;
 } {
   const option = findThoughtLevelConfigOption(configOptions);
 
@@ -303,9 +330,13 @@ export function mapAcpThoughtLevels(configOptions: unknown): {
     return { efforts: [] };
   }
 
-  const efforts = flattenSelectOptions(option.options)
-    .map((entry) => entry.value)
-    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  // Agents advertise the levels in their own order (qodercli reports
+  // `xhigh, low, medium, none`); present them weakest → strongest instead.
+  const efforts = sortEffortsByCanonicalOrder(
+    flattenSelectOptions(option.options)
+      .map((entry) => entry.value)
+      .filter((value): value is string => typeof value === "string" && value.length > 0),
+  );
 
   const defaultEffort =
     typeof option.currentValue === "string" && option.currentValue.length > 0
@@ -315,6 +346,7 @@ export function mapAcpThoughtLevels(configOptions: unknown): {
   return {
     efforts,
     ...(defaultEffort ? { defaultEffort } : {}),
+    ...(isToggleOnlyThoughtLevelConfig(option) ? { toggleOnly: true } : {}),
   };
 }
 
@@ -328,8 +360,20 @@ function rememberModelThoughtLevels(
   fallbackEfforts: string[],
   modelEfforts: Record<string, string[]>,
   modelDefaultEfforts: Record<string, string>,
+  thinkingModels: string[],
 ): void {
   const thoughtLevels = mapAcpThoughtLevels(configOptions);
+  if (thoughtLevels.toggleOnly) {
+    const thoughtLevelConfig = findThoughtLevelConfigOption(configOptions);
+    if (!resolveThoughtLevelToggleValues(thoughtLevelConfig)) {
+      return;
+    }
+    modelEfforts[modelId] = [];
+    if (!thinkingModels.includes(modelId)) {
+      thinkingModels.push(modelId);
+    }
+    return;
+  }
   // The selector's currentValue while this model is active is its default —
   // record it even when the effort list matches the provider baseline, since
   // models sharing one list can still default to different levels (Kimi's
@@ -385,7 +429,8 @@ function nextConfigOptionsUpdate(
 // ── Probe ────────────────────────────────────────────────────────
 
 /**
- * Spawn an ACP agent, discover its capabilities, then kill it.
+ * Spawn an ACP agent, discover its capabilities, clean up the probe session,
+ * then stop the process.
  *
  * Returns `undefined` on any failure (timeout, missing --acp support,
  * protocol error, etc.).
@@ -416,6 +461,10 @@ export async function probeAcpCapabilities(
   const tag = options?.label ? `[acp-probe:${options.label}]` : "[acp-probe]";
   let child: ReturnType<typeof spawn> | undefined;
   let abortProbe: (() => void) | undefined;
+  let connection: ClientSideConnection | undefined;
+  let probeSessionId: string | undefined;
+  let probeSessionCleanup: "delete" | "close" | undefined;
+  let cleanupReserveMs = 0;
   const ownedProcessGroup = process.platform !== "win32";
   const probeResult: AcpProbeResult = {};
 
@@ -447,17 +496,18 @@ export async function probeAcpCapabilities(
       child!.once("error", markClosed);
       child!.once("exit", markClosed);
     });
+    let resolveProbeAborted: (() => void) | undefined;
+    let probeWasAborted = false;
+    const probeAborted = new Promise<void>((resolve) => {
+      resolveProbeAborted = resolve;
+    });
     abortProbe = () => {
-      try {
-        child?.stdin?.destroy();
-      } catch {
-        // Ignore cleanup races.
-      }
-      if (child) terminateChildProcessTree(child, { ownedProcessGroup });
+      probeWasAborted = true;
+      resolveProbeAborted?.();
     };
     options?.signal?.addEventListener("abort", abortProbe, { once: true });
     if (options?.signal?.aborted) abortProbe();
-    const remainingBudgetMs = () => Math.max(0, deadline - Date.now());
+    const remainingBudgetMs = () => Math.max(0, deadline - Date.now() - cleanupReserveMs);
     const waitForProbeWindow = async (maxMs: number): Promise<void> => {
       const waitMs = Math.min(maxMs, remainingBudgetMs());
       if (waitMs <= 0 || childExited) return;
@@ -468,6 +518,9 @@ export async function probeAcpCapabilities(
             timer = setTimeout(resolve, waitMs);
           }),
           childClosed,
+          probeAborted.then<never>(() => {
+            throw new Error("ACP probe aborted");
+          }),
         ]);
       } finally {
         if (timer) clearTimeout(timer);
@@ -476,6 +529,7 @@ export async function probeAcpCapabilities(
     const runWithinProbeBudget = async <T>(operation: Promise<T>, maxMs?: number): Promise<T> => {
       const budgetMs = Math.min(maxMs ?? Number.POSITIVE_INFINITY, remainingBudgetMs());
       if (budgetMs <= 0) throw new Error("ACP probe timed out");
+      if (probeWasAborted) throw new Error("ACP probe aborted");
       if (childExited) throw new Error("ACP agent exited during capability probe");
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -486,6 +540,9 @@ export async function probeAcpCapabilities(
           }),
           childClosed.then<never>(() => {
             throw new Error("ACP agent exited during capability probe");
+          }),
+          probeAborted.then<never>(() => {
+            throw new Error("ACP probe aborted");
           }),
         ]);
       } finally {
@@ -508,7 +565,7 @@ export async function probeAcpCapabilities(
     const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
     const stream = ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent));
 
-    const connection = new ClientSideConnection(
+    connection = new ClientSideConnection(
       () => ({
         requestPermission: () => Promise.resolve({ outcome: { outcome: "cancelled" as const } }),
         sessionUpdate: (params: SessionNotification) => {
@@ -529,70 +586,84 @@ export async function probeAcpCapabilities(
       stream,
     );
 
-    const result = await runWithinProbeBudget(
-      (async () => {
-        const initResult = await connection.initialize({
-          protocolVersion: PROTOCOL_VERSION,
-          clientInfo: { name: "poracode-probe", version: "0.1.0" },
-          clientCapabilities: { auth: { terminal: true } },
-        });
-        if (initResult.authMethods?.length) {
-          probeResult.authMethods = initResult.authMethods;
-        }
-        if (initResult.agentCapabilities?.auth?.logout !== undefined) {
-          probeResult.authLogoutSupported = true;
-        }
-        if (initResult._meta && typeof initResult._meta === "object") {
-          probeResult.acpMeta = initResult._meta as Record<string, unknown>;
-          initializeModels = readUnstableInitializeModels(initResult._meta);
-        }
-
-        // Non-spec compatibility fallback for agents that still expose
-        // commands during initialize instead of session/update.
-        const rawCommands = (initResult as { commands?: AcpAvailableCommandLike[] }).commands;
-        if (Array.isArray(rawCommands) && rawCommands.length > 0) {
-          latestSlashCommands = mapAcpSlashCommands(rawCommands);
-        }
-
-        const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
-          initResult.authMethods?.some((method) => method.id === id),
-        );
-        if (preferredAuthMethodId) {
-          try {
-            const authResult = (await connection.authenticate({
-              methodId: preferredAuthMethodId,
-            })) as { _meta?: unknown } | undefined;
-            const authMeta = authResult?._meta;
-            if (authMeta && typeof authMeta === "object") {
-              probeResult.acpMeta = {
-                ...(probeResult.acpMeta ?? {}),
-                ...(authMeta as Record<string, unknown>),
-              };
-            }
-          } catch (err) {
-            console.log(
-              "%s authenticate(%s) failed: %s",
-              tag,
-              preferredAuthMethodId,
-              err instanceof Error ? err.message : String(err),
-            );
-          }
-        }
-
-        try {
-          return await connection.newSession({ cwd: sessionCwd, mcpServers: [] });
-        } catch (err) {
-          // ACP's spec-compliant signal that the agent is not signed in.
-          // Propagate it as a distinct authState so the detection layer can
-          // surface "missing" without falling back to env-var / file probes
-          // that don't reflect post-logout state.
-          if (isAcpAuthRequiredError(err)) {
-            probeResult.authState = "missing";
-          }
-          throw err;
-        }
-      })(),
+    const initResult = await runWithinProbeBudget(
+      connection.initialize({
+        protocolVersion: PROTOCOL_VERSION,
+        clientInfo: { name: "poracode-probe", version: "0.1.0" },
+        clientCapabilities: { auth: { terminal: true } },
+      }),
     );
+    if (initResult.authMethods?.length) {
+      probeResult.authMethods = initResult.authMethods;
+    }
+    if (initResult.agentCapabilities?.auth?.logout !== undefined) {
+      probeResult.authLogoutSupported = true;
+    }
+    const sessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
+    probeResult.supportsResume =
+      initResult.agentCapabilities?.loadSession === true || sessionCapabilities?.resume != null;
+    probeSessionCleanup =
+      sessionCapabilities?.delete != null
+        ? "delete"
+        : sessionCapabilities?.close != null
+          ? "close"
+          : undefined;
+    if (probeSessionCleanup) {
+      cleanupReserveMs = Math.min(1_000, Math.floor(timeoutMs / 4));
+    }
+    if (initResult._meta && typeof initResult._meta === "object") {
+      probeResult.acpMeta = initResult._meta as Record<string, unknown>;
+      initializeModels = readUnstableInitializeModels(initResult._meta);
+    }
+
+    // Non-spec compatibility fallback for agents that still expose
+    // commands during initialize instead of session/update.
+    const rawCommands = (initResult as { commands?: AcpAvailableCommandLike[] }).commands;
+    if (Array.isArray(rawCommands) && rawCommands.length > 0) {
+      latestSlashCommands = mapAcpSlashCommands(rawCommands);
+    }
+
+    const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
+      initResult.authMethods?.some((method) => method.id === id),
+    );
+    if (preferredAuthMethodId) {
+      try {
+        const authResult = (await runWithinProbeBudget(
+          connection.authenticate({ methodId: preferredAuthMethodId }),
+        )) as { _meta?: unknown } | undefined;
+        const authMeta = authResult?._meta;
+        if (authMeta && typeof authMeta === "object") {
+          probeResult.acpMeta = {
+            ...(probeResult.acpMeta ?? {}),
+            ...(authMeta as Record<string, unknown>),
+          };
+        }
+      } catch (err) {
+        console.log(
+          "%s authenticate(%s) failed: %s",
+          tag,
+          preferredAuthMethodId,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    let result;
+    try {
+      result = await runWithinProbeBudget(
+        connection.newSession({ cwd: sessionCwd, mcpServers: [] }),
+      );
+    } catch (err) {
+      // ACP's spec-compliant signal that the agent is not signed in.
+      // Propagate it as a distinct authState so the detection layer can
+      // surface "missing" without falling back to env-var / file probes
+      // that don't reflect post-logout state.
+      if (isAcpAuthRequiredError(err)) {
+        probeResult.authState = "missing";
+      }
+      throw err;
+    }
+    probeSessionId = result.sessionId;
     // An available-commands update is a full snapshot. Keep the latest one
     // throughout the grace window because agents may publish built-ins first
     // and append skills after their async discovery completes.
@@ -628,10 +699,10 @@ export async function probeAcpCapabilities(
         probeResult.models = configModels;
       }
       const thoughtLevels = mapAcpThoughtLevels(result.configOptions);
-      if (thoughtLevels.efforts.length > 0) {
+      if (!thoughtLevels.toggleOnly && thoughtLevels.efforts.length > 0) {
         probeResult.efforts = thoughtLevels.efforts;
       }
-      if (thoughtLevels.defaultEffort) {
+      if (!thoughtLevels.toggleOnly && thoughtLevels.defaultEffort) {
         probeResult.defaultEffort = thoughtLevels.defaultEffort;
       }
       const modelConfig = findSelectConfigOption(result.configOptions, "model");
@@ -643,6 +714,7 @@ export async function probeAcpCapabilities(
           typeof modelConfig?.currentValue === "string" ? modelConfig.currentValue : undefined;
         const modelEfforts: Record<string, string[]> = {};
         const modelDefaultEfforts: Record<string, string> = {};
+        const thinkingModels: string[] = [];
         if (currentModel) {
           rememberModelThoughtLevels(
             currentModel,
@@ -650,6 +722,7 @@ export async function probeAcpCapabilities(
             probeResult.efforts ?? [],
             modelEfforts,
             modelDefaultEfforts,
+            thinkingModels,
           );
         }
         const modelIds = probeResult.models
@@ -697,7 +770,7 @@ export async function probeAcpCapabilities(
           // Adopt the first discovered thought-level selector as the baseline.
           if (!probeResult.efforts?.length) {
             const discovered = mapAcpThoughtLevels(configOptions);
-            if (discovered.efforts.length > 0) {
+            if (!discovered.toggleOnly && discovered.efforts.length > 0) {
               probeResult.efforts = discovered.efforts;
               if (discovered.defaultEffort) {
                 probeResult.defaultEffort = discovered.defaultEffort;
@@ -710,6 +783,7 @@ export async function probeAcpCapabilities(
             probeResult.efforts ?? [],
             modelEfforts,
             modelDefaultEfforts,
+            thinkingModels,
           );
         }
         if (Object.keys(modelEfforts).length > 0) {
@@ -717,6 +791,9 @@ export async function probeAcpCapabilities(
         }
         if (Object.keys(modelDefaultEfforts).length > 0) {
           probeResult.modelDefaultEfforts = modelDefaultEfforts;
+        }
+        if (thinkingModels.length > 0) {
+          probeResult.thinkingModels = thinkingModels;
         }
       }
     }
@@ -734,6 +811,41 @@ export async function probeAcpCapabilities(
     return undefined;
   } finally {
     if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
+    const cleanupBudgetMs = Math.max(0, deadline - Date.now());
+    if (
+      connection &&
+      probeSessionId &&
+      probeSessionCleanup &&
+      child &&
+      !child.killed &&
+      cleanupBudgetMs > 0
+    ) {
+      let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const cleanup =
+          probeSessionCleanup === "delete"
+            ? connection.deleteSession({ sessionId: probeSessionId })
+            : connection.closeSession({ sessionId: probeSessionId });
+        await Promise.race([
+          cleanup,
+          new Promise<never>((_, reject) => {
+            cleanupTimer = setTimeout(
+              () => reject(new Error("ACP probe session cleanup timed out")),
+              cleanupBudgetMs,
+            );
+          }),
+        ]);
+      } catch (error) {
+        console.log(
+          "%s session/%s cleanup failed: %s",
+          tag,
+          probeSessionCleanup,
+          error instanceof Error ? error.message : String(error),
+        );
+      } finally {
+        if (cleanupTimer) clearTimeout(cleanupTimer);
+      }
+    }
     if (child && !child.killed) {
       // Destroy stdin before killing to prevent the ACP SDK from writing
       // to a dead pipe (which causes noisy "ACP write error" logs).

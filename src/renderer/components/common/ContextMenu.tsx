@@ -76,7 +76,11 @@ export type ContextMenuEntry = ContextMenuItem | ContextMenuSubmenu | ContextMen
 
 export interface ContextMenuProps {
   items: ContextMenuEntry[];
-  onAction: (key: string) => void;
+  onAction: (
+    key: string,
+    anchorPosition?: { x: number; y: number },
+    returnFocusElement?: HTMLElement,
+  ) => void;
   children: ReactNode;
 }
 
@@ -406,6 +410,7 @@ export function ContextMenuSurface(props: {
 export function ContextMenu(props: ContextMenuProps) {
   const { items, onAction, children } = props;
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [returnFocusElement, setReturnFocusElement] = useState<HTMLElement | null>(null);
 
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
@@ -414,6 +419,7 @@ export function ContextMenu(props: ContextMenuProps) {
     // handles itself).
     closeAllMenus();
     setPosition({ x: e.clientX, y: e.clientY });
+    setReturnFocusElement(e.currentTarget instanceof HTMLElement ? e.currentTarget : null);
   }
 
   const trigger = React.isValidElement<{ onContextMenu?: MouseEventHandler }>(children) ? (
@@ -435,7 +441,7 @@ export function ContextMenu(props: ContextMenuProps) {
       <ContextMenuSurface
         position={position}
         items={items}
-        onAction={onAction}
+        onAction={(key) => onAction(key, position ?? undefined, returnFocusElement ?? undefined)}
         onClose={() => setPosition(null)}
       />
     </>

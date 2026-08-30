@@ -135,4 +135,57 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetThread("thread-remote")).toBeNull();
     expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
   });
+
+  // Rows written before provider switching existed are already on disk with
+  // their original agent_kind. Both upsert paths omitted agent_kind from their
+  // conflict-set, which silently pinned such a row to its first provider.
+  it("moves an existing thread row to its new provider, keeping the transcript", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    persistLaunchUserMessage("thread-remote");
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("claude");
+
+    const switched: Thread = {
+      ...remoteStartedThread(),
+      agentKind: "copilot",
+      config: { model: "gpt-5" },
+    };
+    dbSyncAll([project], [switched], JSON.stringify({ kind: "home" }));
+
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("copilot");
+    expect(dbGetThreadRuntimeItems("thread-remote").map((item) => item.type)).toEqual([
+      "user_message",
+    ]);
+  });
+
+  it("moves an existing thread row to its new provider through dbUpsertThread", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("claude");
+
+    dbUpsertThread({ ...remoteStartedThread(), agentKind: "codex" }, 0);
+
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("codex");
+  });
+
+  it("persists thread workspace tags through a full renderer sync", () => {
+    const tagged: Thread = {
+      ...remoteStartedThread(),
+      id: "thread-tagged",
+      workspaceId: "ws-work",
+    };
+    const untagged: Thread = { ...remoteStartedThread(), id: "thread-untagged" };
+
+    // Insert path: a fresh row carries its tag through the first sync.
+    dbSyncAll([project], [tagged, untagged], JSON.stringify({ kind: "home" }));
+    expect(dbGetThread("thread-tagged")?.workspaceId).toBe("ws-work");
+    expect(dbGetThread("thread-untagged")?.workspaceId).toBeUndefined();
+
+    // Conflict-update path: moving the thread files it under the new workspace…
+    dbSyncAll([project], [{ ...tagged, workspaceId: "ws-side" }, untagged], "{}");
+    expect(dbGetThread("thread-tagged")?.workspaceId).toBe("ws-side");
+
+    // …and un-filing clears the column instead of leaving the old value.
+    const { workspaceId: _dropped, ...unfiled } = tagged;
+    dbSyncAll([project], [unfiled, untagged], "{}");
+    expect(dbGetThread("thread-tagged")?.workspaceId).toBeUndefined();
+  });
 });

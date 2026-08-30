@@ -284,6 +284,7 @@ describe("RemoteDesktopClient", () => {
       lastCheckKey: null,
       activeThreadId: null,
       lastError: null,
+      blockedReason: null,
     } as const;
     const client = new RemoteDesktopClient(
       "https://relay.example.test/s/server-1/",
@@ -322,6 +323,13 @@ describe("RemoteDesktopClient", () => {
     await expect(
       client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
     ).resolves.toBeUndefined();
+    await expect(
+      client.syncPrWatchAgent({
+        projectId: watch.projectId,
+        agentKind: watch.agentKind,
+        config: watch.config,
+      }),
+    ).resolves.toBeUndefined();
 
     expect(requests).toEqual([
       {
@@ -344,7 +352,47 @@ describe("RemoteDesktopClient", () => {
         method: "DELETE",
         body: { projectId: watch.projectId, prNumber: watch.prNumber },
       },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches/agent",
+        method: "POST",
+        body: {
+          projectId: watch.projectId,
+          agentKind: watch.agentKind,
+          config: watch.config,
+        },
+      },
     ]);
+  });
+
+  it("accepts PR automation responses from hosts that predate blocked reasons", async () => {
+    const legacyWatch = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    };
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ watch: legacyWatch }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await expect(
+      client.getPrWatch({ projectId: legacyWatch.projectId, prNumber: legacyWatch.prNumber }),
+    ).resolves.toEqual({ ...legacyWatch, blockedReason: null });
   });
 
   it("requests a tail snapshot and encodes older runtime page cursors", async () => {
@@ -657,13 +705,77 @@ describe("RemoteDesktopClient", () => {
     await expect(client.environment()).rejects.toThrow(/incompatible/i);
   });
 
-  it("rejects a v2 host that cannot synchronize host-owned worktree settings", async () => {
+  it("rejects a v3 host after the project-icon wire change", async () => {
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
-      descriptorResponse(2, ["session:read", "session:operate"]),
+      descriptorResponse(3, ["session:read"]),
     );
 
     await expect(client.environment()).rejects.toMatchObject({
       code: "protocol_version_mismatch",
+    });
+  });
+
+  it("rejects a v5 host whose paged snapshots use the old goal anchor semantics", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(5, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
+  it("rejects a v6 host that predates provider_handoff runtime items", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(6, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
+  it("rejects a v7 host that predates thread prompt segments", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(7, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
+  it("forwards providerSwitch on a thread start so the host records the handoff divider", async () => {
+    let startBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      async (url, init) => {
+        if (new URL(url).pathname !== "/api/threads/start") {
+          return descriptorResponse(PORACODE_REMOTE_PROTOCOL_VERSION, ["session:operate"]);
+        }
+        startBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "windows", path: "C:\\proj" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "Continue",
+      presentationMode: "gui",
+      providerSwitch: { fromAgentKind: "claude" },
+    });
+
+    expect(startBody).toMatchObject({
+      threadId: "thread-1",
+      agentKind: "codex",
+      providerSwitch: { fromAgentKind: "claude" },
     });
   });
 

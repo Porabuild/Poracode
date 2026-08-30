@@ -347,6 +347,10 @@ const remoteBridgeOverrides = {
       nextCursor: snapshot?.runtimeNextCursor ?? null,
     };
   },
+  dbGetLatestThreadGoalItem: async ({ threadId }: { threadId: string }) => {
+    const items = (await readCachedBrowserThreadSnapshot(threadId))?.runtimeItems ?? [];
+    return items.findLast((item) => item.type === "goal") ?? null;
+  },
   dbGetThreadCompletedTurns: async (threadId: string) =>
     (await readCachedBrowserThreadSnapshot(threadId))?.completedTurns ?? [],
   dbGetThreadContextUsage: async (threadId: string) =>

@@ -32,6 +32,9 @@ const { bridge } = vi.hoisted(() => ({
     dbGetThreadCompletedTurns: vi.fn<() => Promise<[]>>().mockResolvedValue([]),
     dbGetThreadContextUsage: vi.fn<() => Promise<null>>().mockResolvedValue(null),
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
+    saveClipboardImage: vi
+      .fn<(input: { threadId: string; data: Uint8Array; extension: string }) => Promise<string>>()
+      .mockResolvedValue("C:\\attachments\\draft-project-1\\image-1.png"),
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     scanSkills: vi.fn<() => Promise<SkillScanResult>>().mockResolvedValue({
       skills: [],
@@ -263,7 +266,7 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/browser");
 
-    expect(screen.getByText("/browser-control")).toBeInTheDocument();
+    expect(screen.getByText("browser-control")).toBeInTheDocument();
     expect(
       screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
     ).toBeInTheDocument();
@@ -466,8 +469,8 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/");
 
     expect(await screen.findByText("Skills")).toBeInTheDocument();
-    expect(screen.getByText("/review-code")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("/review-code"));
+    expect(screen.getByText("review-code")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("review-code"));
     fireEvent.keyDown(editor, { key: "Enter" });
 
     expect(onStart).toHaveBeenCalledWith(
@@ -763,11 +766,15 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/sim");
 
-    expect(screen.getByText("/simplify")).toBeInTheDocument();
+    const option = screen.getByRole("option", { name: "Skill: simplify" });
+    expect(option).toBeInTheDocument();
+    expect(option.querySelector("svg.lucide-sparkles")).not.toBeNull();
+    expect(screen.getByText("simplify")).toBeInTheDocument();
     expect(screen.queryByText("/skill:simplify")).not.toBeInTheDocument();
 
     fireEvent.keyDown(editor, { key: "Enter" });
-    expect(editor.textContent).toBe("/simplify ");
+    expect(editor.textContent).toBe("simplify ");
+    expect(editor.querySelector("svg")).not.toBeNull();
 
     fireEvent.keyDown(editor, { key: "Enter" });
     expect(onStart).toHaveBeenCalledWith(
@@ -1071,6 +1078,75 @@ describe("ThreadSlashCommands", () => {
     expect(useAppStore.getState().draftContents[draftProject.id]).toMatchObject({
       segments: [{ kind: "text", content: "ordinary draft" }],
     });
+  });
+
+  it("saves a pasted draft image without its ephemeral preview URL", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/draft-pasted-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    try {
+      const renderDraft = () =>
+        render(
+          <AppProvider>
+            <ThreadDraftComposerArea
+              project={draftProject}
+              selectedAgent={makeAgentStatus()}
+              controls={[]}
+              config={{ model: "gemini-2.5-pro" }}
+              compact={false}
+              paneCount={1}
+              gitBranch={undefined}
+              worktreeMode={false}
+              supportsModePicker={false}
+              presentationMode="terminal"
+              onConfigChange={() => {}}
+              onWorktreeModeChange={() => {}}
+              onSwitchBranch={() => {}}
+              onRememberPresentationMode={() => {}}
+              onStart={() => {}}
+            />
+          </AppProvider>,
+        );
+      const { unmount } = renderDraft();
+
+      const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+      const pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(pasteEvent, "clipboardData", {
+        value: {
+          files: [file],
+          items: [{ type: file.type, getAsFile: () => file }],
+          getData: () => "",
+        },
+      });
+      fireEvent(screen.getByRole("textbox"), pasteEvent);
+
+      // The live composer previews the paste from its local object URL.
+      const thumb = await screen.findByAltText("Image 1.png");
+      expect(thumb).toHaveAttribute("src", "blob:app/draft-pasted-1");
+
+      unmount();
+
+      // The saved draft renders the image from the durable file path instead —
+      // the object URL was revoked when the composer unmounted.
+      const saved = useAppStore.getState().draftContents[draftProject.id];
+      expect(saved?.attachments).toHaveLength(1);
+      expect(saved?.attachments[0]).not.toHaveProperty("previewUrl");
+      expect(saved?.attachments[0]?.path).toBe("C:\\attachments\\draft-project-1\\image-1.png");
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/draft-pasted-1");
+
+      const { unmount: unmountRestored } = renderDraft();
+      const restoredThumb = await screen.findByAltText("Image 1.png");
+      expect(restoredThumb).toHaveAttribute(
+        "src",
+        "poracode-local://local/C:/attachments/draft-project-1/image-1.png",
+      );
+      expect(useAppStore.getState().draftContents[draftProject.id]).toBeUndefined();
+      unmountRestored();
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
   });
 
   it("appends queued input after restored draft content", async () => {

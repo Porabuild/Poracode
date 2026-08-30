@@ -31,6 +31,8 @@ import {
   quotePosixShellArg,
   quotePowerShellLiteral,
 } from "./shellBasics";
+import { detectPowerShell, type DetectedPowerShell } from "../../shellPreference";
+import { mergeSpawnEnv, withBaseSpawnEnv } from "./spawnEnv";
 import type {
   AgentArgvSpec,
   AgentEnvContext,
@@ -89,9 +91,12 @@ export type {
 } from "./types";
 export * from "./terminalHints";
 export * from "./expectedRuntimeError";
+export * from "./oneShotModel";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
+export * from "./spawnEnv";
+export type { DetectedPowerShell } from "../../shellPreference";
 export * from "./sessionFs";
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
   return {
@@ -170,12 +175,6 @@ function isWindowsDirectExecutable(command: string): boolean {
   return /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(command) && /\.(?:exe|com)$/i.test(command);
 }
 
-/** A resolved Windows PowerShell host: modern pwsh 7+ or legacy 5.1. */
-export interface DetectedPowerShell {
-  path: string;
-  kind: "pwsh" | "powershell";
-}
-
 /**
  * Detect the best available PowerShell host, preserving which one matched
  * (pwsh > powershell). Callers fall back to the platform shell when none resolves.
@@ -183,12 +182,7 @@ export interface DetectedPowerShell {
 export function detectShell(
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
 ): DetectedPowerShell | undefined {
-  if (process.platform !== "win32") return undefined;
-  const pwsh = resolvePath("pwsh.exe") ?? resolvePath("pwsh");
-  if (pwsh) return { path: pwsh, kind: "pwsh" };
-  const powershell = resolvePath("powershell.exe") ?? resolvePath("powershell");
-  if (powershell) return { path: powershell, kind: "powershell" };
-  return undefined;
+  return detectPowerShell(resolvePath);
 }
 
 /**
@@ -372,7 +366,7 @@ export function buildAgentCommand(
   }
 
   if (location.kind === "windows") {
-    const commandPath = resolvedExecPath ?? command;
+    const commandPath = resolvedExecPath ?? resolveExecutablePath(command) ?? command;
     const shim = resolveWindowsNodeCmdShim(commandPath);
     const spec = shim
       ? buildWindowsCommand(location.path, shim.command, [...shim.argsPrefix, ...args])
@@ -726,16 +720,21 @@ export async function detectAgentInstall(
   const executablePath = await resolveDetectedBinary(ctx, spec);
   ctx?.signal?.throwIfAborted();
 
+  // `baseSpawnEnv` applies to every lane; `probeEnv` narrows further to
+  // detection only. Merge once here so each probe below gets both without
+  // having to know the difference.
+  const probeEnv = mergeSpawnEnv(spec.baseSpawnEnv, spec.probeEnv);
+
   const versionArgs = spec.versionArgs ?? ["--version"];
   const version = spec.versionProbe
     ? await spec.versionProbe({
         location,
         executablePath,
         ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
-        ...(spec.probeEnv ? { probeEnv: spec.probeEnv } : {}),
+        ...(probeEnv ? { probeEnv } : {}),
         ...(ctx?.signal ? { signal: ctx.signal } : {}),
       })
-    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv, ctx?.signal);
+    : await readDetectedVersion(location, executablePath, versionArgs, probeEnv, ctx?.signal);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -750,7 +749,7 @@ export async function detectAgentInstall(
       executablePath,
       version,
       ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
-      probeEnv: spec.probeEnv,
+      probeEnv,
       ...(ctx?.signal ? { signal: ctx.signal } : {}),
     };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
@@ -838,7 +837,9 @@ export async function detectAgentInstall(
     ...(spec.update ? { update: spec.update } : {}),
     authState,
     ...(providerMetadata ? { providerMetadata } : {}),
-    ...(probedAuthMethods ? { authMethods: probedAuthMethods } : {}),
+    ...(probedAuthMethods
+      ? { authMethods: withBaseSpawnEnv(probedAuthMethods, spec.baseSpawnEnv) }
+      : {}),
     ...(probedAuthLogoutSupported ? { authLogoutSupported: true } : {}),
     capabilities,
   };

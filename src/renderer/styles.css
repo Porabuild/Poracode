@@ -1249,6 +1249,18 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --danger-foreground: var(--snow);
     --pr-merged: oklch(0.5 0.18 292);
     --git-branch-tone: oklch(0.5 0.13 265);
+    /* Decorative palette for user-chosen project icon colours. Fixed hues
+       rather than semantic tokens (--danger, --success, …): the swatch a user
+       picks has no state meaning and must keep reading as "the red one" under
+       every theme preset. Darker here than on dark surfaces for contrast. */
+    --project-icon-red: oklch(0.55 0.19 25);
+    --project-icon-orange: oklch(0.58 0.16 55);
+    --project-icon-amber: oklch(0.6 0.14 85);
+    --project-icon-green: oklch(0.52 0.15 150);
+    --project-icon-teal: oklch(0.53 0.11 195);
+    --project-icon-blue: oklch(0.53 0.16 255);
+    --project-icon-violet: oklch(0.53 0.19 292);
+    --project-icon-pink: oklch(0.56 0.19 345);
     --field-background: oklch(0.975 0.002 286);
     --field-placeholder: oklch(0.55 0.01 286);
     --field-border: oklch(0.84 0.006 286 / 0.7);
@@ -1293,6 +1305,15 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --accent-foreground: #0a0a12;
     --danger: oklch(0.64 0.2 24.63);
     --danger-foreground: var(--snow);
+    /* Same project-icon hues, lifted for dark surfaces (see the light block). */
+    --project-icon-red: oklch(0.7 0.18 25);
+    --project-icon-orange: oklch(0.75 0.15 55);
+    --project-icon-amber: oklch(0.8 0.13 85);
+    --project-icon-green: oklch(0.74 0.15 150);
+    --project-icon-teal: oklch(0.75 0.1 195);
+    --project-icon-blue: oklch(0.7 0.14 255);
+    --project-icon-violet: oklch(0.71 0.16 292);
+    --project-icon-pink: oklch(0.74 0.16 345);
     --field-background: #18181b;
     --field-placeholder: #6b6b7b;
     --field-border: oklch(0.34 0.006 286 / 0.85);
@@ -4749,6 +4770,15 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   cursor: default;
 }
 
+.poracode-thread-mention-chip {
+  cursor: var(--interactive-cursor, pointer);
+}
+
+.poracode-thread-mention-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .poracode-slash-chip[data-skill-name],
 .poracode-slash-chip[data-mcp-name] {
   gap: 0.25em;
@@ -5728,6 +5758,45 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 
 .animate-tool-call-enter {
   animation: poracode-tool-call-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The window supplies the upward motion, so its incoming row only fades. */
+@keyframes poracode-tool-call-window-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.poracode-tool-call-group-windowed .animate-tool-call-enter {
+  animation: poracode-tool-call-window-enter 0.2s steps(8, end) both;
+}
+
+/* Sliding window for a collapsed tool-call group (toolCallWindowShift.ts). The
+   dropped row is re-parented into this out-of-flow ghost so the in-flow row
+   count — and the height the virtualizer measures — never changes mid-slide.
+   The ghost sits in exactly the slot the rows vacate as they translate. */
+.poracode-tool-call-group-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+/* Applied only while a slide is running: clips the incoming row so it is
+   revealed rising into the window instead of overhanging the next chat row.
+   `clip` rather than `hidden` so no scroll container is created. */
+.poracode-tool-call-group-clip {
+  overflow: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tool-call-enter {
+    animation: none;
+  }
 }
 
 @keyframes poracode-compacting-squeeze {

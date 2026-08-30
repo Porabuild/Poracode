@@ -345,12 +345,12 @@ final class SessionPendingClearTests: XCTestCase {
         defer { Task { await repo.wipeSuiteForTests() } }
         let futureJSON: [String: Any] = [
             "version": 99,
-            "protocolVersion": 3,
+            "protocolVersion": 8,
             "accessToken": "future",
             "profile": [
                 "desktopId": "f", "label": "F", "httpBaseURL": "https://f.test",
                 "wsBaseURL": "wss://f.test", "appVersion": "1", "scopes": [],
-                "pairedAt": "2020-01-01T00:00:00Z", "protocolVersion": 3,
+                "pairedAt": "2020-01-01T00:00:00Z", "protocolVersion": 8,
             ],
         ]
         let data = try JSONSerialization.data(withJSONObject: futureJSON)

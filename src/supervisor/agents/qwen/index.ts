@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PromptSegment } from "@/shared/contracts";
+import type { ProjectLocation, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
@@ -15,13 +15,30 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildQwenArgs, QWEN_DEFAULT_MODEL_ID } from "./argv";
 import { createQwenAcpSessionBridge } from "./acpTransform";
-import { buildQwenCommand, qwenDefaultCapabilities, qwenDetectionSpec } from "./detection";
+import {
+  buildQwenAcpSessionArgs,
+  buildQwenCommand,
+  qwenDefaultCapabilities,
+  qwenDetectionSpec,
+} from "./detection";
 import { detectQwenInvalidSessionRef } from "./session";
 
 export { detectQwenInvalidSessionRef } from "./session";
 
+function qwenEnvironmentKey(location: ProjectLocation): string {
+  return location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
+}
+
+function qwenDetectionEnvironmentKey(ctx: AgentEnvContext | undefined): string {
+  if (ctx?.envKind === "wsl") return `wsl:${ctx.wslDistro ?? ""}`;
+  return ctx?.envKind ?? (process.platform === "win32" ? "windows" : "posix");
+}
+
 export function createQwenAdapter(): AgentAdapter {
   let capabilities = qwenDefaultCapabilities;
+  const detectedVersions = new Map<string, string | undefined>();
+  const detectionGenerations = new Map<string, number>();
+  let nextDetectionGeneration = 0;
 
   return {
     kind: qwenDetectionSpec.kind,
@@ -56,9 +73,23 @@ export function createQwenAdapter(): AgentAdapter {
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
 
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, qwenDetectionSpec);
-      capabilities = status.capabilities;
-      return status;
+      const environmentKey = qwenDetectionEnvironmentKey(ctx);
+      const detectionGeneration = ++nextDetectionGeneration;
+      detectionGenerations.set(environmentKey, detectionGeneration);
+      detectedVersions.delete(environmentKey);
+      try {
+        const status = await detectAgentInstall(ctx, qwenDetectionSpec);
+        capabilities = status.capabilities;
+        if (detectionGenerations.get(environmentKey) === detectionGeneration) {
+          detectedVersions.set(environmentKey, status.version);
+        }
+        return status;
+      } catch (error) {
+        if (detectionGenerations.get(environmentKey) === detectionGeneration) {
+          detectedVersions.delete(environmentKey);
+        }
+        throw error;
+      }
     },
 
     buildLaunchArgv(_location, config, prompt) {
@@ -81,11 +112,12 @@ export function createQwenAdapter(): AgentAdapter {
       const acpBridge = createQwenAcpSessionBridge();
       const command = buildQwenCommand(
         input.projectLocation,
-        ["--acp"],
+        buildQwenAcpSessionArgs(detectedVersions.get(qwenEnvironmentKey(input.projectLocation))),
         resolveAgentBinaryPath(input.projectLocation, "qwen"),
       );
       return createAcpStructuredSession(command, {
         ...input,
+        acpInitializeMeta: acpBridge.initializeMeta,
         acpSessionUpdateTransform: acpBridge.sessionUpdateTransform,
         acpExtensionSessionUpdateTransform: acpBridge.extensionSessionUpdateTransform,
       });

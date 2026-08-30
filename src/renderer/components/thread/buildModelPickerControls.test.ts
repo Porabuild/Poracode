@@ -1,8 +1,9 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
-import type { AgentCapability, AgentStatus } from "@/shared/contracts";
+import { describe, expect, it, vi } from "vitest";
+import type { AgentCapability, AgentStatus, Thread } from "@/shared/contracts";
 import {
+  buildControls,
   buildModelPickerControls,
   buildProviderModelMenuProviders,
   expandAgentToVisibilityProviders,
@@ -51,6 +52,7 @@ describe("patchConfigForModelChange", () => {
       }),
     ).toEqual({
       model: "b",
+      effort: "high",
       contextSize: "128k",
       fast: false,
       thinking: true,
@@ -104,6 +106,103 @@ describe("patchConfigForModelChange", () => {
       model: "a",
       fast: false,
     });
+  });
+});
+
+describe("buildControls model preferences", () => {
+  it("restores and records per-model effort and Fast choices for active threads", () => {
+    const activeCapabilities = {
+      ...capabilities,
+      modelEfforts: { a: ["low", "high"], b: ["low", "high"] },
+      fastModels: ["a", "b"],
+    } as AgentCapability;
+    const agent = {
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities: activeCapabilities,
+    } as AgentStatus;
+    const thread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "codex",
+      config: { model: "a", effort: "low", fast: false },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    } as Thread;
+    const onConfigChange = vi.fn<(config: Thread["config"]) => void>();
+    const onPreferenceChange =
+      vi.fn<
+        (
+          model: string,
+          preference: { effort?: string | undefined; fast?: boolean | undefined },
+        ) => void
+      >();
+    const controls = buildControls(
+      thread,
+      agent,
+      undefined,
+      onConfigChange,
+      {
+        b: { effort: "high", fast: true },
+      },
+      onPreferenceChange,
+    );
+
+    controls
+      .find((control) => control.kind === "provider-model")
+      ?.onChange({ agentKind: "codex", model: "b" });
+
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "b", effort: "high", fast: true }),
+    );
+    expect(onPreferenceChange).toHaveBeenCalledWith("b", { effort: "high", fast: true });
+  });
+
+  it("normalizes a Cursor profile's bracket model before building controls", () => {
+    const agent = {
+      kind: "cursor:work",
+      label: "Cursor Work",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "gpt-5.1-codex-max", label: "Codex 5.1 Max" }],
+      },
+    } as AgentStatus;
+    const thread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "cursor:work",
+      config: { model: "gpt-5.1-codex-high-thinking-fast" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    } as Thread;
+
+    const modelControl = buildControls(thread, agent, undefined, vi.fn()).find(
+      (control) => control.kind === "provider-model",
+    );
+
+    expect(modelControl?.kind === "provider-model" ? modelControl.currentModel : undefined).toBe(
+      "gpt-5.1-codex-max",
+    );
   });
 });
 
@@ -276,6 +375,41 @@ describe("buildProviderModelMenuProviders", () => {
       { label: "Cursor CLI", hiddenModelsKey: "cursor" },
       { label: "Cursor ACP", hiddenModelsKey: "cursor-acp" },
       { label: "Cursor SDK", hiddenModelsKey: "cursor-sdk" },
+    ]);
+  });
+
+  it("keeps Antigravity's ACP identity internal while showing its canonical label", () => {
+    const guiCapabilities = {
+      ...capabilities,
+      runtimeLabel: "ACP",
+      showRuntimeLabelInPicker: false,
+      presentationMode: "gui" as const,
+      presentationModes: ["gui" as const],
+      models: [{ id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" }],
+    };
+    const providers = expandAgentToVisibilityProviders({
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: true,
+      authState: "authenticated",
+      capabilities: guiCapabilities,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: guiCapabilities,
+        },
+      },
+    });
+
+    expect(providers).toMatchObject([
+      {
+        label: "Antigravity",
+        modelPickerKey: "antigravity:gui:acp",
+        hiddenModelsKey: "antigravity-acp",
+      },
     ]);
   });
 

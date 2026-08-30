@@ -14,6 +14,7 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import type { ThreadErrorDockState } from "./threadErrorState";
 
@@ -46,6 +47,8 @@ const analytics = vi.hoisted(() => ({
   captureThreadPromptSubmitted: vi.fn<() => void>(),
 }));
 
+const composerAddMenuSpy = vi.hoisted(() => vi.fn<(props: unknown) => void>());
+
 vi.mock("@/renderer/analytics/posthog", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/analytics/posthog")>()),
   captureThreadPromptSubmitted: analytics.captureThreadPromptSubmitted,
@@ -66,6 +69,13 @@ vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
 
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentLoginCommand: loginActions.runAgentLoginCommand,
+}));
+
+vi.mock("../composer/ComposerAddMenu", () => ({
+  ComposerAddMenu: (props: unknown) => {
+    composerAddMenuSpy(props);
+    return null;
+  },
 }));
 
 vi.mock("../../bridge", () => ({
@@ -94,7 +104,10 @@ vi.mock("./ThreadComposer", () => ({
       effortValue?: string;
     }>;
     fixedContent?: ReactNode;
+    attachmentBar?: ReactNode;
     inputContent?: ReactNode;
+    leadingControls?: ReactNode | (() => ReactNode);
+    afterControls?: ReactNode | (() => ReactNode);
     onAttachFiles?: (paths: string[]) => void;
     onStop?: () => void;
     onSubmit: () => void;
@@ -102,7 +115,12 @@ vi.mock("./ThreadComposer", () => ({
   }) => (
     <div>
       {props.fixedContent}
+      {props.attachmentBar}
       {props.inputContent}
+      {typeof props.leadingControls === "function"
+        ? props.leadingControls()
+        : props.leadingControls}
+      {typeof props.afterControls === "function" ? props.afterControls() : props.afterControls}
       <output data-testid="control-kinds">
         {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
       </output>
@@ -212,6 +230,18 @@ function typeComposerText(editor: HTMLElement, text: string) {
   fireEvent.input(editor);
 }
 
+function pasteImageFile(editor: HTMLElement, file: File) {
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", {
+    value: {
+      files: [file],
+      items: [{ type: file.type, getAsFile: () => file }],
+      getData: () => "",
+    },
+  });
+  fireEvent(editor, event);
+}
+
 describe("ThreadComposerSection", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -234,6 +264,8 @@ describe("ThreadComposerSection", () => {
       pendingComposerFocusThreadId: null,
       threadDraftContents: {},
       provisioningWorktreeThreadIds: {},
+      runtimeLaunchConfigByThreadId: {},
+      mcpLaunchCustomServerNamesByThreadId: {},
     });
     useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
@@ -249,6 +281,7 @@ describe("ThreadComposerSection", () => {
     bridgeMock.setPendingSteer.mockResolvedValue(undefined);
     analytics.captureProductEvent.mockClear();
     analytics.captureThreadPromptSubmitted.mockClear();
+    composerAddMenuSpy.mockClear();
     runtimeActions.changeThreadConfig.mockClear();
     runtimeActions.resolveThreadServerRequest.mockClear();
     runtimeActions.resolveThreadServerRequest.mockResolvedValue(undefined);
@@ -300,6 +333,7 @@ describe("ThreadComposerSection", () => {
     errorDockStates?: ThreadErrorDockState[];
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
+    saveClipboardImage?: SaveClipboardImage;
   }) {
     const thread = opts?.thread ?? guiThread;
     const agentStatus = opts?.agentStatus ?? codexGuiStatus;
@@ -325,6 +359,7 @@ describe("ThreadComposerSection", () => {
         {...(opts?.onOpenProjectRelativePath
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
+        {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
       />
@@ -338,6 +373,7 @@ describe("ThreadComposerSection", () => {
     errorDockStates?: ThreadErrorDockState[];
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
+    saveClipboardImage?: SaveClipboardImage;
   }) {
     const onSubmitInput =
       opts?.onSubmitInput ??
@@ -430,6 +466,105 @@ describe("ThreadComposerSection", () => {
     typeComposerText(input, "@ter");
 
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
+
+  it("shows provider-owned enabled MCPs in the indicator and @ mentions", () => {
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [guiThread.id]: { model: "gpt-5.4", crossagentMcp: true },
+      },
+      mcpLaunchCustomServerNamesByThreadId: {
+        [guiThread.id]: ["Vision-MCP"],
+      },
+    });
+    const rangeRectDescriptor = Object.getOwnPropertyDescriptor(
+      Range.prototype,
+      "getBoundingClientRect",
+    );
+    const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollIntoView",
+    );
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 0, top: 0 }),
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+
+    try {
+      renderComposer({
+        agentStatus: {
+          ...codexGuiStatus,
+          capabilities: {
+            ...codexGuiStatus.capabilities,
+            mcpConfigSource: "agentSettings",
+          },
+        },
+      });
+
+      const menuProps = composerAddMenuSpy.mock.lastCall?.[0] as {
+        mcpServers: Array<{ descriptor: { id: string }; visible: boolean }>;
+        customMcpServers: Array<{ name: string; enabled: boolean }>;
+        readOnly: boolean;
+      };
+      expect(
+        menuProps.mcpServers
+          .filter((server) => server.visible)
+          .map((server) => server.descriptor.id),
+      ).toEqual(["crossagents"]);
+      expect(menuProps.customMcpServers).toEqual([
+        expect.objectContaining({ name: "Vision-MCP", enabled: true }),
+      ]);
+      expect(menuProps.readOnly).toBe(true);
+
+      const input = screen.getByRole("textbox");
+      typeComposerText(input, "@cro");
+      expect(screen.getByRole("option")).toHaveTextContent("Crossagents");
+
+      typeComposerText(input, "@vis");
+      expect(screen.getByRole("option")).toHaveTextContent("Vision-MCP");
+    } finally {
+      if (rangeRectDescriptor) {
+        Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
+      } else {
+        Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+      }
+      if (scrollIntoViewDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", scrollIntoViewDescriptor);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+      }
+    }
+  });
+
+  it("does not report client-local custom MCPs for a remote provider-owned thread", () => {
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [guiThread.id]: { model: "gpt-5.4", crossagentMcp: true },
+      },
+      mcpLaunchCustomServerNamesByThreadId: {
+        [guiThread.id]: ["Client-only MCP"],
+      },
+    });
+
+    renderComposer({
+      thread: { ...guiThread, remoteServerId: "desktop-1", remoteId: "remote-thread-1" },
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          mcpConfigSource: "agentSettings",
+        },
+      },
+    });
+
+    const menuProps = composerAddMenuSpy.mock.lastCall?.[0] as {
+      customMcpServers: unknown[];
+    };
+    expect(menuProps.customMcpServers).toEqual([]);
   });
 
   it("uses GUI presentation capabilities for slash commands and /fast submission", () => {
@@ -758,6 +893,90 @@ describe("ThreadComposerSection", () => {
     expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
   });
 
+  it("restores an unsent image attachment preview after switching threads", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
+      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
+    );
+    try {
+      const { rerender } = renderComposer({ saveClipboardImage });
+      const input = screen.getByRole("textbox");
+      pasteImageFile(
+        input,
+        new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
+      );
+
+      // The just-pasted image previews from its local object URL.
+      const pastedThumb = await screen.findByAltText("Image 1.png");
+      expect(pastedThumb).toHaveAttribute("src", "blob:app/pasted-1");
+      typeComposerText(input, "unsent note");
+
+      // Switch to another thread: the composer shell stays mounted, saves the
+      // draft, then clears the attachments (revoking the object URL) for the
+      // next thread.
+      rerender(composerElement({ thread: secondGuiThread, saveClipboardImage }));
+
+      const savedDraft = useAppStore.getState().threadDraftContents[guiThread.id];
+      expect(savedDraft?.attachments).toHaveLength(1);
+      // The stashed draft must not reference the ephemeral object URL — the
+      // reset path revokes it as part of clearing the composer.
+      expect(savedDraft?.attachments[0]).not.toHaveProperty("previewUrl");
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+
+      // Switching back restores the attachment; its preview renders from the
+      // durable saved file instead of the revoked object URL.
+      rerender(composerElement({ saveClipboardImage }));
+      await waitFor(() => {
+        expect(screen.getByAltText("Image 1.png")).toHaveAttribute(
+          "src",
+          "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png",
+        );
+      });
+      expect(screen.getByRole("textbox")).toHaveTextContent("unsent note");
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it("does not attach a pasted image that resolves after switching threads", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    let resolveSave: ((path: string) => void) | undefined;
+    const saveClipboardImage = vi.fn<SaveClipboardImage>(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    try {
+      const { rerender } = renderComposer({ saveClipboardImage });
+      pasteImageFile(
+        screen.getByRole("textbox"),
+        new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
+      );
+      await waitFor(() => expect(saveClipboardImage).toHaveBeenCalled());
+
+      rerender(composerElement({ thread: secondGuiThread, saveClipboardImage }));
+      await act(async () => {
+        resolveSave?.("C:\\attachments\\thread-gui-idle\\image-1.png");
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(createObjectURL).not.toHaveBeenCalled();
+      expect(screen.queryByAltText("Image 1.png")).toBeNull();
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
   it("focuses the reused composer when the desktop switches threads", async () => {
     const { rerender } = renderComposer();
     const input = screen.getByRole("textbox");
@@ -1034,6 +1253,91 @@ describe("ThreadComposerSection", () => {
       expect(toastDangerSpy).toHaveBeenCalledWith("send failed");
     });
     expect(screen.getByRole("textbox")).toHaveTextContent("retry me");
+  });
+
+  it("restores a pasted image preview from its saved path when a GUI send fails", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
+      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
+    );
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockRejectedValue(new Error("send failed"));
+    try {
+      renderComposer({ onSubmitInput, saveClipboardImage });
+      const input = screen.getByRole("textbox");
+      pasteImageFile(
+        input,
+        new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
+      );
+      await screen.findByAltText("Image 1.png");
+      typeComposerText(input, "with a note");
+
+      fireEvent.click(screen.getByText("send"));
+
+      await waitFor(() => {
+        expect(toastDangerSpy).toHaveBeenCalledWith("send failed");
+      });
+      // The pre-send clear revoked the pasted bytes' object URL, so the
+      // restored attachment must render from the durable saved file.
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+      expect(screen.getByAltText("Image 1.png")).toHaveAttribute(
+        "src",
+        "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png",
+      );
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it("stashes a failed send attachment when switching threads before rejection", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
+      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
+    );
+    let rejectSubmit: ((error: Error) => void) | undefined;
+    const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectSubmit = reject;
+        }),
+    );
+    try {
+      const { rerender } = renderComposer({ onSubmitInput, saveClipboardImage });
+      const input = screen.getByRole("textbox");
+      pasteImageFile(
+        input,
+        new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
+      );
+      await screen.findByAltText("Image 1.png");
+      typeComposerText(input, "with a note");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() => expect(onSubmitInput).toHaveBeenCalled());
+
+      rerender(composerElement({ thread: secondGuiThread, onSubmitInput, saveClipboardImage }));
+      await act(async () => {
+        rejectSubmit?.(new Error("send failed"));
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(toastDangerSpy).toHaveBeenCalledWith("send failed"));
+
+      const savedDraft = useAppStore.getState().threadDraftContents[guiThread.id];
+      expect(savedDraft?.attachments).toHaveLength(1);
+      expect(savedDraft?.attachments[0]).not.toHaveProperty("previewUrl");
+      expect(savedDraft?.attachments[0]?.path).toBe(
+        "C:\\attachments\\thread-gui-idle\\image-1.png",
+      );
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
   });
 
   it("counts a pending steer after it is successfully staged", async () => {

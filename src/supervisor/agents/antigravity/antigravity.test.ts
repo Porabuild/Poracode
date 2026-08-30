@@ -1,14 +1,21 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAntigravityAdapter, shouldUseAntigravityPrintPty } from ".";
+import { resolveSubagentExecution } from "@/supervisor/crossagentMcp/types";
+import { detectAgentInstall } from "../base";
 import { buildAntigravityArgs } from "./argv";
-import { ANTIGRAVITY_DEFAULT_MODEL_ID, antigravityDetectionSpec } from "./detection";
+import {
+  ANTIGRAVITY_DEFAULT_MODEL_ID,
+  antigravityDetectionSpec,
+  defaultAntigravityCapabilities,
+} from "./detection";
 import {
   ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
+  buildAntigravityAcpModelCapabilities,
   buildAntigravityModelCapabilities,
   detectAntigravityLaunchDialect,
   parseAntigravityEffortsHelp,
@@ -21,6 +28,13 @@ import {
   detectAntigravityTerminalStatus,
   syncAntigravityConfigFromTerminalState,
 } from "./terminal";
+
+// `detectAgentInstall` probes the real filesystem/spawn environment; the
+// subagent-lane test drives it directly to simulate installed/missing CLIs.
+vi.mock("../base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../base")>()),
+  detectAgentInstall: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+}));
 
 describe("buildAntigravityArgs", () => {
   const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
@@ -220,13 +234,13 @@ describe("createAntigravityAdapter", () => {
     expect(adapter.buildAcpLogoutCommand).toBeUndefined();
   });
 
-  it("builds agy launch, resume, and one-shot commands", () => {
+  it("builds project-bound agy launch, resume, and one-shot commands", () => {
     const adapter = createAntigravityAdapter();
     const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
 
     expect(adapter.buildLaunchArgv(project, config, "hi")).toMatchObject({
       binary: "agy",
-      args: ["--model", "Gemini 3.5 Flash (Medium)", "--prompt-interactive", "hi"],
+      args: ["--new-project", "--model", "Gemini 3.5 Flash (Medium)", "--prompt-interactive", "hi"],
     });
     expect(
       adapter.buildResumeArgv(project, config, "next", {
@@ -335,6 +349,7 @@ describe("createAntigravityAdapter", () => {
     expect(cmd).toEqual({
       command: "agy",
       args: [
+        "--new-project",
         "--model",
         "Gemini 3.5 Flash (High)",
         "--dangerously-skip-permissions",
@@ -346,6 +361,58 @@ describe("createAntigravityAdapter", () => {
     });
     // A subagent child must NOT isolate the cwd — it works in the real repo.
     expect(cmd).not.toHaveProperty("isolateCwd");
+  });
+
+  it("keeps the one-shot subagent lane only while the CLI runtime is detected", async () => {
+    // The lane runs `agy`; when detection says the CLI is absent (chat-only
+    // artifact installed) the adapter must fall back to the structured ACP
+    // lane instead of registering a child that fails at spawn.
+    vi.mocked(detectAgentInstall).mockResolvedValue({
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: false,
+      authState: "missing",
+      capabilities: defaultAntigravityCapabilities,
+    });
+    // A nonexistent absolute binary keeps the ACP runtime's own detection from
+    // probing anything while still exercising the composed adapter.
+    const adapter = createAntigravityAdapter({
+      id: "antigravity-acp",
+      driver: "acp-generic",
+      displayName: "Google Antigravity",
+      version: "1.0.0",
+      enabled: true,
+      config: { binary: "C:/nonexistent/agy_acp_server.par", args: [], authMode: "none" },
+    });
+    await adapter.detectInstall();
+    expect(resolveSubagentExecution(adapter)).toBe("structured");
+
+    vi.mocked(detectAgentInstall).mockResolvedValue({
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: true,
+      version: "1.2.0",
+      authState: "authenticated",
+      executablePath: "/bin/agy",
+      capabilities: defaultAntigravityCapabilities,
+    });
+    await adapter.detectInstall();
+    expect(resolveSubagentExecution(adapter)).toBe("one-shot");
+  });
+
+  it("leaves Home launches on agy's projectless default", () => {
+    const home: ProjectLocation = { kind: "windows", path: "C:\\Users\\demo" };
+    const adapter = createAntigravityAdapter();
+    const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
+
+    expect(adapter.buildLaunchArgv(home, config, "hi").args).not.toContain("--new-project");
+    expect(
+      adapter.buildSubagentOneShotCommand?.({
+        model: ANTIGRAVITY_DEFAULT_MODEL_ID,
+        prompt: "inspect the machine",
+        location: home,
+      })?.args,
+    ).not.toContain("--new-project");
   });
 
   it("binds linked-worktree launches and subagents to a dedicated agy project", () => {
@@ -512,6 +579,55 @@ describe("Agy terminal config synchronization", () => {
 });
 
 describe("parseAntigravityModelsOutput", () => {
+  it("collapses ACP model variants into base models with separate efforts", () => {
+    const capabilities = buildAntigravityAcpModelCapabilities([
+      { id: "gemini-3.7-flash-high", label: "Gemini 3.7 Flash High" },
+      { id: "gemini-3.7-flash-medium", label: "Gemini 3.7 Flash Medium" },
+      { id: "gemini-3.7-flash-low", label: "Gemini 3.7 Flash Low" },
+      { id: "gemini-3.6-flash-high", label: "Gemini 3.6 Flash High" },
+      { id: "gemini-3.6-flash-medium", label: "Gemini 3.6 Flash Medium" },
+      { id: "gemini-3.6-flash-low", label: "Gemini 3.6 Flash Low" },
+      { id: "gemini-3-flash-agent", label: "Gemini 3.5 Flash High" },
+      { id: "gemini-3.5-flash-low", label: "Gemini 3.5 Flash Medium" },
+      { id: "gemini-3.5-flash-extra-low", label: "Gemini 3.5 Flash Low" },
+      { id: "gemini-pro-agent", label: "Gemini 3.1 Pro High" },
+      { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro Low" },
+    ]);
+
+    expect(capabilities).toEqual({
+      models: [
+        {
+          id: "gemini-3.7-flash",
+          label: "Gemini 3.7 Flash",
+          description: "Google DeepMind",
+        },
+        {
+          id: "gemini-3.6-flash",
+          label: "Gemini 3.6 Flash",
+          description: "Google DeepMind",
+        },
+        {
+          id: "gemini-3.5-flash",
+          label: "Gemini 3.5 Flash",
+          description: "Google DeepMind",
+        },
+        {
+          id: "gemini-3.1-pro",
+          label: "Gemini 3.1 Pro",
+          description: "Google DeepMind",
+        },
+      ],
+      efforts: [],
+      modelEfforts: {
+        "gemini-3.7-flash": ["Low", "Medium", "High"],
+        "gemini-3.6-flash": ["Low", "Medium", "High"],
+        "gemini-3.5-flash": ["Low", "Medium", "High"],
+        "gemini-3.1-pro": ["Low", "High"],
+      },
+      defaultEffort: "Medium",
+    });
+  });
+
   it("parses JSON model objects into variants", () => {
     expect(
       parseAntigravityModelVariantsOutput(

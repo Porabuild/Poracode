@@ -30,6 +30,7 @@ sealed interface RichPromptSegment {
     ) : RichPromptSegment
 
     data class Mcp(val id: String, val name: String) : RichPromptSegment
+    data class Thread(val threadId: String, val title: String) : RichPromptSegment
 }
 
 data class RichPendingSteer(
@@ -83,6 +84,7 @@ object RichPendingSteerDecoder {
             "diff_comment" -> decodeDiff(objectValue)
             "skill" -> decodeSkill(objectValue)
             "mcp" -> decodeMcp(objectValue)
+            "thread" -> decodeThread(objectValue)
             else -> null
         }
     }
@@ -154,5 +156,11 @@ object RichPendingSteerDecoder {
         val id = value.requiredString("id", allowEmpty = false) ?: return null
         val name = value.requiredString("name", allowEmpty = false) ?: return null
         return RichPromptSegment.Mcp(id, name)
+    }
+
+    private fun decodeThread(value: JsonObject): RichPromptSegment? {
+        val threadId = value.requiredString("threadId", allowEmpty = false) ?: return null
+        val title = value.requiredString("title") ?: return null
+        return RichPromptSegment.Thread(threadId, title)
     }
 }

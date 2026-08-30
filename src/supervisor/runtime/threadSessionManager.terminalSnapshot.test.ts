@@ -26,7 +26,11 @@ function createManager(): ThreadSessionManager {
     settingsPath: join(tempDir, "settings.json"),
     readDisableCliHookPlugin: () => false,
     adapters: new Map(),
-    windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    resolveWindowsShell: () => ({
+      shell: "powershell.exe",
+      kind: "powershell",
+      args: ["-NoLogo"],
+    }),
   });
   managersToDispose.push(manager);
   return manager;

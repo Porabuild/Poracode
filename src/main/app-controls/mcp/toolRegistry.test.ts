@@ -594,7 +594,7 @@ describe("Poracode app control tools — threads", () => {
 
   it("update_thread dispatches the matching remote thread commands", async () => {
     const threads = [makeThread({ id: "a" })];
-    const { ctx, emitRemoteThreadCommand } = context({ threads });
+    const { ctx, emitRemoteThreadCommand, updatedRows } = context({ threads });
     const result = (await dispatchTool(
       "update_thread",
       { threadId: "a", rename: "Renamed", done: true, archived: true },
@@ -612,6 +612,7 @@ describe("Poracode app control tools — threads", () => {
       done: true,
     });
     expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "archive", threadId: "a" });
+    expect(updatedRows.at(-1)).toMatchObject({ archived: true, archivedAt: expect.any(String) });
   });
 
   it("send_to_thread interrupts first when requested then sends", async () => {
@@ -1718,7 +1719,25 @@ describe("Poracode app control tools — github", () => {
         isMain: false,
       },
     ];
-    const { ctx, supervisor } = context({ projects, worktrees });
+    const { ctx, supervisor } = context({ projects, worktrees, sourceBranch: "origin/master" });
+    supervisor.gitListBranches.mockResolvedValue({
+      current: "master",
+      branches: [
+        {
+          name: "master",
+          current: true,
+          commit: "a".repeat(40),
+          isRemote: false,
+        },
+        {
+          name: "master",
+          current: false,
+          commit: "a".repeat(40),
+          isRemote: true,
+          remote: "origin",
+        },
+      ],
+    });
     await dispatchTool(
       "gh_create_pr",
       {
@@ -1734,8 +1753,30 @@ describe("Poracode app control tools — github", () => {
       expect.objectContaining({
         projectLocation: { kind: "posix", path: "/work/alpha/.poracode/worktrees/wt" },
         branch: "feature/x",
+        baseBranch: "master",
       }),
     );
+  });
+
+  it("gh_create_pr preserves an explicit slash-containing base branch", async () => {
+    const { ctx, supervisor } = context({ projects });
+    await dispatchTool(
+      "gh_create_pr",
+      {
+        projectId: "p1",
+        branch: "feature/x",
+        baseBranch: "origin/release",
+        title: "New",
+        body: "Body",
+      },
+      ctx,
+    );
+
+    expect(supervisor.ghCreatePr).toHaveBeenCalledWith(
+      expect.objectContaining({ baseBranch: "origin/release" }),
+    );
+    expect(supervisor.gitGetWorktreeSourceBranch).not.toHaveBeenCalled();
+    expect(supervisor.gitListBranches).not.toHaveBeenCalled();
   });
 
   it("gh_create_pr rejects a worktreePath outside the project's worktree set", async () => {

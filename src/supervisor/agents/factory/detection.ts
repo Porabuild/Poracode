@@ -3,6 +3,7 @@ import { dedupeAcpAuthMethods, probeAcpCapabilities, type AcpProbeResult } from 
 import {
   buildAgentCommand,
   envVarAuthProbe,
+  mergeSpawnEnv,
   type CapabilitiesProbeResult,
   type DetectionSpec,
 } from "../base";
@@ -39,13 +40,27 @@ export const factoryDefaultCapabilities: AgentCapability = {
   settingDefs: [],
 };
 
-export function buildFactoryCommand(location: ProjectLocation, executablePath?: string) {
+// The session/auth command builder keeps the env baked in even though the same
+// map rides `baseSpawnEnv`: these commands are also the WSL lane, where env
+// must be exported inside the wsl.exe login-shell script (spawn-level env does
+// not reliably cross into the distro). `buildAgentCommand` does that baking —
+// and it is the SAME constant as `factoryDetectionSpec.baseSpawnEnv`, so the
+// shared merge at the ACP session/auth lanes is idempotent, never a drift.
+//
+// `extraEnv` layers ON TOP of that constant rather than replacing it, so a
+// caller forwarding a narrower env (e.g. a probe-only overlay) can never drop
+// the updater opt-out out of the WSL script.
+export function buildFactoryCommand(
+  location: ProjectLocation,
+  executablePath?: string,
+  extraEnv?: Record<string, string>,
+) {
   return buildAgentCommand(
     location,
     "droid",
     [...FACTORY_ACP_ARGS],
     executablePath,
-    FACTORY_DISABLE_AUTO_UPDATE_ENV,
+    mergeSpawnEnv(FACTORY_DISABLE_AUTO_UPDATE_ENV, extraEnv),
   );
 }
 
@@ -74,6 +89,7 @@ export function buildFactoryProbeCapabilities(probe: AcpProbeResult): Capabiliti
     ...(probe.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(probe.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
     ...(probe.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
+    ...(probe.thinkingModels ? { thinkingModels: probe.thinkingModels } : {}),
     ...(probe.modes?.length ? { modes: probe.modes } : {}),
     ...(probe.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
@@ -86,9 +102,13 @@ export function buildFactoryProbeCapabilities(probe: AcpProbeResult): Capabiliti
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath: string,
+  probeEnv: Record<string, string> | undefined,
   signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult | undefined> {
-  const command = buildFactoryCommand(location, executablePath);
+  // Env comes from the shared merge (`detectAgentInstall` passes
+  // `baseSpawnEnv`+`probeEnv` as ctx.probeEnv) — the probe lane honors the
+  // single declaration point; `buildFactoryCommand` bakes it into the WSL script.
+  const command = buildFactoryCommand(location, executablePath, probeEnv);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   const probe = await probeAcpCapabilities(
     command.command,
@@ -115,10 +135,10 @@ export const factoryDetectionSpec: DetectionSpec = {
     builtIn: { binary: "droid", args: ["update"] },
     npm: "droid",
   },
-  probeEnv: FACTORY_DISABLE_AUTO_UPDATE_ENV,
+  baseSpawnEnv: FACTORY_DISABLE_AUTO_UPDATE_ENV,
   authProbes: [envVarAuthProbe(["FACTORY_API_KEY"])],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.probeEnv, ctx.signal);
   },
 };

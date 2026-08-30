@@ -27,6 +27,7 @@ import {
 import { recordThreadStarted } from "../usageRecorder";
 import { removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
+import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 
 export interface ThreadSlice {
   threads: Thread[];
@@ -44,6 +45,8 @@ export interface ThreadSlice {
   lastRuntimeConfigByThreadId: Record<string, ThreadConfig>;
   /** Supervisor-owned effective launch config for active runtime-only MCP state. */
   runtimeLaunchConfigByThreadId: Record<string, ThreadConfig>;
+  /** Launch-time availability for structured @thread references in each live session. */
+  threadMentionToolsAvailableByThreadId: Record<string, boolean>;
   /**
    * Ephemeral timestamp (ms) of the last time each thread was visible in a
    * pane. Used by `sweepStaleThreads` so that opening an old thread resets its
@@ -64,6 +67,8 @@ export interface ThreadSlice {
   createThread: (input: {
     threadId?: string;
     projectId: string;
+    /** Workspace tag for Home threads; see {@link Thread}'s `workspaceId`. */
+    workspaceId?: string;
     remoteServerId?: string;
     remoteId?: string;
     agentKind: Thread["agentKind"];
@@ -86,6 +91,8 @@ export interface ThreadSlice {
   }) => Thread;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
+  /** Re-file a Home thread into a workspace; `undefined` = visible in every workspace. */
+  setThreadWorkspace: (threadId: string, workspaceId: string | undefined) => void;
   setThreadWorktree: (
     threadId: string,
     worktreePath: string,
@@ -98,15 +105,40 @@ export interface ThreadSlice {
     input: {
       status: ThreadStatus;
       attention: ThreadAttention;
+      /**
+       * Provider that owns the emitting session. When it disagrees with the
+       * thread's current provider the update is a straggler from a session the
+       * thread has already been switched away from, so its `sessionRef` is
+       * dropped rather than merged. Absent on updates with no session behind
+       * them (and from hosts predating the field), which stay unfiltered.
+       */
+      agentKind?: string;
       config?: ThreadConfig;
       /** Undefined preserves the current snapshot; null clears an authoritative snapshot. */
       launchConfig?: ThreadConfig | null;
+      threadMentionToolsAvailable?: boolean;
       sessionRef?: SessionRef;
       slashCommands?: Thread["slashCommands"];
       canResumeWithConfig: boolean;
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
       errorMessage?: string;
+    },
+  ) => void;
+  /**
+   * Reassign a live thread to a different provider in place, keeping its id,
+   * title, and transcript. Unlike `updateThreadRuntime` this deliberately
+   * clears `sessionRef`: the monotonic merge there can only ever adopt a newer
+   * ref, and shipping the old provider's session id to the new adapter would
+   * make it try to resume a session that is not its own.
+   */
+  applyProviderSwitch: (
+    threadId: string,
+    input: {
+      agentKind: string;
+      agentInstanceId?: string;
+      config: ThreadConfig;
+      presentationMode: ThreadPresentationMode;
     },
   ) => void;
   archiveThread: (threadId: string) => void;
@@ -140,6 +172,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   provisioningWorktreeThreadIds: {},
   lastRuntimeConfigByThreadId: {},
   runtimeLaunchConfigByThreadId: {},
+  threadMentionToolsAvailableByThreadId: {},
   lastViewedAtByThreadId: {},
   mcpLaunchCustomServerNamesByThreadId: {},
   setThreadMcpLaunchCustomServerNames: (threadId, names) =>
@@ -166,12 +199,21 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         };
       });
 
-      const hasLaunchConfigs = Object.keys(state.runtimeLaunchConfigByThreadId).length > 0;
-      return changed || hasLaunchConfigs ? { threads, runtimeLaunchConfigByThreadId: {} } : {};
+      const hasLaunchState =
+        Object.keys(state.runtimeLaunchConfigByThreadId).length > 0 ||
+        Object.keys(state.threadMentionToolsAvailableByThreadId).length > 0;
+      return changed || hasLaunchState
+        ? {
+            threads,
+            runtimeLaunchConfigByThreadId: {},
+            threadMentionToolsAvailableByThreadId: {},
+          }
+        : {};
     }),
   createThread: ({
     threadId,
     projectId,
+    workspaceId,
     remoteServerId,
     remoteId,
     agentKind,
@@ -193,6 +235,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     const thread: Thread = {
       id: threadId ?? crypto.randomUUID(),
       projectId,
+      ...(workspaceId ? { workspaceId } : {}),
       ...(remoteServerId ? { remoteServerId } : {}),
       ...(remoteId ? { remoteId } : {}),
       title: title ?? makeThreadTitle(prompt),
@@ -250,8 +293,78 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     recordThreadStarted(thread);
     return thread;
   },
+  applyProviderSwitch: (threadId, input) =>
+    set((state) => {
+      const now = new Date().toISOString();
+      let changed = false;
+      const threads = state.threads.map((thread): Thread => {
+        if (thread.id !== threadId) return thread;
+        changed = true;
+        // Everything dropped here belongs to the provider being left behind:
+        // its session, its instance, its slash commands, and any error it
+        // failed with. Only the thread's identity and transcript carry over.
+        const {
+          sessionRef: _clearedSessionRef,
+          agentInstanceId: _clearedInstanceId,
+          slashCommands: _clearedSlashCommands,
+          errorMessage: _clearedError,
+          doneAt: _clearedDoneAt,
+          threadStatusSource: _clearedStatusSource,
+          ...rest
+        } = thread;
+        return {
+          ...rest,
+          agentKind: input.agentKind,
+          ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
+          config: input.config,
+          presentationMode: input.presentationMode,
+          ...(input.presentationMode !== "terminal"
+            ? { threadStatusSource: "server" as ThreadStatusSource }
+            : {}),
+          status: "launching" as ThreadStatus,
+          attention: "none" as ThreadAttention,
+          canResumeWithConfig: false,
+          done: false,
+          updatedAt: now,
+          activeTurnStartedAt: now,
+        };
+      });
+      if (!changed) return {};
+      // The old provider's authoritative launch snapshot describes a session
+      // that no longer exists; drop it so the new provider's first launch owns it.
+      const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
+        state.runtimeLaunchConfigByThreadId;
+      const { [threadId]: _droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
+        state.threadMentionToolsAvailableByThreadId;
+      // Any approval or user-input prompt still open belongs to the session
+      // being abandoned. Nothing resolves it once that session is gone, so
+      // leaving it would block the pane on an answer no agent is waiting for.
+      const { [threadId]: _droppedRequests, ...runtimeRequestsByThread } =
+        state.runtimeRequestsByThread;
+      // Context usage is merged, not replaced, so an old window size the new
+      // provider never reports would survive mixed into its numbers — a 200k
+      // Claude window rendered under a Codex thread.
+      const { [threadId]: _droppedContext, ...runtimeContextByThread } =
+        state.runtimeContextByThread;
+      // A steer staged against the abandoned session has nothing left to
+      // consume it; no `thread-reset` is emitted on this path to clear it.
+      const { [threadId]: _droppedSteer, ...pendingSteerByThreadId } = state.pendingSteerByThreadId;
+      return {
+        threads,
+        runtimeLaunchConfigByThreadId,
+        threadMentionToolsAvailableByThreadId,
+        ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),
+        ...(state.runtimeContextByThread[threadId] ? { runtimeContextByThread } : {}),
+        ...(state.pendingSteerByThreadId[threadId] ? { pendingSteerByThreadId } : {}),
+        lastRuntimeConfigByThreadId: {
+          ...state.lastRuntimeConfigByThreadId,
+          [threadId]: input.config,
+        },
+      };
+    }),
   deleteThread: (threadId) =>
     set((state) => {
+      clearRuntimeStructuralChangeHint(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
 
       if (nextThreads.length === state.threads.length) {
@@ -279,6 +392,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.lastRuntimeConfigByThreadId;
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
+      const { [threadId]: _droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
+        state.threadMentionToolsAvailableByThreadId;
       const { [threadId]: _droppedLastViewed, ...lastViewedAtByThreadId } =
         state.lastViewedAtByThreadId;
       const { [threadId]: _droppedMcpLaunch, ...mcpLaunchCustomServerNamesByThreadId } =
@@ -311,6 +426,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         runtimeCompletedTurnsByThread,
         lastRuntimeConfigByThreadId,
         runtimeLaunchConfigByThreadId,
+        threadMentionToolsAvailableByThreadId,
         lastViewedAtByThreadId,
         keepAlivePaneIds,
         view: nextView,
@@ -322,6 +438,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, title } : thread,
       ),
     })),
+  setThreadWorkspace: (threadId, workspaceId) =>
+    set((state) => {
+      const thread = state.threads.find((t) => t.id === threadId);
+      if (!thread || thread.workspaceId === workspaceId) return {};
+      return {
+        threads: state.threads.map((t) => {
+          if (t.id !== threadId) return t;
+          const { workspaceId: _dropped, ...rest } = t;
+          return {
+            ...rest,
+            ...(workspaceId ? { workspaceId } : {}),
+            updatedAt: new Date().toISOString(),
+          };
+        }),
+      };
+    }),
   setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>
     set((state) => {
       const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =
@@ -350,16 +482,27 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         const nextConfig = thread.presentationMode === "gui" ? config : stripPlanMode(config);
         if (isThreadConfigEqual(thread.config, nextConfig)) return thread;
         changed = true;
+        // Deliberately no `updatedAt` bump: picking a model/effort/mode in the
+        // composer is not thread activity, and bumping it would reshuffle the
+        // sidebar (and the relative-time label) before anything was sent. The
+        // send path touches the thread on submit instead.
         return {
           ...thread,
           config: nextConfig,
-          updatedAt: new Date().toISOString(),
         };
       });
       return changed ? { threads } : {};
     }),
   updateThreadRuntime: (threadId, input) =>
     set((state) => {
+      const currentThread = state.threads.find((thread) => thread.id === threadId);
+      if (
+        currentThread &&
+        input.agentKind !== undefined &&
+        input.agentKind !== currentThread.agentKind
+      ) {
+        return {};
+      }
       let changed = false;
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
@@ -496,9 +639,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
                 },
               };
       }
+      const mentionToolsPatch =
+        input.threadMentionToolsAvailable === undefined
+          ? undefined
+          : {
+              threadMentionToolsAvailableByThreadId: {
+                ...state.threadMentionToolsAvailableByThreadId,
+                [threadId]: input.threadMentionToolsAvailable,
+              },
+            };
 
       if (!changed) {
-        return { ...(runtimeConfigMapPatch ?? {}), ...(launchConfigMapPatch ?? {}) };
+        return {
+          ...(runtimeConfigMapPatch ?? {}),
+          ...(launchConfigMapPatch ?? {}),
+          ...(mentionToolsPatch ?? {}),
+        };
       }
       const turnsChanged =
         turnUpdate.runtimeCompletedTurnsByThread !== state.runtimeCompletedTurnsByThread;
@@ -507,6 +663,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(turnsChanged ? turnUpdate : {}),
         ...(runtimeConfigMapPatch ?? {}),
         ...(launchConfigMapPatch ?? {}),
+        ...(mentionToolsPatch ?? {}),
       };
     }),
   archiveThread: (threadId) =>
@@ -514,8 +671,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       const thread = state.threads.find((t) => t.id === threadId);
       if (!thread || thread.archived) return {};
 
+      const now = new Date().toISOString();
       const threads = state.threads.map((t) =>
-        t.id === threadId ? { ...t, archived: true, updatedAt: new Date().toISOString() } : t,
+        t.id === threadId ? { ...t, archived: true, archivedAt: now, updatedAt: now } : t,
       );
 
       let nextView = state.view;
@@ -534,7 +692,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
       return {
         threads: state.threads.map((t) =>
-          t.id === threadId ? { ...t, archived: false, updatedAt: new Date().toISOString() } : t,
+          t.id === threadId
+            ? { ...t, archived: false, archivedAt: undefined, updatedAt: new Date().toISOString() }
+            : t,
         ),
       };
     }),
@@ -588,7 +748,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     set((state) => {
       const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
       const nextThreads = state.threads.filter(
-        (t) => !t.archived || new Date(t.updatedAt).getTime() > cutoff,
+        (t) => !t.archived || new Date(t.archivedAt ?? t.updatedAt).getTime() > cutoff,
       );
       if (nextThreads.length === state.threads.length) return {};
       return { threads: nextThreads };
@@ -600,12 +760,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       let changed = false;
       const visiblePanes =
         state.view.kind === "thread" ? new Set(state.view.panes) : new Set<string>();
+      const archivedAt = new Date().toISOString();
 
       const threads = state.threads.map((t) => {
         if (!t.done || t.archived || t.starred) return t;
         if (new Date(t.doneAt ?? t.updatedAt).getTime() > cutoff) return t;
         changed = true;
-        return { ...t, archived: true };
+        return { ...t, archived: true, archivedAt };
       });
 
       if (!changed) return {};
@@ -670,14 +831,24 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         turnUpdate.runtimeCompletedTurnsByThread !== state.runtimeCompletedTurnsByThread;
       const { [threadId]: droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
+      const { [threadId]: droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
+        state.threadMentionToolsAvailableByThreadId;
       const launchConfigPatch = droppedLaunchConfig ? { runtimeLaunchConfigByThreadId } : undefined;
+      const mentionToolsPatch = droppedMentionTools
+        ? { threadMentionToolsAvailableByThreadId }
+        : undefined;
       if (!changed) {
-        return { ...(turnsChanged ? turnUpdate : {}), ...(launchConfigPatch ?? {}) };
+        return {
+          ...(turnsChanged ? turnUpdate : {}),
+          ...(launchConfigPatch ?? {}),
+          ...(mentionToolsPatch ?? {}),
+        };
       }
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
         ...(launchConfigPatch ?? {}),
+        ...(mentionToolsPatch ?? {}),
       };
     }),
   touchThread: (threadId) =>
@@ -719,6 +890,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       const runtimeLaunchConfigByThreadId = Object.fromEntries(
         snapshots.flatMap((snapshot) =>
           snapshot.launchConfig ? [[snapshot.threadId, snapshot.launchConfig]] : [],
+        ),
+      );
+      const threadMentionToolsAvailableByThreadId = Object.fromEntries(
+        snapshots.flatMap((snapshot) =>
+          snapshot.threadMentionToolsAvailable === undefined
+            ? []
+            : [[snapshot.threadId, snapshot.threadMentionToolsAvailable]],
         ),
       );
       let changed = false;
@@ -839,6 +1017,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...(turnsChanged ? turnUpdate : {}),
           ...(runtimeConfigPatch ?? {}),
           runtimeLaunchConfigByThreadId,
+          threadMentionToolsAvailableByThreadId,
         };
       }
       return {
@@ -846,6 +1025,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(turnsChanged ? turnUpdate : {}),
         ...(runtimeConfigPatch ?? {}),
         runtimeLaunchConfigByThreadId,
+        threadMentionToolsAvailableByThreadId,
       };
     }),
   reorderThreads: (sourceId, targetId, placement) =>

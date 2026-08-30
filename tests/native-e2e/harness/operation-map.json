@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "contract": "poracode.remote",
-  "protocolVersion": 3,
+  "protocolVersion": 8,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:98f9b3d0e185ec240ef7d1822ef4a8bb7f2f6c5c73d802c47df94104ac55a1e2",
-  "keyCount": 206,
+  "manifestHash": "sha256:f9f4b7ec72dec44b791e9550c393d3e0b09f34956f65a4f5fb3998e37ed19487",
+  "keyCount": 207,
   "counts": {
-    "route": 60,
+    "route": 61,
     "procedure": 100,
     "ws-client": 8,
     "ws-server": 9,
@@ -549,6 +549,10 @@
     "route:pr-watch-check": {
       "kind": "route",
       "id": "pr-watch-check"
+    },
+    "route:pr-watch-agent-sync": {
+      "kind": "route",
+      "id": "pr-watch-agent-sync"
     },
     "route:pr-watch-delete": {
       "kind": "route",

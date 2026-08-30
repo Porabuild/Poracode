@@ -13,7 +13,8 @@ import {
 } from "@/shared/settings";
 import {
   applyAgentSecretSetting,
-  applyClaudeProfileEnvironment,
+  applyCreateProfile,
+  applyProfileEnvironment,
   mergeManagedSharedSettings,
   patchSharedSettingsFile,
   readSharedSettingsFile,
@@ -84,6 +85,9 @@ describe("sharedSettingsFile", () => {
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
+      windowsShellPath: "auto",
+      windowsInternalShellPath: "auto",
+      windowsShellArguments: "",
       commitGenProvider: "auto",
       commitGenModel: "",
       commitGenEffort: "",
@@ -115,10 +119,17 @@ describe("sharedSettingsFile", () => {
       wslConflictResolverFast: false,
       wslConflictResolverPresentationMode: "gui",
       agentSettings: {},
+      machineScopeModes: {
+        providerOrder: "synced",
+        hiddenModels: "synced",
+        disabledAgents: "synced",
+      },
+      machineSettings: {},
       hiddenModels: {},
       disabledAgents: [],
       providerOrder: [],
       acpRegistryInstalledAgents: {},
+      acpRegistryAutoInstallOptOuts: [],
       agentInstances: {},
       collapseTerminalComposer: false,
       cliPickerTarget: "ask",
@@ -153,6 +164,7 @@ describe("sharedSettingsFile", () => {
       prMergeMethod: "squash",
       commitDefaultAction: "commit-push",
       providerConfigs: {},
+      providerModelPreferences: {},
       lastPresentationModeByAgent: {},
       lastUsedProjectDirs: {},
       editorLspEnabled: false,
@@ -215,6 +227,9 @@ describe("sharedSettingsFile", () => {
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
+      windowsShellPath: "auto",
+      windowsInternalShellPath: "auto",
+      windowsShellArguments: "",
       commitGenProvider: "auto",
       commitGenModel: "",
       commitGenEffort: "",
@@ -246,10 +261,17 @@ describe("sharedSettingsFile", () => {
       wslConflictResolverFast: false,
       wslConflictResolverPresentationMode: "gui",
       agentSettings: {},
+      machineScopeModes: {
+        providerOrder: "synced",
+        hiddenModels: "synced",
+        disabledAgents: "synced",
+      },
+      machineSettings: {},
       hiddenModels: {},
       disabledAgents: [],
       providerOrder: [],
       acpRegistryInstalledAgents: {},
+      acpRegistryAutoInstallOptOuts: [],
       agentInstances: {},
       collapseTerminalComposer: false,
       cliPickerTarget: "ask",
@@ -284,6 +306,7 @@ describe("sharedSettingsFile", () => {
       prMergeMethod: "squash",
       commitDefaultAction: "commit-push",
       providerConfigs: {},
+      providerModelPreferences: {},
       lastPresentationModeByAgent: {},
       lastUsedProjectDirs: {},
       editorLspEnabled: false,
@@ -410,6 +433,26 @@ describe("sharedSettingsFile", () => {
     const raw = readFileSync(settingsPath, "utf8");
     expect(raw.endsWith("\n")).toBe(true);
     expect(raw).toContain("\n  "); // two-space indent
+  });
+
+  it("round-trips app-wide provider model preferences", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeSharedSettingsFile(settingsPath, {
+      ...defaultSharedSettings,
+      providerModelPreferences: {
+        codex: {
+          "gpt-5.6-luna": { effort: "max", fast: true },
+          "gpt-5.6-sol": { effort: "high", fast: false },
+        },
+      },
+    });
+
+    expect(readSharedSettingsFile(settingsPath).providerModelPreferences).toEqual({
+      codex: {
+        "gpt-5.6-luna": { effort: "max", fast: true },
+        "gpt-5.6-sol": { effort: "high", fast: false },
+      },
+    });
   });
 
   it("preserves valid settings when provider configs contain invalid entries", () => {
@@ -596,7 +639,149 @@ describe("applyAgentSecretSetting", () => {
   });
 });
 
-describe("applyClaudeProfileEnvironment", () => {
+describe("applyProfileEnvironment (single-credential provider)", () => {
+  function cursorProfileSettings(): SharedSettings {
+    return {
+      ...defaultSharedSettings,
+      agentInstances: {
+        work: { id: "work", driver: "cursor", displayName: "Work" },
+      },
+    };
+  }
+
+  it("seals a Cursor profile key and pins it during renderer writes", () => {
+    const dir = makeTempDir();
+    const saved = applyProfileEnvironment(
+      cursorProfileSettings(),
+      {
+        instanceId: "work",
+        environment: { CURSOR_API_KEY: { value: "profile-secret", sensitive: false } },
+      },
+      dir,
+    );
+    const stored = saved.instance.environment?.CURSOR_API_KEY?.value ?? "";
+
+    expect(isEncryptedSecret(stored)).toBe(true);
+    expect(decryptSecret(dir, stored)).toBe("profile-secret");
+    expect(JSON.stringify(saved.settings)).not.toContain("profile-secret");
+
+    const merged = mergeManagedSharedSettings(saved.settings, {
+      ...saved.settings,
+      agentInstances: {
+        work: { id: "work", driver: "cursor", displayName: "Renamed" },
+      },
+    });
+    expect(merged.agentInstances.work?.displayName).toBe("Renamed");
+    expect(merged.agentInstances.work?.environment?.CURSOR_API_KEY?.value).toBe(stored);
+  });
+
+  it("rejects environment variables outside a single-credential profile's declaration", () => {
+    expect(() =>
+      applyProfileEnvironment(
+        cursorProfileSettings(),
+        { instanceId: "work", environment: { NODE_OPTIONS: { value: "--inspect" } } },
+        makeTempDir(),
+      ),
+    ).toThrow("only support CURSOR_API_KEY");
+  });
+
+  it("rejects instances whose driver does not support profiles", () => {
+    expect(() =>
+      applyProfileEnvironment(
+        {
+          ...defaultSharedSettings,
+          agentInstances: {
+            gadget: { id: "gadget", driver: "acp-generic", displayName: "Gadget" },
+          },
+        },
+        { instanceId: "gadget", environment: { CURSOR_API_KEY: { value: "secret" } } },
+        makeTempDir(),
+      ),
+    ).toThrow("Agent profile not found");
+  });
+
+  it("rejects a missing instance", () => {
+    expect(() =>
+      applyProfileEnvironment(
+        { ...defaultSharedSettings, agentInstances: {} },
+        { instanceId: "missing", environment: {} },
+        makeTempDir(),
+      ),
+    ).toThrow("Agent profile not found");
+  });
+
+  it("drops the stored key when the payload key is empty", () => {
+    const settings = cursorProfileSettings();
+    settings.agentInstances.work!.environment = {
+      CURSOR_API_KEY: { value: "lc-safe:encrypted", sensitive: true },
+    };
+
+    const cleared = applyProfileEnvironment(
+      settings,
+      { instanceId: "work", environment: { CURSOR_API_KEY: { value: "", sensitive: true } } },
+      ".",
+    );
+
+    expect(cleared.instance.environment).toBeUndefined();
+    expect(cleared.settings.agentInstances.work?.environment).toBeUndefined();
+    expect(cleared.settings.agentInstances.work?.displayName).toBe("Work");
+  });
+});
+
+describe("applyCreateProfile", () => {
+  it("creates the profile and seals its key in one settings result", () => {
+    const dir = makeTempDir();
+    const created = applyCreateProfile(
+      defaultSharedSettings,
+      {
+        driver: "cursor",
+        id: "work",
+        displayName: " Work ",
+        environment: { CURSOR_API_KEY: { value: " profile-secret " } },
+      },
+      dir,
+    );
+    const stored = created.instance.environment?.CURSOR_API_KEY?.value ?? "";
+
+    expect(created.settings.agentInstances.work).toBe(created.instance);
+    expect(created.instance.displayName).toBe("Work");
+    expect(decryptSecret(dir, stored)).toBe(" profile-secret ");
+    expect(JSON.stringify(created.settings)).not.toContain(" profile-secret ");
+  });
+
+  it("creates a config-only profile for a provider with no credential", () => {
+    const created = applyCreateProfile(
+      defaultSharedSettings,
+      { driver: "claude", id: "work", displayName: "Work", config: { configDir: "~/x" } },
+      makeTempDir(),
+    );
+
+    expect(created.instance.config).toEqual({ configDir: "~/x" });
+    expect(created.instance.environment).toBeUndefined();
+  });
+
+  it("does not mutate settings when creation validation fails", () => {
+    const settings = { ...defaultSharedSettings, agentInstances: {} };
+
+    expect(() =>
+      applyCreateProfile(
+        settings,
+        { driver: "cursor", id: "work", displayName: "   " },
+        makeTempDir(),
+      ),
+    ).toThrow("require a name");
+    expect(() =>
+      applyCreateProfile(
+        settings,
+        { driver: "acp-generic", id: "gadget", displayName: "Gadget" },
+        makeTempDir(),
+      ),
+    ).toThrow("does not support profiles");
+    expect(settings.agentInstances).toEqual({});
+  });
+});
+
+describe("applyProfileEnvironment (free-form environment provider)", () => {
   function claudeProfileSettings(environment?: AgentInstanceConfig["environment"]): SharedSettings {
     const instance: AgentInstanceConfig = {
       id: "glm",
@@ -609,7 +794,7 @@ describe("applyClaudeProfileEnvironment", () => {
   }
 
   it("seals sensitive values and stores non-sensitive ones as plaintext", () => {
-    const { settings, instance } = applyClaudeProfileEnvironment(
+    const { settings, instance } = applyProfileEnvironment(
       claudeProfileSettings(),
       {
         instanceId: "glm",
@@ -634,14 +819,14 @@ describe("applyClaudeProfileEnvironment", () => {
 
   it("round-trips an already-sealed secret without re-sealing it", () => {
     const dir = makeTempDir();
-    const first = applyClaudeProfileEnvironment(
+    const first = applyProfileEnvironment(
       claudeProfileSettings(),
       { instanceId: "glm", environment: { TOKEN: { value: "plain", sensitive: true } } },
       dir,
     );
     const sealed = first.instance.environment?.TOKEN?.value ?? "";
 
-    const second = applyClaudeProfileEnvironment(
+    const second = applyProfileEnvironment(
       claudeProfileSettings(),
       { instanceId: "glm", environment: { TOKEN: { value: sealed, sensitive: true } } },
       dir,
@@ -650,7 +835,7 @@ describe("applyClaudeProfileEnvironment", () => {
   });
 
   it("drops empty values and removes the environment field when all are empty", () => {
-    const { instance } = applyClaudeProfileEnvironment(
+    const { instance } = applyProfileEnvironment(
       claudeProfileSettings({ OLD: { value: "x" } }),
       { instanceId: "glm", environment: { OLD: { value: "" }, "": { value: "ignored" } } },
       makeTempDir(),
@@ -660,7 +845,7 @@ describe("applyClaudeProfileEnvironment", () => {
 
   it("throws for a missing instance or a non-Claude driver", () => {
     expect(() =>
-      applyClaudeProfileEnvironment(
+      applyProfileEnvironment(
         claudeProfileSettings(),
         { instanceId: "nope", environment: {} },
         makeTempDir(),
@@ -674,11 +859,7 @@ describe("applyClaudeProfileEnvironment", () => {
       },
     };
     expect(() =>
-      applyClaudeProfileEnvironment(
-        acpSettings,
-        { instanceId: "droid", environment: {} },
-        makeTempDir(),
-      ),
+      applyProfileEnvironment(acpSettings, { instanceId: "droid", environment: {} }, makeTempDir()),
     ).toThrow(/not found/i);
   });
 });

@@ -8,13 +8,14 @@ import { usageToneColor } from "./usageTone";
  * split (Claude/Codex: a 5h session plus a weekly window) render TWO concentric
  * rings — like a clock's hands, the faster session is the OUTER ring and the
  * slower weekly/monthly is the INNER ring, so a full inner ring flags "weekly
- * almost gone" even when the session is idle. Cursor renders Auto + Composer
- * outside and API inside. Antigravity shows one of its two quota groups (Gemini
- * vs Claude+GPT), selected via `ringGroup`. Every other provider renders a
- * SINGLE ring on its most-constrained window — an at-a-glance "closest to the
- * limit" read. Which windows map to which ring is a per-provider descriptor in
- * `usageProviders.ts` (see {@link pickUsageRings}). Each ring is colored by its
- * own tone. Reuses the ring math from ThreadContextIndicator.
+ * almost gone" even when the session is idle. Cursor renders Cursor Models
+ * outside and API inside. Antigravity shows one of its two quota groups
+ * (Gemini vs Claude+GPT), selected via `ringGroup`. Every other provider
+ * renders a SINGLE ring on its most-constrained window — an at-a-glance
+ * "closest to the limit" read. Which windows map to which ring is a
+ * per-provider descriptor in `usageProviders.ts` (see {@link pickUsageRings}).
+ * Each ring is colored by its own tone. Reuses the ring math from
+ * ThreadContextIndicator.
  */
 
 function Ring(props: { window: UsageWindow; radius: number }) {

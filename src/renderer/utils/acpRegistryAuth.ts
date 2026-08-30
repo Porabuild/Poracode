@@ -2,12 +2,14 @@ import type {
   AgentEnvVarAuthMethod,
   AgentOwnedAuthMethod,
   AgentStatus,
+  AgentStatusesResponse,
   AgentTerminalAuthMethod,
   Project,
   RefreshAgentScopeEnv,
 } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import { localEnvLabel } from "@/renderer/utils/machineLabels";
 
 type StatusAuthMethod = NonNullable<AgentStatus["authMethods"]>[number];
 
@@ -89,6 +91,20 @@ export function scopeEnvForStatus(status: AgentStatus): RefreshAgentScopeEnv {
     : { kind: "native" };
 }
 
+/** Pick one kind's status out of a refresh response for a native/WSL target. */
+export function findStatusForTarget(
+  response: AgentStatusesResponse | undefined,
+  kind: string,
+  target: RefreshAgentScopeEnv,
+): AgentStatus | undefined {
+  if (!response) return undefined;
+  return target.kind === "wsl"
+    ? response.wsl.find(
+        (candidate) => candidate.kind === kind && candidate.envDistro === target.distro,
+      )
+    : response.windows.find((candidate) => candidate.kind === kind);
+}
+
 export function statusUpdateScope(status: AgentStatus): {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
@@ -101,8 +117,10 @@ export function statusUpdateScope(status: AgentStatus): {
 }
 
 export function envLabelForStatus(status: AgentStatus): string {
-  if (status.envKind === "wsl") return status.envDistro ? `WSL (${status.envDistro})` : "WSL";
-  if (status.envKind === "windows") return "Windows";
+  if (status.envKind === "wsl") {
+    return status.envDistro ? localEnvLabel({ kind: "wsl", distro: status.envDistro }) : "WSL";
+  }
+  if (status.envKind === "windows") return localEnvLabel({ kind: "native" });
   return "";
 }
 

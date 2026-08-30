@@ -92,7 +92,7 @@ class RepositoryRichChatGatewayProviderCommandTest {
                 appVersion = "test",
                 scopes = listOf("session:operate"),
                 pairedAtEpochMs = 1,
-                protocolVersion = 3,
+                protocolVersion = 8,
             ),
             accessToken = token,
         )

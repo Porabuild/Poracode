@@ -39,7 +39,7 @@ class RemoteApiGeneratedContractTest {
                 accessToken = "access-secret",
                 client = OkHttpClient(),
             )
-            assertEquals(3, client.environment().protocolVersion)
+            assertEquals(8, client.environment().protocolVersion)
             assertEquals(42, client.snapshot().snapshotSeq)
             assertEquals(
                 "thread-fixture-001",

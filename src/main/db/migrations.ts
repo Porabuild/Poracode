@@ -1,4 +1,7 @@
 import Database from "better-sqlite3";
+import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
+import { HEAD_CHARS } from "./runtimeStreamCap";
+import { writeItemStreams } from "./runtimeStreamStore";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -22,6 +25,14 @@ function addColumnIfMissing(
   if (!columnNames(sqlite, table).has(column)) {
     sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
+}
+
+function createRuntimeItemParentIndex(sqlite: SqliteDatabase): void {
+  addColumnIfMissing(sqlite, "thread_runtime_items", "parent_item_id", "TEXT");
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_parent " +
+      "ON thread_runtime_items (thread_id, parent_item_id)",
+  );
 }
 
 function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string): void {
@@ -50,6 +61,36 @@ function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string
   }
 }
 
+function normalizeRuntimeStreams(sqlite: SqliteDatabase): void {
+  const nextRow = sqlite.prepare(
+    `SELECT rowid, thread_id, item_id, streams FROM thread_runtime_items
+     WHERE rowid > ? AND streams IS NOT NULL AND LENGTH(CAST(streams AS BLOB)) > ?
+     ORDER BY rowid ASC LIMIT 1`,
+  );
+  let rowid = 0;
+  for (;;) {
+    const row = nextRow.get(rowid, HEAD_CHARS) as
+      | { rowid: number; thread_id: string; item_id: string; streams: string }
+      | undefined;
+    if (!row) return;
+    rowid = row.rowid;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.streams);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const streams = parsed as Record<string, string>;
+    if (
+      !Object.values(streams).some((text) => typeof text === "string" && text.length > HEAD_CHARS)
+    ) {
+      continue;
+    }
+    writeItemStreams(sqlite, row.thread_id, row.item_id, streams);
+  }
+}
+
 function repairEmptyThreadModels(sqlite: SqliteDatabase): void {
   const rows = sqlite.prepare("SELECT rowid, config FROM threads").all() as {
     rowid: number;
@@ -68,6 +109,72 @@ function repairEmptyThreadModels(sqlite: SqliteDatabase): void {
     if (typeof config.model !== "string" || config.model.trim().length > 0) continue;
     config.model = "auto";
     update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
+function normalizeAntigravityAcpConfigs(sqlite: SqliteDatabase): void {
+  for (const table of ["threads", "scheduled_tasks", "pr_watches"]) {
+    const columns = columnNames(sqlite, table);
+    if (!columns.has("agent_kind") || !columns.has("config")) continue;
+    const rows = sqlite
+      .prepare(
+        `SELECT rowid, config, ${columns.has("presentation_mode") ? "presentation_mode" : "NULL"} AS presentation_mode ` +
+          `FROM ${table} WHERE agent_kind = 'antigravity'`,
+      )
+      .all() as { rowid: number; config: string | null; presentation_mode: string | null }[];
+    const update = sqlite.prepare(`UPDATE ${table} SET config = ? WHERE rowid = ?`);
+    for (const row of rows) {
+      if (!row.config) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(row.config);
+      } catch {
+        continue;
+      }
+      if (!parsed || typeof parsed !== "object") continue;
+      const config = parsed as { model?: unknown; effort?: unknown };
+      if (typeof config.model !== "string") continue;
+      const normalized = normalizePersistedAntigravityModelSelection(
+        config.model,
+        typeof config.effort === "string" ? config.effort : undefined,
+        table !== "threads" || row.presentation_mode === "gui",
+      );
+      if (normalized.model === config.model) continue;
+      config.model = normalized.model;
+      if (normalized.effort) config.effort = normalized.effort;
+      update.run(JSON.stringify(config), row.rowid);
+    }
+  }
+
+  if (!columnNames(sqlite, "projects").has("last_draft_config")) return;
+  const drafts = sqlite
+    .prepare("SELECT id, last_draft_config FROM projects WHERE last_draft_config IS NOT NULL")
+    .all() as { id: string; last_draft_config: string }[];
+  const updateDraft = sqlite.prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?");
+  for (const row of drafts) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.last_draft_config);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const config = parsed as {
+      agentKind?: unknown;
+      model?: unknown;
+      effort?: unknown;
+      presentationMode?: unknown;
+    };
+    if (config.agentKind !== "antigravity" || typeof config.model !== "string") continue;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      config.model,
+      typeof config.effort === "string" ? config.effort : undefined,
+      config.presentationMode === "gui",
+    );
+    if (normalized.model === config.model) continue;
+    config.model = normalized.model;
+    if (normalized.effort) config.effort = normalized.effort;
+    updateDraft.run(JSON.stringify(config), row.id);
   }
 }
 
@@ -369,6 +476,138 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 32,
+    name: "pr watch blocked reason",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "blocked_reason", "TEXT"),
+  },
+  {
+    version: 33,
+    name: "project GitHub account",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "gh_account", "TEXT"),
+  },
+  {
+    version: 34,
+    name: "projects.icon",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "icon", "TEXT"),
+  },
+  {
+    version: 35,
+    name: "threads.archived_at",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "archived_at", "TEXT");
+      sqlite.exec(
+        "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
+      );
+    },
+  },
+  {
+    version: 36,
+    name: "runtime item stream chunks",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_chunks (
+          thread_id TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          stream TEXT NOT NULL,
+          seq INTEGER NOT NULL,
+          chars INTEGER NOT NULL,
+          text TEXT NOT NULL,
+          PRIMARY KEY (thread_id, item_id, stream, seq),
+          FOREIGN KEY (thread_id, item_id)
+            REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_state (
+          thread_id TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          stream TEXT NOT NULL,
+          next_seq INTEGER NOT NULL,
+          tail_chars INTEGER NOT NULL,
+          elided_chars INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (thread_id, item_id, stream),
+          FOREIGN KEY (thread_id, item_id)
+            REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+        );
+      `);
+      normalizeRuntimeStreams(sqlite);
+    },
+  },
+  {
+    version: 37,
+    name: "threads.workspace_id",
+    // Workspace a Home thread was created in. Existing rows deliberately stay
+    // NULL: an untagged Home thread remains visible in every workspace (the
+    // same unfiled rule projects use), so pre-upgrade threads keep today's
+    // behavior instead of vanishing from sidebars.
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "workspace_id", "TEXT"),
+  },
+  {
+    version: 38,
+    name: "runtime item parent index",
+    migrate: createRuntimeItemParentIndex,
+  },
+  {
+    version: 39,
+    name: "adopt Antigravity ACP provider",
+    migrate: (sqlite) => {
+      const legacyKind = "acp-generic:antigravity-acp";
+      const threadColumns = columnNames(sqlite, "threads");
+      if (threadColumns.has("agent_kind")) {
+        sqlite
+          .prepare(
+            threadColumns.has("agent_instance_id")
+              ? "UPDATE threads SET agent_kind = 'antigravity', agent_instance_id = NULL WHERE agent_kind = ?"
+              : "UPDATE threads SET agent_kind = 'antigravity' WHERE agent_kind = ?",
+          )
+          .run(legacyKind);
+      }
+      for (const table of ["scheduled_tasks", "pr_watches"]) {
+        if (columnNames(sqlite, table).has("agent_kind")) {
+          sqlite
+            .prepare(`UPDATE ${table} SET agent_kind = 'antigravity' WHERE agent_kind = ?`)
+            .run(legacyKind);
+        }
+      }
+      // Project drafts remember the last-composed provider/model — the last
+      // persisted copy of the dead kind. Rewriting it keeps every upgraded
+      // project's remembered draft selection instead of silently falling back
+      // to the first installed agent on the next new thread.
+      if (columnNames(sqlite, "projects").has("last_draft_config")) {
+        const selectDrafts = sqlite
+          .prepare("SELECT id, last_draft_config FROM projects WHERE last_draft_config IS NOT NULL")
+          .all() as { id: string; last_draft_config: string }[];
+        const updateDraft = sqlite.prepare(
+          "UPDATE projects SET last_draft_config = ? WHERE id = ?",
+        );
+        for (const row of selectDrafts) {
+          try {
+            const config = JSON.parse(row.last_draft_config) as {
+              agentKind?: unknown;
+            };
+            if (config?.agentKind !== legacyKind) continue;
+            config.agentKind = "antigravity";
+            (config as { presentationMode?: string }).presentationMode = "gui";
+            updateDraft.run(JSON.stringify(config), row.id);
+          } catch {
+            // Unparseable draft config — leave it; readers fall back safely.
+          }
+        }
+      }
+    },
+  },
+  {
+    version: 40,
+    name: "normalize Antigravity ACP model variants",
+    migrate: normalizeAntigravityAcpConfigs,
+  },
+  {
+    version: 41,
+    name: "repair Antigravity persisted model variants",
+    // v39 originally omitted project drafts and could reinterpret the one
+    // ACP/CLI-overlapping 3.5 slug. Re-run the now context-aware repair for
+    // profiles that already recorded schema 39 in a dev or nightly build.
+    migrate: normalizeAntigravityAcpConfigs,
+  },
+  {
+    version: 42,
     name: "main-created thread ownership",
     migrate: (sqlite) =>
       sqlite.exec(`
@@ -378,7 +617,7 @@ export const DATABASE_MIGRATIONS = [
       `),
   },
   {
-    version: 33,
+    version: 43,
     name: "terminal scrollback",
     migrate: (sqlite) =>
       sqlite.exec(`
@@ -388,6 +627,17 @@ export const DATABASE_MIGRATIONS = [
           output_length INTEGER NOT NULL
         );
       `),
+  },
+  {
+    version: 44,
+    name: "repair divergent schema 32 and 33",
+    // Early native-remote builds used versions 32/33 for the two tables above
+    // while master used those numbers for columns. Reassert both master-side
+    // columns so databases created by either lineage converge safely.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "pr_watches", "blocked_reason", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "gh_account", "TEXT");
+    },
   },
 ] as const satisfies readonly DatabaseMigration[];
 
@@ -444,8 +694,10 @@ export function runDatabaseMigrations(sqlite: SqliteDatabase, storedVersion: num
 
 const SAFE_COLUMN_REPAIRS = [
   ["projects", "search_settings", "TEXT"],
+  ["projects", "icon", "TEXT"],
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
+  ["projects", "gh_account", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -457,11 +709,13 @@ const SAFE_COLUMN_REPAIRS = [
   ["threads", "agent_instance_id", "TEXT"],
   ["threads", "thread_status_source", "TEXT"],
   ["threads", "parent_thread_id", "TEXT"],
+  ["threads", "archived_at", "TEXT"],
   ["threads", "active_turn_started_at", "TEXT"],
   ["threads", "last_turn_started_at", "TEXT"],
   ["threads", "last_turn_ended_at", "TEXT"],
   ["thread_runtime_items", "parent_item_id", "TEXT"],
   ["scheduled_tasks", "project_id", "TEXT"],
+  ["pr_watches", "blocked_reason", "TEXT"],
 ] as const;
 
 /**
@@ -474,6 +728,10 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     for (const [table, column, definition] of SAFE_COLUMN_REPAIRS) {
       addColumnIfMissing(sqlite, table, column, definition);
     }
+    createRuntimeItemParentIndex(sqlite);
+    sqlite.exec(
+      "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
+    );
   })();
 }
 
@@ -481,6 +739,7 @@ const REQUIRED_COLUMNS = {
   projects: [
     "id",
     "name",
+    "icon",
     "location_kind",
     "location_path",
     "location_distro",
@@ -491,6 +750,7 @@ const REQUIRED_COLUMNS = {
     "search_settings",
     "worktree_location",
     "mcp_servers",
+    "gh_account",
     "workspace_id",
     "disabled",
     "sort_order",
@@ -516,6 +776,7 @@ const REQUIRED_COLUMNS = {
     "group_name",
     "parent_thread_id",
     "archived",
+    "archived_at",
     "done",
     "done_at",
     "starred",
@@ -539,6 +800,15 @@ const REQUIRED_COLUMNS = {
   ],
   thread_terminal_scrollback: ["thread_id", "transcript", "output_length"],
   main_created_threads: ["thread_id"],
+  thread_runtime_item_stream_chunks: ["thread_id", "item_id", "stream", "seq", "chars", "text"],
+  thread_runtime_item_stream_state: [
+    "thread_id",
+    "item_id",
+    "stream",
+    "next_seq",
+    "tail_chars",
+    "elided_chars",
+  ],
   scheduled_tasks: [
     "id",
     "name",
@@ -556,6 +826,23 @@ const REQUIRED_COLUMNS = {
     "last_error",
     "created_at",
     "updated_at",
+  ],
+  pr_watches: [
+    "project_id",
+    "pr_number",
+    "head_branch",
+    "worktree_path",
+    "watch_enabled",
+    "auto_merge",
+    "agent_kind",
+    "config",
+    "last_comment_cursor",
+    "last_review_comment_cursor",
+    "last_review_cursor",
+    "last_check_key",
+    "active_thread_id",
+    "last_error",
+    "blocked_reason",
   ],
 } as const;
 

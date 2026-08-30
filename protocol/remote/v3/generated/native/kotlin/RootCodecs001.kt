@@ -101,8 +101,8 @@ val RemoteRootCodecs.procedureU2EGetMcpOauthStatusU2ERequest: RemoteRootCodec<Pr
 val RemoteRootCodecs.procedureU2EGetMcpOauthStatusU2EResult: RemoteRootCodec<ProceduregetMcpOauthStatusResult_51733da614>
     get() = RemoteRootCodec("procedure.getMcpOauthStatus.result", serializer<ProceduregetMcpOauthStatusResult_51733da614>(), schema_51733da614782090)
 
-val RemoteRootCodecs.procedureU2EGhCancelWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_2101176bb1>
-    get() = RemoteRootCodec("procedure.ghCancelWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_2101176bb1>(), schema_2101176bb1edeca8)
+val RemoteRootCodecs.procedureU2EGhCancelWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287>
+    get() = RemoteRootCodec("procedure.ghCancelWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_eb12aad287>(), schema_eb12aad2875e1908)
 
 val RemoteRootCodecs.procedureU2EGhCheckAvailableU2ERequest: RemoteRootCodec<ProceduregetGitStatusRequest_c4d99dd3e3>
     get() = RemoteRootCodec("procedure.ghCheckAvailable.request", serializer<ProceduregetGitStatusRequest_c4d99dd3e3>(), schema_c4d99dd3e3a1ba03)
@@ -119,11 +119,11 @@ val RemoteRootCodecs.procedureU2EGhCreatePrU2ERequest: RemoteRootCodec<Procedure
 val RemoteRootCodecs.procedureU2EGhCreatePrU2EResult: RemoteRootCodec<ProcedureghCreatePrResult_a4457c545e>
     get() = RemoteRootCodec("procedure.ghCreatePr.result", serializer<ProcedureghCreatePrResult_a4457c545e>(), schema_a4457c545e0e0489)
 
-val RemoteRootCodecs.procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_2101176bb1>
-    get() = RemoteRootCodec("procedure.ghDeleteWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_2101176bb1>(), schema_2101176bb1edeca8)
+val RemoteRootCodecs.procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287>
+    get() = RemoteRootCodec("procedure.ghDeleteWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_eb12aad287>(), schema_eb12aad2875e1908)
 
-val RemoteRootCodecs.procedureU2EGhDispatchWorkflowU2ERequest: RemoteRootCodec<ProcedureghDispatchWorkflowRequest_6d840e9cb9>
-    get() = RemoteRootCodec("procedure.ghDispatchWorkflow.request", serializer<ProcedureghDispatchWorkflowRequest_6d840e9cb9>(), schema_6d840e9cb93c86d0)
+val RemoteRootCodecs.procedureU2EGhDispatchWorkflowU2ERequest: RemoteRootCodec<ProcedureghDispatchWorkflowRequest_e56382aee3>
+    get() = RemoteRootCodec("procedure.ghDispatchWorkflow.request", serializer<ProcedureghDispatchWorkflowRequest_e56382aee3>(), schema_e56382aee3ea3c7f)
 
 val RemoteRootCodecs.procedureU2EGhGetPrChecksU2ERequest: RemoteRootCodec<ProcedureghGetPrChecksRequest_50e8e4265c>
     get() = RemoteRootCodec("procedure.ghGetPrChecks.request", serializer<ProcedureghGetPrChecksRequest_50e8e4265c>(), schema_50e8e4265cb34b55)
@@ -161,14 +161,14 @@ val RemoteRootCodecs.procedureU2EGhGetPrReviewCommentsU2ERequest: RemoteRootCode
 val RemoteRootCodecs.procedureU2EGhGetPrReviewCommentsU2EResult: RemoteRootCodec<ProcedureghGetPrReviewCommentsResult_2cb7b58fd1>
     get() = RemoteRootCodec("procedure.ghGetPrReviewComments.result", serializer<ProcedureghGetPrReviewCommentsResult_2cb7b58fd1>(), schema_2cb7b58fd1c2e6ed)
 
-val RemoteRootCodecs.procedureU2EGhGetWorkflowDefinitionU2ERequest: RemoteRootCodec<ProcedureghGetWorkflowDefinitionRequest_7595d53fa2>
-    get() = RemoteRootCodec("procedure.ghGetWorkflowDefinition.request", serializer<ProcedureghGetWorkflowDefinitionRequest_7595d53fa2>(), schema_7595d53fa28720a8)
+val RemoteRootCodecs.procedureU2EGhGetWorkflowDefinitionU2ERequest: RemoteRootCodec<ProcedureghGetWorkflowDefinitionRequest_30b422e470>
+    get() = RemoteRootCodec("procedure.ghGetWorkflowDefinition.request", serializer<ProcedureghGetWorkflowDefinitionRequest_30b422e470>(), schema_30b422e470a61b28)
 
 val RemoteRootCodecs.procedureU2EGhGetWorkflowDefinitionU2EResult: RemoteRootCodec<ProcedureghGetWorkflowDefinitionResult_8a0ca790b0>
     get() = RemoteRootCodec("procedure.ghGetWorkflowDefinition.result", serializer<ProcedureghGetWorkflowDefinitionResult_8a0ca790b0>(), schema_8a0ca790b0047a5e)
 
-val RemoteRootCodecs.procedureU2EGhGetWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_2101176bb1>
-    get() = RemoteRootCodec("procedure.ghGetWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_2101176bb1>(), schema_2101176bb1edeca8)
+val RemoteRootCodecs.procedureU2EGhGetWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287>
+    get() = RemoteRootCodec("procedure.ghGetWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_eb12aad287>(), schema_eb12aad2875e1908)
 
 val RemoteRootCodecs.procedureU2EGhGetWorkflowRunU2EResult: RemoteRootCodec<ProcedureghGetWorkflowRunResult_5d9c5341a0>
     get() = RemoteRootCodec("procedure.ghGetWorkflowRun.result", serializer<ProcedureghGetWorkflowRunResult_5d9c5341a0>(), schema_5d9c5341a06760dc)
@@ -197,14 +197,14 @@ val RemoteRootCodecs.procedureU2EGhListReposU2ERequest: RemoteRootCodec<Procedur
 val RemoteRootCodecs.procedureU2EGhListReposU2EResult: RemoteRootCodec<ProcedureghListReposResult_275476f9b6>
     get() = RemoteRootCodec("procedure.ghListRepos.result", serializer<ProcedureghListReposResult_275476f9b6>(), schema_275476f9b6055811)
 
-val RemoteRootCodecs.procedureU2EGhListWorkflowRunsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowRunsRequest_23a952c095>
-    get() = RemoteRootCodec("procedure.ghListWorkflowRuns.request", serializer<ProcedureghListWorkflowRunsRequest_23a952c095>(), schema_23a952c095175515)
+val RemoteRootCodecs.procedureU2EGhListWorkflowRunsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowRunsRequest_513dd8593f>
+    get() = RemoteRootCodec("procedure.ghListWorkflowRuns.request", serializer<ProcedureghListWorkflowRunsRequest_513dd8593f>(), schema_513dd8593f33208a)
 
 val RemoteRootCodecs.procedureU2EGhListWorkflowRunsU2EResult: RemoteRootCodec<ProcedureghListWorkflowRunsResult_bcff7a8919>
     get() = RemoteRootCodec("procedure.ghListWorkflowRuns.result", serializer<ProcedureghListWorkflowRunsResult_bcff7a8919>(), schema_bcff7a89192b7e6a)
 
-val RemoteRootCodecs.procedureU2EGhListWorkflowsU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
-    get() = RemoteRootCodec("procedure.ghListWorkflows.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
+val RemoteRootCodecs.procedureU2EGhListWorkflowsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowsRequest_72429c4be5>
+    get() = RemoteRootCodec("procedure.ghListWorkflows.request", serializer<ProcedureghListWorkflowsRequest_72429c4be5>(), schema_72429c4be55ff8fc)
 
 val RemoteRootCodecs.procedureU2EGhListWorkflowsU2EResult: RemoteRootCodec<ProcedureghListWorkflowsResult_3994629a32>
     get() = RemoteRootCodec("procedure.ghListWorkflows.result", serializer<ProcedureghListWorkflowsResult_3994629a32>(), schema_3994629a32a97c9b)
@@ -224,8 +224,8 @@ val RemoteRootCodecs.procedureU2EGhPostPrCommentU2EResult: RemoteRootCodec<Proce
 val RemoteRootCodecs.procedureU2EGhReopenPrU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghReopenPr.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
 
-val RemoteRootCodecs.procedureU2EGhRerunWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghRerunWorkflowRunRequest_bc01786c11>
-    get() = RemoteRootCodec("procedure.ghRerunWorkflowRun.request", serializer<ProcedureghRerunWorkflowRunRequest_bc01786c11>(), schema_bc01786c116784f4)
+val RemoteRootCodecs.procedureU2EGhRerunWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghRerunWorkflowRunRequest_4492692f82>
+    get() = RemoteRootCodec("procedure.ghRerunWorkflowRun.request", serializer<ProcedureghRerunWorkflowRunRequest_4492692f82>(), schema_4492692f82322049)
 
 val RemoteRootCodecs.procedureU2EGhSubmitPrReviewU2ERequest: RemoteRootCodec<ProcedureghSubmitPrReviewRequest_09cbc76a2a>
     get() = RemoteRootCodec("procedure.ghSubmitPrReview.request", serializer<ProcedureghSubmitPrReviewRequest_09cbc76a2a>(), schema_09cbc76a2a7d52d2)

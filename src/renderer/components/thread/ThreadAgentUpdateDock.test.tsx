@@ -2,7 +2,13 @@ import type { ReactNode } from "react";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentCapability, AgentStatus, Project } from "@/shared/contracts";
+import type {
+  AcpRegistryListResult,
+  AgentCapability,
+  AgentStatusesResponse,
+  AgentStatus,
+  Project,
+} from "@/shared/contracts";
 
 const toastMock = vi.hoisted(() => ({
   danger: vi.fn<(message: string) => void>(),
@@ -28,7 +34,9 @@ vi.mock("@heroui/react", () => ({
 const bridgeMock = vi.hoisted(() => ({
   getLatestAgentVersion:
     vi.fn<(payload: unknown) => Promise<{ version?: string; source?: string }>>(),
-  refreshAgentStatuses: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  listAcpRegistry: vi.fn<() => Promise<AcpRegistryListResult>>(),
+  refreshAgentStatuses: vi.fn<(...args: unknown[]) => Promise<AgentStatusesResponse>>(),
+  updateAcpRegistryAgent: vi.fn<() => Promise<{ installed: [] }>>(),
   updateAgentBinary: vi.fn<(payload: unknown) => Promise<{ ok: boolean }>>(),
 }));
 
@@ -52,6 +60,8 @@ vi.mock("@/renderer/actions/agentLoginActions", () => ({
 }));
 
 import "@/renderer/components/providers/cursor";
+import "@/renderer/components/providers/antigravity";
+import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 
 const project: Project = {
@@ -105,12 +115,60 @@ const sdkStatus: AgentStatus = {
   },
 };
 
+function antigravityStatus(cliVersion: string, acpVersion: string): AgentStatus {
+  return {
+    kind: "antigravity",
+    label: "Antigravity",
+    installed: true,
+    version: cliVersion,
+    authState: "authenticated",
+    envKind: "windows",
+    capabilities,
+    runtimeVariants: {
+      cli: {
+        presentationMode: "terminal",
+        installed: true,
+        version: cliVersion,
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: { ...capabilities, presentationMode: "terminal", liveInputMode: "terminal" },
+      },
+      acp: {
+        presentationMode: "gui",
+        installed: true,
+        version: acpVersion,
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities,
+      },
+    },
+  };
+}
+
 describe("ThreadAgentUpdateDock", () => {
   beforeEach(() => {
+    resetAcpRegistryListingCache();
     bridgeMock.getLatestAgentVersion
       .mockReset()
       .mockResolvedValue({ version: "1.0.31", source: "npm" });
-    bridgeMock.refreshAgentStatuses.mockReset().mockResolvedValue(undefined);
+    bridgeMock.listAcpRegistry.mockReset().mockResolvedValue({
+      version: "1.0.0",
+      agents: [
+        {
+          id: "antigravity-acp",
+          name: "Google Antigravity",
+          version: "1.1.0",
+          description: "Official Antigravity ACP runtime",
+          distribution: { npx: { package: "antigravity-acp" } },
+        },
+      ],
+    });
+    bridgeMock.refreshAgentStatuses.mockReset().mockResolvedValue({
+      windows: [],
+      wsl: [],
+      fromCache: false,
+    });
+    bridgeMock.updateAcpRegistryAgent.mockReset().mockResolvedValue({ installed: [] });
     bridgeMock.updateAgentBinary.mockReset().mockResolvedValue({ ok: true });
     runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     toastMock.danger.mockReset();
@@ -121,7 +179,7 @@ describe("ThreadAgentUpdateDock", () => {
     render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
 
     expect(
-      await screen.findByText(/Cursor SDK: Windows · v1\.0\.24 → v1\.0\.31/u),
+      await screen.findByText(/Cursor SDK: This computer · v1\.0\.24 → v1\.0\.31/u),
     ).toBeInTheDocument();
     expect(screen.queryByText(/2026\.07\.09/u)).toBeNull();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({
@@ -170,7 +228,9 @@ describe("ThreadAgentUpdateDock", () => {
     );
 
     expect(
-      await screen.findByText(/Cursor: Windows · v2026\.07\.09-a3815c0 → v2026\.07\.23-e383d2b/u),
+      await screen.findByText(
+        /Cursor: This computer · v2026\.07\.09-a3815c0 → v2026\.07\.23-e383d2b/u,
+      ),
     ).toBeInTheDocument();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "cursor" });
 
@@ -183,5 +243,80 @@ describe("ThreadAgentUpdateDock", () => {
       }),
     );
     expect(runAgentInstallCommandMock).not.toHaveBeenCalled();
+  });
+
+  it("shows and updates both Antigravity runtimes through one composer action", async () => {
+    const installed = antigravityStatus("1.2.0", "1.0.0");
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "1.3.0", source: "npm" });
+    bridgeMock.refreshAgentStatuses.mockResolvedValue({
+      windows: [antigravityStatus("1.3.0", "1.1.0")],
+      wsl: [],
+      fromCache: false,
+    });
+
+    render(<ThreadAgentUpdateDock agentStatus={installed} project={project} />);
+
+    await screen.findByText("agy CLI");
+    const runtimeRows = screen.getAllByRole("listitem");
+    expect(runtimeRows[0]).toHaveTextContent("agy CLIv1.2.0 → v1.3.0");
+    expect(runtimeRows[1]).toHaveTextContent("Antigravity ACPv1.0.0 → v1.1.0");
+    expect(screen.getAllByRole("button", { name: "Update" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await vi.waitFor(() => {
+      expect(bridgeMock.updateAgentBinary).toHaveBeenCalledWith({
+        agentKind: "antigravity",
+        envKind: "windows",
+      });
+      expect(bridgeMock.updateAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+    expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledWith([], {
+      agentKinds: ["antigravity"],
+      envs: [{ kind: "native" }],
+    });
+  });
+
+  it("reuses one registry listing across dock remounts", async () => {
+    // listAcpRegistry runs the supervisor's registry auto-update sweep, so it
+    // must not fire again every time the composer dock mounts.
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "1.3.0", source: "npm" });
+
+    const first = render(
+      <ThreadAgentUpdateDock agentStatus={antigravityStatus("1.2.0", "1.0.0")} project={project} />,
+    );
+    await screen.findByText("agy CLI");
+    await vi.waitFor(() => expect(bridgeMock.listAcpRegistry).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    render(
+      <ThreadAgentUpdateDock agentStatus={antigravityStatus("1.2.0", "1.0.0")} project={project} />,
+    );
+    await screen.findByText("agy CLI");
+
+    expect(bridgeMock.listAcpRegistry).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the composer updating state when a combined update dock unmounts", async () => {
+    const onUpdatingChange = vi.fn<(updating: boolean) => void>();
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "1.3.0", source: "npm" });
+    bridgeMock.updateAgentBinary.mockImplementation(() => new Promise(() => {}));
+    const view = render(
+      <ThreadAgentUpdateDock
+        agentStatus={antigravityStatus("1.2.0", "1.0.0")}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+    await vi.waitFor(() => expect(onUpdatingChange).toHaveBeenLastCalledWith(true));
+
+    view.unmount();
+
+    expect(onUpdatingChange).toHaveBeenLastCalledWith(false);
   });
 });

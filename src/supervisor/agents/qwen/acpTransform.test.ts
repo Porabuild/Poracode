@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import {
   createAcpMapperState,
@@ -7,6 +7,7 @@ import {
   PORACODE_ACP_GOAL_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
   PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
+  PORACODE_ACP_SUBAGENT_STATUS_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "../acp/canonicalMapping";
 import { AcpStructuredSession } from "../acp/session";
@@ -22,6 +23,8 @@ function transformedUpdate(
 ): Record<string, unknown> {
   return transform(note(update)).update as Record<string, unknown>;
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("createQwenAcpSessionUpdateTransform", () => {
   it("normalizes Qwen native goal lifecycle metadata", () => {
@@ -340,7 +343,10 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       reason: "end_turn",
       source: "background_notification",
     });
-    const terminalEvents = mapAcpSessionUpdate(bridge.sessionUpdateTransform(boundary!), state);
+    const terminalEvents = mapAcpSessionUpdate(
+      bridge.sessionUpdateTransform(boundary as SessionNotification),
+      state,
+    );
     const childStart = terminalEvents.find(
       (event) => event.type === "item.started" && event.parentItemId === parentItemId,
     );
@@ -370,6 +376,495 @@ describe("createQwenAcpSessionUpdateTransform", () => {
     expect(childCompletedIndex).toBeGreaterThanOrEqual(0);
     expect(parentCompletedIndex).toBeGreaterThan(childCompletedIndex);
     expect(state.activeSubAgents).toEqual([]);
+  });
+
+  it("negotiates active-work snapshots and maps live progress plus lost completion", async () => {
+    const now = 1_800_000_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+    const bridge = createQwenAcpSessionBridge();
+    expect(bridge.initializeMeta).toEqual({
+      "qwen.daemon.activeWorkHeartbeat": {
+        v: 1,
+        intervalMs: 5_000,
+        categories: ["agent", "notification"],
+      },
+    });
+
+    const state = createAcpMapperState("qwen-thread");
+    const mapUpdate = (update: Record<string, unknown>) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(note(update)), state);
+    const started = mapUpdate({
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-live",
+      title: "Agent: Inspect tracking",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    const parentItemId = (
+      started.find((event) => event.type === "item.started") as { itemId: string }
+    ).itemId;
+    mapUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "" },
+      _meta: { goalStatus: { kind: "set", condition: "Track the background task" } },
+    });
+    mapUpdate({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-live",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: { type: "text", text: "task_id: Explore-live123 (internal ID)" },
+        },
+      ],
+      rawOutput: {
+        status: "background",
+        subagentName: "Explore",
+        taskDescription: "Inspect tracking",
+      },
+      _meta: { toolName: "agent" },
+    });
+
+    const request = vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>>()
+      .mockResolvedValueOnce({
+        v: 1,
+        sessionId: "qwen-session",
+        now,
+        tasks: [
+          {
+            kind: "agent",
+            id: "Explore-live123",
+            label: "Explore: Inspect tracking",
+            description: "Inspect tracking",
+            status: "running",
+            startTime: now - 2_000,
+            runtimeMs: 2_000,
+            stats: { totalTokens: 1_200, toolUses: 4 },
+            recentActivities: [{ name: "read_file", description: "Read acpTransform.ts", at: now }],
+            toolUseId: "agent-live",
+          },
+        ],
+      });
+    const liveResult = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      {
+        v: 1,
+        seq: 1,
+        sessions: [
+          {
+            sessionId: "qwen-session",
+            holds: [{ category: "agent", id: "Explore-live123" }],
+          },
+        ],
+      },
+      { request },
+    );
+    const liveNotifications = Array.isArray(liveResult) ? liveResult : [liveResult!];
+    const liveEvents = liveNotifications.flatMap((notification) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(notification), state),
+    );
+    expect(request).toHaveBeenCalledWith("qwen/status/session/tasks", {
+      sessionId: "qwen-session",
+    });
+    expect(liveEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: parentItemId,
+        payload: expect.objectContaining({
+          status: "running",
+          progress: expect.objectContaining({
+            description: "Read acpTransform.ts",
+            lastToolName: "read_file",
+            tokens: 1_200,
+            toolUses: 4,
+            durationMs: 2_000,
+            stepCount: 4,
+          }),
+        }),
+      }),
+    );
+
+    const terminalSnapshot = {
+      v: 1,
+      sessionId: "qwen-session",
+      now,
+      tasks: [
+        {
+          kind: "agent",
+          id: "Explore-live123",
+          label: "Explore: Inspect tracking",
+          description: "Inspect tracking",
+          status: "completed",
+          startTime: now - 20_000,
+          endTime: now - 11_000,
+          runtimeMs: 9_000,
+          stats: { totalTokens: 2_400, toolUses: 7 },
+          toolUseId: "agent-live",
+        },
+      ],
+    };
+    request.mockResolvedValue(terminalSnapshot);
+
+    const heldResult = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      {
+        v: 1,
+        seq: 2,
+        sessions: [
+          {
+            sessionId: "qwen-session",
+            holds: [{ category: "notification", id: "Explore-live123" }],
+          },
+        ],
+      },
+      { request },
+    );
+    const heldNotifications = Array.isArray(heldResult) ? heldResult : [heldResult!];
+    const heldEvents = heldNotifications.flatMap((notification) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(notification), state),
+    );
+    expect(heldEvents).not.toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: parentItemId }),
+    );
+
+    const observedResult = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, seq: 3, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+    const observedNotifications = Array.isArray(observedResult)
+      ? observedResult
+      : [observedResult!];
+    const observedEvents = observedNotifications.flatMap((notification) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(notification), state),
+    );
+    expect(observedEvents).not.toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: parentItemId }),
+    );
+
+    nowSpy.mockReturnValue(now + 10_001);
+    const terminalResult = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, seq: 4, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+    const terminalNotifications = Array.isArray(terminalResult)
+      ? terminalResult
+      : [terminalResult!];
+    const terminalEvents = terminalNotifications.flatMap((notification) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(notification), state),
+    );
+    expect(terminalEvents).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: parentItemId }),
+    );
+    expect(
+      terminalNotifications.find((notification) =>
+        ["completed", "failed"].includes(
+          String((notification.update as Record<string, unknown>).status),
+        ),
+      )?.update,
+    ).toMatchObject({
+      _meta: {
+        [PORACODE_ACP_GOAL_META_KEY]: {
+          status: "paused",
+          objective: "Track the background task",
+        },
+      },
+    });
+    expect(state.activeSubAgents).toEqual([]);
+  });
+
+  it("rejects unsupported heartbeat and task snapshot schemas", async () => {
+    const bridge = createQwenAcpSessionBridge();
+    const request = vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>>()
+      .mockResolvedValueOnce({ v: 2, sessionId: "qwen-session", tasks: [] })
+      .mockResolvedValueOnce({ v: 1, sessionId: "other-session", tasks: [] })
+      .mockResolvedValueOnce({ v: 1, sessionId: "qwen-session", tasks: "invalid" });
+
+    const unsupportedHeartbeat = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 2, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+    expect(unsupportedHeartbeat).toEqual([]);
+    expect(request).not.toHaveBeenCalled();
+
+    for (let seq = 1; seq <= 3; seq += 1) {
+      const result = await bridge.extensionSessionUpdateTransform(
+        "qwen/notify/channel/active-work",
+        {
+          v: 1,
+          seq,
+          sessions: [
+            {
+              sessionId: "qwen-session",
+              holds: [{ category: "agent", id: "Explore-schema" }],
+            },
+          ],
+        },
+        { request },
+      );
+      expect(result).toEqual([]);
+    }
+    expect(request).toHaveBeenCalledTimes(3);
+  });
+
+  it("settles a paused Qwen task without presenting it as running or failed", async () => {
+    const bridge = createQwenAcpSessionBridge();
+    const state = createAcpMapperState("qwen-thread");
+    const mapUpdate = (update: Record<string, unknown>) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(note(update)), state);
+    const started = mapUpdate({
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-paused",
+      title: "Agent",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    const parentItemId = (
+      started.find((event) => event.type === "item.started") as { itemId: string }
+    ).itemId;
+    mapUpdate({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-paused",
+      status: "completed",
+      content: [{ type: "content", content: { type: "text", text: "task_id: Explore-paused" } }],
+      rawOutput: { status: "background", subagentName: "Explore" },
+      _meta: { toolName: "agent" },
+    });
+
+    const request = vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>>()
+      .mockResolvedValueOnce({
+        v: 1,
+        sessionId: "qwen-session",
+        tasks: [{ kind: "agent", id: "Explore-paused", status: "running", runtimeMs: 1 }],
+      })
+      .mockResolvedValueOnce({
+        v: 1,
+        sessionId: "qwen-session",
+        tasks: [
+          {
+            kind: "agent",
+            id: "Explore-paused",
+            status: "paused",
+            runtimeMs: 2,
+            resumeBlockedReason: "Waiting for a fresh request",
+          },
+        ],
+      });
+    await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      {
+        v: 1,
+        sessions: [
+          {
+            sessionId: "qwen-session",
+            holds: [{ category: "agent", id: "Explore-paused" }],
+          },
+        ],
+      },
+      { request },
+    );
+    const pausedResult = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+    const pausedNotifications = Array.isArray(pausedResult) ? pausedResult : [pausedResult!];
+    const pausedEvents = pausedNotifications.flatMap((notification) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(notification), state),
+    );
+
+    expect(pausedEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        itemId: parentItemId,
+        payload: expect.objectContaining({
+          status: "success",
+          subAgentStatus: "paused",
+        }),
+      }),
+    );
+    expect(state.activeSubAgents).toEqual([]);
+  });
+
+  it("lets a normal completion inside the local grace period win without fallback duplication", async () => {
+    const now = 1_800_000_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+    const bridge = createQwenAcpSessionBridge();
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-normal-wins",
+      title: "Agent",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-normal-wins",
+      status: "completed",
+      content: [{ type: "content", content: { type: "text", text: "task_id: Explore-normal" } }],
+      rawOutput: { status: "background", subagentName: "Explore" },
+      _meta: { toolName: "agent" },
+    });
+
+    const runningSnapshot = {
+      v: 1,
+      sessionId: "qwen-session",
+      tasks: [{ kind: "agent", id: "Explore-normal", status: "running", runtimeMs: 1 }],
+    };
+    const terminalSnapshot = {
+      v: 1,
+      sessionId: "qwen-session",
+      tasks: [{ kind: "agent", id: "Explore-normal", status: "completed", runtimeMs: 2 }],
+    };
+    const request = vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>>()
+      .mockResolvedValueOnce(runningSnapshot)
+      .mockResolvedValue(terminalSnapshot);
+    await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      {
+        v: 1,
+        sessions: [
+          {
+            sessionId: "qwen-session",
+            holds: [{ category: "agent", id: "Explore-normal" }],
+          },
+        ],
+      },
+      { request },
+    );
+    await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Background completed." },
+      _meta: {
+        source: "background_notification",
+        backgroundTask: { taskId: "Explore-normal", status: "completed" },
+      },
+    });
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Normal result" },
+      _meta: {
+        source: "background_notification_response",
+        backgroundTask: { taskId: "Explore-normal", status: "completed" },
+      },
+    });
+    const boundary = bridge.extensionSessionUpdateTransform("_qwencode/end_turn", {
+      sessionId: "qwen-session",
+      source: "background_notification",
+    });
+    const completed = bridge.sessionUpdateTransform(boundary as SessionNotification);
+    expect(completed.update).toMatchObject({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-normal-wins",
+      status: "completed",
+      rawOutput: "Normal result",
+    });
+
+    nowSpy.mockReturnValue(now + 20_000);
+    const lateFallback = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+    expect(lateFallback).toEqual([]);
+  });
+
+  it("clears partial normal-completion state when snapshot fallback wins", async () => {
+    const now = 1_800_000_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+    const bridge = createQwenAcpSessionBridge();
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-fallback-wins",
+      title: "Agent",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-fallback-wins",
+      status: "completed",
+      content: [{ type: "content", content: { type: "text", text: "task_id: Explore-fallback" } }],
+      rawOutput: { status: "background", subagentName: "Explore" },
+      _meta: { toolName: "agent" },
+    });
+
+    const request = vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>>()
+      .mockResolvedValue({
+        v: 1,
+        sessionId: "qwen-session",
+        tasks: [{ kind: "agent", id: "Explore-fallback", status: "completed", runtimeMs: 2 }],
+      });
+    await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Background completed." },
+      _meta: {
+        source: "background_notification",
+        backgroundTask: { taskId: "Explore-fallback", status: "completed" },
+      },
+    });
+    transformedUpdate(bridge.sessionUpdateTransform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Partially delivered result" },
+      _meta: {
+        source: "background_notification_response",
+        backgroundTask: { taskId: "Explore-fallback", status: "completed" },
+      },
+    });
+
+    nowSpy.mockReturnValue(now + 10_001);
+    const fallbackResult = await bridge.extensionSessionUpdateTransform(
+      "qwen/notify/channel/active-work",
+      { v: 1, sessions: [{ sessionId: "qwen-session", holds: [] }] },
+      { request },
+    );
+    const fallbackNotifications = Array.isArray(fallbackResult)
+      ? fallbackResult
+      : [fallbackResult!];
+    expect(fallbackNotifications.at(-1)?.update).toMatchObject({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-fallback-wins",
+      status: "completed",
+      rawOutput: "Partially delivered result",
+    });
+
+    const lateChunk = bridge.sessionUpdateTransform(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Late unrelated assistant text" },
+      }),
+    );
+    expect((lateChunk.update as Record<string, unknown>)._meta).not.toMatchObject({
+      [PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY]: "agent-fallback-wins",
+    });
+    const lateBoundary = bridge.extensionSessionUpdateTransform("_qwencode/end_turn", {
+      sessionId: "qwen-session",
+      source: "background_notification",
+    }) as SessionNotification;
+    expect(bridge.sessionUpdateTransform(lateBoundary).update).toMatchObject({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "" },
+    });
   });
 
   it("uses Qwen's real background end-turn extension as the terminal boundary", () => {
@@ -405,7 +900,7 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       content: { type: "text", text: "Background completed." },
       _meta: {
         source: "background_notification",
-        backgroundTask: { taskId: "Explore-real123", status: "completed" },
+        backgroundTask: { taskId: "Explore-real123", status: "cancelled" },
       },
     });
     transformedUpdate(transform, {
@@ -413,7 +908,7 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       content: { type: "text", text: "Result from child." },
       _meta: {
         source: "background_notification_response",
-        backgroundTask: { taskId: "Explore-real123", status: "completed" },
+        backgroundTask: { taskId: "Explore-real123", status: "cancelled" },
       },
     });
 
@@ -423,13 +918,14 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       source: "background_notification",
     });
     expect(boundary).toBeDefined();
-    const completedBoundary = bridge.sessionUpdateTransform(boundary!);
+    const completedBoundary = bridge.sessionUpdateTransform(boundary as SessionNotification);
     expect(completedBoundary.update).toMatchObject({
       sessionUpdate: "tool_call_update",
       toolCallId: "agent-real-boundary",
-      status: "completed",
+      status: "failed",
       rawOutput: "Result from child.",
       _meta: {
+        [PORACODE_ACP_SUBAGENT_STATUS_META_KEY]: "cancelled",
         [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: "agent-real-boundary",
         [PORACODE_ACP_GOAL_META_KEY]: {
           action: "updated",
@@ -557,7 +1053,7 @@ describe("Qwen background-notification turns drive shared session status", () =>
       source: "background_notification",
     });
     expect(boundary).toBeDefined();
-    feed(boundary!.update as Record<string, unknown>);
+    feed((boundary as SessionNotification).update as Record<string, unknown>);
 
     listener.onUpdate.mockClear();
     listener.onRuntimeEvent.mockClear();

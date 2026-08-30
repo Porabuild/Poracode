@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Project, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -11,6 +12,8 @@ import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   archiveThread,
   deleteThread,
+  deleteThreadsAndOwnedWorktrees,
+  requestDeleteThread,
   openNewThread,
   openThread,
   reopenPaneThreadsIfInactive,
@@ -547,6 +550,7 @@ describe("threadActions", () => {
 
     resolveCommand();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
+    expect(useAppStore.getState().threads[0]?.archivedAt).toEqual(expect.any(String));
   });
 
   it("tags a local thread with worktree metadata in the store", async () => {
@@ -649,6 +653,40 @@ describe("threadActions", () => {
     expect(useWorktreeDeleteStore.getState().dialog).toBeNull();
   });
 
+  it("removes a worktree once when every linked thread is selected", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const firstThread = makeThread({ id: "thread-a", worktreePath });
+    const secondThread = makeThread({ id: "thread-b", worktreePath });
+    const standalone = makeThread({ id: "thread-c" });
+    useAppStore.setState({ threads: [firstThread, secondThread, standalone] });
+
+    deleteThreadsAndOwnedWorktrees([firstThread, secondThread, standalone]);
+
+    expect(deleteWorktreeGroup).toHaveBeenCalledExactlyOnceWith(
+      firstThread.projectId,
+      worktreePath,
+      [firstThread.id, secondThread.id],
+    );
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual([
+      firstThread.id,
+      secondThread.id,
+    ]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: standalone.id });
+  });
+
+  it("keeps a worktree when an unselected linked thread remains", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const selected = makeThread({ id: "thread-a", worktreePath });
+    const remaining = makeThread({ id: "thread-b", worktreePath });
+    useAppStore.setState({ threads: [selected, remaining] });
+
+    deleteThreadsAndOwnedWorktrees([selected]);
+
+    expect(deleteWorktreeGroup).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads).toEqual([remaining]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: selected.id });
+  });
+
   it("prompts to remove the worktree when deleting the sole thread using it", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const thread = makeThread({
@@ -657,7 +695,9 @@ describe("threadActions", () => {
     });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
 
-    deleteThread(thread.id, worktreePath, thread.projectId);
+    requestDeleteThread(thread.id, worktreePath, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
 
     expect(useAppStore.getState().threads).toHaveLength(1);
     expect(bridge.closeThread).not.toHaveBeenCalled();
@@ -667,11 +707,80 @@ describe("threadActions", () => {
       projectId: thread.projectId,
       worktreePath,
       worktreeBranch: "poracode/feature",
+      anchorPosition: { x: 240, y: 120 },
     });
   });
 
-  it("routes local worktree deletion through the group action", () => {
+  it("asks again for the legacy thread-only preference instead of deleting a worktree", () => {
+    localStorage.setItem("poracode-delete-worktree-pref", "thread-only");
+    const worktreePath = "/repo/.worktrees/feature";
+    const thread = makeThread({
+      worktreePath,
+      worktreeBranch: "poracode/feature",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    requestDeleteThread(thread.id, worktreePath, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toHaveLength(1);
+    expect(deleteWorktreeGroup).not.toHaveBeenCalled();
+    expect(useWorktreeDeleteStore.getState().dialog?.kind).toBe("single-thread");
+  });
+
+  it("confirms a thread that has no worktree without naming one", () => {
+    const thread = makeThread({});
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    requestDeleteThread(thread.id, undefined, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toHaveLength(1);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+    expect(useWorktreeDeleteStore.getState().dialog).toEqual({
+      kind: "single-thread",
+      threadId: thread.id,
+      projectId: thread.projectId,
+      anchorPosition: { x: 240, y: 120 },
+    });
+  });
+
+  it("confirms a shared-worktree thread without promising to remove the worktree", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const firstThread = makeThread({ id: "thread-a", worktreePath });
+    const secondThread = makeThread({ id: "thread-b", worktreePath });
+    useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
+
+    requestDeleteThread(firstThread.id, worktreePath, firstThread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toHaveLength(2);
+    expect(useWorktreeDeleteStore.getState().dialog).toEqual({
+      kind: "single-thread",
+      threadId: firstThread.id,
+      projectId: firstThread.projectId,
+      anchorPosition: { x: 240, y: 120 },
+    });
+  });
+
+  it("skips the confirmation entirely once the user opted out", () => {
     localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
+    const thread = makeThread({});
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    requestDeleteThread(thread.id, undefined, thread.projectId, {
+      anchorPosition: { x: 240, y: 120 },
+    });
+
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
+    expect(useWorktreeDeleteStore.getState().dialog).toBeNull();
+  });
+
+  it("routes local worktree deletion through the group action", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const project = useAppStore.getState().addProject({
       kind: "posix",
@@ -691,7 +800,6 @@ describe("threadActions", () => {
   });
 
   it("routes remote worktree deletion through the remote-aware group action", () => {
-    localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
     const worktreePath = "/repo/.worktrees/feature";
     const localProject = useAppStore.getState().addProject({
       kind: "posix",
@@ -891,6 +999,29 @@ describe("threadActions", () => {
 
       switchToAdjacentThread(only, "next");
       expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    });
+
+    it("skips Home threads filed under other workspaces but keeps untagged ones", async () => {
+      useSharedSettings.setState({
+        workspaces: [
+          { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+          { id: "w2", name: "Side", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+        ] as Workspace[],
+      });
+      useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+      const threads = [
+        makeThread({ id: "a", projectId: HOME_PROJECT_ID, workspaceId: "w1" }),
+        makeThread({ id: "hidden", projectId: HOME_PROJECT_ID, workspaceId: "w2" }),
+        makeThread({ id: "b", projectId: HOME_PROJECT_ID }),
+      ];
+      useAppStore.setState((state) => ({ ...state, threads }));
+
+      // "hidden" is invisible in this workspace's sidebar, so Next must land on
+      // the untagged (visible-everywhere) thread instead.
+      switchToAdjacentThread(threads[0]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b"] }),
+      );
     });
   });
 });

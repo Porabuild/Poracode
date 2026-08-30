@@ -46,7 +46,17 @@ import { GitHubService } from "./github";
 import { ProjectWatcher } from "./projectWatcher";
 import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
-import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
+import { WINDOWS_SHELL_AUTO } from "@/shared/settings";
+import {
+  detectWindowsShells,
+  inferWindowsShellKind,
+  selectWindowsPowerShell,
+  selectWindowsShell,
+  setWindowsPowerShellPreferenceResolver,
+  type WindowsShellPreference,
+} from "./shellPreference";
+import { getWindowsSystemCommand } from "./agents/base/shellBasics";
+import { resolveExecutablePath } from "./agents/base/processRuntime";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
@@ -112,7 +122,9 @@ export class SupervisorRuntime {
   readonly fileIndexService = new FileIndexService();
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
-  private readonly windowsShell: WindowsShellPreference;
+  private availableWindowsShellsCache:
+    | { shells: ReturnType<typeof detectWindowsShells>; ts: number }
+    | undefined;
   readonly agentStatusService: AgentStatusService;
   readonly usageService: UsageService;
   readonly agentRegistryService: AgentRegistryService;
@@ -130,6 +142,7 @@ export class SupervisorRuntime {
   private readonly subagentRunManager: SubagentRunManager;
   private readonly routingOverridePersistence: RoutingOverridePersistence;
   private readonly disposeWslCredentialProjectScope: () => void;
+  private readonly disposeWindowsPowerShellPreference: () => void;
   private wslHookBridge: WslBridgeServer | undefined;
 
   readonly sessions: Map<string, SessionRuntime>;
@@ -174,6 +187,12 @@ export class SupervisorRuntime {
     this.settingsPath = paths.settingsPath;
     this.acpIconsDir = paths.acpIconsDir;
     this.sharedSettingsCache = new SupervisorSharedSettingsCache(this.settingsPath);
+    this.disposeWindowsPowerShellPreference = setWindowsPowerShellPreferenceResolver(() => {
+      const preference = this.resolveWindowsPowerShell();
+      return preference.kind === "cmd"
+        ? undefined
+        : { path: preference.shell, kind: preference.kind };
+    });
     this.routingOverridePersistence = new RoutingOverridePersistence({
       emit,
       invalidateSettings: () => this.sharedSettingsCache.invalidate(),
@@ -190,6 +209,7 @@ export class SupervisorRuntime {
       sharedSettingsCache: this.sharedSettingsCache,
       getAgentStatusService: () => this.agentStatusService,
       getActiveWslProjectDistros: () => this._projectWatcher?.getWslDistros() ?? [],
+      closeThreadsForAgentKind: (agentKind) => this.closeThreadsForAgentKind(agentKind),
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });
@@ -202,11 +222,6 @@ export class SupervisorRuntime {
     void prefetchNativeNodeRuntime(baseDir);
 
     this.lspManager = new LanguageServerManager(emit);
-    this.windowsShell =
-      process.platform === "win32"
-        ? detectWindowsShell()
-        : { shell: process.env.SHELL || "/bin/bash", kind: "cmd", args: [] };
-
     this.agentStatusService = new AgentStatusService({
       adapters: this.adapters,
       settingsPath: this.settingsPath,
@@ -408,7 +423,7 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       readDisableCliHookPlugin: () => this.sharedSettingsCache.read().disableCliHookPlugin,
       adapters: this.adapters,
-      windowsShell: this.windowsShell,
+      resolveWindowsShell: (runtime) => this.resolveWindowsShell(runtime),
       ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
@@ -530,6 +545,81 @@ export class SupervisorRuntime {
     // through a network round-trip on every start. No-op (no network) once all
     // icons are local. Fire-and-forget — never blocks the window from opening.
     void this.agentRegistryService.cacheLocalAcpIconsOnLaunch();
+    void this.agentRegistryService.pruneAcpRegistryLeftoversOnLaunch();
+  }
+
+  /**
+   * Stop every live thread running `agentKind`. Deleting an ACP registry agent
+   * goes through here first: the thread's process is the agent, so leaving it
+   * running would keep an uninstalled agent alive (and on Windows keep a lock on
+   * the install directory being removed). Per-thread failures are logged, never
+   * fatal — one stuck session must not block the removal.
+   */
+  private async closeThreadsForAgentKind(agentKind: AgentKind): Promise<void> {
+    const threadIds = [...this.sessions.values()]
+      .filter((session) => session.agentKind === agentKind)
+      .map((session) => session.threadId);
+    await Promise.all(
+      threadIds.map((threadId) =>
+        this.threadSessionManager.closeThread({ threadId }).catch((error) => {
+          console.warn(
+            `[supervisor] failed to close thread ${threadId} while removing ${agentKind}:`,
+            error,
+          );
+        }),
+      ),
+    );
+  }
+
+  getAvailableWindowsShells() {
+    return process.platform === "win32" ? this.getCachedAvailableWindowsShells() : [];
+  }
+
+  private getCachedAvailableWindowsShells() {
+    const now = Date.now();
+    if (this.availableWindowsShellsCache && now - this.availableWindowsShellsCache.ts < 60_000) {
+      return this.availableWindowsShellsCache.shells;
+    }
+    const shells = detectWindowsShells(resolveExecutablePath);
+    this.availableWindowsShellsCache = { shells, ts: now };
+    return shells;
+  }
+
+  private resolveWindowsPowerShell(): WindowsShellPreference {
+    const settings = this.sharedSettingsCache.readFresh();
+    const detected = selectWindowsPowerShell(
+      settings.windowsInternalShellPath,
+      this.getCachedAvailableWindowsShells(),
+    );
+    if (detected) {
+      return { shell: detected.path, kind: detected.kind, args: ["-NoLogo"] };
+    }
+    const legacy = getWindowsSystemCommand("WindowsPowerShell\\v1.0\\powershell.exe");
+    if (existsSync(legacy)) {
+      return { shell: legacy, kind: "powershell", args: ["-NoLogo"] };
+    }
+    return { shell: getWindowsSystemCommand("cmd.exe"), kind: "cmd", args: [] };
+  }
+
+  private resolveWindowsShell(
+    runtime: "preferred" | "powershell" = "preferred",
+  ): WindowsShellPreference {
+    if (process.platform !== "win32") {
+      return { shell: process.env.SHELL || "/bin/bash", kind: "cmd", args: [] };
+    }
+    if (runtime === "powershell") {
+      return this.resolveWindowsPowerShell();
+    }
+    const settings = this.sharedSettingsCache.readFresh();
+    if (settings.windowsShellPath !== WINDOWS_SHELL_AUTO && existsSync(settings.windowsShellPath)) {
+      return selectWindowsShell(settings, [
+        {
+          path: settings.windowsShellPath,
+          kind: inferWindowsShellKind(settings.windowsShellPath),
+        },
+      ]);
+    }
+    return selectWindowsShell(settings, this.getCachedAvailableWindowsShells());
   }
 
   async getCrossagentSpawnableAgents(contextTags: readonly string[] = []) {
@@ -889,6 +979,7 @@ export class SupervisorRuntime {
   }
 
   async disposeAsync(): Promise<void> {
+    this.disposeWindowsPowerShellPreference();
     this.disposeWslCredentialProjectScope();
     this.routingOverridePersistence.dispose();
     this.usageService.stop();

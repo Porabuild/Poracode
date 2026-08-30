@@ -463,12 +463,16 @@ describe("GitService.addWorktree", () => {
     expect(
       commands.some((c) =>
         c.includes(
-          "worktree add -b poracode/brave-heron " +
+          "worktree add --no-track -b poracode/brave-heron " +
             "C:\\Users\\demo\\.poracode\\worktrees\\poracode-12345678\\poracode-brave-heron " +
             "origin/poracode/silver-meadow-abcd",
         ),
       ),
     ).toBe(true);
+
+    expect(commands.some((c) => c.includes("branch --unset-upstream poracode/brave-heron"))).toBe(
+      true,
+    );
 
     // The recorded source branch is the qualified ref, so diff bases line up.
     const configCall = execFileMock.mock.calls.find(
@@ -481,6 +485,36 @@ describe("GitService.addWorktree", () => {
     );
     expect(configCall).toBeDefined();
     expect(configCall![1]).toContain("origin/poracode/silver-meadow-abcd");
+  });
+
+  it("does not let a remote-tracking start point become the new branch's upstream", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "rev-parse") return { stdout: "sha\n" };
+      if (args[0] === "config") return { stdout: "" };
+      if (args[0] === "branch" && args[1] === "--unset-upstream") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.poracode\\worktrees\\poracode-12345678\\poracode-brave-heron",
+      "poracode/brave-heron",
+      true,
+      "origin/master",
+    );
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
+    expect(
+      commands.some(
+        (c) =>
+          c.startsWith("worktree add --no-track -b poracode/brave-heron") &&
+          c.endsWith("origin/master"),
+      ),
+    ).toBe(true);
+    expect(commands).toContain("branch --unset-upstream poracode/brave-heron");
   });
 
   it("leaves a start point untouched when it resolves locally", async () => {
@@ -508,7 +542,7 @@ describe("GitService.addWorktree", () => {
     );
     expect(
       commands.some(
-        (c) => c.includes("worktree add -b poracode/brave-heron") && c.endsWith("main"),
+        (c) => c.includes("worktree add --no-track -b poracode/brave-heron") && c.endsWith("main"),
       ),
     ).toBe(true);
     // A resolvable start point short-circuits before any `git remote` lookup.
@@ -540,7 +574,7 @@ describe("GitService.addWorktree", () => {
 
     const wtAdd = execFileMock.mock.calls
       .map((c: unknown[]) => gitSubcommandArgs(c[1] as string[]).join(" "))
-      .find((c) => c.startsWith("worktree add -b poracode/brave-heron"));
+      .find((c) => c.startsWith("worktree add --no-track -b poracode/brave-heron"));
     expect(wtAdd?.endsWith("upstream/feature/x")).toBe(true);
   });
 
@@ -571,7 +605,7 @@ describe("GitService.addWorktree", () => {
 
     const wtAdd = execFileMock.mock.calls
       .map((c: unknown[]) => gitSubcommandArgs(c[1] as string[]).join(" "))
-      .find((c) => c.startsWith("worktree add -b poracode/brave-heron"));
+      .find((c) => c.startsWith("worktree add --no-track -b poracode/brave-heron"));
     expect(wtAdd?.endsWith("origin/feature/x")).toBe(true);
   });
 
@@ -596,7 +630,9 @@ describe("GitService.addWorktree", () => {
     const commands = execFileMock.mock.calls.map((c: unknown[]) =>
       gitSubcommandArgs(c[1] as string[]).join(" "),
     );
-    const wtAdd = commands.find((c) => c.startsWith("worktree add -b poracode/brave-heron"));
+    const wtAdd = commands.find((c) =>
+      c.startsWith("worktree add --no-track -b poracode/brave-heron"),
+    );
     expect(wtAdd?.endsWith("feature/x")).toBe(true);
     expect(commands.some((c) => c === "remote")).toBe(false);
   });
@@ -695,7 +731,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
       gitSubcommandArgs(c[1] as string[]).join(" "),
     );
     expect(commands.some((c) => c.startsWith("stash push -u"))).toBe(true);
-    expect(commands.some((c) => c.startsWith("worktree add -b feature/x"))).toBe(true);
+    expect(commands.some((c) => c.startsWith("worktree add --no-track -b feature/x"))).toBe(true);
     // Never relies on stash@{0}: apply/drop are pinned to the captured SHA.
     expect(commands).not.toContain("stash pop");
 
@@ -848,7 +884,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     );
     // The worktree is still created, but the unrelated stash is never applied or
     // dropped — no data loss.
-    expect(commands.some((c) => c.startsWith("worktree add -b feature/x"))).toBe(true);
+    expect(commands.some((c) => c.startsWith("worktree add --no-track -b feature/x"))).toBe(true);
     expect(commands.some((c) => c.startsWith("stash apply"))).toBe(false);
     expect(commands.some((c) => c.startsWith("stash drop"))).toBe(false);
     expect(result.changesTransferred).toBeUndefined();

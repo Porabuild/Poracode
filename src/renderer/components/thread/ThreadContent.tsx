@@ -26,6 +26,7 @@ export type ThreadContentCommonProps = {
    */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  onOpenThread?: ((threadId: string) => void) | undefined;
   onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
   onOpenSubAgent?:
     | ((parentItemId: string, projectLocation: ProjectLocation | undefined) => void)
@@ -72,6 +73,7 @@ export function GuiThreadContent(
               {...(props.onOpenProjectRelativePath
                 ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                 : {})}
+              {...(props.onOpenThread ? { onOpenThread: props.onOpenThread } : {})}
               {...(props.onRevealProjectFolderInTree
                 ? { onRevealProjectFolderInTree: props.onRevealProjectFolderInTree }
                 : {})}

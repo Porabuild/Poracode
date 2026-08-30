@@ -37,7 +37,10 @@ import {
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
+import {
+  runtimePageOverlapsExistingTranscript,
+  seedOlderThreadRuntimeItemsCursor,
+} from "@/renderer/state/chatRuntimePersister";
 import {
   projectRemoteProject,
   projectRemoteThread,
@@ -46,6 +49,7 @@ import {
   remoteOwner,
   remoteProjectId,
   remoteThreadId,
+  unprojectRemoteThreadMentionSegments,
 } from "@/renderer/state/remoteProjection";
 import {
   emitRemoteTerminalExited,
@@ -63,6 +67,7 @@ import {
   shouldRefreshRemoteServerAfterEvent,
 } from "@/renderer/state/remoteServers/eventRouting";
 import { syncRemoteGitSummaries } from "@/renderer/state/remoteServers/gitSummaries";
+import { waitForHostUpdateReconnect } from "@/renderer/state/remoteServers/hostUpdateReconnect";
 import { mainProcessFetch } from "@/renderer/state/remoteServers/mainProcessFetch";
 import {
   persistedRemoteServersState,
@@ -305,6 +310,18 @@ function clearRemoteServerThreadItemInterests(): void {
     setRemoteServerThreadItemInterests(desktopId, []);
   }
 }
+
+let remoteProjectRowsSyncDepth = 0;
+
+function withRemoteProjectRowsSync<T>(fn: () => T): T {
+  remoteProjectRowsSyncDepth += 1;
+  try {
+    return fn();
+  } finally {
+    remoteProjectRowsSyncDepth -= 1;
+  }
+}
+
 /** Maps a thread-history snapshot to the openThread slice (terminal fields only when present). */
 function buildOpenThread(
   desktopId: string,
@@ -324,6 +341,37 @@ function buildOpenThread(
       : {}),
     ...(snapshot.terminalSize ? { terminalSize: snapshot.terminalSize } : {}),
   };
+}
+
+/**
+ * Workspace filings of unique local project names. An unfiled remote mirror
+ * defaults to its local counterpart's workspace — one repo should not sit in
+ * two workspaces just because it is mirrored from another machine. Ambiguous
+ * names are left unfiled rather than assigned to an arbitrary project.
+ */
+function localWorkspaceByName(projects: readonly Project[]): Map<string, string> {
+  const byName = new Map<string, string>();
+  const ambiguousNames = new Set<string>();
+  for (const project of projects) {
+    if (project.remoteServerId !== undefined || ambiguousNames.has(project.name)) continue;
+    if (byName.has(project.name)) {
+      byName.delete(project.name);
+      ambiguousNames.add(project.name);
+      continue;
+    }
+    if (project.workspaceId === undefined) {
+      ambiguousNames.add(project.name);
+      continue;
+    }
+    byName.set(project.name, project.workspaceId);
+  }
+  return byName;
+}
+
+function withoutWorkspace(project: Project): Project {
+  const next: Project = { ...project };
+  delete next.workspaceId;
+  return next;
 }
 
 /**
@@ -358,16 +406,21 @@ function syncRemoteAppRows(
           .map((project) => [project.remoteId, project]),
       )
     : null;
+  const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
   const projectedProjects = projects?.map((project) => {
     const projected = projectRemoteProject(desktopId, project);
     const current = currentProjects?.get(project.id);
     const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
+    const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
+    const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
     const workspaceId =
-      remoteState.projectWorkspaceIds[desktopId]?.[project.id] ??
-      (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined);
+      workspaceOverride !== undefined
+        ? (workspaceOverride ?? undefined)
+        : (counterpartWorkspace.get(name) ??
+          (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined));
     return {
       ...projectWithoutWorkspace,
-      name: remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name,
+      name,
       ...(workspaceId ? { workspaceId } : {}),
       ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
     };
@@ -394,36 +447,38 @@ function syncRemoteAppRows(
       }
     }
   }
-  useAppStore.setState((state) => {
-    const provisioningThreads = projectedThreads
-      ? state.threads.filter(
-          (thread) =>
-            thread.remoteServerId === desktopId &&
-            state.provisioningWorktreeThreadIds[thread.id] === true &&
-            !projectedThreadIds.has(thread.id) &&
-            state.projects.some((project) => project.id === thread.projectId),
-        )
-      : [];
-    return {
-      ...(projectedProjects
-        ? {
-            projects: [
-              ...state.projects.filter((project) => project.remoteServerId !== desktopId),
-              ...projectedProjects,
-            ],
-          }
-        : {}),
-      ...(projectedThreads
-        ? {
-            threads: [
-              ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-              ...provisioningThreads,
-              ...projectedThreads,
-            ],
-          }
-        : {}),
-    };
-  });
+  withRemoteProjectRowsSync(() =>
+    useAppStore.setState((state) => {
+      const provisioningThreads = projectedThreads
+        ? state.threads.filter(
+            (thread) =>
+              thread.remoteServerId === desktopId &&
+              state.provisioningWorktreeThreadIds[thread.id] === true &&
+              !projectedThreadIds.has(thread.id) &&
+              state.projects.some((project) => project.id === thread.projectId),
+          )
+        : [];
+      return {
+        ...(projectedProjects
+          ? {
+              projects: [
+                ...state.projects.filter((project) => project.remoteServerId !== desktopId),
+                ...projectedProjects,
+              ],
+            }
+          : {}),
+        ...(projectedThreads
+          ? {
+              threads: [
+                ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
+                ...provisioningThreads,
+                ...projectedThreads,
+              ],
+            }
+          : {}),
+      };
+    }),
+  );
   if (!projectedProjects) return;
   if (useRemoteServersStore.getState().runtime[desktopId]?.status !== "online") return;
   const gitStatuses = useGitStore.getState().statuses;
@@ -489,6 +544,14 @@ const REMOTE_SERVER_REFRESH_DEBOUNCE_MS = 600;
 const remoteServerRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const remoteServerRefreshSeqByDesktopId = new Map<string, number>();
 const remoteServerAgentStatusRefreshes = new Set<string>();
+const remoteHostUpdateReconnectSeqByDesktopId = new Map<string, number>();
+const remoteHostUpdateRequestSeqByDesktopId = new Map<string, number>();
+let remoteHostUpdateSequence = 0;
+
+function nextRemoteHostUpdateSequence(): number {
+  remoteHostUpdateSequence += 1;
+  return remoteHostUpdateSequence;
+}
 
 function clearRemoteServerRefreshTimer(desktopId: string): void {
   const timer = remoteServerRefreshTimers.get(desktopId);
@@ -497,6 +560,14 @@ function clearRemoteServerRefreshTimer(desktopId: string): void {
     remoteServerRefreshTimers.delete(desktopId);
   }
   remoteServerAgentStatusRefreshes.delete(desktopId);
+}
+
+function invalidateRemoteServerRefresh(desktopId: string): void {
+  clearRemoteServerRefreshTimer(desktopId);
+  remoteServerRefreshSeqByDesktopId.set(
+    desktopId,
+    (remoteServerRefreshSeqByDesktopId.get(desktopId) ?? 0) + 1,
+  );
 }
 
 function normalizeEndpoint(raw: string): string {
@@ -590,10 +661,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
       const checkHostUpdateInBackground = (server: RemoteServerRecord): void => {
         if (server.hostMode === "helper" || !server.scopes.includes("projects:manage")) return;
+        const requestSeq = nextRemoteHostUpdateSequence();
+        remoteHostUpdateRequestSeqByDesktopId.set(server.desktopId, requestSeq);
         void get()
           .clientFactory(server.endpoint, server.accessToken)
           .checkHostUpdate()
           .then((update) => {
+            if (remoteHostUpdateRequestSeqByDesktopId.get(server.desktopId) !== requestSeq) return;
             set((state) => ({
               hostUpdates: { ...state.hostUpdates, [server.desktopId]: update },
             }));
@@ -970,13 +1044,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       /** Restore a server's transport (SSH tunnel) when needed, then snapshot
        * it and (re)attach its event stream. Shared by connectAll and
        * reconnectServer so transport handling lives in one place. */
-      const connectServer = async (persistedServer: RemoteServerRecord): Promise<void> => {
+      const connectServer = async (
+        persistedServer: RemoteServerRecord,
+        shouldContinue: () => boolean = () => true,
+      ): Promise<void> => {
+        const reconnectGeneration = remoteHostUpdateReconnectSeqByDesktopId.get(
+          persistedServer.desktopId,
+        );
+        const canContinue = () =>
+          remoteHostUpdateReconnectSeqByDesktopId.get(persistedServer.desktopId) ===
+            reconnectGeneration && shouldContinue();
         let server = persistedServer;
         if (server.transport?.kind === "ssh") {
           try {
             const launched = await readBridge().sshConnect({
               connection: server.transport.connection,
             });
+            if (!canContinue()) return;
             server = { ...server, endpoint: normalizeEndpoint(launched.endpoint) };
             const updated = server;
             set((state) => ({
@@ -985,6 +1069,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               ),
             }));
           } catch (error) {
+            if (!canContinue()) return;
             const message = friendlyError(error) || i18n._(msg`SSH connection failed.`);
             toast.danger(message);
             setRemoteServerFailure(server.desktopId, "offline", message);
@@ -995,6 +1080,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const environment = await get()
             .clientFactory(server.endpoint, server.accessToken)
             .environment();
+          if (!canContinue()) return;
           const keepsLocalAlias =
             server.remoteLabel !== undefined && server.label !== server.remoteLabel;
           server = {
@@ -1012,6 +1098,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             ),
           }));
         } catch (error) {
+          if (!canContinue()) return;
           if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
             setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
             return;
@@ -1019,8 +1106,82 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // refreshServer below owns other visible connection errors.
         }
         await get().refreshServer(server.desktopId);
+        if (!canContinue()) return;
         startRemoteServerEventStream(server);
         checkHostUpdateInBackground(server);
+      };
+
+      const reconnectAfterHostUpdate = async (
+        persistedServer: RemoteServerRecord,
+        expectedVersion: string,
+        reconnectSeq: number,
+      ): Promise<void> => {
+        const isCurrent = () =>
+          remoteHostUpdateReconnectSeqByDesktopId.get(persistedServer.desktopId) === reconnectSeq &&
+          get().servers.some((server) => server.desktopId === persistedServer.desktopId);
+        const outcome = await waitForHostUpdateReconnect({
+          isCurrent,
+          isTerminalError: (error) =>
+            error instanceof RemoteClientError && error.code === "protocol_version_mismatch",
+          attempt: async () => {
+            const environment = await get()
+              .clientFactory(persistedServer.endpoint, persistedServer.accessToken)
+              .environment();
+            if (environment.appVersion !== expectedVersion) return false;
+            const current = get().servers.find(
+              (server) => server.desktopId === persistedServer.desktopId,
+            );
+            if (!current || !isCurrent()) return false;
+            await connectServer(current, () => isCurrent());
+            if (
+              isCurrent() &&
+              get().runtime[persistedServer.desktopId]?.status === "online" &&
+              get().servers.find((server) => server.desktopId === persistedServer.desktopId)
+                ?.appVersion === expectedVersion
+            ) {
+              return true;
+            }
+            closeRemoteServerEventSocket(persistedServer.desktopId);
+            const latest = get().servers.find(
+              (server) => server.desktopId === persistedServer.desktopId,
+            );
+            if (latest && isCurrent()) setServersConnecting([latest]);
+            return false;
+          },
+        });
+        if (outcome.type === "cancelled" || !isCurrent()) {
+          set((state) => {
+            const { [persistedServer.desktopId]: _stale, ...hostUpdateRestarts } =
+              state.hostUpdateRestarts;
+            return { hostUpdateRestarts };
+          });
+          return;
+        }
+        remoteHostUpdateReconnectSeqByDesktopId.set(
+          persistedServer.desktopId,
+          nextRemoteHostUpdateSequence(),
+        );
+        if (outcome.type === "connected") {
+          set((state) => {
+            const { [persistedServer.desktopId]: _finished, ...hostUpdateRestarts } =
+              state.hostUpdateRestarts;
+            return { hostUpdateRestarts };
+          });
+          return;
+        }
+        invalidateRemoteServerRefresh(persistedServer.desktopId);
+        closeRemoteServerEventSocket(persistedServer.desktopId);
+        const status = outcome.type === "terminal-error" ? "error" : "offline";
+        const message =
+          outcome.type === "terminal-error"
+            ? friendlyError(outcome.error)
+            : sharedMsg("remote.server.unreachable");
+        setRemoteServerFailure(persistedServer.desktopId, status, message);
+        set((state) => {
+          const { [persistedServer.desktopId]: _finished, ...hostUpdateRestarts } =
+            state.hostUpdateRestarts;
+          return { hostUpdateRestarts };
+        });
       };
 
       const pairAtEndpoint = async (input: {
@@ -1053,6 +1214,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
           transport: input.transport,
         };
+        remoteHostUpdateReconnectSeqByDesktopId.set(
+          record.desktopId,
+          nextRemoteHostUpdateSequence(),
+        );
         set((state) => ({
           servers: [...state.servers.filter((s) => s.desktopId !== record.desktopId), record],
           lastKnownProjects: replaceCachedProjects(
@@ -1086,6 +1251,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         servers: [],
         runtime: {},
         hostUpdates: {},
+        hostUpdateRestarts: {},
         excludedProjectIds: {},
         projectWorkspaceIds: {},
         projectNameOverrides: {},
@@ -1113,12 +1279,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               agentKind: input.agentKind,
               config: input.config,
               prompt: input.prompt,
-              ...(input.segments ? { segments: input.segments } : {}),
+              ...(input.segments
+                ? {
+                    segments: unprojectRemoteThreadMentionSegments(
+                      input.desktopId,
+                      input.segments,
+                      useAppStore.getState().threads,
+                    ),
+                  }
+                : {}),
               presentationMode: input.presentationMode,
               ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
               ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
               ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
               ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
+              ...(input.title ? { title: input.title } : {}),
+              ...(input.groupId ? { groupId: input.groupId } : {}),
+              ...(input.groupName ? { groupName: input.groupName } : {}),
             }),
           );
           const compensateIfAbandoned = async (): Promise<
@@ -1200,16 +1377,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (requestSeq !== openRemoteThreadRequestSeq) return false;
           const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
           const viewThreadId = projectedSnapshot.thread.id;
-          const firstSnapshotItemId = projectedSnapshot.runtimeItems[0]?.id;
           const existingRuntimeItemIds =
             useAppStore.getState().runtimeItemIdsByThread[viewThreadId] ?? [];
           seedOlderThreadRuntimeItemsCursor(
             viewThreadId,
             projectedSnapshot.runtimeNextCursor ?? null,
             {
-              preserveExistingCursor:
-                firstSnapshotItemId !== undefined &&
-                existingRuntimeItemIds.includes(firstSnapshotItemId),
+              preserveExistingCursor: runtimePageOverlapsExistingTranscript(
+                projectedSnapshot.runtimeItems,
+                existingRuntimeItemIds,
+              ),
             },
           );
           applyThreadSnapshot(projectedSnapshot);
@@ -1278,6 +1455,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
         removeServer: (desktopId) => {
           const removed = get().servers.find((server) => server.desktopId === desktopId);
+          remoteHostUpdateReconnectSeqByDesktopId.set(desktopId, nextRemoteHostUpdateSequence());
+          remoteHostUpdateRequestSeqByDesktopId.delete(desktopId);
+          invalidateRemoteServerRefresh(desktopId);
           closeRemoteServerEventSocket(desktopId);
           // If the open live-chat thread belongs to this server, tear it (and its
           // socket) down first so it isn't left orphaned with no way to interact.
@@ -1288,10 +1468,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           set((state) => {
             const { [desktopId]: _removed, ...runtime } = state.runtime;
             const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
+            const { [desktopId]: _removedRestart, ...hostUpdateRestarts } =
+              state.hostUpdateRestarts;
             return {
               servers: state.servers.filter((server) => server.desktopId !== desktopId),
               runtime,
               hostUpdates,
+              hostUpdateRestarts,
               lastKnownProjects: removeCachedProjects(state.lastKnownProjects, desktopId),
             };
           });
@@ -1462,9 +1645,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (!useRemoteServersStore.persist.hasHydrated()) {
               await useRemoteServersStore.persist.rehydrate();
             }
-            const servers = get().servers;
+            const servers = get().servers.filter(
+              (server) => get().hostUpdateRestarts[server.desktopId] === undefined,
+            );
             setServersConnecting(servers);
-            await Promise.all(servers.map(connectServer));
+            await Promise.all(servers.map((server) => connectServer(server)));
           })().finally(() => {
             connectAllInFlight = null;
           });
@@ -1472,6 +1657,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         reconnectServer: async (desktopId) => {
+          if (get().hostUpdateRestarts[desktopId] !== undefined) return;
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
           if (!server) return;
           setServersConnecting([server]);
@@ -1479,19 +1665,52 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         getHostUpdateState: async (desktopId) => {
+          const requestSeq = nextRemoteHostUpdateSequence();
+          remoteHostUpdateRequestSeqByDesktopId.set(desktopId, requestSeq);
           const update = await withClient(desktopId, (client) => client.hostUpdateState());
+          if (remoteHostUpdateRequestSeqByDesktopId.get(desktopId) !== requestSeq) return update;
           set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
           return update;
         },
 
         checkHostUpdate: async (desktopId) => {
+          const requestSeq = nextRemoteHostUpdateSequence();
+          remoteHostUpdateRequestSeqByDesktopId.set(desktopId, requestSeq);
           const update = await withClient(desktopId, (client) => client.checkHostUpdate());
+          if (remoteHostUpdateRequestSeqByDesktopId.get(desktopId) !== requestSeq) return update;
           set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
           return update;
         },
 
-        installHostUpdate: (desktopId) =>
-          withClient(desktopId, (client) => client.installHostUpdate()),
+        installHostUpdate: async (desktopId) => {
+          if (get().hostUpdateRestarts[desktopId] !== undefined) return;
+          const server = get().servers.find((entry) => entry.desktopId === desktopId);
+          const status = get().hostUpdates[desktopId]?.status;
+          if (!server || status?.type !== "downloaded") {
+            await withClient(desktopId, (client) => client.installHostUpdate());
+            return;
+          }
+
+          const reconnectGeneration = remoteHostUpdateReconnectSeqByDesktopId.get(desktopId);
+          await withClient(desktopId, (client) => client.installHostUpdate());
+          if (remoteHostUpdateReconnectSeqByDesktopId.get(desktopId) !== reconnectGeneration) {
+            return;
+          }
+          remoteHostUpdateRequestSeqByDesktopId.set(desktopId, nextRemoteHostUpdateSequence());
+          const reconnectSeq = nextRemoteHostUpdateSequence();
+          remoteHostUpdateReconnectSeqByDesktopId.set(desktopId, reconnectSeq);
+          invalidateRemoteServerRefresh(desktopId);
+          closeRemoteServerEventSocket(desktopId);
+          set((state) => {
+            const { [desktopId]: _installed, ...hostUpdates } = state.hostUpdates;
+            return {
+              hostUpdates,
+              hostUpdateRestarts: { ...state.hostUpdateRestarts, [desktopId]: status.version },
+            };
+          });
+          setServersConnecting([server]);
+          void reconnectAfterHostUpdate(server, status.version, reconnectSeq);
+        },
 
         setProjectNameOverride: (desktopId, remoteId, name) => {
           set((state) => ({
@@ -1592,13 +1811,19 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // factories stay process-local. Bearer tokens live in the native OS
       // keystore or the browser/Electron WebCrypto vault, not plaintext storage.
       partialize: persistedRemoteServersState,
+      version: 1,
+      // v1 reserves null in projectWorkspaceIds for an explicit "unfiled"
+      // override. Older string-valued entries and absent entries remain valid.
+      migrate: (persistedState) => persistedState as RemoteServersState,
     },
   ),
 );
 
 /**
  * Mirror local project workspace assignments back into the remote state so the
- * sync layer keeps a stable record across reloads and server reconnects.
+ * sync layer keeps a stable record across reloads and server reconnects, and
+ * keep unpinned mirrors filed where their same-named local counterpart is
+ * filed (see `localWorkspaceByName`).
  *
  * Installed from `app.tsx` (like `installRemoteGitSummaryPublisher`): the
  * module-scope equivalent would touch `useAppStore` during its own
@@ -1606,18 +1831,56 @@ export const useRemoteServersStore = create<RemoteServersState>()(
  * cycle's TDZ before `useAppStore` is defined.
  */
 export function installRemoteProjectWorkspaceSync(): () => void {
+  let applyingDerivedProjects = false;
   return useAppStore.subscribe((state, previousState) => {
     if (state.projects === previousState.projects) return;
+    if (remoteProjectRowsSyncDepth > 0 || applyingDerivedProjects) return;
     const previousProjects = new Map(
       previousState.projects.map((project) => [project.id, project]),
     );
+    const counterpartWorkspace = localWorkspaceByName(state.projects);
+    // Mirrors whose filing changed in this very update were edited (or
+    // projected) deliberately — re-deriving them here would overwrite that.
+    const changedIds = new Set<string>();
+    for (const project of state.projects) {
+      const previous = previousProjects.get(project.id);
+      if (previous && previous.workspaceId !== project.workspaceId) changedIds.add(project.id);
+    }
+    // Unpinned mirrors follow their local counterpart's filing live, not only
+    // on the next remote snapshot that happens to change the project rows.
+    const pinned = useRemoteServersStore.getState().projectWorkspaceIds;
+    const derivedProjectIds = new Set<string>();
+    const rederived = state.projects.map((project) => {
+      if (!project.remoteServerId || !project.remoteId) return project;
+      if (changedIds.has(project.id)) return project;
+      if (pinned[project.remoteServerId]?.[project.remoteId] !== undefined) return project;
+      const inherited = counterpartWorkspace.get(project.name);
+      if (project.workspaceId === inherited) return project;
+      const next =
+        inherited === undefined
+          ? withoutWorkspace(project)
+          : { ...project, workspaceId: inherited };
+      derivedProjectIds.add(project.id);
+      return next;
+    });
+    const rederivedChanged = rederived.some((project, index) => project !== state.projects[index]);
+    if (rederivedChanged) {
+      applyingDerivedProjects = true;
+      try {
+        useAppStore.setState({ projects: rederived });
+      } finally {
+        applyingDerivedProjects = false;
+      }
+    }
+    const finalProjects = rederivedChanged ? rederived : state.projects;
     const changes: Array<{
       desktopId: string;
       remoteId: string;
       workspaceId: string | undefined;
     }> = [];
-    for (const project of state.projects) {
+    for (const project of finalProjects) {
       if (!project.remoteServerId || !project.remoteId) continue;
+      if (derivedProjectIds.has(project.id)) continue;
       const previous = previousProjects.get(project.id);
       if (!previous || previous.workspaceId === project.workspaceId) continue;
       changes.push({
@@ -1633,10 +1896,10 @@ export function installRemoteProjectWorkspaceSync(): () => void {
       for (const change of changes) {
         const currentForServer = projectWorkspaceIds[change.desktopId] ?? {};
         const currentWorkspaceId = currentForServer[change.remoteId];
-        if (currentWorkspaceId === change.workspaceId) continue;
+        const nextWorkspaceId = change.workspaceId ?? null;
+        if (currentWorkspaceId === nextWorkspaceId) continue;
         const nextForServer = { ...currentForServer };
-        if (change.workspaceId) nextForServer[change.remoteId] = change.workspaceId;
-        else delete nextForServer[change.remoteId];
+        nextForServer[change.remoteId] = nextWorkspaceId;
         projectWorkspaceIds = {
           ...projectWorkspaceIds,
           [change.desktopId]: nextForServer,
@@ -1674,6 +1937,8 @@ export function __resetRemoteServersStoreForTest(): void {
   remoteServerThreadItemInterests.clear();
   remoteServerRefreshSeqByDesktopId.clear();
   remoteServerAgentStatusRefreshes.clear();
+  remoteHostUpdateReconnectSeqByDesktopId.clear();
+  remoteHostUpdateRequestSeqByDesktopId.clear();
   clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   connectAllInFlight = null;
@@ -1694,5 +1959,5 @@ export function __resetRemoteServersStoreForTest(): void {
     projects: state.projects.filter((project) => !project.remoteServerId),
     threads: state.threads.filter((thread) => !thread.remoteServerId),
   }));
-  useRemoteServersStore.setState({ openThread: null, hostUpdates: {} });
+  useRemoteServersStore.setState({ openThread: null, hostUpdates: {}, hostUpdateRestarts: {} });
 }

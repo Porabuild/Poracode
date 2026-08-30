@@ -72,7 +72,7 @@ class RepositorySettingsRemoteGatewayProviderTest {
         assertEquals(0, factoryCalls)
     }
 
-    private fun credentials(endpoint: String, token: String, protocol: Int = 3) =
+    private fun credentials(endpoint: String, token: String, protocol: Int = 8) =
         SessionCredentials(
             ConnectionProfile(
                 desktopId = endpoint,
@@ -94,7 +94,7 @@ private val connectionB = ClientConnectionId("20000000-0000-4000-8000-0000000000
 private fun lease(id: ClientConnectionId, generation: Long = 1) = SettingsHostLease(
     id,
     generation,
-    3,
+    8,
     setOf("session:read", "session:operate"),
     online = true,
     ready = true,

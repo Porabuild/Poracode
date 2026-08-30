@@ -345,7 +345,7 @@ describe("buildNativeHookCommandHead", () => {
     );
     const expected =
       process.platform === "win32"
-        ? 'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
+        ? '"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
         : "'C:\\Users\\u\\poracode-hook.cmd'";
     expect(commandHead).toBe(expected);
   });
@@ -358,7 +358,18 @@ describe("buildNativeHookCommandHead", () => {
     );
     const expected =
       process.platform === "win32"
-        ? 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
+        ? '"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
+        : "'C:\\Users\\u\\poracode-hook.cmd'";
+    expect(commandHead).toBe(expected);
+  });
+
+  it("preserves an extensionless resolved PowerShell command", () => {
+    const commandHead = buildNativeHookCommandHead("C:\\Users\\u\\poracode-hook.cmd", (name) =>
+      name === "pwsh" ? "C:\\Tools\\pwsh" : undefined,
+    );
+    const expected =
+      process.platform === "win32"
+        ? '"C:\\Tools\\pwsh" -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
         : "'C:\\Users\\u\\poracode-hook.cmd'";
     expect(commandHead).toBe(expected);
   });
@@ -378,7 +389,7 @@ describe("buildNativeHookCommandHead", () => {
     );
     const expected =
       process.platform === "win32"
-        ? 'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\a\\"b\\poracode-hook.ps1"'
+        ? '"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\a\\"b\\poracode-hook.ps1"'
         : "'C:\\Users\\a\"b\\poracode-hook.cmd'";
     expect(commandHead).toBe(expected);
   });
@@ -411,7 +422,7 @@ describe("buildNativeHookCommandHeads", () => {
       process.platform === "win32"
         ? {
             command:
-              'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"',
+              '"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"',
             bashCommand: "'C:\\Users\\u\\poracode-hook.cmd'",
             powershellCommand: "& 'C:\\Users\\u\\poracode-hook.ps1'",
           }

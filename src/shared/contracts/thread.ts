@@ -27,6 +27,15 @@ export const threadSchema = z.object({
   remoteServerId: z.string().min(1).optional(),
   remoteId: z.string().min(1).optional(),
   projectId: z.string().min(1),
+  /**
+   * Workspace the thread was created in. Only meaningful while `projectId` is
+   * the Home project — threads in real projects scope through
+   * `project.workspaceId` instead, so a stale tag here is inert. Absent
+   * (legacy, headless, scheduled, remote-created) or dangling ⇒ the thread
+   * stays visible in every workspace, mirroring `isProjectInWorkspace`'s
+   * unfiled rule.
+   */
+  workspaceId: z.string().min(1).optional(),
   title: z.string().min(1),
   agentKind: agentKindSchema,
   /** Optional reference to a user-registered ACP instance (Phase 7). */
@@ -42,6 +51,7 @@ export const threadSchema = z.object({
   groupId: z.string().optional(),
   groupName: z.string().optional(),
   archived: z.boolean().default(false),
+  archivedAt: z.string().min(1).optional(),
   done: z.boolean().default(false),
   doneAt: z.string().min(1).optional(),
   starred: z.boolean().default(false),
@@ -76,6 +86,8 @@ export interface ThreadRuntimeSnapshot {
   config?: z.infer<typeof threadConfigSchema>;
   /** Effective launch-time config after plugin and global MCP policy is applied. */
   launchConfig?: z.infer<typeof threadConfigSchema>;
+  /** Whether this live session launched with Poracode's read_thread tool available. */
+  threadMentionToolsAvailable?: boolean;
   sessionRef?: z.infer<typeof sessionRefSchema>;
   canResumeWithConfig: boolean;
   errorMessage?: string;
@@ -89,6 +101,9 @@ export interface TerminalShellSnapshot {
   worktreePath?: string;
   outputLength: number;
 }
+
+export const MAX_TERMINAL_COLS = 400;
+export const MAX_TERMINAL_ROWS = 200;
 
 /**
  * Authoritative terminal transcript snapshot for remote cursor-sync watches.
@@ -110,8 +125,8 @@ export interface TerminalSnapshot {
 }
 
 export const terminalSizeSchema = z.object({
-  cols: z.number().int().min(20).max(400),
-  rows: z.number().int().min(5).max(200),
+  cols: z.number().int().min(20).max(MAX_TERMINAL_COLS),
+  rows: z.number().int().min(5).max(MAX_TERMINAL_ROWS),
 });
 export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 
@@ -147,35 +162,83 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     pluginName: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
+  z.object({
+    kind: z.literal("thread"),
+    threadId: z.string().min(1),
+    title: z.string(),
+  }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
-export const startThreadPayloadSchema = z.object({
-  threadId: z.string().min(1).optional(),
-  projectLocation: projectLocationSchema,
-  agentKind: agentKindSchema,
-  agentInstanceId: agentInstanceIdSchema.optional(),
-  config: threadConfigSchema,
-  prompt: z.string().default(""),
-  segments: z.array(promptSegmentSchema).optional(),
-  initialSize: terminalSizeSchema,
-  sessionRef: sessionRefSchema.optional(),
-  presentationMode: threadPresentationModeSchema.optional(),
-  /** Enabled custom MCP servers resolved by the renderer at launch time. */
-  mcpServers: mcpServerListSchema.optional(),
-  /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
-  disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
-  /** Supervisor-owned restrictions that must survive every restart of this thread. */
-  invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
-  disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+/**
+ * Set when a launch continues an existing thread under a different provider.
+ * The supervisor records the switch as a `provider_handoff` divider ahead of
+ * the prompt, reusing `handoffItemId` so a renderer's optimistic row dedupes
+ * against it. `sessionRef` must be omitted alongside this — the new provider
+ * has no session to resume.
+ */
+export const providerSwitchSchema = z.object({
+  fromAgentKind: agentKindSchema,
+  handoffItemId: z.string().min(1).optional(),
   /**
-   * Renderer-allocated id for the user_message item the chat pane has already
-   * painted optimistically. The supervisor reuses this id when emitting its
-   * own canonical user_message events, so the renderer's per-id dedupe drops
-   * the duplicate. Only set for GUI threads with a fresh prompt.
+   * Only set on the REVERT command the host sends after a failed switched
+   * start: the status the durable row was restored to, which the renderer
+   * mirror must apply after `applyProviderSwitch` (whose own status is always
+   * "launching" — right for a live switch, wrong for a reverted one).
    */
-  userMessageItemId: z.string().min(1).optional(),
+  previousStatus: threadStatusSchema.optional(),
 });
+export type ProviderSwitch = z.infer<typeof providerSwitchSchema>;
+
+export const startThreadPayloadSchema = z
+  .object({
+    threadId: z.string().min(1).optional(),
+    projectLocation: projectLocationSchema,
+    agentKind: agentKindSchema,
+    agentInstanceId: agentInstanceIdSchema.optional(),
+    config: threadConfigSchema,
+    prompt: z.string().default(""),
+    segments: z.array(promptSegmentSchema).optional(),
+    initialSize: terminalSizeSchema,
+    sessionRef: sessionRefSchema.optional(),
+    presentationMode: threadPresentationModeSchema.optional(),
+    /** Enabled custom MCP servers resolved by the renderer at launch time. */
+    mcpServers: mcpServerListSchema.optional(),
+    /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
+    disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+    /** Supervisor-owned restrictions that must survive every restart of this thread. */
+    invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+    disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+    /**
+     * Renderer-allocated id for the user_message item the chat pane has already
+     * painted optimistically. The supervisor reuses this id when emitting its
+     * own canonical user_message events, so the renderer's per-id dedupe drops
+     * the duplicate. Only set for GUI threads with a fresh prompt.
+     */
+    userMessageItemId: z.string().min(1).optional(),
+    /**
+     * Set when this launch continues an existing thread under a different
+     * provider. See {@link providerSwitchSchema}.
+     */
+    providerSwitch: providerSwitchSchema.optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (!payload.providerSwitch) return;
+    if (payload.sessionRef) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sessionRef"],
+        message: "A provider switch cannot resume the previous provider's session.",
+      });
+    }
+    if (payload.presentationMode !== "gui") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["presentationMode"],
+        message: "An in-place provider switch requires GUI presentation.",
+      });
+    }
+  });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
 
 export const startThreadResultSchema = z.object({
@@ -315,6 +378,13 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      */
     groupId: z.string().min(1).optional(),
     groupName: z.string().min(1).optional(),
+    /**
+     * Set when this start continues an existing thread under a different
+     * provider (a remote "Continue in..." switch). The server retargets the
+     * durable row and forwards the command so the desktop renderer's store
+     * follows; see {@link providerSwitchSchema}.
+     */
+    providerSwitch: providerSwitchSchema.optional(),
   }),
   // Assigns an existing thread to a sidebar group. Used to pull an
   // orchestrator parent into the group its children are created in; the
@@ -422,5 +492,11 @@ export const startShellPayloadSchema = z.object({
    * ephemeral) worktree.
    */
   startInHome: z.boolean().optional(),
+  /**
+   * Native Windows shells default to the user's interactive preference.
+   * Login/install overlays emit PowerShell, so they request a PowerShell host
+   * even when the preferred interactive shell is cmd.
+   */
+  windowsShellRuntime: z.enum(["preferred", "powershell"]).optional(),
 });
 export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;

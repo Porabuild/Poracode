@@ -11,7 +11,7 @@ final class ReplayGitStateParityTapeTests: XCTestCase {
     XCTAssertEqual(
       try fixtureInt(tape["protocolVersion"]), ProtocolConstants.remoteProtocolVersion
     )
-    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 3)
+    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 8)
   }
 
   // MARK: - Lifecycle (thread-reset / thread-exited)

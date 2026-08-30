@@ -14,6 +14,7 @@ enum RichContentBlock: Sendable, Equatable {
   case text(text: String)
   case skill(name: String, invocation: String, pluginID: String?, pluginName: String?)
   case mcp(name: String)
+  case thread(threadID: String, title: String)
   case diffComment(path: String, lineNumber: Int64, side: RichDiffSide, staged: Bool, body: String)
   case image(
     mimeType: String,
@@ -93,6 +94,11 @@ enum RichContentDecoder {
     case "mcp":
       guard let name = RichDecoding.requiredString(object, "name") else { break }
       return .mcp(name: name)
+    case "thread":
+      guard let threadID = RichDecoding.requiredString(object, "threadId", allowEmpty: false),
+        let title = RichDecoding.requiredString(object, "title")
+      else { break }
+      return .thread(threadID: threadID, title: title)
     case "diff_comment":
       guard let path = RichDecoding.requiredString(object, "path"),
         let line = object["lineNumber"]?.exactInt64Value, line > 0,

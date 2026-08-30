@@ -74,6 +74,7 @@ import {
   type ProfileStatsRequest,
   type ProfileTokenStats,
   type PrWatch,
+  type PrWatchAgentSync,
   type PrWatchInput,
   type PrWatchKey,
   type ProjectNotes,
@@ -223,6 +224,7 @@ interface StartRemoteThreadCommon {
   readonly segments?: readonly PromptSegment[] | undefined;
   readonly presentationMode?: ThreadPresentationMode | undefined;
   readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
+  readonly providerSwitch?: StartThreadPayload["providerSwitch"] | undefined;
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
@@ -236,6 +238,10 @@ export interface StartRemoteNewThreadInput extends StartRemoteThreadCommon {
   readonly worktreePath?: string | undefined;
   readonly worktreeBranch?: string | undefined;
   readonly isNewWorktree?: boolean | undefined;
+  /** Explicit title (a remote fork inherits its source's). */
+  readonly title?: string | undefined;
+  readonly groupId?: string | undefined;
+  readonly groupName?: string | undefined;
 }
 
 /**
@@ -541,7 +547,17 @@ export class RemoteDesktopClient {
     await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
   }
 
-  /** Profile data computed from the paired desktop's SQLite store. */
+  async syncPrWatchAgent(input: PrWatchAgentSync): Promise<void> {
+    await this.requestJson("/api/pr-watches/agent", { method: "POST", body: input });
+  }
+
+  /**
+   * Profile: local usage stats + identity, computed on the paired desktop's
+   * SQLite store. Response shapes are typed contracts with no runtime schema
+   * (like {@link providerUsage}), so only a light shape check. The stats
+   * blobs carry many more keys than the check names, so they must stay
+   * looseObject — a plain z.object would strip everything unnamed.
+   */
   async profileDevices(): Promise<ProfileDevicesResponse> {
     return parseExactOptionalResponse<ProfileDevicesResponse>(
       profileDevicesResponseSchema,
@@ -652,6 +668,7 @@ export class RemoteDesktopClient {
         ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
+        ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
       },
     });
     return parseResponse(z.object({ threadId: z.string() }), result, "thread");
@@ -673,6 +690,9 @@ export class RemoteDesktopClient {
       ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
       ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
       ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
+      ...(input.title ? { title: input.title } : {}),
+      ...(input.groupId ? { groupId: input.groupId } : {}),
+      ...(input.groupName ? { groupName: input.groupName } : {}),
     });
     return { threadId };
   }

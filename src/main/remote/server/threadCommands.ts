@@ -13,7 +13,12 @@ import {
   emptyMcpLaunchSnapshot,
   type Project,
   type RemoteThreadCommand,
+  type StartThreadPayload,
+  type StartThreadResult,
   type Thread,
+  type ThreadConfig,
+  type ThreadPresentationMode,
+  type ThreadStatusSource,
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
@@ -39,6 +44,28 @@ import type { RemoteServerContext } from "./context";
 import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle";
 import { readJsonBody } from "./requestBody";
 import { sortOrderForThread } from "./snapshots";
+
+const remoteThreadSwitchTails = new Map<string, Promise<void>>();
+
+async function serializeRemoteThreadSwitch<Result>(
+  threadId: string,
+  operation: () => Promise<Result>,
+): Promise<Result> {
+  const previous = remoteThreadSwitchTails.get(threadId) ?? Promise.resolve();
+  const run = previous.then(operation);
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  remoteThreadSwitchTails.set(threadId, tail);
+  try {
+    return await run;
+  } finally {
+    if (remoteThreadSwitchTails.get(threadId) === tail) {
+      remoteThreadSwitchTails.delete(threadId);
+    }
+  }
+}
 
 /**
  * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
@@ -224,16 +251,21 @@ export async function applyRemoteThreadCommand(
     }
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
-      updateRemoteThread(command.threadId, (thread) => ({
-        ...thread,
-        archived: true,
-        updatedAt: new Date().toISOString(),
-      }));
+      {
+        const now = new Date().toISOString();
+        updateRemoteThread(command.threadId, (thread) => ({
+          ...thread,
+          archived: true,
+          archivedAt: now,
+          updatedAt: now,
+        }));
+      }
       return false;
     case "unarchive":
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
         archived: false,
+        archivedAt: undefined,
         updatedAt: new Date().toISOString(),
       }));
       return false;
@@ -273,7 +305,10 @@ async function startRemoteThread(
   const thread: Thread = {
     id: command.threadId,
     projectId: command.projectId,
-    title: makeThreadTitle(titlePrompt) || "New thread",
+    // The renderer's mirror of this command honors an explicit title/group
+    // (a remote fork inherits both from its source), so the durable row must
+    // too — otherwise the next client snapshot strips them back.
+    title: command.title ?? (makeThreadTitle(titlePrompt) || "New thread"),
     agentKind: command.agentKind,
     ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
     config: command.config,
@@ -285,6 +320,8 @@ async function startRemoteThread(
     starred: false,
     presentationMode,
     ...(presentationMode !== "terminal" ? { threadStatusSource: "server" } : {}),
+    ...(command.groupId ? { groupId: command.groupId } : {}),
+    ...(command.groupName ? { groupName: command.groupName } : {}),
     ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
     ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
     createdAt: now,
@@ -316,6 +353,159 @@ async function startRemoteThread(
     if (!existing) dbDeleteThread(command.threadId);
     throw error;
   }
+}
+
+/**
+ * Continue an existing thread under a different provider (the `providerSwitch`
+ * variant of `/api/threads/start`). The durable row must name the new provider
+ * BEFORE the supervisor call: the supervisor emits the new session's first
+ * state events during the awaited call, and `persistThreadStateEvent` drops
+ * any state whose `agentKind` disagrees with the row. The renderer retarget is
+ * dispatched first too — the desktop renderer's store is the last writer for
+ * the threads table (its persist rewrites every column), so a late mirror is a
+ * clobber window. The caller runs this inside its idempotent closure, so a
+ * replayed command id returns the stored response without repeating any of it.
+ */
+export async function applyRemoteThreadSwitch(
+  ctx: RemoteServerContext,
+  supervisorPayload: StartThreadPayload & { threadId: string },
+): Promise<StartThreadResult> {
+  return serializeRemoteThreadSwitch(supervisorPayload.threadId, async () => {
+    const current = dbGetThreads().find((thread) => thread.id === supervisorPayload.threadId);
+    if (!current) {
+      throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+    }
+    if (current.presentationMode !== "gui") {
+      throw new RemoteHttpError(
+        "provider_switch_requires_gui",
+        "Only GUI threads can switch provider in place.",
+        409,
+      );
+    }
+    if (current.agentKind !== supervisorPayload.providerSwitch?.fromAgentKind) {
+      throw new RemoteHttpError(
+        "provider_switch_stale",
+        "The thread provider changed before this switch could start.",
+        409,
+      );
+    }
+
+    const { previous } = retargetRemoteThreadForSwitch(
+      supervisorPayload.threadId,
+      supervisorPayload,
+    );
+    await ctx.options.dispatchThreadCommand?.(
+      switchRetargetCommand(supervisorPayload, previous.projectId),
+    );
+    try {
+      const result = await ctx.options.callSupervisor("startThread", supervisorPayload);
+      ctx.publishThreadsChanged([supervisorPayload.threadId]);
+      return result;
+    } catch (error) {
+      const previousWasLive = previous.status === "working" || previous.status === "launching";
+      const {
+        sessionRef: _closedSessionRef,
+        agentInstanceId: _closedAgentInstanceId,
+        slashCommands: _closedSlashCommands,
+        errorMessage: _closedErrorMessage,
+        doneAt: _closedDoneAt,
+        activeTurnStartedAt: _closedTurn,
+        ...previousBase
+      } = previous;
+      const restored: Thread = {
+        ...previousBase,
+        status: previousWasLive ? "inactive" : previous.status,
+        attention: "none",
+        canResumeWithConfig: false,
+        done: false,
+      };
+      dbUpsertThread(restored, sortOrderForThread(dbGetThreads(), restored.id));
+      await ctx.options.dispatchThreadCommand?.({
+        kind: "start",
+        threadId: restored.id,
+        projectId: restored.projectId,
+        agentKind: restored.agentKind,
+        config: restored.config,
+        prompt: supervisorPayload.prompt,
+        ...(restored.presentationMode ? { presentationMode: restored.presentationMode } : {}),
+        launchRuntime: false,
+        providerSwitch: {
+          fromAgentKind: supervisorPayload.agentKind,
+          previousStatus: restored.status,
+        },
+      });
+      throw error;
+    }
+  });
+}
+
+function switchRetargetCommand(
+  payload: StartThreadPayload & { threadId: string },
+  projectId: string,
+): Extract<RemoteThreadCommand, { kind: "start" }> {
+  return {
+    kind: "start",
+    threadId: payload.threadId,
+    projectId,
+    agentKind: payload.agentKind,
+    config: payload.config,
+    prompt: payload.prompt,
+    ...(payload.presentationMode ? { presentationMode: payload.presentationMode } : {}),
+    launchRuntime: false,
+    ...(payload.providerSwitch ? { providerSwitch: payload.providerSwitch } : {}),
+  };
+}
+
+/**
+ * Flip an existing thread's durable row to a new provider for an in-place
+ * switch. Mirrors the renderer's `applyProviderSwitch` exactly: identity and
+ * transcript survive; the session ref, instance, slash commands, error, and
+ * done-markers of the provider being left behind are dropped — and because
+ * `dbUpsertThread` writes every column unconditionally, the dropped keys really
+ * clear. Returns the previous row so the caller can restore it if the launch
+ * fails.
+ */
+export function retargetRemoteThreadForSwitch(
+  threadId: string,
+  input: {
+    agentKind: string;
+    config: ThreadConfig;
+    presentationMode?: ThreadPresentationMode | undefined;
+  },
+): { previous: Thread; switched: Thread } {
+  const threads = dbGetThreads();
+  const previous = threads.find((entry) => entry.id === threadId);
+  if (!previous) {
+    throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  }
+  const {
+    sessionRef: _droppedSessionRef,
+    agentInstanceId: _droppedInstanceId,
+    slashCommands: _droppedSlashCommands,
+    errorMessage: _droppedError,
+    doneAt: _droppedDoneAt,
+    threadStatusSource: _droppedStatusSource,
+    ...rest
+  } = previous;
+  const now = new Date().toISOString();
+  const presentationMode = input.presentationMode ?? previous.presentationMode ?? "terminal";
+  const switched: Thread = {
+    ...rest,
+    agentKind: input.agentKind,
+    config: input.config,
+    presentationMode,
+    ...(presentationMode !== "terminal"
+      ? { threadStatusSource: "server" as ThreadStatusSource }
+      : {}),
+    status: "launching",
+    attention: "none",
+    canResumeWithConfig: false,
+    done: false,
+    updatedAt: now,
+    activeTurnStartedAt: now,
+  };
+  dbUpsertThread(switched, sortOrderForThread(threads, threadId));
+  return { previous, switched };
 }
 
 function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread): void {

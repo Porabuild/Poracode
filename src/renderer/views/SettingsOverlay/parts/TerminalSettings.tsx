@@ -1,10 +1,23 @@
-import { startTransition } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { TerminalPosition } from "@/shared/contracts";
-import type { CliPickerTarget } from "@/shared/settings";
-import { isRemoteSession } from "@/renderer/bridge";
+import {
+  WINDOWS_SHELL_AUTO,
+  type AvailableWindowsShell,
+  type CliPickerTarget,
+} from "@/shared/settings";
+import { isRemoteSession, isWindows, readBridge } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Select, ToggleSwitch } from "@/renderer/components/common";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Select,
+  ToggleSwitch,
+} from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import {
   cliPickerTargetOptions,
@@ -18,6 +31,14 @@ export function TerminalSettings() {
   const { t } = useLingui();
   const terminalPosition = useSharedSettings((state) => state.terminalPosition);
   const setTerminalPosition = useSharedSettings((state) => state.setTerminalPosition);
+  const windowsShellPath = useSharedSettings((state) => state.windowsShellPath);
+  const setWindowsShellPath = useSharedSettings((state) => state.setWindowsShellPath);
+  const windowsInternalShellPath = useSharedSettings((state) => state.windowsInternalShellPath);
+  const setWindowsInternalShellPath = useSharedSettings(
+    (state) => state.setWindowsInternalShellPath,
+  );
+  const windowsShellArguments = useSharedSettings((state) => state.windowsShellArguments);
+  const setWindowsShellArguments = useSharedSettings((state) => state.setWindowsShellArguments);
   const collapseTerminalComposer = useSharedSettings((state) => state.collapseTerminalComposer);
   const setCollapseTerminalComposer = useSharedSettings(
     (state) => state.setCollapseTerminalComposer,
@@ -36,6 +57,69 @@ export function TerminalSettings() {
   const terminalPositionOpts = useLocalizedOptions(terminalPositionOptions);
   const cliPickerTargetOpts = useLocalizedOptions(cliPickerTargetOptions);
   const remote = isRemoteSession();
+  const windows = !remote && isWindows();
+  const [availableWindowsShells, setAvailableWindowsShells] = useState<
+    AvailableWindowsShell[] | null
+  >(null);
+
+  useEffect(() => {
+    if (!windows) return;
+    let cancelled = false;
+    void readBridge()
+      .getAvailableWindowsShells()
+      .then((shells) => {
+        if (!cancelled) setAvailableWindowsShells(shells);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableWindowsShells([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [windows]);
+
+  const shellOptionLabel = (shell: AvailableWindowsShell, recommended: boolean) => {
+    switch (shell.kind) {
+      case "pwsh": {
+        const version = shell.version ?? "7";
+        return recommended ? t`PowerShell ${version} (recommended)` : t`PowerShell ${version}`;
+      }
+      case "powershell":
+        return t`Windows PowerShell 5.1`;
+      case "cmd":
+        return t`Command Prompt`;
+    }
+  };
+  const detectedWindowsShells = availableWindowsShells ?? [];
+  const shellsReady = availableWindowsShells !== null;
+  const buildShellControl = (configuredPath: string, shells: AvailableWindowsShell[]) => {
+    const selectedShell = shells.find(
+      (shell) => shell.path.toLowerCase() === configuredPath.toLowerCase(),
+    );
+    const savedOption =
+      shellsReady && configuredPath !== WINDOWS_SHELL_AUTO && !selectedShell
+        ? { id: configuredPath, label: t`Saved shell`, detail: configuredPath }
+        : undefined;
+    return {
+      options: [
+        ...shells.map((shell, index) => ({
+          id: shell.path,
+          label: shellOptionLabel(shell, index === 0 && shell.kind === "pwsh"),
+          detail: shell.path,
+        })),
+        ...(savedOption ? [savedOption] : []),
+      ],
+      value:
+        selectedShell?.path ??
+        (configuredPath === WINDOWS_SHELL_AUTO ? shells[0]?.path : configuredPath) ??
+        null,
+    };
+  };
+  const terminalShellControl = buildShellControl(windowsShellPath, detectedWindowsShells);
+  const internalShellControl = buildShellControl(
+    windowsInternalShellPath,
+    detectedWindowsShells.filter((shell) => shell.kind !== "cmd"),
+  );
 
   return (
     <SettingsPage title={t`Terminal`}>
@@ -57,6 +141,76 @@ export function TerminalSettings() {
             }}
           />
         </SettingRow>
+      )}
+
+      {windows && (
+        <Card
+          variant="transparent"
+          className="items-stretch gap-4 rounded-none border-y border-[var(--hairline)] px-0 py-4"
+        >
+          <CardHeader className="gap-1 px-0">
+            <CardTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              {t`Windows shells`}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              <Trans>Choose shells for the Terminal panel and Poracode's internal commands.</Trans>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 p-0">
+            <SettingRow
+              anchorId="terminal.windowsShell"
+              title={t`Terminal panel shell`}
+              description={<Trans>Used for new interactive Terminal-panel sessions.</Trans>}
+            >
+              <Select
+                aria-label={t`Terminal panel shell`}
+                className="w-[320px] shrink-0"
+                isDisabled={!shellsReady || terminalShellControl.options.length === 0}
+                options={terminalShellControl.options}
+                value={terminalShellControl.value}
+                onChange={setWindowsShellPath}
+              />
+            </SettingRow>
+
+            <SettingRow
+              anchorId="terminal.windowsInternalShell"
+              title={t`Internal commands and agents`}
+              description={
+                <Trans>
+                  Used for agents, authentication, installs, and Poracode's internal commands.
+                </Trans>
+              }
+            >
+              <Select
+                aria-label={t`Internal commands and agents`}
+                className="w-[320px] shrink-0"
+                isDisabled={!shellsReady || internalShellControl.options.length === 0}
+                options={internalShellControl.options}
+                value={internalShellControl.value}
+                onChange={setWindowsInternalShellPath}
+              />
+            </SettingRow>
+
+            <SettingRow
+              anchorId="terminal.windowsShellArguments"
+              title={t`Terminal shell arguments`}
+              description={
+                <Trans>
+                  Additional arguments passed to each new Terminal-panel shell. Quote values
+                  containing spaces.
+                </Trans>
+              }
+            >
+              <Input
+                aria-label={t`Terminal shell arguments`}
+                className="w-[320px] shrink-0 font-mono text-xs"
+                placeholder={t`e.g. -NoProfile`}
+                value={windowsShellArguments}
+                onChange={(event) => setWindowsShellArguments(event.currentTarget.value)}
+              />
+            </SettingRow>
+          </CardContent>
+        </Card>
       )}
 
       {!remote && (

@@ -150,6 +150,7 @@ describe("applyRemoteProjectCommand", () => {
         patch: {
           name: "After",
           scripts: { actions: [], setupScript: "pnpm install" },
+          ghAccount: { host: "github.com", login: "octocat" },
           disabled: true,
         },
       },
@@ -165,6 +166,7 @@ describe("applyRemoteProjectCommand", () => {
       }),
     );
     expect(result.project?.scripts?.setupScript).toBe("pnpm install");
+    expect(result.project?.ghAccount).toEqual({ host: "github.com", login: "octocat" });
   });
 
   it("clears optional project settings when the patch uses null", async () => {
@@ -172,10 +174,12 @@ describe("applyRemoteProjectCommand", () => {
     projects.push({
       id: "p1",
       name: "App",
+      icon: "lucide:rocket",
       location: { kind: "posix", path: "/work/app" },
       scripts: { actions: [], setupScript: "pnpm install" },
       searchSettings: { useIgnoreFiles: false },
       mcpServers: [],
+      ghAccount: { host: "github.com", login: "octocat" },
       createdAt: NOW,
     });
 
@@ -183,7 +187,13 @@ describe("applyRemoteProjectCommand", () => {
       {
         kind: "update",
         projectId: "p1",
-        patch: { scripts: null, searchSettings: null, mcpServers: null },
+        patch: {
+          icon: null,
+          scripts: null,
+          searchSettings: null,
+          mcpServers: null,
+          ghAccount: null,
+        },
       },
       deps,
     );
@@ -194,9 +204,59 @@ describe("applyRemoteProjectCommand", () => {
       location: { kind: "posix", path: "/work/app" },
       createdAt: NOW,
     });
+    expect(result.project).not.toHaveProperty("icon");
     expect(result.project).not.toHaveProperty("scripts");
     expect(result.project).not.toHaveProperty("searchSettings");
     expect(result.project).not.toHaveProperty("mcpServers");
+    expect(result.project).not.toHaveProperty("ghAccount");
+  });
+
+  it("sets and updates the project icon through the patch", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    });
+
+    await applyRemoteProjectCommand(
+      { kind: "update", projectId: "p1", patch: { icon: "lucide:rocket" } },
+      deps,
+    );
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1", icon: "lucide:rocket" }),
+    );
+
+    await applyRemoteProjectCommand(
+      { kind: "update", projectId: "p1", patch: { icon: "auto" } },
+      deps,
+    );
+    expect(updateProject).toHaveBeenCalledWith(expect.objectContaining({ id: "p1", icon: "auto" }));
+  });
+
+  it("rejects icon values that would escape the project folder", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    });
+
+    for (const icon of [
+      "file:../../etc/passwd",
+      "file:..\\..\\secret.png",
+      "file:/etc/passwd",
+      "file://server/share/icon.png",
+      "bogus:value",
+    ]) {
+      await expect(
+        applyRemoteProjectCommand({ kind: "update", projectId: "p1", patch: { icon } }, deps),
+      ).rejects.toMatchObject({ status: 400, code: "invalid_project_path" });
+    }
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(projects[0]?.icon).toBeUndefined();
   });
 
   it("preserves MCP settings when the parsed patch omits them", async () => {

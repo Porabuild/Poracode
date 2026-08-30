@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ProjectLocation } from "../../contracts";
+import { projectLocationSchema, type ProjectLocation } from "../../contracts";
 import {
   type KeybindingsConfig,
   type KeybindingsFile,
@@ -22,6 +22,17 @@ import {
 
 export const publishRemoteGitSummariesPayloadSchema = z.object({
   summaries: remoteGitSummariesSchema,
+});
+
+/**
+ * Payload for the two folder probes: `detectProjectIcon` resolves a project's
+ * `icon: "auto"` to the best image, and `listProjectIconFiles` returns every
+ * match so the picker can offer them. The main process probes well-known
+ * favicon/logo paths and returns paths relative to the project root
+ * (forward slashes).
+ */
+export const detectProjectIconPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
 });
 
 export const revokeRemoteAccessSessionPayloadSchema = z.object({
@@ -122,6 +133,16 @@ export const appProcedures = {
   >("pickFiles", "main-local", pickFilesOptionsSchema, (options) =>
     pickFilesOptionsSchema.parse(options),
   ),
+  detectProjectIcon: definePayloadProcedure<
+    z.infer<typeof detectProjectIconPayloadSchema>,
+    string | null,
+    "main-local"
+  >("detectProjectIcon", "main-local", detectProjectIconPayloadSchema),
+  listProjectIconFiles: definePayloadProcedure<
+    z.infer<typeof detectProjectIconPayloadSchema>,
+    string[],
+    "main-local"
+  >("listProjectIconFiles", "main-local", detectProjectIconPayloadSchema),
   saveClipboardImage: definePayloadProcedure<
     z.infer<typeof saveClipboardImagePayloadSchema>,
     string,

@@ -14,7 +14,7 @@ class ProtocolFixturesTest {
     fun decodeEnvironmentFixture() {
         val json = readFixture("environment.json")
         val env = RemoteJson.decodeFromString(RemoteEnvironmentDescriptor.serializer(), json)
-        assertEquals(3, env.protocolVersion)
+        assertEquals(8, env.protocolVersion)
         assertEquals("desktop-fixture-001", env.desktopId)
         assertTrue(env.auth.scopes.contains("session:read"))
     }
@@ -23,7 +23,7 @@ class ProtocolFixturesTest {
     fun decodeEnvironmentForwardCompatible() {
         val json = readFixture("environment-forward-compatible.json")
         val env = RemoteJson.decodeFromString(RemoteEnvironmentDescriptor.serializer(), json)
-        assertEquals(3, env.protocolVersion)
+        assertEquals(8, env.protocolVersion)
     }
 
     @Test

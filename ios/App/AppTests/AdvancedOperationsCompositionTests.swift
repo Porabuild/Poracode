@@ -190,7 +190,7 @@ final class AdvancedOperationsCompositionTests: XCTestCase {
       connectionID: connectionID,
       desktopID: "desktop",
       endpoint: "https://desktop.test",
-      protocolVersion: 3,
+      protocolVersion: 8,
       generation: 4
     )
     XCTAssertEqual(
@@ -199,23 +199,23 @@ final class AdvancedOperationsCompositionTests: XCTestCase {
         connectionID: connectionID,
         desktopID: "desktop",
         endpoint: "https://desktop.test",
-        protocolVersion: 3,
+        protocolVersion: 8,
         generation: 4
       )
     )
     for variant in [
       AdvancedOperationsSessionIdentity.make(
         connectionID: otherConnectionID, desktopID: "desktop",
-        endpoint: "https://desktop.test", protocolVersion: 3, generation: 4),
+        endpoint: "https://desktop.test", protocolVersion: 8, generation: 4),
       AdvancedOperationsSessionIdentity.make(
         connectionID: connectionID, desktopID: "other",
-        endpoint: "https://desktop.test", protocolVersion: 3, generation: 4),
+        endpoint: "https://desktop.test", protocolVersion: 8, generation: 4),
       AdvancedOperationsSessionIdentity.make(
         connectionID: connectionID, desktopID: "desktop",
-        endpoint: "https://other.test", protocolVersion: 3, generation: 4),
+        endpoint: "https://other.test", protocolVersion: 8, generation: 4),
       AdvancedOperationsSessionIdentity.make(
         connectionID: connectionID, desktopID: "desktop",
-        endpoint: "https://desktop.test", protocolVersion: 3, generation: 5),
+        endpoint: "https://desktop.test", protocolVersion: 8, generation: 5),
     ] {
       XCTAssertNotEqual(first, variant)
     }

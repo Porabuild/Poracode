@@ -113,6 +113,23 @@ class RemoteIntegrationsApiClient private constructor(
     }
 
     override suspend fun upsertPrWatch(draft: PrWatchDraft): PrWatch {
+        if (draft.watchEnabled) {
+            val agentKind = requireNotNull(draft.agentKind).trim()
+            val configuration = requireNotNull(draft.configuration)
+            val syncBody = buildJsonObject {
+                put("projectId", draft.key.projectId.trim())
+                put("agentKind", agentKind)
+                put("config", configuration.wireObject())
+            }
+            val canonicalSync = RemoteV3IntegrationsContract.prWatchAgentSyncRequest(
+                syncBody.toString(),
+            )
+            val syncResponse = jsonMutation(
+                IntegrationRouteId.PrWatchAgentSync,
+                canonicalSync,
+            )
+            RemoteV3IntegrationsContract.prWatchAgentSyncResponse(syncResponse)
+        }
         val body = RemoteV3IntegrationsContract.prWatchUpsertRequest(draft.wireObject().toString())
         val response = jsonMutation(IntegrationRouteId.PrWatchUpsert, body)
         return checkNotNull(

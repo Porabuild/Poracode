@@ -8,6 +8,7 @@ import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatRowMetaSeparator, chatRowIndicatorClass, inlineRowTriggerClass } from "./chatRow";
 import { getReasoningInlinePreview, getReasoningLastLine } from "./reasoningPreview";
+import { useToolCallRowOpenSignal } from "./toolCallRowOpenContext";
 import { ReasoningExpandedBody, ReasoningStreamViewport } from "./ReasoningStreamViewport";
 
 interface ReasoningInlineProps {
@@ -26,6 +27,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
   const actions = useChatPaneActions();
   const isStreaming = item.state !== "completed";
   const [isExpanded, setIsExpanded] = useState(false);
+  useToolCallRowOpenSignal(isExpanded);
   const rawText = item.streams.reasoning_text ?? "";
   const smoothedText = useSmoothStreamedText(rawText, isStreaming && !isExpanded);
   const hasText = rawText.trim().length > 0;
@@ -56,7 +58,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
       isExpanded={isExpanded}
       onExpandedChange={(next) => {
         setIsExpanded(next);
-        actions?.onContentHeightChange();
+        actions?.onContentHeightChange?.();
       }}
     >
       <Disclosure.Heading>

@@ -41,6 +41,7 @@ export interface CursorSdkRuntimeProbe {
   source?: string;
   diagnosticCode?: string;
   diagnosticMessage?: string;
+  authenticatedAs?: string;
 }
 
 export interface CursorSdkDetectionDependencies {
@@ -88,6 +89,9 @@ export function applyCursorSdkProbe(
       authState: probe.authState,
       authUsesProviderLogin: false,
       capabilities: sdkCapabilities,
+      ...(probe.authenticatedAs
+        ? { providerMetadata: { authenticatedAs: probe.authenticatedAs } }
+        : {}),
     },
   };
   const runtimeRouting: NonNullable<AgentStatus["sessionRuntimeRouting"]> = {
@@ -232,10 +236,12 @@ function cursorSdkRuntimeCapabilities(
 export async function probeCursorSdkRuntime(
   ctx: AgentEnvContext | undefined,
   dependencies: CursorSdkDetectionDependencies = {},
+  explicitApiKey?: string,
 ): Promise<CursorSdkRuntimeProbe> {
   const projectLocation = detectProbeLocation(ctx);
   const configuredApiKey =
-    typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "";
+    explicitApiKey?.trim() ||
+    (typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "");
   let worker:
     | (Pick<CursorSdkWorkerClient, "probe" | "dispose"> &
         Partial<Pick<CursorSdkWorkerClient, "terminate">>)
@@ -255,6 +261,7 @@ export async function probeCursorSdkRuntime(
       models: result.models,
       version: result.sdkVersion,
       source: result.source,
+      ...(result.authenticatedAs ? { authenticatedAs: result.authenticatedAs } : {}),
     };
   } catch (error) {
     const code = cursorSdkProbeErrorCode(error);

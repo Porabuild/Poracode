@@ -32,7 +32,7 @@ enum SettingsIntegrationsProcedure: String, CaseIterable, Sendable {
 /// The only SettingsIntegrations file allowed to know generated codec symbols.
 /// App-owned models always cross this adapter as canonical JSON.
 enum SettingsIntegrationsRemoteV3Contract {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
   static let procedurePath = "/api/git/call"
 
   static let procedures: [SettingsIntegrationsProcedureMetadata] = [

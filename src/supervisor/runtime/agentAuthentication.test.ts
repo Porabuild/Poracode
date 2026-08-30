@@ -164,7 +164,9 @@ describe("authenticateAcpAgent", () => {
         agentKind: "acp-generic:my-acp",
         methodId: "browser-login",
       }),
-    ).rejects.toThrow("ACP authentication was not completed.");
+    ).rejects.toThrow(
+      "My ACP reported authentication success, but Poracode could not verify it. Configure My ACP directly, then try again.",
+    );
 
     const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
       agentInstances: Record<string, { authAcknowledged?: { native?: boolean } }>;

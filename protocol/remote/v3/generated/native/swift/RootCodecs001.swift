@@ -129,7 +129,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhCancelWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_2101176bb1> = .init(id: "procedure.ghCancelWorkflowRun.request", schema: RemoteSchemas.schema_2101176bb1edeca8)
+  static let procedureU2EGhCancelWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287> = .init(id: "procedure.ghCancelWorkflowRun.request", schema: RemoteSchemas.schema_eb12aad2875e1908)
 }
 
 public extension RemoteRootCodecs {
@@ -153,11 +153,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_2101176bb1> = .init(id: "procedure.ghDeleteWorkflowRun.request", schema: RemoteSchemas.schema_2101176bb1edeca8)
+  static let procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287> = .init(id: "procedure.ghDeleteWorkflowRun.request", schema: RemoteSchemas.schema_eb12aad2875e1908)
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhDispatchWorkflowU2ERequest: RemoteRootCodec<ProcedureghDispatchWorkflowRequest_6d840e9cb9> = .init(id: "procedure.ghDispatchWorkflow.request", schema: RemoteSchemas.schema_6d840e9cb93c86d0)
+  static let procedureU2EGhDispatchWorkflowU2ERequest: RemoteRootCodec<ProcedureghDispatchWorkflowRequest_e56382aee3> = .init(id: "procedure.ghDispatchWorkflow.request", schema: RemoteSchemas.schema_e56382aee3ea3c7f)
 }
 
 public extension RemoteRootCodecs {
@@ -209,7 +209,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhGetWorkflowDefinitionU2ERequest: RemoteRootCodec<ProcedureghGetWorkflowDefinitionRequest_7595d53fa2> = .init(id: "procedure.ghGetWorkflowDefinition.request", schema: RemoteSchemas.schema_7595d53fa28720a8)
+  static let procedureU2EGhGetWorkflowDefinitionU2ERequest: RemoteRootCodec<ProcedureghGetWorkflowDefinitionRequest_30b422e470> = .init(id: "procedure.ghGetWorkflowDefinition.request", schema: RemoteSchemas.schema_30b422e470a61b28)
 }
 
 public extension RemoteRootCodecs {
@@ -217,7 +217,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhGetWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_2101176bb1> = .init(id: "procedure.ghGetWorkflowRun.request", schema: RemoteSchemas.schema_2101176bb1edeca8)
+  static let procedureU2EGhGetWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287> = .init(id: "procedure.ghGetWorkflowRun.request", schema: RemoteSchemas.schema_eb12aad2875e1908)
 }
 
 public extension RemoteRootCodecs {
@@ -257,7 +257,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhListWorkflowRunsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowRunsRequest_23a952c095> = .init(id: "procedure.ghListWorkflowRuns.request", schema: RemoteSchemas.schema_23a952c095175515)
+  static let procedureU2EGhListWorkflowRunsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowRunsRequest_513dd8593f> = .init(id: "procedure.ghListWorkflowRuns.request", schema: RemoteSchemas.schema_513dd8593f33208a)
 }
 
 public extension RemoteRootCodecs {
@@ -265,7 +265,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhListWorkflowsU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85> = .init(id: "procedure.ghListWorkflows.request", schema: RemoteSchemas.schema_5e3a19fb856f8915)
+  static let procedureU2EGhListWorkflowsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowsRequest_72429c4be5> = .init(id: "procedure.ghListWorkflows.request", schema: RemoteSchemas.schema_72429c4be55ff8fc)
 }
 
 public extension RemoteRootCodecs {
@@ -293,7 +293,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhRerunWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghRerunWorkflowRunRequest_bc01786c11> = .init(id: "procedure.ghRerunWorkflowRun.request", schema: RemoteSchemas.schema_bc01786c116784f4)
+  static let procedureU2EGhRerunWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghRerunWorkflowRunRequest_4492692f82> = .init(id: "procedure.ghRerunWorkflowRun.request", schema: RemoteSchemas.schema_4492692f82322049)
 }
 
 public extension RemoteRootCodecs {

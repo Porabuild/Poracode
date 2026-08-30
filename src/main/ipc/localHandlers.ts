@@ -13,11 +13,13 @@ import {
   writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
+import { detectProjectIconFile, listProjectIconFiles } from "../projectIconDetect";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import {
   applyAgentSecretSetting,
-  applyClaudeProfileEnvironment,
+  applyCreateProfile,
+  applyProfileEnvironment,
   mergeManagedSharedSettings,
   readSharedSettingsFile,
   writeSharedSettingsFile,
@@ -124,12 +126,13 @@ function assertSafeExternalUrl(rawUrl: string): string {
 /** The composer "attach files" picker, shared by the main window and the quick composer. */
 export async function showAddFilesDialog(
   parent: BrowserWindow,
-  payload?: { title?: string; filters?: Electron.FileFilter[] },
+  payload?: { title?: string; filters?: Electron.FileFilter[]; defaultPath?: string },
 ): Promise<string[] | null> {
   const result = await dialog.showOpenDialog(parent, {
     properties: ["openFile", "multiSelections"],
     title: payload?.title ?? "Add files or photos",
     filters: payload?.filters ?? [{ name: "All Files", extensions: ["*"] }],
+    ...(payload?.defaultPath ? { defaultPath: payload.defaultPath } : {}),
   });
   return result.canceled ? null : result.filePaths;
 }
@@ -144,6 +147,17 @@ export function createLocalIpcHandlers(
   ): Promise<IpcProcedureResult<Name>> | IpcProcedureResult<Name> => {
     return options.database.callDatabase(name, payload);
   };
+  // Shared plumbing for the main-local secret/profile handlers: read the
+  // settings file, apply one encrypting transform, persist, and notify.
+  const applyToSharedSettingsFile = <T>(
+    apply: (settings: SharedSettings, baseDir: string) => { settings: SharedSettings; result: T },
+  ): T => {
+    const settingsPath = options.requirePoracodePaths().settingsPath;
+    const applied = apply(readSharedSettingsFile(settingsPath), dirname(settingsPath));
+    writeSharedSettingsFile(settingsPath, applied.settings);
+    options.onSharedSettingsChanged?.(applied.settings);
+    return applied.result;
+  };
   return defineMainLocalIpcHandlers({
     pickFolder: async (defaultPath) => {
       const result = await dialog.showOpenDialog(options.getMainWindow()!, {
@@ -157,7 +171,10 @@ export function createLocalIpcHandlers(
       showAddFilesDialog(options.getMainWindow()!, {
         ...(payload?.title ? { title: payload.title } : {}),
         ...(payload?.filters ? { filters: payload.filters } : {}),
+        ...(payload?.defaultPath ? { defaultPath: payload.defaultPath } : {}),
       }),
+    detectProjectIcon: ({ projectLocation }) => detectProjectIconFile(projectLocation),
+    listProjectIconFiles: ({ projectLocation }) => listProjectIconFiles(projectLocation),
     saveClipboardImage: (payload) =>
       saveClipboardImageFile(options.requirePoracodePaths(), payload),
     saveHandoffContext: (payload) =>
@@ -313,7 +330,7 @@ export function createLocalIpcHandlers(
     getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
     setSharedSettings: (settings) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
-      // Preserve supervisor-managed fields and encrypted Claude-profile
+      // Preserve supervisor-managed fields and encrypted provider-profile
       // environments so the renderer's persist cycle doesn't clobber writes
       // made out-of-band by the supervisor. (Shared with the app-controls MCP
       // `update_settings` tool via `mergeManagedSharedSettings`.)
@@ -322,17 +339,11 @@ export function createLocalIpcHandlers(
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
     },
-    setAgentSecretSetting: (payload) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const { settings, storedValue } = applyAgentSecretSetting(
-        readSharedSettingsFile(settingsPath),
-        payload,
-        dirname(settingsPath),
-      );
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return { storedValue };
-    },
+    setAgentSecretSetting: (payload) =>
+      applyToSharedSettingsFile((settings, baseDir) => {
+        const { settings: next, storedValue } = applyAgentSecretSetting(settings, payload, baseDir);
+        return { settings: next, result: { storedValue } };
+      }),
     removeCrossagentRoutingOverride: ({ tags }) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
       const current = readSharedSettingsFile(settingsPath);
@@ -364,17 +375,16 @@ export function createLocalIpcHandlers(
       options.onSharedSettingsChanged?.(settings);
       return usage;
     },
-    setClaudeProfileEnvironment: (payload) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const { settings, instance } = applyClaudeProfileEnvironment(
-        readSharedSettingsFile(settingsPath),
-        payload,
-        dirname(settingsPath),
-      );
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return instance;
-    },
+    setProfileEnvironment: (payload) =>
+      applyToSharedSettingsFile((settings, baseDir) => {
+        const { settings: next, instance } = applyProfileEnvironment(settings, payload, baseDir);
+        return { settings: next, result: instance };
+      }),
+    createProfile: (payload) =>
+      applyToSharedSettingsFile((settings, baseDir) => {
+        const { settings: next, instance } = applyCreateProfile(settings, payload, baseDir);
+        return { settings: next, result: instance };
+      }),
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
       const nativeCapable = supportsNativeWindowMaterial();
       const mainWindow = options.getMainWindow();
@@ -433,6 +443,7 @@ export function createLocalIpcHandlers(
     },
     dbGetThreadRuntimeItems: (payload) => callDatabase("dbGetThreadRuntimeItems", payload),
     dbGetThreadRuntimeItemsPage: (payload) => callDatabase("dbGetThreadRuntimeItemsPage", payload),
+    dbGetLatestThreadGoalItem: (payload) => callDatabase("dbGetLatestThreadGoalItem", payload),
     dbTruncateThreadRuntimeAfter: (payload) =>
       callDatabase("dbTruncateThreadRuntimeAfter", payload),
     dbReplaceThreadRuntimeItems: (payload) => callDatabase("dbReplaceThreadRuntimeItems", payload),
@@ -454,6 +465,8 @@ export function createLocalIpcHandlers(
     checkPrWatch: (payload) => callService("checkPrWatch", payload),
     upsertPrWatch: (watch) => callService("upsertPrWatch", watch),
     deletePrWatch: (payload) => callService("deletePrWatch", payload),
+    syncPrWatchAgent: (agent) => callService("syncPrWatchAgent", agent),
+    getUpdateStatus: () => options.autoUpdater.getStatus(),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),

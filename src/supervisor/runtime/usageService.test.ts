@@ -2,7 +2,14 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { HostPort, OAuthToken, UsageSnapshot } from "@poracode/agents-usage";
+import {
+  CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+  CURSOR_PERIOD_USAGE_ENDPOINT,
+  CURSOR_PLAN_INFO_ENDPOINT,
+  type HostPort,
+  type OAuthToken,
+  type UsageSnapshot,
+} from "@poracode/agents-usage";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { LocalUsageCollector } from "./localUsageCollectors";
 import { UsageService } from "./usageService";
@@ -59,6 +66,34 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
+  it("discards older caches that still label the first-party window Auto + Composer", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 4,
+        snapshots: [
+          {
+            providerId: "cursor",
+            status: "ok",
+            windows: [{ id: "cursor-auto", label: "Auto + Composer", usedPercent: 34 }],
+            fetchedAt: NOW,
+          },
+        ],
+      }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: makeHost({}),
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.getProviderUsage({ providerIds: ["cursor"] });
+    expect(result.fromCache).toBe(false);
+    expect(result.snapshots).toEqual([]);
+  });
+
   it("refresh defaults to Claude and Codex only, emits per-provider then a terminal event", async () => {
     const events: SupervisorEvent[] = [];
     const service = new UsageService({
@@ -417,6 +452,169 @@ describe("UsageService", () => {
       plan: "Team Subscription",
     });
     expect(result.snapshots[0]?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+  });
+
+  it("collects Cursor profile usage from the profile API key", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentInstances: {
+          work: {
+            id: "work",
+            driver: "cursor",
+            displayName: "Work",
+            environment: { CURSOR_API_KEY: { value: "crsr_work", sensitive: true } },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const urls: string[] = [];
+    const authorizations: Array<string | undefined> = [];
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: () => Promise.resolve(undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: (request) => {
+          urls.push(request.url);
+          authorizations.push(request.headers?.Authorization);
+          if (request.url === CURSOR_API_KEY_EXCHANGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ accessToken: "session-jwt" }),
+            });
+          }
+          if (request.url === CURSOR_PERIOD_USAGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                planUsage: {
+                  totalSpend: 2000,
+                  limit: 2000,
+                  autoPercentUsed: 10,
+                  apiPercentUsed: 40,
+                },
+              }),
+            });
+          }
+          if (request.url === CURSOR_PLAN_INFO_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ planInfo: { planName: "pro" } }),
+            });
+          }
+          return Promise.resolve({ status: 404, headers: {}, body: "" });
+        },
+      },
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host,
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({ providerIds: ["cursor:work"] });
+
+    expect(urls[0]).toBe(CURSOR_API_KEY_EXCHANGE_ENDPOINT);
+    expect(authorizations[0]).toBe("Bearer crsr_work");
+    expect(result.snapshots).toHaveLength(1);
+    expect(result.snapshots[0]).toMatchObject({
+      providerId: "cursor:work",
+      status: "ok",
+      plan: "Cursor Pro",
+    });
+    expect(result.snapshots[0]?.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(10);
+  });
+
+  it("uses the main Cursor SDK API key instead of the machine CLI login", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ agentSettings: { cursor: { sdkApiKey: "crsr_personal" } } }),
+      "utf8",
+    );
+
+    const urls: string[] = [];
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: () => Promise.resolve({ accessToken: "cli-enterprise-session" }),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: (request) => {
+          urls.push(request.url);
+          if (request.url === CURSOR_API_KEY_EXCHANGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                accessToken: "header.eyJlbWFpbCI6InBlcnNvbmFsQGV4YW1wbGUuY29tIn0.sig",
+              }),
+            });
+          }
+          if (request.url === CURSOR_PERIOD_USAGE_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                planUsage: {
+                  totalSpend: 1200,
+                  limit: 2000,
+                  autoPercentUsed: 6,
+                  apiPercentUsed: 12,
+                },
+              }),
+            });
+          }
+          if (request.url === CURSOR_PLAN_INFO_ENDPOINT) {
+            return Promise.resolve({
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ planInfo: { planName: "pro" } }),
+            });
+          }
+          return Promise.resolve({
+            status: 200,
+            headers: {},
+            body: JSON.stringify({ membershipType: "enterprise" }),
+          });
+        },
+      },
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host,
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({ providerIds: ["cursor"] });
+
+    expect(urls).toEqual([
+      CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+      CURSOR_PERIOD_USAGE_ENDPOINT,
+      CURSOR_PLAN_INFO_ENDPOINT,
+    ]);
+    expect(result.snapshots).toHaveLength(1);
+    expect(result.snapshots[0]).toMatchObject({
+      providerId: "cursor",
+      status: "ok",
+      plan: "Cursor Pro",
+      authenticatedAs: "personal@example.com",
+    });
+    expect(result.snapshots[0]?.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(6);
   });
 
   it("does not re-poll a rate-limited provider until its Retry-After backoff clears", async () => {

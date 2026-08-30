@@ -223,7 +223,7 @@ class LiveConnectionController(
                 state: RemoteWebSocketClient.ConnectionState,
                 detail: String?,
             ) {
-                if (!isActiveSocket(socket, bindSessionGen, sockId)) return
+                if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
                 if (!lifecycleGate.isForeground &&
                     state != RemoteWebSocketClient.ConnectionState.Suspended
                 ) {
@@ -273,20 +273,20 @@ class LiveConnectionController(
             }
 
             override fun onMessage(message: RemoteWebSocketServerMessage) {
-                if (!isActiveSocket(socket, bindSessionGen, sockId)) return
+                if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
                 if (!lifecycleGate.isForeground) return
                 deliverServerMessage(message)
             }
 
             override fun onResyncRequired(reason: String) {
-                if (!isActiveSocket(socket, bindSessionGen, sockId)) return
+                if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
                 // Always deliver: ResyncEngine.noteNeedsResync is background-safe
                 // (marks authoritative refresh; starts no network while background).
                 requestResync(reason)
             }
 
             override fun onSessionExpired(reason: String) {
-                if (!isActiveSocket(socket, bindSessionGen, sockId)) return
+                if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
                 surfaceSessionExpired(reason)
             }
         })
@@ -448,17 +448,7 @@ class LiveConnectionController(
     }
 
     fun surfaceSessionExpired(message: String?) {
-        val detail = message?.takeIf { it.isNotBlank() }
-            ?: RemoteSocketPolicy.SESSION_EXPIRED_REASON
-        updateState {
-            it.copy(
-                sessionExpired = true,
-                phase = AppSession.Phase.SessionExpired,
-                globalError = detail,
-                socketState = RemoteWebSocketClient.ConnectionState.SessionExpired,
-                socketDetail = detail,
-            )
-        }
+        updateState { it.withExpiredSession(message) }
     }
 
     fun applyThreadInterests(ids: List<String>, epoch: Int) {
@@ -499,13 +489,4 @@ class LiveConnectionController(
         jobs.replace(SessionLifecycleJobs.SNAPSHOT, job)
         return job
     }
-
-    private fun isActiveSocket(
-        socket: RemoteEventSocket,
-        bindSessionGen: Int,
-        sockId: Int,
-    ): Boolean =
-        webSocket === socket &&
-            owner.isCurrentSession(bindSessionGen) &&
-            owner.isCurrentSocket(sockId)
 }

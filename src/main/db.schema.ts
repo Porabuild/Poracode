@@ -1,8 +1,9 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  icon: text("icon"),
   locationKind: text("location_kind").notNull(), // "windows" | "wsl" | "posix"
   locationPath: text("location_path"), // for windows/posix
   locationDistro: text("location_distro"), // for wsl
@@ -13,6 +14,7 @@ export const projects = sqliteTable("projects", {
   searchSettings: text("search_settings"), // JSON
   worktreeLocation: text("worktree_location"), // JSON
   mcpServers: text("mcp_servers"), // JSON
+  ghAccount: text("gh_account"), // JSON
   workspaceId: text("workspace_id"),
   disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
@@ -24,6 +26,8 @@ export const threads = sqliteTable("threads", {
   projectId: text("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
+  /** Workspace a Home thread was created in; NULL = visible in every workspace. */
+  workspaceId: text("workspace_id"),
   title: text("title").notNull(),
   agentKind: text("agent_kind").notNull(), // provider kind
   /** Optional id of a user-registered ACP instance backing this thread. */
@@ -45,6 +49,7 @@ export const threads = sqliteTable("threads", {
   /** Orchestrator thread that created this one via the Crossagents MCP. */
   parentThreadId: text("parent_thread_id"),
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  archivedAt: text("archived_at"),
   done: integer("done", { mode: "boolean" }).notNull().default(false),
   doneAt: text("done_at"),
   starred: integer("starred", { mode: "boolean" }).notNull().default(false),
@@ -91,6 +96,7 @@ export const prWatches = sqliteTable(
     lastCheckKey: text("last_check_key"),
     activeThreadId: text("active_thread_id"),
     lastError: text("last_error"),
+    blockedReason: text("blocked_reason"),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.projectId, table.prNumber] }),
@@ -129,11 +135,55 @@ export const threadRuntimeItems = sqliteTable(
     type: text("type").notNull(),
     state: text("state").notNull(),
     payload: text("payload"), // JSON, nullable
+    // Head of each stream. Content past the head lives in
+    // `threadRuntimeItemStreamChunks` so appends never rewrite this blob.
     streams: text("streams"), // JSON of Partial<Record<RuntimeContentStreamKind, string>>
     parentItemId: text("parent_item_id"), // sub-agent parent tool_call id, nullable
   },
   (table) => ({
     pk: primaryKey({ columns: [table.threadId, table.itemId] }),
+    parentIndex: index("idx_runtime_items_thread_parent").on(table.threadId, table.parentItemId),
+  }),
+);
+
+/**
+ * Append-only tail of a runtime item's streamed content. One row per appended
+ * chunk, assembled in `seq` order on read. Keeps the cost of a streamed chunk
+ * proportional to that chunk instead of to everything the item has produced.
+ */
+export const threadRuntimeItemStreamChunks = sqliteTable(
+  "thread_runtime_item_stream_chunks",
+  {
+    threadId: text("thread_id").notNull(),
+    itemId: text("item_id").notNull(),
+    stream: text("stream").notNull(),
+    seq: integer("seq").notNull(),
+    // Declared before `text` so size lookups read record headers, not contents.
+    chars: integer("chars").notNull(),
+    text: text("text").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.threadId, table.itemId, table.stream, table.seq] }),
+  }),
+);
+
+/**
+ * Per-stream bookkeeping for the append-only tail: the next sequence number,
+ * how many characters are retained and how many have been dropped. Keeps the
+ * append path free of aggregate queries over the chunk rows.
+ */
+export const threadRuntimeItemStreamState = sqliteTable(
+  "thread_runtime_item_stream_state",
+  {
+    threadId: text("thread_id").notNull(),
+    itemId: text("item_id").notNull(),
+    stream: text("stream").notNull(),
+    nextSeq: integer("next_seq").notNull(),
+    tailChars: integer("tail_chars").notNull(),
+    elidedChars: integer("elided_chars").notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.threadId, table.itemId, table.stream] }),
   }),
 );
 

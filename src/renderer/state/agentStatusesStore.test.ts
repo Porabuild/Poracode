@@ -45,9 +45,158 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
+  it("invalidates v17 terminal-only Antigravity statuses", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [
+          makeStatus({
+            kind: "antigravity",
+            label: "Antigravity",
+            capabilities: {
+              ...makeStatus().capabilities,
+              presentationModes: ["terminal"],
+            },
+          }),
+        ],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      17,
+    );
+
+    expect(options.version).toBe(18);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(18);
+    const staleCommandCode = makeStatus({
+      kind: "commandcode",
+      label: "Command Code",
+      capabilities: {
+        ...makeStatus().capabilities,
+        models: [
+          { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+          { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+        ],
+        modelSubProvider: { "deepseek/deepseek-v4-pro": "deepseek" },
+      },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleCommandCode],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      15,
+    );
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(18);
+    const staleLogin = makeStatus({
+      kind: "antigravity",
+      label: "Antigravity",
+      authState: "missing",
+      authMethods: [{ id: "antigravity-login", name: "Antigravity login", type: "terminal" }],
+      capabilities: { ...makeStatus().capabilities },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleLogin],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      10,
+    );
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(18);
+    const staleCursor = makeStatus({
+      kind: "cursor",
+      label: "Cursor",
+      capabilities: {
+        ...makeStatus().capabilities,
+        models: [{ id: "grok-4.6", label: "Cursor Grok 4.6" }],
+        subProviders: [
+          { id: "cursor", label: "Cursor Models" },
+          { id: "other", label: "Other models" },
+        ],
+        modelSubProvider: { "grok-4.6": "other" },
+      },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleCursor],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      14,
+    );
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(18);
+    const staleAcp = makeStatus({
+      kind: "acp-generic:example",
+      label: "Example ACP",
+      authState: "missing",
+      authMethods: [{ id: "login", name: "Login" }],
+      capabilities: { ...makeStatus().capabilities },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleAcp],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      8,
+    );
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(7);
+    expect(options.version).toBe(18);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -97,6 +246,68 @@ describe("setAgentStatuses", () => {
     expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.slashCommands).toEqual(
       fresh.capabilities.slashCommands,
     );
+  });
+
+  it("replaces the array when ACP thinking capabilities change", () => {
+    const cached = makeStatus();
+    const fresh = makeStatus({
+      capabilities: {
+        ...cached.capabilities,
+        modelEfforts: { "gpt-5.5": [] },
+        modelDefaultEfforts: { "gpt-5.5": "default" },
+        thinkingModels: ["gpt-5.5"],
+      },
+    });
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities).toMatchObject({
+      modelEfforts: { "gpt-5.5": [] },
+      modelDefaultEfforts: { "gpt-5.5": "default" },
+      thinkingModels: ["gpt-5.5"],
+    });
+  });
+
+  it("replaces the array when only Codex context-window capabilities change", () => {
+    const cached = makeStatus({
+      kind: "codex",
+      capabilities: {
+        ...makeStatus().capabilities,
+        contextSizes: [
+          { id: "272k", label: "272k" },
+          { id: "400k", label: "400k" },
+          { id: "1m", label: "1M" },
+        ],
+        defaultContextSize: "400k",
+      },
+    });
+    const fresh = makeStatus({
+      kind: "codex",
+      capabilities: {
+        ...cached.capabilities,
+        contextSizes: [
+          { id: "400k", label: "400k" },
+          { id: "512k", label: "512k" },
+        ],
+        defaultContextSize: "400k",
+        modelContextSizes: { "gpt-5.6-sol": ["400k", "512k"] },
+      },
+    });
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.contextSizes).toEqual(
+      fresh.capabilities.contextSizes,
+    );
+  });
+
+  it("replaces the array when ACP session readiness changes", () => {
+    const cached = makeStatus({ authState: "unknown" });
+    const fresh = makeStatus({ authState: "unknown", acpSessionEstablished: true });
+    useAgentStatusesStore.setState({ agentStatuses: [cached], windowsLoaded: true });
+
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
   });
 
   it("replaces the array when only a presentation capability catalog changes", () => {

@@ -5,7 +5,10 @@ import { useProjectRemoteServerLookup } from "@/renderer/components/common/Proje
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
-import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
+import {
+  useWorkspaceProjectIds,
+  useWorkspaceThreadFilter,
+} from "@/renderer/state/workspaceSelectors";
 
 /**
  * One source of truth for the flat list and its project selector. Desktop
@@ -16,6 +19,7 @@ import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
 export function useFlatListProjectFilterModel() {
   const compactLayout = useCompactLayout();
   const workspaceProjectIds = useWorkspaceProjectIds();
+  const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const projects = useAppStore(useShallow((state) => state.projects));
   const threads = useAppStore((state) => state.threads);
@@ -52,7 +56,8 @@ export function useFlatListProjectFilterModel() {
       : new Set(filteredVisibleIds);
 
   const visibleThreads = threads.filter(
-    (thread) => !thread.archived && projectsById.has(thread.projectId),
+    (thread) =>
+      !thread.archived && projectsById.has(thread.projectId) && isThreadInActiveWorkspace(thread),
   );
   const threadCounts = new Map<string, number>();
   for (const thread of visibleThreads) {

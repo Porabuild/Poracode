@@ -24,6 +24,7 @@ import {
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
+import { evictOversizedInactiveThreadRuntimeItems } from "../chatRuntimePersister";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -372,6 +373,7 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
   }
   if (batches.length === 0) return;
   store.applyRuntimeEventBatches(batches);
+  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
 }
 
 function schedulePendingRuntimeEvents(): void {

@@ -1,4 +1,9 @@
-import type { CommandSpec, CreateStructuredSessionInput } from "../base";
+import {
+  injectWslEnv,
+  withCommandBaseSpawnEnv,
+  type CommandSpec,
+  type CreateStructuredSessionInput,
+} from "../base";
 import { AcpStructuredSession, type AcpStructuredSessionOptions } from "./session";
 
 /**
@@ -47,7 +52,14 @@ export function createAcpStructuredSession(
   if (!shouldSpawnAcpSession(input)) {
     return undefined;
   }
-  return AcpStructuredSession.create(acpCommand, input.projectLocation, input.threadId, {
+  // The ACP child is spawned from `command.env`, so this is where the
+  // provider's `baseSpawnEnv` has to land — an ACP adapter must not have to
+  // remember to repeat it on its own launch argv. Command-declared env wins.
+  const mergedCommand = withCommandBaseSpawnEnv(acpCommand, input.baseSpawnEnv);
+  const command = mergedCommand.env
+    ? injectWslEnv(mergedCommand, input.projectLocation, mergedCommand.env)
+    : mergedCommand;
+  return AcpStructuredSession.create(command, input.projectLocation, input.threadId, {
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
       : {}),
@@ -61,10 +73,14 @@ export function createAcpStructuredSession(
     ...(input.acpExtensionSessionUpdateTransform
       ? { extensionSessionUpdateTransform: input.acpExtensionSessionUpdateTransform }
       : {}),
+    ...(input.acpInitializeMeta ? { initializeMeta: input.acpInitializeMeta } : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
+    ...(input.acpOptimisticMcpTransports
+      ? { optimisticMcpTransports: input.acpOptimisticMcpTransports }
+      : {}),
     ...(input.acpFsAgentHomeDirs ? { fsAgentHomeDirs: input.acpFsAgentHomeDirs } : {}),
     ...(input.acpFsTextCapability !== undefined
       ? { fsTextCapability: input.acpFsTextCapability }

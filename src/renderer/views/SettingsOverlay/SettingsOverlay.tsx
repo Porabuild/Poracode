@@ -10,6 +10,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
+import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { ProfileSettings } from "./parts/ProfileSettings";
@@ -269,7 +270,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
   const attentionAgentKinds = new Set(
     [...agentStatuses, ...wslAgentStatuses]
-      .filter((status) => status.installed && status.authState === "missing")
+      .filter(agentStatusNeedsAuthAttention)
       .map((status) => status.kind),
   );
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");

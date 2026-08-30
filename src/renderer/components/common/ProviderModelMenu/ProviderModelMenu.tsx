@@ -1,11 +1,12 @@
 import {
+  forwardRef,
   startTransition,
   useDeferredValue,
   useEffect,
   useId,
+  useImperativeHandle,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
@@ -13,7 +14,9 @@ import { Tooltip } from "@heroui/react";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import type { ThreadPresentationMode } from "@/shared/contracts";
+import { effectiveProviderOrder } from "@/shared/machineSettings";
+import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
+import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import { Button } from "../Button";
 import {
@@ -65,9 +68,12 @@ export interface ProviderModelMenuProps {
   /** When set, only this provider's rows are rendered. */
   lockedAgentKind?: string;
   presentationMode?: ThreadPresentationMode;
+  /**
+   * Machine whose provider-order preference applies ("local" when omitted).
+   * Only affects ordering while the provider-order lock is off.
+   */
+  machineKey?: string;
   isDisabled?: boolean;
-  /** Fast mode is on for the current draft, so supported rows mark it filled. */
-  isFastEnabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
   collapseTier?: number;
@@ -87,7 +93,7 @@ function normalizeCurrentModelForProvider(
   if (!provider || provider.capabilities.models.some((model) => model.id === modelId)) {
     return modelId;
   }
-  if (provider.kind !== "cursor") {
+  if (baseAgentKind(provider.kind) !== "cursor") {
     return modelId;
   }
   const normalized = migrateCursorBaseId(parseCursorModelId(modelId).baseId);
@@ -273,7 +279,6 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     lockedAgentKind,
     presentationMode,
     isDisabled,
-    isFastEnabled = false,
     hideLabelOnWrap,
     forceHideLabel = false,
     collapseTier,
@@ -286,19 +291,24 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeModelItemId, setActiveModelItemId] = useState<string | null>(null);
   const [sessionFavorites, setSessionFavorites] = useState<readonly ModelRef[] | undefined>(
     undefined,
   );
   const [sessionRecents, setSessionRecents] = useState<readonly ModelRef[] | undefined>(undefined);
   const deferredSearch = useDeferredValue(search);
   const searchRef = useRef<HTMLInputElement>(null);
-  const windowedListRef = useRef<HTMLDivElement>(null);
+  const windowedListRef = useRef<WindowedProviderModelListHandle>(null);
   const listboxDomIdPrefix = useId();
 
   const favorites = useSharedSettings((s) => s.favoriteModels);
   const recents = useSharedSettings((s) => s.recentModels);
-  const providerOrder = useSharedSettings((s) => s.providerOrder);
+  const providerOrder = useSharedSettings((s) =>
+    effectiveProviderOrder(s, props.machineKey ?? LOCAL_NATIVE_MACHINE_KEY),
+  );
   const hiddenModels = useSharedSettings((s) => s.hiddenModels);
+  const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
+  const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const toggleFavoriteModel = useSharedSettings((s) => s.toggleFavoriteModel);
   const latestFavoritesRef = useRef(favorites);
   const latestRecentsRef = useRef(recents);
@@ -345,6 +355,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open);
+    if (!open) setActiveModelItemId(null);
     onOpenChange?.(open);
   }
 
@@ -362,20 +373,22 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     isOpen ? (sessionRecents ?? recents) : recents,
     presentationMode,
   );
-  const items = isOpen
-    ? buildProviderModelItems({
-        providers,
-        search: deferredSearch,
-        ...(lockedAgentKind ? { lockedAgentKind } : {}),
-        currentAgentKind: deferredAgentKind,
-        currentModel: deferredModel,
-        favorites: sectionFavorites,
-        favoriteStateRefs: activeFavorites,
-        recents: sectionRecents,
-        hiddenModels,
-        providerOrder,
-      })
-    : [];
+  function buildItemsForSearch(searchValue: string) {
+    return buildProviderModelItems({
+      providers,
+      search: searchValue,
+      ...(lockedAgentKind ? { lockedAgentKind } : {}),
+      currentAgentKind: deferredAgentKind,
+      currentModel: deferredModel,
+      favorites: sectionFavorites,
+      favoriteStateRefs: activeFavorites,
+      recents: sectionRecents,
+      hiddenModels,
+      providerOrder,
+    });
+  }
+
+  const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
 
   // Highlight the current model wherever it appears (provider section, favorites, recents).
   const selectedKeys = new Set<string>([
@@ -384,8 +397,19 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     `model:${currentProviderKey}:${effectiveCurrentModel}`,
   ]);
 
-  function handleSelect(itemId: string) {
-    const selected = items.find((item) => item.id === itemId);
+  // Rows mirror the Fast preference saved per model — an explicitly saved value
+  // wins, otherwise the app default keeps Fast on for models that support it.
+  // This is intentionally not the current draft's toggle: the icon answers
+  // "what will selecting this model do", so every row resolves independently.
+  function modelFastEnabled(providerKind: string, modelId: string): boolean {
+    const saved = providerModelPreferences[providerKind]?.[modelId];
+    if (saved) return saved.fast ?? true;
+    const legacy = providerConfigs[providerKind];
+    if (legacy?.model === modelId && legacy.fast !== undefined) return legacy.fast;
+    return true;
+  }
+
+  function selectModelItem(selected: ProviderModelItem | undefined) {
     if (selected?.type !== "model") return;
     if (
       selected.providerKind === currentAgentKind &&
@@ -408,6 +432,10 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     });
   }
 
+  function handleSelect(itemId: string) {
+    selectModelItem(items.find((item) => item.id === itemId));
+  }
+
   const trigger = (
     <Button
       aria-label={t`Select model`}
@@ -420,6 +448,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       <ProviderIcon
         kind={currentAgentKind}
         {...(currentProvider?.icon ? { icon: currentProvider.icon } : {})}
+        fallbackLabel={currentProvider?.label}
         tone="active"
         className="size-3.5 shrink-0"
       />
@@ -459,6 +488,15 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           ref={searchRef}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
           placeholder={t`Search models...`}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={`${listboxDomIdPrefix}-listbox`}
+          aria-expanded={isOpen}
+          aria-activedescendant={
+            activeModelItemId && items.length > 0
+              ? `${listboxDomIdPrefix}-${activeModelItemId}`
+              : undefined
+          }
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
@@ -467,9 +505,18 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
               handleOpenChange(false);
               return;
             }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (search !== deferredSearch) {
+                selectModelItem(buildItemsForSearch(search).find((item) => item.type === "model"));
+              } else if (items.length > 0) {
+                windowedListRef.current?.selectActive();
+              }
+              return;
+            }
             if (items.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
               e.preventDefault();
-              windowedListRef.current?.focus();
+              windowedListRef.current?.moveActive(e.key === "ArrowDown" ? 1 : -1);
             }
           }}
         />
@@ -483,11 +530,12 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           domIdPrefix={listboxDomIdPrefix}
           items={items}
           selectedKeys={selectedKeys}
-          scrollRef={windowedListRef}
+          ref={windowedListRef}
           modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
           mobile={mobile}
           mobileExpanded={mobile && expanded}
-          isFastEnabled={isFastEnabled}
+          onActiveChange={setActiveModelItemId}
+          modelFastEnabled={modelFastEnabled}
           toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
             toggleFavoriteModel(
               providerKind,
@@ -528,36 +576,47 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   );
 }
 
-function WindowedProviderModelList(props: {
+interface WindowedProviderModelListHandle {
+  moveActive: (delta: number) => void;
+  selectActive: () => void;
+}
+
+interface WindowedProviderModelListProps {
   domIdPrefix: string;
   items: ProviderModelItem[];
   selectedKeys: Set<string>;
-  scrollRef: RefObject<HTMLDivElement | null>;
   /** Height of a model row; larger on mobile so drawer rows are finger-sized. */
   modelRowHeight: number;
   mobile: boolean;
   mobileExpanded: boolean;
-  isFastEnabled: boolean;
+  onActiveChange: (itemId: string | null) => void;
+  modelFastEnabled: (providerKind: string, modelId: string) => boolean;
   toggleFavorite: (
     providerKind: string,
     modelId: string,
     presentationMode: ThreadPresentationMode | undefined,
   ) => void;
   onSelect: (itemId: string) => void;
-}) {
+}
+
+const WindowedProviderModelList = forwardRef<
+  WindowedProviderModelListHandle,
+  WindowedProviderModelListProps
+>(function WindowedProviderModelList(props, ref) {
   const {
     domIdPrefix,
     items,
     selectedKeys,
-    scrollRef,
     modelRowHeight,
     mobile,
     mobileExpanded,
-    isFastEnabled,
+    onActiveChange,
+    modelFastEnabled,
     toggleFavorite,
     onSelect,
   } = props;
   const { t } = useLingui();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
@@ -591,6 +650,10 @@ function WindowedProviderModelList(props: {
     if (activeIndex >= 0 && meta.modelPositionByIndex.has(activeIndex)) return;
     setActiveRowId(initialActiveRowId);
   }, [activeIndex, initialActiveRowId, meta]);
+
+  useEffect(() => {
+    onActiveChange(activeIndex >= 0 ? activeRowId : null);
+  }, [activeIndex, activeRowId, onActiveChange]);
 
   const totalHeight = meta.totalHeight;
   const [mobileBottomClearance] = useState(() =>
@@ -703,9 +766,22 @@ function WindowedProviderModelList(props: {
     }
   }
 
+  useImperativeHandle(ref, () => ({
+    moveActive,
+    selectActive() {
+      const activeItem =
+        items[activeIndex] ??
+        (meta.modelRowIndices[0] === undefined ? undefined : items[meta.modelRowIndices[0]]);
+      if (activeItem?.type === "model") {
+        onSelect(activeItem.id);
+      }
+    },
+  }));
+
   return (
     <div
       ref={scrollRef}
+      id={`${domIdPrefix}-listbox`}
       role="listbox"
       aria-label={t`Models`}
       aria-activedescendant={
@@ -841,17 +917,18 @@ function WindowedProviderModelList(props: {
               // Render the head as the model name and the tail as muted hint.
               const { name, hint } = splitModelLabel(item.label);
               const mutedHint = [hint, item.contextDescription].filter(Boolean).join(" · ");
+              const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
               const content = (
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="min-w-0 truncate">{name}</span>
                   {item.supportsFast ? (
-                    // Filled while Fast mode is on, outlined when the model
-                    // merely supports it.
+                    // Filled when Fast mode is saved on for this model,
+                    // outlined when it merely supports it or Fast was saved off.
                     <Zap
                       role="img"
-                      aria-label={isFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
+                      aria-label={rowFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
                       className={
-                        isFastEnabled
+                        rowFastEnabled
                           ? "size-3 shrink-0 fill-current text-muted"
                           : "size-3 shrink-0 text-muted/60"
                       }
@@ -887,6 +964,7 @@ function WindowedProviderModelList(props: {
                   <ProviderIcon
                     kind={item.providerKind}
                     {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+                    fallbackLabel={item.providerLabel}
                     tone="inactive"
                     className="size-3 shrink-0"
                   />
@@ -923,7 +1001,7 @@ function WindowedProviderModelList(props: {
       />
     </div>
   );
-}
+});
 
 function StickyWindowedHeader(props: {
   headerItem: Extract<ProviderModelItem, { type: "header-plain" | "header-provider" }> | null;
@@ -988,6 +1066,7 @@ function HeaderProvider(props: {
         <ProviderIcon
           kind={item.providerKind}
           {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+          fallbackLabel={item.label}
           tone="active"
           className="size-3"
         />

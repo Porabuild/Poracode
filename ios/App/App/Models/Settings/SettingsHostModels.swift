@@ -19,7 +19,7 @@ struct SettingsSessionAccess: Equatable, Sendable {
   let capabilities: Set<SettingsCapability>
 
   func gate(_ capability: SettingsCapability) -> SettingsOperationFailure? {
-    guard protocolVersion == 3 else { return .protocolIncompatible }
+    guard protocolVersion == 8 else { return .protocolIncompatible }
     guard isOnline else { return .offline }
     guard isReady else { return .notReady }
     guard capabilities.contains(capability) else { return .capabilityMissing(capability.rawValue) }

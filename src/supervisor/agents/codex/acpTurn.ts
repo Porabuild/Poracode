@@ -1,5 +1,6 @@
 import type { PromptSegment, ThreadConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
+import { toCodexSandboxPolicy } from "./acpProtocol";
 import type { CodexClientRequestMap } from "./protocol";
 
 type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
@@ -104,6 +105,52 @@ export function buildCodexCollaborationMode(
           ? PLAN_MODE_DEVELOPER_INSTRUCTIONS
           : DEFAULT_MODE_DEVELOPER_INSTRUCTIONS,
     },
+  };
+}
+
+/**
+ * Settings overrides shared by `turn/start` ("this turn and subsequent
+ * turns") and the steer-time `thread/settings/update` ("subsequent turns").
+ * `turn/steer` carries no settings fields, so mid-turn composer changes reach
+ * the thread only through that update — it must mirror `turn/start` exactly
+ * or a steer would leave stale effort/sandbox/approval/mode settings (and
+ * collab subagents, which inherit `collaborationMode.settings`) behind.
+ * Fields `turn/start` never sends (cwd, permissions, personality) stay out:
+ * `permissions` cannot even be combined with `sandboxPolicy`.
+ */
+type CodexTurnSettingsOverrides = Pick<
+  TurnStartParams,
+  | "model"
+  | "effort"
+  | "summary"
+  | "approvalPolicy"
+  | "approvalsReviewer"
+  | "sandboxPolicy"
+  | "collaborationMode"
+  | "serviceTier"
+>;
+
+export function buildCodexTurnSettingsOverrides(config: ThreadConfig): CodexTurnSettingsOverrides {
+  const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
+  return {
+    model: config.model,
+    ...(config.effort ? { effort: config.effort } : {}),
+    summary: "auto",
+    ...(config.approvalPolicy
+      ? { approvalPolicy: config.approvalPolicy as NonNullable<TurnStartParams["approvalPolicy"]> }
+      : {}),
+    ...(config.approvalsReviewer
+      ? {
+          approvalsReviewer: config.approvalsReviewer as NonNullable<
+            TurnStartParams["approvalsReviewer"]
+          >,
+        }
+      : {}),
+    ...(sandboxPolicy
+      ? { sandboxPolicy: sandboxPolicy as NonNullable<TurnStartParams["sandboxPolicy"]> }
+      : {}),
+    collaborationMode: buildCodexCollaborationMode(config),
+    serviceTier: config.fast === true ? "fast" : null,
   };
 }
 

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { McpServer, Project, ProjectScripts } from "@/shared/contracts";
+import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   setProjectDisabled,
+  updateProjectGhAccount,
+  updateProjectIcon,
   updateProjectMcpServers,
   updateProjectScripts,
 } from "./projectActions";
@@ -108,6 +110,73 @@ describe("remote project actions", () => {
     });
   });
 
+  it("persists the GitHub account on the remote host before applying it locally", async () => {
+    let accept: (() => void) | undefined;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const account: GitHubAccountRef = { host: "github.com", login: "octocat" };
+
+    const request = updateProjectGhAccount(project.id, account);
+
+    expect(useAppStore.getState().projects[0]?.ghAccount).toBeUndefined();
+    accept?.();
+    await expect(request).resolves.toBe(true);
+    await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.ghAccount).toEqual(account));
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { ghAccount: account },
+    });
+  });
+
+  it("serializes rapid GitHub account changes for a remote project", async () => {
+    let acceptFirst: (() => void) | undefined;
+    let acceptSecond: (() => void) | undefined;
+    runProjectCommand
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            acceptFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            acceptSecond = resolve;
+          }),
+      );
+    const first = { host: "github.com", login: "first" };
+    const second = { host: "github.com", login: "second" };
+
+    const firstRequest = updateProjectGhAccount(project.id, first);
+    const secondRequest = updateProjectGhAccount(project.id, second);
+
+    expect(runProjectCommand).toHaveBeenCalledTimes(1);
+    acceptFirst?.();
+    await vi.waitFor(() => expect(runProjectCommand).toHaveBeenCalledTimes(2));
+    expect(useAppStore.getState().projects[0]?.ghAccount).toEqual(first);
+
+    acceptSecond?.();
+    await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([true, true]);
+    expect(useAppStore.getState().projects[0]?.ghAccount).toEqual(second);
+    expect(runProjectCommand.mock.calls.map(([, command]) => command)).toEqual([
+      {
+        kind: "update",
+        projectId: "remote-project",
+        patch: { ghAccount: first },
+      },
+      {
+        kind: "update",
+        projectId: "remote-project",
+        patch: { ghAccount: second },
+      },
+    ]);
+  });
+
   it("does not disable a remote project until the host accepts the command", async () => {
     runProjectCommand.mockRejectedValueOnce(new Error("remote server offline"));
 
@@ -115,5 +184,65 @@ describe("remote project actions", () => {
 
     await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("remote server offline"));
     expect(useAppStore.getState().projects[0]?.disabled).not.toBe(true);
+  });
+
+  it("applies a project icon only after the remote host accepts it", async () => {
+    let accept: (() => void) | undefined;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+
+    updateProjectIcon(project.id, "lucide:rocket");
+
+    expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    accept?.();
+    await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.icon).toBe("lucide:rocket"));
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { icon: "lucide:rocket" },
+    });
+  });
+
+  it("clears a remote project icon by patching null", async () => {
+    useAppStore.setState({ projects: [{ ...project, icon: "auto" }], threads: [] });
+
+    updateProjectIcon(project.id, undefined);
+
+    await vi.waitFor(() => expect(runProjectCommand).toHaveBeenCalled());
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { icon: null },
+    });
+  });
+});
+
+describe("local project icon action", () => {
+  const localProject: Project = {
+    id: "local-project",
+    name: "Local project",
+    location: { kind: "windows", path: "E:/work/app" },
+    createdAt: "2026-08-02T00:00:00.000Z",
+  };
+
+  beforeEach(() => {
+    runProjectCommand.mockReset().mockResolvedValue(undefined);
+    useAppStore.setState({ projects: [localProject], threads: [] });
+  });
+
+  it("sets and clears the icon immediately without any remote call", () => {
+    updateProjectIcon(localProject.id, "lucide:folder-git");
+    expect(useAppStore.getState().projects[0]?.icon).toBe("lucide:folder-git");
+
+    updateProjectIcon(localProject.id, "auto");
+    expect(useAppStore.getState().projects[0]?.icon).toBe("auto");
+
+    updateProjectIcon(localProject.id, undefined);
+    expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    expect(runProjectCommand).not.toHaveBeenCalled();
   });
 });

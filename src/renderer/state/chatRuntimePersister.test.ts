@@ -3,6 +3,8 @@ import { useAppStore } from "./appStore";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 import {
   compactRuntimeItemsForHydration,
+  evictOversizedInactiveThreadRuntimeItems,
+  hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
   loadOlderThreadRuntimeItems,
   releaseThreadRuntimeItems,
@@ -27,6 +29,18 @@ const { bridge } = vi.hoisted(() => ({
       .fn<(threadId: string) => Promise<never[]>>()
       .mockResolvedValue([]),
     dbGetThreadContextUsage: vi.fn<(threadId: string) => Promise<null>>().mockResolvedValue(null),
+    dbGetLatestThreadGoalItem: vi
+      .fn<
+        (input: { threadId: string }) => Promise<{
+          id: string;
+          type: string;
+          state: "started" | "updated" | "completed";
+          payload?: unknown;
+          streams: Record<string, string>;
+          parentItemId?: string;
+        } | null>
+      >()
+      .mockResolvedValue(null),
   },
 }));
 
@@ -42,6 +56,7 @@ function makeItem(
     streams: input.streams ?? {},
     ...(input.payload !== undefined ? { payload: input.payload } : {}),
     ...(input.parentItemId ? { parentItemId: input.parentItemId } : {}),
+    ...(input.observedLive === true ? { observedLive: true } : {}),
   };
 }
 
@@ -157,6 +172,7 @@ describe("paged runtime hydration", () => {
     vi.clearAllMocks();
     bridge.dbGetThreadCompletedTurns.mockResolvedValue([]);
     bridge.dbGetThreadContextUsage.mockResolvedValue(null);
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValue(null);
     useAppStore.setState((state) => ({
       ...state,
       runtimeItemIdsByThread: {},
@@ -316,5 +332,309 @@ describe("paged runtime hydration", () => {
     expect(useAppStore.getState().runtimeItemIdsByThread[threadIds[0]!]).toEqual([
       `${threadIds[0]}-item`,
     ]);
+  });
+
+  it("evicts an oversized transcript as soon as it becomes inactive", async () => {
+    const threadId = "oversized-cached-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: Array.from({ length: 5_001 }, (_, index) =>
+        makeItem({ id: `message-${index}`, type: "assistant_message" }),
+      ),
+      nextCursor: 1,
+    });
+
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toHaveLength(5_001);
+
+    releaseThreadRuntimeItems(threadId);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBeUndefined();
+
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "tail-message", type: "assistant_message" })],
+      nextCursor: 5_000,
+    });
+    await hydrateThreadRuntimeItems(threadId);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["tail-message"]);
+  });
+
+  it("merges the persisted tail with live items received after eviction", async () => {
+    const threadId = "evicted-live-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: Array.from({ length: 5_001 }, (_, index) =>
+        makeItem({ id: `history-${index}`, type: "assistant_message" }),
+      ),
+      nextCursor: 1,
+    });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+    releaseThreadRuntimeItems(threadId);
+
+    useAppStore.getState().applyRuntimeEvent(threadId, {
+      type: "item.started",
+      threadId,
+      itemId: "live-message",
+      itemType: "tool_call",
+      payload: {
+        name: "Active agent",
+        status: "running",
+        isSubAgent: true,
+      },
+    });
+    expect(hasHydratedThreadRuntimeItems(threadId)).toBe(false);
+
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [
+        makeItem({ id: "tail-message", type: "assistant_message" }),
+        makeItem({
+          id: "live-message",
+          type: "tool_call",
+          state: "started",
+          payload: { name: "Active agent", status: "running", isSubAgent: true },
+        }),
+      ],
+      nextCursor: 5_000,
+    });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "tail-message",
+      "live-message",
+    ]);
+    expect(
+      useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["live-message"],
+    ).toMatchObject({
+      state: "started",
+      payload: { status: "running" },
+    });
+  });
+
+  it("reconciles persisted stale agents without terminating merged live agents", async () => {
+    const threadId = "mixed-stale-live-thread";
+    useAppStore.getState().applyRuntimeEvent(threadId, {
+      type: "item.started",
+      threadId,
+      itemId: "live-agent",
+      itemType: "tool_call",
+      payload: { name: "Live agent", status: "running", isSubAgent: true },
+    });
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [
+        makeItem({
+          id: "stale-agent",
+          type: "tool_call",
+          state: "started",
+          payload: { name: "Stale agent", status: "running", isSubAgent: true },
+        }),
+      ],
+      nextCursor: null,
+    });
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(
+      useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["stale-agent"],
+    ).toMatchObject({ state: "completed", payload: { status: "error" } });
+    expect(useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["live-agent"]).toMatchObject(
+      {
+        state: "started",
+        payload: { status: "running" },
+        observedLive: true,
+      },
+    );
+  });
+
+  it("discards an older page that resolves after eviction and rehydration", async () => {
+    const threadId = "stale-page-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: Array.from({ length: 5_001 }, (_, index) =>
+        makeItem({ id: `history-${index}`, type: "assistant_message" }),
+      ),
+      nextCursor: 1_000,
+    });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+
+    let resolveStalePage: (page: {
+      items: RuntimeChatItem[];
+      nextCursor: number | null;
+    }) => void = () => undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStalePage = resolve;
+      }),
+    );
+    const staleLoad = loadOlderThreadRuntimeItems(threadId);
+    releaseThreadRuntimeItems(threadId);
+
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "fresh-tail", type: "assistant_message" })],
+      nextCursor: 2_000,
+    });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "fresh-older", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    const freshLoad = loadOlderThreadRuntimeItems(threadId);
+
+    resolveStalePage({
+      items: [makeItem({ id: "stale-page", type: "assistant_message" })],
+      nextCursor: 500,
+    });
+    await expect(staleLoad).resolves.toBe(false);
+    await expect(freshLoad).resolves.toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "fresh-older",
+      "fresh-tail",
+    ]);
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenNthCalledWith(4, {
+      threadId,
+      beforePosition: 2_000,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+  });
+
+  it("invalidates a pending older page when a remote cursor becomes exhausted", async () => {
+    const threadId = "remote-exhausted-thread";
+    seedOlderThreadRuntimeItemsCursor(threadId, 100);
+
+    let resolveStalePage: (page: {
+      items: RuntimeChatItem[];
+      nextCursor: number | null;
+    }) => void = () => undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStalePage = resolve;
+      }),
+    );
+    const staleLoad = loadOlderThreadRuntimeItems(threadId);
+
+    seedOlderThreadRuntimeItemsCursor(threadId, null, { preserveExistingCursor: true });
+    resolveStalePage({
+      items: [makeItem({ id: "stale-remote-page", type: "assistant_message" })],
+      nextCursor: 50,
+    });
+
+    await expect(staleLoad).resolves.toBe(false);
+    await expect(loadOlderThreadRuntimeItems(threadId)).resolves.toBe(false);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBeUndefined();
+  });
+
+  it("re-evicts an inactive transcript that regrows from background events", async () => {
+    const threadId = "regrown-background-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: Array.from({ length: 5_001 }, (_, index) =>
+        makeItem({ id: `history-${index}`, type: "assistant_message" }),
+      ),
+      nextCursor: 1,
+    });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+    releaseThreadRuntimeItems(threadId);
+
+    useAppStore.getState().applyRuntimeEvents(
+      threadId,
+      Array.from({ length: 5_001 }, (_, index) => ({
+        type: "item.started" as const,
+        threadId,
+        itemId: `background-${index}`,
+        itemType: "assistant_message" as const,
+      })),
+    );
+    evictOversizedInactiveThreadRuntimeItems([threadId]);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBeUndefined();
+  });
+
+  it("re-pins an out-of-window goal item when the paged tail has none", async () => {
+    const threadId = "long-goal-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValueOnce({
+      id: "goal-old",
+      type: "goal",
+      state: "updated",
+      payload: { action: "set", objective: "ship coverage", status: "active" },
+      streams: {},
+    });
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-old",
+      "assistant-recent",
+    ]);
+    const goal = useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["goal-old"];
+    expect(goal?.type).toBe("goal");
+  });
+
+  it("retries hydration after the latest goal lookup fails", async () => {
+    const threadId = "goal-retry-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValue({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({
+        id: "goal-old",
+        type: "goal",
+        state: "updated",
+        payload: { action: "set", objective: "retry coverage", status: "active" },
+        streams: {},
+      });
+
+    await hydrateThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(bridge.dbGetLatestThreadGoalItem).toHaveBeenCalledTimes(2);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-old",
+      "assistant-recent",
+    ]);
+  });
+
+  it("does not duplicate a goal item already present in the tail", async () => {
+    const threadId = "goal-in-tail-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [
+        makeItem({ id: "goal-in-tail", type: "goal", payload: { objective: "keep me" } }),
+        makeItem({ id: "assistant-recent", type: "assistant_message" }),
+      ],
+      nextCursor: 50,
+    });
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValueOnce({
+      id: "goal-in-tail",
+      type: "goal",
+      state: "updated",
+      payload: { objective: "keep me" },
+      streams: {},
+    });
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "goal-in-tail",
+      "assistant-recent",
+    ]);
+  });
+
+  it("does not pin when no persisted goal exists", async () => {
+    const threadId = "no-goal-thread";
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "assistant-recent", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    bridge.dbGetLatestThreadGoalItem.mockResolvedValueOnce(null);
+
+    await hydrateThreadRuntimeItems(threadId);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["assistant-recent"]);
   });
 });

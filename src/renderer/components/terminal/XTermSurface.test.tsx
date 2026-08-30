@@ -1,12 +1,14 @@
 import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { resizeTerminalPayloadSchema } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
   state: {
     terminal: null as null | Record<string, ReturnType<typeof vi.fn>>,
     terminalOptions: null as null | Record<string, unknown>,
+    fitSize: null as null | { cols: number; rows: number },
     eventListeners: [] as Array<(e: SupervisorEvent) => void>,
     isMac: false,
     interestContinuous: false,
@@ -15,7 +17,7 @@ const { state } = vi.hoisted(() => ({
     bridge: {
       readTerminalScrollback: vi.fn<() => Promise<string>>().mockResolvedValue(""),
       writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      resizeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      resizeTerminal: vi.fn<(input: unknown) => Promise<void>>().mockResolvedValue(undefined),
       openExternal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       openExternalNative: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       onSupervisorEvent: vi.fn<(listener: (e: SupervisorEvent) => void) => () => void>(),
@@ -73,7 +75,11 @@ vi.mock("@xterm/xterm", () => ({
 
 vi.mock("@xterm/addon-fit", () => ({
   FitAddon: class MockFitAddon {
-    fit = vi.fn<() => void>();
+    fit = vi.fn<() => void>(() => {
+      if (state.terminal && state.fitSize) {
+        Object.assign(state.terminal, state.fitSize);
+      }
+    });
   },
 }));
 
@@ -184,6 +190,7 @@ describe("XTermSurface", () => {
   beforeEach(() => {
     state.terminal = null;
     state.terminalOptions = null;
+    state.fitSize = null;
     state.eventListeners = [];
     state.isMac = false;
     state.interestContinuous = false;
@@ -199,6 +206,7 @@ describe("XTermSurface", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     state.eventListeners = [];
   });
 
@@ -289,6 +297,26 @@ describe("XTermSurface", () => {
       threadId: "test-1",
       cols: 80,
       rows: 24,
+    });
+  });
+
+  it("clamps a fitted terminal to the backing PTY size contract", async () => {
+    state.fitSize = { cols: 401, rows: 201 };
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(4_000);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(2_000);
+    state.bridge.resizeTerminal.mockImplementation((input) => {
+      resizeTerminalPayloadSchema.parse(input);
+      return Promise.resolve();
+    });
+
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+
+    expect(state.terminal).toMatchObject({ cols: 401, rows: 201 });
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 400,
+      rows: 200,
     });
   });
 

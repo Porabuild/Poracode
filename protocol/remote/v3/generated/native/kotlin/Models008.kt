@@ -6,6 +6,50 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedurereadAbsoluteFileResult_eaf8a91849(
+    @SerialName("content") val content: RemoteField<String> = RemoteField.Missing,
+    @SerialName("modifiedAtMs") val modifiedAtMs: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("status") val status: ProcedurereadAbsoluteFileResultU2DStatus_949f0ec1c2,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("content", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("modifiedAtMs", "Double", false, false, 0.0, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "ProcedurereadAbsoluteFileResultU2DStatus_949f0ec1c2", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurereadExternalFileResultU2DLineEnding_6d6f1fde73 {
+    @SerialName("lf") LF,
+    @SerialName("crlf") CRLF,
+}
+
+@Serializable
+data class ProcedurereadExternalFileResult_9ba1e93599(
+    @SerialName("content") val content: RemoteField<String> = RemoteField.Missing,
+    @SerialName("contentBase64") val contentBase64: RemoteField<String> = RemoteField.Missing,
+    @SerialName("hasBom") val hasBom: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("lineEnding") val lineEnding: RemoteField<ProcedurereadExternalFileResultU2DLineEnding_6d6f1fde73> = RemoteField.Missing,
+    @SerialName("modifiedAtMs") val modifiedAtMs: Double,
+    @SerialName("path") val path: String,
+    @SerialName("status") val status: ProcedurereadAbsoluteFileResultU2DStatus_949f0ec1c2,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("content", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("contentBase64", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("hasBom", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lineEnding", "ProcedurereadExternalFileResultU2DLineEnding_6d6f1fde73", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("modifiedAtMs", "Double", true, false, 0.0, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("path", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "ProcedurereadAbsoluteFileResultU2DStatus_949f0ec1c2", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 enum class ProcedurereadProjectFileResultU2DStatus_620971ca17 {
     @SerialName("ready") READY,
     @SerialName("binary") BINARY,
@@ -389,56 +433,4 @@ data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2
 @Serializable
 enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c {
     @SerialName("attachment") ATTACHMENT,
-}
-
-@Serializable
-data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac(
-    @SerialName("kind") val kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c,
-    @SerialName("mimeType") val mimeType: RemoteField<String> = RemoteField.Missing,
-    @SerialName("path") val path: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("mimeType", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("path", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c {
-    @SerialName("diff_comment") DIFFU5FCOMMENT,
-}
-
-@Serializable
-enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e {
-    @SerialName("old") OLD,
-    @SerialName("new") NEW,
-}
-
-@Serializable
-data class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da(
-    @SerialName("body") val body: String,
-    @SerialName("kind") val kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c,
-    @SerialName("lineNumber") val lineNumber: Long,
-    @SerialName("path") val path: String,
-    @SerialName("side") val side: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e,
-    @SerialName("staged") val staged: Boolean,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("body", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("lineNumber", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("path", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("side", "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("staged", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKind_2a65cef1bc {
-    @SerialName("skill") SKILL,
 }

@@ -9,6 +9,7 @@ import {
   type AgentConnectedProvider,
   type ProjectLocation,
 } from "@/shared/contracts";
+import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import {
   configFileAuthProbe,
   readAgentCommandOutput,
@@ -26,13 +27,6 @@ import { probeOpenCodeInventoryViaSdk, type OpenCodeSdkInventory } from "./sdkPr
  * silently miss fields and we crash deserialising responses.
  */
 export const OPENCODE_MIN_VERSION = "1.14.19";
-
-// Canonical ordering for the union effort list. Anything OpenCode reports
-// outside this set gets appended after these in discovery order so we never
-// silently hide a variant. `none` is OpenCode's "skip reasoning" variant on
-// GPT-class models — kept first so it sorts ahead of the actual effort
-// gradient.
-const CANONICAL_EFFORT_ORDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 // Per-model default — preferred when the model exposes it, falling back to
 // the highest-precedence available variant. Mirrors how Claude defaults to
@@ -64,7 +58,8 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // MCP is provider-level for OpenCode: the composer shows no MCP controls;
+  // MCP is provider-level for OpenCode: the composer shows the effective set
+  // read-only, while changes stay on the provider settings page.
   // built-in server flags come from the OpenCode settings page
   // (`agentSettings.opencode`) at launch. OpenCode applies that set to each
   // project directory inside the shared runtime server instead of hosting
@@ -537,20 +532,6 @@ export const opencodeDetectionSpec: DetectionSpec = {
   },
 };
 
-function orderEffortsCanonically(seen: Set<string>): string[] {
-  const ordered: string[] = [];
-  for (const effort of CANONICAL_EFFORT_ORDER) {
-    if (seen.has(effort)) {
-      ordered.push(effort);
-      seen.delete(effort);
-    }
-  }
-  // Append any non-canonical variant names OpenCode reported, preserving
-  // discovery order — keeps us forward-compatible with new variants.
-  for (const effort of seen) ordered.push(effort);
-  return ordered;
-}
-
 function defaultEffortFor(ordered: readonly string[]): { defaultEffort?: string } {
   if (ordered.includes(OPENCODE_PREFERRED_DEFAULT_EFFORT)) {
     return { defaultEffort: OPENCODE_PREFERRED_DEFAULT_EFFORT };
@@ -578,7 +559,7 @@ export function buildCapabilityPartialFromProbedModels(
     modelEfforts[m.id] = m.variants;
     for (const v of m.variants) seenEfforts.add(v);
   }
-  const ordered = orderEffortsCanonically(seenEfforts);
+  const ordered = sortEffortsByCanonicalOrder([...seenEfforts]);
 
   // Map each model to its registry-reported context limit so the renderer's
   // context-usage dock can show "X / Y tokens" before any message has flowed
@@ -641,7 +622,7 @@ export function buildCapabilityPartialFromSdkInventory(
     }
   }
 
-  const ordered = orderEffortsCanonically(seenEfforts);
+  const ordered = sortEffortsByCanonicalOrder([...seenEfforts]);
 
   return {
     models: models.toSorted((left, right) => left.label.localeCompare(right.label)),

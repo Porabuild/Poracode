@@ -15,6 +15,8 @@ sealed interface RichContentBlock {
 
     data class Mcp(val name: String) : RichContentBlock
 
+    data class Thread(val threadId: String, val title: String) : RichContentBlock
+
     data class DiffComment(
         val path: String,
         val lineNumber: Long,

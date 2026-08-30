@@ -11,7 +11,7 @@ struct SettingsRouteMetadata: Equatable, Sendable {
 /// Stable, hash-free access to the generated remote-v3 Settings root codecs and route metadata.
 /// Hash-derived generated model names do not escape this file.
 enum SettingsRemoteV3Contract {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
 
   static let routes: [SettingsRouteMetadata] = [
     route("agent-statuses", scope: .sessionRead),

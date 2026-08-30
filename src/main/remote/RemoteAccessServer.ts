@@ -24,6 +24,7 @@ import type {
   Project,
   ProjectLocation,
   PrWatch,
+  PrWatchAgentSync,
   PrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
@@ -231,6 +232,7 @@ export interface RemoteAccessServerOptions {
     requestCheck(projectId: string, prNumber: number): void;
     upsert(input: PrWatchInput): PrWatch;
     delete(projectId: string, prNumber: number): void;
+    syncAgent(agent: PrWatchAgentSync): void;
   };
   /** Latest per-thread git/PR summaries published by the desktop renderer. */
   gitSummaries?(): RemoteGitSummaries;

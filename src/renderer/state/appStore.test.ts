@@ -133,7 +133,53 @@ describe("appStore runtime config sync", () => {
     );
     expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
     expect(resolved.view).toMatchObject({ kind: "thread", panes: [thread.id] });
-    expect(useAppStore.persist.getOptions().version).toBe(4);
+    expect(useAppStore.persist.getOptions().version).toBe(5);
+  });
+
+  it("keeps remote archived threads out of persisted state", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const local = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "local",
+    });
+    useAppStore.setState({
+      threads: [
+        { ...local, archived: true, archivedAt: local.updatedAt },
+        {
+          ...local,
+          id: "remote:d1:thread:archived",
+          remoteServerId: "d1",
+          remoteId: "archived",
+          archived: true,
+          archivedAt: local.updatedAt,
+        },
+      ],
+    });
+
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    const persisted = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
+
+    expect(persisted.threads.map((thread) => thread.id)).toEqual([local.id]);
+  });
+
+  it("migrates legacy archived threads to store version 5", async () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "legacy",
+    });
+    const migrate = useAppStore.persist.getOptions().migrate!;
+
+    const migrated = (await migrate({ threads: [{ ...thread, archived: true }] }, 4)) as Pick<
+      AppStoreState,
+      "threads"
+    >;
+
+    expect(migrated.threads[0]?.archivedAt).toBe(thread.updatedAt);
   });
 
   it("persists remote rows and the open transcript route in the browser runtime", () => {
@@ -254,6 +300,39 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().projects).toHaveLength(1);
   });
 
+  it("does not bump updatedAt when the composer changes config without sending", () => {
+    // Changing effort/model/mode is not thread activity: bumping `updatedAt`
+    // reshuffled the sidebar and advanced the relative-time label before the
+    // user had sent anything.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4", effort: "low" },
+      prompt: "hello",
+    });
+    const originalUpdatedAt = thread.updatedAt;
+
+    vi.setSystemTime(new Date("2026-05-10T13:00:00.000Z"));
+    useAppStore.getState().updateThreadConfig(thread.id, {
+      model: "gpt-5.4",
+      effort: "high",
+    });
+
+    expect(useAppStore.getState().threads[0]?.config.effort).toBe("high");
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe(originalUpdatedAt);
+
+    // Sending is what marks the thread as active.
+    useAppStore.getState().touchThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T13:00:00.000Z");
+    vi.useRealTimers();
+  });
+
   it("preserves a user's pending composer change when runtime echoes the prior config", () => {
     // Reproduces the bug where a thread-state event from the supervisor (which
     // re-sends `session.config` on every status update) clobbered a pending
@@ -323,6 +402,38 @@ describe("appStore runtime config sync", () => {
     expect(stored?.archived).toBe(false);
     expect(stored?.updatedAt).toBe("2026-04-01T00:00:00.000Z");
     expect(stored?.doneAt).toBe("2026-05-10T12:00:00.000Z");
+  });
+
+  it("records the actual automatic archive time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+    });
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((candidate) =>
+        candidate.id === thread.id
+          ? {
+              ...candidate,
+              done: true,
+              doneAt: "2026-04-01T00:00:00.000Z",
+              updatedAt: "2026-04-01T00:00:00.000Z",
+            }
+          : candidate,
+      ),
+    }));
+
+    useAppStore.getState().archiveOldDoneThreads(7);
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      archived: true,
+      archivedAt: "2026-05-10T12:00:00.000Z",
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    });
   });
 
   it("preserves updatedAt when renaming a thread", () => {

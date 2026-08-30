@@ -14,6 +14,7 @@ import type {
 } from "@/supervisor/agents/base";
 import {
   MAX_CONCURRENT_CHILDREN_PER_PARENT,
+  MAX_RUNNING_OUTPUT_TAIL_CHARS,
   SubagentRunManager,
   SubagentSpawnError,
 } from "./SubagentRunManager";
@@ -89,6 +90,7 @@ function makeHarness(options?: {
   createFailures?: number;
   deferCreate?: boolean;
   interruptError?: string;
+  baseSpawnEnv?: Record<string, string>;
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
@@ -103,6 +105,7 @@ function makeHarness(options?: {
   const adapter = {
     kind: "codex",
     label: options?.providerLabel ?? "Codex",
+    ...(options?.baseSpawnEnv ? { baseSpawnEnv: options.baseSpawnEnv } : {}),
     capabilities: {
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
       ...(options?.subProviders ? { subProviders: options.subProviders } : {}),
@@ -388,6 +391,142 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("returns cursor-based output without consuming retries", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "first chunk. ",
+    });
+    const first = {
+      status: "running",
+      output: "first chunk. ",
+      total_output_chars: 13,
+    } as const;
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 0 })).toEqual(first);
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 0 })).toEqual(first);
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 13 })).toEqual({
+      status: "running",
+      output: "",
+      total_output_chars: 13,
+    });
+
+    handle.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "final answer",
+    });
+    handle.completeTurn("completed");
+    await expect(
+      h.manager.waitFor(runId, 1000, undefined, { afterOutputChars: 13 }),
+    ).resolves.toEqual({
+      status: "completed",
+      output: "final answer",
+      total_output_chars: 25,
+    });
+  });
+
+  it("uses an independent cursor for each run in a batch wait", async () => {
+    const h = makeHarness();
+    const firstRun = h.manager.spawn(PARENT, { agent: "codex", prompt: "one" });
+    const secondRun = h.manager.spawn(PARENT, { agent: "codex", prompt: "two" });
+    await flush();
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child-1",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "a".repeat(100),
+    });
+    h.handles[1]!.emit({
+      type: "content.delta",
+      threadId: "child-2",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "b".repeat(20),
+    });
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child-1",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "new-a",
+    });
+    h.handles[1]!.emit({
+      type: "content.delta",
+      threadId: "child-2",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "new-b",
+    });
+
+    await expect(
+      h.manager.waitForMany([firstRun.runId, secondRun.runId], 0, undefined, (runId) => ({
+        afterOutputChars: runId === firstRun.runId ? 100 : 20,
+      })),
+    ).resolves.toEqual([
+      {
+        run_id: firstRun.runId,
+        status: "running",
+        output: "new-a",
+        total_output_chars: 105,
+      },
+      {
+        run_id: secondRun.runId,
+        status: "running",
+        output: "new-b",
+        total_output_chars: 25,
+      },
+    ]);
+  });
+
+  it("tail-clips long mid-run output instead of re-delivering the whole transcript", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "x".repeat(2500),
+    });
+
+    const polled = h.manager.getStatus(runId, undefined, { afterOutputChars: 0 });
+    expect(polled.status).toBe("running");
+    expect(polled.total_output_chars).toBe(2500);
+    expect(polled.output).toContain("1500 earlier chars omitted");
+    expect(polled.output.endsWith("x".repeat(MAX_RUNNING_OUTPUT_TAIL_CHARS))).toBe(true);
+    expect(polled.output.length).toBeLessThan(2500);
+  });
+
+  it("returns the complete transcript when full_output is requested", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const transcript = "y".repeat(3000);
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: transcript,
+    });
+    // Read through the incremental path first, then ask for the full history anyway.
+    h.manager.getStatus(runId, undefined, { afterOutputChars: 0 });
+    expect(h.manager.getStatus(runId, undefined, { fullOutput: true })).toEqual({
+      status: "running",
+      output: transcript,
+    });
+  });
+
   it("settles on an idle update after the child turn starts", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
@@ -648,6 +787,49 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("keeps the incremental cursor monotonic across fallback attempts", async () => {
+    const h = makeHarness({
+      models: [
+        { id: "gpt-5.5", label: "GPT-5.5" },
+        { id: "gpt-5.6", label: "GPT-5.6" },
+      ],
+    });
+    const { runId } = h.manager.spawn(PARENT, {
+      agent: "codex",
+      model: "gpt-5.5",
+      prompt: "go",
+      retryMode: "any-failure",
+      fallbacks: [{ agent: "codex", model: "gpt-5.6" }],
+    });
+    await flush();
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "first attempt",
+    });
+    const first = h.manager.getStatus(runId, undefined, { afterOutputChars: 0 });
+    expect(first.total_output_chars).toBe(13);
+
+    h.handles[0]!.completeTurn("failed");
+    await flush();
+    await flush();
+    h.handles[1]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: "retry",
+    });
+
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 13 })).toMatchObject({
+      status: "running",
+      output: "retry",
+      total_output_chars: 18,
+    });
+  });
+
   it("does not retry a dispatched turn failure unless explicitly allowed", async () => {
     const h = makeHarness({
       models: [
@@ -741,6 +923,28 @@ describe("SubagentRunManager", () => {
       status: "failed",
       error: { message: "Subagent session closed before the turn completed" },
     });
+  });
+
+  it("forwards the provider's baseSpawnEnv to the structured child session", async () => {
+    // The shared runtime — not the provider — supplies `baseSpawnEnv`, so every
+    // launch point that builds a `CreateStructuredSessionInput` has to pass it.
+    // Miss it here and a structured subagent spawns without the provider's
+    // updater opt-out, which on Windows pops a stray terminal window.
+    const baseSpawnEnv = { DROID_DISABLE_AUTO_UPDATE: "true" };
+    const h = makeHarness({ baseSpawnEnv });
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(h.inputs[0]!.baseSpawnEnv).toEqual(baseSpawnEnv);
+  });
+
+  it("omits baseSpawnEnv entirely for a provider that declares none", async () => {
+    // Absent key, not `undefined` — `exactOptionalPropertyTypes`.
+    const h = makeHarness();
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(h.inputs[0]!).not.toHaveProperty("baseSpawnEnv");
   });
 
   it("uses unrestricted permissions and inherits non-recursive MCPs", async () => {

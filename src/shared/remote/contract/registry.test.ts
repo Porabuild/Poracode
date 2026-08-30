@@ -20,15 +20,15 @@ const manifest = JSON.parse(
 };
 
 describe("remote contract registry", () => {
-  it("covers exactly the 60 routes and 100 procedures with no duplicates", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(60);
+  it("covers exactly the 61 routes and 100 procedures with no duplicates", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(61);
     expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(100);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(60);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(61);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => `${route.method} ${route.path}`)).size).toBe(
-      60,
+      61,
     );
     expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(100);
-    expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(60);
+    expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(61);
     expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(100);
     expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(36);
     expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(64);

@@ -20,6 +20,7 @@ export const REDACTED_VALUE = "«redacted»";
 const PROTECTED_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "agentInstances",
   "acpRegistryInstalledAgents",
+  "acpRegistryAutoInstallOptOuts",
   "agentHookSupport",
   "crossagentSelectionUsage",
   "crossagentRoutingOverrides",

@@ -157,7 +157,7 @@ function ProjectRowMenuButton(props: {
  * The full project context menu (the same entries the grouped sidebar's
  * project header offers on right-click) anchored at a filter row's overflow
  * button. The flat list has no project headers, so this is the only route to
- * project settings/git/run/workspace actions.
+ * project settings/terminal/git/run/workspace actions.
  *
  * Rendered *inside* the filter's popover so React Aria treats it as a nested
  * overlay: its focus scope registers as a child of the filter menu's, which is
@@ -572,6 +572,7 @@ export function SidebarProjectFilter(props: {
                         onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
                       />
                     )}
+                    <Dropdown.ItemIndicator />
                   </Dropdown.Item>
                 );
               })}

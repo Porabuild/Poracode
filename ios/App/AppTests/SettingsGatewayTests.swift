@@ -71,7 +71,7 @@ final class SettingsGatewayTests: XCTestCase {
     let repository = SettingsCredentialRepositoryFake(
       credentials: SettingsHostCredentials(
         connectionID: lease.connectionID, endpoint: "https://a.example", token: "token-a",
-        protocolVersion: 3, scopes: ["session:read"]
+        protocolVersion: 8, scopes: ["session:read"]
       )
     )
     let accessBox = SettingsAccessBox(makeSettingsAccess(lease, capabilities: [.sessionRead]))
@@ -93,7 +93,7 @@ final class SettingsGatewayTests: XCTestCase {
     let repository = SettingsCredentialRepositoryFake(
       credentials: SettingsHostCredentials(
         connectionID: lease.connectionID, endpoint: "https://a.example", token: "token-a",
-        protocolVersion: 3, scopes: ["session:read"]
+        protocolVersion: 8, scopes: ["session:read"]
       )
     )
     let accessBox = SettingsAccessBox(
@@ -138,7 +138,7 @@ final class SettingsGatewayTests: XCTestCase {
 
 private func makeSettingsAccess(
   _ lease: SettingsHostLease,
-  protocolVersion: Int = 3,
+  protocolVersion: Int = 8,
   capabilities: Set<SettingsCapability>
 ) -> SettingsSessionAccess {
   SettingsSessionAccess(

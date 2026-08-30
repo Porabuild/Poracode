@@ -174,7 +174,7 @@ actor BrowserMirrorCredentialSpy: BrowserMirrorCredentialRepository {
       connectionID: connectionID,
       endpoint: "https://example.test",
       token: "token",
-      protocolVersion: 3,
+      protocolVersion: 8,
       scopes: ["session:read", "session:operate"]
     )
   }

@@ -4,8 +4,10 @@ import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
+  WINDOWS_SHELL_ARGUMENTS_MAX,
   type CliPickerTarget,
   type PreventSleep,
+  type ProviderModelPreference,
   type SidebarShortcutId,
   type SharedSettings,
   type SharedSettingsInput,
@@ -41,6 +43,12 @@ import {
   uninstallPlugin as removeInstalledPlugin,
 } from "@/shared/plugins/catalog";
 import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
+import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
+import {
+  effectiveProviderOrder,
+  type MachineScopeMode,
+  type MachineScopeModes,
+} from "@/shared/machineSettings";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -51,6 +59,9 @@ interface SharedSettingsState extends SharedSettings {
   setLocale: (locale: LocaleSetting) => void;
   setGitTextLanguage: (value: AiContentLanguage) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
+  setWindowsShellPath: (path: string) => void;
+  setWindowsInternalShellPath: (path: string) => void;
+  setWindowsShellArguments: (args: string) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setConflictResolverConfig: (
@@ -83,6 +94,16 @@ interface SharedSettingsState extends SharedSettings {
   setCrossagentProviderPaused: (agentKind: string, paused: boolean) => void;
   setCrossagentHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setProviderOrder: (order: string[]) => void;
+  setMachineScopeMode: (domain: keyof MachineScopeModes, mode: MachineScopeMode) => void;
+  setMachineProviderOrder: (machineId: string, order: string[]) => void;
+  /** Relock: adopt `machineId`'s effective order globally and clear overrides. */
+  lockProviderOrderToMachine: (machineId: string) => void;
+  setMachineAgentSetting: (
+    machineId: string,
+    agentKind: string,
+    key: string,
+    value: boolean | string,
+  ) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
   setCliPickerTarget: (value: CliPickerTarget) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
@@ -144,6 +165,11 @@ interface SharedSettingsState extends SharedSettings {
     value: SharedSettings["usage"][K],
   ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
+  setProviderModelPreference: (
+    agentKind: string,
+    modelId: string,
+    preference: ProviderModelPreference,
+  ) => void;
   setLastPresentationMode: (agentKind: string, mode: ThreadPresentationMode) => void;
   setLastUsedProjectDir: (runtimeKey: string, dir: string) => void;
   setNotificationsEnabled: (value: boolean) => void;
@@ -221,6 +247,7 @@ function loadFallbackSettings(): SharedSettings {
  * clobber the file with default values before the real settings are loaded.
  */
 let initialLoadDone = !hasBridge();
+let pendingSharedSettingsWrite: Promise<void> | undefined;
 
 function persistSettings(settings: SharedSettingsInput): void {
   if (typeof window === "undefined") {
@@ -230,8 +257,20 @@ function persistSettings(settings: SharedSettingsInput): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
   if (hasBridge() && initialLoadDone) {
-    void readBridge().setSharedSettings(settings);
+    const write = readBridge().setSharedSettings(settings);
+    pendingSharedSettingsWrite = write;
+    void write
+      .catch(() => undefined)
+      .then(() => {
+        if (pendingSharedSettingsWrite === write) {
+          pendingSharedSettingsWrite = undefined;
+        }
+      });
   }
+}
+
+export async function waitForPendingSharedSettings(): Promise<void> {
+  await pendingSharedSettingsWrite;
 }
 
 /**
@@ -243,6 +282,10 @@ function persistSettings(settings: SharedSettingsInput): void {
  */
 export async function flushSharedSettings(): Promise<void> {
   if (!hasBridge() || !initialLoadDone) {
+    return;
+  }
+  if (pendingSharedSettingsWrite) {
+    await pendingSharedSettingsWrite;
     return;
   }
   await readBridge().setSharedSettings(selectSharedSettings(useSharedSettings.getState()));
@@ -300,6 +343,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setTerminalPosition: (terminalPosition) => {
     set({ terminalPosition });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWindowsShellPath: (windowsShellPath) => {
+    set({ windowsShellPath });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWindowsInternalShellPath: (windowsInternalShellPath) => {
+    set({ windowsInternalShellPath });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWindowsShellArguments: (windowsShellArguments) => {
+    set({ windowsShellArguments: windowsShellArguments.slice(0, WINDOWS_SHELL_ARGUMENTS_MAX) });
     persistSettings(selectSharedSettings(get()));
   },
   setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort, commitGenFast) => {
@@ -434,6 +489,58 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     const next = [...new Set(order.filter((kind) => typeof kind === "string" && kind.length > 0))];
     if (current.length === next.length && current.every((kind, i) => kind === next[i])) return;
     set({ providerOrder: next });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMachineScopeMode: (domain, mode) => {
+    const current = get().machineScopeModes;
+    if (current[domain] === mode) return;
+    set({ machineScopeModes: { ...current, [domain]: mode } });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMachineProviderOrder: (machineId, order) => {
+    const machineSettings = get().machineSettings;
+    const next = [...new Set(order.filter((kind) => typeof kind === "string" && kind.length > 0))];
+    // An empty order removes the override — the machine falls back to the
+    // global order (mirrors the global reset semantics).
+    const { providerOrder: _previousOrder, ...entry } = machineSettings[machineId] ?? {};
+    set({
+      machineSettings: {
+        ...machineSettings,
+        [machineId]: next.length > 0 ? { ...entry, providerOrder: next } : entry,
+      },
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  lockProviderOrderToMachine: (machineId) => {
+    const state = get();
+    const adopted = [...effectiveProviderOrder(state, machineId)];
+    const machineSettings = Object.fromEntries(
+      Object.entries(state.machineSettings).map(([key, entry]) => {
+        const { providerOrder: _providerOrder, ...rest } = entry;
+        return [key, rest];
+      }),
+    );
+    set({
+      providerOrder: adopted,
+      machineScopeModes: { ...state.machineScopeModes, providerOrder: "synced" },
+      machineSettings,
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMachineAgentSetting: (machineId, agentKind, key, value) => {
+    // Secrets are sealed per host and must never be machine-keyed.
+    if (isSensitiveAgentSetting(agentKind, key)) {
+      throw new Error(`Refusing to store sensitive agent setting per machine: ${key}`);
+    }
+    const machineSettings = get().machineSettings;
+    const entry = machineSettings[machineId];
+    const agentSettings = {
+      ...entry?.agentSettings,
+      [agentKind]: { ...entry?.agentSettings?.[agentKind], [key]: value },
+    };
+    set({
+      machineSettings: { ...machineSettings, [machineId]: { ...entry, agentSettings } },
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setCollapseTerminalComposer: (collapseTerminalComposer) => {
@@ -700,6 +807,24 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ providerConfigs: { ...current, [agentKind]: config } });
     persistSettings(selectSharedSettings(get()));
   },
+  setProviderModelPreference: (agentKind, modelId, preference) => {
+    if (!modelId.trim()) return;
+    const current = get().providerModelPreferences;
+    const currentPreference = current[agentKind]?.[modelId];
+    if (
+      currentPreference?.effort === preference.effort &&
+      currentPreference?.fast === preference.fast
+    ) {
+      return;
+    }
+    set({
+      providerModelPreferences: {
+        ...current,
+        [agentKind]: { ...current[agentKind], [modelId]: preference },
+      },
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
   setLastPresentationMode: (agentKind, mode) => {
     const current = get().lastPresentationModeByAgent;
     if (current[agentKind] === mode) return;
@@ -771,14 +896,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   removeAgentInstance: (instanceId) => {
     const current = get().agentInstances;
-    if (!current[instanceId]) return;
+    const instance = current[instanceId];
+    if (!instance) return;
     const { [instanceId]: _removed, ...agentInstances } = current;
-    const prefix = `claude:${instanceId}`;
+    const prefix = `${instance.driver}:${instanceId}`;
     const removeProfileKey = (values: Record<string, unknown>) =>
       Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
     set({
       agentInstances,
       providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
+      providerModelPreferences: removeProfileKey(
+        get().providerModelPreferences,
+      ) as SharedSettings["providerModelPreferences"],
       hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
       agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
       lastPresentationModeByAgent: removeProfileKey(
@@ -914,6 +1043,9 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     locale: state.locale,
     gitTextLanguage: state.gitTextLanguage,
     terminalPosition: state.terminalPosition,
+    windowsShellPath: state.windowsShellPath,
+    windowsInternalShellPath: state.windowsInternalShellPath,
+    windowsShellArguments: state.windowsShellArguments,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
     commitGenEffort: state.commitGenEffort,
@@ -945,10 +1077,13 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslConflictResolverFast: state.wslConflictResolverFast,
     wslConflictResolverPresentationMode: state.wslConflictResolverPresentationMode,
     agentSettings: state.agentSettings,
+    machineScopeModes: state.machineScopeModes,
+    machineSettings: state.machineSettings,
     hiddenModels: state.hiddenModels,
     disabledAgents: state.disabledAgents,
     providerOrder: state.providerOrder,
     acpRegistryInstalledAgents: state.acpRegistryInstalledAgents,
+    acpRegistryAutoInstallOptOuts: state.acpRegistryAutoInstallOptOuts,
     agentInstances: state.agentInstances,
     collapseTerminalComposer: state.collapseTerminalComposer,
     cliPickerTarget: state.cliPickerTarget,
@@ -983,6 +1118,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
+    providerModelPreferences: state.providerModelPreferences,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
     lastUsedProjectDirs: state.lastUsedProjectDirs,
     editorLspEnabled: state.editorLspEnabled,

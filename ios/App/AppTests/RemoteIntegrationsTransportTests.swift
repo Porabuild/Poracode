@@ -9,7 +9,7 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
     RemoteIntegrationsBlockingURLProtocol.reset()
   }
 
-  func testAllTenRoutesUseExactPathsMethodsQueryBodiesAndBearer() async throws {
+  func testAllElevenRoutesUseExactPathsMethodsQueryBodiesAndBearer() async throws {
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.hostUpdate)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.hostUpdate)
     try RemoteIntegrationsURLProtocol.enqueue([:], status: 202)
@@ -17,6 +17,7 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.schedulesCommand)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.scheduleRuns)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.prWatchRead)
+    try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.ok)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.ok)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.prWatchUpsert)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.ok)
@@ -63,7 +64,7 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
     try await client.remoteIntegrationsDeletePRWatch(key)
 
     let requests = RemoteIntegrationsURLProtocol.requests
-    XCTAssertEqual(requests.count, 10)
+    XCTAssertEqual(requests.count, 11)
     XCTAssertEqual(
       requests.map { $0.url?.path(percentEncoded: true) },
       [
@@ -75,13 +76,17 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
         "/prefix/api/schedules/runs",
         "/prefix/api/pr-watches",
         "/prefix/api/pr-watches/check",
+        "/prefix/api/pr-watches/agent",
         "/prefix/api/pr-watches",
         "/prefix/api/pr-watches",
       ]
     )
     XCTAssertEqual(
       requests.map(\.httpMethod),
-      ["GET", "POST", "POST", "GET", "POST", "GET", "GET", "POST", "POST", "DELETE"]
+      [
+        "GET", "POST", "POST", "GET", "POST", "GET", "GET", "POST", "POST", "POST",
+        "DELETE",
+      ]
     )
     XCTAssertTrue(
       requests.allSatisfy {
@@ -108,7 +113,10 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
       ])
     let scheduleBody = try bodyObject(index: 4)
     XCTAssertEqual(scheduleBody["kind"] as? String, "create")
-    let deleteBody = try bodyObject(index: 9)
+    let syncBody = try bodyObject(index: 8)
+    XCTAssertEqual(syncBody["projectId"] as? String, "project one")
+    XCTAssertEqual(syncBody["agentKind"] as? String, "codex")
+    let deleteBody = try bodyObject(index: 10)
     XCTAssertEqual(deleteBody["projectId"] as? String, "project one")
     XCTAssertEqual(deleteBody["prNumber"] as? Int, 42)
   }

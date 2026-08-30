@@ -85,7 +85,7 @@ class RemoteApiClientRedirectAndScopesTest {
                 .setBody(
                     """
                     {
-                      "protocolVersion": 3,
+                      "protocolVersion": 8,
                       "desktopId": "desktop-fixture-001",
                       "label": "Fixture Mac",
                       "appVersion": "3.0.0-fixture",
@@ -209,7 +209,7 @@ class RemoteApiClientRedirectAndScopesTest {
                 .setBody(
                     """
                     {
-                      "protocolVersion": 3,
+                      "protocolVersion": 8,
                       "desktopId": "desktop-fixture-001",
                       "label": "Fixture Mac",
                       "appVersion": "3.0.0-fixture",

@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { baseAgentKind, isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
+import { baseAgentKind, type AgentStatus } from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -46,7 +46,7 @@ import {
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
-import { isDevApp, isRemoteSession } from "@/renderer/bridge";
+import { isDevApp, isRemoteSession, isWindows } from "@/renderer/bridge";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { searchSettings } from "./settingsSearchIndex";
 import type { SettingsSection } from "./types";
@@ -70,8 +70,11 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "about",
 ]);
 
-function claudeProfileSidebarLabel(agent: AgentStatus): string {
-  return agent.label.replace(/^Claude\s+/iu, "").trim() || agent.label;
+function profileSidebarLabel(agent: AgentStatus): string {
+  const baseKind = baseAgentKind(agent.kind);
+  return agent.label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
+    ? agent.label.slice(baseKind.length).trim()
+    : agent.label;
 }
 
 function renderAgentIcon(
@@ -86,7 +89,7 @@ function renderAgentIcon(
       kind={agent.kind}
       icon={agent.icon}
       fallbackLabel={
-        isClaudeProfileKind(agent.kind) ? claudeProfileSidebarLabel(agent) : agent.label
+        baseAgentKind(agent.kind) !== agent.kind ? profileSidebarLabel(agent) : agent.label
       }
       className={`${options.className ?? "size-4"} ${options.disabled ? "opacity-35" : ""}`}
     />
@@ -334,7 +337,8 @@ export function SettingsSidebar(props: {
         ]
       : group.sections,
   );
-  const settingMatches = query === "" ? [] : searchSettings(query, t, { devMode, remoteSession });
+  const settingMatches =
+    query === "" ? [] : searchSettings(query, t, { devMode, remoteSession, windows: isWindows() });
   const matchesBySection = new Map<string, typeof settingMatches>();
   for (const match of settingMatches) {
     const list = matchesBySection.get(match.section) ?? [];
@@ -653,7 +657,7 @@ export function SettingsSidebar(props: {
                                               disabled: profileDisabled,
                                               className: "size-3.5",
                                             })}
-                                            label={claudeProfileSidebarLabel(profile)}
+                                            label={profileSidebarLabel(profile)}
                                             suffix={
                                               profileNeedsAttention ? (
                                                 <AlertTriangle

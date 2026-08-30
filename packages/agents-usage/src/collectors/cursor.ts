@@ -2,9 +2,8 @@ import type { CollectOptions, HostPort, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
 
 /**
- * Cursor. Reuses Cursor's session token (which the host reads from the desktop
- * app's `state.vscdb` SQLite store, key `cursorAuth/accessToken`, or — for a
- * CLI-only install — from the `cursor-agent` keychain entry) as the
+ * Cursor. Reuses Cursor Agent's session token (which the host reads from the
+ * CLI auth file or keychain) as the
  * `WorkosCursorSessionToken` cookie and reads the dashboard usage summary — the
  * same endpoint Cursor's own settings page uses. No cookie capture, no browser
  * involvement.
@@ -12,11 +11,23 @@ import type { UsageSnapshot, UsageWindow } from "../types";
  * Schema (per codexbar) of GET /api/usage-summary → individualUsage.plan:
  *   { used (cents), limit (cents), breakdown { included, bonus, total },
  *     totalPercentUsed, autoPercentUsed, apiPercentUsed } + billingCycleEnd +
- *   membershipType. Surfaced as Auto and API windows. API dollars use real
- *   spend over the vendor plan limit; the bar uses apiPercentUsed separately.
+ *   membershipType. Surfaced as Cursor Models (`autoPercentUsed`) and API
+ *   windows. API dollars use real spend over the vendor plan limit; the bar
+ *   uses apiPercentUsed separately.
  */
 
 export const CURSOR_USAGE_ENDPOINT = "https://cursor.com/api/usage-summary";
+/**
+ * cursor-agent exchanges a User API key (`crsr_…`) for a short-lived session
+ * JWT through this endpoint, then reads DashboardService over api2. Cursor
+ * profiles have no isolated CLI login, so this is the documented-for-CLI path
+ * that can collect a second account's usage from its key.
+ */
+export const CURSOR_API_KEY_EXCHANGE_ENDPOINT = "https://api2.cursor.sh/auth/exchange_user_api_key";
+export const CURSOR_PERIOD_USAGE_ENDPOINT =
+  "https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage";
+export const CURSOR_PLAN_INFO_ENDPOINT =
+  "https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo";
 
 interface CursorPlanUsage {
   used?: number;
@@ -45,6 +56,7 @@ const MEMBERSHIP_LABELS: Record<string, string> = {
   free_trial: "Cursor Free Trial",
   pro: "Cursor Pro",
   pro_plus: "Cursor Pro+",
+  "pro+": "Cursor Pro+",
   ultra: "Cursor Ultra",
   business: "Cursor Business",
   team: "Cursor Team",
@@ -115,6 +127,10 @@ export function parseCursorUsage(
   const onDemand = summary.individualUsage?.onDemand;
   const resetsAt = toResetMs(summary.billingCycleEnd);
   const withReset = resetsAt !== undefined ? { resetsAt } : {};
+  const membership = summary.membershipType?.trim();
+  const planName =
+    (membership ? (MEMBERSHIP_LABELS[membership.toLowerCase()] ?? membership) : undefined) ??
+    account.plan;
 
   const windows: UsageWindow[] = [];
 
@@ -122,7 +138,7 @@ export function parseCursorUsage(
   if (autoPercent !== undefined) {
     windows.push({
       id: "cursor-auto",
-      label: "Auto + Composer",
+      label: "Cursor Models",
       usedPercent: autoPercent,
       unit: "percent",
       ...withReset,
@@ -160,11 +176,6 @@ export function parseCursorUsage(
       });
     }
   }
-
-  const membership = summary.membershipType?.trim();
-  const planName =
-    (membership ? (MEMBERSHIP_LABELS[membership.toLowerCase()] ?? membership) : undefined) ??
-    account.plan;
 
   return {
     providerId: "cursor",
@@ -243,4 +254,234 @@ export async function collectCursor(
     ...(typeof token.raw?.email === "string" ? { email: token.raw.email } : {}),
   };
   return parseCursorUsage(parsed, account, now);
+}
+
+interface CursorPeriodPlanUsage {
+  totalSpend?: number;
+  includedSpend?: number;
+  remaining?: number;
+  limit?: number;
+  autoPercentUsed?: number;
+  apiPercentUsed?: number;
+  totalPercentUsed?: number;
+}
+
+interface CursorPeriodUsage {
+  billingCycleStart?: string;
+  billingCycleEnd?: string;
+  membershipType?: string;
+  planUsage?: CursorPeriodPlanUsage;
+}
+
+interface CursorPlanInfo {
+  planInfo?: { planName?: string; includedAmountCents?: number };
+}
+
+/** Map api2 `GetCurrentPeriodUsage` onto the dashboard usage-summary parser. */
+export function parseCursorPeriodUsage(
+  body: unknown,
+  account: { plan?: string; email?: string },
+  nowMs: number,
+  providerId = "cursor",
+  includedAmountCents?: number,
+): UsageSnapshot {
+  const period = (body ?? {}) as CursorPeriodUsage;
+  const plan = period.planUsage ?? {};
+  const snapshot = parseCursorUsage(
+    {
+      billingCycleEnd: period.billingCycleEnd,
+      membershipType: period.membershipType,
+      individualUsage: {
+        plan: {
+          used: plan.totalSpend,
+          limit: includedAmountCents ?? plan.limit,
+          autoPercentUsed: plan.autoPercentUsed,
+          apiPercentUsed: plan.apiPercentUsed,
+          totalPercentUsed: plan.totalPercentUsed,
+          breakdown: {
+            included: plan.includedSpend,
+            total: plan.totalSpend,
+          },
+        },
+      },
+    },
+    account,
+    nowMs,
+  );
+  return { ...snapshot, providerId };
+}
+
+function emailFromJwt(accessToken: string): string | undefined {
+  const payload = accessToken.split(".")[1];
+  if (!payload) return undefined;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      email?: unknown;
+    };
+    return typeof claims.email === "string" && claims.email.trim()
+      ? claims.email.trim()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function cursorDashboardHeaders(accessToken: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+    "Connect-Protocol-Version": "1",
+  };
+}
+
+async function postCursorJson(
+  host: HostPort,
+  url: string,
+  headers: Record<string, string>,
+): Promise<HttpResponse> {
+  return host.http.request({
+    method: "POST",
+    url,
+    headers,
+    body: "{}",
+    timeoutMs: 15_000,
+  });
+}
+
+function httpFailureSnapshot(
+  providerId: string,
+  now: number,
+  status: number,
+): UsageSnapshot | undefined {
+  if (status === 401 || status === 403) {
+    return {
+      providerId,
+      status: "auth-missing",
+      windows: [],
+      fetchedAt: now,
+      error: `session rejected (${status})`,
+    };
+  }
+  if (status === 429) {
+    return { providerId, status: "rate-limited", windows: [], fetchedAt: now };
+  }
+  if (status < 200 || status >= 300) {
+    return {
+      providerId,
+      status: "error",
+      windows: [],
+      fetchedAt: now,
+      error: `HTTP ${status}`,
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Collect Cursor usage for an account that authenticates with a User API key
+ * (Cursor profiles). Exchanges the key the same way `cursor-agent` does, then
+ * reads the current billing-period summary. Failures never throw.
+ */
+export async function collectCursorFromApiKey(
+  host: HostPort,
+  apiKey: string,
+  providerId = "cursor",
+): Promise<UsageSnapshot> {
+  const now = host.now();
+  try {
+    return await collectCursorFromApiKeyUnchecked(host, apiKey, providerId, now);
+  } catch (error) {
+    return {
+      providerId,
+      status: "error",
+      windows: [],
+      fetchedAt: now,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function collectCursorFromApiKeyUnchecked(
+  host: HostPort,
+  apiKey: string,
+  providerId: string,
+  now: number,
+): Promise<UsageSnapshot> {
+  const key = apiKey.trim();
+  if (!key) {
+    return { providerId, status: "auth-missing", windows: [], fetchedAt: now };
+  }
+
+  const exchanged = await postCursorJson(host, CURSOR_API_KEY_EXCHANGE_ENDPOINT, {
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+  });
+  const exchangeFailure = httpFailureSnapshot(providerId, now, exchanged.status);
+  if (exchangeFailure) return exchangeFailure;
+
+  let accessToken: string | undefined;
+  try {
+    const parsed = JSON.parse(exchanged.body) as { accessToken?: unknown };
+    accessToken = typeof parsed.accessToken === "string" ? parsed.accessToken.trim() : undefined;
+  } catch {
+    return {
+      providerId,
+      status: "error",
+      windows: [],
+      fetchedAt: now,
+      error: "invalid JSON response",
+    };
+  }
+  if (!accessToken) {
+    return { providerId, status: "auth-missing", windows: [], fetchedAt: now };
+  }
+
+  const headers = cursorDashboardHeaders(accessToken);
+  const [usageRes, planRes] = await Promise.all([
+    postCursorJson(host, CURSOR_PERIOD_USAGE_ENDPOINT, headers),
+    postCursorJson(host, CURSOR_PLAN_INFO_ENDPOINT, headers).catch(() => undefined),
+  ]);
+  const usageFailure = httpFailureSnapshot(providerId, now, usageRes.status);
+  if (usageFailure) return usageFailure;
+
+  let usageBody: unknown;
+  try {
+    usageBody = JSON.parse(usageRes.body);
+  } catch {
+    return {
+      providerId,
+      status: "error",
+      windows: [],
+      fetchedAt: now,
+      error: "invalid JSON response",
+    };
+  }
+
+  let planName: string | undefined;
+  let includedAmountCents: number | undefined;
+  if (planRes && planRes.status >= 200 && planRes.status < 300) {
+    try {
+      const planBody = JSON.parse(planRes.body) as CursorPlanInfo;
+      const name = planBody.planInfo?.planName?.trim();
+      planName = name ? (MEMBERSHIP_LABELS[name.toLowerCase()] ?? name) : undefined;
+      const included = planBody.planInfo?.includedAmountCents;
+      includedAmountCents =
+        typeof included === "number" && Number.isFinite(included) ? included : undefined;
+    } catch {
+      planName = undefined;
+      includedAmountCents = undefined;
+    }
+  }
+
+  const email = emailFromJwt(accessToken);
+  return parseCursorPeriodUsage(
+    usageBody,
+    {
+      ...(planName ? { plan: planName } : {}),
+      ...(email ? { email } : {}),
+    },
+    now,
+    providerId,
+    includedAmountCents,
+  );
 }

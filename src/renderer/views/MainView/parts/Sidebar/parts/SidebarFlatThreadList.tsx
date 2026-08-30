@@ -1,5 +1,7 @@
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
+import { ProjectIcon } from "@/renderer/components/common/ProjectIcon";
+import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import {
   ProjectRemoteServerChip,
   ProjectSelectorIcon,
@@ -210,8 +212,15 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
                         <span
                           className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
                         >
+                          {/* Sized to the tag, not the 16px menu default, so a
+                              custom icon reads as part of the 10px label. */}
+                          <ProjectIcon project={project} className="size-3 text-muted/70" />
                           <span className="truncate">{project.name}</span>
                           <ProjectRemoteServerChip info={remote} size="xs" />
+                          {/* Mirrors the grouped header's trailing WSL marker. */}
+                          {project.location.kind === "wsl" ? (
+                            <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
+                          ) : null}
                         </span>
                       ),
                     }

@@ -10,6 +10,7 @@ import { getSqlite } from "./connection";
 import { acknowledgeMirroredThreadIds, isMainCreatedThreadUnmirrored } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow } from "./rowMappers";
+import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 
 /**
  * Bulk-sync the full project and thread lists from the renderer store.
@@ -17,13 +18,21 @@ import { projectMutableRow } from "./rowMappers";
  */
 export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJson: string): void {
   const sqlite = getSqlite();
+  const deletedThreadIds = new Set<string>();
 
   sqlite
     .transaction(() => {
+      const existingThreads = sqlite.prepare("SELECT id, project_id FROM threads").all() as Array<{
+        id: string;
+        project_id: string;
+      }>;
       const existingProjectIds = new Set(
         (sqlite.prepare("SELECT id FROM projects").all() as Array<{ id: string }>).map((r) => r.id),
       );
       const incomingProjectIds = new Set(projectsData.map((p) => p.id));
+      const deletedProjectIds = new Set(
+        [...existingProjectIds].filter((projectId) => !incomingProjectIds.has(projectId)),
+      );
       const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
       const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
       const upsertProject = prepareProjectSyncStatement(sqlite);
@@ -38,21 +47,19 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         runProjectSync(upsertProject, projectsData[i]!, i);
       }
 
-      const existingThreadIds = new Set(
-        (sqlite.prepare("SELECT id FROM threads").all() as Array<{ id: string }>).map((r) => r.id),
-      );
       const incomingThreadIds = new Set(threadsData.map((t) => t.id));
       const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
       const upsertThread = prepareThreadSyncStatement(sqlite);
 
-      for (const tid of existingThreadIds) {
+      for (const { id: tid, project_id: projectId } of existingThreads) {
         if (incomingThreadIds.has(tid)) continue;
         // A thread main just created (remote `start`, schedule, orchestrator) is
         // absent from this snapshot only because the renderer has not applied the
         // forwarded command yet. Deleting it would cascade away the launch turn's
         // runtime items — most visibly the initial `user_message`.
-        if (isMainCreatedThreadUnmirrored(tid)) continue;
+        if (!deletedProjectIds.has(projectId) && isMainCreatedThreadUnmirrored(tid)) continue;
         deleteThread.run(tid);
+        deletedThreadIds.add(tid);
       }
       for (let i = 0; i < threadsData.length; i++) {
         runThreadSync(upsertThread, threadsData[i]!, i);
@@ -68,6 +75,7 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         .run(viewJson);
     })
     .immediate();
+  for (const threadId of deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
 }
 
@@ -96,6 +104,7 @@ export function dbPersistExperimentState(payload: DbPersistExperimentStatePayloa
         );
     })
     .immediate();
+  for (const threadId of payload.deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
 }
 
 type SqliteStatement = ReturnType<InstanceType<typeof Database>["prepare"]>;
@@ -103,18 +112,19 @@ type SqliteStatement = ReturnType<InstanceType<typeof Database>["prepare"]>;
 function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): SqliteStatement {
   return sqlite.prepare(`
     INSERT INTO projects (
-      id, name, location_kind, location_path, location_distro, location_linux_path,
+      id, name, icon, location_kind, location_path, location_distro, location_linux_path,
       location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
-      mcp_servers, workspace_id,
+      mcp_servers, gh_account, workspace_id,
       disabled, sort_order, created_at
     ) VALUES (
-      @id, @name, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
+      @id, @name, @icon, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
       @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
-      @mcpServers, @workspaceId,
+      @mcpServers, @ghAccount, @workspaceId,
       @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
+      icon = excluded.icon,
       location_kind = excluded.location_kind,
       location_path = excluded.location_path,
       location_distro = excluded.location_distro,
@@ -125,6 +135,7 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
       search_settings = excluded.search_settings,
       worktree_location = excluded.worktree_location,
       mcp_servers = excluded.mcp_servers,
+      gh_account = excluded.gh_account,
       workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
       sort_order = excluded.sort_order
@@ -144,20 +155,24 @@ function runProjectSync(stmt: SqliteStatement, project: Project, sortOrder: numb
 function prepareThreadSyncStatement(sqlite: InstanceType<typeof Database>): SqliteStatement {
   return sqlite.prepare(`
     INSERT INTO threads (
-      id, project_id, title, agent_kind, agent_instance_id, config, status,
+      id, project_id, workspace_id, title, agent_kind, agent_instance_id, config, status,
       attention, can_resume_with_config, session_ref, terminal_prompt, worktree_path,
-      worktree_branch, pr_number, group_id, group_name, parent_thread_id, archived, done, done_at,
+      worktree_branch, pr_number, group_id, group_name, parent_thread_id, archived, archived_at, done, done_at,
       starred, presentation_mode, sort_order, created_at, updated_at,
       active_turn_started_at, last_turn_started_at, last_turn_ended_at
     ) VALUES (
-      @id, @projectId, @title, @agentKind, @agentInstanceId, @config, @status,
+      @id, @projectId, @workspaceId, @title, @agentKind, @agentInstanceId, @config, @status,
       @attention, @canResumeWithConfig, @sessionRef, NULL, @worktreePath,
-      @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @archived, @done, @doneAt,
+      @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @archived, @archivedAt, @done, @doneAt,
       @starred, @presentationMode, @sortOrder, @createdAt, @updatedAt,
       @activeTurnStartedAt, @lastTurnStartedAt, @lastTurnEndedAt
     )
     ON CONFLICT(id) DO UPDATE SET
+      workspace_id = excluded.workspace_id,
       title = excluded.title,
+      -- Mutable: a thread can be switched to another provider in place, keeping
+      -- its id and transcript. Omitting this pinned rows to their first agent.
+      agent_kind = excluded.agent_kind,
       agent_instance_id = excluded.agent_instance_id,
       config = excluded.config,
       status = excluded.status,
@@ -172,6 +187,7 @@ function prepareThreadSyncStatement(sqlite: InstanceType<typeof Database>): Sqli
       group_name = excluded.group_name,
       parent_thread_id = excluded.parent_thread_id,
       archived = excluded.archived,
+      archived_at = excluded.archived_at,
       done = excluded.done,
       done_at = excluded.done_at,
       starred = excluded.starred,
@@ -188,6 +204,9 @@ function runThreadSync(stmt: SqliteStatement, thread: Thread, sortOrder: number)
   stmt.run({
     id: thread.id,
     projectId: thread.projectId,
+    // Kept in the sync so "Move to Workspace" survives the renderer's periodic
+    // full-store persist, exactly like the single-row dbUpsertThread path.
+    workspaceId: thread.workspaceId ?? null,
     title: thread.title,
     agentKind: thread.agentKind,
     agentInstanceId: thread.agentInstanceId ?? null,
@@ -203,6 +222,7 @@ function runThreadSync(stmt: SqliteStatement, thread: Thread, sortOrder: number)
     groupName: thread.groupName ?? null,
     parentThreadId: thread.parentThreadId ?? null,
     archived: thread.archived ? 1 : 0,
+    archivedAt: thread.archivedAt ?? null,
     done: thread.done ? 1 : 0,
     doneAt: thread.doneAt ?? null,
     starred: thread.starred ? 1 : 0,

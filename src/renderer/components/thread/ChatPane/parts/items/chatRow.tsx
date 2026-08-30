@@ -42,7 +42,7 @@ export const chatRowRailClass = "border-l border-dashed border-[color:var(--bord
 // Disclosure trigger for a dense inline row inside a tool-call group
 // (ToolCallInline, ReasoningInline): icon + title + trailing meta hugging
 // their content, with the shared hover treatment.
-export const inlineRowTriggerClass = `group flex w-fit max-w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-md py-0.5 text-left ${chatRowHoverClass}`;
+export const inlineRowTriggerClass = `group flex min-h-[18px] w-fit max-w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-md py-0.5 text-left ${chatRowHoverClass}`;
 
 // Disclosure chevrons stay visible on touch devices, but remain quiet until
 // the row is hovered or keyboard-focused on pointer-capable desktops.

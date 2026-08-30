@@ -121,6 +121,7 @@ async function probeCapabilities(
     ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(probe?.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
     ...(probe?.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
+    ...(probe?.thinkingModels ? { thinkingModels: probe.thinkingModels } : {}),
     ...(probe?.modes?.length ? { modes: probe.modes } : {}),
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
@@ -153,9 +154,10 @@ type GrokReasoningEffortMeta = { id?: unknown; default?: unknown };
 
 /**
  * Derive effort capabilities from the per-model `_meta.reasoningEfforts` the
- * grok 0.2.x ACP handshake advertises (verified live on 0.2.118: grok-4.5
- * exposes high/medium/low with high as default). Models without tiers get an
- * explicit empty list so the shared model picker hides the effort dropdown.
+ * grok ACP handshake advertises (verified live on 1.0.5: grok-4.6 exposes
+ * xhigh/high/medium/low, grok-4.5 high/medium/low, both defaulting to high).
+ * Models without tiers get an explicit empty list so the shared model picker
+ * hides the effort dropdown.
  */
 export function mapGrokEffortCapabilities(
   modelMetadata: Record<string, Record<string, unknown>> | undefined,
@@ -177,13 +179,30 @@ export function mapGrokEffortCapabilities(
       .map((entry) => entry.id);
     modelEfforts[modelId] = sorted;
     if (sorted.length > efforts.length) efforts = sorted;
-    if (!defaultEffort) {
-      const def = entries.find((entry) => entry?.default === true);
-      if (def && typeof def.id === "string") defaultEffort = def.id;
-    }
+    defaultEffort ??= readGrokModelDefaultEffort(meta, entries, sorted);
   }
 
   return { efforts, modelEfforts, ...(defaultEffort ? { defaultEffort } : {}) };
+}
+
+/**
+ * Pick the tier a session actually starts on. Grok flags more than one tier
+ * `default: true` since 1.0.5 (grok-4.6 marks both xhigh and high), so the
+ * flag alone cannot identify the real default. The model's
+ * `_meta.reasoningEffort` names it unambiguously — "high" for grok-4.6,
+ * matching the session's `model_changed` update and the `x.ai/sessionConfig`
+ * selection — so prefer it and fall back to the first flagged tier for models
+ * that omit it.
+ */
+function readGrokModelDefaultEffort(
+  meta: Record<string, unknown>,
+  entries: GrokReasoningEffortMeta[],
+  tierIds: string[],
+): string | undefined {
+  const advertised = meta["reasoningEffort"];
+  if (typeof advertised === "string" && tierIds.includes(advertised)) return advertised;
+  const flagged = entries.find((entry) => entry?.default === true);
+  return flagged && typeof flagged.id === "string" ? flagged.id : undefined;
 }
 
 /**

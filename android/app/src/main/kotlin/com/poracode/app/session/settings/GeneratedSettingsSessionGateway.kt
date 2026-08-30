@@ -97,7 +97,7 @@ class GeneratedSettingsSessionGateway(
         if (current == null || current.key != lease.key) {
             throw SettingsGatewayException(409, "stale_lease", false)
         }
-        if (current.protocolVersion != 3 || lease.protocolVersion != 3) {
+        if (current.protocolVersion != 8 || lease.protocolVersion != 8) {
             throw SettingsGatewayException(409, "protocol_version_mismatch", false)
         }
         if (!current.online) throw SettingsGatewayException(0, "offline", false)

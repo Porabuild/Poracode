@@ -228,6 +228,7 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
     pluginName: String? = nil
   )
   case mcp(id: String, name: String)
+  case thread(threadID: String, title: String)
 
   enum Side: String, Encodable, Hashable, Sendable {
     case old
@@ -249,12 +250,14 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
     case staged
     case body
     case name
+    case title
     case invocation
     case provider
     case scope
     case pluginID = "pluginId"
     case pluginName
     case id
+    case threadID = "threadId"
   }
 
   func encode(to encoder: Encoder) throws {
@@ -291,6 +294,10 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
       try values.encode("mcp", forKey: .kind)
       try values.encode(id, forKey: .id)
       try values.encode(name, forKey: .name)
+    case .thread(let threadID, let title):
+      try values.encode("thread", forKey: .kind)
+      try values.encode(threadID, forKey: .threadID)
+      try values.encode(title, forKey: .title)
     }
   }
 }

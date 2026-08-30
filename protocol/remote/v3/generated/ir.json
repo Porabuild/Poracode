@@ -14,14 +14,14 @@
     "jsonProcedureResults": 64,
     "procedures": 100,
     "replayableEventTypes": 15,
-    "routes": 60,
+    "routes": 61,
     "runtimeEventTypes": 14,
     "voidProcedureResults": 36,
     "webSocketClientMessages": 8,
     "webSocketServerMessages": 9
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:c38591361306555a061edef44c76efacd324824a3dfaf7be368c88dca6ed568f",
+  "manifestHash": "sha256:67c83477b74a5fb78fdefc7420c51543af13ca63c90005a46d13581dae512e96",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -2916,6 +2916,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "projectLocation": {
             "oneOf": [
               {
@@ -3464,6 +3483,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "projectLocation": {
             "oneOf": [
               {
@@ -3574,6 +3612,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "inputs": {
             "additionalProperties": {
               "type": "string"
@@ -4896,6 +4953,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "projectLocation": {
             "oneOf": [
               {
@@ -5109,6 +5185,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "projectLocation": {
             "oneOf": [
               {
@@ -6146,6 +6241,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "projectLocation": {
             "oneOf": [
               {
@@ -6420,6 +6534,25 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
           "projectLocation": {
             "oneOf": [
               {
@@ -7065,6 +7198,25 @@
           "failedOnly": {
             "default": false,
             "type": "boolean"
+          },
+          "ghAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
           },
           "projectLocation": {
             "oneOf": [
@@ -14918,6 +15070,29 @@
                   ],
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "kind": {
+                      "const": "thread",
+                      "type": "string"
+                    },
+                    "threadId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "threadId",
+                    "title"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 }
               ]
             },
@@ -15091,6 +15266,7 @@
                           "dynamic_tool_call",
                           "web_search",
                           "question_answer",
+                          "provider_handoff",
                           "error"
                         ],
                         "type": "string"
@@ -15919,6 +16095,7 @@
                           "dynamic_tool_call",
                           "web_search",
                           "question_answer",
+                          "provider_handoff",
                           "error"
                         ],
                         "type": "string"
@@ -17048,7 +17225,7 @@
     "writeExternalFile",
     "writeProjectFile"
   ],
-  "protocolVersion": 3,
+  "protocolVersion": 8,
   "routes": [
     {
       "auth": "bearer",
@@ -17064,146 +17241,15 @@
             "__schema0": {
               "additionalProperties": true,
               "properties": {
+                "acpSessionEstablished": {
+                  "type": "boolean"
+                },
                 "authLogoutSupported": {
                   "type": "boolean"
                 },
                 "authMethods": {
                   "items": {
-                    "anyOf": [
-                      {
-                        "additionalProperties": true,
-                        "properties": {
-                          "description": {
-                            "$ref": "#/$defs/__schema5"
-                          },
-                          "id": {
-                            "$ref": "#/$defs/__schema3"
-                          },
-                          "link": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "name": {
-                            "$ref": "#/$defs/__schema4"
-                          },
-                          "type": {
-                            "const": "env_var",
-                            "type": "string"
-                          },
-                          "vars": {
-                            "items": {
-                              "additionalProperties": true,
-                              "properties": {
-                                "label": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
-                                "name": {
-                                  "minLength": 1,
-                                  "type": "string"
-                                },
-                                "optional": {
-                                  "type": "boolean"
-                                },
-                                "secret": {
-                                  "type": "boolean"
-                                }
-                              },
-                              "required": [
-                                "name"
-                              ],
-                              "type": "object",
-                              "x-poracode-unknownFields": "strip"
-                            },
-                            "type": "array"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "type",
-                          "vars"
-                        ],
-                        "type": "object",
-                        "x-poracode-unknownFields": "strip"
-                      },
-                      {
-                        "additionalProperties": true,
-                        "properties": {
-                          "args": {
-                            "items": {
-                              "type": "string"
-                            },
-                            "type": "array"
-                          },
-                          "description": {
-                            "$ref": "#/$defs/__schema5"
-                          },
-                          "env": {
-                            "additionalProperties": {
-                              "type": "string"
-                            },
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "type": "object"
-                          },
-                          "id": {
-                            "$ref": "#/$defs/__schema3"
-                          },
-                          "name": {
-                            "$ref": "#/$defs/__schema4"
-                          },
-                          "type": {
-                            "const": "terminal",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "type"
-                        ],
-                        "type": "object",
-                        "x-poracode-unknownFields": "strip"
-                      },
-                      {
-                        "additionalProperties": true,
-                        "properties": {
-                          "description": {
-                            "$ref": "#/$defs/__schema5"
-                          },
-                          "id": {
-                            "$ref": "#/$defs/__schema3"
-                          },
-                          "name": {
-                            "$ref": "#/$defs/__schema4"
-                          },
-                          "type": {
-                            "const": "agent",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name"
-                        ],
-                        "type": "object",
-                        "x-poracode-unknownFields": "strip"
-                      }
-                    ]
+                    "$ref": "#/$defs/__schema4"
                   },
                   "type": "array"
                 },
@@ -17211,7 +17257,7 @@
                   "$ref": "#/$defs/__schema2"
                 },
                 "capabilities": {
-                  "$ref": "#/$defs/__schema6"
+                  "$ref": "#/$defs/__schema8"
                 },
                 "envDistro": {
                   "type": "string"
@@ -17275,57 +17321,21 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "providerMetadata": {
-                  "additionalProperties": true,
-                  "properties": {
-                    "authMethod": {
-                      "minLength": 1,
-                      "type": "string"
-                    },
-                    "authenticatedAs": {
-                      "minLength": 1,
-                      "type": "string"
-                    },
-                    "connectedProviders": {
-                      "items": {
-                        "additionalProperties": true,
-                        "properties": {
-                          "detail": {
-                            "minLength": 1,
-                            "type": "string"
-                          },
-                          "id": {
-                            "minLength": 1,
-                            "type": "string"
-                          },
-                          "label": {
-                            "minLength": 1,
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "label"
-                        ],
-                        "type": "object",
-                        "x-poracode-unknownFields": "strip"
-                      },
-                      "type": "array"
-                    },
-                    "organization": {
-                      "minLength": 1,
-                      "type": "string"
-                    },
-                    "plan": {
-                      "minLength": 1,
-                      "type": "string"
-                    }
-                  },
-                  "type": "object",
-                  "x-poracode-unknownFields": "strip"
+                  "$ref": "#/$defs/__schema3"
                 },
                 "runtimeVariants": {
                   "additionalProperties": {
                     "additionalProperties": true,
                     "properties": {
+                      "authLogoutSupported": {
+                        "type": "boolean"
+                      },
+                      "authMethods": {
+                        "items": {
+                          "$ref": "#/$defs/__schema4"
+                        },
+                        "type": "array"
+                      },
                       "authState": {
                         "$ref": "#/$defs/__schema2"
                       },
@@ -17333,7 +17343,7 @@
                         "type": "boolean"
                       },
                       "capabilities": {
-                        "$ref": "#/$defs/__schema6"
+                        "$ref": "#/$defs/__schema8"
                       },
                       "installationSource": {
                         "minLength": 1,
@@ -17342,8 +17352,18 @@
                       "installed": {
                         "type": "boolean"
                       },
+                      "loginCommand": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "preferTerminalLogin": {
+                        "type": "boolean"
+                      },
                       "presentationMode": {
-                        "$ref": "#/$defs/__schema10"
+                        "$ref": "#/$defs/__schema12"
+                      },
+                      "providerMetadata": {
+                        "$ref": "#/$defs/__schema3"
                       },
                       "version": {
                         "minLength": 1,
@@ -17481,12 +17501,27 @@
             },
             "__schema10": {
               "enum": [
+                "agent",
+                "plan",
+                "autopilot"
+              ],
+              "type": "string"
+            },
+            "__schema11": {
+              "enum": [
+                "terminal",
+                "server"
+              ],
+              "type": "string"
+            },
+            "__schema12": {
+              "enum": [
                 "terminal",
                 "gui"
               ],
               "type": "string"
             },
-            "__schema11": {
+            "__schema13": {
               "additionalProperties": true,
               "properties": {
                 "approvalPolicy": {
@@ -17499,7 +17534,7 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema12": {
+            "__schema14": {
               "enum": [
                 "none",
                 "launch",
@@ -17507,7 +17542,7 @@
               ],
               "type": "string"
             },
-            "__schema13": {
+            "__schema15": {
               "oneOf": [
                 {
                   "additionalProperties": true,
@@ -17580,7 +17615,7 @@
                     },
                     "options": {
                       "items": {
-                        "$ref": "#/$defs/__schema7"
+                        "$ref": "#/$defs/__schema9"
                       },
                       "type": "array"
                     },
@@ -17609,7 +17644,7 @@
                 }
               ]
             },
-            "__schema14": {
+            "__schema16": {
               "additionalProperties": true,
               "properties": {
                 "argumentHint": {
@@ -17671,21 +17706,21 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema15": {
+            "__schema17": {
               "additionalProperties": true,
               "properties": {
                 "approvalPolicies": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
                 "bypassPermissions": {
-                  "$ref": "#/$defs/__schema11"
+                  "$ref": "#/$defs/__schema13"
                 },
                 "contextSizes": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
@@ -17736,7 +17771,7 @@
                   "type": "array"
                 },
                 "liveInputMode": {
-                  "$ref": "#/$defs/__schema9"
+                  "$ref": "#/$defs/__schema11"
                 },
                 "modelContextSizes": {
                   "additionalProperties": {
@@ -17784,22 +17819,22 @@
                 },
                 "models": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
                 "modes": {
                   "items": {
-                    "$ref": "#/$defs/__schema8"
+                    "$ref": "#/$defs/__schema10"
                   },
                   "type": "array"
                 },
                 "presentationMode": {
-                  "$ref": "#/$defs/__schema10"
+                  "$ref": "#/$defs/__schema12"
                 },
                 "presentationModes": {
                   "items": {
-                    "$ref": "#/$defs/__schema10"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "type": "array"
                 },
@@ -17812,25 +17847,28 @@
                 },
                 "sandboxModes": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
                 "settingDefs": {
                   "items": {
-                    "$ref": "#/$defs/__schema13"
+                    "$ref": "#/$defs/__schema15"
                   },
                   "type": "array"
                 },
+                "showRuntimeLabelInPicker": {
+                  "type": "boolean"
+                },
                 "slashCommands": {
                   "items": {
-                    "$ref": "#/$defs/__schema14"
+                    "$ref": "#/$defs/__schema16"
                   },
                   "type": "array"
                 },
                 "subProviders": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
@@ -17860,14 +17898,199 @@
               "type": "string"
             },
             "__schema3": {
-              "minLength": 1,
-              "type": "string"
+              "additionalProperties": true,
+              "properties": {
+                "authMethod": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "authenticatedAs": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "connectedProviders": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "detail": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
+                "organization": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "plan": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "__schema4": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "description": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "link": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "type": {
+                      "const": "env_var",
+                      "type": "string"
+                    },
+                    "vars": {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "label": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          },
+                          "secret": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "type",
+                    "vars"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "args": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "description": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "env": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "type": {
+                      "const": "terminal",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "type"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "description": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "type": {
+                      "const": "agent",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            },
+            "__schema5": {
               "minLength": 1,
               "type": "string"
             },
-            "__schema5": {
+            "__schema6": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema7": {
               "anyOf": [
                 {
                   "type": "string"
@@ -17877,7 +18100,7 @@
                 }
               ]
             },
-            "__schema6": {
+            "__schema8": {
               "additionalProperties": true,
               "properties": {
                 "agentSettingsDefaults": {
@@ -17899,16 +18122,16 @@
                 "approvalPolicies": {
                   "default": [],
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
                 "bypassPermissions": {
-                  "$ref": "#/$defs/__schema11"
+                  "$ref": "#/$defs/__schema13"
                 },
                 "contextSizes": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
@@ -17967,7 +18190,7 @@
                   "type": "array"
                 },
                 "liveInputMode": {
-                  "$ref": "#/$defs/__schema9",
+                  "$ref": "#/$defs/__schema11",
                   "default": "terminal"
                 },
                 "mcpConfigSource": {
@@ -17981,10 +18204,10 @@
                   "additionalProperties": true,
                   "properties": {
                     "gui": {
-                      "$ref": "#/$defs/__schema12"
+                      "$ref": "#/$defs/__schema14"
                     },
                     "terminal": {
-                      "$ref": "#/$defs/__schema12"
+                      "$ref": "#/$defs/__schema14"
                     }
                   },
                   "type": "object",
@@ -18038,14 +18261,14 @@
                 "models": {
                   "default": [],
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
                 "modes": {
                   "default": [],
                   "items": {
-                    "$ref": "#/$defs/__schema8"
+                    "$ref": "#/$defs/__schema10"
                   },
                   "type": "array"
                 },
@@ -18053,22 +18276,22 @@
                   "additionalProperties": true,
                   "properties": {
                     "gui": {
-                      "$ref": "#/$defs/__schema15"
+                      "$ref": "#/$defs/__schema17"
                     },
                     "terminal": {
-                      "$ref": "#/$defs/__schema15"
+                      "$ref": "#/$defs/__schema17"
                     }
                   },
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
                 },
                 "presentationMode": {
-                  "$ref": "#/$defs/__schema10",
+                  "$ref": "#/$defs/__schema12",
                   "default": "terminal"
                 },
                 "presentationModes": {
                   "items": {
-                    "$ref": "#/$defs/__schema10"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "type": "array"
                 },
@@ -18091,26 +18314,29 @@
                 "sandboxModes": {
                   "default": [],
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
                 "settingDefs": {
                   "default": [],
                   "items": {
-                    "$ref": "#/$defs/__schema13"
+                    "$ref": "#/$defs/__schema15"
                   },
                   "type": "array"
                 },
+                "showRuntimeLabelInPicker": {
+                  "type": "boolean"
+                },
                 "slashCommands": {
                   "items": {
-                    "$ref": "#/$defs/__schema14"
+                    "$ref": "#/$defs/__schema16"
                   },
                   "type": "array"
                 },
                 "subProviders": {
                   "items": {
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "type": "array"
                 },
@@ -18152,7 +18378,7 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema7": {
+            "__schema9": {
               "additionalProperties": true,
               "properties": {
                 "description": {
@@ -18178,21 +18404,6 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
-            },
-            "__schema8": {
-              "enum": [
-                "agent",
-                "plan",
-                "autopilot"
-              ],
-              "type": "string"
-            },
-            "__schema9": {
-              "enum": [
-                "terminal",
-                "server"
-              ],
-              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18795,7 +19006,7 @@
               "type": "string"
             },
             "protocolVersion": {
-              "const": 3,
+              "const": 8,
               "type": "number"
             }
           },
@@ -18961,7 +19172,7 @@
               "type": "string"
             },
             "protocolVersion": {
-              "const": 3,
+              "const": 8,
               "type": "number"
             }
           },
@@ -20981,6 +21192,78 @@
     },
     {
       "auth": "bearer",
+      "id": "pr-watch-agent-sync",
+      "method": "POST",
+      "path": "/api/pr-watches/agent",
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "agentKind": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "config": {
+              "additionalProperties": true,
+              "properties": {
+                "effort": {
+                  "type": "string"
+                },
+                "fast": {
+                  "type": "boolean"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "model"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "projectId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "projectId",
+            "agentKind",
+            "config"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "pr-watch-check",
       "method": "POST",
       "path": "/api/pr-watches/check",
@@ -21157,6 +21440,21 @@
                     "autoMerge": {
                       "type": "boolean"
                     },
+                    "blockedReason": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "agent-unavailable",
+                            "worktree-unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
                     "config": {
                       "additionalProperties": true,
                       "properties": {
@@ -21259,7 +21557,8 @@
                     "lastReviewCursor",
                     "lastCheckKey",
                     "activeThreadId",
-                    "lastError"
+                    "lastError",
+                    "blockedReason"
                   ],
                   "type": "object",
                   "x-poracode-semanticValidators": [
@@ -21413,6 +21712,21 @@
                 "autoMerge": {
                   "type": "boolean"
                 },
+                "blockedReason": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "agent-unavailable",
+                        "worktree-unavailable"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
                 "config": {
                   "additionalProperties": true,
                   "properties": {
@@ -21515,7 +21829,8 @@
                 "lastReviewCursor",
                 "lastCheckKey",
                 "activeThreadId",
-                "lastError"
+                "lastError",
+                "blockedReason"
               ],
               "type": "object",
               "x-poracode-semanticValidators": [
@@ -22523,36 +22838,55 @@
         "jsonSchema": {
           "$defs": {
             "__schema0": {
+              "additionalProperties": true,
+              "properties": {
+                "host": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "login": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "host",
+                "login"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema1": {
               "minLength": 1,
               "type": "string"
             },
-            "__schema1": {
+            "__schema2": {
               "minLength": 1,
               "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
               "type": "string"
             },
-            "__schema2": {
+            "__schema3": {
               "default": "",
               "type": "string"
             },
-            "__schema3": {
+            "__schema4": {
               "default": true,
               "type": "boolean"
             },
-            "__schema4": {
+            "__schema5": {
               "default": 30000,
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
             },
-            "__schema5": {
+            "__schema6": {
               "items": {
                 "minLength": 1,
                 "type": "string"
               },
               "type": "array"
             },
-            "__schema6": {
+            "__schema7": {
               "oneOf": [
                 {
                   "additionalProperties": true,
@@ -22754,23 +23088,7 @@
                       "additionalProperties": true,
                       "properties": {
                         "account": {
-                          "additionalProperties": true,
-                          "properties": {
-                            "host": {
-                              "minLength": 1,
-                              "type": "string"
-                            },
-                            "login": {
-                              "minLength": 1,
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "host",
-                            "login"
-                          ],
-                          "type": "object",
-                          "x-poracode-unknownFields": "strip"
+                          "$ref": "#/$defs/__schema0"
                         },
                         "kind": {
                           "const": "github",
@@ -22814,6 +23132,27 @@
                     "disabled": {
                       "type": "boolean"
                     },
+                    "ghAccount": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "icon": {
+                      "anyOf": [
+                        {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "mcpServers": {
                       "anyOf": [
                         {
@@ -22821,25 +23160,25 @@
                             "additionalProperties": true,
                             "properties": {
                               "description": {
-                                "$ref": "#/$defs/__schema2"
-                              },
-                              "disabledTools": {
-                                "$ref": "#/$defs/__schema5"
-                              },
-                              "enabled": {
                                 "$ref": "#/$defs/__schema3"
                               },
-                              "id": {
-                                "$ref": "#/$defs/__schema0"
+                              "disabledTools": {
+                                "$ref": "#/$defs/__schema6"
                               },
-                              "name": {
-                                "$ref": "#/$defs/__schema1"
-                              },
-                              "timeoutMs": {
+                              "enabled": {
                                 "$ref": "#/$defs/__schema4"
                               },
+                              "id": {
+                                "$ref": "#/$defs/__schema1"
+                              },
+                              "name": {
+                                "$ref": "#/$defs/__schema2"
+                              },
+                              "timeoutMs": {
+                                "$ref": "#/$defs/__schema5"
+                              },
                               "transport": {
-                                "$ref": "#/$defs/__schema6"
+                                "$ref": "#/$defs/__schema7"
                               }
                             },
                             "required": [
@@ -23046,6 +23385,29 @@
                 },
                 "disabled": {
                   "type": "boolean"
+                },
+                "ghAccount": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "host": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "login": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "host",
+                    "login"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "icon": {
+                  "minLength": 1,
+                  "type": "string"
                 },
                 "id": {
                   "minLength": 1,
@@ -27559,6 +27921,29 @@
                   "disabled": {
                     "type": "boolean"
                   },
+                  "ghAccount": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "host": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "login": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "host",
+                      "login"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "icon": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
                   "id": {
                     "minLength": 1,
                     "type": "string"
@@ -27933,6 +28318,10 @@
                     "default": false,
                     "type": "boolean"
                   },
+                  "archivedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
                   "attention": {
                     "enum": [
                       "none",
@@ -28170,6 +28559,10 @@
                     "type": "string"
                   },
                   "updatedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
                     "minLength": 1,
                     "type": "string"
                   },
@@ -28471,6 +28864,13 @@
             "startInHome": {
               "type": "boolean"
             },
+            "windowsShellRuntime": {
+              "enum": [
+                "preferred",
+                "powershell"
+              ],
+              "type": "string"
+            },
             "worktreePath": {
               "minLength": 1,
               "type": "string"
@@ -28643,6 +29043,10 @@
             "__schema0": {
               "minLength": 1,
               "type": "string"
+            },
+            "__schema1": {
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -28681,8 +29085,7 @@
                   "type": "string"
                 },
                 "agentKind": {
-                  "minLength": 1,
-                  "type": "string"
+                  "$ref": "#/$defs/__schema0"
                 },
                 "config": {
                   "additionalProperties": true,
@@ -28782,6 +29185,36 @@
                 },
                 "prompt": {
                   "type": "string"
+                },
+                "providerSwitch": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "fromAgentKind": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "handoffItemId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "previousStatus": {
+                      "enum": [
+                        "inactive",
+                        "launching",
+                        "working",
+                        "idle",
+                        "finished",
+                        "needs_approval",
+                        "needs_reply",
+                        "error"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fromAgentKind"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 },
                 "segments": {
                   "items": {
@@ -28954,6 +29387,29 @@
                           "kind",
                           "id",
                           "name"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      {
+                        "additionalProperties": true,
+                        "properties": {
+                          "kind": {
+                            "const": "thread",
+                            "type": "string"
+                          },
+                          "threadId": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "threadId",
+                          "title"
                         ],
                         "type": "object",
                         "x-poracode-unknownFields": "strip"
@@ -29133,7 +29589,7 @@
                 },
                 "threadIds": {
                   "items": {
-                    "$ref": "#/$defs/__schema0"
+                    "$ref": "#/$defs/__schema1"
                   },
                   "minItems": 1,
                   "type": "array"
@@ -29594,6 +30050,10 @@
                   "default": false,
                   "type": "boolean"
                 },
+                "archivedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "attention": {
                   "enum": [
                     "none",
@@ -29836,6 +30296,10 @@
                   "type": "string"
                 },
                 "updatedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "workspaceId": {
                   "minLength": 1,
                   "type": "string"
                 },
@@ -30409,6 +30873,29 @@
                     ],
                     "type": "object",
                     "x-poracode-unknownFields": "strip"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "properties": {
+                      "kind": {
+                        "const": "thread",
+                        "type": "string"
+                      },
+                      "threadId": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "threadId",
+                      "title"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
                   }
                 ]
               },
@@ -30481,31 +30968,35 @@
             },
             "__schema1": {
               "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
               "type": "string"
             },
             "__schema2": {
-              "default": "",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
               "type": "string"
             },
             "__schema3": {
+              "default": "",
+              "type": "string"
+            },
+            "__schema4": {
               "default": true,
               "type": "boolean"
             },
-            "__schema4": {
+            "__schema5": {
               "default": 30000,
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
             },
-            "__schema5": {
+            "__schema6": {
               "items": {
                 "minLength": 1,
                 "type": "string"
               },
               "type": "array"
             },
-            "__schema6": {
+            "__schema7": {
               "oneOf": [
                 {
                   "additionalProperties": true,
@@ -30628,8 +31119,7 @@
               "type": "string"
             },
             "agentKind": {
-              "minLength": 1,
-              "type": "string"
+              "$ref": "#/$defs/__schema0"
             },
             "config": {
               "additionalProperties": true,
@@ -30760,25 +31250,25 @@
                 "additionalProperties": true,
                 "properties": {
                   "description": {
-                    "$ref": "#/$defs/__schema2"
-                  },
-                  "disabledTools": {
-                    "$ref": "#/$defs/__schema5"
-                  },
-                  "enabled": {
                     "$ref": "#/$defs/__schema3"
                   },
-                  "id": {
-                    "$ref": "#/$defs/__schema0"
+                  "disabledTools": {
+                    "$ref": "#/$defs/__schema6"
                   },
-                  "name": {
-                    "$ref": "#/$defs/__schema1"
-                  },
-                  "timeoutMs": {
+                  "enabled": {
                     "$ref": "#/$defs/__schema4"
                   },
+                  "id": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "timeoutMs": {
+                    "$ref": "#/$defs/__schema5"
+                  },
                   "transport": {
-                    "$ref": "#/$defs/__schema6"
+                    "$ref": "#/$defs/__schema7"
                   }
                 },
                 "required": [
@@ -30887,6 +31377,36 @@
             "prompt": {
               "default": "",
               "type": "string"
+            },
+            "providerSwitch": {
+              "additionalProperties": true,
+              "properties": {
+                "fromAgentKind": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "handoffItemId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "previousStatus": {
+                  "enum": [
+                    "inactive",
+                    "launching",
+                    "working",
+                    "idle",
+                    "finished",
+                    "needs_approval",
+                    "needs_reply",
+                    "error"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fromAgentKind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "segments": {
               "items": {
@@ -31059,6 +31579,29 @@
                       "kind",
                       "id",
                       "name"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "properties": {
+                      "kind": {
+                        "const": "thread",
+                        "type": "string"
+                      },
+                      "threadId": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "threadId",
+                      "title"
                     ],
                     "type": "object",
                     "x-poracode-unknownFields": "strip"
@@ -31432,6 +31975,29 @@
                     ],
                     "type": "object",
                     "x-poracode-unknownFields": "strip"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "properties": {
+                      "kind": {
+                        "const": "thread",
+                        "type": "string"
+                      },
+                      "threadId": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "threadId",
+                      "title"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
                   }
                 ]
               },
@@ -31646,7 +32212,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:6c4faf2d7b708260a9a90527d0d30e332d36ad74a69b3e58526dfa6c5d3c59d3",
+  "sourceHash": "sha256:e3b40d8327e148e858739bf87c003376ffe60e706b7be626ab12944dfe661144",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

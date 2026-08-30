@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { toast } from "@heroui/react";
-import { ChevronDown, Monitor, TerminalSquare } from "lucide-react";
+import { ChevronDown, Monitor, TerminalSquare, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -33,7 +33,12 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "../composer/MentionInput";
-import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
+import { useThreadMentionItems } from "../composer/useThreadMentionItems";
+import {
+  storableAttachment,
+  useAttachments,
+  type SaveClipboardImage,
+} from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
@@ -58,6 +63,7 @@ import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { buildControls } from "./buildModelPickerControls";
+import { machineKeyForLocation } from "@/shared/machines";
 import { submitComposerPrompt } from "./threadComposerSubmit";
 import {
   filterSlashCommands,
@@ -296,29 +302,31 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // and Computer Use. Users change servers in the draft composer or settings
   // before launching a new thread.
   // Bindings are display-only for an active session; toggles are no-ops.
-  // Providers with `mcpConfigSource: "agentSettings"` configure MCP on their
-  // settings page instead of per-thread, so their composer carries no MCP
-  // display at all — no built-in rows, no custom servers, and no read-only
-  // "none for this run" fallback.
   const providerOwnsMcp = effectiveAgentStatus
     ? providerOwnsMcpConfig(effectiveAgentStatus.capabilities)
     : false;
+  const runtimeLaunchConfig = useAppStore((s) => s.runtimeLaunchConfigByThreadId[thread.id]);
+  const effectiveMcpConfig = providerOwnsMcp
+    ? (runtimeLaunchConfig ?? thread.config)
+    : thread.config;
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
-    enabled: thread.config?.[descriptor.configKey] === true,
-    visible: !providerOwnsMcp && thread.config?.[descriptor.configKey] === true,
+    enabled: effectiveMcpConfig?.[descriptor.configKey] === true,
+    visible:
+      descriptor.isAvailable(projectLocation) &&
+      effectiveMcpConfig?.[descriptor.configKey] === true,
     onToggle: () => {},
   }));
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
   );
-  const customMcpServers = providerOwnsMcp
-    ? []
-    : (launchCustomMcpNames ?? []).map((name) => ({
-        id: name,
-        name,
-        enabled: true,
-      }));
+  const customMcpServers = (
+    providerOwnsMcp && usesRemoteTransport ? [] : (launchCustomMcpNames ?? [])
+  ).map((name) => ({
+    id: name,
+    name,
+    enabled: true,
+  }));
   const mcpMentions: McpMentionItem[] = [
     ...(appControlsEnabled && !providerOwnsMcp
       ? [
@@ -333,7 +341,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
     ...composerMcpServers
-      .filter((descriptor) => thread.config?.[descriptor.configKey] === true)
+      .filter(
+        (descriptor) =>
+          descriptor.isAvailable(projectLocation) &&
+          effectiveMcpConfig?.[descriptor.configKey] === true,
+      )
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
@@ -341,7 +353,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         detail: t`MCP server`,
         enabled: true,
       })),
-    ...(thread.config?.computerUse === true
+    ...customMcpServers.map((server) => ({
+      id: server.id,
+      name: server.name,
+      icon: Webhook,
+      detail: t`MCP server`,
+      enabled: true,
+    })),
+    ...(effectiveMcpConfig?.computerUse === true &&
+    readBridge()?.platform !== "linux" &&
+    projectLocation?.kind !== "wsl"
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -355,6 +376,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   ];
   const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
   const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  const threadMentionToolsAvailable = useAppStore(
+    (s) => s.threadMentionToolsAvailableByThreadId[thread.id],
+  );
+  const threadMentions = useThreadMentionItems(
+    { kind: "project", projectId: thread.projectId },
+    thread.id,
+    threadMentionToolsAvailable,
+  );
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     effectiveAgentStatus?.capabilities.slashCommands,
@@ -458,8 +487,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         )
       ],
   );
-  const controls = buildControls(thread, effectiveAgentStatus, hiddenModelIds, (config) =>
-    changeThreadConfig(thread.id, config),
+  const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
+  const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
+  const controls = buildControls(
+    thread,
+    effectiveAgentStatus,
+    hiddenModelIds,
+    (config) => changeThreadConfig(thread.id, config),
+    modelPreferences,
+    (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
+    machineKeyForLocation(projectLocation),
   );
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {
@@ -609,7 +646,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       preparedThreadIdRef.current = thread.id;
       mentionRef.current?.clear();
       latestSegmentsRef.current = [];
-      if (attachments.attachments.length > 0) attachments.clearAll();
+      attachments.clearAll();
       submittedRef.current = false;
       setPrompt("");
       setHasContent(false);
@@ -679,7 +716,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
       if (submittedRef.current) return;
-      const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
+      // Stash path-only attachment copies: `previewUrl` object URLs belong to
+      // this composer's live session and are revoked when it clears/unmounts.
+      const content = {
+        segments: latestSegmentsRef.current,
+        attachments: attachmentsRef.current.map(storableAttachment),
+      };
       if (isDraftContentNonEmpty(content)) {
         saveThreadDraftContent(tid, content);
       } else {
@@ -949,6 +991,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         projectId={thread.projectId}
                         mcpMentions={mcpMentions}
                         pluginMentions={pluginMentions}
+                        threadMentions={threadMentions}
                         onTextChange={(hasText) => {
                           setHasContent(hasText);
                           latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
@@ -1040,10 +1083,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
-                          readOnly={!providerOwnsMcp}
+                          readOnly
                           computerUse={{
-                            enabled: thread.config?.computerUse === true,
-                            visible: !providerOwnsMcp && thread.config?.computerUse === true,
+                            enabled: effectiveMcpConfig?.computerUse === true,
+                            visible:
+                              effectiveMcpConfig?.computerUse === true &&
+                              readBridge()?.platform !== "linux" &&
+                              projectLocation?.kind !== "wsl",
                             onToggle: () => {},
                           }}
                           showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}

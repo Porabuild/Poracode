@@ -1,4 +1,5 @@
 import { migrateCursorBaseId } from "@/shared/cursorModelId";
+import { baseAgentKind } from "@/shared/contracts";
 import {
   capitalizeSegment,
   formatBracketParamHints,
@@ -29,7 +30,7 @@ function formatCodexShortcutLabel(modelId: string, label: string): string {
 export function formatShortcutFallbackLabel(agentKind: string, modelId: string): string {
   const baseId = stripBracketParams(modelId);
   const baseLabel =
-    agentKind === "cursor"
+    baseAgentKind(agentKind) === "cursor"
       ? formatCursorBaseModelLabel(migrateCursorBaseId(baseId))
       : baseId
           .split(/[-_/]/g)
@@ -53,7 +54,7 @@ export function formatShortcutModelLabel(
 
   let next = agentKind === "codex" ? formatCodexShortcutLabel(modelId, label) : label;
 
-  if (agentKind === "cursor" && modelId.includes("[")) {
+  if (baseAgentKind(agentKind) === "cursor" && modelId.includes("[")) {
     const hints = formatBracketParamHints(modelId);
     if (hints && !next.includes(hints)) {
       next = `${next} · ${hints}`;

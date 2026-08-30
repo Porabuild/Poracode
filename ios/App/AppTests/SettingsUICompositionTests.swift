@@ -556,7 +556,7 @@ final class SettingsUICompositionTests: XCTestCase {
   }
 
   private func selection(
-    protocolVersion: Int = 3,
+    protocolVersion: Int = 8,
     isOnline: Bool = true,
     isReady: Bool = true,
     capabilities: Set<SettingsCapability> = [.sessionRead, .sessionOperate]

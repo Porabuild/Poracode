@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { HostPort, OAuthToken } from "../host";
-import { collectCursor, parseCursorUsage } from "./cursor";
+import {
+  collectCursor,
+  collectCursorFromApiKey,
+  CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+  CURSOR_PERIOD_USAGE_ENDPOINT,
+  CURSOR_PLAN_INFO_ENDPOINT,
+  parseCursorPeriodUsage,
+  parseCursorUsage,
+} from "./cursor";
 
 const NOW = 1_717_000_000_000;
 
@@ -65,6 +73,7 @@ describe("parseCursorUsage", () => {
     expect(snap.windows).toHaveLength(2); // on-demand disabled → no extra window
 
     const auto = snap.windows.find((w) => w.id === "cursor-auto")!;
+    expect(auto.label).toBe("Cursor Models");
     expect(auto.usedPercent).toBe(34);
     expect(auto.resetsAt).toBe(1_719_600_000_000);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
@@ -164,5 +173,165 @@ describe("parseCursorUsage", () => {
     const snap = parseCursorUsage({}, {}, NOW);
     expect(snap.status).toBe("ok");
     expect(snap.windows).toHaveLength(0);
+  });
+});
+
+describe("parseCursorPeriodUsage", () => {
+  it("maps GetCurrentPeriodUsage onto Auto / API windows", () => {
+    const snap = parseCursorPeriodUsage(
+      {
+        billingCycleEnd: "1719600000000",
+        planUsage: {
+          totalSpend: 2875,
+          includedSpend: 2000,
+          limit: 2000,
+          autoPercentUsed: 2.65,
+          apiPercentUsed: 55.07,
+        },
+      },
+      { plan: "Cursor Pro+", email: "work@example.com" },
+      NOW,
+      "cursor:work",
+    );
+
+    expect(snap.providerId).toBe("cursor:work");
+    expect(snap.plan).toBe("Cursor Pro+");
+    expect(snap.authenticatedAs).toBe("work@example.com");
+    const auto = snap.windows.find((w) => w.id === "cursor-auto")!;
+    expect(auto.usedPercent).toBeCloseTo(2.65);
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.usedPercent).toBeCloseTo(55.07);
+    expect(api.used).toBeCloseTo(28.75);
+    expect(api.limit).toBeCloseTo(20);
+  });
+
+  it("uses the plan-info allowance instead of the period default", () => {
+    const snap = parseCursorPeriodUsage(
+      {
+        planUsage: {
+          totalSpend: 11300,
+          limit: 2000,
+          autoPercentUsed: 11,
+          apiPercentUsed: 1,
+        },
+      },
+      { plan: "Cursor Team", email: "team@example.com" },
+      NOW,
+      "cursor:team",
+      12000,
+    );
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.used).toBeCloseTo(113);
+    expect(api.limit).toBeCloseTo(120);
+  });
+});
+
+describe("collectCursorFromApiKey", () => {
+  function jwtWithEmail(email: string): string {
+    const payload = Buffer.from(JSON.stringify({ email })).toString("base64url");
+    return `header.${payload}.sig`;
+  }
+
+  it("exchanges the user API key then reads period usage for that account", async () => {
+    const urls: string[] = [];
+    const authorizations: Array<string | undefined> = [];
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: async () => undefined,
+        getSecret: async () => undefined,
+      },
+      http: {
+        request: async (req) => {
+          urls.push(req.url);
+          authorizations.push(req.headers?.Authorization);
+          if (req.url === CURSOR_API_KEY_EXCHANGE_ENDPOINT) {
+            return {
+              status: 200,
+              headers: {},
+              body: JSON.stringify({ accessToken: jwtWithEmail("work@example.com") }),
+            };
+          }
+          if (req.url === CURSOR_PERIOD_USAGE_ENDPOINT) {
+            return {
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                billingCycleEnd: "1719600000000",
+                planUsage: {
+                  totalSpend: 9347,
+                  limit: 25000,
+                  autoPercentUsed: 34,
+                  apiPercentUsed: 37.4,
+                },
+              }),
+            };
+          }
+          if (req.url === CURSOR_PLAN_INFO_ENDPOINT) {
+            return {
+              status: 200,
+              headers: {},
+              body: JSON.stringify({
+                planInfo: { planName: "enterprise", includedAmountCents: 12000 },
+              }),
+            };
+          }
+          throw new Error(`unexpected url ${req.url}`);
+        },
+      },
+    };
+
+    const snap = await collectCursorFromApiKey(host, " crsr_work ", "cursor:work");
+    expect(urls).toEqual([
+      CURSOR_API_KEY_EXCHANGE_ENDPOINT,
+      CURSOR_PERIOD_USAGE_ENDPOINT,
+      CURSOR_PLAN_INFO_ENDPOINT,
+    ]);
+    expect(authorizations[0]).toBe("Bearer crsr_work");
+    expect(snap.providerId).toBe("cursor:work");
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Cursor Enterprise");
+    expect(snap.authenticatedAs).toBe("work@example.com");
+    expect(snap.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(34);
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeCloseTo(120);
+  });
+
+  it("maps a thrown usage request to an error snapshot", async () => {
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: async () => undefined,
+        getSecret: async () => undefined,
+      },
+      http: {
+        request: async () => {
+          throw new Error("network down");
+        },
+      },
+    };
+    const snap = await collectCursorFromApiKey(host, "crsr_work", "cursor:work");
+    expect(snap).toMatchObject({
+      providerId: "cursor:work",
+      status: "error",
+      error: "network down",
+    });
+  });
+
+  it("treats a rejected API key as auth-missing", async () => {
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: async () => undefined,
+        getSecret: async () => undefined,
+      },
+      http: {
+        request: async () => ({ status: 401, headers: {}, body: '{"message":"Invalid"}' }),
+      },
+    };
+    const snap = await collectCursorFromApiKey(host, "crsr_bad", "cursor:work");
+    expect(snap).toMatchObject({
+      providerId: "cursor:work",
+      status: "auth-missing",
+    });
   });
 });

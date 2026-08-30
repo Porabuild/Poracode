@@ -1042,6 +1042,138 @@ describe("CodexStructuredSession", () => {
     expect(releaseAppServer).toHaveBeenCalledOnce();
   });
 
+  it("keeps provider turn ids available for disposal after local force-completion", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: CodexRequestRecord[] = [];
+    const mapperState = createCodexMapperState("local-thread");
+    mapperState.currentTurnId = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["mapperState"] = mapperState;
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnIds"] = new Set([
+      "turn-1",
+    ]);
+    (structuredSession as unknown as Record<string, unknown>)["currentThreadStatus"] = {
+      type: "active",
+      activeFlags: [],
+    };
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
+        if (method === "thread/read") return Promise.reject(new Error("read unavailable"));
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    structuredSession.forceCompleteTurn();
+    await structuredSession.dispose();
+
+    expect(requests).toContainEqual({
+      method: "turn/interrupt",
+      params: { threadId: "provider-thread", turnId: "turn-1" },
+      timeoutMs: 2_000,
+    });
+  });
+
+  it("merges tracked and authoritative active provider turns during dispose", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{
+      method: string;
+      params: Record<string, unknown>;
+      timeoutMs?: number;
+    }> = [];
+    (structuredSession as unknown as Record<string, unknown>)["currentThreadStatus"] = {
+      type: "active",
+      activeFlags: [],
+    };
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-live-1";
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnIds"] = new Set([
+      "turn-live-1",
+    ]);
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
+        if (method === "thread/read") {
+          return Promise.resolve({
+            thread: {
+              turns: [
+                { id: "turn-complete", status: "completed" },
+                { id: "turn-live-1", status: "inProgress" },
+                { id: "turn-live-2", status: "inProgress" },
+              ],
+            },
+          });
+        }
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    await structuredSession.dispose();
+
+    expect(requests).toEqual([
+      {
+        method: "thread/read",
+        params: { threadId: "provider-thread", includeTurns: true },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live-1" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-live-2" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/unsubscribe",
+        params: { threadId: "provider-thread" },
+        timeoutMs: 2_000,
+      },
+    ]);
+  });
+
+  it("does not interrupt a replacement that claims the thread during the active-turn read", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    let ownsThread = true;
+    let resolveRead!: (result: unknown) => void;
+    (structuredSession as unknown as Record<string, unknown>)["currentThreadStatus"] = {
+      type: "active",
+      activeFlags: [],
+    };
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => ownsThread,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read") {
+          return new Promise((resolve) => {
+            resolveRead = resolve;
+          });
+        }
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    const dispose = structuredSession.dispose();
+    await vi.waitFor(() =>
+      expect(requests.map((request) => request.method)).toEqual(["thread/read"]),
+    );
+    ownsThread = false;
+    resolveRead({ thread: { turns: [{ id: "replacement-turn", status: "inProgress" }] } });
+    await dispose;
+
+    expect(requests.map((request) => request.method)).toEqual(["thread/read"]);
+  });
+
   it("keeps a replacement session subscribed when a superseded session disposes", async () => {
     const structuredSession = makeStructuredSession([]);
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
@@ -1061,6 +1193,43 @@ describe("CodexStructuredSession", () => {
     await structuredSession.dispose();
 
     expect(requests.map((request) => request.method)).toEqual(["turn/interrupt"]);
+  });
+
+  it("does not retry an interrupt after a replacement claims the thread", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    let ownsThread = true;
+    let rejectInterrupt!: (error: Error) => void;
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-stale";
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => ownsThread,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/interrupt") {
+          return new Promise((_, reject) => {
+            rejectInterrupt = reject;
+          });
+        }
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    const dispose = structuredSession.dispose();
+    await vi.waitFor(() =>
+      expect(requests.map((request) => request.method)).toEqual(["turn/interrupt"]),
+    );
+    ownsThread = false;
+    rejectInterrupt(new Error("expected active turn id replacement-turn but found turn-stale"));
+    await dispose;
+
+    expect(requests).toEqual([
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-stale" },
+      },
+    ]);
   });
 
   it("interrupts the active Codex app-server turn", async () => {
@@ -1298,6 +1467,8 @@ describe("CodexStructuredSession", () => {
           config: {
             model_reasoning_effort: "high",
             model_reasoning_summary: "auto",
+            model_context_window: 400_000,
+            model_auto_compact_token_limit: 380_000,
           },
           threadId: "provider-thread",
           lastTurnId: "turn-2",
@@ -1622,6 +1793,21 @@ describe("CodexStructuredSession", () => {
 
     expect(requests).toEqual([
       {
+        method: "thread/settings/update",
+        params: {
+          threadId: "provider-thread",
+          model: "gpt-5.4",
+          summary: "auto",
+          collaborationMode: expect.objectContaining({
+            mode: "default",
+            settings: expect.objectContaining({ model: "gpt-5.4", reasoning_effort: "medium" }),
+          }),
+          serviceTier: null,
+        },
+        // Best-effort in latency too: a wedged app-server must not delay the steer.
+        timeoutMs: 3_000,
+      },
+      {
         method: "turn/steer",
         params: {
           threadId: "provider-thread",
@@ -1684,7 +1870,11 @@ describe("CodexStructuredSession", () => {
       userMessageItemId: "user-steer",
     });
 
-    expect(requests.map((request) => request.method)).toEqual(["turn/steer", "turn/start"]);
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/settings/update",
+      "turn/steer",
+      "turn/start",
+    ]);
     // Exactly one user row: the fallback reuses the id painted before the RPC.
     const userStarts = runtimeEvents.filter(
       (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
@@ -1692,6 +1882,100 @@ describe("CodexStructuredSession", () => {
     );
     expect(userStarts).toHaveLength(2); // steer paint + startTurn echo (deduped by id downstream)
     expect(new Set(userStarts.map((event) => event.itemId))).toEqual(new Set(["user-steer"]));
+  });
+
+  it("applies mid-turn composer changes to the thread before steering", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const subAgentRouter = new CodexSubAgentRouter("local-thread");
+    const setDefaultModelSettings = vi.spyOn(subAgentRouter, "setDefaultModelSettings");
+    (structuredSession as unknown as Record<string, unknown>)["subAgentRouter"] = subAgentRouter;
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", threadId: "provider-thread" },
+      },
+    });
+
+    await structuredSession.steerTurn("lower the effort", {
+      model: "gpt-5.6-sol",
+      effort: "medium",
+      fast: true,
+      approvalPolicy: "never",
+      sandboxMode: "workspace-write",
+    });
+
+    // `turn/steer` carries no settings, so the full `turn/start` override set
+    // rides through `thread/settings/update` first: subagents spawned later in
+    // the running turn inherit the thread's current effort (embedded in
+    // collaborationMode.settings), sandbox, and approval policy.
+    expect(requests).toEqual([
+      {
+        method: "thread/settings/update",
+        params: {
+          threadId: "provider-thread",
+          model: "gpt-5.6-sol",
+          effort: "medium",
+          summary: "auto",
+          approvalPolicy: "never",
+          sandboxPolicy: { type: "workspaceWrite" },
+          collaborationMode: expect.objectContaining({
+            mode: "default",
+            settings: expect.objectContaining({ model: "gpt-5.6-sol", reasoning_effort: "medium" }),
+          }),
+          serviceTier: "fast",
+        },
+        timeoutMs: 3_000,
+      },
+      { method: "turn/steer", params: expect.objectContaining({ threadId: "provider-thread" }) },
+    ]);
+    // Spawned-subagent rows mirror the new selection immediately…
+    expect(setDefaultModelSettings).toHaveBeenCalledWith("gpt-5.6-sol", "medium");
+    // …and later config consumers (e.g. rollback fork overrides) see it too.
+    expect(
+      (structuredSession as unknown as { currentConfig: unknown }).currentConfig,
+    ).toMatchObject({ model: "gpt-5.6-sol", effort: "medium" });
+  });
+
+  it("steers anyway when the mid-turn settings update fails", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-live", threadId: "provider-thread" },
+      },
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/settings/update") {
+          return Promise.reject(new CodexRpcResponseError("unsupported", -32601));
+        }
+        if (method === "turn/steer") {
+          return Promise.resolve({ turnId: "turn-live" });
+        }
+        return Promise.resolve({});
+      },
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      await structuredSession.steerTurn("still steering", { model: "gpt-5.4", effort: "low" });
+    } finally {
+      warn.mockRestore();
+    }
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/settings/update",
+      "turn/steer",
+    ]);
   });
 
   it("steerTurn with no active turn routes through startTurn", async () => {
@@ -2837,6 +3121,15 @@ describe("mapCodexSlashCommands", () => {
     expect(codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id)).toEqual(
       expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
     );
+  });
+
+  it("advertises 272k, 400k, and 1M context windows with a 400k default", () => {
+    expect(codexDefaultCapabilities.defaultContextSize).toBe("400k");
+    expect(codexDefaultCapabilities.contextSizes?.map((size) => size.id)).toEqual([
+      "272k",
+      "400k",
+      "1m",
+    ]);
   });
 
   it("normalizes Codex app-server command metadata", () => {

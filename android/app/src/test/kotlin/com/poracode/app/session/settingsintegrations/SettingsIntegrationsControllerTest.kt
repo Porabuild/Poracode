@@ -149,7 +149,7 @@ class SettingsIntegrationsControllerTest {
     private fun kotlinx.coroutines.test.TestScope.fixture(): Fixture {
         val session = MutableStateFlow<SettingsIntegrationsLease?>(
             SettingsIntegrationsLease(
-                ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 9, 3,
+                ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 9, 8,
                 setOf("session:read", "session:operate"), true, true, owner,
             ),
         )

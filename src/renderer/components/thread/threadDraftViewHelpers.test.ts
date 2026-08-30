@@ -5,6 +5,7 @@ import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import {
   resolveFastValue,
   resolveProviderDraftConfig,
+  resolveSavedProviderDraftConfig,
   resolveThinkingValue,
 } from "./threadDraftViewHelpers";
 
@@ -56,6 +57,31 @@ describe("resolveProviderDraftConfig fast mode", () => {
     const gated = agentWith({ fastDisabledReason: "Fast requests are disabled for this account." });
     expect(resolveProviderDraftConfig(gated, { model: "fast-capable" }).fast).toBeUndefined();
   });
+
+  it("normalizes Cursor profile bracket models before resolving draft controls", () => {
+    expect(
+      resolveProviderDraftConfig(
+        {
+          ...agentWith(),
+          kind: "cursor:work",
+          label: "Cursor Work",
+          capabilities: {
+            ...capabilities,
+            models: [{ id: "gpt-5.1-codex-max", label: "Codex 5.1 Max" }],
+            modelEfforts: { "gpt-5.1-codex-max": ["high"] },
+            fastModels: ["gpt-5.1-codex-max"],
+            thinkingModels: ["gpt-5.1-codex-max"],
+          },
+        },
+        { model: "gpt-5.1-codex-high-thinking-fast" },
+      ),
+    ).toMatchObject({
+      model: "gpt-5.1-codex-max",
+      effort: "high",
+      fast: true,
+      thinking: true,
+    });
+  });
 });
 
 describe("resolveFastValue", () => {
@@ -97,5 +123,60 @@ describe("resolveProviderDraftConfig thinking mode", () => {
 describe("resolveThinkingValue", () => {
   it("stays off without an explicit preference outside composer default resolution", () => {
     expect(resolveThinkingValue(agentWith({ thinkingModels: ["plain"] }), "plain")).toBe(false);
+  });
+});
+
+describe("resolveSavedProviderDraftConfig", () => {
+  it("fills an omitted context window and model controls from app-wide preferences", () => {
+    const resolved = resolveSavedProviderDraftConfig(
+      "codex",
+      { agentKind: "codex", model: "gpt-5.6-sol", effort: "high" },
+      {
+        codex: {
+          model: "gpt-5.6-sol",
+          contextSize: "400k",
+          effort: "medium",
+          fast: false,
+        },
+      },
+    );
+
+    expect(resolved).toMatchObject({
+      model: "gpt-5.6-sol",
+      effort: "medium",
+      contextSize: "400k",
+      fast: false,
+    });
+  });
+
+  it("uses global model preferences instead of a different project's effort and Fast", () => {
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        {
+          agentKind: "codex",
+          model: "gpt-5.6-luna",
+          effort: "low",
+          fast: false,
+        },
+        { codex: { model: "gpt-5.6-sol", effort: "high", fast: false } },
+        {
+          codex: {
+            "gpt-5.6-luna": { effort: "max", fast: true },
+            "gpt-5.6-sol": { effort: "high", fast: false },
+          },
+        },
+      ),
+    ).toMatchObject({ model: "gpt-5.6-luna", effort: "max", fast: true });
+  });
+
+  it("keeps an explicit last-draft context size over the provider preset", () => {
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        { agentKind: "codex", model: "gpt-5.6-sol", contextSize: "1m" },
+        { codex: { model: "gpt-5.6-sol", contextSize: "400k" } },
+      ),
+    ).toMatchObject({ contextSize: "1m" });
   });
 });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
 import { projectDraftConfigSchema } from "./config";
+import { gitHubAccountRefSchema } from "./github";
 import { mcpServerListSchema } from "./mcpServer";
 
 export const projectActionSchema = z.object({
@@ -62,6 +63,12 @@ export const projectSchema = z.object({
   remoteServerId: z.string().min(1).optional(),
   remoteId: z.string().min(1).optional(),
   name: z.string().min(1),
+  /**
+   * Custom project icon. `"auto"` detects an icon from the project's files;
+   * `lucide:<name>` picks a bundled glyph; `file:<path>` points at an image
+   * relative to the project folder. Absent keeps the location-kind glyph.
+   */
+  icon: z.string().min(1).optional(),
   location: projectLocationSchema,
   lastDraftConfig: projectDraftConfigSchema.optional(),
   scripts: projectScriptsSchema.optional(),
@@ -69,6 +76,11 @@ export const projectSchema = z.object({
   worktreeLocation: projectWorktreeLocationSchema.optional(),
   /** Project MCP entries override global entries by name (case-insensitive). */
   mcpServers: mcpServerListSchema.optional(),
+  /**
+   * GitHub account to scope `gh` Actions calls to. Absent = the supervisor
+   * auto-detects the signed-in account that can see the repository.
+   */
+  ghAccount: gitHubAccountRefSchema.optional(),
   /**
    * Workspace this project belongs to (see `./workspace.ts`). Absent or dangling
    * means "unfiled" — such a project stays visible in every workspace.

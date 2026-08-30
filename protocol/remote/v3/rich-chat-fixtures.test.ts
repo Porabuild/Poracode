@@ -117,6 +117,7 @@ describe("remote v3 rich chat fixture foundation", () => {
       "text",
       "skill",
       "mcp",
+      "thread",
       "diff_comment",
       "image",
       "file",

@@ -34,6 +34,18 @@ describe("ComposerAddMenu", () => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
   });
 
+  it("keeps Chrome unavailable for WSL projects", () => {
+    expect(
+      chromeMcpServer.isAvailable({
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\repo",
+      }),
+    ).toBe(false);
+    expect(chromeMcpServer.isAvailable({ kind: "windows", path: "C:\\repo" })).toBe(true);
+  });
+
   it("keeps the desktop dropdown trigger free of nested buttons", () => {
     const { container } = render(
       <ComposerAddMenu mcpServers={[]} onPickFiles={vi.fn<() => void>()} />,
@@ -325,6 +337,33 @@ describe("ComposerAddMenu", () => {
       fireEvent.click(screen.getByText("Browser"));
     });
     expect(browserToggle).not.toHaveBeenCalled();
+  });
+
+  it("accepts provider-settings guidance for read-only draft bindings", () => {
+    render(
+      <ComposerAddMenu
+        readOnly
+        readOnlyCaption="Change servers in provider settings"
+        mcpServers={[
+          {
+            descriptor: browserMcpServer,
+            enabled: true,
+            visible: true,
+            onToggle: vi.fn<(next: boolean) => void>(),
+          },
+        ]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+      />,
+    );
+
+    openMenu();
+    openMcpSubmenu();
+
+    expect(screen.getByText("Change servers in provider settings")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Set when this session started — start a new thread to change servers"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows an explicit empty state in read-only mode with no servers", () => {

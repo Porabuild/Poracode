@@ -15,7 +15,13 @@ import {
   type CrossagentVisibilitySettings,
 } from "./availability";
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./SubagentRunManager";
-import { errorResult, jsonResult, parseWaitTimeoutMs, TIMEOUT_S_DESCRIPTION } from "./toolResult";
+import {
+  errorResult,
+  jsonResult,
+  parseWaitOptions,
+  parseWaitTimeoutMs,
+  TIMEOUT_S_DESCRIPTION,
+} from "./toolResult";
 import { parseRunIds, parseSpawnRequest, parseSpawnRequests } from "./toolRequests";
 import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
@@ -55,17 +61,20 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
+  "Every tool named below belongs to this server. Hosts that namespace MCP tools expose them under this server's name (for example `crossagents__list_agents` or `mcp__crossagents__list_agents`), so resolve each bare name against your own tool list and call the crossagents entry — never the same bare name under another server such as `poracode`.",
   "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
   "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
   "Classify every task with 1-5 concise lowercase tags and pass the same tags to list_agents and spawn_agent. Prefer this vocabulary when applicable: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data. Crossagents learns tag-to-selection affinity from user-explicit selection choices without an extra model call.",
   "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
   "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
   "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
-  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent once for every background result the task requires. Use a bounded timeout and do not repeatedly poll a stalled run; cancel it or continue without it.",
+  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent for every background result the task requires. Each wait is bounded only to stay below the MCP client's transport timeout: status=running means the server kept the child active, and the elapsed wait does not by itself mean the run stalled. When its result is required, keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because 180 seconds or any other wait duration elapsed, it has not produced a final answer yet, or it is still investigating. Cancel only when the user explicitly asks or the task is no longer needed for a reason unrelated to elapsed time.",
+  "wait_for_agent and get_status support incremental output: pass the previous result's total_output_chars as after_output_chars on the next call, so repeated waits return only newer text and identical retries remain safe. Output is clipped to a short tail while the run is still working; clipped text requires full_output=true if genuinely needed.",
   "Pass tasks=[...] to the same spawn_agent call to launch up to four independent agents in parallel.",
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
   "Give each subagent a self-contained prompt — it does not share your conversation context.",
+  "Always set name on spawn_agent and on every tasks=[...] entry: a short, specific label describing what that subagent will do (for example `Review runtime findings`). Users see this label in the thread; do not omit it or repeat provider/model/reasoning values there — Crossagents appends those automatically.",
   "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
 ].join(" ");
 
@@ -104,6 +113,26 @@ const SUBAGENT_SELECTION_PROPERTIES = {
   },
 } as const;
 
+const FULL_OUTPUT_PROPERTY = {
+  type: "boolean",
+  description:
+    "Return the run's complete accumulated output instead of a cursor-based tail. Costly on long runs; leave unset unless the earlier text is genuinely needed.",
+} as const;
+
+const AFTER_OUTPUT_CHARS_PROPERTY = {
+  type: "integer",
+  minimum: 0,
+  description:
+    "Return text produced after this character offset. Pass the previous result's total_output_chars to receive only newer output; repeat the same offset to retry safely.",
+} as const;
+
+const AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY = {
+  type: "object",
+  additionalProperties: { type: "integer", minimum: 0 },
+  description:
+    "Per-run character offsets for run_ids waits, keyed by run_id. Pass each previous result's total_output_chars so every run returns only newer output.",
+} as const;
+
 const TASK_TAGS_PROPERTY = {
   type: "array",
   minItems: 1,
@@ -118,7 +147,11 @@ const SUBAGENT_TASK_PROPERTIES = {
   ...SUBAGENT_SELECTION_PROPERTIES,
   prompt: { type: "string", description: "Self-contained task for the subagent." },
   tags: TASK_TAGS_PROPERTY,
-  name: { type: "string", description: "Optional short label for the run." },
+  name: {
+    type: "string",
+    description:
+      "Short specific label describing what this run does (its task or goal), shown to the user in the thread. Always provide one; provider/model details are appended automatically.",
+  },
   fallbacks: {
     type: "array",
     maxItems: 3,
@@ -173,7 +206,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -236,7 +269,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "wait_for_agent",
     description:
-      "Wait for one background run_id or several run_ids concurrently, returning their status and output.",
+      'Wait for one background run_id or several run_ids concurrently, returning their status and output. For incremental output, pass the previous total_output_chars as after_output_chars for one run or in after_output_chars_by_run for several; repeating the same offsets returns the same text. Output is tail-clipped while the run is working. A "running" result means the wait call timed out while the child stayed active; keep waiting when its result is required.',
     inputSchema: {
       type: "object",
       properties: {
@@ -251,6 +284,9 @@ const RAW_TOOLS: ToolSpec[] = [
           type: "number",
           description: TIMEOUT_S_DESCRIPTION,
         },
+        full_output: FULL_OUTPUT_PROPERTY,
+        after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+        after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
       },
       // See the spawn_agent schema above for why these branches repeat the root type.
       oneOf: [
@@ -262,11 +298,15 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_status",
     description:
-      "Check a spawned subagent without blocking: returns its current status and the output produced so far.",
+      "Check a spawned subagent without blocking. Pass the previous total_output_chars as after_output_chars for incremental output; repeating the same offset returns the same text.",
     inputSchema: {
       type: "object",
       required: ["run_id"],
-      properties: { run_id: { type: "string" } },
+      properties: {
+        run_id: { type: "string" },
+        full_output: FULL_OUTPUT_PROPERTY,
+        after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+      },
     },
   },
   {
@@ -277,7 +317,8 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "cancel",
-    description: "Interrupt and dispose a running subagent by run_id.",
+    description:
+      "Interrupt and dispose a running subagent by run_id. Never cancel solely because a wait timed out, no final answer exists yet, or the subagent is still investigating; cancel only at the user's request or when the task became unnecessary for a reason unrelated to elapsed time.",
     inputSchema: {
       type: "object",
       required: ["run_id"],
@@ -325,9 +366,9 @@ export function isKnownToolName(name: string): boolean {
  * filtered to installed + authenticated providers the run manager can drive as a
  * child. An adapter qualifies via either lane:
  * - `structured`: implements `createStructuredSession` (full GUI runtime).
- * - `one-shot`: has no structured runtime but implements
- *   `buildSubagentOneShotCommand` (a bypass-permissions CLI invocation) — this
- *   pulls CLI-only providers (Antigravity, Command Code) into the roster.
+ * - `one-shot`: implements `buildSubagentOneShotCommand` (a bypass-permissions
+ *   CLI invocation) and either lacks a structured runtime or explicitly keeps
+ *   its CLI child lane — this pulls Antigravity and Command Code into the roster.
  * The `execution` field is surfaced so calling agents can see which lane a child
  * uses (one-shot children stream a single result and can't be steered).
  */
@@ -559,7 +600,7 @@ async function spawnAgent(
   args: Record<string, unknown>,
   ctx: SubagentToolContext,
 ): Promise<McpToolResult> {
-  const timeoutMs = parseWaitTimeoutMs(args.timeout_s);
+  const timeoutMs = parseWaitTimeoutMs(args);
   const background = args.background === true;
   const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
   const agentsFor = (selectionArgs: Record<string, unknown>) => {
@@ -577,12 +618,31 @@ async function spawnAgent(
     if (tasks.length > MAX_CONCURRENT_CHILDREN_PER_PARENT) {
       return errorResult(`tasks supports at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} entries`);
     }
+    const batchSelection = {
+      ...(typeof args.provider === "string" ? { provider: args.provider } : {}),
+      ...(typeof args.model === "string" ? { model: args.model } : {}),
+      ...(typeof args.reasoning === "string" ? { reasoning: args.reasoning } : {}),
+      ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
+      ...(typeof args.permissions === "string" ? { permissions: args.permissions } : {}),
+    };
     const resolvedTasks: Array<ResolvedSelectionArgs | null> = await Promise.all(
       tasks.map(async (task) => {
         if (!task || typeof task !== "object" || Array.isArray(task)) {
           return null;
         }
-        const taskArgs = task as Record<string, unknown>;
+        const { provider, model, reasoning, fast, permissions, ...taskProperties } = task as Record<
+          string,
+          unknown
+        >;
+        const taskArgs = {
+          ...batchSelection,
+          ...taskProperties,
+          ...(typeof provider === "string" && provider.length > 0 ? { provider } : {}),
+          ...(typeof model === "string" && model.length > 0 ? { model } : {}),
+          ...(typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {}),
+          ...(typeof fast === "boolean" ? { fast } : {}),
+          ...(typeof permissions === "string" ? { permissions } : {}),
+        };
         return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
       }),
     );
@@ -616,6 +676,7 @@ async function spawnAgent(
         runs.map(({ runId }) => runId),
         timeoutMs,
         ctx.parentThreadId,
+        { fullOutput: true, currentAttemptOnly: true },
       ),
     });
   }
@@ -631,7 +692,10 @@ async function spawnAgent(
   if (background) {
     return jsonResult({ run_id: runId, status: "running", output: "" });
   }
-  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId);
+  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
+    fullOutput: true,
+    currentAttemptOnly: true,
+  });
   return jsonResult({ run_id: runId, ...result });
 }
 
@@ -718,8 +782,9 @@ export async function dispatchTool(
           return jsonResult(
             await ctx.runManager.waitForMany(
               runIds,
-              parseWaitTimeoutMs(args.timeout_s),
+              parseWaitTimeoutMs(args),
               ctx.parentThreadId,
+              (runId) => parseWaitOptions(args, runId),
             ),
           );
         }
@@ -728,8 +793,9 @@ export async function dispatchTool(
         return jsonResult(
           await ctx.runManager.waitFor(
             runId,
-            parseWaitTimeoutMs(args.timeout_s),
+            parseWaitTimeoutMs(args),
             ctx.parentThreadId,
+            parseWaitOptions(args),
           ),
         );
       }
@@ -738,8 +804,9 @@ export async function dispatchTool(
         return jsonResult(
           await ctx.runManager.waitForMany(
             runIds,
-            parseWaitTimeoutMs(args.timeout_s),
+            parseWaitTimeoutMs(args),
             ctx.parentThreadId,
+            (runId) => parseWaitOptions(args, runId),
           ),
         );
       }
@@ -749,7 +816,9 @@ export async function dispatchTool(
       case "get_status": {
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
-        return jsonResult(ctx.runManager.getStatus(runId, ctx.parentThreadId));
+        return jsonResult(
+          ctx.runManager.getStatus(runId, ctx.parentThreadId, parseWaitOptions(args)),
+        );
       }
       case "list_runs":
         return jsonResult(ctx.runManager.listRuns(ctx.parentThreadId));

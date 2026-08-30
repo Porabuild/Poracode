@@ -1383,6 +1383,72 @@ describe("GitHubService", () => {
       );
     });
 
+    it("returns empty lists when gh prints no output", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+
+      await expect(new GitHubService().listWorkflows(location)).resolves.toEqual({
+        workflows: [],
+      });
+      await expect(new GitHubService().listWorkflowRuns(location, 11)).resolves.toEqual({
+        runs: [],
+      });
+    });
+
+    it("retries run list without the attempt field when gh rejects it", async () => {
+      const service = new GitHubService();
+      const runsJson = JSON.stringify([
+        { databaseId: 501, workflowDatabaseId: 11, workflowName: "CI" },
+      ]);
+      execFileAsyncMock
+        .mockRejectedValueOnce(new Error('Unknown JSON field: "attempt"'))
+        .mockResolvedValueOnce({ stdout: runsJson })
+        .mockResolvedValueOnce({ stdout: runsJson });
+
+      const result = await service.listWorkflowRuns(location, 11);
+
+      expect(result.runs[0]).toMatchObject({ id: 501, workflowId: 11 });
+      const firstArgs = execFileAsyncMock.mock.calls[0]![1] as string[];
+      const retriedArgs = execFileAsyncMock.mock.calls[1]![1] as string[];
+      expect(firstArgs[firstArgs.length - 1]).toContain("attempt");
+      expect(retriedArgs[retriedArgs.length - 1]).not.toContain("attempt");
+
+      // The capability is remembered, so later calls skip the failing probe.
+      await service.listWorkflowRuns(location, 11);
+      expect(execFileAsyncMock).toHaveBeenCalledTimes(3);
+      const nextArgs = execFileAsyncMock.mock.calls[2]![1] as string[];
+      expect(nextArgs[nextArgs.length - 1]).not.toContain("attempt");
+    });
+
+    it("retries run view without the attempt field when gh rejects it", async () => {
+      execFileAsyncMock
+        .mockRejectedValueOnce(new Error('Unknown JSON field: "attempt"'))
+        .mockResolvedValueOnce({
+          stdout: JSON.stringify({ databaseId: 501, name: "CI" }),
+        });
+
+      const result = await new GitHubService().getWorkflowRun(location, 501);
+
+      expect(result.run.id).toBe(501);
+      const retriedArgs = execFileAsyncMock.mock.calls[1]![1] as string[];
+      expect(retriedArgs[retriedArgs.length - 1]).not.toContain("attempt");
+    });
+
+    it("remembers run field capability per project location", async () => {
+      const service = new GitHubService();
+      const runsJson = JSON.stringify([
+        { databaseId: 501, workflowDatabaseId: 11, workflowName: "CI" },
+      ]);
+      execFileAsyncMock
+        .mockRejectedValueOnce(new Error('Unknown JSON field: "attempt"'))
+        .mockResolvedValue({ stdout: runsJson });
+
+      await service.listWorkflowRuns(location, 11);
+      await service.listWorkflowRuns(posixLocation, 11);
+
+      const nextLocationArgs = execFileAsyncMock.mock.calls[2]![1] as string[];
+      expect(nextLocationArgs[nextLocationArgs.length - 1]).toContain("attempt");
+    });
+
     it("loads a workflow definition from the selected ref", async () => {
       execFileAsyncMock.mockResolvedValueOnce({ stdout: "main\n" }).mockResolvedValueOnce({
         stdout: `
@@ -1541,6 +1607,281 @@ on:
       expect(execFileAsyncMock.mock.calls[1]![1]).toEqual(["run", "rerun", "501", "--failed"]);
       expect(execFileAsyncMock.mock.calls[2]![1]).toEqual(["run", "cancel", "501"]);
       expect(execFileAsyncMock.mock.calls[3]![1]).toEqual(["run", "delete", "501"]);
+    });
+  });
+
+  describe("Actions account scoping", () => {
+    const AUTH_STATUS = [
+      "github.com",
+      "  ✓ Logged in to github.com account SDSLeon (keyring)",
+      "  - Active account: true",
+      "",
+      "  ✓ Logged in to github.com account ym-svecherenko (keyring)",
+      "  - Active account: false",
+      "",
+    ].join("\n");
+    const WORKFLOWS_JSON = JSON.stringify([
+      { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+    ]);
+    const REMOTES =
+      "origin\thttps://github.com/SDSLeon/lightcode.git (fetch)\n" +
+      "origin\thttps://github.com/SDSLeon/lightcode.git (push)\n";
+    const ym = { host: "github.com", login: "ym-svecherenko" };
+    const argsOf = (call: unknown[]): string[] => call[1] as string[];
+    const envOf = (call: unknown[]): NodeJS.ProcessEnv | undefined =>
+      (call[2] as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+    const isGh = (args: string[], ...prefix: string[]): boolean =>
+      prefix.every((part, index) => args[index] === part);
+
+    it("scopes Actions calls to an explicit account override", async () => {
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: REMOTES };
+        if (isGh(a, "auth", "token")) return { stdout: "gho_override\n" };
+        if (isGh(a, "workflow", "list")) return { stdout: WORKFLOWS_JSON };
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      const result = await new GitHubService().listWorkflows(location, ym);
+
+      expect(result.account).toEqual(ym);
+      const listCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(envOf(listCall!)?.GH_TOKEN).toBe("gho_override");
+      expect(envOf(listCall!)?.GH_REPO).toBe("github.com/SDSLeon/lightcode");
+    });
+
+    it("throws when the override account token is unavailable, without detecting", async () => {
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: REMOTES };
+        throw new Error("no token");
+      });
+
+      await expect(new GitHubService().listWorkflows(location, ym)).rejects.toThrow(
+        /ym-svecherenko/,
+      );
+      expect(
+        execFileAsyncMock.mock.calls.some((call) => isGh(argsOf(call), "workflow", "list")),
+      ).toBe(false);
+      expect(
+        execFileAsyncMock.mock.calls.some((call) => isGh(argsOf(call), "auth", "status")),
+      ).toBe(false);
+    });
+
+    it("keeps the default account when the first call succeeds", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: WORKFLOWS_JSON });
+
+      const result = await new GitHubService().listWorkflows(location);
+
+      expect(result).toEqual({
+        workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
+      });
+      expect(execFileAsyncMock).toHaveBeenCalledTimes(1);
+      expect(envOf(execFileAsyncMock.mock.calls[0]!)?.GH_TOKEN).toBeUndefined();
+    });
+
+    it("detects the account that sees the repo when the active account 404s", async () => {
+      execFileAsyncMock.mockImplementation(async (_cmd, args, options) => {
+        const a = args as string[];
+        const env = (options as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+        if (isGh(a, "remote", "-v")) return { stdout: REMOTES };
+        if (isGh(a, "workflow", "list")) {
+          if (env?.GH_TOKEN === "gho_ym") return { stdout: WORKFLOWS_JSON };
+          throw new Error("could not get workflows: HTTP 404: Not Found");
+        }
+        if (isGh(a, "auth", "status")) return { stdout: AUTH_STATUS };
+        if (isGh(a, "auth", "token")) {
+          return { stdout: a.includes("ym-svecherenko") ? "gho_ym\n" : "gho_active\n" };
+        }
+        if (isGh(a, "repo", "view")) {
+          if (env?.GH_TOKEN === "gho_ym") return { stdout: "{}" };
+          throw new Error("HTTP 404: Not Found");
+        }
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      const result = await new GitHubService().listWorkflows(location);
+
+      expect(result.account).toEqual(ym);
+      const listCalls = execFileAsyncMock.mock.calls.filter((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(listCalls).toHaveLength(2);
+      expect(envOf(listCalls[1]!)?.GH_TOKEN).toBe("gho_ym");
+      expect(
+        execFileAsyncMock.mock.calls.filter((call) => isGh(argsOf(call), "auth", "status")),
+      ).toHaveLength(1);
+    });
+
+    it("reuses the detected account for later Actions calls", async () => {
+      execFileAsyncMock.mockImplementation(async (_cmd, args, options) => {
+        const a = args as string[];
+        const env = (options as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+        if (isGh(a, "remote", "-v")) return { stdout: REMOTES };
+        if (isGh(a, "workflow", "list")) {
+          if (env?.GH_TOKEN === "gho_ym") return { stdout: WORKFLOWS_JSON };
+          throw new Error("could not get workflows: HTTP 404: Not Found");
+        }
+        if (isGh(a, "auth", "status")) return { stdout: AUTH_STATUS };
+        if (isGh(a, "auth", "token")) {
+          return { stdout: a.includes("ym-svecherenko") ? "gho_ym\n" : "gho_active\n" };
+        }
+        if (isGh(a, "repo", "view")) {
+          if (env?.GH_TOKEN === "gho_ym") return { stdout: "{}" };
+          throw new Error("HTTP 404: Not Found");
+        }
+        if (isGh(a, "run", "list")) return { stdout: "[]" };
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+      const service = new GitHubService();
+
+      await service.listWorkflows(location);
+      await service.listWorkflowRuns(location, 11);
+
+      const runListCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "run", "list"),
+      );
+      expect(envOf(runListCall!)?.GH_TOKEN).toBe("gho_ym");
+      expect(
+        execFileAsyncMock.mock.calls.filter((call) => isGh(argsOf(call), "auth", "status")),
+      ).toHaveLength(1);
+    });
+
+    it("redetects when a cached account loses access to the repository", async () => {
+      let ymHasAccess = true;
+      execFileAsyncMock.mockImplementation(async (_cmd, args, options) => {
+        const a = args as string[];
+        const env = (options as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+        if (isGh(a, "remote", "-v")) return { stdout: REMOTES };
+        if (isGh(a, "workflow", "list")) {
+          if (env?.GH_TOKEN === "gho_ym" && ymHasAccess) return { stdout: WORKFLOWS_JSON };
+          if (env?.GH_TOKEN === "gho_active" && !ymHasAccess) return { stdout: WORKFLOWS_JSON };
+          throw new Error("HTTP 404: Not Found");
+        }
+        if (isGh(a, "auth", "status")) return { stdout: AUTH_STATUS };
+        if (isGh(a, "auth", "token")) {
+          return { stdout: a.includes("ym-svecherenko") ? "gho_ym\n" : "gho_active\n" };
+        }
+        if (isGh(a, "repo", "view")) {
+          if (env?.GH_TOKEN === "gho_ym" ? ymHasAccess : !ymHasAccess) return { stdout: "{}" };
+          throw new Error("HTTP 404: Not Found");
+        }
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+      const service = new GitHubService();
+
+      await service.listWorkflows(location);
+      ymHasAccess = false;
+      const result = await service.listWorkflows(location);
+
+      expect(result.account).toEqual({ host: "github.com", login: "SDSLeon" });
+      const listCalls = execFileAsyncMock.mock.calls.filter((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(envOf(listCalls.at(-1)!)?.GH_TOKEN).toBe("gho_active");
+    });
+
+    it("uses the enterprise token variable and rejects accounts from another host", async () => {
+      const enterprise = { host: "ghe.example.com", login: "octocat" };
+      const enterpriseRemotes =
+        "origin\tssh://git@ghe.example.com/team/project.git (fetch)\n" +
+        "origin\tssh://git@ghe.example.com/team/project.git (push)\n";
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: enterpriseRemotes };
+        if (isGh(a, "auth", "token")) return { stdout: "ghes_token\n" };
+        if (isGh(a, "workflow", "list")) return { stdout: WORKFLOWS_JSON };
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      const result = await new GitHubService().listWorkflows(location, enterprise);
+
+      expect(result.account).toEqual(enterprise);
+      const listCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(envOf(listCall!)?.GH_ENTERPRISE_TOKEN).toBe("ghes_token");
+      expect(envOf(listCall!)?.GH_TOKEN).toBe("");
+
+      await expect(
+        new GitHubService().listWorkflows(location, { host: "github.com", login: "octocat" }),
+      ).rejects.toThrow(/does not match this project's GitHub remote/);
+    });
+
+    it("honors the repository selected by gh when multiple same-host remotes exist", async () => {
+      const remotes = [
+        "origin\thttps://github.com/owner/upstream.git (fetch)",
+        "fork\thttps://github.com/me/fork.git (fetch)",
+      ].join("\n");
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: remotes };
+        if (isGh(a, "repo", "set-default", "--view")) {
+          return { stdout: "github.com/me/fork\n" };
+        }
+        if (isGh(a, "auth", "token")) return { stdout: "gho_override\n" };
+        if (isGh(a, "workflow", "list")) return { stdout: WORKFLOWS_JSON };
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      await new GitHubService().listWorkflows(location, ym);
+
+      const listCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(envOf(listCall!)?.GH_REPO).toBe("github.com/me/fork");
+    });
+
+    it("runs scoped POSIX mutations directly so login profiles cannot replace the account env", async () => {
+      buildAgentCommandMock.mockImplementation((_loc, command, args) =>
+        command === "gh" ? { command: "login-shell", args: ["login-script"] } : { command, args },
+      );
+      execFileAsyncMock.mockImplementation(async (command, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: REMOTES };
+        if (a[0] === "login-script") throw new Error("no configured default");
+        if (isGh(a, "auth", "token")) return { stdout: "gho_override\n" };
+        if (isGh(a, "workflow", "run")) return { stdout: "" };
+        throw new Error(`unexpected ${String(command)} ${a.join(" ")}`);
+      });
+
+      await new GitHubService().dispatchWorkflow(posixLocation, 11, "main", {}, ym);
+
+      const dispatchCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "workflow", "run"),
+      );
+      expect(dispatchCall?.[0]).toBe("gh");
+      expect(envOf(dispatchCall!)?.GH_TOKEN).toBe("gho_override");
+      expect(envOf(dispatchCall!)?.GH_REPO).toBe("github.com/SDSLeon/lightcode");
+    });
+
+    it("surfaces the 404 without probing when a single account is signed in", async () => {
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "workflow", "list")) {
+          throw new Error("could not get workflows: HTTP 404: Not Found");
+        }
+        if (isGh(a, "auth", "status")) {
+          return {
+            stdout: [
+              "github.com",
+              "  ✓ Logged in to github.com account SDSLeon (keyring)",
+              "  - Active account: true",
+              "",
+            ].join("\n"),
+          };
+        }
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      await expect(new GitHubService().listWorkflows(location)).rejects.toThrow(
+        /gh workflow list failed/,
+      );
+      expect(execFileAsyncMock.mock.calls.some((call) => isGh(argsOf(call), "repo", "view"))).toBe(
+        false,
+      );
     });
   });
 

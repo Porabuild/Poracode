@@ -127,6 +127,25 @@ extension RemoteAPIClient: RemoteIntegrationsRemoteAPI {
   func remoteIntegrationsUpsertPRWatch(
     _ input: RemoteIntegrationsPRWatchInput
   ) async throws -> RemoteIntegrationsPRWatch {
+    if input.watchEnabled, let agentKind = input.agentKind, let config = input.config {
+      let sync = RemoteIntegrationsPRWatchAgentSync(
+        projectId: input.projectId,
+        agentKind: agentKind,
+        config: config
+      )
+      let syncBody = try RemoteIntegrationsRemoteV3Contract.prWatchAgentSyncRequest(
+        JSONDecoding.encoder.encode(sync)
+      )
+      let syncResponse = try await remoteIntegrationsMutationData(
+        route: "pr-watch-agent-sync",
+        method: "POST",
+        body: syncBody
+      )
+      try remoteIntegrationsValidateMutationResponse(
+        syncResponse,
+        canonicalize: RemoteIntegrationsRemoteV3Contract.prWatchAgentSyncResponse
+      )
+    }
     let body = try RemoteIntegrationsRemoteV3Contract.prWatchUpsertRequest(
       JSONDecoding.encoder.encode(input)
     )

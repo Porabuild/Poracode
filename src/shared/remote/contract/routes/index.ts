@@ -35,6 +35,7 @@ const MANIFEST_ROUTE_IDS = [
   "schedule-runs-read",
   "pr-watch-read",
   "pr-watch-check",
+  "pr-watch-agent-sync",
   "pr-watch-upsert",
   "pr-watch-delete",
   "browser-state",

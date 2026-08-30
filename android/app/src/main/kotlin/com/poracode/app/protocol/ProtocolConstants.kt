@@ -5,7 +5,7 @@ package com.poracode.app.protocol
  * `src/shared/remote/protocol.ts` / `protocol/remote/v3/manifest.json`.
  */
 object ProtocolConstants {
-    const val REMOTE_PROTOCOL_VERSION = 3
+    const val REMOTE_PROTOCOL_VERSION = 8
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
     const val BEARER_TOKEN_TYPE = "Bearer"
 

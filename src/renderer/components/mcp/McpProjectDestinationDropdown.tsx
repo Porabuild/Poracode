@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { Description, Dropdown, Header, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
+import { useProjectIconNode } from "@/renderer/components/common/ProjectIcon";
 import {
+  ProjectIconWithRemoteStatus,
   ProjectLocationIcon,
   ProjectRemoteServerIcon,
   useProjectRemoteServerLookup,
@@ -16,6 +18,8 @@ export interface McpProjectDestination {
   id: string;
   name: string;
   location: ProjectLocation;
+  /** Custom project icon value (see `Project.icon`), when set. */
+  icon?: string;
 }
 
 export function mcpProjectDestinationId(projectId: string): string {
@@ -32,9 +36,12 @@ export function mcpProjectLocationLabel(location: ProjectLocation): string {
 
 export function McpProjectDropdownItemContent(props: { project: McpProjectDestination }) {
   const remote = useProjectRemoteServerLookup()(props.project);
+  const customIcon = useProjectIconNode(props.project, "size-4 text-muted");
   return (
     <>
-      {remote.isRemote ? (
+      {customIcon ? (
+        <ProjectIconWithRemoteStatus icon={customIcon} info={remote} dotClassName="size-1" />
+      ) : remote.isRemote ? (
         <ProjectRemoteServerIcon info={remote} className="size-3.5 text-muted" />
       ) : (
         <ProjectLocationIcon location={props.project.location} />
@@ -49,9 +56,12 @@ export function McpProjectDropdownItemContent(props: { project: McpProjectDestin
 
 export function McpProjectDropdownTriggerContent(props: { project: McpProjectDestination }) {
   const remote = useProjectRemoteServerLookup()(props.project);
+  const customIcon = useProjectIconNode(props.project, "size-3.5 text-muted");
   return (
     <span className="flex min-w-0 items-center gap-2">
-      {remote.isRemote ? (
+      {customIcon ? (
+        <ProjectIconWithRemoteStatus icon={customIcon} info={remote} dotClassName="size-1" />
+      ) : remote.isRemote ? (
         <ProjectRemoteServerIcon info={remote} className="size-3.5 text-muted" />
       ) : (
         <ProjectLocationIcon location={props.project.location} className="size-3.5" />

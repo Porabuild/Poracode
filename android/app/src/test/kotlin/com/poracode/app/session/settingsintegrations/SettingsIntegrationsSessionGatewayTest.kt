@@ -85,7 +85,7 @@ class SettingsIntegrationsSessionGatewayTest {
     }
 
     private fun lease(scopes: Set<String> = setOf("session:read", "session:operate")) =
-        SettingsIntegrationsLease(ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 4, 3, scopes, true, true, owner)
+        SettingsIntegrationsLease(ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 4, 8, scopes, true, true, owner)
     private fun importItem() = SkillImportItem("/source", SkillImportMode.Copy, SkillScope.Project, owner)
     private fun install() = MarketplaceInstallRequest(owner, SkillMarketplace.SkillsSh, "demo", SkillScope.Project)
 }

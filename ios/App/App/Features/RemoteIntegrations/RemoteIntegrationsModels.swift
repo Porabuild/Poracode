@@ -271,6 +271,12 @@ struct RemoteIntegrationsPRWatchInput: Codable, Equatable, Sendable {
   let config: RemoteIntegrationsAgentConfig?
 }
 
+struct RemoteIntegrationsPRWatchAgentSync: Codable, Equatable, Sendable {
+  let projectId: String
+  let agentKind: String
+  let config: RemoteIntegrationsAgentConfig
+}
+
 struct RemoteIntegrationsPRWatch: Codable, Equatable, Sendable {
   let projectId: String
   let prNumber: Int

@@ -31,7 +31,7 @@ describe("remote WS/runtime inventory goldens", () => {
       };
     };
     expect(manifest.formatVersion).toBe(1);
-    expect(manifest.protocolVersion).toBe(3);
+    expect(manifest.protocolVersion).toBe(8);
 
     const client = discriminatedTypes(remoteWebSocketClientMessageSchema);
     const server = discriminatedTypes(remoteWebSocketServerMessageSchema);

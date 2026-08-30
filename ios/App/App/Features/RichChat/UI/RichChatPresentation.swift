@@ -71,6 +71,7 @@ struct RichDelegatedAgentPresentation: Equatable, Sendable, Identifiable {
 enum RichMessageSupplementPresentation: Equatable, Sendable {
   case skill(name: String, pluginName: String?)
   case mcp(name: String)
+  case thread(threadID: String, title: String)
   case diffComment(target: String, body: String)
   case file(path: String, name: String?, isAttachment: Bool)
 
@@ -145,6 +146,8 @@ enum RichChatPresentation {
         return RichMessageSupplementPresentation.skill(name: name, pluginName: pluginName)
       case .mcp(let name):
         return RichMessageSupplementPresentation.mcp(name: name)
+      case .thread(let threadID, let title):
+        return RichMessageSupplementPresentation.thread(threadID: threadID, title: title)
       case .diffComment(let path, let lineNumber, _, _, let body):
         return RichMessageSupplementPresentation.diffComment(
           target: "\(path):\(lineNumber)",
@@ -411,6 +414,7 @@ enum RichChatPresentation {
     case .text(let text): text
     case .skill(_, let invocation, _, _): invocation
     case .mcp(let name): name
+    case .thread(_, let title): "@\(title)"
     case .diffComment(let path, let line, _, _, let body): "\(path):\(line)\n\(body)"
     case .file(let path, let name, _, _): name ?? path
     case .image(_, _, let path, let name, _): name ?? path

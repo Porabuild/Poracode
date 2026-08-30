@@ -11,12 +11,30 @@ import {
   toolCallPayloadSchema,
   webSearchPayloadSchema,
 } from "./runtimeEvent";
+import { promptSegmentSchema } from "./thread";
 
 function roundTrip<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 describe("runtimeEventSchema discriminated union", () => {
+  it("keeps pre-thread message blocks valid and accepts thread blocks", () => {
+    const oldShape = { content: [{ kind: "mcp", name: "Browser" }] };
+    expect(messageItemPayloadSchema.parse(roundTrip(oldShape))).toEqual(oldShape);
+    expect(promptSegmentSchema.parse({ kind: "mcp", id: "browser", name: "Browser" })).toEqual({
+      kind: "mcp",
+      id: "browser",
+      name: "Browser",
+    });
+    expect(
+      messageItemPayloadSchema.parse({
+        content: [{ kind: "thread", threadId: "thread-1", title: "Source thread" }],
+      }),
+    ).toEqual({
+      content: [{ kind: "thread", threadId: "thread-1", title: "Source thread" }],
+    });
+  });
+
   it("accepts session.started with and without turnId", () => {
     expect(runtimeEventSchema.parse(roundTrip({ type: "session.started", threadId: "t" }))).toEqual(
       { type: "session.started", threadId: "t" },

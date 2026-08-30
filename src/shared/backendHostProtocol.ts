@@ -7,6 +7,7 @@ import type {
   ProfileStatsRequest,
   ProfileTokenStats,
   PrWatch,
+  PrWatchAgentSync,
   PrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
@@ -89,6 +90,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
   "dbReplaceThreadRuntimeItems",
   "dbGetThreadCompletedTurns",
@@ -167,6 +169,7 @@ export interface BackendServiceProcedureMap {
   checkPrWatch: { payload: { projectId: string; prNumber: number }; result: void };
   upsertPrWatch: { payload: PrWatchInput; result: PrWatch };
   deletePrWatch: { payload: { projectId: string; prNumber: number }; result: void };
+  syncPrWatchAgent: { payload: PrWatchAgentSync; result: void };
   getProfileCoreStats: { payload: ProfileStatsRequest; result: ProfileCoreStats };
   getProfileTokenStats: { payload: ProfileStatsRequest; result: ProfileTokenStats };
   getProfileDevices: { payload: Record<string, never>; result: ProfileDevicesResponse };
@@ -205,6 +208,7 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "checkPrWatch",
   "upsertPrWatch",
   "deletePrWatch",
+  "syncPrWatchAgent",
   "getProfileCoreStats",
   "getProfileTokenStats",
   "getProfileDevices",

@@ -56,7 +56,7 @@ class RepositoryRichChatGatewayProvider(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(lease.connectionId)
         } ?: return null
-        if (credentials.profile.protocolVersion != 3) return null
+        if (credentials.profile.protocolVersion != 8) return null
         val endpoint = credentials.profile.httpBaseUrl
         val token = credentials.accessToken
         val http = RemoteApiClient(

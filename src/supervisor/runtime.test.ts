@@ -2673,4 +2673,55 @@ describe("SupervisorRuntime thread input", () => {
       expect(command).toContain("@/tmp/Image 1.png");
     },
   );
+
+  it("does not persist a provider handoff when the target lacks GUI support", async () => {
+    const events: unknown[] = [];
+    const runtime = makeRuntime((event) => events.push(event));
+    const adapter = {
+      kind: "codex" as const,
+      label: "Codex",
+      capabilities: {
+        models: [{ id: "gpt-5", label: "GPT-5" }],
+        efforts: [],
+        modelEfforts: {},
+        modes: ["agent"],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal" as const,
+        presentationMode: "terminal" as const,
+      },
+      detectInstall: vi.fn<() => void>(),
+      buildLaunchArgv: vi.fn<() => { binary: string; args: string[] }>(() => ({
+        binary: "codex",
+        args: [],
+      })),
+      buildResumeArgv: vi.fn<() => void>(),
+      createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
+    };
+    (runtime as unknown as { adapters: Map<string, typeof adapter> }).adapters.set(
+      "codex",
+      adapter,
+    );
+
+    await expect(
+      runtime.threadSessionManager.startThread({
+        threadId: "thread-switch",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "continue",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "gui",
+        providerSwitch: { fromAgentKind: "claude" },
+      }),
+    ).rejects.toThrow("does not support gui presentation");
+    expect(events).not.toContainEqual(
+      expect.objectContaining({
+        type: "thread-runtime-event",
+        event: expect.objectContaining({ itemType: "provider_handoff" }),
+      }),
+    );
+  });
 });

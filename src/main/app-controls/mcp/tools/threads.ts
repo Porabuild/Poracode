@@ -12,11 +12,13 @@ import type {
 import {
   agentKindSchema,
   DEFAULT_TERMINAL_SIZE,
+  messageItemPayloadSchema,
   resolveMcpLaunchSnapshot,
 } from "@/shared/contracts";
+import { formatDiffCommentPrompt, threadMentionLabel } from "@/shared/promptContent";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
-import { dbGetThreadRuntimeItemsPage } from "../../../db";
+import { dbGetThreadConversationItemsPage } from "../../../db";
 import {
   assertNotSelf,
   projectIdProp,
@@ -45,6 +47,7 @@ const READ_DEFAULT_LIMIT = 30;
 const READ_MAX_LIMIT = 100;
 /** Per-item text cap so a transcript can't blow up the caller's context. */
 const ITEM_TEXT_MAX_CHARS = 2_000;
+const ITEM_TEXT_HARD_MAX_CHARS = 10_000;
 /** Trailing slice of terminal scrollback returned by `read_terminal`. */
 const TERMINAL_SCROLLBACK_MAX_CHARS = 50_000;
 /** Hard cap on how many turns `rollback_thread` will discard in one call. */
@@ -61,6 +64,7 @@ const readArgsSchema = z.object({
   threadId: z.string().min(1),
   limit: z.number().int().min(1).max(READ_MAX_LIMIT).optional(),
   before: z.number().int().nonnegative().optional(),
+  maxChars: z.number().int().min(500).max(ITEM_TEXT_HARD_MAX_CHARS).optional(),
 });
 const createArgsSchema = z.object({
   projectId: z.string().min(1),
@@ -140,7 +144,7 @@ export const threadTools: ToolDomain = {
     {
       name: "read_thread",
       description:
-        "Read a thread's recorded transcript (most recent first-page by default). Works even when the thread's session is inactive; returns a note when nothing has been recorded yet.",
+        "Read the latest user/assistant messages from a thread's recorded transcript. limit is the number of messages (default 30), before pages backward with nextCursor, and tool/reasoning rows are excluded to keep context bounded. Message text defaults to 2000 characters; raise maxChars only when a truncated result needs more detail. Works even when the session is inactive.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -149,6 +153,7 @@ export const threadTools: ToolDomain = {
           threadId: threadIdProp,
           limit: { type: "integer", minimum: 1, maximum: READ_MAX_LIMIT },
           before: { type: "integer", minimum: 0 },
+          maxChars: { type: "integer", minimum: 500, maximum: ITEM_TEXT_HARD_MAX_CHARS },
         },
       },
     },
@@ -362,9 +367,9 @@ export const threadTools: ToolDomain = {
       };
     },
     read_thread: (args, ctx) => {
-      const { threadId, limit, before } = readArgsSchema.parse(args);
+      const { threadId, limit, before, maxChars } = readArgsSchema.parse(args);
       requireThread(ctx, threadId);
-      const page = dbGetThreadRuntimeItemsPage(threadId, before, limit ?? READ_DEFAULT_LIMIT);
+      const page = dbGetThreadConversationItemsPage(threadId, before, limit ?? READ_DEFAULT_LIMIT);
       if (page.items.length === 0) {
         return {
           threadId,
@@ -377,9 +382,10 @@ export const threadTools: ToolDomain = {
         messageCount: page.items.length,
         ...(page.nextCursor != null ? { nextCursor: page.nextCursor } : {}),
         items: page.items.map((item) => ({
+          role: item.type === "user_message" ? "user" : "assistant",
           type: item.type,
           state: item.state,
-          ...(itemText(item) ? { text: truncate(itemText(item), ITEM_TEXT_MAX_CHARS) } : {}),
+          ...(itemText(item) ? truncatedText(itemText(item), maxChars ?? ITEM_TEXT_MAX_CHARS) : {}),
         })),
       };
     },
@@ -509,7 +515,15 @@ export const threadTools: ToolDomain = {
       }));
       await applyField(parsed.archived, "archived", (archived) => ({
         command: { kind: archived ? "archive" : "unarchive", threadId },
-        mutate: (thread) => ({ ...thread, archived, updatedAt: stamp() }),
+        mutate: (thread) => {
+          const now = stamp();
+          return {
+            ...thread,
+            archived,
+            archivedAt: archived ? now : undefined,
+            updatedAt: now,
+          };
+        },
       }));
       if (parsed.acknowledge) {
         const command: RemoteThreadCommand = { kind: "acknowledge", threadId };
@@ -721,12 +735,40 @@ function waitSnapshot(
 }
 
 /** Best-effort plain-text projection of a persisted runtime item's streams. */
-function itemText(item: { streams: Record<string, string> }): string {
-  return Object.values(item.streams).join("").trim();
+function itemText(item: { payload?: unknown; streams: Record<string, string> }): string {
+  const streamed = Object.values(item.streams).join("").trim();
+  if (streamed) return streamed;
+  const payload = messageItemPayloadSchema.safeParse(item.payload);
+  if (!payload.success) return "";
+  return payload.data.content
+    .map((block) => {
+      switch (block.kind) {
+        case "text":
+          return block.text;
+        case "skill":
+          return block.pluginName ? `@${block.pluginName}` : block.invocation;
+        case "mcp":
+          return `@${block.name}`;
+        case "thread":
+          return `@${threadMentionLabel(block)}`;
+        case "diff_comment":
+          return formatDiffCommentPrompt(block);
+        case "file":
+          return `@${block.path}`;
+        case "image":
+          return `[image: ${block.name ?? block.path ?? "attachment"}]`;
+      }
+    })
+    .join("")
+    .trim();
 }
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function truncatedText(text: string, max: number): { text: string; truncated?: true } {
+  return text.length > max ? { text: truncate(text, max), truncated: true } : { text };
 }
 
 function threadIdJsonSchema(): Record<string, unknown> {

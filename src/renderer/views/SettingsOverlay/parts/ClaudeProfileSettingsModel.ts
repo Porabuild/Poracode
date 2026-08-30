@@ -8,6 +8,9 @@ import type {
   ClaudeProfileModel,
 } from "@/shared/contracts";
 import { isEncryptedSecret } from "@/shared/secretFormat";
+import { slugifyProfileName } from "./profileIds";
+
+export { slugifyProfileName, uniqueProfileId } from "./profileIds";
 
 export const SAVED_SECRET_MASK = "••••••••";
 
@@ -18,16 +21,19 @@ export type PresetEnvRow = { key: string; value: string; sensitive: boolean };
 
 /**
  * Canonical z.ai (GLM) environment, per https://docs.z.ai/devpack/tool/claude.
- * `glm-5.2[1m]` is z.ai's real model name for the 1M-context GLM 5.2 — the `[1m]`
+ * `glm-5.3[1m]` is z.ai's real model name for the 1M-context GLM 5.3 — the `[1m]`
  * is part of the id, not Poracode's context selector, so it is sent verbatim.
+ * `glm-5.3-flash[1m]` is the cheaper tier; z.ai lists Flash as its default
+ * mapping for the Sonnet/Haiku slots (its manual-config example keeps the full
+ * model on Sonnet) — we follow the default mapping.
  * `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is required for the 1M context to be usable.
  */
 export const ZAI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "ANTHROPIC_BASE_URL", value: "https://api.z.ai/api/anthropic", sensitive: false },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "glm-5.2[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "glm-5.2[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "glm-4.5-air", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "glm-5.3[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "glm-5.3-flash[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "glm-5.3-flash[1m]", sensitive: false },
   { key: "API_TIMEOUT_MS", value: "3000000", sensitive: false },
   { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "1000000", sensitive: false },
 ];
@@ -35,9 +41,9 @@ export const ZAI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
 export const DEEPSEEK_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "ANTHROPIC_BASE_URL", value: "https://api.deepseek.com/anthropic", sensitive: false },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
-  { key: "ANTHROPIC_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
+  { key: "ANTHROPIC_MODEL", value: "deepseek-v4-pro-0813[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "deepseek-v4-pro-0813[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "deepseek-v4-pro-0813[1m]", sensitive: false },
   { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "deepseek-v4-flash", sensitive: false },
   { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "deepseek-v4-flash", sensitive: false },
   { key: "CLAUDE_CODE_EFFORT_LEVEL", value: "max", sensitive: false },
@@ -85,15 +91,27 @@ export const KIMI_CODE_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
  */
 const QWEN_TOKEN_MODEL_ID = "qwen3.8-max";
 const QWEN_38_EFFORTS = ["low", "medium", "xHigh"] as const;
+const QWEN_TOKEN_PLAN_EFFORTS = ["low", "medium", "high", "xHigh", "max"] as const;
 const QWEN_TOKEN_PLAN_MODELS = [
   { id: QWEN_TOKEN_MODEL_ID, label: "Qwen3.8 Max" },
   { id: "qwen3.7-max", label: "Qwen3.7 Max" },
   { id: "qwen3.7-plus", label: "Qwen3.7 Plus" },
   { id: "qwen3.6-flash", label: "Qwen3.6 Flash" },
   { id: "glm-5.2", label: "GLM-5.2" },
-  { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+  { id: "deepseek-v4-pro-0813", label: "DeepSeek V4 Pro 0813" },
   { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
 ] as const;
+const QWEN_TOKEN_PLAN_MODEL_EFFORTS = {
+  [QWEN_TOKEN_MODEL_ID]: QWEN_38_EFFORTS,
+  // Claude profiles cannot represent ACP's thinking toggle, so hybrid Qwen
+  // models must not inherit Qwen3.8's effort tiers here.
+  "qwen3.7-max": [],
+  "qwen3.7-plus": [],
+  "qwen3.6-flash": [],
+  "glm-5.2": ["high", "max"],
+  "deepseek-v4-pro-0813": ["high", "max"],
+  "deepseek-v4-flash-0731": ["low", "high", "max"],
+} as const;
 
 export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   {
@@ -139,24 +157,30 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     id: "zai",
     label: msg`z.ai`,
     envRows: ZAI_PRESET_ROWS,
-    // glm-5.2[1m] is z.ai's 1M-context GLM 5.2 (the `[1m]` is part of the id).
-    models: [{ id: "glm-5.2[1m]", label: "GLM 5.2" }],
-    efforts: ["high", "max", "ultracode"],
+    // glm-5.3[1m] is z.ai's 1M-context GLM 5.3 (the `[1m]` is part of the id).
+    models: [
+      { id: "glm-5.3[1m]", label: "GLM 5.3" },
+      { id: "glm-5.3-flash[1m]", label: "GLM 5.3 Flash" },
+    ],
+    efforts: ["low", "high", "max", "ultracode"],
     defaultEffort: "high",
-    modelEfforts: { "glm-5.2[1m]": ["high", "max", "ultracode"] },
+    modelEfforts: {
+      "glm-5.3[1m]": ["low", "high", "max", "ultracode"],
+      "glm-5.3-flash[1m]": ["low", "high", "max", "ultracode"],
+    },
   },
   {
     id: "deepseek",
     label: msg`DeepSeek`,
     envRows: DEEPSEEK_PRESET_ROWS,
     models: [
-      { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
+      { id: "deepseek-v4-pro-0813[1m]", label: "DeepSeek V4 Pro 0813" },
       { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
     ],
     efforts: ["max"],
     defaultEffort: "max",
     modelEfforts: {
-      "deepseek-v4-pro[1m]": ["max"],
+      "deepseek-v4-pro-0813[1m]": ["max"],
       "deepseek-v4-flash": ["max"],
     },
   },
@@ -190,11 +214,9 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     label: msg`Qwen Token Plan`,
     envRows: QWEN_TOKEN_PLAN_PRESET_ROWS,
     models: QWEN_TOKEN_PLAN_MODELS,
-    efforts: QWEN_38_EFFORTS,
+    efforts: QWEN_TOKEN_PLAN_EFFORTS,
     defaultEffort: "xHigh",
-    modelEfforts: Object.fromEntries(
-      QWEN_TOKEN_PLAN_MODELS.map((model) => [model.id, QWEN_38_EFFORTS]),
-    ),
+    modelEfforts: QWEN_TOKEN_PLAN_MODEL_EFFORTS,
     removeEnvKeys: ["ANTHROPIC_API_KEY"],
   },
 ];
@@ -218,29 +240,8 @@ export interface ModelRow {
   efforts?: Set<string>;
 }
 
-export function slugifyProfileName(value: string): string {
-  return (
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/gu, "-")
-      .replace(/^-+|-+$/gu, "") || "profile"
-  );
-}
-
 export function defaultConfigDir(name: string): string {
   return `~/.poracode/claude-profiles/${slugifyProfileName(name)}`;
-}
-
-export function uniqueProfileId(name: string, existing: Readonly<Record<string, unknown>>): string {
-  const base = slugifyProfileName(name);
-  let candidate = base;
-  let index = 2;
-  while (existing[candidate]) {
-    candidate = `${base}-${index}`;
-    index += 1;
-  }
-  return candidate;
 }
 
 export function shouldTreatEnvKeyAsSensitive(key: string): boolean {

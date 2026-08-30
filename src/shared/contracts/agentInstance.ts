@@ -23,6 +23,7 @@ export const agentDriverKindSchema = z
 export type AgentDriverKind = z.infer<typeof agentDriverKindSchema>;
 
 export const CLAUDE_PROFILE_KIND_PREFIX = "claude:";
+export const CURSOR_PROFILE_KIND_PREFIX = "cursor:";
 
 export const agentInstanceIdSchema = z
   .string()
@@ -73,23 +74,41 @@ export type AgentInstanceConfig = z.infer<typeof agentInstanceConfigSchema>;
 /** Prefix for generic-ACP `kind` values. Unique per registered instance. */
 export const ACP_GENERIC_KIND_PREFIX = "acp-generic:";
 
+function prefixedKind(prefix: string, instanceId: string): AgentDriverKind {
+  return `${prefix}${instanceId}` as AgentDriverKind;
+}
+
+function hasKindPrefix(kind: string, prefix: string): boolean {
+  return kind.startsWith(prefix);
+}
+
+function kindInstanceId(kind: string, prefix: string): string | undefined {
+  return hasKindPrefix(kind, prefix) ? kind.slice(prefix.length) : undefined;
+}
+
 export function acpGenericKind(instanceId: string): AgentDriverKind {
-  return `${ACP_GENERIC_KIND_PREFIX}${instanceId}` as AgentDriverKind;
+  return prefixedKind(ACP_GENERIC_KIND_PREFIX, instanceId);
 }
 
 export function isAcpGenericKind(kind: string): boolean {
-  return kind.startsWith(ACP_GENERIC_KIND_PREFIX);
+  return hasKindPrefix(kind, ACP_GENERIC_KIND_PREFIX);
 }
 
 /** Extract the instance id portion of an `acp-generic:<id>` kind. */
 export function extractAcpGenericInstanceId(kind: string): string | undefined {
-  return isAcpGenericKind(kind) ? kind.slice(ACP_GENERIC_KIND_PREFIX.length) : undefined;
+  return kindInstanceId(kind, ACP_GENERIC_KIND_PREFIX);
 }
 
-export const acpGenericInstanceConfigSchema = z.object({
+export const acpGenericCommandConfigSchema = z.object({
   /** Absolute path or PATH-resolvable command name (e.g. `npx @zed-industries/codex-acp`). */
   binary: z.string().min(1),
   args: z.array(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+  version: z.string().optional(),
+});
+export type AcpGenericCommandConfig = z.infer<typeof acpGenericCommandConfigSchema>;
+
+export const acpGenericInstanceConfigSchema = acpGenericCommandConfigSchema.extend({
   /** "project" → use the thread's project cwd; "fixed" → use `fixedCwd`. */
   cwd: z.enum(["project", "fixed"]).default("project"),
   fixedCwd: z.string().optional(),
@@ -100,6 +119,16 @@ export const acpGenericInstanceConfigSchema = z.object({
     .object({
       models: z.array(z.string()).optional(),
       modes: z.array(z.string()).optional(),
+    })
+    .optional(),
+  /**
+   * Registry-managed binary commands installed independently per runtime
+   * environment. Legacy instances omit this and keep using the root command.
+   */
+  environmentCommands: z
+    .object({
+      native: acpGenericCommandConfigSchema.optional(),
+      wsl: z.record(z.string().min(1), acpGenericCommandConfigSchema).optional(),
     })
     .optional(),
 });
@@ -117,6 +146,15 @@ export type AgentInstanceConfigMap = z.infer<typeof agentInstanceConfigMapSchema
 
 export function parseAcpGenericInstanceConfig(value: unknown): AcpGenericInstanceConfig {
   return acpGenericInstanceConfigSchema.parse(value ?? {});
+}
+
+export function acpGenericCommandForEnvironment(
+  config: AcpGenericInstanceConfig,
+  environment: { kind: "native" } | { kind: "wsl"; distro: string },
+): AcpGenericCommandConfig | undefined {
+  const commands = config.environmentCommands;
+  if (!commands) return config;
+  return environment.kind === "wsl" ? commands.wsl?.[environment.distro] : commands.native;
 }
 
 // ── claude profile driver config ────────────────────────────────────────
@@ -163,30 +201,32 @@ export function parseClaudeProfileInstanceConfig(value: unknown): ClaudeProfileI
   return claudeProfileInstanceConfigSchema.parse(value ?? {});
 }
 
-/**
- * Payload for the `setClaudeProfileEnvironment` main-local IPC. The renderer
- * sends the full desired environment (plaintext for freshly-entered values,
- * already-sealed `lc-safe:` blobs round-tripped for unchanged secrets); the
- * main process seals any `sensitive` plaintext before writing settings.json.
- */
-export const setClaudeProfileEnvironmentPayloadSchema = z.object({
-  instanceId: agentInstanceIdSchema,
-  environment: z.record(z.string().min(1).max(200), agentInstanceEnvVarSchema),
-});
-export type SetClaudeProfileEnvironmentPayload = z.infer<
-  typeof setClaudeProfileEnvironmentPayloadSchema
->;
+// Profile payload schemas are provider-agnostic and live in `agentProfiles.ts`
+// (`setProfileEnvironment`, `createProfile`). The per-provider helpers below are
+// only naming sugar over the shared `<driver>:<id>` kind shape.
 
 export function claudeProfileKind(instanceId: string): AgentDriverKind {
-  return `${CLAUDE_PROFILE_KIND_PREFIX}${instanceId}` as AgentDriverKind;
+  return prefixedKind(CLAUDE_PROFILE_KIND_PREFIX, instanceId);
 }
 
 export function isClaudeProfileKind(kind: string): boolean {
-  return kind.startsWith(CLAUDE_PROFILE_KIND_PREFIX);
+  return hasKindPrefix(kind, CLAUDE_PROFILE_KIND_PREFIX);
 }
 
 export function extractClaudeProfileInstanceId(kind: string): string | undefined {
-  return isClaudeProfileKind(kind) ? kind.slice(CLAUDE_PROFILE_KIND_PREFIX.length) : undefined;
+  return kindInstanceId(kind, CLAUDE_PROFILE_KIND_PREFIX);
+}
+
+export function cursorProfileKind(instanceId: string): AgentDriverKind {
+  return prefixedKind(CURSOR_PROFILE_KIND_PREFIX, instanceId);
+}
+
+export function isCursorProfileKind(kind: string): boolean {
+  return hasKindPrefix(kind, CURSOR_PROFILE_KIND_PREFIX);
+}
+
+export function extractCursorProfileInstanceId(kind: string): string | undefined {
+  return kindInstanceId(kind, CURSOR_PROFILE_KIND_PREFIX);
 }
 
 /**

@@ -32,9 +32,11 @@ import { SAVED_CREDENTIAL_MASK } from "./secretMask";
  */
 export function CursorSdkRuntimeSetup(props: {
   agentKind: string;
+  profileInstanceId?: string;
   status: AgentStatus | undefined;
   authDescription: string;
   refreshStatus: () => Promise<unknown>;
+  refreshPackageStatus: () => Promise<unknown>;
   /** Runs after the key is dropped, so the selected runtime can fall back. */
   onApiKeyCleared: () => Promise<void> | void;
 }) {
@@ -43,16 +45,36 @@ export function CursorSdkRuntimeSetup(props: {
       <SdkPackageRow
         agentKind={props.agentKind}
         status={props.status}
-        refreshStatus={props.refreshStatus}
+        refreshStatus={props.refreshPackageStatus}
       />
-      <SdkApiKeyRow
-        agentKind={props.agentKind}
-        isInstalled={cursorRuntimeInstallState(props.status).sdkInstalled}
-        authDescription={props.authDescription}
-        refreshStatus={props.refreshStatus}
-        onApiKeyCleared={props.onApiKeyCleared}
-      />
+      {props.profileInstanceId ? null : (
+        <SdkApiKeyRow
+          agentKind={props.agentKind}
+          isInstalled={cursorRuntimeInstallState(props.status).sdkInstalled}
+          authDescription={props.authDescription}
+          refreshStatus={props.refreshStatus}
+          onApiKeyCleared={props.onApiKeyCleared}
+        />
+      )}
     </>
+  );
+}
+
+export function CursorProfileApiKeySetup(props: {
+  agentKind: string;
+  profileInstanceId: string;
+  authDescription: string;
+  refreshStatus: () => Promise<unknown>;
+}) {
+  return (
+    <SdkApiKeyRow
+      agentKind={props.agentKind}
+      profileInstanceId={props.profileInstanceId}
+      isInstalled
+      authDescription={props.authDescription}
+      refreshStatus={props.refreshStatus}
+      onApiKeyCleared={() => undefined}
+    />
   );
 }
 
@@ -177,6 +199,7 @@ function SdkPackageRow(props: {
 
 function SdkApiKeyRow(props: {
   agentKind: string;
+  profileInstanceId?: string;
   isInstalled: boolean;
   authDescription: string;
   refreshStatus: () => Promise<unknown>;
@@ -184,14 +207,21 @@ function SdkApiKeyRow(props: {
 }) {
   const { t } = useLingui();
   const savedAgentSettings = useSharedSettings((state) => state.agentSettings[props.agentKind]);
+  const profileInstance = useSharedSettings((state) =>
+    props.profileInstanceId ? state.agentInstances[props.profileInstanceId] : undefined,
+  );
   const setAgentSecretSetting = useSharedSettings((state) => state.setAgentSecretSetting);
+  const setAgentInstance = useSharedSettings((state) => state.setAgentInstance);
   const [apiKey, setApiKey] = useState("");
   // A stored key is shown as a mask, matching the ACP credential fields. Typing
   // starts a replacement; the mask returns when the field is left empty.
   const [isEditing, setIsEditing] = useState(false);
   const [pending, setPending] = useState(false);
-  const hasSavedApiKey =
-    typeof savedAgentSettings?.sdkApiKey === "string" && savedAgentSettings.sdkApiKey.length > 0;
+  const hasSavedApiKey = props.profileInstanceId
+    ? typeof profileInstance?.environment?.CURSOR_API_KEY?.value === "string" &&
+      profileInstance.environment.CURSOR_API_KEY.value.length > 0
+    : typeof savedAgentSettings?.sdkApiKey === "string" && savedAgentSettings.sdkApiKey.length > 0;
+  const canEditApiKey = props.profileInstanceId !== undefined || props.isInstalled;
   const isMasked = hasSavedApiKey && !isEditing;
 
   const saveApiKey = async () => {
@@ -199,11 +229,28 @@ function SdkApiKeyRow(props: {
     if (!value || pending) return;
     setPending(true);
     try {
-      await setAgentSecretSetting(props.agentKind, "sdkApiKey", value);
+      if (props.profileInstanceId) {
+        // Sealed in the main process; the same path Claude profiles use.
+        const instance = await readBridge().setProfileEnvironment({
+          instanceId: props.profileInstanceId,
+          environment: { CURSOR_API_KEY: { value, sensitive: true } },
+        });
+        setAgentInstance(instance);
+      } else {
+        await setAgentSecretSetting(props.agentKind, "sdkApiKey", value);
+      }
       setApiKey("");
       setIsEditing(false);
+      toast.success(
+        props.profileInstanceId ? t`Cursor profile API key saved.` : t`Cursor SDK API key saved.`,
+      );
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      setPending(false);
+      return;
+    }
+    try {
       await props.refreshStatus();
-      toast.success(t`Cursor SDK API key saved.`);
     } catch (error) {
       toast.danger(friendlyError(error));
     } finally {
@@ -232,18 +279,22 @@ function SdkApiKeyRow(props: {
     <CursorRuntimeCardRow
       label={t`API key`}
       description={
-        props.isInstalled ? props.authDescription : t`Install the package to add its API key.`
+        // A profile's row shows its detected auth state: "Separate API key"
+        // repeated the section heading and never said whether the key works.
+        props.profileInstanceId || props.isInstalled
+          ? props.authDescription
+          : t`Install the package to add its API key.`
       }
       stacked
     >
       <div className="flex items-center gap-1.5">
         <Input
           type="password"
-          aria-label={t`Cursor SDK API key`}
+          aria-label={props.profileInstanceId ? t`Cursor profile API key` : t`Cursor SDK API key`}
           className="min-w-0 flex-1 font-mono text-xs"
           placeholder={isMasked ? "" : t`Paste Cursor API key`}
           value={isMasked ? SAVED_CREDENTIAL_MASK : apiKey}
-          disabled={!props.isInstalled || pending}
+          disabled={!canEditApiKey || pending}
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
@@ -257,18 +308,26 @@ function SdkApiKeyRow(props: {
             if (isEditing && apiKey.length === 0) setIsEditing(false);
           }}
           onChange={(event) => setApiKey(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            // Enter saves, matching the other credential fields in Settings.
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            void saveApiKey();
+          }}
         />
         <Button
           size="sm"
           variant="tertiary"
           isIconOnly
-          aria-label={t`Save Cursor SDK API key`}
-          isDisabled={!props.isInstalled || !apiKey.trim() || pending}
+          aria-label={
+            props.profileInstanceId ? t`Save Cursor profile API key` : t`Save Cursor SDK API key`
+          }
+          isDisabled={!canEditApiKey || !apiKey.trim() || pending}
           onPress={() => void saveApiKey()}
         >
           {pending ? <PixelLoader size="xs" /> : <KeyRound className="size-3.5" />}
         </Button>
-        {hasSavedApiKey ? (
+        {hasSavedApiKey && !props.profileInstanceId ? (
           <Button
             size="sm"
             variant="tertiary"

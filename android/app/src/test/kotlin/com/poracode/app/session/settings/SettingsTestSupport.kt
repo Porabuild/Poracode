@@ -23,7 +23,7 @@ internal val connectionB = ClientConnectionId("20000000-0000-4000-8000-000000000
 internal fun lease(
     connectionId: ClientConnectionId = connectionA,
     generation: Long = 1,
-    protocolVersion: Int = 3,
+    protocolVersion: Int = 8,
     scopes: Set<String> = setOf("session:read", "session:operate"),
     online: Boolean = true,
     ready: Boolean = true,

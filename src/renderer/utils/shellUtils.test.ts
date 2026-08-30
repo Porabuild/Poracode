@@ -11,6 +11,7 @@ const bridge = vi.hoisted(() => ({
 
 const supervisorHandlers = vi.hoisted(() => [] as Array<(event: SupervisorEvent) => void>);
 const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
+const waitForPendingSharedSettings = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
 vi.mock("@heroui/react", () => ({
   toast: {
@@ -24,12 +25,17 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
+vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+  waitForPendingSharedSettings,
+}));
+
 import {
   appendExitOnSuccess,
   buildScriptWithExitOnSuccess,
   clearEagerShellStart,
   closeThreads,
   runShellScriptToCompletion,
+  startShellWithCurrentSettings,
   startShellWithToast,
   wasShellStartedEagerly,
   writeScriptToShell,
@@ -58,6 +64,48 @@ function unwrapBashScript(script: string): string {
   expect(quoted.endsWith("'")).toBe(true);
   return quoted.slice(1, -1).replaceAll("'\\''", "'");
 }
+
+beforeEach(() => {
+  waitForPendingSharedSettings.mockReset().mockResolvedValue(undefined);
+});
+
+describe("startShellWithCurrentSettings", () => {
+  it("waits for settings persistence before dispatching the shell launch", async () => {
+    let finishFlush!: () => void;
+    waitForPendingSharedSettings.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishFlush = resolve;
+      }),
+    );
+    bridge.startShell.mockReset().mockResolvedValue(undefined);
+
+    const starting = startShellWithCurrentSettings({
+      shellId: "shell:settings-barrier",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+    });
+    expect(bridge.startShell).not.toHaveBeenCalled();
+
+    finishFlush();
+    await starting;
+
+    expect(waitForPendingSharedSettings.mock.invocationCallOrder[0]).toBeLessThan(
+      bridge.startShell.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("still starts with the last persisted settings if the pending write fails", async () => {
+    waitForPendingSharedSettings.mockRejectedValueOnce(new Error("settings write failed"));
+    bridge.startShell.mockReset().mockResolvedValue(undefined);
+
+    await expect(
+      startShellWithCurrentSettings({
+        shellId: "shell:settings-fallback",
+        projectLocation: { kind: "wsl", distro: "Ubuntu", linuxPath: "/repo", uncPath: "" },
+      }),
+    ).resolves.toBeUndefined();
+    expect(bridge.startShell).toHaveBeenCalledOnce();
+  });
+});
 
 describe("appendExitOnSuccess", () => {
   it("uses `&& exit` for posix shells (exit is a command)", () => {
@@ -144,6 +192,7 @@ describe("eager shell start registry", () => {
       { shellId: "shell:reused", projectLocation: { kind: "windows", path: "C:\\p" } },
       "dev",
     );
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
     resolveSecond();
     await second;
     rejectFirst(new Error("old start failed"));
@@ -588,14 +637,16 @@ describe("runShellScriptToCompletion", () => {
     );
 
     expect(sender).toHaveBeenCalledWith({ type: "terminal-watch", id: shellId });
-    expect(bridge.startShell).toHaveBeenCalledWith({
-      shellId,
-      projectLocation: {
-        kind: "posix",
-        path: "/remote/project",
-        remoteServerId: desktopId,
-      },
-    });
+    await vi.waitFor(() =>
+      expect(bridge.startShell).toHaveBeenCalledWith({
+        shellId,
+        projectLocation: {
+          kind: "posix",
+          path: "/remote/project",
+          remoteServerId: desktopId,
+        },
+      }),
+    );
     handleRemoteTerminalServerMessage(desktopId, {
       type: "terminal-output",
       id: shellId,

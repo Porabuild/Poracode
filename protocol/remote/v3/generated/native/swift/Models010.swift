@@ -368,16 +368,39 @@ public struct ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_50
   }
 }
 
-public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00: Codable, Sendable {
+public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c: String, Codable, Sendable {
+  case thread = "thread"
+}
+
+public struct ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da: Codable, Sendable, RemoteModelMetadata {
+  public var kind: ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c
+  public var threadId: String
+  public var title: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "kind", typeName: "ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "title", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case kind = "kind"
+    case threadId = "threadId"
+    case title = "title"
+  }
+}
+
+public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754: Codable, Sendable {
   case option1(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782)
   case option2(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc)
   case option3(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac)
   case option4(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da)
   case option5(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0)
   case option6(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb)
+  case option7(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00)] = []
+    var matches: [(Int, ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("text")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782.self) {
       matches.append((1, .option1(value)))
     }
@@ -396,9 +419,12 @@ public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00: Codab
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("mcp")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb.self) {
       matches.append((6, .option6(value)))
     }
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("thread")]), let value = try? container.decode(ProcedurestageThreadInputRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da.self) {
+      matches.append((7, .option7(value)))
+    }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00" : "Ambiguous union ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754" : "Ambiguous union ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(ProcedurestageThreadInputRequestU2DSegmentsU2DItem_a399fbc754.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -411,39 +437,7 @@ public enum ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00: Codab
     case .option4(let value): try container.encode(value)
     case .option5(let value): try container.encode(value)
     case .option6(let value): try container.encode(value)
+    case .option7(let value): try container.encode(value)
     }
-  }
-}
-
-public struct ProcedurestageThreadInputRequest_03ea8730a2: Codable, Sendable, RemoteModelMetadata {
-  public var prompt: String
-  public var segments: RemoteField<[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00]> = .missing
-  public var threadId: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "prompt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "segments", typeName: "[ProcedurestageThreadInputRequestU2DSegmentsU2DItem_99d0ed7b00]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case prompt = "prompt"
-    case segments = "segments"
-    case threadId = "threadId"
-  }
-}
-
-public struct ProceduresubagentSubscribeRequest_ff495aee3e: Codable, Sendable, RemoteModelMetadata {
-  public var parentItemId: String
-  public var threadId: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "parentItemId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case parentItemId = "parentItemId"
-    case threadId = "threadId"
   }
 }

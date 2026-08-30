@@ -13,7 +13,13 @@
 
 import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter, AgentEnvContext } from "../base";
-import { detectProbeLocation, injectWslEnv, readCommandOutputAsync } from "../base";
+import {
+  detectProbeLocation,
+  injectWslEnv,
+  mergeSpawnEnv,
+  readCommandOutputAsync,
+  withCommandBaseSpawnEnv,
+} from "../base";
 import { resolveProbeSpawnCwd } from "../probeCwd";
 import { authenticateAcpAgent, logoutAcpAgent } from "./probe";
 
@@ -51,19 +57,20 @@ export async function dispatchAcpAuthenticate(input: {
     throw new Error(`Agent does not support ACP authentication: ${input.adapter.kind}`);
   }
   const ctx = envContextFromPayload(input.envKind, input.wslDistro);
-  const command = await input.adapter.buildAcpAuthCommand(ctx);
-  if (!command) {
+  const rawCommand = await input.adapter.buildAcpAuthCommand(ctx);
+  if (!rawCommand) {
     throw new Error(`Agent did not return an ACP auth command: ${input.adapter.kind}`);
   }
+  const command = withCommandBaseSpawnEnv(rawCommand, input.adapter.baseSpawnEnv);
   const location = detectProbeLocation(ctx);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   const browserEnv = authBrowserEnv(input.envKind);
-  const env = { ...(command.env ?? {}), ...(browserEnv ?? {}) };
+  const env = mergeSpawnEnv(command.env, browserEnv);
   const authCommand =
     location.kind === "wsl" && browserEnv ? injectWslEnv(command, location, browserEnv) : command;
   await authenticateAcpAgent(authCommand.command, authCommand.args, input.methodId, {
     ...(processCwd ? { processCwd } : {}),
-    ...(location.kind !== "wsl" && Object.keys(env).length > 0 ? { env } : {}),
+    ...(location.kind !== "wsl" && env ? { env } : {}),
     label: input.adapter.label,
   });
 }
@@ -79,10 +86,13 @@ export async function dispatchAcpLogout(input: {
     if (input.adapter.preferAcpLogoutRpc) {
       await tryAcpLogoutRpc(input.adapter, ctx, location);
     }
-    const command = await input.adapter.buildAcpLogoutCommand(ctx);
-    if (!command) {
+    const rawCommand = await input.adapter.buildAcpLogoutCommand(ctx);
+    if (!rawCommand) {
       throw new Error(`Agent did not return an ACP logout command: ${input.adapter.kind}`);
     }
+    // Same lane as auth: the logout command spawns the CLI, so it carries the
+    // adapter's base env; command-declared values win.
+    const command = withCommandBaseSpawnEnv(rawCommand, input.adapter.baseSpawnEnv);
     const processCwd = resolveProbeSpawnCwd(location, command.cwd);
     const result = await readCommandOutputAsync(
       command.command,
@@ -122,8 +132,9 @@ async function runAcpLogoutRpc(
   ctx: AgentEnvContext | undefined,
   location: ProjectLocation,
 ): Promise<boolean> {
-  const command = await adapter.buildAcpAuthCommand?.(ctx);
-  if (!command) return false;
+  const rawCommand = await adapter.buildAcpAuthCommand?.(ctx);
+  if (!rawCommand) return false;
+  const command = withCommandBaseSpawnEnv(rawCommand, adapter.baseSpawnEnv);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   await logoutAcpAgent(command.command, command.args, {
     ...(processCwd ? { processCwd } : {}),

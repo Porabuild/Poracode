@@ -43,7 +43,7 @@ enum BrowserMirrorContractError: Error, Equatable, Sendable {
 }
 
 enum BrowserMirrorRemoteV3Adapter {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
   static let maximumFrameBytes = 4 * 1_024 * 1_024
   static let maximumMessageBytes = 6 * 1_024 * 1_024
 

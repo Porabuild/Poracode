@@ -42,7 +42,13 @@ export type SidebarRow =
       key: string;
       entry: Extract<ThreadListEntry, { kind: "thread-group" }>;
     }
-  | { kind: "section-label"; key: string; label: MessageDescriptor }
+  | {
+      kind: "section-label";
+      key: string;
+      label: MessageDescriptor;
+      doneThreads: Thread[];
+      hasProtectedDoneThreads: boolean;
+    }
   | { kind: "see-more"; key: string; hiddenCount: number };
 
 /** Default number of list items shown per project before the "See more" row. */
@@ -333,7 +339,20 @@ export function buildSidebarProjectRows(input: {
   pushList(starredVisible);
   pushList(activeVisible, starredVisible.length);
   if (doneVisible.length > 0) {
-    rows.push({ kind: "section-label", key: "done-label", label: msg`Done` });
+    const allDoneThreads = doneEntries.flatMap((entry) =>
+      entry.kind === "thread" ? [entry.thread] : entry.group.threads,
+    );
+    const candidateOrder = input.experimentCandidateOrder;
+    const doneThreads = candidateOrder
+      ? allDoneThreads.filter((thread) => !candidateOrder.has(thread.id))
+      : allDoneThreads;
+    rows.push({
+      kind: "section-label",
+      key: "done-label",
+      label: msg`Done`,
+      doneThreads,
+      hasProtectedDoneThreads: doneThreads.length < allDoneThreads.length,
+    });
   }
   pushList(doneVisible, starredVisible.length + activeVisible.length);
   if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });

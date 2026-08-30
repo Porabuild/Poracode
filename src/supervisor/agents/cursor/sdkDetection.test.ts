@@ -9,6 +9,7 @@ function worker(input: {
     models: Array<{ id: string; displayName: string }>;
     sdkVersion: string;
     source: "configured" | "global-npm";
+    authenticatedAs?: string;
   }>;
 }) {
   return {
@@ -53,6 +54,42 @@ describe("probeCursorSdkRuntime", () => {
     });
     expect(handle.probe).toHaveBeenCalledWith("stored-key");
     expect(handle.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("forwards the SDK account email from Cursor.me()", async () => {
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.24",
+        source: "global-npm",
+        authenticatedAs: "work@example.com",
+      }),
+    });
+
+    await expect(
+      probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker: async () => handle }, "crsr_work"),
+    ).resolves.toMatchObject({
+      authState: "authenticated",
+      authenticatedAs: "work@example.com",
+    });
+  });
+
+  it("uses an explicit profile key instead of the base Cursor setting", async () => {
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.24",
+        source: "global-npm",
+      }),
+    });
+
+    await probeCursorSdkRuntime(
+      { envKind: "posix", agentSettings: { sdkApiKey: "base-key" } },
+      { spawnWorker: async () => handle },
+      "profile-key",
+    );
+
+    expect(handle.probe).toHaveBeenCalledWith("profile-key");
   });
 
   it("reports a missing or rejected SDK API key as missing authentication", async () => {
@@ -421,6 +458,23 @@ describe("applyCursorSdkProbe", () => {
         },
       },
     });
+  });
+
+  it("attaches the SDK account email to the SDK runtime, not the CLI login", () => {
+    const merged = applyCursorSdkProbe(
+      { ...cliStatus, providerMetadata: { authenticatedAs: "cli@example.com" } },
+      {
+        installed: true,
+        authState: "authenticated",
+        authenticatedAs: "sdk@example.com",
+        models: [{ id: "sdk-model", displayName: "SDK Model" }],
+      },
+      "sdk",
+    );
+
+    expect(merged.providerMetadata?.authenticatedAs).toBe("cli@example.com");
+    expect(merged.runtimeVariants?.sdk?.providerMetadata?.authenticatedAs).toBe("sdk@example.com");
+    expect(merged.runtimeVariants?.acp?.providerMetadata).toBeUndefined();
   });
 
   it("hides SDK GUI when the external package is unavailable", () => {

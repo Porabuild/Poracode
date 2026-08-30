@@ -117,7 +117,7 @@ final class SettingsIntegrationsGatewayTests: XCTestCase {
         connectionID: context.lease.connectionID,
         endpoint: "https://host.example",
         token: "token",
-        protocolVersion: 3,
+        protocolVersion: 8,
         scopes: ["session:read"]
       )
     )

@@ -260,6 +260,33 @@ describe("deriveToolDisplay", () => {
     );
   });
 
+  it("drops the kind prefix from bare agent titles used by grouped docks", () => {
+    const crossagent = makePayload({
+      name: "Drive collection closures — Factory Droid · DeepSeek V4 Flash 0731 (Droid Core) - High",
+      isCrossagent: true,
+    });
+    expect(deriveToolDisplay(crossagent).title).toBe(
+      "Crossagent: Drive collection closures — Factory Droid · DeepSeek V4 Flash 0731 (Droid Core) - High",
+    );
+    expect(deriveToolDisplay(crossagent, { bareAgentTitle: true }).title).toBe(
+      "Drive collection closures — Factory Droid · DeepSeek V4 Flash 0731 (Droid Core) - High",
+    );
+
+    const subagent = makePayload({
+      name: "probe worker alpha",
+      isSubAgent: true,
+      args: { subagent_type: "general-purpose" },
+    });
+    expect(deriveToolDisplay(subagent, { bareAgentTitle: true }).title).toBe("probe worker alpha");
+
+    const claudeTask = makePayload({
+      name: "Task",
+      isSubAgent: true,
+      args: { subagent_type: "general-purpose" },
+    });
+    expect(deriveToolDisplay(claudeTask, { bareAgentTitle: true }).title).toBe("general-purpose");
+  });
+
   it("recognizes Claude Workflow tool calls as background work", () => {
     const payload = makePayload({
       name: "Workflow",

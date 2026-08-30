@@ -13,6 +13,7 @@ import {
 import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
+import { branchNameFromRemoteRef } from "@/shared/gitUtils";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
@@ -52,6 +53,7 @@ import { ConflictResolutionActions } from "./parts/ConflictResolutionActions";
 import { CommitSyncPanel } from "./parts/CommitSyncPanel";
 import { PrSection } from "./parts/PrSection";
 import { CreatePrModal } from "./parts/CreatePrModal";
+import { ActionPhaseLabel } from "./parts/ActionPhaseLabel";
 import { GitReviewSection } from "./parts/GitReviewSection";
 import { GitReviewPadXProvider } from "./gitReviewPadXContext";
 
@@ -128,7 +130,6 @@ export function GitReviewSidebar(props: {
   const remotePlatform = gitStatus?.remoteInfo?.platform;
   const isGitHub = remotePlatform === "github" || remotePlatform === "unknown";
   const ghAvailable = useGitStore((s) => s.ghAvailable[project.id] ?? false);
-  const branchList = useGitStore((s) => s.branches[project.id]?.branches) ?? EMPTY_BRANCHES;
   const effectiveBranch = worktreeBranch ?? gitStatus?.branch;
   const effectivePrKey =
     worktreePath ?? (gitStatus?.branch ? buildBranchPrKey(project.id) : undefined);
@@ -145,7 +146,7 @@ export function GitReviewSidebar(props: {
   const mergeConflicting = gitStatus?.mergeInProgress ?? false;
   const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
 
-  useSourceBranchData({
+  const { sourceBranches } = useSourceBranchData({
     project,
     effectiveBranch,
     effectivePrKey,
@@ -154,6 +155,9 @@ export function GitReviewSidebar(props: {
     preferredSourceBranch: prBaseBranch,
     refreshKey,
   });
+  const prBranchList = sourceBranches ?? EMPTY_BRANCHES;
+  const defaultPrTargetBranch =
+    sourceBranch && sourceBranches ? branchNameFromRemoteRef(sourceBranch, sourceBranches) : null;
 
   const {
     commitMessage,
@@ -176,10 +180,12 @@ export function GitReviewSidebar(props: {
     prLoading,
     prPendingAction,
     isGeneratingPr,
+    actionPhase,
     handleCommit,
     handleGenerateMessage,
     handleSyncOrPush,
     handleSyncAction,
+    handlePushAndCreatePr,
     handleMergeOnly,
     handleMergeAndRemove,
     handlePullFromSource,
@@ -205,7 +211,7 @@ export function GitReviewSidebar(props: {
     effectiveBranch,
     effectivePrKey,
     sourceBranch,
-    branchList,
+    defaultPrTargetBranch,
   });
 
   const { canResolveWithAgent, handleResolveWithAgent } = useConflictResolver({
@@ -256,7 +262,12 @@ export function GitReviewSidebar(props: {
     prState !== "merged" || (gitStatus?.headSha && prHeadSha && gitStatus.headSha !== prHeadSha),
   );
   const prEligible = Boolean(
-    showPrSection && ghAvailable && sourceBranch && !isPrActive(prState) && hasCommitsAfterMergedPr,
+    showPrSection &&
+    ghAvailable &&
+    sourceBranch &&
+    defaultPrTargetBranch &&
+    !isPrActive(prState) &&
+    hasCommitsAfterMergedPr,
   );
   const showCreatePrButton = prEligible && isPushed;
   // Whether the one-click "Commit & Create PR" action is offered. Unlike
@@ -271,8 +282,15 @@ export function GitReviewSidebar(props: {
   // (merge-actions group vs standalone), so its label/pending/content are
   // derived once here and shared.
   const isAutoPrMode = prCreateMode === "auto";
-  const createPrPending = isAutoPrMode && prLoading;
+  // The button reports the live step of any create-PR flow, not just the
+  // one-click mode: the dialog can be dismissed while its summary generation
+  // or creation is still running, and this button is then the only control
+  // left to show it.
+  const createPrPhase =
+    actionPhase === "generating-pr-summary" || actionPhase === "creating-pr" ? actionPhase : null;
+  const createPrPending = (isAutoPrMode && prLoading) || createPrPhase !== null;
   const runPrMode = (prMode: PrCreateMode) => {
+    if (actionPhase) return;
     if (prMode === "auto") void handleCreatePr(false);
     else setCreatePrModalOpen(true);
   };
@@ -280,6 +298,7 @@ export function GitReviewSidebar(props: {
   // Picking the other mode from the split-button menu both runs it and makes
   // it the sticky default (the same field the Git settings select drives).
   const selectPrMode = (prMode: PrCreateMode) => {
+    if (actionPhase) return;
     setPrCreateMode(prMode);
     runPrMode(prMode);
   };
@@ -288,7 +307,13 @@ export function GitReviewSidebar(props: {
   const createPrButtonContent = (
     <>
       {createPrPending ? <PixelLoader size="xs" /> : <GitPullRequest className="size-3.5" />}
-      {isAutoPrMode ? <Trans>Create PR (Auto)</Trans> : <Trans>Create PR</Trans>}
+      {createPrPhase ? (
+        <ActionPhaseLabel phase={createPrPhase} />
+      ) : isAutoPrMode ? (
+        <Trans>Create PR (Auto)</Trans>
+      ) : (
+        <Trans>Create PR</Trans>
+      )}
     </>
   );
   const initialPrWatch = createdPrWatch?.prNumber === prNumber ? createdPrWatch : undefined;
@@ -525,6 +550,7 @@ export function GitReviewSidebar(props: {
               isGenerating={isGenerating}
               isSyncing={isSyncing}
               prLoading={prLoading}
+              actionPhase={actionPhase}
               isPullingFromSource={isPullingFromSource}
               showPullFromSource={showPullFromSource}
               sourceBranch={sourceBranch}
@@ -534,6 +560,7 @@ export function GitReviewSidebar(props: {
               handleGenerateMessage={handleGenerateMessage}
               handleSyncOrPush={handleSyncOrPush}
               handleSyncAction={handleSyncAction}
+              handlePushAndCreatePr={handlePushAndCreatePr}
               hasTracking={hasTracking}
               handlePullFromSource={handlePullFromSource}
             />
@@ -567,7 +594,7 @@ export function GitReviewSidebar(props: {
                 <Button
                   variant="tertiary"
                   className="flex-1"
-                  isDisabled={createPrPending}
+                  isDisabled={createPrPending || Boolean(actionPhase)}
                   isPending={createPrPending}
                   onPress={onCreatePrPress}
                 >
@@ -578,7 +605,7 @@ export function GitReviewSidebar(props: {
                     isIconOnly
                     variant="tertiary"
                     aria-label={t`More pull request options`}
-                    isDisabled={createPrPending || isMerging}
+                    isDisabled={createPrPending || isMerging || Boolean(actionPhase)}
                   >
                     <ButtonGroup.Separator />
                     <ChevronDown className="size-3.5" />
@@ -631,7 +658,7 @@ export function GitReviewSidebar(props: {
             isOpen={createPrModalOpen}
             onOpenChange={setCreatePrModalOpen}
             effectiveBranch={effectiveBranch}
-            sourceBranch={sourceBranch}
+            defaultTargetBranch={defaultPrTargetBranch}
             prTitle={prTitle}
             setPrTitle={setPrTitle}
             prBody={prBody}
@@ -640,8 +667,9 @@ export function GitReviewSidebar(props: {
             setPrTargetBranch={setPrTargetBranch}
             prLoading={prLoading}
             isGeneratingPr={isGeneratingPr}
+            actionPhase={actionPhase}
             canGenerateMessage={canGenerateMessage}
-            branchList={branchList}
+            branchList={prBranchList}
             handleCreatePr={handleCreatePr}
             handleGeneratePrSummary={handleGeneratePrSummary}
           />

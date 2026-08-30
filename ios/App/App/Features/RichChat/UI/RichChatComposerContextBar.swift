@@ -78,6 +78,7 @@ extension RichPromptSegment {
     switch self {
     case .file(let path): path
     case .diffComment(let path, let lineNumber, _, _, _): "\(path):\(lineNumber)"
+    case .thread(_, let title): title
     default: nil
     }
   }
@@ -91,6 +92,7 @@ extension RichPromptSegment {
     switch self {
     case .file(let path): "@\(path)"
     case .diffComment(_, _, _, _, let body): body
+    case .thread(_, let title): "@\(title)"
     default: nil
     }
   }

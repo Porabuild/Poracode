@@ -53,6 +53,13 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
   const thread = dbGetThread(event.threadId);
   if (!thread) return;
 
+  // A thread switched to another provider in place still receives one last
+  // state from the session it left, describing that session's model, commands
+  // and ref. Persisting any of it would leave the durable row naming the new
+  // provider while carrying the old one's config, and the thread would hydrate
+  // after a restart with a model its agent does not offer.
+  if (event.agentKind !== undefined && event.agentKind !== thread.agentKind) return;
+
   // Every supervisor status event is authoritative, and status sources can
   // legitimately change (for example terminal_parse -> cli_hook). Never drop a
   // transition on a source mismatch or the durable row can freeze at a stale

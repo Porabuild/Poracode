@@ -100,7 +100,7 @@ describe("museDetectionSpec", () => {
     expect(museDetectionSpec.binary).toBe("muse");
     expect(museDetectionSpec.loginCommand).toBe("muse login");
     expect(museDetectionSpec.versionArgs).toEqual(["--version"]);
-    expect(museDetectionSpec.probeEnv).toEqual({ MUSE_NO_AUTO_UPDATE: "1" });
+    expect(museDetectionSpec.baseSpawnEnv).toEqual({ MUSE_NO_AUTO_UPDATE: "1" });
   });
 
   it("ships installer-only update (no npm, no builtIn)", () => {

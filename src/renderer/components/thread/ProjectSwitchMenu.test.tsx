@@ -54,22 +54,19 @@ describe("ProjectSwitchMenu", () => {
     });
   });
 
-  it("groups other workspaces' projects under their own heading instead of hiding them", async () => {
+  it("offers only the active workspace's projects, like the sidebar", async () => {
     render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
     const menu = await openMenu();
 
-    const groups = within(menu).getAllByRole("group");
-    expect(groups).toHaveLength(2);
-    // Active workspace first: Home and unfiled projects belong to every workspace.
+    // Home and unfiled projects belong to every workspace; Beta is filed in
+    // Side Hustle and stays out of the list entirely.
+    expect(within(menu).queryByRole("group")).not.toBeInTheDocument();
     expect(
-      within(groups[0]!)
+      within(menu)
         .getAllByRole("menuitemradio")
         .map((item) => item.textContent),
     ).toEqual([HOME_PROJECT_NAME, "Alpha", "Gamma"]);
-    // The out-of-workspace group names the workspace the project would move to.
-    const other = within(groups[1]!).getByRole("menuitemradio", { name: /Beta/ });
-    expect(other).toHaveTextContent("Side Hustle");
-    expect(within(menu).getByText("Other workspaces")).toBeInTheDocument();
+    expect(within(menu).queryByText("Other workspaces")).not.toBeInTheDocument();
   });
 
   it("keeps a flat list when every project belongs to the active workspace", async () => {
@@ -81,21 +78,14 @@ describe("ProjectSwitchMenu", () => {
     expect(within(menu).getAllByRole("menuitemradio")).toHaveLength(3);
   });
 
-  it("follows an out-of-workspace pick into its workspace and remembers it there", async () => {
+  it("does not offer projects filed in another workspace", async () => {
     render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
     const menu = await openMenu();
 
-    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Beta/ }));
-
-    await waitFor(() => {
-      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "b" });
-    });
-    // Otherwise the new thread would be started in a project the sidebar hides.
-    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("w2");
-    expect(useWorkspaceStore.getState().lastProjectIdByWorkspace).toEqual({ w2: "b" });
+    expect(within(menu).queryByRole("menuitemradio", { name: /Beta/ })).not.toBeInTheDocument();
   });
 
-  it("stays in the active workspace when the pick is already visible there", async () => {
+  it("remembers an in-workspace pick for the active workspace", async () => {
     render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
     const menu = await openMenu();
 
@@ -174,20 +164,10 @@ describe("ProjectSwitchMenu", () => {
     const menu = await openMenu();
 
     expect(
-      within(menu).queryByRole("menuitemradio", { name: HOME_PROJECT_NAME }),
-    ).not.toBeInTheDocument();
-    // Active workspace still leads, then the other workspace's projects.
-    const groups = within(menu).getAllByRole("group");
-    expect(
-      within(groups[0]!)
+      within(menu)
         .getAllByRole("menuitemradio")
         .map((item) => item.textContent),
     ).toEqual(["Alpha", "Gamma"]);
-    expect(
-      within(groups[1]!)
-        .getAllByRole("menuitemradio")
-        .map((item) => item.textContent),
-    ).toEqual(["BetaSide Hustle"]);
   });
 
   it("labels the trigger with a draft that outlived a workspace switch", async () => {
@@ -195,8 +175,20 @@ describe("ProjectSwitchMenu", () => {
 
     expect(screen.getByRole("button", { name: "Switch project" })).toHaveTextContent("Beta");
 
+    // Beta is filed in Side Hustle, so the Work-scoped menu offers the active
+    // workspace's projects instead.
     const menu = await openMenu();
-    expect(within(menu).getByRole("menuitemradio", { name: /Beta/ })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitemradio", { name: /Beta/ })).not.toBeInTheDocument();
+    expect(within(menu).getByRole("menuitemradio", { name: "Alpha" })).toBeInTheDocument();
+  });
+
+  it("keeps a hidden current project switchable when one active target remains", async () => {
+    useSharedSettings.setState({ homeScopeEnabled: false });
+    useAppStore.setState({ projects: [workProject, sideHustleProject] });
+    render(<ProjectSwitchMenu currentProjectId="b" variant="compact" />);
+
+    expect(screen.getByRole("button", { name: "Switch project" })).not.toBeDisabled();
+    const menu = await openMenu();
     expect(within(menu).getByRole("menuitemradio", { name: "Alpha" })).toBeInTheDocument();
   });
 });

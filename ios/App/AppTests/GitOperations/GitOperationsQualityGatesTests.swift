@@ -312,7 +312,7 @@ final class GitOperationsQualityGatesTests: XCTestCase {
       appVersion: "1",
       scopes: ["session:read", "session:operate"],
       pairedAt: Date(timeIntervalSince1970: 0),
-      protocolVersion: 3
+      protocolVersion: 8
     )
   }
 

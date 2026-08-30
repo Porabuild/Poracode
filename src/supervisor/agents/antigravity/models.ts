@@ -1,4 +1,5 @@
 import { stripAnsi } from "@/shared/ansi";
+import { normalizeAntigravityAcpModelSelection } from "@/shared/agents/antigravity";
 import type { AgentCapability, LabeledOption } from "@/shared/contracts";
 import { spawnAgentPty } from "@/supervisor/oneShotSpawn";
 import { buildAgentCommand, type DetectProbeCtx } from "../base";
@@ -363,6 +364,50 @@ export function buildAntigravityModelCapabilities(
   const allEfforts = sortEfforts([...new Set(Object.values(modelEfforts).flat())]);
   const defaultEffort = allEfforts.includes("Medium") ? "Medium" : allEfforts[0];
   return { models, efforts: [], modelEfforts, defaultEffort };
+}
+
+function geminiModelIdFromLabel(label: string): string | undefined {
+  const match = /^Gemini\s+(\d+(?:\.\d+)?)\s+(.+)$/i.exec(label.trim());
+  if (!match) return undefined;
+  const family = match[2]
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return family ? `gemini-${match[1]}-${family}` : undefined;
+}
+
+/** Collapse Antigravity ACP's model-per-effort options into base models. */
+export function buildAntigravityAcpModelCapabilities(
+  models: LabeledOption[],
+): Pick<AgentCapability, "models" | "efforts" | "modelEfforts" | "defaultEffort"> {
+  const variants = models.map((model): AntigravityModelVariant => {
+    const parts = splitModelEffort(model.label);
+    const persistedSelection = normalizeAntigravityAcpModelSelection(model.id);
+    const normalizedModel =
+      persistedSelection.model !== model.id
+        ? persistedSelection.model
+        : parts
+          ? geminiModelIdFromLabel(parts.model)
+          : undefined;
+    const effort = persistedSelection.effort ?? parts?.effort;
+    if (!normalizedModel || !effort) {
+      return {
+        model: model.id,
+        label: model.label,
+        cliModel: model.id,
+        ...(model.description ? { provider: model.description } : {}),
+      };
+    }
+    return {
+      model: normalizedModel,
+      label: parts?.model ?? labelFromId(normalizedModel),
+      effort,
+      cliModel: model.id,
+      provider: model.description ?? "Google DeepMind",
+    };
+  });
+  return buildAntigravityModelCapabilities(variants);
 }
 
 export function parseAntigravityEffortsHelp(raw: string): string[] {

@@ -41,6 +41,7 @@ import {
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
 import { createMainWindow } from "./window/createMainWindow";
+import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
   createQuickComposerWindow,
@@ -357,14 +358,6 @@ function updateCrossagentRoutingOverride(
   mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
 }
 
-function handleMainWindowClose(event: Electron.Event): void {
-  if (isQuitting) return;
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (!isCloseToTrayEnabled()) return;
-  event.preventDefault();
-  mainWindow.hide();
-}
-
 function quickComposerWindowFor(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
   const window = BrowserWindow.fromWebContents(event.sender);
   return window && window === quickComposerWindow && !window.isDestroyed() ? window : null;
@@ -500,7 +493,17 @@ function forwardAgentStatusEventToQuickComposer(event: SupervisorEvent): void {
 
 function createMainAppWindow(showOnReady = true): BrowserWindow {
   const windowChrome = resolveWindowChromeOptions();
-  const window = createMainWindow({
+  let window: BrowserWindow;
+  const closeLifecycle = createMainWindowCloseLifecycle({
+    isQuitting: () => isQuitting,
+    closeToTrayEnabled: isCloseToTrayEnabled,
+    hide: () => window.hide(),
+    markQuitting: () => {
+      isQuitting = true;
+    },
+    quit: () => app.quit(),
+  });
+  window = createMainWindow({
     ...commonAppWindowOptions(),
     state: requireBackendStateStore(),
     windowChromeHeight: WINDOW_CHROME_HEIGHT,
@@ -508,11 +511,13 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
     sidebarTranslucency: windowChrome.sidebarTranslucency,
     showOnReady,
     onClosed: () => {
-      if (mainWindow === window) mainWindow = null;
+      const wasMainWindow = mainWindow === window;
+      if (wasMainWindow) mainWindow = null;
       mainRendererReady = false;
       clearRendererEventInterests?.();
+      closeLifecycle.handleClosed();
     },
-    onClose: handleMainWindowClose,
+    onClose: (event) => closeLifecycle.handleClose(event),
     onRendererProcessGone: (details, intent) => {
       mainRendererReady = false;
       clearRendererEventInterests?.();

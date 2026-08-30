@@ -15,6 +15,7 @@ enum RichPromptSegment: Sendable, Equatable {
     pluginName: String?
   )
   case mcp(id: String, name: String)
+  case thread(threadID: String, title: String)
 }
 
 struct RichPendingSteer: Sendable, Equatable, Identifiable {
@@ -127,6 +128,11 @@ enum RichPendingSteerDecoder {
         let name = RichDecoding.requiredString(object, "name", allowEmpty: false)
       else { break }
       return .mcp(id: id, name: name)
+    case "thread":
+      guard let threadID = RichDecoding.requiredString(object, "threadId", allowEmpty: false),
+        let title = RichDecoding.requiredString(object, "title")
+      else { break }
+      return .thread(threadID: threadID, title: title)
     default:
       break
     }

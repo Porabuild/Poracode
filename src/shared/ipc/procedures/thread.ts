@@ -70,6 +70,7 @@ import type {
   WriteTerminalPayload,
 } from "../../contracts";
 import type { CrossagentRoutingState } from "../../crossagentRanking";
+import type { AvailableWindowsShell } from "../../settings";
 import {
   defineIpcProcedure,
   defineNoArgProcedure,
@@ -186,6 +187,10 @@ export const threadProcedures = {
   ),
   getTerminalShellSnapshots: defineNoArgProcedure<TerminalShellSnapshot[], "supervisor">(
     "getTerminalShellSnapshots",
+    "supervisor",
+  ),
+  getAvailableWindowsShells: defineNoArgProcedure<AvailableWindowsShell[], "supervisor">(
+    "getAvailableWindowsShells",
     "supervisor",
   ),
   startThread: definePayloadProcedure<StartThreadPayload, StartThreadResult, "supervisor">(

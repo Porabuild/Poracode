@@ -12,9 +12,11 @@ import {
 import { Button, ButtonGroup, Dropdown, Label, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CommitDefaultAction } from "@/shared/contracts";
+import type { GitActionPhase } from "@/renderer/state/gitReviewActionStore";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
 import type { GitSyncCommand } from "@/renderer/actions/gitCommandRunner";
 import { GitReviewSection } from "./GitReviewSection";
+import { ActionPhaseLabel } from "./ActionPhaseLabel";
 import {
   COMMIT_ACTION_LABELS,
   getAvailableCommitActions,
@@ -48,6 +50,7 @@ export function CommitSyncPanel(props: {
   isGenerating: boolean;
   isSyncing: boolean;
   prLoading: boolean;
+  actionPhase: GitActionPhase | null;
   isPullingFromSource: boolean;
   showPullFromSource: boolean;
   sourceBranch: string | null;
@@ -57,6 +60,7 @@ export function CommitSyncPanel(props: {
   handleGenerateMessage: () => Promise<void>;
   handleSyncOrPush: () => Promise<void>;
   handleSyncAction: (key: GitSyncCommand) => Promise<void>;
+  handlePushAndCreatePr: () => Promise<void>;
   handlePullFromSource: () => Promise<void>;
 }) {
   const {
@@ -79,6 +83,7 @@ export function CommitSyncPanel(props: {
     isGenerating,
     isSyncing,
     prLoading,
+    actionPhase,
     isPullingFromSource,
     showPullFromSource,
     sourceBranch,
@@ -88,6 +93,7 @@ export function CommitSyncPanel(props: {
     handleGenerateMessage,
     handleSyncOrPush,
     handleSyncAction,
+    handlePushAndCreatePr,
     handlePullFromSource,
   } = props;
   const { t } = useLingui();
@@ -97,6 +103,10 @@ export function CommitSyncPanel(props: {
   // degrade to the strongest available action (push needs a remote, PR needs
   // a target branch) without overwriting their stored preference.
   const addAll = !hasStagedChanges;
+  const actionInFlight = actionPhase !== null;
+  // `canCommitStaged` covers the repo-state preconditions; the phase slot adds
+  // "nothing else is running", so every commit entry point shares one flag.
+  const canRunCommitAction = canCommitStaged && !actionInFlight;
   const availableCommitActions = getAvailableCommitActions({ hasRemote, canCreatePr });
   const primaryCommitAction = resolvePrimaryCommitAction(commitDefaultAction, {
     hasRemote,
@@ -113,8 +123,15 @@ export function CommitSyncPanel(props: {
     setCommitDefaultAction(action);
     runCommitAction(action);
   };
-  const primaryCommitPending =
-    isCommitting || (primaryCommitAction === "commit-push-pr" && prLoading);
+  // Each row's primary button owns the live step for every action its split
+  // menu can start — including the pull-from-source item — so the phase label
+  // shows up in the control the user actually pressed. Only the button whose
+  // own action is running claims the phase; an unrelated step (the AI generate
+  // button, or the other row) leaves it captioned normally.
+  const commitPending = isCommitting || (primaryCommitAction === "commit-push-pr" && prLoading);
+  const commitPhase = commitPending || isPullingFromSource ? actionPhase : null;
+  const pushPhase = isSyncing ? actionPhase : null;
+  const syncPhase = isSyncing || isPullingFromSource ? actionPhase : null;
 
   return (
     <GitReviewSection gap={1}>
@@ -144,7 +161,7 @@ export function CommitSyncPanel(props: {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
-                  if (canCommitStaged) runCommitAction(primaryCommitAction);
+                  if (canRunCommitAction) runCommitAction(primaryCommitAction);
                 }
               }}
             />
@@ -155,7 +172,7 @@ export function CommitSyncPanel(props: {
                   size="sm"
                   variant="ghost"
                   className="lc-commit-field-action lc-commit-generate !absolute top-1.5 right-1 size-6 min-w-0"
-                  isDisabled={isGenerating || !hasAnyChanges}
+                  isDisabled={isGenerating || actionInFlight || !hasAnyChanges}
                   isPending={isGenerating}
                   onPress={() => void handleGenerateMessage()}
                 >
@@ -201,8 +218,8 @@ export function CommitSyncPanel(props: {
               <Button
                 variant="tertiary"
                 className={hasMenuItems ? "flex-1" : "w-full"}
-                isDisabled={!canCommitStaged}
-                isPending={primaryCommitPending}
+                isDisabled={!canRunCommitAction}
+                isPending={commitPending || Boolean(commitPhase)}
                 onPress={() => runCommitAction(primaryCommitAction)}
               >
                 {({ isPending }) => (
@@ -212,7 +229,11 @@ export function CommitSyncPanel(props: {
                     ) : (
                       COMMIT_ACTION_ICONS[primaryCommitAction]
                     )}
-                    {t(COMMIT_ACTION_LABELS[primaryCommitAction])}
+                    {commitPhase ? (
+                      <ActionPhaseLabel phase={commitPhase} />
+                    ) : (
+                      t(COMMIT_ACTION_LABELS[primaryCommitAction])
+                    )}
                   </>
                 )}
               </Button>
@@ -230,7 +251,7 @@ export function CommitSyncPanel(props: {
                     isIconOnly
                     variant="tertiary"
                     aria-label={t`More commit options`}
-                    isDisabled={!canCommitStaged}
+                    isDisabled={!canRunCommitAction}
                   >
                     <ButtonGroup.Separator />
                     <ChevronDown className="size-3.5" />
@@ -239,6 +260,7 @@ export function CommitSyncPanel(props: {
                     <Dropdown.Menu
                       aria-label={t`Commit options`}
                       onAction={(key) => {
+                        if (actionInFlight) return;
                         if (key === "pull-from-source") {
                           void handlePullFromSource();
                           return;
@@ -251,7 +273,7 @@ export function CommitSyncPanel(props: {
                           key={action}
                           id={action}
                           textValue={t(COMMIT_ACTION_LABELS[action])}
-                          isDisabled={!canCommitStaged}
+                          isDisabled={!canRunCommitAction}
                         >
                           {COMMIT_ACTION_ICONS[action]}
                           <Label>{t(COMMIT_ACTION_LABELS[action])}</Label>
@@ -261,7 +283,7 @@ export function CommitSyncPanel(props: {
                         <Dropdown.Item
                           id="pull-from-source"
                           textValue={t`Pull from ${sourceBranch} (${sourceAhead})`}
-                          isDisabled={isPullingFromSource}
+                          isDisabled={isPullingFromSource || actionInFlight}
                         >
                           <ArrowDown className="size-3.5" />
                           <Label>
@@ -281,14 +303,18 @@ export function CommitSyncPanel(props: {
             <Button
               variant="tertiary"
               className="w-full"
-              isDisabled={isSyncing}
+              isDisabled={isSyncing || actionInFlight}
               isPending={isSyncing}
               onPress={() => void handleSyncAction("push")}
             >
               {({ isPending }) => (
                 <>
                   {isPending ? <PixelLoader size="xs" /> : <ArrowUp className="size-3.5" />}
-                  <Trans>Push ({ahead})</Trans>
+                  {pushPhase ? (
+                    <ActionPhaseLabel phase={pushPhase} />
+                  ) : (
+                    <Trans>Push ({ahead})</Trans>
+                  )}
                 </>
               )}
             </Button>
@@ -299,17 +325,22 @@ export function CommitSyncPanel(props: {
           const showPull = hasTracking && behind > 0;
           const showPush = ahead > 0 || !hasTracking;
           const showSyncBoth = hasTracking && ahead > 0 && behind > 0;
+          // Committed but not pushed yet: offer the chained push + PR here too,
+          // so the flow the commit split-button offers before committing (and
+          // the PR section offers after pushing) stays reachable in between.
+          const showPushPr = showPush && canCreatePr;
           const showPullFromSourceItem = Boolean(
             showPullFromSource && sourceBranch && sourceAhead > 0,
           );
-          const hasSyncOptions = showPull || showPush || showSyncBoth || showPullFromSourceItem;
+          const hasSyncOptions =
+            showPull || showPush || showPushPr || showSyncBoth || showPullFromSourceItem;
 
           const primaryButton = (
             <Button
               variant="tertiary"
               className="flex-1"
-              isDisabled={isSyncing}
-              isPending={isSyncing}
+              isDisabled={isSyncing || actionInFlight}
+              isPending={isSyncing || Boolean(syncPhase)}
               onPress={() => void handleSyncOrPush()}
             >
               {({ isPending }) => (
@@ -321,13 +352,19 @@ export function CommitSyncPanel(props: {
                   ) : (
                     <ArrowUpDown className="size-3.5" />
                   )}
-                  {needsPush
-                    ? ahead > 0
-                      ? t`Push (${ahead})`
-                      : t`Push`
-                    : behind > 0 || ahead > 0
-                      ? `${t`Sync`}${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
-                      : t`Sync`}
+                  {syncPhase ? (
+                    <ActionPhaseLabel phase={syncPhase} />
+                  ) : needsPush ? (
+                    ahead > 0 ? (
+                      t`Push (${ahead})`
+                    ) : (
+                      t`Push`
+                    )
+                  ) : behind > 0 || ahead > 0 ? (
+                    `${t`Sync`}${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
+                  ) : (
+                    t`Sync`
+                  )}
                 </>
               )}
             </Button>
@@ -345,7 +382,7 @@ export function CommitSyncPanel(props: {
                   isIconOnly
                   variant="tertiary"
                   aria-label={t`More sync options`}
-                  isDisabled={isSyncing || isPullingFromSource}
+                  isDisabled={isSyncing || isPullingFromSource || actionInFlight}
                 >
                   <ButtonGroup.Separator />
                   <ChevronDown className="size-3.5" />
@@ -354,39 +391,70 @@ export function CommitSyncPanel(props: {
                   <Dropdown.Menu
                     aria-label={t`Sync options`}
                     onAction={(key) => {
+                      if (actionInFlight) return;
                       if (key === "pull-from-source") {
                         void handlePullFromSource();
+                        return;
+                      }
+                      if (key === "push-pr") {
+                        void handlePushAndCreatePr();
                         return;
                       }
                       void handleSyncAction(key as GitSyncCommand);
                     }}
                   >
                     {showPull ? (
-                      <Dropdown.Item id="pull" textValue={t`Pull (${behind})`}>
+                      <Dropdown.Item
+                        id="pull"
+                        textValue={t`Pull (${behind})`}
+                        isDisabled={actionInFlight}
+                      >
                         <ArrowDown className="size-3.5" />
                         <Label>{t`Pull (${behind})`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showPull ? (
-                      <Dropdown.Item id="pullRebase" textValue={t`Pull Rebase (${behind})`}>
+                      <Dropdown.Item
+                        id="pullRebase"
+                        textValue={t`Pull Rebase (${behind})`}
+                        isDisabled={actionInFlight}
+                      >
                         <ArrowDown className="size-3.5" />
                         <Label>{t`Pull Rebase (${behind})`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showPush ? (
-                      <Dropdown.Item id="push" textValue={ahead > 0 ? t`Push (${ahead})` : t`Push`}>
+                      <Dropdown.Item
+                        id="push"
+                        textValue={ahead > 0 ? t`Push (${ahead})` : t`Push`}
+                        isDisabled={actionInFlight}
+                      >
                         <ArrowUp className="size-3.5" />
                         <Label>{ahead > 0 ? t`Push (${ahead})` : t`Push`}</Label>
                       </Dropdown.Item>
                     ) : null}
+                    {showPushPr ? (
+                      <Dropdown.Item
+                        id="push-pr"
+                        textValue={t`Push & Create PR`}
+                        isDisabled={actionInFlight}
+                      >
+                        <GitPullRequest className="size-3.5" />
+                        <Label>{t`Push & Create PR`}</Label>
+                      </Dropdown.Item>
+                    ) : null}
                     {showSyncBoth ? (
-                      <Dropdown.Item id="sync" textValue={t`Sync`}>
+                      <Dropdown.Item id="sync" textValue={t`Sync`} isDisabled={actionInFlight}>
                         <ArrowUpDown className="size-3.5" />
                         <Label>{t`Sync`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showSyncBoth ? (
-                      <Dropdown.Item id="syncRebase" textValue={t`Sync (Rebase)`}>
+                      <Dropdown.Item
+                        id="syncRebase"
+                        textValue={t`Sync (Rebase)`}
+                        isDisabled={actionInFlight}
+                      >
                         <ArrowUpDown className="size-3.5" />
                         <Label>{t`Sync (Rebase)`}</Label>
                       </Dropdown.Item>
@@ -395,7 +463,7 @@ export function CommitSyncPanel(props: {
                       <Dropdown.Item
                         id="pull-from-source"
                         textValue={t`Pull from ${sourceBranch} (${sourceAhead})`}
-                        isDisabled={isPullingFromSource}
+                        isDisabled={isPullingFromSource || actionInFlight}
                       >
                         <ArrowDown className="size-3.5" />
                         <Label>

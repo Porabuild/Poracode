@@ -98,7 +98,7 @@ export async function buildSdkUserMessage(
       textParts.push(`@${segment.name}`);
       continue;
     }
-    textParts.push(`@${segment.path}`);
+    if ("path" in segment) textParts.push(`@${segment.path}`);
   }
   flushText();
   if (content.length === 0 && prompt.length > 0) content.push({ type: "text", text: prompt });

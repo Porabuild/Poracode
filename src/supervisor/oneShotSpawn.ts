@@ -6,6 +6,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { terminateProcessTree } from "@/shared/processTree";
 import { buildAgentCommand, type CommandSpec } from "./agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "./nodePty";
+import { markOneShotOutput, stripOneShotBanner } from "./oneShotOutputMarker";
 import { processEnvRecord } from "./processEnv";
 
 export interface OneShotSpecOptions {
@@ -19,6 +20,13 @@ export interface OneShotSpecOptions {
    */
   isolateCwd?: boolean | undefined;
   env?: Record<string, string> | undefined;
+  /**
+   * Fence the command's output with a sentinel so login-shell banners (WSL
+   * MOTD, rc-file notices) can be stripped before the output is parsed. Only
+   * for one-shots whose stdout is parsed as a whole; leave it off for callers
+   * that stream stdout to the user. See {@link markOneShotOutput}.
+   */
+  markOutput?: boolean | undefined;
 }
 
 /**
@@ -40,7 +48,8 @@ export function buildOneShotSpec(
   options?: OneShotSpecOptions,
 ): CommandSpec {
   const effectiveLocation = options?.isolateCwd ? isolatedCwdLocation(location) : location;
-  return buildAgentCommand(effectiveLocation, command, args, undefined, options?.env);
+  const spec = buildAgentCommand(effectiveLocation, command, args, undefined, options?.env);
+  return options?.markOutput ? markOneShotOutput(spec) : spec;
 }
 
 /**
@@ -48,7 +57,9 @@ export function buildOneShotSpec(
  * result in one place, so every one-shot caller honors the two command flags
  * identically: `isolateCwd` neutralizes the working directory (see
  * `OneShotSpecOptions`) and `pty` selects the terminal-backed spawner for CLIs
- * that only emit their answer when attached to a tty (e.g. `agy -p`).
+ * that only emit their answer when attached to a tty (e.g. `agy -p`). Output
+ * is always sentinel-fenced (`markOutput: true`) so login-shell banners are
+ * stripped before the spawner resolves — see `markOneShotOutput`.
  */
 export function prepareOneShot(
   location: ProjectLocation,
@@ -62,6 +73,7 @@ export function prepareOneShot(
 ): { spec: CommandSpec; spawn: typeof spawnAgent } {
   const spec = buildOneShotSpec(location, cmd.command, cmd.args, {
     isolateCwd: cmd.isolateCwd,
+    markOutput: true,
     ...(cmd.env ? { env: cmd.env } : {}),
   });
   return { spec, spawn: cmd.pty ? spawnAgentPty : spawnAgent };
@@ -108,10 +120,11 @@ export function spawnAgent(
     });
     child.on("close", (code) => {
       signal?.removeEventListener("abort", onAbort);
+      const output = stripOneShotBanner(stdout).trim();
       if (signal?.aborted) {
         reject(new Error("Aborted"));
-      } else if (code === 0 && stdout.trim()) {
-        resolve(stdout.trim());
+      } else if (code === 0 && output) {
+        resolve(output);
       } else if (code === null && child.killed) {
         reject(new Error("Agent timed out"));
       } else {
@@ -178,7 +191,7 @@ export function spawnAgentPty(
       dataDisposable.dispose();
       exitDisposable.dispose();
 
-      const text = stripAnsiPreservingLayout(output).trim();
+      const text = stripOneShotBanner(stripAnsiPreservingLayout(output)).trim();
       if (signal?.aborted) {
         reject(new Error("Aborted"));
       } else if (timedOut) {

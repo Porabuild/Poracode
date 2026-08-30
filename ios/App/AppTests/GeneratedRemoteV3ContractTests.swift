@@ -59,7 +59,7 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
     let environmentObject = try object(environment)
     XCTAssertNil(environmentObject["futureCapability"])
     let descriptor = try JSONDecoding.decode(RemoteEnvironmentDescriptor.self, from: environment)
-    XCTAssertEqual(descriptor.protocolVersion, 3)
+    XCTAssertEqual(descriptor.protocolVersion, 8)
     let legacyEnvironment = try GeneratedRemoteV3Contract.environmentResponse(
       fixture("environment-forward-compatible.json"), legacy: true
     )

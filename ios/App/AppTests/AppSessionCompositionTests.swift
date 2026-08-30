@@ -229,7 +229,7 @@ func makeEnvironment(
   scopes: [String] = ProtocolConstants.standardScopes
 ) -> RemoteEnvironmentDescriptor {
   RemoteEnvironmentDescriptor(
-    protocolVersion: 3,
+    protocolVersion: 8,
     hostMode: nil,
     desktopId: desktopId,
     label: label,

@@ -36,7 +36,7 @@ class SettingsHostLeaseSourceTest {
 
     private fun binding(id: com.poracode.app.model.ClientConnectionId) = SettingsHostBinding(
         connectionId = id,
-        protocolVersion = 3,
+        protocolVersion = 8,
         endpoint = "https://host.test",
         pairedAtEpochMs = 1,
         tokenExpiresAt = null,

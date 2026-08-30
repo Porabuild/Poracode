@@ -113,6 +113,8 @@ describe("custom MCP translators", () => {
     expect(built.args).toContain(`mcp_servers.${localName}.command="node"`);
     expect(built.args).toContain(`mcp_servers.${localName}.tool_timeout_sec=45`);
     expect(built.args).toContain('mcp_servers.remote.url="https://example.test/mcp"');
+    expect(built.args).not.toContain("experimental_use_rmcp_client=true");
+    expect(built.config).not.toHaveProperty("experimental_use_rmcp_client");
     expect(built.args).toContain("mcp_servers.remote.tool_timeout_sec=13");
     const envName = codexMcpTokenEnvVar(servers[1]!);
     expect(built.args).toContain(

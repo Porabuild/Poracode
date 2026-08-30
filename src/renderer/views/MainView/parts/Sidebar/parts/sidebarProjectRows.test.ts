@@ -222,7 +222,32 @@ describe("buildSidebarProjectRows — See more cap (date sort)", () => {
     const visibleIds = threadRows(rows).map((r) => r.thread.id);
     expect(visibleIds).toHaveLength(10);
     expect(seeMore(rows)).toMatchObject({ hiddenCount: 3 });
+    expect(
+      rows.find((row) => row.kind === "section-label")?.doneThreads.map((thread) => thread.id),
+    ).toEqual(["done-0", "done-1", "done-2", "done-3", "done-4"]);
     for (let i = 0; i < 8; i++) expect(visibleIds).toContain(`live-${i}`);
+  });
+
+  it("excludes experiment candidates from the Done batch action", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({ id: "ordinary", done: true }),
+        makeThread({ id: "candidate-1", done: true, groupId: "experiment-1" }),
+        makeThread({ id: "candidate-2", done: true, groupId: "experiment-1" }),
+      ],
+      sortMode: "updated",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      experimentCandidateOrder: new Map([
+        ["candidate-1", 0],
+        ["candidate-2", 1],
+      ]),
+    });
+
+    const label = rows.find((row) => row.kind === "section-label");
+    expect(label?.doneThreads.map((thread) => thread.id)).toEqual(["ordinary"]);
+    expect(label?.hasProtectedDoneThreads).toBe(true);
   });
 
   it("hides candidate rows when the experiment group collapse key is set", () => {

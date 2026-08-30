@@ -346,6 +346,9 @@ export class BackendDesktopServices {
         this.durable.prWatchService.delete(input.projectId, input.prNumber);
         return undefined as BackendServiceResult<Name>;
       }
+      case "syncPrWatchAgent":
+        this.durable.prWatchService.syncAgent(payload as never);
+        return undefined as BackendServiceResult<Name>;
       case "getProfileCoreStats":
         return getProfileCoreStats(payload as never) as BackendServiceResult<Name>;
       case "getProfileTokenStats":

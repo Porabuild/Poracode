@@ -129,7 +129,11 @@ function createManager(adapter: AgentAdapter): {
     settingsPath: join(tempDir, "settings.json"),
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[AGENT_KIND, adapter]]),
-    windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    resolveWindowsShell: () => ({
+      shell: "powershell.exe",
+      kind: "powershell",
+      args: ["-NoLogo"],
+    }),
   });
   managersToDispose.push(manager);
   return { manager, events };
@@ -163,6 +167,31 @@ function createWorkingSession(
 }
 
 describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
+  it("rejects a stale provider switch without closing the current session", async () => {
+    const structuredSession = createStructuredSession();
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await expect(
+      manager.startThread({
+        threadId: THREAD_ID,
+        projectLocation: session.projectLocation,
+        agentKind: AGENT_KIND,
+        config: session.config,
+        prompt: "continue",
+        initialSize: session.terminalSize,
+        presentationMode: "gui",
+        providerSwitch: { fromAgentKind: "claude" },
+      }),
+    ).rejects.toThrow("Provider switch is stale");
+
+    expect(manager.sessions.get(THREAD_ID)).toBe(session);
+    expect(structuredSession.forceCompleteTurn).not.toHaveBeenCalled();
+    expect(structuredSession.dispose).not.toHaveBeenCalled();
+  });
+
   it("force-stops an unacknowledged interrupt after the fixed deadline", async () => {
     const structuredSession = createStructuredSession();
     const adapter = createAdapter(structuredSession);

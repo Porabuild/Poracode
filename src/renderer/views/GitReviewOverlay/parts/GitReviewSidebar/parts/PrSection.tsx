@@ -45,6 +45,7 @@ import {
   countPassedPrChecks,
   getPrStatusTone,
   isPrBlockedOnlyByPendingChecks,
+  isPrBlockedOnlyByPendingReview,
   PR_TONE_BG_CLASS,
 } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
@@ -125,24 +126,18 @@ export function PrSection(props: {
   }, [cacheKey, details, isRefreshingPr, onRefreshPr, state]);
 
   const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
-  const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(combinedChecksStatus, {
-    reviewDecision,
-    mergeable,
-    mergeStateStatus,
-  });
+  const mergeStatus = { reviewDecision, mergeable, mergeStateStatus };
+  const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(combinedChecksStatus, mergeStatus);
+  const isAwaitingReview = isPrBlockedOnlyByPendingReview(combinedChecksStatus, mergeStatus);
+  const isSoftBlock = isPendingChecksBlock || isAwaitingReview;
   const indicatorColor =
-    PR_TONE_BG_CLASS[
-      getPrStatusTone(state, combinedChecksStatus, {
-        reviewDecision,
-        mergeable,
-        mergeStateStatus,
-      })
-    ];
+    PR_TONE_BG_CLASS[getPrStatusTone(state, combinedChecksStatus, mergeStatus)];
   const isBlocked =
-    reasonKey !== undefined &&
-    reasonKey !== "CLEAN" &&
-    reasonKey !== "DRAFT" &&
-    reasonKey !== "UNKNOWN";
+    isAwaitingReview ||
+    (reasonKey !== undefined &&
+      reasonKey !== "CLEAN" &&
+      reasonKey !== "DRAFT" &&
+      reasonKey !== "UNKNOWN");
   const blockReasonMsg = reasonKey ? BLOCK_REASON[reasonKey] : undefined;
   const blockReason = blockReasonMsg ? t(blockReasonMsg) : undefined;
   // Conflicts and pre-receive hooks can't be admin-bypassed.
@@ -339,12 +334,14 @@ export function PrSection(props: {
           {isBlocked && (
             <div className="flex flex-col gap-1 text-xs">
               <div
-                className={`flex items-center gap-2 ${isPendingChecksBlock ? "text-warning" : "text-danger"}`}
+                className={`flex items-center gap-2 ${isSoftBlock ? "text-warning" : "text-danger"}`}
               >
                 <AlertTriangle className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate font-medium">
                   {isPendingChecksBlock ? (
                     <Trans>Checks pending</Trans>
+                  ) : isAwaitingReview ? (
+                    <Trans>Awaiting review</Trans>
                   ) : (
                     <Trans>Merging is blocked</Trans>
                   )}
@@ -360,7 +357,7 @@ export function PrSection(props: {
                       isDisabled={prLoading}
                       aria-label={t`Bypass branch protection rules`}
                       className={`size-5 shrink-0 ${
-                        isPendingChecksBlock
+                        isSoftBlock
                           ? "text-warning data-[selected=true]:bg-warning data-[selected=true]:text-warning-foreground"
                           : "text-danger data-[selected=true]:bg-danger data-[selected=true]:text-white"
                       }`}
@@ -373,9 +370,7 @@ export function PrSection(props: {
                   </Tooltip>
                 )}
               </div>
-              {!isPendingChecksBlock && blockReason && (
-                <span className="text-muted">{blockReason}</span>
-              )}
+              {!isSoftBlock && blockReason && <span className="text-muted">{blockReason}</span>}
             </div>
           )}
           {mergeStateStatus === "BEHIND" && handleUpdatePrBranch && (

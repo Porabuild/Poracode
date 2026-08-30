@@ -85,7 +85,9 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
   const isCrossagent = isCrossagentTool(payload);
-  const describesCancelledStatus = isCrossagent && payload.crossagentStatus === "cancelled";
+  const describesCancelledStatus =
+    payload.subAgentStatus === "cancelled" ||
+    (isCrossagent && payload.crossagentStatus === "cancelled");
   const displayTitle = normalizeCallTitleSeparator(display.title);
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
@@ -191,7 +193,7 @@ function SubAgentResultDisclosure({ text, isCrossagent }: { text: string; isCros
         type="button"
         onClick={() => {
           setIsOpen((v) => !v);
-          actions?.onContentHeightChange();
+          actions?.onContentHeightChange?.();
         }}
         aria-expanded={isOpen}
         className="group inline-flex min-w-0 items-center gap-1.5 self-start leading-none italic opacity-80 hover:text-foreground hover:opacity-100"
@@ -274,9 +276,15 @@ function resolveStatus(
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }
-  if (payload?.crossagentStatus === "cancelled") {
+  if (payload?.subAgentStatus === "cancelled" || payload?.crossagentStatus === "cancelled") {
     return {
       rightLabel: <Trans>cancelled</Trans>,
+      rightLabelClassName: "!text-[color:var(--muted)]",
+    };
+  }
+  if (payload?.subAgentStatus === "paused") {
+    return {
+      rightLabel: <Trans>Paused</Trans>,
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }

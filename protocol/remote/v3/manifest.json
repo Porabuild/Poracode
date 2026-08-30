@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contract": "poracode.remote",
-  "protocolVersion": 3,
+  "protocolVersion": 8,
   "wireFormat": {
     "http": "application/json",
     "webSocket": "json-text-frames",
@@ -11,8 +11,8 @@
   },
   "compatibility": {
     "versionPolicy": "exact",
-    "minimumAcceptedProtocolVersion": 3,
-    "maximumAcceptedProtocolVersion": 3,
+    "minimumAcceptedProtocolVersion": 8,
+    "maximumAcceptedProtocolVersion": 8,
     "unknownObjectFields": "ignore",
     "unknownAdvertisedScopes": "filter",
     "unknownClientRequestedScopes": "reject",
@@ -268,6 +268,13 @@
       "id": "pr-watch-check",
       "method": "POST",
       "path": "/api/pr-watches/check",
+      "auth": "bearer",
+      "scopes": ["session:operate"]
+    },
+    {
+      "id": "pr-watch-agent-sync",
+      "method": "POST",
+      "path": "/api/pr-watches/agent",
       "auth": "bearer",
       "scopes": ["session:operate"]
     },

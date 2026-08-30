@@ -192,6 +192,17 @@ jobs:
           fi
           for app in "${apps[@]}"; do
             codesign --verify --deep --strict --verbose=4 "$app"
+            main_executable="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+            expected_arch="$(lipo -archs "$main_executable")"
+            if [[ "$expected_arch" == *arm64* ]]; then
+              while IFS= read -r -d '' binary; do
+                binary_arches="$(lipo -archs "$binary" 2>/dev/null || true)"
+                if [[ -n "$binary_arches" && "$binary_arches" != *arm64* ]]; then
+                  echo "::error file=$binary::Apple-silicon app contains a Mach-O binary without an arm64 slice: $binary_arches"
+                  exit 1
+                fi
+              done < <(find "$app" -type f -print0)
+            fi
           done
         shell: bash
 

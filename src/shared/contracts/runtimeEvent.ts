@@ -25,6 +25,7 @@ export const canonicalItemTypeSchema = z.enum([
   "dynamic_tool_call",
   "web_search",
   "question_answer",
+  "provider_handoff",
   "error",
 ]);
 export type CanonicalItemType = z.infer<typeof canonicalItemTypeSchema>;
@@ -69,6 +70,11 @@ export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
     pluginName: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("mcp"), name: z.string() }),
+  z.object({
+    kind: z.literal("thread"),
+    threadId: z.string().min(1),
+    title: z.string(),
+  }),
   z.object({
     kind: z.literal("diff_comment"),
     path: z.string(),
@@ -201,6 +207,15 @@ export const toolCallProgressSchema = z.object({
 });
 export type ToolCallProgress = z.infer<typeof toolCallProgressSchema>;
 
+export const subAgentStatusSchema = z.enum([
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+  "paused",
+]);
+export type SubAgentStatus = z.infer<typeof subAgentStatusSchema>;
+
 export const acpToolKindSchema = z.enum([
   "read",
   "edit",
@@ -268,6 +283,7 @@ export const toolCallPayloadSchema = z.object({
   status: toolCallStatusSchema,
   progress: toolCallProgressSchema.optional(),
   isSubAgent: z.boolean().optional(),
+  subAgentStatus: subAgentStatusSchema.optional(),
   /**
    * This agent row CONTINUES an earlier run instead of launching a new agent —
    * e.g. Claude Code's `SendMessage` resuming a completed sub-agent from its
@@ -297,6 +313,19 @@ export const errorItemPayloadSchema = z.object({
   message: z.string(),
 });
 export type ErrorItemPayload = z.infer<typeof errorItemPayloadSchema>;
+
+/**
+ * Marks the point in a transcript where the thread changed provider in place.
+ * Everything above the row was produced by `fromAgentKind`, everything below by
+ * `toAgentKind`, which starts from a handed-off summary rather than the real
+ * session — so the row is what explains the discontinuity in the history.
+ */
+export const providerHandoffItemPayloadSchema = z.object({
+  fromAgentKind: z.string().min(1),
+  toAgentKind: z.string().min(1),
+  at: z.string(),
+});
+export type ProviderHandoffItemPayload = z.infer<typeof providerHandoffItemPayloadSchema>;
 
 /**
  * Provider-agnostic record of a user's reply to a structured user-input request

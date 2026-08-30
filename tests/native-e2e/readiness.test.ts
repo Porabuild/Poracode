@@ -22,7 +22,7 @@ describe("readiness descriptor", () => {
       schemaVersion: 1,
       mode: "mock",
       scenario: "mock-foundation",
-      protocolVersion: 3,
+      protocolVersion: 8,
       bindingFormatVersion: 2,
       manifestHash: "sha256:deadbeef",
       ledgerFormatVersion: 2,

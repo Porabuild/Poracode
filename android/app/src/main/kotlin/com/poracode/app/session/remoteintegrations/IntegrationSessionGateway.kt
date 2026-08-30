@@ -102,7 +102,7 @@ class GeneratedIntegrationSessionGateway(
         if (current == null || current.key != lease.key) {
             throw IntegrationGatewayException(409, "stale_lease", false)
         }
-        if (current.protocolVersion != 3 || lease.protocolVersion != 3) {
+        if (current.protocolVersion != 8 || lease.protocolVersion != 8) {
             throw IntegrationGatewayException(409, "protocol_version_mismatch", false)
         }
         if (!current.ready) throw IntegrationGatewayException(409, "session_not_ready", false)

@@ -117,7 +117,7 @@ private actor BlockingCredentialRepository: PortForwardingCredentialRepository {
       connectionID: connectionID,
       endpoint: "https://relay.example/s/host",
       token: "access",
-      protocolVersion: 3,
+      protocolVersion: 8,
       scopes: ["ports:forward"])
   }
 

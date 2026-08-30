@@ -5,6 +5,10 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
+import {
+  clearRuntimeStructuralChangeHint,
+  readRuntimeStructuralChangeHint,
+} from "@/renderer/state/runtimeStructuralChanges";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
@@ -26,6 +30,8 @@ export type ChatTimelineEntry =
   | { kind: "item"; id: string }
   | { kind: "tool_call_group"; id: string; itemIds: readonly string[] };
 
+const MAX_INCREMENTAL_TAIL_ITEMS = 128;
+
 /**
  * Cache for `selectVisibleThreadTimelineEntries`. Keyed by
  * `${threadId}\0${hiddenItemId ?? ""}` (a small constant-size string) and
@@ -45,6 +51,8 @@ const timelineEntryCache = new Map<
     itemIds: readonly string[];
     structuralVersion: number;
     entries: readonly ChatTimelineEntry[];
+    entryStartIndices: readonly number[];
+    childParentIds: ReadonlySet<string>;
   }
 >();
 
@@ -61,6 +69,8 @@ const visibleItemIdsCache = new Map<
     sourceItemIds: readonly string[];
     structuralVersion: number;
     result: readonly string[];
+    sourceIndices: readonly number[];
+    stablePrefixLength: number;
   }
 >();
 
@@ -91,25 +101,102 @@ export function selectVisibleThreadRuntimeItemIds(
   }
 
   const items = state.runtimeItemsByIdByThread[threadId];
-  const visible = itemIds.filter((itemId) => {
-    if (itemId === hiddenItemId) return false;
-    const item = items?.[itemId];
-    if (!item) return true;
-    // Sub-agent children render embedded under their parent tool_call row, not
-    // as siblings at the top of the timeline.
-    if (item.parentItemId) return false;
-    return isVisibleRuntimeItem(item);
-  });
-  const result =
-    visible.length === 0
-      ? EMPTY_THREAD_ITEM_IDS
-      : visible.length === itemIds.length
-        ? itemIds
-        : visible;
+  const hint = readRuntimeStructuralChangeHint(threadId, structuralVersion);
+  const tailStartIndex =
+    cached && cached.structuralVersion + 1 === structuralVersion && hint?.itemIds
+      ? findIncrementalTailStart(cached.sourceItemIds, itemIds, hint.itemIds)
+      : null;
+  let result: readonly string[];
+  let sourceIndices: readonly number[];
+  let stablePrefixLength = 0;
+  if (cached && tailStartIndex !== null) {
+    stablePrefixLength = lowerBound(cached.sourceIndices, tailStartIndex);
+    const visible = cached.result.slice(0, stablePrefixLength);
+    const nextSourceIndices = cached.sourceIndices.slice(0, stablePrefixLength);
+    appendVisibleItems(visible, nextSourceIndices, itemIds, items, hiddenItemId, tailStartIndex);
+    result = visible.length === 0 ? EMPTY_THREAD_ITEM_IDS : visible;
+    sourceIndices = nextSourceIndices;
+  } else {
+    const visible: string[] = [];
+    const nextSourceIndices: number[] = [];
+    appendVisibleItems(visible, nextSourceIndices, itemIds, items, hiddenItemId, 0);
+    result =
+      visible.length === 0
+        ? EMPTY_THREAD_ITEM_IDS
+        : visible.length === itemIds.length
+          ? itemIds
+          : visible;
+    sourceIndices = nextSourceIndices;
+  }
 
   if (visibleItemIdsCache.size > 500) visibleItemIdsCache.clear();
-  visibleItemIdsCache.set(cacheKey, { sourceItemIds: itemIds, structuralVersion, result });
+  visibleItemIdsCache.set(cacheKey, {
+    sourceItemIds: itemIds,
+    structuralVersion,
+    result,
+    sourceIndices,
+    stablePrefixLength,
+  });
   return result;
+}
+
+function appendVisibleItems(
+  visible: string[],
+  sourceIndices: number[],
+  itemIds: readonly string[],
+  items: Record<string, RuntimeChatItem> | undefined,
+  hiddenItemId: string | undefined,
+  startIndex: number,
+): void {
+  for (let index = startIndex; index < itemIds.length; index += 1) {
+    const itemId = itemIds[index]!;
+    if (itemId === hiddenItemId) continue;
+    const item = items?.[itemId];
+    if (item?.parentItemId || (item && !isVisibleRuntimeItem(item))) continue;
+    visible.push(itemId);
+    sourceIndices.push(index);
+  }
+}
+
+function findIncrementalTailStart(
+  previousItemIds: readonly string[],
+  itemIds: readonly string[],
+  changedItemIds: readonly string[],
+): number | null {
+  if (changedItemIds.length === 0 || changedItemIds.length > MAX_INCREMENTAL_TAIL_ITEMS)
+    return null;
+  const remaining = new Set(changedItemIds);
+  let earliestIndex = Number.POSITIVE_INFINITY;
+  const currentStart = Math.max(0, itemIds.length - MAX_INCREMENTAL_TAIL_ITEMS);
+  for (let index = itemIds.length - 1; index >= currentStart && remaining.size > 0; index -= 1) {
+    if (!remaining.delete(itemIds[index]!)) continue;
+    earliestIndex = Math.min(earliestIndex, index);
+  }
+  const previousStart = Math.max(0, previousItemIds.length - MAX_INCREMENTAL_TAIL_ITEMS);
+  for (
+    let index = previousItemIds.length - 1;
+    index >= previousStart && remaining.size > 0;
+    index -= 1
+  ) {
+    if (!remaining.delete(previousItemIds[index]!)) continue;
+    earliestIndex = Math.min(earliestIndex, index);
+  }
+  if (remaining.size > 0 || !Number.isFinite(earliestIndex)) return null;
+  if (earliestIndex > 0 && previousItemIds[earliestIndex - 1] !== itemIds[earliestIndex - 1]) {
+    return null;
+  }
+  return Math.min(earliestIndex, itemIds.length);
+}
+
+function lowerBound(values: readonly number[], target: number): number {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (values[middle]! < target) low = middle + 1;
+    else high = middle;
+  }
+  return low;
 }
 
 export function selectVisibleThreadTimelineEntries(
@@ -127,10 +214,86 @@ export function selectVisibleThreadTimelineEntries(
     return cached.entries;
   }
 
-  const entries = buildTimelineEntries(state, threadId, itemIds);
+  const visibleProjection = visibleItemIdsCache.get(cacheKey);
+  const hint = readRuntimeStructuralChangeHint(threadId, structuralVersion);
+  let entries: readonly ChatTimelineEntry[];
+  let entryStartIndices: readonly number[];
+  let childParentIds: ReadonlySet<string>;
+  if (
+    cached &&
+    cached.structuralVersion + 1 === structuralVersion &&
+    visibleProjection &&
+    visibleProjection.structuralVersion === structuralVersion &&
+    hint?.itemIds
+  ) {
+    childParentIds = updateChildParentIds(
+      cached.childParentIds,
+      state.runtimeItemsByIdByThread[threadId],
+      hint.itemIds,
+    );
+    const stablePrefixLength = visibleProjection.stablePrefixLength;
+    if (stablePrefixLength === itemIds.length && cached.itemIds.length === itemIds.length) {
+      entries = cached.entries;
+      entryStartIndices = cached.entryStartIndices;
+    } else {
+      let firstChangedEntry = lowerBound(cached.entryStartIndices, stablePrefixLength);
+      if (firstChangedEntry > 0) firstChangedEntry -= 1;
+      const itemStartIndex = cached.entryStartIndices[firstChangedEntry] ?? 0;
+      const tail = buildTimelineEntryProjection(
+        state.runtimeItemsByIdByThread[threadId],
+        itemIds.slice(itemStartIndex),
+        childParentIds,
+      );
+      entries = [...cached.entries.slice(0, firstChangedEntry), ...tail.entries];
+      entryStartIndices = [
+        ...cached.entryStartIndices.slice(0, firstChangedEntry),
+        ...tail.entryStartIndices.map((index) => index + itemStartIndex),
+      ];
+    }
+  } else {
+    childParentIds = collectChildParentIds(state, threadId);
+    const projection = buildTimelineEntryProjection(
+      state.runtimeItemsByIdByThread[threadId],
+      itemIds,
+      childParentIds,
+    );
+    entries = projection.entries;
+    entryStartIndices = projection.entryStartIndices;
+  }
   if (timelineEntryCache.size > 500) timelineEntryCache.clear();
-  timelineEntryCache.set(cacheKey, { itemIds, structuralVersion, entries });
+  timelineEntryCache.set(cacheKey, {
+    itemIds,
+    structuralVersion,
+    entries,
+    entryStartIndices,
+    childParentIds,
+  });
   return entries;
+}
+
+function collectChildParentIds(state: AppStoreState, threadId: string): ReadonlySet<string> {
+  const items = state.runtimeItemsByIdByThread[threadId];
+  const childParentIds = new Set<string>();
+  for (const itemId of state.runtimeItemIdsByThread[threadId] ?? EMPTY_THREAD_ITEM_IDS) {
+    const parentItemId = items?.[itemId]?.parentItemId;
+    if (parentItemId) childParentIds.add(parentItemId);
+  }
+  return childParentIds;
+}
+
+function updateChildParentIds(
+  previous: ReadonlySet<string>,
+  items: Record<string, RuntimeChatItem> | undefined,
+  changedItemIds: readonly string[],
+): ReadonlySet<string> {
+  let childParentIds: Set<string> | undefined;
+  for (const itemId of changedItemIds) {
+    const parentItemId = items?.[itemId]?.parentItemId;
+    if (!parentItemId || previous.has(parentItemId)) continue;
+    childParentIds ??= new Set(previous);
+    childParentIds.add(parentItemId);
+  }
+  return childParentIds ?? previous;
 }
 
 function buildTimelineEntries(
@@ -139,18 +302,24 @@ function buildTimelineEntries(
   sourceItemIds: readonly string[],
 ): readonly ChatTimelineEntry[] {
   const items = state.runtimeItemsByIdByThread[threadId];
-  const childParentIds = new Set(
-    (state.runtimeItemIdsByThread[threadId] ?? [])
-      .map((itemId) => items?.[itemId]?.parentItemId)
-      .filter((parentItemId): parentItemId is string => parentItemId !== undefined),
-  );
+  const childParentIds = collectChildParentIds(state, threadId);
   const itemIds = sourceItemIds.filter((itemId) => {
     const item = items?.[itemId];
     return !item || isVisibleRuntimeItem(item);
   });
+  return buildTimelineEntryProjection(items, itemIds, childParentIds).entries;
+}
+
+function buildTimelineEntryProjection(
+  items: Record<string, RuntimeChatItem> | undefined,
+  itemIds: readonly string[],
+  childParentIds: ReadonlySet<string>,
+): { entries: readonly ChatTimelineEntry[]; entryStartIndices: readonly number[] } {
   const entries: ChatTimelineEntry[] = [];
+  const entryStartIndices: number[] = [];
   let idx = 0;
   while (idx < itemIds.length) {
+    entryStartIndices.push(idx);
     const itemId = itemIds[idx]!;
     const item = items?.[itemId];
     if (!item || !isToolGroupItem(item) || childParentIds.has(itemId)) {
@@ -183,7 +352,7 @@ function buildTimelineEntries(
       });
     }
   }
-  return entries;
+  return { entries, entryStartIndices };
 }
 
 function isToolGroupItem(item: RuntimeChatItem): boolean {
@@ -522,7 +691,10 @@ function buildResolvedCompletedTurns(
   const anchorResolution = new Map<string, string | null>();
   let lastAnchorable: string | null = null;
   for (const itemId of itemIds) {
-    if (visible.has(itemId) && items?.[itemId]?.type !== "user_message") {
+    const anchorType = items?.[itemId]?.type;
+    // A provider-handoff divider records no work of its own, so hanging a
+    // "Worked for X" line on it would misattribute the turn it separates.
+    if (visible.has(itemId) && anchorType !== "user_message" && anchorType !== "provider_handoff") {
       lastAnchorable = itemId;
     }
     if (rawAnchors.has(itemId)) anchorResolution.set(itemId, lastAnchorable);
@@ -613,6 +785,7 @@ export function selectCompletedTurnForEntry(
 }
 
 export function clearRuntimeItemStoreSelectorCacheForThread(threadId: string): void {
+  clearRuntimeStructuralChangeHint(threadId);
   const prefix = `${threadId}\0`;
   for (const key of runtimeItemStoreSelectorCache.keys()) {
     if (key.startsWith(prefix)) {

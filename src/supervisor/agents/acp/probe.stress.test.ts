@@ -7,6 +7,9 @@
  * Each test asserts the correct behavior for timing and process-failure paths
  * that are difficult to exercise reliably against a live provider.
  */
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { probeAcpCapabilities, type AcpProbeResult } from "./probe";
@@ -24,7 +27,29 @@ function probeWith(
   });
 }
 
+async function waitForFile(path: string): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (Date.now() < deadline) {
+    try {
+      await access(path);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw new Error(`Timed out waiting for ${path}`);
+}
+
 describe("probeAcpCapabilities live-process paths", () => {
+  it.each([
+    { env: { FAKE_SESSION_RESUME_CAPABILITY: "1" }, capability: "session/resume" },
+    { env: { FAKE_LOAD_CAPABILITY: "1" }, capability: "session/load" },
+  ] as const)("reports resumability from $capability", async ({ env }) => {
+    const result = await probeWith(env, 3_000);
+
+    expect(result?.supportsResume).toBe(true);
+  });
+
   it("uses initialize._meta.modelState after a successful session handshake", async () => {
     const result = await probeWith({ FAKE_INIT_MODELS: "grok-4.5" }, 3_000);
 
@@ -34,6 +59,102 @@ describe("probeAcpCapabilities live-process paths", () => {
     });
     expect(result?.authState).toBe("authenticated");
   });
+
+  it.each(["delete", "close"] as const)(
+    "cleans up its disposable session with session/%s",
+    async (capability) => {
+      const root = await mkdtemp(join(tmpdir(), "poracode-acp-probe-"));
+      const marker = join(root, "cleanup.txt");
+      try {
+        const result = await probeWith(
+          {
+            FAKE_SESSION_CLEANUP_CAPABILITY: capability,
+            FAKE_SESSION_CLEANUP_MARKER: marker,
+          },
+          5_000,
+        );
+
+        expect(result?.sessionEstablished).toBe(true);
+        expect(await readFile(marker, "utf8")).toBe(`session/${capability}`);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("falls back to session/close when session/delete is null", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-acp-probe-"));
+    const marker = join(root, "cleanup.txt");
+    try {
+      await probeWith(
+        {
+          FAKE_SESSION_CLEANUP_CAPABILITY: "null-delete-close",
+          FAKE_SESSION_CLEANUP_MARKER: marker,
+        },
+        5_000,
+      );
+
+      expect(await readFile(marker, "utf8")).toBe("session/close");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not call a null session cleanup capability", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-acp-probe-"));
+    const marker = join(root, "cleanup.txt");
+    try {
+      await probeWith(
+        {
+          FAKE_SESSION_CLEANUP_CAPABILITY: "null",
+          FAKE_SESSION_CLEANUP_MARKER: marker,
+        },
+        3_000,
+      );
+
+      await expect(access(marker)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reserves enough of a short probe deadline to delete the session", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-acp-probe-"));
+    const marker = join(root, "cleanup.txt");
+    const started = Date.now();
+    try {
+      const result = await probeWith(
+        {
+          FAKE_SESSION_CLEANUP_CAPABILITY: "delete",
+          FAKE_SESSION_CLEANUP_MARKER: marker,
+        },
+        800,
+      );
+
+      expect(result?.sessionEstablished).toBe(true);
+      expect(await readFile(marker, "utf8")).toBe("session/delete");
+      expect(Date.now() - started).toBeLessThan(1_300);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["error", "hang"] as const)(
+    "keeps the detection result when session cleanup returns %s",
+    async (behavior) => {
+      const started = Date.now();
+      const result = await probeWith(
+        {
+          FAKE_SESSION_CLEANUP_CAPABILITY: "delete",
+          FAKE_SESSION_CLEANUP_BEHAVIOR: behavior,
+        },
+        1_200,
+      );
+
+      expect(result?.sessionEstablished).toBe(true);
+      expect(Date.now() - started).toBeLessThan(1_700);
+    },
+  );
 
   it("does not expose initialize models when the session requires authentication", async () => {
     const result = await probeWith(
@@ -147,5 +268,35 @@ describe("probeAcpCapabilities live-process paths", () => {
     await pending;
 
     expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it("cleans up a created session before reaping an aborted probe", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-acp-probe-"));
+    const sessionMarker = join(root, "session.txt");
+    const cleanupMarker = join(root, "cleanup.txt");
+    const abort = new AbortController();
+    const started = Date.now();
+    try {
+      const pending = probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+        env: {
+          FAKE_SESSION_CLEANUP_CAPABILITY: "delete",
+          FAKE_SESSION_CLEANUP_MARKER: cleanupMarker,
+          FAKE_SESSION_NEW_MARKER: sessionMarker,
+        },
+        timeoutMs: 5_000,
+        label: "cancelled-after-session",
+        signal: abort.signal,
+      });
+      await waitForFile(sessionMarker);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      abort.abort();
+
+      await pending;
+
+      expect(await readFile(cleanupMarker, "utf8")).toBe("session/delete");
+      expect(Date.now() - started).toBeLessThan(1_000);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

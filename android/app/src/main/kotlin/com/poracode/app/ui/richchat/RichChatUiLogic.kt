@@ -175,6 +175,7 @@ object RichChatUiLogic {
         is RichContentBlock.Text -> block.text
         is RichContentBlock.Skill -> block.invocation
         is RichContentBlock.Mcp -> block.name
+        is RichContentBlock.Thread -> "@${block.title}"
         is RichContentBlock.DiffComment -> "${block.path}:${block.lineNumber}\n${block.body}"
         is RichContentBlock.File -> block.name ?: block.path
         is RichContentBlock.Image -> block.name ?: block.path

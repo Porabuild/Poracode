@@ -6,7 +6,11 @@ import { ResponsiveContextMenuSurface } from "./ResponsiveContextMenuSurface";
 
 interface ResponsiveContextMenuProps {
   items: ContextMenuEntry[];
-  onAction: (key: string) => void;
+  onAction: (
+    key: string,
+    anchorPosition?: { x: number; y: number },
+    returnFocusElement?: HTMLElement,
+  ) => void;
   label: string;
   children: ReactNode;
 }

@@ -105,6 +105,16 @@ describe("createAutoUpdaterController", () => {
     warn.mockRestore();
   });
 
+  it("retains the latest status for a renderer that subscribes after the update finishes", () => {
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false);
+    controller.initialize();
+
+    autoUpdaterMock.emit("update-available", { version: "1.2.3" });
+    autoUpdaterMock.emit("update-downloaded", { version: "1.2.3" });
+
+    expect(controller.getStatus()).toEqual({ type: "downloaded", version: "1.2.3" });
+  });
+
   it("starts the controller-owned download when a check finds an update", async () => {
     const controller = createAutoUpdaterController(vi.fn(), "stable", false);
     controller.initialize();
@@ -287,20 +297,68 @@ describe("createAutoUpdaterController", () => {
     expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1);
   });
 
-  it("stops checking once an update is downloaded and after install", async () => {
-    const controller = createAutoUpdaterController(vi.fn(), "stable", false);
+  it("keeps checking after an update is downloaded and supersedes it with a newer release", async () => {
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", false);
+    controller.initialize();
+
+    await vi.advanceTimersByTimeAsync(INITIAL_CHECK_DELAY_MS);
+    autoUpdaterMock.emit("update-downloaded", { version: "1.2.3" });
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1);
+
+    // A staged update must not stop polling: the next interval check runs and
+    // finds a newer release, which is downloaded in place of the staged one.
+    autoUpdaterMock.checkForUpdates.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("update-available", { version: "1.2.4" });
+    });
+    await vi.advanceTimersByTimeAsync(PERIODIC_CHECK_INTERVAL_MS);
+
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2);
+    expect(autoUpdaterMock.downloadUpdate).toHaveBeenCalledOnce();
+
+    autoUpdaterMock.emit("update-downloaded", { version: "1.2.4" });
+    expect(sendStatus).toHaveBeenLastCalledWith({ type: "downloaded", version: "1.2.4" });
+
+    // Installing clears the interval, so advancing time does nothing more.
+    controller.installUpdate();
+    await vi.advanceTimersByTimeAsync(PERIODIC_CHECK_INTERVAL_MS);
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not re-download when a check re-finds the staged version", async () => {
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", false);
     controller.initialize();
 
     await vi.advanceTimersByTimeAsync(INITIAL_CHECK_DELAY_MS);
     autoUpdaterMock.emit("update-downloaded", { version: "1.2.3" });
 
-    // An update is staged for install — no point polling further.
+    autoUpdaterMock.checkForUpdates.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("update-available", { version: "1.2.3" });
+    });
     await vi.advanceTimersByTimeAsync(PERIODIC_CHECK_INTERVAL_MS);
-    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1);
 
-    // Installing clears the interval, so advancing time does nothing more.
-    controller.installUpdate();
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2);
+    expect(autoUpdaterMock.downloadUpdate).not.toHaveBeenCalled();
+    // The staged install affordance stays visible after the redundant check.
+    expect(sendStatus).toHaveBeenLastCalledWith({ type: "downloaded", version: "1.2.3" });
+  });
+
+  it("keeps the staged install visible when a background check finds nothing newer", async () => {
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", false);
+    controller.initialize();
+
+    await vi.advanceTimersByTimeAsync(INITIAL_CHECK_DELAY_MS);
+    autoUpdaterMock.emit("update-downloaded", { version: "1.2.3" });
+
+    autoUpdaterMock.checkForUpdates.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("checking-for-update");
+      autoUpdaterMock.emit("update-not-available");
+    });
     await vi.advanceTimersByTimeAsync(PERIODIC_CHECK_INTERVAL_MS);
-    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1);
+
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2);
+    expect(sendStatus).toHaveBeenLastCalledWith({ type: "downloaded", version: "1.2.3" });
   });
 });

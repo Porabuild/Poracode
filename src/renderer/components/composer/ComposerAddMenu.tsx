@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -131,6 +131,7 @@ export function ComposerAddMenu(props: {
    * being interactive.
    */
   readOnly?: boolean;
+  readOnlyCaption?: ReactNode;
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
@@ -200,7 +201,9 @@ export function ComposerAddMenu(props: {
   };
 
   const persistenceCaption = readOnly ? (
-    <Trans>Set when this session started — start a new thread to change servers</Trans>
+    (props.readOnlyCaption ?? (
+      <Trans>Set when this session started — start a new thread to change servers</Trans>
+    ))
   ) : (
     <Trans>Enabled servers stay on for new threads</Trans>
   );

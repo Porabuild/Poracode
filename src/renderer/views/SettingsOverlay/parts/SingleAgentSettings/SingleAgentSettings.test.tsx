@@ -1,7 +1,14 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentInstanceConfig, AgentStatus, Project } from "@/shared/contracts";
+import type {
+  AcpRegistryListResult,
+  AgentInstanceConfig,
+  AgentStatusesResponse,
+  AgentStatus,
+  InstalledAcpRegistryAgent,
+  Project,
+} from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const statusesState = {
@@ -15,6 +22,7 @@ const sharedSettingsState = {
   agentSettings: {} as Record<string, Record<string, unknown>>,
   agentInstances: {} as Record<string, AgentInstanceConfig>,
   acpRegistryInstalledAgents: {} as Record<string, unknown>,
+  syncAcpRegistryInstalledAgents: vi.fn<(installed: InstalledAcpRegistryAgent[]) => void>(),
   setAgentDisabled: vi.fn<(kind: string, disabled: boolean) => void>(),
   setHiddenModels: vi.fn<(kind: string, hidden: string[]) => void>(),
   setAgentSetting: vi.fn<(kind: string, key: string, value: unknown) => void>(),
@@ -141,9 +149,15 @@ vi.mock("@heroui/react", () => {
     Content: Wrapper,
     Body: Wrapper,
   });
+  const Card = Object.assign(Wrapper, {
+    Header: Wrapper,
+    Title: Wrapper,
+    Content: Wrapper,
+  });
 
   return {
     Button,
+    Card,
     Disclosure,
     Input,
     Label: (props: { children?: ReactNode }) => <span>{props.children}</span>,
@@ -159,7 +173,9 @@ vi.mock("@heroui/react", () => {
   };
 });
 
-const refreshAgentStatusesMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
+const refreshAgentStatusesMock = vi.hoisted(() =>
+  vi.fn<() => Promise<AgentStatusesResponse | void>>(),
+);
 const setAcpRegistryAgentAuthMock = vi.hoisted(() =>
   vi.fn<(payload: { agentId: string; environment: Record<string, string> }) => Promise<unknown>>(),
 );
@@ -184,9 +200,7 @@ const logoutAcpAgentMock = vi.hoisted(() =>
 );
 const focusWindowMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
-const listAcpRegistryMock = vi.hoisted(() =>
-  vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
-);
+const listAcpRegistryMock = vi.hoisted(() => vi.fn<() => Promise<AcpRegistryListResult>>());
 
 const getLatestAgentVersionMock = vi.hoisted(() =>
   vi
@@ -215,6 +229,9 @@ const updateAgentBinaryMock = vi.hoisted(() =>
     >()
     .mockResolvedValue({ ok: true }),
 );
+const updateAcpRegistryAgentMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
+);
 const getAgentHookPluginStatusesMock = vi.hoisted(() =>
   vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
 );
@@ -236,6 +253,7 @@ vi.mock("@/renderer/bridge", () => ({
     getLatestAgentVersion: getLatestAgentVersionMock,
     resolveAgentAccount: resolveAgentAccountMock,
     updateAgentBinary: updateAgentBinaryMock,
+    updateAcpRegistryAgent: updateAcpRegistryAgentMock,
     getAgentHookPluginStatuses: getAgentHookPluginStatusesMock,
     installAgentHookPlugin: installAgentHookPluginMock,
     uninstallAgentHookPlugin: uninstallAgentHookPluginMock,
@@ -285,6 +303,12 @@ vi.mock("@/renderer/state/agentStatusesStore", () => ({
   ),
 }));
 
+vi.mock("@/renderer/state/remoteServersStore", () => ({
+  useRemoteServersStore: (
+    selector: (state: { servers: never[]; runtime: Record<string, never> }) => unknown,
+  ) => selector({ servers: [], runtime: {} }),
+}));
+
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (state: typeof sharedSettingsState) => unknown) =>
     selector(sharedSettingsState),
@@ -309,6 +333,8 @@ vi.mock("@/renderer/components/common", () => ({
     />
   ),
   PixelLoader: () => <span data-testid="pixel-loader" />,
+  // Reached through the Cursor panel's profile list, which confirms removals.
+  ConfirmDialog: () => null,
   Select: () => <select aria-label="mock-select" />,
   ToggleSwitch: (props: {
     "aria-label": string;
@@ -328,7 +354,10 @@ vi.mock("@/renderer/components/common", () => ({
   ),
 }));
 
+import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import "@/renderer/components/providers/antigravity";
+import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { SingleAgentSettings } from "./SingleAgentSettings";
 
 const baseCapabilities = {
@@ -356,6 +385,36 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
   };
 }
 
+function makeAntigravityStatus(cliVersion: string, acpVersion: string): AgentStatus {
+  return makeStatus("antigravity", {
+    label: "Antigravity",
+    version: cliVersion,
+    envKind: "windows",
+    runtimeVariants: {
+      cli: {
+        presentationMode: "terminal",
+        installed: true,
+        version: cliVersion,
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: baseCapabilities,
+      },
+      acp: {
+        presentationMode: "gui",
+        installed: true,
+        version: acpVersion,
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: {
+          ...baseCapabilities,
+          presentationMode: "gui",
+          liveInputMode: "server",
+        },
+      },
+    },
+  });
+}
+
 function makeProject(input: { id: string; name: string; location: Project["location"] }): Project {
   return {
     id: input.id,
@@ -376,6 +435,7 @@ function envRow(label: string): HTMLElement {
 
 describe("SingleAgentSettings", () => {
   beforeEach(() => {
+    resetAcpRegistryListingCache();
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
@@ -387,6 +447,7 @@ describe("SingleAgentSettings", () => {
     sharedSettingsState.setHiddenModels.mockReset();
     sharedSettingsState.setAgentSetting.mockReset();
     sharedSettingsState.setAgentInstance.mockReset();
+    sharedSettingsState.syncAcpRegistryInstalledAgents.mockReset();
     refreshAgentStatusesMock.mockReset().mockResolvedValue(undefined);
     setAcpRegistryAgentAuthMock.mockReset().mockResolvedValue({});
     authenticateAcpAgentMock.mockReset().mockResolvedValue(undefined);
@@ -396,13 +457,20 @@ describe("SingleAgentSettings", () => {
     getLatestAgentVersionMock.mockReset().mockImplementation(() => new Promise(() => {}));
     resolveAgentAccountMock.mockReset().mockImplementation(() => new Promise(() => {}));
     updateAgentBinaryMock.mockReset().mockResolvedValue({ ok: true });
+    updateAcpRegistryAgentMock.mockReset().mockResolvedValue({ installed: [] });
     getAgentHookPluginStatusesMock.mockReset().mockImplementation(() => new Promise(() => {}));
     toastMock.danger.mockReset();
     toastMock.success.mockReset();
     runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     runAgentLoginCommandMock.mockReset().mockReturnValue(true);
     useProviderUsageStore.setState({ snapshots: {} });
+    useMachineSelectionStore.setState({ selectedMachineId: "local" });
   });
+
+  /** Scope the Agents pages to another machine, as the machine bar would. */
+  const selectMachine = (machineId: string) => {
+    act(() => useMachineSelectionStore.getState().setSelectedMachine(machineId));
+  };
 
   it("renders identity metadata as a single compact summary line", () => {
     statusesState.agentStatuses = [
@@ -544,8 +612,9 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="codex" />);
 
-    expect(within(envRow("WSL (Ubuntu)")).queryByText(/ChatGPT Pro/)).not.toBeInTheDocument();
-    expect(within(envRow("Windows")).getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
+    expect(within(envRow("This computer")).getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
+    selectMachine("local/wsl:Ubuntu");
+    expect(within(envRow("WSL · Ubuntu")).queryByText(/ChatGPT Pro/)).not.toBeInTheDocument();
   });
 
   it("renders a Claude profile editor before detection has reported the profile status", () => {
@@ -642,6 +711,7 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="codex" />);
+    selectMachine("local/wsl:Ubuntu");
 
     fireEvent.click(screen.getByRole("button", { name: /login/i }));
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
@@ -707,11 +777,13 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    const windowsRow = envRow("Windows");
-    const wslRow = envRow("WSL (Ubuntu)");
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
+    expect(screen.queryByText(/This computer, WSL · Ubuntu needs authentication/u)).toBeNull();
+
+    selectMachine("local/wsl:Ubuntu");
+    const wslRow = envRow("WSL · Ubuntu");
     expect(within(wslRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Windows, WSL \(Ubuntu\) needs authentication/u)).toBeNull();
 
     fireEvent.click(within(wslRow).getByRole("button", { name: /login/i }));
 
@@ -730,7 +802,7 @@ describe("SingleAgentSettings", () => {
     });
     expect(screen.getByRole("status", { name: /logging in/i })).toBeInTheDocument();
     expect(
-      screen.getByText("Refreshing WSL (Ubuntu) Cursor authentication status."),
+      screen.getByText("Refreshing WSL · Ubuntu Cursor authentication status."),
     ).toBeInTheDocument();
     expect(refreshAgentStatusesMock).toHaveBeenCalledWith(["Ubuntu"], {
       agentKinds: ["cursor"],
@@ -951,6 +1023,50 @@ describe("SingleAgentSettings", () => {
     expect(within(row).queryByRole("button", { name: /logout/i })).not.toBeInTheDocument();
   });
 
+  it("shows and updates both Antigravity runtime versions in one settings card", async () => {
+    statusesState.agentStatuses = [makeAntigravityStatus("1.2.0", "1.0.0")];
+    getLatestAgentVersionMock.mockResolvedValue({ version: "1.3.0", source: "npm" });
+    listAcpRegistryMock.mockResolvedValue({
+      version: "1.0.0",
+      agents: [
+        {
+          id: "antigravity-acp",
+          name: "Google Antigravity",
+          version: "1.1.0",
+          description: "Official Antigravity ACP runtime",
+          distribution: { npx: { package: "antigravity-acp" } },
+        },
+      ],
+    });
+    refreshAgentStatusesMock.mockResolvedValue({
+      windows: [makeAntigravityStatus("1.3.0", "1.1.0")],
+      wsl: [],
+      fromCache: false,
+    });
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    await screen.findByText("agy CLI");
+    const runtimeList = screen.getByRole("list", { name: "Runtime" });
+    const runtimeRows = within(runtimeList).getAllByRole("listitem");
+    expect(runtimeRows[0]).toHaveTextContent("agy CLIv1.2.0 → v1.3.0");
+    expect(runtimeRows[1]).toHaveTextContent("Antigravity ACPv1.0.0 → v1.1.0");
+    expect(screen.getAllByRole("button", { name: "Update" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(updateAgentBinaryMock).toHaveBeenCalledWith({
+        agentKind: "antigravity",
+        envKind: "windows",
+      });
+      expect(updateAcpRegistryAgentMock).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+  });
+
   it("shows Login (not the shared account) for an Antigravity env that isn't signed in", async () => {
     statusesState.agentStatuses = [
       makeStatus("antigravity", {
@@ -1026,9 +1142,9 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="grok" />);
 
-    const windowsRow = envRow("Windows");
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByText("Not installed")).toBeInTheDocument();
-    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install Windows" }));
+    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install on This computer" }));
 
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith({
       label: "Grok Build",
@@ -1075,10 +1191,11 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="grok" />);
+    selectMachine("local/wsl:Ubuntu");
 
-    const wslRow = envRow("WSL (Ubuntu)");
+    const wslRow = envRow("WSL · Ubuntu");
     expect(within(wslRow).getByText("Not installed")).toBeInTheDocument();
-    fireEvent.click(within(wslRow).getByRole("button", { name: "Install WSL (Ubuntu)" }));
+    fireEvent.click(within(wslRow).getByRole("button", { name: "Install on WSL · Ubuntu" }));
 
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith({
       label: "Grok Build",
@@ -1167,6 +1284,53 @@ describe("SingleAgentSettings", () => {
     expect(within(row).getByRole("button", { name: "Login" })).toBeInTheDocument();
   });
 
+  it("does not request login when ACP session setup succeeded without proving auth", () => {
+    statusesState.agentStatuses = [
+      makeStatus("acp-generic:ready-agent", {
+        label: "Ready Agent",
+        authState: "unknown",
+        acpSessionEstablished: true,
+        authMethods: [{ id: "login", name: "Login" }],
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="acp-generic:ready-agent" />);
+
+    const row = envRow("Default");
+    expect(within(row).queryByRole("button", { name: "Login" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Login required")).not.toBeInTheDocument();
+  });
+
+  it("keeps login required for an unready WSL env when native ACP setup succeeded", () => {
+    statusesState.agentStatuses = [
+      makeStatus("acp-generic:ready-agent", {
+        label: "Ready Agent",
+        authState: "unknown",
+        acpSessionEstablished: true,
+        authMethods: [{ id: "login", name: "Login" }],
+        envKind: "windows",
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("acp-generic:ready-agent", {
+        label: "Ready Agent",
+        authState: "unknown",
+        authMethods: [{ id: "login", name: "Login" }],
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="acp-generic:ready-agent" />);
+
+    expect(within(envRow("This computer")).queryByRole("button", { name: "Login" })).toBeNull();
+    selectMachine("local/wsl:Ubuntu");
+    expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
+    expect(
+      within(envRow("WSL · Ubuntu")).getByRole("button", { name: "Login WSL · Ubuntu" }),
+    ).toBeVisible();
+  });
+
   it("offers logout (not re-login) for an authenticated ACP agent env", async () => {
     statusesState.agentStatuses = [
       makeStatus("acp-generic:sso-agent", {
@@ -1207,8 +1371,9 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
+    selectMachine("local/wsl:Ubuntu");
 
-    const row = envRow("WSL (Ubuntu)");
+    const row = envRow("WSL · Ubuntu");
     await act(async () => {
       fireEvent.click(within(row).getByRole("button", { name: /login/i }));
     });
@@ -1239,13 +1404,12 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
+    selectMachine("local/wsl:Ubuntu");
 
-    const row = envRow("WSL (Ubuntu)");
+    const row = envRow("WSL · Ubuntu");
     fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
-    expect(
-      screen.getByText(/Waiting for WSL \(Ubuntu\) Login authentication/u),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for WSL · Ubuntu Login authentication/u)).toBeInTheDocument();
 
     resolveAuth();
     await waitFor(() => expect(refreshAgentStatusesMock).toHaveBeenCalled());
@@ -1271,13 +1435,12 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    expect(screen.getByText("Windows")).toBeInTheDocument();
+    expect(screen.getByText("This computer")).toBeInTheDocument();
     expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Complete Login sign-in for Windows\./u)).toBeInTheDocument();
-    const windowsRow = envRow("Windows");
+    expect(screen.getByText(/Complete Login sign-in for This computer\./u)).toBeInTheDocument();
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
-    expect(screen.getByText("WSL (Ubuntu)")).toBeInTheDocument();
-    expect(screen.queryByText(/Windows · Authentication/u)).toBeNull();
+    expect(screen.queryByText(/This computer · Authentication/u)).toBeNull();
   });
 
   it("labels the remaining WSL auth action when Windows is already signed in", async () => {
@@ -1301,14 +1464,16 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    // Per-env rows: Windows env gets its own logout action, WSL env gets
-    // its own login action. No combined Re-login button across envs.
-    const windowsRow = envRow("Windows");
-    const wslRow = envRow("WSL (Ubuntu)");
+    // Each machine owns its env row: the local machine shows logout plus an
+    // attention hint pointing at the WSL machine; switching reveals login.
+    const windowsRow = envRow("This computer");
     expect(within(windowsRow).getByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(screen.getByText("Needs attention on WSL · Ubuntu")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Switch" }));
+    const wslRow = envRow("WSL · Ubuntu");
     expect(within(wslRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /re-login/i })).toBeNull();
-    expect(screen.getByText(/Complete Login sign-in for WSL \(Ubuntu\)\./u)).toBeInTheDocument();
+    expect(screen.getByText(/Complete Login sign-in for WSL · Ubuntu\./u)).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(within(wslRow).getByRole("button", { name: /login/i }));
     });
@@ -1349,7 +1514,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    const windowsRow = envRow("Windows");
+    const windowsRow = envRow("This computer");
     fireEvent.click(within(windowsRow).getByRole("button", { name: /logout/i }));
 
     expect(screen.getByRole("status", { name: /logging out/i })).toBeInTheDocument();
@@ -1388,7 +1553,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="copilot" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /re-login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
@@ -1426,7 +1591,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="copilot" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /re-login/i }));
 
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
@@ -1464,7 +1629,7 @@ describe("SingleAgentSettings", () => {
     ];
 
     render(<SingleAgentSettings agentKind="qwen" />);
-    fireEvent.click(within(envRow("Windows")).getByRole("button", { name: /login/i }));
+    fireEvent.click(within(envRow("This computer")).getByRole("button", { name: /login/i }));
     const loginInput = runAgentLoginCommandMock.mock.calls[0]?.[0];
 
     await act(async () => {
@@ -1489,7 +1654,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
@@ -1513,7 +1678,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    const row = envRow("Windows");
+    const row = envRow("This computer");
     fireEvent.click(within(row).getByRole("button", { name: /logout/i }));
 
     expect(logoutAcpAgentMock).toHaveBeenCalledWith({
@@ -1549,7 +1714,10 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    const wslRow = envRow("WSL (Ubuntu)");
+    const windowsRow = envRow("This computer");
+    expect(within(windowsRow).queryByRole("button", { name: /Update to v/i })).toBeNull();
+    selectMachine("local/wsl:Ubuntu");
+    const wslRow = envRow("WSL · Ubuntu");
     await waitFor(() =>
       expect(
         within(wslRow).getByRole("button", {
@@ -1557,8 +1725,6 @@ describe("SingleAgentSettings", () => {
         }),
       ).toBeInTheDocument(),
     );
-    const windowsRow = envRow("Windows");
-    expect(within(windowsRow).queryByRole("button", { name: /Update to v/i })).toBeNull();
 
     await act(async () => {
       fireEvent.click(
@@ -1613,47 +1779,56 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    const windowsRow = envRow("Windows");
-    const wslRow = envRow("WSL (Ubuntu)");
     fireEvent.click(
-      await within(windowsRow).findByRole("button", {
+      await within(envRow("This computer")).findByRole("button", {
         name: /Update to v1\.1\.0/i,
       }),
     );
     await waitFor(() =>
       expect(
-        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+        within(envRow("This computer")).getByRole("status", {
+          name: "Updating Cursor (This computer)",
+        }),
       ).toBeInTheDocument(),
     );
 
+    selectMachine("local/wsl:Ubuntu");
     fireEvent.click(
-      within(wslRow).getByRole("button", {
+      await within(envRow("WSL · Ubuntu")).findByRole("button", {
         name: /Update to v1\.1\.0/i,
       }),
     );
-    await waitFor(() => {
+    await waitFor(() =>
       expect(
-        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
-      ).toBeInTheDocument();
-      expect(
-        within(wslRow).getByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
-      ).toBeInTheDocument();
-    });
+        within(envRow("WSL · Ubuntu")).getByRole("status", {
+          name: "Updating Cursor (WSL · Ubuntu)",
+        }),
+      ).toBeInTheDocument(),
+    );
 
     resolveWslUpdate({ ok: false });
     await waitFor(() =>
       expect(
-        within(wslRow).queryByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
+        within(envRow("WSL · Ubuntu")).queryByRole("status", {
+          name: "Updating Cursor (WSL · Ubuntu)",
+        }),
       ).toBeNull(),
     );
+
+    // The Windows loader survives the machine switches independently.
+    selectMachine("local");
     expect(
-      within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+      within(envRow("This computer")).getByRole("status", {
+        name: "Updating Cursor (This computer)",
+      }),
     ).toBeInTheDocument();
 
     resolveWindowsUpdate({ ok: false });
     await waitFor(() =>
       expect(
-        within(windowsRow).queryByRole("status", { name: "Updating Cursor (Windows)" }),
+        within(envRow("This computer")).queryByRole("status", {
+          name: "Updating Cursor (This computer)",
+        }),
       ).toBeNull(),
     );
     platformSpy.mockRestore();

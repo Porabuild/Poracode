@@ -69,11 +69,13 @@ function createHarness(
       order.push("start");
     },
   );
+  const emitOptimisticUserMessage = vi.fn<() => string>(() => "user-optimistic");
   const coordinator = new SteerCoordinator({
     emit: (event) => events.push(event),
     sessions,
     interruptStructuredTurn,
     startStructuredTurn,
+    emitOptimisticUserMessage,
     failStructuredSession: vi.fn<(session: SessionRuntime, error: unknown) => void>(),
     resolveSkillTurnInjection: vi.fn<
       (
@@ -92,6 +94,7 @@ function createHarness(
     coordinator,
     events,
     interruptStructuredTurn,
+    emitOptimisticUserMessage,
     order,
     prepareSteerInterrupt,
     session,
@@ -186,5 +189,57 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     expect(harness.startStructuredTurn).toHaveBeenCalledTimes(1);
     expect(harness.order).toEqual(["prepare", "start"]);
     expect(harness.interruptStructuredTurn).not.toHaveBeenCalled();
+  });
+
+  it("keeps ordinary steer provider options unchanged", () => {
+    const harness = createHarness();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
+      async () => undefined,
+    );
+    harness.session.structuredSession!.steerTurn = steerTurn;
+
+    harness.coordinator.steerStructuredTurn(harness.session, {
+      prompt: "ordinary steer",
+      config: { model: "model-2" },
+    });
+
+    expect(harness.emitOptimisticUserMessage).not.toHaveBeenCalled();
+    expect(steerTurn).toHaveBeenCalledWith(
+      "ordinary steer",
+      { model: "model-2" },
+      undefined,
+      undefined,
+    );
+  });
+
+  it("paints a thread mention from display segments without adding a turn boundary", () => {
+    const harness = createHarness();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
+      async () => undefined,
+    );
+    harness.session.structuredSession!.steerTurn = steerTurn;
+    const displaySegments = [{ kind: "thread", threadId: "source", title: "Source" }] as const;
+    const effectiveSegments = [{ kind: "text", content: "[thread mention] Source" }] as const;
+
+    harness.coordinator.steerStructuredTurn(harness.session, {
+      prompt: "[thread mention] Source",
+      config: { model: "model-2" },
+      segments: [...effectiveSegments],
+      displaySegments: [...displaySegments],
+    });
+
+    expect(harness.emitOptimisticUserMessage).toHaveBeenCalledWith(
+      harness.session.threadId,
+      "[thread mention] Source",
+      [...displaySegments],
+      undefined,
+      { includeTurn: false },
+    );
+    expect(steerTurn).toHaveBeenCalledWith(
+      "[thread mention] Source",
+      { model: "model-2" },
+      [...effectiveSegments],
+      { userMessageItemId: "user-optimistic" },
+    );
   });
 });

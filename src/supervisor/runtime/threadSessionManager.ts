@@ -31,6 +31,9 @@ import {
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
 } from "@/shared/contracts";
+import { effectiveAgentSettings } from "@/shared/machineSettings";
+import { agentEnvForLocation, localMachineKey } from "@/shared/machines";
+import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
   type AgentAdapter,
@@ -54,6 +57,7 @@ import {
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import { requireSessionPty, shouldPrimeNativeProjectShellEnv } from "./threadSession/helpers";
+import { resolveThreadMentionSegments } from "./threadMentionResolver";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
 import { SessionRuntimeLifecycle } from "./threadSession/sessionRuntimeLifecycle";
 import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
@@ -66,7 +70,7 @@ import { SteerCoordinator, clearPendingSteerSlot } from "./threadSession/steerCo
 import { buildShellCommand } from "./threadSession/shellCommand";
 import {
   SpawnPipeline,
-  effectiveLaunchConfig,
+  workspaceLaunchConfig,
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
@@ -85,6 +89,20 @@ export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmit
 export type { ThreadSessionManagerOptions };
 
 const RECENTLY_REMOVED_THREAD_LIMIT = 256;
+
+function requireThreadMentionTools(
+  session: SessionRuntime,
+  segments: readonly PromptSegment[] | undefined,
+): void {
+  if (
+    segments?.some((segment) => segment.kind === "thread") &&
+    session.threadMentionToolsAvailable !== true
+  ) {
+    throw new Error(
+      "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
+    );
+  }
+}
 
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
@@ -152,6 +170,14 @@ export class ThreadSessionManager {
         this.structuredInterruptWatchdog.interruptStructuredTurn(session),
       startStructuredTurn: (session, turn) => this.structuredTurnQueue.start(session, turn),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
+      emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId, emitOptions) =>
+        this.structuredTurnQueue.emitOptimisticUserMessage(
+          threadId,
+          prompt,
+          segments,
+          requestedItemId,
+          emitOptions,
+        ),
       resolveSkillTurnInjection: (session, segments) =>
         this.resolveSkillTurnInjection(session, segments),
     });
@@ -189,12 +215,19 @@ export class ThreadSessionManager {
       closeThread: (payload) => this.closeThread(payload),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       isCurrentSession: (session) => this.isCurrentSession(session),
-      resolveAgentSettings: (adapter) => this.resolveAgentSettings(adapter),
+      resolveAgentSettings: (adapter, location) => this.resolveAgentSettings(adapter, location),
       emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId) =>
         this.structuredTurnQueue.emitOptimisticUserMessage(
           threadId,
           prompt,
           segments,
+          requestedItemId,
+        ),
+      emitProviderHandoff: (threadId, fromAgentKind, toAgentKind, requestedItemId) =>
+        this.structuredTurnQueue.emitProviderHandoff(
+          threadId,
+          fromAgentKind,
+          toAgentKind,
           requestedItemId,
         ),
     });
@@ -242,6 +275,7 @@ export class ThreadSessionManager {
       attention: session.attention,
       config: session.config,
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
+      threadMentionToolsAvailable: session.threadMentionToolsAvailable === true,
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
@@ -296,7 +330,7 @@ export class ThreadSessionManager {
     const userMessageItemId = this.structuredTurnQueue.emitOptimisticUserMessage(
       session.threadId,
       pending.prompt,
-      pending.segments,
+      pending.displaySegments ?? pending.segments,
       pending.userMessageItemId,
     );
     const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
@@ -327,8 +361,10 @@ export class ThreadSessionManager {
     if (!session) return undefined;
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
-    const effectiveConfig = effectiveLaunchConfig(
+    const effectiveConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      session.adapter,
       disabledIds,
       session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -350,8 +386,10 @@ export class ThreadSessionManager {
     const targetAdapter = this.options.adapters.get(targetAgentKind);
     if (!targetAdapter) return {};
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
-    const launchConfig = effectiveLaunchConfig(
+    const launchConfig = workspaceLaunchConfig(
+      session.projectLocation,
       session.config,
+      targetAdapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
@@ -387,10 +425,18 @@ export class ThreadSessionManager {
       reloads.push(
         (async () => {
           try {
-            const launchConfig = effectiveLaunchConfig(
-              session.config,
-              session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-              session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+            const launchConfig = this.spawnPipeline.resolveMcpLaunchConfig(
+              workspaceLaunchConfig(
+                session.projectLocation,
+                session.config,
+                session.adapter,
+                session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+                session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+              ),
+              session.mcpLaunchSnapshot,
+              session.adapter,
+              session.threadId,
+              session.projectLocation,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -398,8 +444,13 @@ export class ThreadSessionManager {
               mcpLaunchSnapshot: session.mcpLaunchSnapshot,
               crossagentThreadId: session.threadId,
               adapter: session.adapter,
+              ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
             });
+            if (!this.isCurrentSession(session)) return;
             await update(mcpServers);
+            if (!this.isCurrentSession(session)) return;
+            session.launchConfig = launchConfig;
+            this.outputPipeline.emitState(session);
           } catch (error) {
             console.warn(
               `[supervisor] failed to reload MCP servers for thread ${session.threadId}:`,
@@ -497,7 +548,21 @@ export class ThreadSessionManager {
     const threadId = payload.threadId ?? randomUUID();
     const pending = this.startLocks.get(threadId);
     if (pending) {
+      if (payload.providerSwitch) {
+        await pending;
+        return this.startThread(payload);
+      }
       return { threadId };
+    }
+    const currentSession = this.sessions.get(threadId);
+    if (
+      payload.providerSwitch &&
+      currentSession &&
+      currentSession.agentKind !== payload.providerSwitch.fromAgentKind
+    ) {
+      throw new Error(
+        `Provider switch is stale: thread ${threadId} now belongs to ${currentSession.agentKind}.`,
+      );
     }
     this.recentlyRemovedThreadIds.delete(threadId);
 
@@ -532,8 +597,12 @@ export class ThreadSessionManager {
     }
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
           preservePdfAttachments:
             usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
@@ -542,12 +611,17 @@ export class ThreadSessionManager {
     const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
-    const effectiveConfig =
+    const turnConfig =
       session.presentationMode !== "gui" &&
       payload.config.mode === "plan" &&
       session.config.mode === undefined
         ? { ...payload.config, mode: undefined }
         : payload.config;
+    const effectiveConfig = applyHomeScopePermissions(
+      session.projectLocation,
+      turnConfig,
+      session.adapter.capabilities,
+    );
 
     session.config = effectiveConfig;
     const inlineInstructions = usesStructuredFlow
@@ -557,6 +631,7 @@ export class ThreadSessionManager {
       prompt,
       config: effectiveConfig,
       ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+      ...(payload.segments ? { displaySegments: payload.segments } : {}),
       ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
       ...(inlineInstructions ? { inlineInstructions } : {}),
     };
@@ -750,8 +825,12 @@ export class ThreadSessionManager {
     if (usesStructuredFlow) {
       throw new Error("stageThreadInput is only supported for terminal-native threads.");
     }
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
           preserveImageAttachments: false,
         })
       : undefined;
@@ -899,8 +978,16 @@ export class ThreadSessionManager {
       await this.steerCoordinator.setPendingSteer(session, payload);
       return;
     }
-    const segments = await this.filterPluginSkillSegments(session, payload.segments);
-    await this.steerCoordinator.setPendingSteer(session, { ...payload, segments });
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const segments = await this.filterPluginSkillSegments(session, mentionSegments);
+    await this.steerCoordinator.setPendingSteer(session, {
+      ...payload,
+      ...(segments ? { segments } : {}),
+      ...(payload.segments ? { displaySegments: payload.segments } : {}),
+    });
   }
 
   /**
@@ -979,7 +1066,13 @@ export class ThreadSessionManager {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
 
-    const shellCommand = buildShellCommand(payload.projectLocation, this.options.windowsShell, {
+    const windowsShell =
+      process.platform === "win32" && payload.projectLocation.kind === "windows"
+        ? this.options.resolveWindowsShell(
+            payload.windowsShellRuntime === "powershell" ? "powershell" : "preferred",
+          )
+        : { shell: "", kind: "cmd" as const, args: [] };
+    const shellCommand = buildShellCommand(payload.projectLocation, windowsShell, {
       startInHome: payload.startInHome === true,
     });
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });
@@ -1295,11 +1388,15 @@ export class ThreadSessionManager {
     return join(this.options.logsDir, `${threadId}.hints.log`);
   }
 
-  private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
+  private resolveAgentSettings(
+    adapter: AgentAdapter,
+    location?: ProjectLocation,
+  ): Record<string, boolean | string> {
     const settings = readSupervisorSharedSettings(this.options.settingsPath);
+    const env = location ? agentEnvForLocation(location) : { kind: "native" as const };
     return {
       ...(adapter.capabilities.agentSettingsDefaults ?? {}),
-      ...(settings.agentSettings[adapter.kind] ?? {}),
+      ...effectiveAgentSettings(settings, localMachineKey(env), adapter.kind),
     };
   }
 }

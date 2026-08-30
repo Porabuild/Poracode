@@ -1,7 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { agentStatusSchema, areAgentPresentationRuntimeFieldsEqual } from "./agent";
+import {
+  agentStatusesResponseSchema,
+  agentStatusSchema,
+  areAgentPresentationRuntimeFieldsEqual,
+} from "./agent";
 
 describe("agentStatusSchema runtime variants", () => {
+  it("preserves optional ACP session readiness and accepts its absence", () => {
+    const status = {
+      kind: "acp-generic:example",
+      label: "Example ACP",
+      installed: true,
+      authState: "unknown",
+      capabilities: {},
+    };
+
+    expect(agentStatusSchema.parse(status).acpSessionEstablished).toBeUndefined();
+    expect(
+      agentStatusesResponseSchema.parse({
+        windows: [{ ...status, acpSessionEstablished: true }],
+        wsl: [],
+        fromCache: false,
+      }).windows[0]?.acpSessionEstablished,
+    ).toBe(true);
+  });
+
   it("parses named runtime variants with full effective capability defaults and routing", () => {
     const parsed = agentStatusSchema.parse({
       kind: "cursor",

@@ -9,12 +9,7 @@ import {
 import { coalesceByKey } from "@/shared/coalesce";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import {
-  defaultSharedSettings,
-  normalizeSharedSettings,
-  type SharedSettings,
-  type UsageSettings,
-} from "@/shared/settings";
+import { defaultSharedSettings, type SharedSettings, type UsageSettings } from "@/shared/settings";
 import {
   collectClaudeProfile,
   readClaudeUsageProfiles,
@@ -22,8 +17,15 @@ import {
   withClaudeEstimatedCost,
   type ClaudeUsageProfile,
 } from "../agents/claude/claudeUsageProfiles";
+import {
+  collectCursorProfile,
+  readCursorSdkUsageProfile,
+  readCursorUsageProfiles,
+  type CursorUsageProfile,
+} from "../agents/cursor/cursorUsageProfiles";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -35,8 +37,13 @@ import { createNodeUsageHost } from "./usageHost";
  * 5 min, 2 min floor) — never a fast poll.
  */
 
-/** Bump when the cached snapshot shape changes so stale caches are discarded. */
-const USAGE_CACHE_VERSION = 2;
+/**
+ * Bump when the cached snapshot source or shape changes so stale caches are
+ * discarded. v3 relabeled Cursor's first-party window; v4 reselects the main
+ * Cursor account when an SDK key is configured; v5 removes the desktop-app
+ * credential fallback from the CLI-backed main tile.
+ */
+const USAGE_CACHE_VERSION = 5;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
@@ -99,17 +106,13 @@ export class UsageService {
   private defaultProviderIds(): string[] {
     const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
     if (this.options.providerIds) return baseIds;
-    return [...baseIds, ...this.claudeUsageProfiles().keys()];
+    return [...baseIds, ...this.claudeUsageProfiles().keys(), ...this.cursorUsageProfiles().keys()];
   }
 
-  /** Read shared settings from disk (defaults if absent). */
+  /** Read shared settings from disk (defaults if absent). Decrypts profile keys. */
   private readSharedSettings(): SharedSettings {
     if (!this.options.settingsPath) return defaultSharedSettings;
-    try {
-      return normalizeSharedSettings(JSON.parse(readFileSync(this.options.settingsPath, "utf8")));
-    } catch {
-      return defaultSharedSettings;
-    }
+    return readSupervisorSharedSettings(this.options.settingsPath);
   }
 
   /** Read the usage policy from the shared settings file (defaults if absent). */
@@ -121,10 +124,17 @@ export class UsageService {
     return readClaudeUsageProfiles(this.readSharedSettings());
   }
 
+  private cursorUsageProfiles(): Map<string, CursorUsageProfile> {
+    return readCursorUsageProfiles(this.readSharedSettings());
+  }
+
   /** A provider id this service can collect (package registry or supervisor-local). */
   private isSupported(id: string): boolean {
     return (
-      this.registry.has(id) || this.localCollectors.has(id) || this.claudeUsageProfiles().has(id)
+      this.registry.has(id) ||
+      this.localCollectors.has(id) ||
+      this.claudeUsageProfiles().has(id) ||
+      this.cursorUsageProfiles().has(id)
     );
   }
 
@@ -219,25 +229,43 @@ export class UsageService {
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
     const claudeProfiles = this.claudeUsageProfiles();
-    const registryIds = ids.filter((id) => this.registry.has(id));
+    const cursorSdkProfile = readCursorSdkUsageProfile(this.readSharedSettings());
+    const cursorProfiles = this.cursorUsageProfiles();
+    const registryIds = ids.filter(
+      (id) => this.registry.has(id) && !(id === "cursor" && cursorSdkProfile),
+    );
     const localIds = ids.filter((id) => this.localCollectors.has(id));
     const claudeProfileIds = ids.filter((id) => claudeProfiles.has(id));
+    const cursorProfileIds = ids.filter((id) => cursorProfiles.has(id));
+    const collectCursorSdk = cursorSdkProfile && ids.includes("cursor");
     // The registry HTTP batch and the supervisor-local collectors are independent
     // of each other, so run both groups concurrently rather than waiting out the
     // (rate-limited, slow) HTTP batch before starting the local scans.
-    const [registrySnaps, localSnaps, claudeProfileSnaps] = await Promise.all([
-      this.registry.collectAll(registryIds, this.host),
-      Promise.all(localIds.map((id) => this.collectLocal(id))),
-      Promise.all(
-        claudeProfileIds.flatMap((id) => {
-          const profile = claudeProfiles.get(id);
-          return profile ? [collectClaudeProfile(profile, this.host)] : [];
-        }),
-      ),
-    ]);
-    let snapshots = [...registrySnaps, ...localSnaps, ...claudeProfileSnaps].map((snap) =>
-      this.preserveOnTransientFailure(snap),
-    );
+    const [registrySnaps, localSnaps, claudeProfileSnaps, cursorProfileSnaps, cursorSdkSnapshot] =
+      await Promise.all([
+        this.registry.collectAll(registryIds, this.host),
+        Promise.all(localIds.map((id) => this.collectLocal(id))),
+        Promise.all(
+          claudeProfileIds.flatMap((id) => {
+            const profile = claudeProfiles.get(id);
+            return profile ? [collectClaudeProfile(profile, this.host)] : [];
+          }),
+        ),
+        Promise.all(
+          cursorProfileIds.flatMap((id) => {
+            const profile = cursorProfiles.get(id);
+            return profile ? [collectCursorProfile(profile, this.host)] : [];
+          }),
+        ),
+        collectCursorSdk ? collectCursorProfile(cursorSdkProfile, this.host) : undefined,
+      ]);
+    let snapshots = [
+      ...registrySnaps,
+      ...localSnaps,
+      ...claudeProfileSnaps,
+      ...cursorProfileSnaps,
+      ...(cursorSdkSnapshot ? [cursorSdkSnapshot] : []),
+    ].map((snap) => this.preserveOnTransientFailure(snap));
     if (this.readUsageSettings().showEstimatedCost) {
       snapshots = await this.withEstimatedCost(snapshots, claudeProfiles);
     }

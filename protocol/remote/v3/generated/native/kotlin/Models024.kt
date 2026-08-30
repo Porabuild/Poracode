@@ -5,6 +5,112 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+@Serializable(with = WebSocketClientMessage_4dde56e240.Serializer::class)
+sealed interface WebSocketClientMessage_4dde56e240 {
+    data class Option1(val value: WebSocketClientMessageU2DOptionU2D1_1709690cf0) : WebSocketClientMessage_4dde56e240
+    data class Option2(val value: WebSocketClientMessageU2DOptionU2D2_2b7b34c95b) : WebSocketClientMessage_4dde56e240
+    data class Option3(val value: WebSocketClientMessageU2DOptionU2D3_0e8f58f429) : WebSocketClientMessage_4dde56e240
+    data class Option4(val value: WebSocketClientMessageU2DOptionU2D4_d550ef9994) : WebSocketClientMessage_4dde56e240
+    data class Option5(val value: WebSocketClientMessageU2DOptionU2D5_863be77948) : WebSocketClientMessage_4dde56e240
+    data class Option6(val value: WebSocketClientMessageU2DOptionU2D6_5af10e67b4) : WebSocketClientMessage_4dde56e240
+    data class Option7(val value: WebSocketClientMessageU2DOptionU2D7_d2299af726) : WebSocketClientMessage_4dde56e240
+    data class Option8(val value: WebSocketClientMessageU2DOptionU2D8_93bef3a552) : WebSocketClientMessage_4dde56e240
+    object Serializer : KSerializer<WebSocketClientMessage_4dde56e240> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("WebSocketClientMessage_4dde56e240")
+        override fun deserialize(decoder: Decoder): WebSocketClientMessage_4dde56e240 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("WebSocketClientMessage_4dde56e240 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<WebSocketClientMessage_4dde56e240>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("ping")))) { Option1(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D1_1709690cf0>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("browser-watch")))) { Option2(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D2_2b7b34c95b>(element)) }
+            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("browser-unwatch")))) { Option3(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D3_0e8f58f429>(element)) }
+            RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("browser-input")))) { Option4(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D4_d550ef9994>(element)) }
+            RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("terminal-watch")))) { Option5(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D5_863be77948>(element)) }
+            RemoteUnionCodec.tryOption(matches, 6, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("terminal-unwatch")))) { Option6(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D6_5af10e67b4>(element)) }
+            RemoteUnionCodec.tryOption(matches, 7, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("git-state-interests")))) { Option7(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D7_d2299af726>(element)) }
+            RemoteUnionCodec.tryOption(matches, 8, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("thread-item-interests")))) { Option8(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D8_93bef3a552>(element)) }
+            return RemoteUnionCodec.single("WebSocketClientMessage_4dde56e240", matches)
+        }
+        override fun serialize(encoder: Encoder, value: WebSocketClientMessage_4dde56e240) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("WebSocketClientMessage_4dde56e240 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D1_1709690cf0>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D2_2b7b34c95b>(value.value)
+                is Option3 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D3_0e8f58f429>(value.value)
+                is Option4 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D4_d550ef9994>(value.value)
+                is Option5 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D5_863be77948>(value.value)
+                is Option6 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D6_5af10e67b4>(value.value)
+                is Option7 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D7_d2299af726>(value.value)
+                is Option8 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D8_93bef3a552>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2 {
+    @SerialName("ready") READY,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D1_13762c62f0(
+    @SerialName("seq") val seq: Long,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871 {
+    @SerialName("event") EVENT,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D2_8f72d27346(
+    @SerialName("event") val event: JsonElement,
+    @SerialName("seq") val seq: Long,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6 {
+    @SerialName("resync-required") RESYNCU2DREQUIRED,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D3_67185a3945(
+    @SerialName("reason") val reason: String,
+    @SerialName("seq") val seq: Long,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("reason", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D4U2DType_d8768c073f {
+    @SerialName("pong") PONG,
+}
+
 @Serializable
 data class WebSocketServerMessageU2DOptionU2D4_17b50a5a25(
     @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
@@ -163,8 +269,6 @@ data class WebSocketServerMessageU2DOptionU2D8_95d0adeb5b(
         ), listOf("terminal.cursor.output-data-utf16"))
     }
 }
-
-typealias WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResultU2DOptionU2D1U2DGeneration_df704162f3 = String?
 
 @Serializable
 enum class WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResultU2DOptionU2D1U2DProcessState_f156a9bc12 {

@@ -12,7 +12,7 @@ import { DevTerminalPanel } from "./DevTerminalPanel";
 const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
   bridge: {
     closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    startShell: vi.fn<(payload: unknown) => Promise<void>>().mockResolvedValue(undefined),
   },
   remote: {
     watchTerminal:
@@ -38,6 +38,11 @@ vi.mock("@heroui/react", () => ({ toast }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
+}));
+
+vi.mock("@/renderer/utils/shellUtils", async (importActual) => ({
+  ...(await importActual<typeof import("@/renderer/utils/shellUtils")>()),
+  startShellWithCurrentSettings: (payload: unknown) => bridge.startShell(payload),
 }));
 
 vi.mock("@/renderer/state/remoteTerminalFeed", () => ({

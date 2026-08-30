@@ -92,7 +92,7 @@ final class RemoteIntegrationsGatewayTests: XCTestCase {
         connectionID: lease.connectionID,
         endpoint: "https://host.example",
         token: "token",
-        protocolVersion: 3,
+        protocolVersion: 8,
         scopes: ["session:read"]
       )
     )

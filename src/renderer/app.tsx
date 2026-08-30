@@ -31,18 +31,18 @@ import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServersStore";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { applyRemoteThreadStartCommand } from "@/renderer/actions/remoteStartCommandActions";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
-import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/agentStatusesStore";
+import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
+import { evictOversizedInactiveThreadRuntimeItems } from "./state/chatRuntimePersister";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
-import { generateTitleAsync } from "@/renderer/utils/titleGen";
-import { titlePromptFromSegments } from "@/shared/threadTitle";
+import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
 import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
@@ -122,6 +122,7 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
   // One Zustand set for all concurrent streams — avoids N selector passes when
   // several chats are working in the background / being switched between.
   store.applyRuntimeEventBatches(batches);
+  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
   for (const { threadId, events } of batches) {
     // Durable usage capture at the canonical layer (all providers normalized).
     // Thread metadata is resolved lazily inside, so pure-delta frames are free.
@@ -290,7 +291,7 @@ function installThreadOutputPruning(): () => void {
   };
 }
 
-function handleUpdateStatus(status: UpdateStatus): void {
+function handleUpdateStatus(status: UpdateStatus, notifyError = true): void {
   const store = useUpdateStore.getState();
   switch (status.type) {
     case "checking":
@@ -315,10 +316,33 @@ function handleUpdateStatus(status: UpdateStatus): void {
     case "error": {
       const detail = status.messageKey ? msg(status.messageKey) : status.message;
       store.setError(detail);
-      toast.danger(msg("update.error", { detail }));
+      if (notifyError) toast.danger(msg("update.error", { detail }));
       break;
     }
   }
+}
+
+export function installUpdateStatusSync(
+  bridge: Pick<ReturnType<typeof readBridge>, "getUpdateStatus" | "onUpdateStatus"> = readBridge(),
+): () => void {
+  let disposed = false;
+  let receivedLiveStatus = false;
+  const unsubscribe = bridge.onUpdateStatus((status) => {
+    receivedLiveStatus = true;
+    handleUpdateStatus(status);
+  });
+  void bridge
+    .getUpdateStatus()
+    .then((status) => {
+      if (!disposed && !receivedLiveStatus && status) handleUpdateStatus(status, false);
+    })
+    .catch((error: unknown) => {
+      if (!disposed) console.error("[poracode][updates] get-update-status failed", error);
+    });
+  return () => {
+    disposed = true;
+    unsubscribe();
+  };
 }
 
 // The browser-extract window renders a standalone BrowserPanel; it has no use
@@ -328,8 +352,8 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
       installRuntimeEventScheduling(),
-      readBridge().onUpdateStatus(handleUpdateStatus),
-      // Thread-metadata commands issued from paired browser clients.
+      installUpdateStatusSync(),
+      // Thread-metadata commands issued from paired remote clients (mobile PWA).
       // They run through the same actions as local edits so persistence and
       // side effects (unload on archive, …) stay identical.
       readBridge().onRemoteThreadCommand((command) => {
@@ -346,56 +370,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           return;
         }
         if (command.kind === "start") {
-          const store = useAppStore.getState();
-          if (store.threads.some((t) => t.id === command.threadId)) return;
-          const project = store.projects.find((p) => p.id === command.projectId);
-          if (!project) return;
-          const titlePrompt =
-            titlePromptFromSegments(command.prompt, command.segments).trim() ||
-            i18n._(linguiMsg`New thread`);
-          const thread = store.createThread({
-            threadId: command.threadId,
-            projectId: project.id,
-            agentKind: command.agentKind,
-            ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
-            config: command.config,
-            prompt: titlePrompt,
-            ...(command.title ? { title: command.title } : {}),
-            ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
-            ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
-            ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
-            ...(command.prNumber !== undefined ? { prNumber: command.prNumber } : {}),
-            ...(command.focus === false ? { focus: false } : {}),
-            ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
-            ...(command.groupId ? { groupId: command.groupId } : {}),
-            ...(command.groupName ? { groupName: command.groupName } : {}),
-          });
-          if (command.launchRuntime !== false) {
-            if (command.userMessageItemId) {
-              store.queueThreadLaunch(
-                thread.id,
-                command.prompt,
-                command.segments,
-                command.userMessageItemId,
-              );
-            } else {
-              store.queueThreadLaunch(thread.id, command.prompt, command.segments);
-            }
-          }
-          const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-          const projectAgentStatuses = getProjectAgentStatuses(
-            project.location,
-            agentStatuses,
-            wslAgentStatuses,
-          );
-          // An explicit title (e.g. an orchestrator-provided ticket key) is
-          // authoritative — don't let AI title generation overwrite it.
-          if (!command.title) {
-            generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
-          }
-          if (command.worktreePath) {
-            void primeWorktreeGitState(project, command.worktreePath);
-          }
+          applyRemoteThreadStartCommand(command);
           return;
         }
         const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
@@ -558,6 +533,9 @@ export function App() {
 
 function MainApp() {
   const { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 } = useAppHydration();
+  // App-scoped, not overlay-scoped: PR watches must follow the current helper
+  // agent whether or not the user opens the Git Review sidebar.
+  usePrWatchAgentSync(!initialLoading);
   const [showStartupRecovery, setShowStartupRecovery] = useState(false);
   const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
 

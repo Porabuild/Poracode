@@ -8,11 +8,15 @@ const buildAgentCommandMock = vi.hoisted(() =>
 const terminateProcessTreeMock = vi.hoisted(() => vi.fn<(pid: number) => void>());
 const spawnPtyMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 
-vi.mock("./agents/base", () => ({ buildAgentCommand: buildAgentCommandMock }));
+vi.mock("./agents/base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./agents/base")>()),
+  buildAgentCommand: buildAgentCommandMock,
+}));
 vi.mock("@/shared/processTree", () => ({ terminateProcessTree: terminateProcessTreeMock }));
 vi.mock("node-pty", () => ({ spawn: spawnPtyMock }));
 
-import { buildOneShotSpec, spawnAgentPty } from "./oneShotSpawn";
+import { ONE_SHOT_OUTPUT_MARKER } from "./oneShotOutputMarker";
+import { buildOneShotSpec, prepareOneShot, spawnAgent, spawnAgentPty } from "./oneShotSpawn";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -90,6 +94,34 @@ describe("spawnAgentPty", () => {
     );
   });
 
+  it("strips a login-shell banner preceding the sentinel", async () => {
+    let onData: ((data: string) => void) | undefined;
+    let onExit: ((event: { exitCode: number }) => void) | undefined;
+    spawnPtyMock.mockReturnValue({
+      pid: 4321,
+      kill: vi.fn<() => void>(),
+      write: vi.fn<() => void>(),
+      onData: vi.fn<(callback: (data: string) => void) => { dispose: () => void }>((callback) => {
+        onData = callback;
+        return { dispose: vi.fn<() => void>() };
+      }),
+      onExit: vi.fn<(callback: (event: { exitCode: number }) => void) => { dispose: () => void }>(
+        (callback) => {
+          onExit = callback;
+          return { dispose: vi.fn<() => void>() };
+        },
+      ),
+    });
+
+    const result = spawnAgentPty({ command: "agy", args: ["-p"] }, "", 10_000);
+    onData?.(
+      `Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.18.3 x86_64)\r\n${ONE_SHOT_OUTPUT_MARKER}\r\nFix WSL cold-boot thread titles\r\n`,
+    );
+    onExit?.({ exitCode: 0 });
+
+    await expect(result).resolves.toBe("Fix WSL cold-boot thread titles");
+  });
+
   it("terminates the process tree on Windows instead of invoking node-pty's console helper", async () => {
     vi.useFakeTimers();
     const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
@@ -123,5 +155,34 @@ describe("spawnAgentPty", () => {
       platform.mockRestore();
       vi.useRealTimers();
     }
+  });
+});
+
+describe("one-shot banner fencing", () => {
+  const wslProject: ProjectLocation = {
+    kind: "wsl",
+    distro: "Ubuntu",
+    linuxPath: "/home/demo/project",
+    uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+  };
+
+  it("marks one-shot login-shell scripts so startup banners can be dropped", () => {
+    buildAgentCommandMock.mockReturnValue({
+      command: "wsl.exe",
+      args: ["-d", "Ubuntu", "--exec", "/bin/bash", "-l", "-i", "-c", "exec 'claude' '-p'"],
+    });
+    const { spec } = prepareOneShot(wslProject, { command: "claude", args: ["-p"] });
+    expect(spec.args.at(-1)).toBe(`printf '%s\n' '${ONE_SHOT_OUTPUT_MARKER}'; exec 'claude' '-p'`);
+  });
+
+  it("resolves only the output that follows the sentinel", async () => {
+    const script = [
+      `console.log("Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.18.3 x86_64)")`,
+      `console.log(${JSON.stringify(ONE_SHOT_OUTPUT_MARKER)})`,
+      `console.log("Fix WSL cold-boot thread titles")`,
+    ].join(";");
+    await expect(
+      spawnAgent({ command: process.execPath, args: ["-e", script] }, "", 30_000),
+    ).resolves.toBe("Fix WSL cold-boot thread titles");
   });
 });

@@ -133,6 +133,9 @@ describe("searchSettings", () => {
     expect(
       searchSettings("quick remove", t, { remoteSession: true }).map((r) => r.anchor),
     ).not.toContain("threads.defaultThreadRemoval");
+    expect(
+      searchSettings("confirm delete", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("threads.confirmThreadDelete");
     expect(searchSettings("panel", t, { remoteSession: true }).map((r) => r.anchor)).not.toContain(
       "terminal.terminalPosition",
     );
@@ -148,6 +151,25 @@ describe("searchSettings", () => {
     expect(
       searchSettings("cookies", t, { remoteSession: true }).map((r) => r.anchor),
     ).not.toContain("browser.allowDataAccess");
+  });
+
+  it("hides Windows-only settings on other desktop platforms", () => {
+    const nonWindows = searchSettings("windows terminal shell", t, { windows: false }).map(
+      (result) => result.anchor,
+    );
+    const windows = searchSettings("windows terminal shell", t, { windows: true }).map(
+      (result) => result.anchor,
+    );
+
+    expect(nonWindows).not.toContain("terminal.windowsShell");
+    expect(nonWindows).not.toContain("terminal.windowsInternalShell");
+    expect(nonWindows).not.toContain("terminal.windowsShellArguments");
+    expect(windows).toContain("terminal.windowsShell");
+    expect(windows).toContain("terminal.windowsInternalShell");
+    expect(windows).toContain("terminal.windowsShellArguments");
+    expect(searchSettings("powershell", t).map((result) => result.anchor)).not.toContain(
+      "terminal.windowsShell",
+    );
   });
 
   it("truncates long description snippets", () => {

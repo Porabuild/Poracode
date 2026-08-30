@@ -1,6 +1,7 @@
 import type {
   ControlThreadGoalPayload,
   ProjectNotes,
+  PrWatchAgentSync,
   PrWatchInput,
   PrWatchKey,
   ResizeTerminalPayload,
@@ -20,6 +21,7 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   checkPrWatch: "project",
   upsertPrWatch: "project",
   deletePrWatch: "project",
+  syncPrWatchAgent: "project",
   dbGetThreadRuntimeItemsPage: "thread",
   dbTruncateThreadRuntimeAfter: "thread",
   sendThreadInput: "thread",
@@ -48,6 +50,7 @@ type RemoteIpcAdapterClient = Pick<
   | "checkPrWatch"
   | "upsertPrWatch"
   | "deletePrWatch"
+  | "syncPrWatchAgent"
   | "threadRuntimeItemsPage"
   | "truncateThreadRuntimeAfter"
   | "sendThreadInput"
@@ -79,6 +82,8 @@ export function invokeRemoteIpcProcedure(
       return client.upsertPrWatch(payload as PrWatchInput);
     case "deletePrWatch":
       return client.deletePrWatch(payload as PrWatchKey);
+    case "syncPrWatchAgent":
+      return client.syncPrWatchAgent(payload as PrWatchAgentSync);
     case "dbGetThreadRuntimeItemsPage":
       return client.threadRuntimeItemsPage(
         payload as Parameters<RemoteDesktopClient["threadRuntimeItemsPage"]>[0],

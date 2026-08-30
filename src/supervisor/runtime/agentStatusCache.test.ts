@@ -40,6 +40,43 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
+  it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 11,
+        windows: [
+          {
+            kind: "acp-generic:example",
+            label: "Example ACP",
+            installed: true,
+            authState: "missing",
+            authMethods: [{ id: "login", name: "Login" }],
+            capabilities: { models: [] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("invalidates v9 caches produced without the Grok login-shell environment", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
@@ -73,6 +110,245 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v13 caches whose terminal auth methods lack baseSpawnEnv-derived env", () => {
+    // Pre-v14 statuses assembled terminal auth methods WITHOUT the provider's
+    // baseSpawnEnv (antigravity's `AGY_CLI_DISABLE_AUTO_UPDATE` did not exist
+    // on the method). Serving that stale status would build the `agy` login
+    // command without the opt-out — the stray-updater window the v14
+    // derivation exists to prevent.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 13,
+        windows: [
+          {
+            kind: "antigravity",
+            label: "Antigravity",
+            installed: true,
+            authState: "missing",
+            authMethods: [{ id: "antigravity-login", name: "Antigravity login", type: "terminal" }],
+            capabilities: { models: [] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v14 caches produced before ACP thinking capabilities", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 14,
+        windows: [
+          {
+            kind: "qwen",
+            label: "Qwen Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [{ id: "qwen3.7-plus", label: "Qwen3.7 Plus" }] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v17 caches that grouped Cursor Grok under Other models", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 17,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [{ id: "grok-4.6", label: "Cursor Grok 4.6" }],
+              modelSubProvider: { "grok-4.6": "other" },
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(21);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v18 caches holding Command Code's curated fallback models", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 18,
+        windows: [
+          {
+            kind: "commandcode",
+            label: "Command Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [
+                { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+                { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+              ],
+              modelEfforts: { "deepseek/deepseek-v4-flash": ["high", "max"] },
+              defaultEffort: "high",
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(21);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v19 caches probed under kind-global agent settings", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "poracode-cache-"));
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 19,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    // Detection now resolves per-machine agent-setting overrides
+    // (machineSettings), so pre-v20 statuses must be re-probed.
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v20 terminal-only Antigravity caches", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 20,
+        windows: [
+          {
+            kind: "antigravity",
+            label: "Antigravity",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [{ id: "auto", label: "Auto" }],
+              presentationModes: ["terminal"],
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(21);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

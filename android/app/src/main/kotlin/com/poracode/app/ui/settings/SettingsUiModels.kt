@@ -39,7 +39,7 @@ data class SettingsUiAccess(
 ) {
     companion object {
         fun from(lease: SettingsHostLease?): SettingsUiAccess {
-            val compatible = lease?.protocolVersion == 3
+            val compatible = lease?.protocolVersion == 8
             val online = lease?.online == true
             val ready = lease?.ready == true
             return SettingsUiAccess(

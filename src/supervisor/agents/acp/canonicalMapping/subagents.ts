@@ -6,7 +6,13 @@
  * surface streamed sub-agent output as nested assistant messages.
  */
 
-import type { RuntimeEvent } from "@/shared/contracts";
+import {
+  subAgentStatusSchema,
+  toolCallProgressSchema,
+  type RuntimeEvent,
+  type SubAgentStatus,
+  type ToolCallProgress,
+} from "@/shared/contracts";
 import { readStringField } from "../../fileChangeSummary";
 import { firstNonEmptyLine, normalizeToolText } from "./contentExtraction";
 import type { ActiveAcpSubAgent, AcpMapperState, AcpToolCallItemState } from "./state";
@@ -23,6 +29,22 @@ export const PORACODE_ACP_DETACHED_SUBAGENT_META_KEY = "poracodeDetachedSubAgent
 export const PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY = "poracodeDetachedSubAgentActivity";
 export const PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY = "poracodeNewAssistantItem";
 export const PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY = "poracodeSynthesizeSubAgentResult";
+export const PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY = "poracodeSubAgentProgress";
+export const PORACODE_ACP_SUBAGENT_STATUS_META_KEY = "poracodeSubAgentStatus";
+
+export function readAcpSubAgentProgressMeta(meta: unknown): ToolCallProgress | undefined {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return undefined;
+  const progress = (meta as Record<string, unknown>)[PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY];
+  const parsed = toolCallProgressSchema.safeParse(progress);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export function readAcpSubAgentStatusMeta(meta: unknown): SubAgentStatus | undefined {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return undefined;
+  const status = (meta as Record<string, unknown>)[PORACODE_ACP_SUBAGENT_STATUS_META_KEY];
+  const parsed = subAgentStatusSchema.safeParse(status);
+  return parsed.success ? parsed.data : undefined;
+}
 
 export function buildSubAgentProgress(
   toolCall: {

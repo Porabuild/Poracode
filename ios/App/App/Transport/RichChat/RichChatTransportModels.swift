@@ -132,6 +132,12 @@ extension RichPromptSegment {
         "id": .string(id),
         "name": .string(name),
       ])
+    case .thread(let threadID, let title):
+      return .object([
+        "kind": .string("thread"),
+        "threadId": .string(threadID),
+        "title": .string(title),
+      ])
     }
   }
 }

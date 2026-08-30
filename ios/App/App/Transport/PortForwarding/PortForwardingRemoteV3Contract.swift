@@ -57,7 +57,7 @@ enum PortForwardingContractError: Error, Equatable, Sendable {
 }
 
 enum PortForwardingRemoteV3Contract {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
 
   static func metadata(for route: PortForwardingRoute) throws -> PortForwardingRouteMetadata {
     let expected = route.expected

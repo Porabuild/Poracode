@@ -1,5 +1,5 @@
-import { startTransition, useEffect, useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { useEffect, useState } from "react";
+import { Button, Card, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AlertTriangle, ArrowUpCircle, LogIn, LogOut, Save } from "lucide-react";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
@@ -12,11 +12,14 @@ import type {
 import {
   baseAgentKind,
   extractAcpGenericInstanceId,
-  extractClaudeProfileInstanceId,
+  isCursorProfileKind,
+  parseAgentProfileKind,
 } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -33,28 +36,38 @@ import {
   statusUpdateScope,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
-import { Input, ToggleSwitch } from "@/renderer/components/common";
-import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { Input } from "@/renderer/components/common";
 import {
   providerMenuKey,
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
+import { CombinedRuntimeVersionList } from "@/renderer/components/providers/CombinedRuntimeVersionList";
+import { useCombinedProviderRuntimeUpdates } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
 import { SAVED_CREDENTIAL_MASK } from "../secretMask";
-import { ClaudeProfileProviderSettings } from "../ClaudeProfileSettings";
+import { AgentHeader } from "./parts/AgentHeader";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
 import { AgentEnvironmentRow, AgentInstallEnvironmentRow } from "./parts/AgentEnvironmentRow";
 import { HookPluginSettings } from "./parts/HookPluginSettings";
+import { MachineScopeHeading } from "../machineScope/MachineScopeHeading";
+import {
+  MachineAttentionHint,
+  NoMachineStatusRow,
+  RemoteMachineNotice,
+} from "../machineScope/MachineScopeRows";
+import { useMachineScopedStatuses } from "../machineScope/useMachineScopedStatuses";
 import {
   findAgentAuthMethod,
   findEnvVarAuthMethod,
   findTerminalLoginStatus,
   formatStatusList,
+  hasInteractiveAuthMethods,
   resolveLivePlanLabel,
   statusEnvKey,
+  statusNeedsInteractiveLogin,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";
 
@@ -105,13 +118,30 @@ export function SingleAgentSettings(props: {
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
-  const claudeProfileInstanceId = extractClaudeProfileInstanceId(props.agentKind);
-  const claudeProfileInstance = useSharedSettings((s) =>
-    claudeProfileInstanceId ? s.agentInstances[claudeProfileInstanceId] : undefined,
+  // Instance-scoped kind of any multi-profile provider (`claude:work`).
+  const profileKindParts = parseAgentProfileKind(props.agentKind);
+  const profileInstance = useSharedSettings((s) =>
+    profileKindParts ? s.agentInstances[profileKindParts.instanceId] : undefined,
   );
-  const installedHere = agentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
-  const installedWsl = wslAgentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
-  const installedStatuses = [...installedHere, ...installedWsl];
+  const selectedMachine = useSelectedMachine();
+  const machines = useMachines();
+  const isRemoteMachine = selectedMachine.ref.host === "remote";
+  const { scoped: machineStatuses, othersNeedingAttention } = useMachineScopedStatuses(
+    props.agentKind,
+    selectedMachine,
+  );
+  const installedAnywhere = [...agentStatuses, ...wslAgentStatuses].filter(
+    (a) => a.kind === props.agentKind && a.installed,
+  );
+  // Everything actionable on this page — env rows, auth, versions, provider
+  // panel — is scoped to the selected machine.
+  const installedStatuses = machineStatuses.filter((a) => a.installed);
+  const combinedRuntimeUpdates = useCombinedProviderRuntimeUpdates(installedStatuses);
+  const combinedRuntimeEntries = installedStatuses.map((status) => ({
+    status,
+    entry: combinedRuntimeUpdates.entryFor(status),
+  }));
+  const hasCombinedRuntimeUpdates = combinedRuntimeEntries.some(({ entry }) => entry.supported);
   const nativeRegistryEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
     (entry) => entry.id === props.agentKind,
   );
@@ -120,20 +150,26 @@ export function SingleAgentSettings(props: {
   const providerEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
     (entry) => entry.id === baseAgentKind(props.agentKind),
   );
-  const installableHere = nativeRegistryEntry
-    ? agentStatuses.filter((a) => a.kind === props.agentKind && !a.installed && a.envKind !== "wsl")
-    : [];
-  const installableWsl = nativeRegistryEntry
-    ? wslAgentStatuses.filter((a) => a.kind === props.agentKind && !a.installed)
-    : [];
-  const agent = installedHere[0] ?? installedWsl[0];
+  const installableStatuses =
+    nativeRegistryEntry && !isRemoteMachine ? machineStatuses.filter((a) => !a.installed) : [];
+  // Header and capabilities fall back to any machine's install so the page
+  // stays usable while the selected machine has nothing detected yet.
+  const agent = installedStatuses[0] ?? installedAnywhere[0];
   const isDisabled = useSharedSettings((s) => s.disabledAgents.includes(props.agentKind));
   const setAgentDisabled = useSharedSettings((s) => s.setAgentDisabled);
   const installedRegistryRecord = useSharedSettings(
     (s) => s.acpRegistryInstalledAgents[extractAcpGenericInstanceId(props.agentKind) ?? ""],
   );
   const syncInstalledAgents = useSharedSettings((s) => s.syncAcpRegistryInstalledAgents);
-  const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
+  const projectWslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
+  // Include the selected machine's distro even when no project lives in it, so
+  // scoped refreshes keep its statuses inside the supervisor's cache filter.
+  const wslDistros =
+    selectedMachine.ref.host === "local" &&
+    selectedMachine.wslDistro !== undefined &&
+    !projectWslDistros.includes(selectedMachine.wslDistro)
+      ? [...projectWslDistros, selectedMachine.wslDistro]
+      : projectWslDistros;
 
   const registryAgentId = extractAcpGenericInstanceId(props.agentKind);
   // Read-side guards: any stored "latest version" only counts when its owner
@@ -148,7 +184,9 @@ export function SingleAgentSettings(props: {
     latestNpmEntry && latestNpmEntry.agentKind === props.agentKind
       ? latestNpmEntry.version
       : undefined;
-  const newestInstalledVersion = installedStatuses.reduce<string | undefined>((latest, status) => {
+  // Peer versions from every machine: a copy lagging behind another machine's
+  // install is still a known-good upgrade target for this machine's row.
+  const newestInstalledVersion = installedAnywhere.reduce<string | undefined>((latest, status) => {
     const version = status.version;
     if (!version) return latest;
     if (!latest || isNewerVersion(version, latest)) return version;
@@ -176,7 +214,7 @@ export function SingleAgentSettings(props: {
   // "installed". Skipped for ACP-registry agents since they have their own
   // version-comparison path above.
   useEffect(() => {
-    if (registryAgentId) return;
+    if (registryAgentId || hasCombinedRuntimeUpdates) return;
     let cancelled = false;
     const kind = props.agentKind;
     readBridge()
@@ -196,7 +234,7 @@ export function SingleAgentSettings(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.agentKind, registryAgentId]);
+  }, [hasCombinedRuntimeUpdates, props.agentKind, registryAgentId]);
 
   // Resolve the provider account on open. Resolvers may briefly spawn a
   // helper process (e.g. Antigravity's `agy` language server), so this can
@@ -220,13 +258,36 @@ export function SingleAgentSettings(props: {
   }, [accountResolver, wslProjectDistrosKey]);
 
   if (!agent) {
-    if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
+    // A profile whose base provider is not installed here — or whose detection
+    // has not landed yet — still needs its settings page: it is the only place
+    // to fix the credential or config that made detection fail. Driven by the
+    // provider registry, so this holds for every multi-profile provider.
+    const ProfilePanel = providerEntry?.settingsPanel;
+    if (
+      profileKindParts &&
+      profileInstance?.driver === profileKindParts.driver &&
+      providerEntry?.profiles &&
+      ProfilePanel
+    ) {
+      // Profile kinds can lack an *installed* root status while a runtime
+      // variant (e.g. @cursor/sdk) is usable; hand over whatever detection
+      // produced so the panel shows truthful install/auth states.
+      const profileStatuses = [...agentStatuses, ...wslAgentStatuses].filter(
+        (candidate) => candidate.kind === props.agentKind,
+      );
+      const providerLabel =
+        profileKindParts.driver.charAt(0).toUpperCase() + profileKindParts.driver.slice(1);
       return (
         <SettingsPage
-          title={`Claude ${claudeProfileInstance.displayName ?? claudeProfileInstance.id}`}
+          title={`${providerLabel} ${profileInstance.displayName ?? profileInstance.id}`}
           bodyClassName=""
         >
-          <ClaudeProfileProviderSettings instanceId={claudeProfileInstanceId} />
+          <ProfilePanel
+            agentKind={props.agentKind}
+            statuses={profileStatuses}
+            wslDistros={wslDistros}
+            onOpenProfile={props.onOpenProfile}
+          />
         </SettingsPage>
       );
     }
@@ -245,14 +306,6 @@ export function SingleAgentSettings(props: {
   const modelVisibilityProviders = expandAgentToVisibilityProviders(agent);
   const hasSelectableModels = modelVisibilityProviders.length > 0;
 
-  const versionRows: { label: string; status: AgentStatus }[] = [];
-  if (platform === "win32") {
-    for (const s of installedHere) versionRows.push({ label: envLabelForStatus(s), status: s });
-    for (const s of installedWsl) versionRows.push({ label: envLabelForStatus(s), status: s });
-  } else {
-    for (const s of installedHere)
-      versionRows.push({ label: envLabelForStatus(s) || t`Installed`, status: s });
-  }
   const missingAuthStatuses = installedStatuses.filter((status) => status.authState === "missing");
   const envVarAuthMethod =
     findEnvVarAuthMethod(installedStatuses) ?? findEnvVarAuthMethod(missingAuthStatuses);
@@ -262,11 +315,13 @@ export function SingleAgentSettings(props: {
     const method = status.authMethods?.find(isAgentAuthMethod);
     return method ? [{ status, method }] : [];
   });
-  const sharedAgentAuthMethod = findAgentAuthMethodInStatuses(installedStatuses);
-  const sharedTerminalAuthMethod = findTerminalAuthMethodInStatuses(installedStatuses);
+  // Auth-method borrowing spans machines: an env that omitted its methods can
+  // still offer the sign-in another machine's status advertised.
+  const sharedAgentAuthMethod = findAgentAuthMethodInStatuses(installedAnywhere);
+  const sharedTerminalAuthMethod = findTerminalAuthMethodInStatuses(installedAnywhere);
   const agentAuth =
     findAgentAuthMethod(agentAuthStatuses) ??
-    (sharedAgentAuthMethod
+    (sharedAgentAuthMethod && installedStatuses.length > 0
       ? {
           status:
             agentAuthStatuses.find((status) => status.authMethods?.some(isAgentAuthMethod)) ??
@@ -346,7 +401,7 @@ export function SingleAgentSettings(props: {
       .then(() => toast.success(t`${agent.label} authenticated.`))
       .catch((error: unknown) =>
         toast.danger(
-          error instanceof Error ? error.message : t`Unable to authenticate ${agent.label}.`,
+          error instanceof Error ? friendlyError(error) : t`Unable to authenticate ${agent.label}.`,
         ),
       )
       .finally(() => {
@@ -446,19 +501,16 @@ export function SingleAgentSettings(props: {
     logoutStatuses.length > 0 ||
     hasAdvertisedAuthMethods;
   const includeAuthFallbackMetadata = !hasAuthSettings;
-  const authMissing =
-    missingAuthStatuses.length > 0 ||
-    (hasAdvertisedAuthMethods &&
-      !installedStatuses.some((status) => status.authState === "authenticated"));
+  const authMissing = installedStatuses.some(statusNeedsInteractiveLogin);
   const missingAuthLabel = formatStatusList(missingAuthStatuses);
   const showEnvVarOnly = envVarAuthMethod !== undefined && !authMissing;
   // Interactive auth (browser/CLI sign-in) is per-env — Windows and each WSL
   // distro hold their own sessions. We split the auth panel into one row per
   // env so each shows its own state independently. Env-var credentials stay
   // shared (single block above the per-env rows).
-  const hasInteractiveAuth = installedStatuses.some((status) =>
-    status.authMethods?.some((method) => isAgentAuthMethod(method) || method.type === "terminal"),
-  );
+  // Provider-level: whether *any* machine advertises an interactive sign-in,
+  // so an env whose status omitted methods still renders its login row.
+  const hasInteractiveAuth = installedAnywhere.some(hasInteractiveAuthMethods);
   // When env-var credentials already satisfy every env, the user is signed in
   // via the shared key — per-env Logout rows are misleading because there is
   // no per-env session to revoke. Show just the env-var block in that case.
@@ -635,15 +687,16 @@ export function SingleAgentSettings(props: {
           type: "terminal" as const,
         })
       : undefined;
-    const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> = usePerEnvAuthRows
-      ? shouldPreferTerminalLogin(status) && terminalMethod
-        ? [terminalMethod]
-        : agentMethods.length > 0
-          ? agentMethods
-          : terminalMethod
-            ? [terminalMethod]
-            : []
-      : [];
+    const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
+      usePerEnvAuthRows && !isRemoteMachine
+        ? shouldPreferTerminalLogin(status) && terminalMethod
+          ? [terminalMethod]
+          : agentMethods.length > 0
+            ? agentMethods
+            : terminalMethod
+              ? [terminalMethod]
+              : []
+        : [];
     // Match against whichever identity the row actually displays, so the live
     // plan is only adopted when it belongs to that same account.
     const rowMetadata =
@@ -659,12 +712,14 @@ export function SingleAgentSettings(props: {
         authMethods={methods}
         authPending={authPendingEnvKey === envKey}
         binaryUpdatePending={binaryUpdatePendingEnvKeys.has(envKey)}
-        canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
+        canLogout={!isRemoteMachine && supportsAcpLogoutStatus(status, acpInstanceId)}
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKeys.has(envKey)}
-        latestNpmVersion={latestNpmVersion}
+        latestNpmVersion={
+          isRemoteMachine || hasCombinedRuntimeUpdates ? undefined : latestNpmVersion
+        }
         livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
-        newestInstalledVersion={newestInstalledVersion}
+        newestInstalledVersion={hasCombinedRuntimeUpdates ? undefined : newestInstalledVersion}
         pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
         status={status}
         onLogin={(method) => {
@@ -695,10 +750,20 @@ export function SingleAgentSettings(props: {
 
   const environmentRows = (
     <>
-      {installedHere.map(renderInstalledEnvironmentRow)}
-      {installableHere.map(renderInstallableEnvironmentRow)}
-      {installedWsl.map(renderInstalledEnvironmentRow)}
-      {installableWsl.map(renderInstallableEnvironmentRow)}
+      {machines.length > 1 ? (
+        <MachineScopeHeading scope="machine" machineLabel={selectedMachine.label} />
+      ) : null}
+      {installedStatuses.map(renderInstalledEnvironmentRow)}
+      {installableStatuses.map(renderInstallableEnvironmentRow)}
+      {installedStatuses.length === 0 && installableStatuses.length === 0 ? (
+        <NoMachineStatusRow
+          machine={selectedMachine}
+          agentKind={props.agentKind}
+          wslDistros={wslDistros}
+        />
+      ) : null}
+      {isRemoteMachine ? <RemoteMachineNotice machine={selectedMachine} /> : null}
+      <MachineAttentionHint machineIds={othersNeedingAttention} machines={machines} />
     </>
   );
   // Panels that group several runtimes place these rows inside the runtime they
@@ -710,60 +775,69 @@ export function SingleAgentSettings(props: {
   return (
     <div className="mx-auto max-w-[720px]">
       <div className={panelOwnsInstallRows ? "mb-2" : "mb-6"}>
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <ProviderIcon
-              kind={agent.kind}
-              icon={agent.icon}
-              fallbackLabel={agent.label}
-              className="size-8"
-            />
-            <div className="flex flex-col">
-              <h1 className="text-lg font-semibold text-foreground leading-tight">{agent.label}</h1>
-              <p className="text-[11px] text-muted">
-                {isDisabled ? t`Agent is currently disabled` : t`Agent is active and ready`}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {updateAvailable && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                isPending={updatePending}
-                onPress={performUpdate}
-              >
-                <ArrowUpCircle className="size-3" />
-                <Trans>Update to v{latestRegistryVersion}</Trans>
-              </Button>
-            )}
-            <ToggleSwitch
-              isSelected={!isDisabled}
-              isDisabled={binaryUpdatePendingEnvKeys.size > 0}
-              size="sm"
-              aria-label={t`Enabled`}
-              onChange={(selected) => {
-                startTransition(() => {
-                  setAgentDisabled(agent.kind, !selected);
-                });
-                if (selected) {
-                  void readBridge()
-                    .refreshAgentStatuses(wslDistros, { agentKinds: [agent.kind] })
-                    .catch(() => undefined);
-                }
-              }}
-            />
-          </div>
-        </div>
+        <AgentHeader
+          agent={agent}
+          isDisabled={isDisabled}
+          updateAvailable={updateAvailable}
+          updatePending={updatePending}
+          latestRegistryVersion={latestRegistryVersion}
+          toggleDisabled={
+            binaryUpdatePendingEnvKeys.size > 0 ||
+            combinedRuntimeEntries.some(({ entry }) => entry.pending)
+          }
+          wslDistros={wslDistros}
+          onPerformUpdate={performUpdate}
+          onSetAgentDisabled={setAgentDisabled}
+        />
 
-        {panelOwnsInstallRows ? null : (
+        {hasCombinedRuntimeUpdates && !isRemoteMachine ? (
+          <Card className="mb-3 gap-2 rounded-xl border border-border bg-surface-secondary p-3 shadow-none">
+            <Card.Header className="flex-row items-center justify-between gap-3 p-0">
+              <Card.Title className="text-sm">
+                <Trans>Runtime</Trans>
+              </Card.Title>
+            </Card.Header>
+            <Card.Content className="flex flex-col gap-2 p-0">
+              {combinedRuntimeEntries.map(({ status, entry }) =>
+                entry.supported ? (
+                  <div
+                    key={statusEnvKey(status)}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-surface px-2.5 py-2"
+                  >
+                    <div className="min-w-0">
+                      {combinedRuntimeEntries.length > 1 ? (
+                        <p className="mb-1 text-[11px] font-medium text-muted">
+                          {envLabelForStatus(status)}
+                        </p>
+                      ) : null}
+                      <CombinedRuntimeVersionList entry={entry} className="text-xs" />
+                    </div>
+                    {entry.updateAvailable ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
+                        isPending={entry.pending}
+                        onPress={() => void combinedRuntimeUpdates.updateStatus(status)}
+                      >
+                        <ArrowUpCircle className="size-3" />
+                        <Trans>Update</Trans>
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null,
+              )}
+            </Card.Content>
+          </Card>
+        ) : null}
+
+        {panelOwnsInstallRows && !isRemoteMachine ? null : (
           <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>
         )}
       </div>
 
       <div className="space-y-4">
-        {providerEntry?.settingsPanel ? (
+        {providerEntry?.settingsPanel && !isRemoteMachine ? (
           <providerEntry.settingsPanel
             agentKind={props.agentKind}
             statuses={installedStatuses}
@@ -775,7 +849,7 @@ export function SingleAgentSettings(props: {
 
         {/* Panels that own auth UI (e.g. OpenCode's per-AI-provider sign-in)
             make the generic single sign-in row redundant. */}
-        {hasAuthSettings && providerEntry?.ownsAuthUi !== true && (
+        {hasAuthSettings && !isRemoteMachine && providerEntry?.ownsAuthUi !== true && (
           <div className="space-y-2">
             {envVarAuthMethod && acpInstanceId ? (
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">
@@ -783,7 +857,7 @@ export function SingleAgentSettings(props: {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{envVarAuthMethod.name}</p>
                     <p className="text-xs text-muted">
-                      <Trans>Saved credentials are shared across all environments.</Trans>
+                      <Trans>Saved credentials are shared across all machines.</Trans>
                     </p>
                     <div className="mt-3 flex flex-col gap-2">
                       {envVarAuthMethod.vars.map((variable) => {
@@ -956,6 +1030,11 @@ export function SingleAgentSettings(props: {
       </div>
 
       <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
+        {machines.length > 1 && (defs.length > 0 || hasSelectableModels) ? (
+          <div className="mt-6">
+            <MachineScopeHeading scope="all" />
+          </div>
+        ) : null}
         {defs.length > 0 && (
           <div className="mt-6">
             {defs.map((def) => (
@@ -978,11 +1057,13 @@ export function SingleAgentSettings(props: {
         )}
       </div>
 
-      <HookPluginSettings
-        agentKind={agent.kind}
-        agentLabel={agent.label}
-        statuses={installedStatuses}
-      />
+      {isCursorProfileKind(agent.kind) || isRemoteMachine ? null : (
+        <HookPluginSettings
+          agentKind={agent.kind}
+          agentLabel={agent.label}
+          statuses={installedStatuses}
+        />
+      )}
     </div>
   );
 }

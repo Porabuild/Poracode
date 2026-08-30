@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  humanizeAcpModeName,
   humanizeModelId,
   mapAcpConfigModels,
   mapAcpModels,
@@ -8,6 +9,7 @@ import {
   mapAcpThoughtLevels,
   normalizeAcpModeId,
 } from "./probe";
+import { resolveThoughtLevelToggleValues } from "./thoughtLevel";
 
 describe("mapAcpSlashCommands", () => {
   it("maps ACP skill commands into the Skills section without changing their native id", () => {
@@ -190,6 +192,22 @@ describe("mapAcpModes", () => {
     ]);
   });
 
+  it("normalizes raw snake_case mode names into readable labels", () => {
+    const result = mapAcpModes([
+      { id: "auto", name: "auto" },
+      { id: "approve", name: "approve" },
+      { id: "smart_approve", name: "smart_approve" },
+      { id: "chat", name: "chat" },
+    ]);
+    expect(result.modes).toEqual(["agent"]);
+    expect(result.approvalPolicies).toEqual([
+      { id: "auto", label: "Auto" },
+      { id: "approve", label: "Approve" },
+      { id: "smart_approve", label: "Smart approve" },
+      { id: "chat", label: "Chat" },
+    ]);
+  });
+
   it("maps unknown mode IDs as agent approval policies", () => {
     const result = mapAcpModes([
       { id: "default", name: "Default" },
@@ -349,10 +367,72 @@ describe("mapAcpThoughtLevels", () => {
       },
     ]);
 
+    // Qoder advertises the levels out of order; the probe sorts them
+    // weakest -> strongest so the effort picker reads as a ladder.
     expect(result).toEqual({
-      efforts: ["xhigh", "high", "low"],
+      efforts: ["low", "high", "xhigh"],
       defaultEffort: "xhigh",
     });
+  });
+
+  it("sorts unknown effort levels after the canonical ladder, in discovery order", () => {
+    const result = mapAcpThoughtLevels([
+      {
+        id: "thought_level",
+        category: "thought_level",
+        type: "select",
+        currentValue: "on",
+        options: [
+          { value: "on", name: "On" },
+          { value: "max", name: "Max" },
+          { value: "turbo", name: "Turbo" },
+          { value: "low", name: "Low" },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["low", "max", "on", "turbo"],
+      defaultEffort: "on",
+    });
+  });
+
+  it("preserves ACP metadata for toggle-only reasoning selectors", () => {
+    const result = mapAcpThoughtLevels([
+      {
+        id: "reasoning_effort",
+        name: "Reasoning",
+        category: "thought_level",
+        type: "select",
+        currentValue: "default",
+        options: [
+          { value: "none", name: "None" },
+          { value: "default", name: "Default" },
+        ],
+        _meta: { "qwenCode/reasoning": { toggleOnly: true } },
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["none", "default"],
+      defaultEffort: "default",
+      toggleOnly: true,
+    });
+  });
+
+  it("rejects toggle metadata when the selector has an ambiguous third state", () => {
+    expect(
+      resolveThoughtLevelToggleValues({
+        category: "thought_level",
+        type: "select",
+        options: [
+          { value: "off", name: "Reasoning Off" },
+          { value: "on", name: "Reasoning On" },
+          { value: "auto", name: "Reasoning Auto" },
+        ],
+        _meta: { "qwenCode/reasoning": { toggleOnly: true } },
+      }),
+    ).toBeUndefined();
   });
 
   it("returns empty efforts when no thought_level config exists", () => {
@@ -376,5 +456,21 @@ describe("normalizeAcpModeId", () => {
     expect(
       normalizeAcpModeId("https://agentclientprotocol.com/protocol/session-modes#autopilot"),
     ).toBe("autopilot");
+  });
+});
+
+describe("humanizeAcpModeName", () => {
+  it("replaces underscores with spaces and capitalizes the first letter", () => {
+    expect(humanizeAcpModeName("smart_approve")).toBe("Smart approve");
+    expect(humanizeAcpModeName("auto")).toBe("Auto");
+  });
+
+  it("leaves prose labels untouched", () => {
+    expect(humanizeAcpModeName("Accept Edits")).toBe("Accept Edits");
+    expect(humanizeAcpModeName("YOLO")).toBe("YOLO");
+  });
+
+  it("collapses whitespace introduced by separators", () => {
+    expect(humanizeAcpModeName("  read_only  mode ")).toBe("Read only mode");
   });
 });

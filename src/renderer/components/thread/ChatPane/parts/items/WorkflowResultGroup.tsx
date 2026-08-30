@@ -60,7 +60,7 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
       isExpanded={isExpanded}
       onToggle={(next) => {
         setIsExpanded(next);
-        actions?.onContentHeightChange();
+        actions?.onContentHeightChange?.();
       }}
     >
       <ul className="flex flex-col gap-1">
@@ -168,7 +168,7 @@ function WorkflowResultRow({
         isExpanded={isExpanded}
         onExpandedChange={(next) => {
           setIsExpanded(next);
-          actions?.onContentHeightChange();
+          actions?.onContentHeightChange?.();
         }}
       >
         <Disclosure.Heading>

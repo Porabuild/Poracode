@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
 import type { RuntimeEvent } from "@/shared/contracts";
 import {
   createRuntimeEventSlice,
@@ -12,10 +13,12 @@ import {
  * Zustand store so the rest of the app store doesn't have to be wired up.
  */
 function makeStore() {
-  return create<RuntimeEventSlice>()((set, get, store) =>
-    // Cast — the slice's `SliceCreator<T>` parameter expects the full app
-    // state, but the slice itself only touches its own keys. Safe in tests.
-    createRuntimeEventSlice(set as never, get as never, store as never),
+  return create<RuntimeEventSlice>()(
+    subscribeWithSelector((set, get, store) =>
+      // Cast — the slice's `SliceCreator<T>` parameter expects the full app
+      // state, but the slice itself only touches its own keys. Safe in tests.
+      createRuntimeEventSlice(set as never, get as never, store as never),
+    ),
   );
 }
 
@@ -138,6 +141,68 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(afterItems).toBe(beforeItems);
     expect(afterItems?.["i1"]).not.toBe(beforeItem);
     expect(afterItems?.["i1"]?.streams.assistant_text).toBe("Hello");
+  });
+
+  it("applies structural item events without cloning the whole thread item map", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "assistant_message",
+    });
+    const beforeItems = store.getState().runtimeItemsByIdByThread["t1"];
+    const beforeItem = beforeItems?.["i1"];
+
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i2",
+      itemType: "assistant_message",
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBe(beforeItems);
+
+    apply("t1", {
+      type: "item.updated",
+      threadId: "t1",
+      itemId: "i1",
+      payload: { content: [] },
+    });
+    const updatedItems = store.getState().runtimeItemsByIdByThread["t1"];
+    expect(updatedItems).toBe(beforeItems);
+    expect(updatedItems?.["i1"]).not.toBe(beforeItem);
+
+    apply("t1", {
+      type: "item.completed",
+      threadId: "t1",
+      itemId: "i1",
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBe(beforeItems);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.state).toBe("completed");
+  });
+
+  it("notifies item selectors while preserving the thread item map", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "assistant_message",
+    });
+    const beforeItems = store.getState().runtimeItemsByIdByThread["t1"];
+    const observed: string[] = [];
+    const unsubscribe = store.subscribe(
+      (state) => state.runtimeItemsByIdByThread["t1"]?.["i1"],
+      (item) => observed.push(item?.state ?? "missing"),
+    );
+
+    apply("t1", {
+      type: "item.completed",
+      threadId: "t1",
+      itemId: "i1",
+    });
+
+    unsubscribe();
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBe(beforeItems);
+    expect(observed).toEqual(["completed"]);
   });
 
   it("stores context usage updates", () => {
@@ -777,5 +842,186 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeItemsByIdByThread["t2"]?.["b1"]?.streams.assistant_text).toBe(
       "world",
     );
+  });
+
+  it("hydrates a large subagent lifecycle batch with final item state intact", () => {
+    const events: RuntimeEvent[] = Array.from({ length: 250 }, (_item, index) => {
+      const itemId = `child-${index}`;
+      return [
+        {
+          type: "item.started" as const,
+          threadId: "t1",
+          itemId,
+          itemType: "tool_call" as const,
+          parentItemId: "subagent-1",
+          payload: { name: `tool-${index}`, status: "running" as const },
+        },
+        {
+          type: "item.updated" as const,
+          threadId: "t1",
+          itemId,
+          payload: { title: `Tool ${index}` },
+        },
+        {
+          type: "item.completed" as const,
+          threadId: "t1",
+          itemId,
+          payload: { status: "success" as const },
+        },
+      ];
+    }).flat();
+
+    applyBatch("t1", events);
+
+    const state = store.getState();
+    expect(state.runtimeItemIdsByThread["t1"]).toHaveLength(250);
+    expect(state.runtimeItemsByIdByThread["t1"]?.["child-249"]).toMatchObject({
+      state: "completed",
+      parentItemId: "subagent-1",
+      payload: { name: "tool-249", title: "Tool 249", status: "success" },
+    });
+    expect(state.runtimeStructuralVersionByThread["t1"]).toBe(1);
+  });
+
+  it("keeps lifecycle runs batched around an interleaved usage event", () => {
+    const events: RuntimeEvent[] = Array.from({ length: 250 }, (_item, index) => {
+      const itemId = `child-${index}`;
+      return [
+        {
+          type: "item.started" as const,
+          threadId: "t1",
+          itemId,
+          itemType: "tool_call" as const,
+          parentItemId: "subagent-1",
+          payload: { name: `tool-${index}`, status: "running" as const },
+        },
+        {
+          type: "item.completed" as const,
+          threadId: "t1",
+          itemId,
+          payload: { status: "success" as const },
+        },
+      ];
+    }).flat();
+    events.splice(250, 0, {
+      type: "usage.spent",
+      threadId: "t1",
+      usage: {
+        counterKind: "cumulative",
+        counter: 1,
+        scopeId: "child-thread",
+        epoch: 0,
+        sampleId: "sample-1",
+      },
+    });
+
+    applyBatch("t1", events);
+
+    const state = store.getState();
+    expect(state.runtimeItemIdsByThread["t1"]).toHaveLength(250);
+    expect(state.runtimeItemsByIdByThread["t1"]?.["child-0"]?.state).toBe("completed");
+    expect(state.runtimeItemsByIdByThread["t1"]?.["child-249"]?.state).toBe("completed");
+    expect(state.runtimeStructuralVersionByThread["t1"]).toBe(1);
+  });
+
+  it("preserves item edge cases within one mutable batch draft", () => {
+    applyBatch("t1", [
+      {
+        type: "item.started",
+        threadId: "t1",
+        itemId: "empty-reasoning",
+        itemType: "reasoning",
+      },
+      {
+        type: "item.started",
+        threadId: "t1",
+        itemId: "empty-reasoning",
+        itemType: "reasoning",
+      },
+      {
+        type: "item.updated",
+        threadId: "t1",
+        itemId: "missing",
+        payload: { ignored: true },
+      },
+      {
+        type: "item.completed",
+        threadId: "t1",
+        itemId: "empty-reasoning",
+      },
+      {
+        type: "item.started",
+        threadId: "t1",
+        itemId: "assistant",
+        itemType: "assistant_message",
+      },
+      {
+        type: "content.delta",
+        threadId: "t1",
+        itemId: "assistant",
+        stream: "assistant_text",
+        delta: "preserved",
+      },
+      {
+        type: "item.completed",
+        threadId: "t1",
+        itemId: "assistant",
+      },
+    ]);
+
+    const state = store.getState();
+    expect(state.runtimeItemIdsByThread["t1"]).toEqual(["assistant"]);
+    expect(state.runtimeItemsByIdByThread["t1"]?.["empty-reasoning"]).toBeUndefined();
+    expect(state.runtimeItemsByIdByThread["t1"]?.assistant).toMatchObject({
+      state: "completed",
+      streams: { assistant_text: "preserved" },
+    });
+    expect(state.runtimeStructuralVersionByThread["t1"]).toBe(1);
+  });
+
+  it("does not mark a multi-item delta batch as structurally changed", () => {
+    for (const itemId of ["child-1", "child-2"]) {
+      apply("t1", {
+        type: "item.started",
+        threadId: "t1",
+        itemId,
+        itemType: "assistant_message",
+      });
+    }
+    const before = store.getState();
+    const structuralVersion = before.runtimeStructuralVersionByThread["t1"];
+    const itemIds = before.runtimeItemIdsByThread["t1"];
+
+    applyBatch("t1", [
+      {
+        type: "content.delta",
+        threadId: "t1",
+        itemId: "child-1",
+        stream: "assistant_text",
+        delta: "one",
+      },
+      {
+        type: "item.started",
+        threadId: "t1",
+        itemId: "child-1",
+        itemType: "assistant_message",
+      },
+      {
+        type: "item.completed",
+        threadId: "t1",
+        itemId: "missing-child",
+      },
+      {
+        type: "content.delta",
+        threadId: "t1",
+        itemId: "child-2",
+        stream: "assistant_text",
+        delta: "two",
+      },
+    ]);
+
+    const after = store.getState();
+    expect(after.runtimeItemIdsByThread["t1"]).toBe(itemIds);
+    expect(after.runtimeStructuralVersionByThread["t1"]).toBe(structuralVersion);
   });
 });

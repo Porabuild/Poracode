@@ -5,6 +5,7 @@ import {
   composeResolvedMcpServers,
   effectiveLaunchConfig,
   usesProviderSessionCrossagentRouting,
+  workspaceLaunchConfig,
 } from "./spawnPipeline";
 
 const baseConfig: ThreadConfig = {
@@ -72,6 +73,40 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
       crossagentMcp: true,
       computerUse: true,
       chromeMcp: false,
+    });
+  });
+});
+
+describe("workspaceLaunchConfig — Home scope unrestricted for every agent", () => {
+  const adapter = {
+    capabilities: {
+      approvalPolicies: [
+        { id: "default", label: "Default" },
+        { id: "bypassPermissions", label: "Bypass" },
+      ],
+      sandboxModes: [
+        { id: "workspace-write", label: "Workspace" },
+        { id: "danger-full-access", label: "Full" },
+      ],
+      bypassPermissions: { approvalPolicy: "bypassPermissions", sandboxMode: "danger-full-access" },
+    },
+  };
+
+  it("leaves a repo workspace config unchanged", () => {
+    const config = { ...baseConfig, approvalPolicy: "default", sandboxMode: "workspace-write" };
+    expect(
+      workspaceLaunchConfig({ kind: "windows", path: "C:\\repo" }, config, adapter, []),
+    ).toEqual(config);
+  });
+
+  it("forces each provider's unrestricted posture in Home", () => {
+    const config = { ...baseConfig, approvalPolicy: "default", sandboxMode: "workspace-write" };
+    expect(
+      workspaceLaunchConfig({ kind: "windows", path: "C:\\Users\\me" }, config, adapter, []),
+    ).toEqual({
+      ...config,
+      approvalPolicy: "bypassPermissions",
+      sandboxMode: "danger-full-access",
     });
   });
 });

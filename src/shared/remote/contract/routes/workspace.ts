@@ -5,6 +5,7 @@ import {
   browserStateResultSchema,
   localImageQuerySchema,
   prWatchInputSchema,
+  prWatchAgentSyncSchema,
   prWatchKeySchema,
   prWatchReadQuerySchema,
   prWatchReadResultSchema,
@@ -136,6 +137,19 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer",
     scopes: ["session:operate"],
     request: { bodyKind: "json", jsonSchema: prWatchKeySchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteOkResponseSchema,
+    },
+  }),
+  defineRoute({
+    id: "pr-watch-agent-sync",
+    method: "POST",
+    path: "/api/pr-watches/agent",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    request: { bodyKind: "json", jsonSchema: prWatchAgentSyncSchema },
     response: {
       wireKind: "json",
       status: 200,

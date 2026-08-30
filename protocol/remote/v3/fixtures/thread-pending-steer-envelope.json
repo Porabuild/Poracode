@@ -7,7 +7,8 @@
     "prompt": "Please include the attachment.",
     "segments": [
       { "kind": "text", "content": "Please include " },
-      { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" }
+      { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" },
+      { "kind": "thread", "threadId": "thread-related", "title": "Related investigation" }
     ],
     "config": { "model": "gpt-5" }
   },
@@ -21,7 +22,8 @@
         "prompt": "Please include the attachment.",
         "segments": [
           { "kind": "text", "content": "Please include " },
-          { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" }
+          { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" },
+          { "kind": "thread", "threadId": "thread-related", "title": "Related investigation" }
         ],
         "stagedAt": 1786557600000
       }

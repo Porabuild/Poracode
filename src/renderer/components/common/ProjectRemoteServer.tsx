@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { FolderOpen, House, Monitor } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
@@ -7,7 +8,9 @@ import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRecord, RemoteServerStatus } from "@/renderer/state/remoteServers/types";
+import { useProjectIconNode } from "./ProjectIcon";
 import { RemoteServerIcon } from "./RemoteServerIcon";
+import { RemoteServerStatusDot } from "./RemoteServerStatusDot";
 import { TuxIcon } from "./TuxIcon";
 
 /** What a surface needs to show that a project lives on another machine. */
@@ -130,12 +133,41 @@ export function ProjectLocationIcon(props: {
   );
 }
 
+/**
+ * Keep a mirrored project's connection light on a custom icon. That icon takes
+ * the machine glyph's slot, and in project selectors the machine glyph carries
+ * the only online/offline indicator on the row.
+ */
+export function ProjectIconWithRemoteStatus(props: {
+  icon: ReactNode;
+  info: ProjectRemoteServerInfo;
+  dotClassName?: string | undefined;
+}) {
+  if (!props.info.serverName) return props.icon;
+  return (
+    <span className="relative flex shrink-0">
+      {props.icon}
+      <RemoteServerStatusDot
+        status={props.info.status ?? "offline"}
+        {...(props.dotClassName ? { sizeClassName: props.dotClassName } : {})}
+        className="absolute -right-0.5 -bottom-0.5"
+      />
+    </span>
+  );
+}
+
 /** Leading glyph shared by project selectors: Home, host machine, or local path kind. */
 export function ProjectSelectorIcon(props: {
   project: Project;
   remote: ProjectRemoteServerInfo;
   className?: string | undefined;
 }) {
+  const customIcon = useProjectIconNode(props.project, `${props.className ?? "size-4"} text-muted`);
+  if (customIcon) {
+    return (
+      <ProjectIconWithRemoteStatus icon={customIcon} info={props.remote} dotClassName="size-1" />
+    );
+  }
   if (isHomeProject(props.project)) {
     return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
   }

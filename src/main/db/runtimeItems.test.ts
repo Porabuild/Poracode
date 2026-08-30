@@ -4,17 +4,22 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import { closeDatabase, initDatabase } from "./connection";
-import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { LATEST_SCHEMA_VERSION } from "./migrations";
+import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
+  dbFlushThreadRuntimeWrites,
+  dbGetLatestThreadGoalItem,
   dbGetThreadContextUsage,
   dbGetLatestThreadRuntimeAnchorItemId,
+  dbGetThreadConversationItemsPage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbReplaceThreadRuntimeItems,
   dbTruncateThreadRuntimeAfter,
 } from "./runtimeItems";
+import { HEAD_CHARS, TAIL_CHARS } from "./runtimeStreamCap";
 
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
 let nativeBindingEnv: string | undefined;
@@ -298,6 +303,41 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
+  it("persists a provider handoff divider and keeps it out of the turn anchor", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        itemType: "assistant_message",
+        payload: { content: [{ kind: "text", text: "Answer from the first provider" }] },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "assistant-1" },
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "handoff-1",
+        itemType: "provider_handoff",
+        payload: {
+          fromAgentKind: "claude",
+          toAgentKind: "copilot",
+          at: "2026-08-29T00:00:00.000Z",
+        },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "handoff-1" },
+    ]);
+
+    const items = dbGetThreadRuntimeItems("thread-1");
+    expect(items.map((item) => item.type)).toEqual(["assistant_message", "provider_handoff"]);
+    expect(items.at(-1)?.payload).toMatchObject({
+      fromAgentKind: "claude",
+      toAgentKind: "copilot",
+    });
+    // The divider records no work, so a completed turn must still hang off the
+    // assistant row that produced it.
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
+  });
+
   it("does not use a goal item as a completed-turn anchor", () => {
     dbReplaceThreadRuntimeItems("thread-1", [
       {
@@ -365,6 +405,42 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     dbTruncateThreadRuntimeAfter("thread-1", "item-124");
     expect(dbGetThreadRuntimeItems("thread-1")).toHaveLength(125);
     expect(dbGetThreadRuntimeItems("thread-1").at(-1)?.id).toBe("item-124");
+  });
+
+  it("pages exact user and assistant messages without tool activity consuming the limit", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      { id: "user-0", type: "user_message", state: "completed", streams: {} },
+      { id: "tool-0", type: "tool_call", state: "completed", streams: { output: "tool" } },
+      {
+        id: "assistant-0",
+        type: "assistant_message",
+        state: "completed",
+        streams: { text: "first" },
+      },
+      { id: "reasoning-0", type: "reasoning", state: "completed", streams: {} },
+      {
+        id: "assistant-child",
+        type: "assistant_message",
+        state: "completed",
+        streams: { text: "subagent detail" },
+        parentItemId: "tool-0",
+      },
+      { id: "user-1", type: "user_message", state: "completed", streams: {} },
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { text: "second" },
+      },
+    ]);
+
+    const latest = dbGetThreadConversationItemsPage("thread-1", undefined, 2);
+    expect(latest.items.map((item) => item.id)).toEqual(["user-1", "assistant-1"]);
+    expect(latest.nextCursor).not.toBeNull();
+
+    const older = dbGetThreadConversationItemsPage("thread-1", latest.nextCursor ?? undefined, 2);
+    expect(older.items.map((item) => item.id)).toEqual(["user-0", "assistant-0"]);
+    expect(older.nextCursor).toBeNull();
   });
 
   it("keeps a groupable run intact when a page boundary lands inside it", () => {
@@ -495,5 +571,429 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       "assistant-1",
     ]);
     expect(page.nextCursor).toBe(1);
+  });
+
+  it("uses the parent lookup index when paging a thread", () => {
+    const plan = getSqlite()
+      .prepare(
+        `EXPLAIN QUERY PLAN
+         SELECT DISTINCT parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND parent_item_id IS NOT NULL`,
+      )
+      .all("thread-1") as Array<{ detail: string }>;
+
+    expect(plan.map((row) => row.detail).join("\n")).toContain(
+      "COVERING INDEX idx_runtime_items_thread_parent",
+    );
+  });
+
+  it("adds the parent lookup index when upgrading schema v37", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      UPDATE app_state SET value = '37' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("repairs a missing parent lookup column when upgrading a drifted schema v37", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      ALTER TABLE thread_runtime_items DROP COLUMN parent_item_id;
+      UPDATE app_state SET value = '37' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("repairs a missing parent lookup index at the current schema version", () => {
+    getSqlite().exec("DROP INDEX idx_runtime_items_thread_parent");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+  });
+
+  it("repairs the parent lookup index from the prerelease Antigravity schema v40", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      UPDATE app_state SET value = '40' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("keeps buffered stream writes readable before the flush window elapses", () => {
+    // Writes are queued to keep streaming off the per-chunk rewrite path, so
+    // every reader must drain the queue or hydration would serve a stale
+    // transcript.
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        itemType: "command_execution",
+        payload: { command: "pnpm test" },
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        stream: "command_output",
+        delta: "line one ",
+      },
+    ]);
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        stream: "command_output",
+        delta: "line two",
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "cmd-1" },
+    ]);
+
+    const items = dbGetThreadRuntimeItems("thread-1");
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "cmd-1",
+      state: "completed",
+      streams: { command_output: "line one line two" },
+    });
+    expect(dbGetThreadRuntimeItemsPage("thread-1", undefined, 50, 40).items).toHaveLength(1);
+  });
+
+  it("applies queued events in order across separate batches", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "msg-1",
+        itemType: "assistant_message",
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "a",
+      },
+    ]);
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "b",
+      },
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "msg-2",
+        itemType: "assistant_message",
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "c",
+      },
+    ]);
+
+    const items = dbGetThreadRuntimeItems("thread-1");
+
+    expect(items.map((item) => item.id)).toEqual(["msg-1", "msg-2"]);
+    expect(items[0]!.streams.assistant_text).toBe("abc");
+  });
+
+  it("keeps a multi-megabyte stream whole while it fits the retained window", () => {
+    const megabyte = "y".repeat(1_000_000);
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        itemType: "command_execution",
+        payload: { command: "pnpm test" },
+      },
+    ]);
+    for (let i = 0; i < 3; i += 1) {
+      dbApplyThreadRuntimeEvents("thread-1", [
+        {
+          type: "content.delta",
+          threadId: "thread-1",
+          itemId: "cmd-1",
+          stream: "command_output",
+          delta: megabyte,
+        },
+      ]);
+      dbFlushThreadRuntimeWrites("thread-1");
+    }
+
+    const output = dbGetThreadRuntimeItems("thread-1")[0]!.streams.command_output!;
+
+    expect(output).toBe(megabyte.repeat(3));
+    expect(output).not.toContain("poracode elided");
+  });
+
+  it("bounds a runaway command output while keeping its head and tail", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        itemType: "command_execution",
+        payload: { command: "pnpm run dev" },
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        stream: "command_output",
+        delta: "FIRST-LINE ",
+      },
+    ]);
+    dbFlushThreadRuntimeWrites("thread-1");
+    for (let i = 0; i < 6; i += 1) {
+      dbApplyThreadRuntimeEvents("thread-1", [
+        {
+          type: "content.delta",
+          threadId: "thread-1",
+          itemId: "cmd-1",
+          stream: "command_output",
+          delta: "x".repeat(1_000_000),
+        },
+      ]);
+      dbFlushThreadRuntimeWrites("thread-1");
+    }
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        stream: "command_output",
+        delta: " LAST-LINE",
+      },
+    ]);
+
+    const output = dbGetThreadRuntimeItems("thread-1")[0]!.streams.command_output!;
+
+    // Whole chunks are dropped, so the retained window can overshoot by at most
+    // the newest chunk; it must never grow without bound.
+    expect(output.length).toBeLessThanOrEqual(HEAD_CHARS + TAIL_CHARS + 600_000);
+    expect(output.length).toBeGreaterThan(HEAD_CHARS + TAIL_CHARS - 600_000);
+    expect(output.startsWith("FIRST-LINE ")).toBe(true);
+    expect(output.endsWith(" LAST-LINE")).toBe(true);
+    expect(output).toContain("poracode elided");
+  });
+
+  it("drops a completed reasoning item whose text only ever arrived as chunks", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "think-1",
+        itemType: "reasoning",
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "think-1",
+        stream: "reasoning_text",
+        delta: "   ",
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "think-1" },
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "think-2",
+        itemType: "reasoning",
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "think-2",
+        stream: "reasoning_text",
+        delta: "a real thought",
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "think-2" },
+    ]);
+
+    const items = dbGetThreadRuntimeItems("thread-1");
+
+    expect(items.map((item) => item.id)).toEqual(["think-2"]);
+    expect(items[0]!.streams.reasoning_text).toBe("a real thought");
+  });
+
+  it("counts completed reasoning whose non-whitespace text is only in the chunk tail", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "think-tail",
+        itemType: "reasoning",
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "think-tail",
+        stream: "reasoning_text",
+        delta: `${" ".repeat(HEAD_CHARS)}visible tail`,
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "think-tail" },
+    ]);
+
+    expect(dbGetThreadRuntimeItemsPage("thread-1", undefined, 50, 40).items).toHaveLength(1);
+  });
+
+  it("removes the appended stream tail when the thread is deleted", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        itemType: "command_execution",
+        payload: { command: "pnpm run dev" },
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "cmd-1",
+        stream: "command_output",
+        delta: "z".repeat(HEAD_CHARS + 50_000),
+      },
+    ]);
+    dbFlushThreadRuntimeWrites("thread-1");
+    const chunkCount = () =>
+      (
+        getSqlite()
+          .prepare("SELECT COUNT(*) AS n FROM thread_runtime_item_stream_chunks")
+          .get() as { n: number }
+      ).n;
+    const stateCount = () =>
+      (
+        getSqlite().prepare("SELECT COUNT(*) AS n FROM thread_runtime_item_stream_state").get() as {
+          n: number;
+        }
+      ).n;
+    expect(chunkCount()).toBeGreaterThan(0);
+    expect(stateCount()).toBeGreaterThan(0);
+
+    dbDeleteThread("thread-1");
+
+    expect(chunkCount()).toBe(0);
+    expect(stateCount()).toBe(0);
+  });
+
+  it("does not resurrect queued writes for a transcript that was replaced", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "stale-1",
+        itemType: "assistant_message",
+      },
+    ]);
+
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "fresh-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "hi" },
+      },
+    ]);
+
+    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual(["fresh-1"]);
+  });
+
+  it("does not apply queued writes after a thread id is deleted and reused", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "stale-1",
+        itemType: "assistant_message",
+      },
+    ]);
+
+    dbDeleteThread("thread-1");
+    dbUpsertThread(testThread(), 0);
+
+    expect(dbGetThreadRuntimeItems("thread-1")).toEqual([]);
+  });
+
+  it("returns the latest goal even when its position is before the tail window", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "goal-outside-tail",
+        type: "goal",
+        state: "updated",
+        payload: { action: "set", objective: "outside-tail goal" },
+        streams: {},
+      },
+      ...Array.from({ length: 90 }, (_, index) => ({
+        id: `assistant-${index}`,
+        type: "assistant_message" as const,
+        state: "completed" as const,
+        streams: {},
+      })),
+    ]);
+
+    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    expect(tail.items.some((item) => item.id === "goal-outside-tail")).toBe(false);
+    expect(tail.items.at(-1)?.id).toBe("assistant-89");
+
+    expect(dbGetLatestThreadGoalItem("thread-1")?.id).toBe("goal-outside-tail");
+
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "goal-new",
+        itemType: "goal",
+        payload: { action: "updated", objective: "new goal" },
+      },
+    ]);
+    expect(dbGetLatestThreadGoalItem("thread-1")?.id).toBe("goal-new");
   });
 });

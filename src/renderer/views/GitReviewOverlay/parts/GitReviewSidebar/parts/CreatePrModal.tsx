@@ -2,13 +2,15 @@ import { ChevronDown, GitPullRequest, Sparkles } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Modal, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo } from "@/shared/contracts";
+import type { GitActionPhase } from "@/renderer/state/gitReviewActionStore";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
+import { ActionPhaseLabel } from "./ActionPhaseLabel";
 
 export function CreatePrModal(props: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   effectiveBranch: string | undefined;
-  sourceBranch: string | null;
+  defaultTargetBranch: string | null;
   prTitle: string;
   setPrTitle: (title: string) => void;
   prBody: string;
@@ -17,6 +19,7 @@ export function CreatePrModal(props: {
   setPrTargetBranch: (branch: string | null) => void;
   prLoading: boolean;
   isGeneratingPr: boolean;
+  actionPhase: GitActionPhase | null;
   canGenerateMessage: boolean;
   branchList: readonly GitBranchInfo[];
   handleCreatePr: (isDraft: boolean) => Promise<void>;
@@ -26,7 +29,7 @@ export function CreatePrModal(props: {
     isOpen,
     onOpenChange,
     effectiveBranch,
-    sourceBranch,
+    defaultTargetBranch,
     prTitle,
     setPrTitle,
     prBody,
@@ -35,12 +38,27 @@ export function CreatePrModal(props: {
     setPrTargetBranch,
     prLoading,
     isGeneratingPr,
+    actionPhase,
     canGenerateMessage,
     branchList,
     handleCreatePr,
     handleGeneratePrSummary,
   } = props;
   const { t } = useLingui();
+  // The create button owns the phase only while its own flow runs, so an
+  // explicit "generate summary" press keeps its spinner on the sparkle button
+  // and leaves the create button captioned.
+  const createPrPhase = prLoading ? actionPhase : null;
+  const targetBranches = Array.from(
+    new Set([
+      ...(defaultTargetBranch && defaultTargetBranch !== effectiveBranch
+        ? [defaultTargetBranch]
+        : []),
+      ...branchList
+        .filter((branch) => !branch.isRemote && branch.name !== effectiveBranch)
+        .map((branch) => branch.name),
+    ]),
+  );
 
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
@@ -56,26 +74,24 @@ export function CreatePrModal(props: {
               <span className="shrink-0">→</span>
               <Dropdown>
                 <Button variant="tertiary" className="h-5 min-w-0 px-1.5 text-xs">
-                  {prTargetBranch || sourceBranch || "..."}
+                  {prTargetBranch || defaultTargetBranch || "..."}
                   <ChevronDown className="size-3 text-muted/60" />
                 </Button>
                 <Dropdown.Popover placement="bottom start" className="max-h-60">
                   <Dropdown.Menu
                     aria-label={t`Target branch`}
                     selectionMode="single"
-                    selectedKeys={new Set([prTargetBranch || sourceBranch || ""])}
+                    selectedKeys={new Set([prTargetBranch || defaultTargetBranch || ""])}
                     onSelectionChange={(keys) => {
                       const key = Array.from(keys)[0] as string;
-                      setPrTargetBranch(key === sourceBranch ? null : key);
+                      setPrTargetBranch(key === defaultTargetBranch ? null : key);
                     }}
                   >
-                    {branchList
-                      .filter((b) => !b.isRemote && b.name !== effectiveBranch)
-                      .map((b) => (
-                        <Dropdown.Item key={b.name} id={b.name} textValue={b.name}>
-                          <Label>{b.name}</Label>
-                        </Dropdown.Item>
-                      ))}
+                    {targetBranches.map((branch) => (
+                      <Dropdown.Item key={branch} id={branch} textValue={branch}>
+                        <Label>{branch}</Label>
+                      </Dropdown.Item>
+                    ))}
                   </Dropdown.Menu>
                 </Dropdown.Popover>
               </Dropdown>
@@ -93,7 +109,13 @@ export function CreatePrModal(props: {
                   value={prTitle}
                   onChange={(e) => setPrTitle(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    if (
+                      e.key === "Enter" &&
+                      (e.ctrlKey || e.metaKey) &&
+                      !prLoading &&
+                      !isGeneratingPr &&
+                      !actionPhase
+                    ) {
                       e.preventDefault();
                       void handleCreatePr(false).then(() => onOpenChange(false));
                     }
@@ -104,7 +126,7 @@ export function CreatePrModal(props: {
                     isIconOnly
                     variant="tertiary"
                     aria-label={t`Generate PR summary`}
-                    isDisabled={isGeneratingPr || !canGenerateMessage}
+                    isDisabled={isGeneratingPr || Boolean(actionPhase) || !canGenerateMessage}
                     isPending={isGeneratingPr}
                     onPress={() => void handleGeneratePrSummary()}
                     className="mt-0.5 shrink-0"
@@ -132,7 +154,7 @@ export function CreatePrModal(props: {
             <ButtonGroup>
               <Button
                 variant="tertiary"
-                isDisabled={prLoading || isGeneratingPr}
+                isDisabled={prLoading || isGeneratingPr || Boolean(actionPhase)}
                 isPending={prLoading}
                 onPress={() => void handleCreatePr(false).then(() => onOpenChange(false))}
               >
@@ -143,7 +165,11 @@ export function CreatePrModal(props: {
                     ) : (
                       <GitPullRequest className="size-3.5" />
                     )}
-                    <Trans>Create PR</Trans>
+                    {createPrPhase ? (
+                      <ActionPhaseLabel phase={createPrPhase} />
+                    ) : (
+                      <Trans>Create PR</Trans>
+                    )}
                   </>
                 )}
               </Button>
@@ -152,7 +178,7 @@ export function CreatePrModal(props: {
                   isIconOnly
                   variant="tertiary"
                   aria-label={t`More PR options`}
-                  isDisabled={prLoading || isGeneratingPr}
+                  isDisabled={prLoading || isGeneratingPr || Boolean(actionPhase)}
                 >
                   <ButtonGroup.Separator />
                   <ChevronDown className="size-3.5" />
@@ -161,6 +187,7 @@ export function CreatePrModal(props: {
                   <Dropdown.Menu
                     aria-label={t`PR options`}
                     onAction={(key) => {
+                      if (actionPhase) return;
                       if (key === "draft") {
                         void handleCreatePr(true).then(() => onOpenChange(false));
                       }

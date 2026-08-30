@@ -1,5 +1,5 @@
 import type { AgentCapability } from "@/shared/contracts";
-import { detectAgentInstall, type AgentAdapter } from "../base";
+import { detectAgentInstall, type AgentAdapter, inheritBaseSpawnEnv } from "../base";
 import { buildMuseArgs, buildMuseResumeArgs } from "./argv";
 import { MUSE_DEFAULT_MODEL_ID, museDefaultCapabilities, museDetectionSpec } from "./detection";
 import { formatMusePromptSegments } from "./prompt";
@@ -34,6 +34,7 @@ export function createMuseAdapter(): AgentAdapter {
     // `muse login` opens a browser for Meta OAuth; BROWSER=/bin/true keeps the
     // WSL flow from trying to `xdg-open` inside the distro and hanging the PTY.
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
+    ...inheritBaseSpawnEnv(museDetectionSpec),
 
     async detectInstall(ctx) {
       const status = await detectAgentInstall(ctx, museDetectionSpec);

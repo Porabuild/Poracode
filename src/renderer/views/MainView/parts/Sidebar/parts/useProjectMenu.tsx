@@ -2,7 +2,6 @@ import {
   EyeOff,
   FileDiff,
   GitFork,
-  Layers,
   Loader2,
   Play,
   Power,
@@ -10,6 +9,7 @@ import {
   RefreshCw,
   Settings2,
   Square,
+  SquareTerminal,
   Trash2,
   Workflow,
 } from "lucide-react";
@@ -19,15 +19,14 @@ import type { ContextMenuEntry, ContextMenuItem } from "@/renderer/components/co
 import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
 import { openGitReview, openProjectSettings } from "@/renderer/actions/panelActions";
 import { gitSync } from "@/renderer/actions/gitActions";
-import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
 import {
-  WORKSPACE_UNFILED_KEY,
-  parseWorkspaceMenuKey,
-  workspaceMenuKey,
-} from "@/renderer/components/workspace/workspaceMenuKeys";
-import { WorkspaceIcon } from "@/renderer/components/workspace/WorkspaceIcon";
+  runProjectAction,
+  showTerminalPanel,
+  stopProjectAction,
+} from "@/renderer/actions/terminalActions";
+import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
+import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useRunningProjectActionIds } from "@/renderer/hooks/uiSelectors";
@@ -38,7 +37,7 @@ import { isRemoteSession } from "@/renderer/bridge";
  * every surface that offers project actions — the grouped sidebar's project
  * header (right-click) and the flat list's project filter rows (overflow
  * button). `isUnreachable` greys out entries that execute on the project's
- * host (git, run-scripts, removal) while a mirrored project's server is down.
+ * host (terminal, git, run-scripts, removal) while a mirrored project's server is down.
  */
 export function useProjectMenu(
   project: Project,
@@ -46,7 +45,7 @@ export function useProjectMenu(
 ): { items: ContextMenuEntry[]; onAction: (key: string) => void } {
   const { t } = useLingui();
   const { isUnreachable } = options;
-  const workspaces = useSharedSettings((s) => s.workspaces);
+  const workspaceMenuItem = useWorkspaceMenuItems(project.workspaceId);
   const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
   const isDisabled = !!project.disabled;
   const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
@@ -87,6 +86,12 @@ export function useProjectMenu(
       ? []
       : [
           {
+            id: "open-terminal",
+            label: t`Open terminal`,
+            icon: <SquareTerminal className="size-3.5" />,
+            isDisabled: isUnreachable,
+          },
+          {
             type: "submenu" as const,
             id: "git",
             label: t`Git`,
@@ -124,30 +129,7 @@ export function useProjectMenu(
               ]
             : []),
         ]),
-    ...(workspaces.length > 1
-      ? [
-          {
-            type: "submenu" as const,
-            id: "move-to-workspace",
-            label: t`Move to Workspace`,
-            icon: <Layers className="size-3.5" />,
-            items: [
-              ...workspaces.map((workspace) => ({
-                id: workspaceMenuKey(workspace.id),
-                label: workspace.name,
-                icon: <WorkspaceIcon icon={workspace.icon} className="size-3.5" />,
-                isDisabled: workspace.id === project.workspaceId,
-              })),
-              {
-                id: WORKSPACE_UNFILED_KEY,
-                label: t`All workspaces`,
-                icon: <Layers className="size-3.5" />,
-                isDisabled: !project.workspaceId,
-              },
-            ],
-          },
-        ]
-      : []),
+    ...(workspaceMenuItem ? [workspaceMenuItem] : []),
     ...(!isRemoteClient || !isRemote
       ? [
           {
@@ -180,6 +162,7 @@ export function useProjectMenu(
 
   const onAction = (key: string) => {
     if (key === "project-settings") openProjectSettings(project.id);
+    if (key === "open-terminal") showTerminalPanel(project.id);
     if (key === "stop-syncing" && project.remoteServerId && project.remoteId) {
       setRemoteProjectSynced(project.remoteServerId, project.remoteId, false);
     }
@@ -196,12 +179,9 @@ export function useProjectMenu(
     if (key.startsWith("stop-action:")) {
       stopProjectAction(project.id, key.slice("stop-action:".length));
     }
-    const workspaceChoice = parseWorkspaceMenuKey(key);
-    if (workspaceChoice?.kind === "unfiled") {
-      useAppStore.getState().setProjectWorkspace(project.id, undefined);
-    } else if (workspaceChoice?.kind === "workspace") {
-      useAppStore.getState().setProjectWorkspace(project.id, workspaceChoice.workspaceId);
-    }
+    applyWorkspaceMenuChoice(key, (workspaceId) =>
+      useAppStore.getState().setProjectWorkspace(project.id, workspaceId),
+    );
   };
 
   return { items, onAction };

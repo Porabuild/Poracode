@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createAgentRegistry } from "./registry";
+import { buildAgentRegistry, createAgentRegistry } from "./registry";
 import { buildUnrestrictedChildConfig } from "@/supervisor/crossagentMcp/types";
 
 const EXPECTED_BUILT_IN_ORDER = [
@@ -120,4 +120,61 @@ describe("built-in agent registry", () => {
       });
     },
   );
+});
+
+describe("profile agent registry", () => {
+  it("registers Cursor profiles with their own adapter kinds", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "work",
+        driver: "cursor",
+        displayName: "Work",
+        environment: { CURSOR_API_KEY: { value: "profile-key", sensitive: true } },
+      },
+    ]);
+
+    expect(adapters.find((adapter) => adapter.kind === "cursor:work")).toMatchObject({
+      label: "Cursor Work",
+    });
+    expect(
+      adapters.find((adapter) => adapter.kind === "cursor:work")?.baseSpawnEnv,
+    ).toBeUndefined();
+  });
+});
+
+describe("first-class ACP registry aliases", () => {
+  it("adopts antigravity-acp into the built-in adapter without a duplicate generic provider", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "antigravity-acp",
+        driver: "acp-generic",
+        displayName: "Google Antigravity",
+        version: "1.0.0",
+        config: { binary: "agy_acp_server.par", args: ["--uid="] },
+      },
+    ]);
+
+    expect(adapters.filter((adapter) => adapter.kind === "antigravity")).toHaveLength(1);
+    expect(adapters.some((adapter) => adapter.kind === "acp-generic:antigravity-acp")).toBe(false);
+    expect(adapters.find((adapter) => adapter.kind === "antigravity")).toMatchObject({
+      firstClassAcpRegistryId: "antigravity-acp",
+      capabilities: { presentationModes: ["terminal", "gui"] },
+    });
+  });
+
+  it("does not enable Chat from a disabled antigravity-acp instance", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "antigravity-acp",
+        driver: "acp-generic",
+        enabled: false,
+        config: { binary: "agy_acp_server.par" },
+      },
+    ]);
+
+    expect(adapters.find((adapter) => adapter.kind === "antigravity")?.capabilities).toMatchObject({
+      presentationModes: ["terminal"],
+    });
+    expect(adapters.some((adapter) => adapter.kind === "acp-generic:antigravity-acp")).toBe(false);
+  });
 });

@@ -9,6 +9,7 @@ import type {
   GhGetWorkflowDefinitionResult,
   GhGetWorkflowRunPayload,
   GhGetWorkflowRunResult,
+  GhListAccountsResult,
   GhListWorkflowRunsPayload,
   GhListWorkflowRunsResult,
   GhListWorkflowsPayload,
@@ -34,6 +35,7 @@ const bridge = vi.hoisted(() => ({
   ghRerunWorkflowRun: vi.fn<(payload: GhRerunWorkflowRunPayload) => Promise<void>>(),
   ghCancelWorkflowRun: vi.fn<(payload: GhCancelWorkflowRunPayload) => Promise<void>>(),
   ghDeleteWorkflowRun: vi.fn<(payload: GhDeleteWorkflowRunPayload) => Promise<void>>(),
+  ghListAccounts: vi.fn<() => Promise<GhListAccountsResult>>(),
   openExternal: vi.fn<() => Promise<void>>(),
 }));
 const layout = vi.hoisted(() => ({ compact: false }));
@@ -160,6 +162,7 @@ describe("GitHubActionsView", () => {
     bridge.ghRerunWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.ghCancelWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.ghDeleteWorkflowRun.mockReset().mockResolvedValue(undefined);
+    bridge.ghListAccounts.mockReset().mockResolvedValue({ accounts: [] });
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useAppStore.setState({ projects: [project] });
@@ -308,6 +311,31 @@ describe("GitHubActionsView", () => {
     expect(document.querySelector('[class~="min-w-[--trigger-width]"]')).toBeInTheDocument();
   });
 
+  it("disables menu rows for projects on unreachable servers", async () => {
+    const mirrored: Project = {
+      ...project,
+      id: "remote:desktop-1:project:project-1",
+      remoteServerId: "desktop-1",
+      remoteId: project.id,
+      location: { ...project.location, remoteServerId: "desktop-1" },
+    };
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({ projects: [project, mirrored] });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+    const remoteRow = await screen.findByRole("menuitemradio", { name: /MacBook 16/ });
+    expect(remoteRow).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitemradio", { name: "Poracode" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   it("selects the first pinned workflow by default", async () => {
     bridge.ghListWorkflows.mockResolvedValue({
       workflows: [
@@ -437,6 +465,9 @@ describe("GitHubActionsView", () => {
   });
 
   it("keeps cached workflow runs visible while refreshing in the background", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "octocat" } }],
+    });
     const ciRun = { ...run, title: "Cached CI run" };
     const releaseRun = {
       ...run,
@@ -507,6 +538,9 @@ describe("GitHubActionsView", () => {
   });
 
   it("renders workflows and runs from cache on the first frame after reopening", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "octocat" } }],
+    });
     const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
     expect(await screen.findByText(run.title)).toBeInTheDocument();
 
@@ -538,6 +572,9 @@ describe("GitHubActionsView", () => {
   });
 
   it("drops the cached seed once its TTL lapses", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "octocat" } }],
+    });
     const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
     expect(await screen.findByText(run.title)).toBeInTheDocument();
     unmount();
@@ -660,5 +697,159 @@ describe("GitHubActionsView", () => {
         runId: run.id,
       }),
     );
+  });
+
+  it("clears the previous account's data when switching projects", async () => {
+    const firstAccount = { host: "github.com", login: "first" };
+    const secondAccount = { host: "github.com", login: "second" };
+    useAppStore.setState({
+      projects: [
+        { ...project, ghAccount: firstAccount },
+        { ...project, id: "project-2", name: "Other", ghAccount: secondAccount },
+      ],
+    });
+    let resolveSecondWorkflows: ((result: GhListWorkflowsResult) => void) | undefined;
+    bridge.ghListWorkflows.mockImplementation(({ ghAccount }) =>
+      ghAccount?.login === firstAccount.login
+        ? Promise.resolve({
+            workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
+          })
+        : new Promise((resolve) => {
+            resolveSecondWorkflows = resolve;
+          }),
+    );
+
+    const { rerender } = render(
+      <GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />,
+    );
+    expect(await screen.findByRole("heading", { name: run.title })).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Other" }));
+
+    // The overlay host re-renders the view with the picked project.
+    rerender(<GitHubActionsView projectId="project-2" runId={run.id} onClose={() => {}} />);
+
+    expect(screen.queryByRole("heading", { name: "CI" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: run.title })).not.toBeInTheDocument();
+    expect(resolveSecondWorkflows).toBeDefined();
+
+    await act(async () => {
+      resolveSecondWorkflows!({
+        workflows: [
+          { id: 22, name: "Deploy", path: ".github/workflows/deploy.yml", state: "active" },
+        ],
+      });
+    });
+    expect(await screen.findByRole("heading", { name: "Deploy" })).toBeInTheDocument();
+  });
+
+  it("shows the signed-in account as read-only info", async () => {
+    bridge.ghListAccounts.mockResolvedValue({
+      accounts: [{ host: "github.com", login: "octocat", active: true }],
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByText("octocat")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "GitHub account" })).not.toBeInTheDocument();
+  });
+
+  it("shows a persisted account override in the account info", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "github.com", login: "signed-out" } }],
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByText("signed-out")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        ghAccount: { host: "github.com", login: "signed-out" },
+      }),
+    );
+  });
+
+  it("does not show the previous project's account while discovery is pending", async () => {
+    useAppStore.setState({
+      projects: [project, { ...project, id: "project-2", name: "Other" }],
+    });
+    let resolveNextAccounts: ((result: GhListAccountsResult) => void) | undefined;
+    bridge.ghListAccounts
+      .mockReset()
+      .mockResolvedValueOnce({
+        accounts: [{ host: "github.com", login: "first", active: true }],
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveNextAccounts = resolve;
+          }),
+      );
+    bridge.ghListWorkflows.mockResolvedValue({ workflows: [] });
+
+    const { rerender } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    expect(await screen.findByText("first")).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Other" }));
+    rerender(<GitHubActionsView projectId="project-2" onClose={() => {}} />);
+
+    expect(screen.queryByText("first")).not.toBeInTheDocument();
+    expect(resolveNextAccounts).toBeDefined();
+    await act(async () => {
+      resolveNextAccounts!({ accounts: [] });
+    });
+  });
+
+  it("shows the host when the same login is signed in on several hosts", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, ghAccount: { host: "ghe.example.com", login: "octocat" } }],
+    });
+    bridge.ghListAccounts.mockResolvedValue({
+      accounts: [
+        { host: "github.com", login: "octocat", active: true },
+        { host: "ghe.example.com", login: "octocat", active: false },
+      ],
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    const login = await screen.findByText("octocat");
+    expect(login.parentElement).toHaveTextContent("ghe.example.com");
+  });
+
+  it("scopes Actions calls to the account configured for the project", async () => {
+    const projectAccount = { host: "github.com", login: "ym-svecherenko" };
+    useAppStore.setState({ projects: [{ ...project, ghAccount: projectAccount }] });
+    bridge.ghListWorkflows.mockImplementation(({ ghAccount }) =>
+      ghAccount?.login === projectAccount.login
+        ? Promise.resolve({
+            workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
+          })
+        : Promise.reject(new Error("unexpected account")),
+    );
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByRole("heading", { name: "CI" })).toBeInTheDocument();
+    expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      ghAccount: projectAccount,
+    });
+  });
+
+  it("shows a friendly empty state when the repository has no workflows", async () => {
+    bridge.ghListWorkflows.mockResolvedValue({ workflows: [] });
+    bridge.ghListWorkflowRuns.mockResolvedValue({ runs: [] });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByText("No active workflows in this repository.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Workflows added under .github/workflows will appear here."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Select a workflow to see its runs.")).not.toBeInTheDocument();
   });
 });

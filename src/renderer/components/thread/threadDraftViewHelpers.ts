@@ -6,6 +6,7 @@ import type {
   ProviderDraftConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
   agentStatusForPresentation,
@@ -14,6 +15,24 @@ import {
   resolveReasoningSelection,
 } from "@/shared/agentSelection";
 import { i18n } from "@/renderer/i18n/i18n";
+import type { ProviderModelPreference } from "@/shared/settings";
+
+export function resolveProviderModelPreference(
+  agentKind: AgentStatus["kind"],
+  model: string,
+  providerConfigs: Record<string, ProviderDraftConfig>,
+  providerModelPreferences: Record<string, Record<string, ProviderModelPreference>>,
+): ProviderModelPreference | undefined {
+  const saved = providerModelPreferences[agentKind]?.[model];
+  if (saved) return saved;
+
+  const legacy = providerConfigs[agentKind];
+  if (legacy?.model !== model) return undefined;
+  return {
+    ...(legacy.effort ? { effort: legacy.effort } : {}),
+    ...(legacy.fast !== undefined ? { fast: legacy.fast } : {}),
+  };
+}
 
 export function resolvePreferredAgentKind(
   installedAgents: AgentStatus[],
@@ -33,12 +52,44 @@ export function resolveSavedProviderDraftConfig(
   agentKind: AgentStatus["kind"],
   lastDraftConfig: ProjectDraftConfig | undefined,
   providerConfigs: Record<string, ProviderDraftConfig>,
+  providerModelPreferences: Record<string, Record<string, ProviderModelPreference>> = {},
 ): Partial<ProviderDraftConfig> | undefined {
+  const providerConfig = providerConfigs[agentKind];
   if (lastDraftConfig?.agentKind === agentKind && lastDraftConfig.model.trim()) {
-    return lastDraftConfig;
+    const projectConfig = { ...lastDraftConfig };
+    delete projectConfig.effort;
+    delete projectConfig.fast;
+    const modelPreference = resolveProviderModelPreference(
+      agentKind,
+      lastDraftConfig.model,
+      providerConfigs,
+      providerModelPreferences,
+    );
+    // Older project drafts predate context-window persistence. Preserve their
+    // other choices while filling only that missing field from the provider preset.
+    // Effort and Fast are app-wide model preferences rather than project state.
+    return {
+      ...projectConfig,
+      ...(!lastDraftConfig.contextSize && providerConfig?.contextSize
+        ? { contextSize: providerConfig.contextSize }
+        : {}),
+      ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+      ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
+    };
   }
 
-  return providerConfigs[agentKind];
+  if (!providerConfig) return undefined;
+  const modelPreference = resolveProviderModelPreference(
+    agentKind,
+    providerConfig.model,
+    providerConfigs,
+    providerModelPreferences,
+  );
+  return {
+    ...providerConfig,
+    ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+    ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
+  };
 }
 
 export function resolveModelValue(agent: AgentStatus, preferred?: string): string {
@@ -138,7 +189,7 @@ function normalizeCursorPreferredDraft(
   agent: AgentStatus,
   preferred?: Partial<ProviderDraftConfig>,
 ): Partial<ProviderDraftConfig> | undefined {
-  if (agent.kind !== "cursor" || !preferred?.model) {
+  if (baseAgentKind(agent.kind) !== "cursor" || !preferred?.model) {
     return preferred;
   }
   if (agent.capabilities.models.some((model) => model.id === preferred.model)) {

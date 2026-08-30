@@ -2,7 +2,7 @@ import Foundation
 
 /// The only boundary that exposes generated remote-v3 symbols to GitHubOperations.
 enum GitHubOperationsRemoteV3Contract {
-  static let protocolVersion = 3
+  static let protocolVersion = 8
   static let procedurePath = "/api/git/call"
 
   static func metadata(for procedure: GitHubProcedure) -> GitHubProcedureMetadata {

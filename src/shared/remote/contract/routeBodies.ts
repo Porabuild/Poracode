@@ -47,7 +47,11 @@ export const threadCommandBodySchema = z.discriminatedUnion("kind", [
 ]);
 
 /** `/api/threads/start` requires an existing thread id. */
-export const startExistingThreadBodySchema = startThreadPayloadSchema.extend({
+// The HTTP inventory describes the portable structural boundary only. The host
+// reparses the body with startThreadPayloadSchema, which owns the cross-field
+// provider-switch refinement that native generators intentionally cannot fork.
+export const startExistingThreadBodySchema = z.object({
+  ...startThreadPayloadSchema.shape,
   threadId: z.string().min(1),
 });
 

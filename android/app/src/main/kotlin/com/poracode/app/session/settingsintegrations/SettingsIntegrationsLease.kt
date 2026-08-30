@@ -50,7 +50,7 @@ internal fun StateFlow<SettingsIntegrationsLease?>.requireLease(
     capability: SettingsIntegrationsCapability,
 ): Pair<SettingsIntegrationsLease?, SettingsIntegrationsFailure?> {
     val lease = value ?: return null to SettingsIntegrationsFailure.NoHost
-    if (lease.protocolVersion != 3) return lease to SettingsIntegrationsFailure.ProtocolMismatch
+    if (lease.protocolVersion != 8) return lease to SettingsIntegrationsFailure.ProtocolMismatch
     if (!lease.ready) return lease to SettingsIntegrationsFailure.NotReady
     if (!lease.online) return lease to SettingsIntegrationsFailure.Offline
     if (capability.scope !in lease.scopes) {
@@ -62,7 +62,7 @@ internal fun StateFlow<SettingsIntegrationsLease?>.requireLease(
 internal fun StateFlow<SettingsIntegrationsLease?>.isCurrent(
     lease: SettingsIntegrationsLease,
 ): Boolean = value?.let {
-    it.key == lease.key && it.protocolVersion == 3 && it.online && it.ready
+    it.key == lease.key && it.protocolVersion == 8 && it.online && it.ready
 } == true
 
 internal fun SettingsIntegrationsLease.owns(owner: SkillOwner): Boolean =

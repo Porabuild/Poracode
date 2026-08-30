@@ -14,7 +14,7 @@ describe("canonical replay/Git parity tape", () => {
     const families = new Set(tape.cases.map((entry) => entry.family));
 
     expect(tape.id).toBe("remote-v3-replay-git-state-parity");
-    expect(tape.protocolVersion).toBe(3);
+    expect(tape.protocolVersion).toBe(8);
     expect(families).toEqual(
       new Set([
         "lifecycle",
