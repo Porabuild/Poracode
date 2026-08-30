@@ -356,13 +356,22 @@ export async function applyRemoteThreadSwitch(
       return result;
     } catch (error) {
       const previousWasLive = previous.status === "working" || previous.status === "launching";
-      const restored: Thread = previousWasLive
-        ? (({ activeTurnStartedAt: _closedTurn, ...thread }) => ({
-            ...thread,
-            status: "inactive",
-            attention: "none",
-          }))(previous)
-        : previous;
+      const {
+        sessionRef: _closedSessionRef,
+        agentInstanceId: _closedAgentInstanceId,
+        slashCommands: _closedSlashCommands,
+        errorMessage: _closedErrorMessage,
+        doneAt: _closedDoneAt,
+        activeTurnStartedAt: _closedTurn,
+        ...previousBase
+      } = previous;
+      const restored: Thread = {
+        ...previousBase,
+        status: previousWasLive ? "inactive" : previous.status,
+        attention: "none",
+        canResumeWithConfig: false,
+        done: false,
+      };
       dbUpsertThread(restored, sortOrderForThread(dbGetThreads(), restored.id));
       ctx.options.dispatchThreadCommand?.({
         kind: "start",

@@ -1169,12 +1169,12 @@ export function useRemoteDesktop() {
   async function continueThreadProvider(
     thread: Thread,
     input: ContinueProviderInput,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const desktop = activeDesktop;
-    if (!desktop) return;
+    if (!desktop) return null;
     const store = useAppStore.getState();
     const project = store.projects.find((p) => p.id === thread.projectId);
-    if (!project) return;
+    if (!project) return null;
     const sourceMode = thread.presentationMode ?? "terminal";
     const inPlace = !input.fork && continuesInPlace(sourceMode, input.targetPresentationMode);
 
@@ -1215,7 +1215,7 @@ export function useRemoteDesktop() {
         // a failed switch from leaving a ghost divider over the old
         // provider's transcript.
         void refresh(desktop, { refreshSelectedThread: true });
-        return;
+        return null;
       }
       const dividerPayload: ProviderHandoffItemPayload = {
         fromAgentKind: thread.agentKind,
@@ -1235,7 +1235,7 @@ export function useRemoteDesktop() {
         itemId: handoffItemId,
       });
       void refresh(desktop, { refreshSelectedThread: true });
-      return;
+      return thread.id;
     }
 
     // Replacement thread on the host; paint it optimistically so the pane and
@@ -1247,13 +1247,18 @@ export function useRemoteDesktop() {
       groupId = thread.groupId ?? crypto.randomUUID();
       groupName = thread.groupName ?? thread.title;
     }
+    const forkMarker = i18n._(msg`${""} (fork)`);
+    const title =
+      input.fork && !thread.title.endsWith(forkMarker)
+        ? i18n._(msg`${thread.title} (fork)`)
+        : thread.title;
     store.createThread({
       threadId: hostThreadId,
       projectId: thread.projectId,
       agentKind: input.targetAgentKind,
       config: input.targetConfig,
       prompt: handoffPrompt,
-      title: thread.title,
+      title,
       presentationMode: input.targetPresentationMode,
       ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
       ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
@@ -1268,7 +1273,7 @@ export function useRemoteDesktop() {
         config: input.targetConfig,
         prompt: handoffPrompt,
         presentationMode: input.targetPresentationMode,
-        title: thread.title,
+        title,
         ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
         ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
         ...(groupId ? { groupId } : {}),
@@ -1277,7 +1282,7 @@ export function useRemoteDesktop() {
     } catch (error) {
       useAppStore.getState().deleteThread(hostThreadId);
       setOperationMessage(describeError(error, i18n._(msg`Unable to start the thread.`)));
-      return;
+      return null;
     }
     if (input.fork && !thread.groupId && groupId && groupName) {
       // Pull the source into the fork's group on the host row, like the
@@ -1298,8 +1303,7 @@ export function useRemoteDesktop() {
         // on top of a successful switch, and the snapshot converges it.
       }
     }
-    const created = useAppStore.getState().threads.find((t) => t.id === hostThreadId);
-    if (created) await openThread(created);
+    return hostThreadId;
   }
 
   return {

@@ -3273,6 +3273,11 @@ describe("RemoteAccessServer", () => {
       config: { model: "opus" },
     });
     expect(db.threads()[0]?.activeTurnStartedAt).toBeUndefined();
+    expect(db.threads()[0]).toMatchObject({
+      canResumeWithConfig: false,
+      done: false,
+    });
+    expect(db.threads()[0]?.sessionRef).toBeUndefined();
     expect(dispatched.at(-1)).toMatchObject({
       kind: "start",
       threadId: "thread-1",
@@ -3312,6 +3317,37 @@ describe("RemoteAccessServer", () => {
           discoveredAt: "2026-08-29T00:00:00.000Z",
         },
         providerSwitch: { fromAgentKind: "claude" },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("rejects internal provider-switch metadata on the new-thread command route", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "start",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "continue",
+        presentationMode: "gui",
+        providerSwitch: { fromAgentKind: "claude", previousStatus: "idle" },
       }),
     });
 

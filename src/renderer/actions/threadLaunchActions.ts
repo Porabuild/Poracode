@@ -33,6 +33,7 @@ import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launch
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
@@ -70,8 +71,11 @@ export async function performInitialThreadLaunch(input: {
   }
 
   const optimisticUserMessageItemId =
-    userMessageItemId ?? appendOptimisticInitialUserMessage(thread, prompt, segments);
-  if (optimisticUserMessageItemId) {
+    userMessageItemId ??
+    (providerSwitch
+      ? allocateInitialUserMessageItemId(thread, prompt)
+      : appendOptimisticInitialUserMessage(thread, prompt, segments));
+  if (optimisticUserMessageItemId && !providerSwitch) {
     useAppStore.getState().updateThreadRuntime(thread.id, {
       status: "working",
       attention: "working",
@@ -475,9 +479,13 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
       ? applyHomeScopePermissions(launch.project.location, launch.config, agentStatus.capabilities)
       : launch.config;
 
+  // Home threads stay local to the workspace they were started in; threads in
+  // real projects scope through their project's workspaceId instead.
+  const homeWorkspaceId = isHomeProject(launch.project) ? getActiveWorkspaceId() : null;
   const thread = store.createThread({
     ...(launch.threadId ? { threadId: launch.threadId } : {}),
     projectId: launch.project.id,
+    ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
     agentKind: launch.agentKind,
     config,
     prompt: titlePrompt,
@@ -519,12 +527,9 @@ function appendOptimisticInitialUserMessage(
   prompt: string,
   segments?: PromptSegment[],
 ): string | undefined {
-  const presentation = thread.presentationMode ?? "terminal";
-  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
-    return undefined;
-  }
+  const itemId = allocateInitialUserMessageItemId(thread, prompt);
+  if (!itemId) return undefined;
 
-  const itemId = `user-${crypto.randomUUID()}`;
   useAppStore.getState().applyRuntimeEvent(thread.id, {
     type: "item.started",
     threadId: thread.id,
@@ -538,4 +543,12 @@ function appendOptimisticInitialUserMessage(
     itemId,
   });
   return itemId;
+}
+
+function allocateInitialUserMessageItemId(thread: Thread, prompt: string): string | undefined {
+  const presentation = thread.presentationMode ?? "terminal";
+  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
+    return undefined;
+  }
+  return `user-${crypto.randomUUID()}`;
 }

@@ -430,6 +430,27 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
   }
 
+  forceCompleteTurn(): void {
+    this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
+    this.stopGoalTracking();
+    this.mapperState.activeSubAgentTaskToTool?.clear();
+    this.mapperState.activeSubAgentToolToTask?.clear();
+    const events = closeClaudeOpenItems(this.mapperState, { closePlan: true });
+    if (this.mapperState.currentTurnId) {
+      events.push({
+        type: "turn.completed",
+        threadId: this.input.threadId,
+        turnId: this.mapperState.currentTurnId,
+        state: "interrupted",
+      });
+      delete this.mapperState.currentTurnId;
+    }
+    this.currentTurnAssistantUuid = undefined;
+    this.currentTurnInFlight = false;
+    this.emitRuntimeEvents(events);
+  }
+
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;

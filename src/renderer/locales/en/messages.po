@@ -173,6 +173,8 @@ msgstr "{0} ({envName}) updated."
 
 #. placeholder {0}: ""
 #. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (fork)"
@@ -1273,7 +1275,7 @@ msgstr "All threads in Done will be archived."
 msgid "All threads in Done will be permanently deleted."
 msgstr "All threads in Done will be permanently deleted."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "All workspaces"
@@ -7302,7 +7304,7 @@ msgstr "Move panel"
 msgid "Move to clean worktree"
 msgstr "Move to clean worktree"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Move to Workspace"
 

@@ -6,6 +6,7 @@ import type { Project } from "@/shared/contracts";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useWorkspaceThreadFilter } from "@/renderer/state/workspaceSelectors";
 import { openThread } from "@/renderer/actions/threadActions";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
@@ -36,6 +37,7 @@ export function HomeView() {
       ? filterProjectId
       : null;
 
+  const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
   const recentThreads = useAppStore(
     useShallow((state) => {
       const sorted = state.threads
@@ -44,6 +46,7 @@ export function HomeView() {
             !thread.done &&
             !thread.archived &&
             (homeScopeEnabled || !isHomeProjectId(thread.projectId)) &&
+            isThreadInActiveWorkspace(thread) &&
             (activeFilter === null || thread.projectId === activeFilter),
         )
         .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));

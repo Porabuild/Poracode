@@ -23,6 +23,8 @@ import type { Project, Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
+import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { readBridge } from "@/renderer/bridge";
@@ -106,6 +108,15 @@ export function ThreadContextMenu(props: {
   // Home has no project menu even in the grouped layout (its sidebar section
   // is a plain header), so flat Home threads don't get project actions either.
   const showProjectActions = props.showProjectActions === true && !isHomeProject(project);
+  const workspaceMenuItem = useWorkspaceMenuItems(thread.workspaceId);
+  // Home threads are workspace-scoped individually (real-project threads follow
+  // their project), so only they get a per-thread move; remote mirrors don't —
+  // the host owns their metadata.
+  const showMoveToWorkspace =
+    isHomeProject(project) &&
+    workspaceMenuItem !== undefined &&
+    !thread.remoteServerId &&
+    !isExperimentCandidate;
   const runningActionIds = useRunningProjectActionIds(project.id, thread.worktreePath);
   const runActionItems: ContextMenuItem[] = [];
   for (const action of project.scripts?.actions ?? []) {
@@ -249,6 +260,7 @@ export function ThreadContextMenu(props: {
           label: thread.starred ? t`Unpin` : t`Pin to top`,
           icon: <Star className="size-3.5" />,
         },
+        ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
         ...(!isExperimentCandidate
           ? [
               {
@@ -395,6 +407,9 @@ export function ThreadContextMenu(props: {
         if (key.startsWith("stop-action:")) {
           stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
         }
+        applyWorkspaceMenuChoice(key, (workspaceId) =>
+          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId),
+        );
       }}
     >
       {props.children}

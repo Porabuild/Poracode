@@ -9,36 +9,66 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function formatRuntimeItemForHandoff(item: RuntimeChatItem): string | null {
+function joinTailWithinBudget(parts: readonly string[], maxChars: number): string {
+  const kept: string[] = [];
+  let length = 0;
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index]!;
+    const remaining = maxChars - length;
+    if (remaining <= 0) break;
+    kept.push(part.length > remaining ? part.slice(-remaining) : part);
+    length += Math.min(part.length, remaining);
+    if (part.length > remaining) break;
+  }
+  return kept.reverse().join("");
+}
+
+function formatRuntimeItemForHandoff(item: RuntimeChatItem, maxChars: number): string | null {
   const streams = item.streams;
   const payload = asRecord(item.payload);
   switch (item.type) {
     case "user_message": {
-      const text = textFromRuntimeContentBlocks(item.payload);
-      return text ? `User:\n${text}` : null;
+      const prefix = "User:\n";
+      const text = textFromRuntimeContentBlocks(
+        item.payload,
+        Math.max(0, maxChars - prefix.length),
+      );
+      return text ? `${prefix}${text}` : null;
     }
     case "assistant_message": {
-      const text = textFromRuntimeContentBlocks(item.payload) || streams.assistant_text;
-      return text ? `Assistant:\n${text}` : null;
+      const prefix = "Assistant:\n";
+      const content = textFromRuntimeContentBlocks(
+        item.payload,
+        Math.max(0, maxChars - prefix.length),
+      );
+      const text = content || streams.assistant_text;
+      return text ? joinTailWithinBudget([prefix, text], maxChars) : null;
     }
     case "plan": {
       const steps = payload?.steps;
       if (!Array.isArray(steps)) return null;
-      const text = steps
-        .map((step) => {
-          const record = asRecord(step);
-          if (!record || typeof record.step !== "string") return "";
-          const status = typeof record.status === "string" ? record.status : "pending";
-          return `- [${status}] ${record.step}`;
-        })
-        .filter(Boolean)
-        .join("\n");
-      return text ? `Plan:\n${text}` : null;
+      const lines: string[] = [];
+      let length = 0;
+      const contentBudget = Math.max(0, maxChars - "Plan:\n".length);
+      for (let index = steps.length - 1; index >= 0; index -= 1) {
+        const record = asRecord(steps[index]);
+        if (!record || typeof record.step !== "string") continue;
+        const separatorLength = lines.length > 0 ? 1 : 0;
+        const remaining = contentBudget - length - separatorLength;
+        if (remaining <= 0) break;
+        const status = typeof record.status === "string" ? record.status : "pending";
+        const line = joinTailWithinBudget([`- [${status}] `, record.step], remaining);
+        lines.push(line);
+        length += separatorLength + line.length;
+        if (line.length === remaining) break;
+      }
+      const text = lines.reverse().join("\n");
+      return text ? joinTailWithinBudget(["Plan:\n", text], maxChars) : null;
     }
     case "goal": {
       const objective = typeof payload?.objective === "string" ? payload.objective : "";
       const status = typeof payload?.status === "string" ? ` (${payload.status})` : "";
-      return objective ? `Goal${status}:\n${objective}` : null;
+      return objective ? joinTailWithinBudget([`Goal${status}:\n`, objective], maxChars) : null;
     }
     case "tool_call":
     case "mcp_tool_call":
@@ -46,32 +76,39 @@ function formatRuntimeItemForHandoff(item: RuntimeChatItem): string | null {
     case "dynamic_tool_call": {
       const name = typeof payload?.title === "string" ? payload.title : payload?.name;
       const status = typeof payload?.status === "string" ? payload.status : item.state;
-      return typeof name === "string" ? `Tool ${status}: ${name}` : null;
+      return typeof name === "string"
+        ? joinTailWithinBudget([`Tool ${status}: `, name], maxChars)
+        : null;
     }
     case "command_execution": {
       const command = typeof payload?.command === "string" ? payload.command : "";
       const output = streams.command_output;
       return command || output
-        ? `Command:\n${command}${output ? `\nOutput:\n${output}` : ""}`
+        ? joinTailWithinBudget(
+            ["Command:\n", command, ...(output ? ["\nOutput:\n", output] : [])],
+            maxChars,
+          )
         : null;
     }
     case "file_change": {
       const path = typeof payload?.path === "string" ? payload.path : "";
       const kind = typeof payload?.changeKind === "string" ? payload.changeKind : "change";
-      return path ? `File ${kind}: ${path}` : null;
+      return path ? joinTailWithinBudget([`File ${kind}: `, path], maxChars) : null;
     }
     case "web_search": {
       const query = typeof payload?.query === "string" ? payload.query : "";
-      return query ? `Web search: ${query}` : null;
+      return query ? joinTailWithinBudget(["Web search: ", query], maxChars) : null;
     }
     case "error": {
       const message = typeof payload?.message === "string" ? payload.message : "";
-      return message ? `Error:\n${message}` : null;
+      return message ? joinTailWithinBudget(["Error:\n", message], maxChars) : null;
     }
     case "provider_handoff": {
       const from = typeof payload?.fromAgentKind === "string" ? payload.fromAgentKind : "";
       const to = typeof payload?.toAgentKind === "string" ? payload.toAgentKind : "";
-      return from && to ? `[Thread switched provider: ${from} → ${to}]` : null;
+      return from && to
+        ? joinTailWithinBudget(["[Thread switched provider: ", from, " → ", to, "]"], maxChars)
+        : null;
     }
     default:
       return null;
@@ -94,20 +131,39 @@ export function buildTranscriptContext(
   const itemsById = state.runtimeItemsByIdByThread[thread.id];
   if (!itemsById || itemIds.length === 0) return null;
 
-  const transcript = itemIds
-    .map((itemId) => itemsById[itemId])
-    .filter((item): item is RuntimeChatItem => Boolean(item && !item.parentItemId))
-    .map(formatRuntimeItemForHandoff)
-    .filter((text): text is string => Boolean(text?.trim()))
-    .join("\n\n");
+  const parts: string[] = [];
+  let transcriptLength = 0;
+  let truncated = false;
+  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
+    const item = itemsById[itemIds[index]!];
+    if (!item || item.parentItemId) continue;
+    const separatorLength = parts.length > 0 ? 2 : 0;
+    const remaining = MAX_TRANSCRIPT_CONTEXT_CHARS - transcriptLength - separatorLength;
+    if (remaining <= 0) {
+      truncated = true;
+      break;
+    }
+    const text = formatRuntimeItemForHandoff(item, remaining);
+    if (!text?.trim()) continue;
+    if (text.length > remaining) {
+      parts.push(text.slice(-remaining));
+      truncated = true;
+      break;
+    }
+    parts.push(text);
+    transcriptLength += separatorLength + text.length;
+    if (text.length === remaining) {
+      truncated = true;
+      break;
+    }
+  }
+  const transcript = parts.reverse().join("\n\n");
 
   if (!transcript.trim()) return null;
   const summary = [
     `Context captured from the ${sourceLabel} chat transcript because provider resume and terminal scrollback were unavailable.`,
     "",
-    transcript.length > MAX_TRANSCRIPT_CONTEXT_CHARS
-      ? `${transcript.slice(-MAX_TRANSCRIPT_CONTEXT_CHARS)}\n\n[earlier transcript truncated]`
-      : transcript,
+    truncated ? `${transcript}\n\n[earlier transcript truncated]` : transcript,
   ].join("\n");
 
   return {

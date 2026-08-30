@@ -103,6 +103,7 @@ describe("applyRemoteThreadStartCommand", () => {
 
     const after = useAppStore.getState().threads.find((t) => t.id === thread.id);
     expect(after).toMatchObject({ agentKind: "codex", status: "inactive" });
+    expect(after?.activeTurnStartedAt).toBeUndefined();
   });
 
   it("creates and queues a launch for a thread the store does not have yet", () => {

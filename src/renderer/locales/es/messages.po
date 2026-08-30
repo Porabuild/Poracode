@@ -173,6 +173,8 @@ msgstr "{0} ({envName}) actualizado."
 
 #. placeholder {0}: ""
 #. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (bifurcación)"
@@ -1273,7 +1275,7 @@ msgstr "Todos los hilos de Listo se archivarán."
 msgid "All threads in Done will be permanently deleted."
 msgstr "Todos los hilos de Listo se eliminarán permanentemente."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Todos los espacios de trabajo"
@@ -7302,7 +7304,7 @@ msgstr "Mover panel"
 msgid "Move to clean worktree"
 msgstr "Mover a worktree limpio"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Mover a espacio de trabajo"
 

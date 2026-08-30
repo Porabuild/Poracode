@@ -99,6 +99,10 @@ export function getActiveWorkspaceId(): string | null {
   );
 }
 
+export function getKnownWorkspaceIds(): ReadonlySet<string> {
+  return new Set((useSharedSettings.getState().workspaces ?? []).map((workspace) => workspace.id));
+}
+
 /**
  * Seed the default workspaces on first run and file every pre-existing project
  * into the first one, so an install that predates workspaces opens showing

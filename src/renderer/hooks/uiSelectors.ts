@@ -280,14 +280,10 @@ export function useIsWorktreeFilesPanelActive(worktreePath: string | null | unde
   });
 }
 
-export function useInstalledAgents(): AgentStatus[] {
-  return useAgentStatusesStore(useShallow((s) => s.agentStatuses.filter((a) => a.installed)));
-}
-
 /**
  * The agent statuses a thread's pane offers for "Continue in another provider":
- * the local installed list, or — for a thread mirrored from a remote desktop —
- * that host's statuses for the project's environment, filtered to installed.
+ * the local statuses for the project's environment, or — for a thread mirrored
+ * from a remote desktop — that host's matching statuses, filtered to installed.
  * The sidebar's continue-in gate reads the same hook, so an enabled menu entry
  * always matches what the pane's dialog can actually offer.
  */
@@ -295,7 +291,17 @@ export function useThreadAgentStatuses(input: {
   remoteServerId: string | undefined;
   projectLocation: ProjectLocation | undefined;
 }): AgentStatus[] {
-  const localInstalled = useInstalledAgents();
+  const localInstalled = useAgentStatusesStore(
+    useShallow((state) =>
+      input.projectLocation
+        ? getProjectAgentStatuses(
+            input.projectLocation,
+            state.agentStatuses,
+            state.wslAgentStatuses,
+          ).filter((status) => status.installed)
+        : EMPTY_AGENT_STATUSES,
+    ),
+  );
   const remoteStatuses = useRemoteServersStore(
     useShallow((state) => {
       if (!input.remoteServerId) return EMPTY_AGENT_STATUSES;

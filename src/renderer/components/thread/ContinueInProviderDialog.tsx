@@ -28,7 +28,7 @@ import { AttachmentBar } from "../composer/AttachmentBar";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
 import { openPdfPreview } from "../pdf/openPdfPreview";
 import { MentionInput, type MentionInputHandle } from "../composer/MentionInput";
-import { useAttachments } from "../composer/useAttachments";
+import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
@@ -157,6 +157,8 @@ export function ContinueInProviderDialog(props: {
   lastDraftConfig?: ProjectDraftConfig;
   /** Thread-owner-aware file picker; remote panes pass one that uploads to the host. */
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  /** Thread-owner-aware clipboard saver; remote panes upload pasted images to the host. */
+  saveClipboardImage?: SaveClipboardImage | undefined;
   onClose: () => void;
   onContinue: (
     targetAgentKind: string,
@@ -212,7 +214,9 @@ export function ContinueInProviderDialog(props: {
   const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
-  const attachments = useAttachments();
+  const attachments = useAttachments({
+    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+  });
 
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
   const sourceRuntimeStatus = sourceAgent

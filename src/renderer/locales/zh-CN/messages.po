@@ -173,6 +173,8 @@ msgstr "{0}({envName}) 已更新。"
 
 #. placeholder {0}: ""
 #. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0}（派生）"
@@ -1273,7 +1275,7 @@ msgstr "“完成”中的所有线程都将归档。"
 msgid "All threads in Done will be permanently deleted."
 msgstr "“完成”中的所有线程都将永久删除。"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "所有工作区"
@@ -7301,7 +7303,7 @@ msgstr "移动面板"
 msgid "Move to clean worktree"
 msgstr "移至干净的工作树"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "移动到工作区"
 

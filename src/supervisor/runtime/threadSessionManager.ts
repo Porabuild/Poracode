@@ -513,6 +513,16 @@ export class ThreadSessionManager {
       }
       return { threadId };
     }
+    const currentSession = this.sessions.get(threadId);
+    if (
+      payload.providerSwitch &&
+      currentSession &&
+      currentSession.agentKind !== payload.providerSwitch.fromAgentKind
+    ) {
+      throw new Error(
+        `Provider switch is stale: thread ${threadId} now belongs to ${currentSession.agentKind}.`,
+      );
+    }
     this.recentlyRemovedThreadIds.delete(threadId);
 
     const run = this.spawnPipeline.startThreadInner({ ...payload, threadId });

@@ -173,6 +173,8 @@ msgstr "{0} ({envName}) обновлён."
 
 #. placeholder {0}: ""
 #. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (развилка)"
@@ -1273,7 +1275,7 @@ msgstr "Все потоки в разделе «Готово» будут арх
 msgid "All threads in Done will be permanently deleted."
 msgstr "Все потоки в разделе «Готово» будут удалены без возможности восстановления."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Все рабочие области"
@@ -7302,7 +7304,7 @@ msgstr "Переместить панель"
 msgid "Move to clean worktree"
 msgstr "Переместить в чистый worktree"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Переместить в рабочую область"
 

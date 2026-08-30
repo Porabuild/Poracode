@@ -1042,6 +1042,41 @@ describe("CodexStructuredSession", () => {
     expect(releaseAppServer).toHaveBeenCalledOnce();
   });
 
+  it("keeps provider turn ids available for disposal after local force-completion", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: CodexRequestRecord[] = [];
+    const mapperState = createCodexMapperState("local-thread");
+    mapperState.currentTurnId = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["mapperState"] = mapperState;
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnIds"] = new Set([
+      "turn-1",
+    ]);
+    (structuredSession as unknown as Record<string, unknown>)["currentThreadStatus"] = {
+      type: "active",
+      activeFlags: [],
+    };
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
+        if (method === "thread/read") return Promise.reject(new Error("read unavailable"));
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    structuredSession.forceCompleteTurn();
+    await structuredSession.dispose();
+
+    expect(requests).toContainEqual({
+      method: "turn/interrupt",
+      params: { threadId: "provider-thread", turnId: "turn-1" },
+      timeoutMs: 2_000,
+    });
+  });
+
   it("merges tracked and authoritative active provider turns during dispose", async () => {
     const structuredSession = makeStructuredSession([]);
     const requests: Array<{

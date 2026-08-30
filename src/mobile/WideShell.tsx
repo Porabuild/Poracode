@@ -230,7 +230,11 @@ export function WideShell(props: {
               void remote.applyThreadAction(thread, action);
             }}
             onContinueInProvider={(thread, input) => {
-              void remote.continueThreadProvider(thread, input);
+              void remote.continueThreadProvider(thread, input).then((threadId) => {
+                if (threadId) {
+                  void navigate({ to: "/thread/$threadId", params: { threadId } });
+                }
+              });
             }}
             onDeleteWorktreeGroup={(input) => {
               void remote.deleteWorktreeGroup(input);

@@ -882,6 +882,13 @@ export async function handleHttp(
         ...(typeof body === "object" && body !== null ? body : {}),
         threadId: commandThreadId,
       });
+      if (command.kind === "start" && command.providerSwitch) {
+        throw new RemoteHttpError(
+          "provider_switch_route_invalid",
+          "Provider switches must use the existing-thread start endpoint.",
+          400,
+        );
+      }
       assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
         if (command.kind === "delete-worktree-group") {

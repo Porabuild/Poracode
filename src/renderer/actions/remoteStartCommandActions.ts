@@ -41,7 +41,13 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
       const previousStatus = command.providerSwitch.previousStatus;
       useAppStore.setState((state) => ({
         threads: state.threads.map((t) =>
-          t.id === command.threadId ? { ...t, status: previousStatus, attention: "none" } : t,
+          t.id === command.threadId
+            ? (({ activeTurnStartedAt: _closedTurn, ...thread }) => ({
+                ...thread,
+                status: previousStatus,
+                attention: "none" as const,
+              }))(t)
+            : t,
         ),
       }));
     }

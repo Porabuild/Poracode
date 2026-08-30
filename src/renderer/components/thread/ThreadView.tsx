@@ -530,6 +530,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           projectLocation={projectLocation}
           installedAgents={installedAgents}
           {...(pickFiles ? { pickFiles } : {})}
+          {...(saveClipboardImage ? { saveClipboardImage } : {})}
           {...(() => {
             const cfg = useAppStore
               .getState()

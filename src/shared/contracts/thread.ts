@@ -27,6 +27,15 @@ export const threadSchema = z.object({
   remoteServerId: z.string().min(1).optional(),
   remoteId: z.string().min(1).optional(),
   projectId: z.string().min(1),
+  /**
+   * Workspace the thread was created in. Only meaningful while `projectId` is
+   * the Home project — threads in real projects scope through
+   * `project.workspaceId` instead, so a stale tag here is inert. Absent
+   * (legacy, headless, scheduled, remote-created) or dangling ⇒ the thread
+   * stays visible in every workspace, mirroring `isProjectInWorkspace`'s
+   * unfiled rule.
+   */
+  workspaceId: z.string().min(1).optional(),
   title: z.string().min(1),
   agentKind: agentKindSchema,
   /** Optional reference to a user-registered ACP instance (Phase 7). */

@@ -173,6 +173,8 @@ msgstr "{0}({envName})이 업데이트되었습니다."
 
 #. placeholder {0}: ""
 #. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (포크)"
@@ -1273,7 +1275,7 @@ msgstr "완료 섹션의 모든 스레드가 보관됩니다."
 msgid "All threads in Done will be permanently deleted."
 msgstr "완료 섹션의 모든 스레드가 영구적으로 삭제됩니다."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "모든 작업 영역"
@@ -7302,7 +7304,7 @@ msgstr "패널 이동"
 msgid "Move to clean worktree"
 msgstr "클린 작업 트리로 이동"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "작업 영역으로 이동"
 
