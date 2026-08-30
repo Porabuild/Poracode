@@ -107,4 +107,34 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetThread("thread-remote")).toBeNull();
     expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
   });
+
+  // Rows written before provider switching existed are already on disk with
+  // their original agent_kind. Both upsert paths omitted agent_kind from their
+  // conflict-set, which silently pinned such a row to its first provider.
+  it("moves an existing thread row to its new provider, keeping the transcript", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    persistLaunchUserMessage("thread-remote");
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("claude");
+
+    const switched: Thread = {
+      ...remoteStartedThread(),
+      agentKind: "copilot",
+      config: { model: "gpt-5" },
+    };
+    dbSyncAll([project], [switched], JSON.stringify({ kind: "home" }));
+
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("copilot");
+    expect(dbGetThreadRuntimeItems("thread-remote").map((item) => item.type)).toEqual([
+      "user_message",
+    ]);
+  });
+
+  it("moves an existing thread row to its new provider through dbUpsertThread", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("claude");
+
+    dbUpsertThread({ ...remoteStartedThread(), agentKind: "codex" }, 0);
+
+    expect(dbGetThread("thread-remote")?.agentKind).toBe("codex");
+  });
 });

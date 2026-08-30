@@ -26,6 +26,7 @@ import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
 import { getActiveWorkspaceId, getLastWorkspaceProjectId } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
+import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
@@ -736,8 +737,15 @@ export function requestDeleteThread(
   });
 }
 
+/**
+ * Open the thread and ask its pane to raise the handoff dialog. The dialog
+ * lives in the thread pane (it needs the pane's agent statuses and project
+ * location), so the sidebar can only record the request and let the pane act
+ * on it once mounted.
+ */
 export function continueInProvider(threadId: string): void {
   openThread(threadId);
+  useContinueInProviderStore.getState().request(threadId);
 }
 
 export function reopenPaneThreadsIfInactive(): void {

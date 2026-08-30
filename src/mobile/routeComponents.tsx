@@ -221,6 +221,9 @@ export function ThreadsRoute() {
         onThreadAction={(thread, action) => {
           void remote.applyThreadAction(thread, action);
         }}
+        onContinueInProvider={(thread, input) => {
+          void remote.continueThreadProvider(thread, input);
+        }}
         onDeleteWorktreeGroup={(input) => {
           void remote.deleteWorktreeGroup(input);
         }}

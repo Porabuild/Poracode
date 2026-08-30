@@ -805,6 +805,31 @@ describe("performInitialThreadLaunch host transport", () => {
     expect(mocks.bridge.startThread).not.toHaveBeenCalled();
   });
 
+  it("forwards providerSwitch on a switched remote launch and drops the stale session", async () => {
+    const switchedRemoteThread = {
+      ...remoteThread,
+      presentationMode: "gui",
+      sessionRef: { providerSessionId: "old-session" },
+    } as Thread;
+
+    await performInitialThreadLaunch({
+      thread: switchedRemoteThread,
+      projectLocation: { kind: "posix", path: "/srv/repo", remoteServerId: "d1" },
+      prompt: "next step",
+      initialSize,
+      providerSwitch: { fromAgentKind: "claude", handoffItemId: "handoff-1" },
+    });
+
+    const startInput = mocks.remoteClient.startThread.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(startInput).toMatchObject({
+      threadId: "rt-1",
+      agentKind: "codex",
+      providerSwitch: { fromAgentKind: "claude", handoffItemId: "handoff-1" },
+    });
+    // The new provider has no session to resume — the stale ref must not ship.
+    expect(startInput).not.toHaveProperty("sessionRef");
+  });
+
   it("launches a local thread over the bridge with the MCP launch snapshot", async () => {
     await performInitialThreadLaunch({
       thread: localThread,

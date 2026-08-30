@@ -5,7 +5,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function textFromContentBlocks(payload: unknown): string {
+export function textFromRuntimeContentBlocks(payload: unknown): string {
   const content = asRecord(payload)?.content;
   if (!Array.isArray(content)) return "";
   return content
@@ -28,11 +28,11 @@ function textFromContentBlocks(payload: unknown): string {
 function formatChatMessage(item: PersistedRuntimeItem): string | null {
   if (item.parentItemId) return null;
   if (item.type === "user_message") {
-    const text = textFromContentBlocks(item.payload);
+    const text = textFromRuntimeContentBlocks(item.payload);
     return text ? `User:\n${text}` : null;
   }
   if (item.type === "assistant_message") {
-    const text = textFromContentBlocks(item.payload) || item.streams.assistant_text;
+    const text = textFromRuntimeContentBlocks(item.payload) || item.streams.assistant_text;
     return text ? `Assistant:\n${text}` : null;
   }
   return null;

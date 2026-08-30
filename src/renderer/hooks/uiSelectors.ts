@@ -16,6 +16,7 @@ import {
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
+import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
@@ -283,6 +284,29 @@ export function useInstalledAgents(): AgentStatus[] {
   return useAgentStatusesStore(useShallow((s) => s.agentStatuses.filter((a) => a.installed)));
 }
 
+/**
+ * The agent statuses a thread's pane offers for "Continue in another provider":
+ * the local installed list, or — for a thread mirrored from a remote desktop —
+ * that host's statuses for the project's environment, filtered to installed.
+ * The sidebar's continue-in gate reads the same hook, so an enabled menu entry
+ * always matches what the pane's dialog can actually offer.
+ */
+export function useThreadAgentStatuses(input: {
+  remoteServerId: string | undefined;
+  projectLocation: ProjectLocation | undefined;
+}): AgentStatus[] {
+  const localInstalled = useInstalledAgents();
+  const remoteStatuses = useRemoteServersStore(
+    useShallow((state) => {
+      if (!input.remoteServerId) return EMPTY_AGENT_STATUSES;
+      const statuses = state.runtime[input.remoteServerId]?.agentStatuses;
+      const source = input.projectLocation?.kind === "wsl" ? statuses?.wsl : statuses?.windows;
+      return source?.filter((status) => status.installed) ?? EMPTY_AGENT_STATUSES;
+    }),
+  );
+  return input.remoteServerId === undefined ? localInstalled : remoteStatuses;
+}
+
 /** Agent statuses scoped to the project's execution environment (windows vs wsl). */
 export function useProjectAgentStatuses(
   projectLocation: ProjectLocation | undefined,
@@ -415,12 +439,14 @@ export function useThreadPendingLaunch(threadId: string): {
   prompt: string | undefined;
   segments: PromptSegment[] | undefined;
   userMessageItemId: string | undefined;
+  providerSwitch: PendingLaunchProviderSwitch | undefined;
 } {
   return useAppStore(
     useShallow((s) => ({
       prompt: s.pendingThreadLaunches[threadId],
       segments: s.pendingLaunchSegments[threadId],
       userMessageItemId: s.pendingLaunchUserMessageItemIds[threadId],
+      providerSwitch: s.pendingLaunchProviderSwitches[threadId],
     })),
   );
 }

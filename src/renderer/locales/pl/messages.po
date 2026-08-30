@@ -171,6 +171,12 @@ msgstr "{0} ({envName}) zaktualizowano do wersji {newVersion}."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) zaktualizowano."
 
+#. placeholder {0}: ""
+#. placeholder {0}: sourceThread.title
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "{0} (fork)"
+msgstr "{0} (fork)"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -2093,7 +2099,6 @@ msgstr "Nie można połączyć się z serwerem zdalnym. Sprawdź, czy jest onlin
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -2549,7 +2554,6 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Kliknij skrót, aby zarejestrować nowy klawisz, lub ＋, aby dodać kolejny."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
@@ -3217,8 +3221,8 @@ msgstr "Kontekst skompaktowany: {before} → {after} tokenów"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Context extraction ({0})"
-msgstr "Ekstrakcja kontekstu ({0})"
+#~ msgid "Context extraction ({0})"
+#~ msgstr "Ekstrakcja kontekstu ({0})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Context manually compacted from {before} tokens"
@@ -3228,6 +3232,7 @@ msgstr "Kontekst ręcznie skompaktowany z {before} tokenów"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Kontekst ręcznie skompaktowany: {before} → {after} tokenów"
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Kontekst przeniesiony do {targetLabel}"
@@ -3244,12 +3249,13 @@ msgstr "Okna kontekstu"
 msgid "Continue"
 msgstr "Kontynuuj"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Continue in another provider"
 msgstr "Kontynuuj u innego dostawcy"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Kontynuuj w..."
@@ -3399,7 +3405,6 @@ msgid "Could not create the project folder."
 msgstr "Nie udało się utworzyć folderu projektu."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
 msgstr "Nie udało się wyodrębnić kontekstu."
 
@@ -5000,7 +5005,6 @@ msgstr "Bardzo wysoka"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
 msgstr "Wyodrębnianie kontekstu z {0}..."
 
@@ -5395,6 +5399,10 @@ msgstr "Fork"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "Utwórz odgałęzienie z <0>{0}</0>"
+
+#: src/mobile/views/threadActionSurfaces.tsx
+msgid "Fork to another provider"
+msgstr "Utwórz fork u innego dostawcy"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7270,8 +7278,6 @@ msgid "Most used reasoning"
 msgstr "Najczęściej używane rozumowanie"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Przenieś"
 
@@ -7547,7 +7553,7 @@ msgstr "Nowa karta w grupie"
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/app.tsx
+#: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -7631,8 +7637,8 @@ msgid "No active browser tab"
 msgstr "Brak aktywnej karty przeglądarki"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-msgid "No active session"
-msgstr "Brak aktywnej sesji"
+#~ msgid "No active session"
+#~ msgstr "Brak aktywnej sesji"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -8099,6 +8105,10 @@ msgstr "To nie jest repozytorium git"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "To nie jest repozytorium Git"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Not available for remote threads"
+#~ msgstr "Niedostępne dla wątków zdalnych"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Not detected on this machine yet."
@@ -11698,7 +11708,6 @@ msgid "Start with a schedule"
 msgstr "Zacznij od harmonogramu"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Start Without Context"
 msgstr "Zacznij bez kontekstu"
 
@@ -11710,6 +11719,7 @@ msgstr "Zacznij bez kontekstu"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Uruchamiaj przepływy pracy i monitoruj ich wykonania."
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Rozpoczęto wątek {targetLabel}"
@@ -11948,6 +11958,7 @@ msgstr "Obsługuje tryb szybki"
 msgid "Swap notes and to-dos"
 msgstr "Zamień notatki i zadania"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Switch"
 msgstr "Przełącz"
@@ -11997,6 +12008,22 @@ msgstr "Przełącz na poprzednią kartę"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 msgid "Switch workspace"
 msgstr "Przełącz obszar roboczy"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ProviderHandoffRow.tsx
+msgid "Switched from {fromLabel} to {toLabel}"
+msgstr "Przełączono z {fromLabel} na {toLabel}"
+
+#: src/renderer/actions/providerSwitchActions.ts
+msgid "Switched to {targetLabel}"
+msgstr "Przełączono na {targetLabel}"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+msgstr "Przełączenie rozpoczyna nowy wątek o tym samym tytule, ponieważ czat można kontynuować w tym samym miejscu tylko między dwoma dostawcami czatu."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#~ msgid "Switching to a terminal provider starts a new thread with the same title."
+#~ msgstr "Przełączenie na dostawcę terminalowego rozpoczyna nowy wątek o tym samym tytule."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -12098,8 +12125,8 @@ msgid "Target branch"
 msgstr "Gałąź docelowa"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Target provider"
-msgstr "Dostawca docelowy"
+#~ msgid "Target provider"
+#~ msgstr "Dostawca docelowy"
 
 #: src/renderer/components/providers/qwen/index.tsx
 msgid "Task"
@@ -12567,6 +12594,8 @@ msgstr "Ten profil działa na Cursor SDK. Cursor CLI i ACP współdzielą jedno 
 msgid "this project"
 msgstr "ten projekt"
 
+#: src/renderer/actions/providerSwitchActions.ts
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -13136,6 +13165,10 @@ msgstr "Nie można uruchomić wątku zdalnego."
 #: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "Nie można uruchomić wątku."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to switch the provider."
+msgstr "Nie udało się przełączyć dostawcy."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

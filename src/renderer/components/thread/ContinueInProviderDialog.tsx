@@ -38,37 +38,39 @@ import {
   resolveModelSelection,
   resolveReasoningSelection,
 } from "@/shared/agentSelection";
+import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import type { RankedCrossagentCandidate } from "@/shared/crossagentRanking";
+import {
+  continuesInPlace,
+  rankContinueProviders,
+  resolveInitialPresentationMode,
+  supportsPresentation,
+} from "@/shared/continueProviderRanking";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useAppStore } from "@/renderer/state/appStore";
-import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
+import { DEFAULT_HANDOFF_PROMPT } from "@/renderer/actions/providerHandoff";
 
 type Phase = "select" | "extracting" | "error";
 type PendingSubmission = { prompt: string; segments?: PromptSegment[] };
-const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
-const DEFAULT_HANDOFF_PROMPT =
-  "Continue from the transferred context and pick up where the previous provider left off.";
+/**
+ * `fork` opens a second thread beside the original; `switch` continues the same
+ * task in the target provider — in place for a chat target, as a replacement
+ * thread when the target is a terminal.
+ */
+export type ContinueIntent = "fork" | "switch";
 
-function supportedPresentationModes(agent: AgentStatus): ThreadPresentationMode[] {
-  return agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-}
-
-function supportsPresentation(agent: AgentStatus, mode: ThreadPresentationMode): boolean {
-  return supportedPresentationModes(agent).includes(mode);
-}
-
-function resolveInitialPresentationMode(
-  agent: AgentStatus | undefined,
-  lastByAgent: Record<string, ThreadPresentationMode>,
-  sourceMode: ThreadPresentationMode,
-): ThreadPresentationMode {
-  if (!agent) return "terminal";
-  const supported = supportedPresentationModes(agent);
-  const last = lastByAgent[agent.kind];
-  if (last && supported.includes(last)) return last;
-  if (supported.includes(sourceMode)) return sourceMode;
-  if (supported.includes("gui")) return "gui";
-  return supported[0] ?? agent.capabilities.presentationMode ?? "terminal";
+/** The model/reasoning/Fast values the ranked provider is normally launched with. */
+function preferredConfigPatch(
+  ranked: RankedCrossagentCandidate | undefined,
+): Partial<ThreadConfig> {
+  const selection = ranked?.preferredSelection;
+  if (!selection?.model) return {};
+  return {
+    model: selection.model,
+    ...(selection.effort ? { effort: selection.effort } : {}),
+    ...(selection.fast ? { fast: true } : {}),
+  };
 }
 
 function resolveContextSizeValue(
@@ -147,100 +149,14 @@ function savedConfigForAgent(agent: AgentStatus, savedConfig?: ProjectDraftConfi
   return savedConfig?.agentKind === agent.kind ? savedConfig : undefined;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function textFromContentBlocks(payload: unknown): string {
-  const content = asRecord(payload)?.content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((block) => {
-      const record = asRecord(block);
-      if (!record) return "";
-      if (record.kind === "text" && typeof record.text === "string") return record.text;
-      if (record.kind === "file" && typeof record.path === "string") return `@${record.path}`;
-      if (record.kind === "image") {
-        if (typeof record.path === "string") return `@${record.path}`;
-        if (typeof record.name === "string") return `[image: ${record.name}]`;
-        return "[image]";
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-
-function formatRuntimeItemForHandoff(item: RuntimeChatItem): string | null {
-  const streams = item.streams;
-  const payload = asRecord(item.payload);
-  switch (item.type) {
-    case "user_message": {
-      const text = textFromContentBlocks(item.payload);
-      return text ? `User:\n${text}` : null;
-    }
-    case "assistant_message": {
-      const text = textFromContentBlocks(item.payload) || streams.assistant_text;
-      return text ? `Assistant:\n${text}` : null;
-    }
-    case "plan": {
-      const steps = payload?.steps;
-      if (!Array.isArray(steps)) return null;
-      const text = steps
-        .map((step) => {
-          const record = asRecord(step);
-          if (!record || typeof record.step !== "string") return "";
-          const status = typeof record.status === "string" ? record.status : "pending";
-          return `- [${status}] ${record.step}`;
-        })
-        .filter(Boolean)
-        .join("\n");
-      return text ? `Plan:\n${text}` : null;
-    }
-    case "goal": {
-      const objective = typeof payload?.objective === "string" ? payload.objective : "";
-      const status = typeof payload?.status === "string" ? ` (${payload.status})` : "";
-      return objective ? `Goal${status}:\n${objective}` : null;
-    }
-    case "tool_call":
-    case "mcp_tool_call":
-    case "image_view":
-    case "dynamic_tool_call": {
-      const name = typeof payload?.title === "string" ? payload.title : payload?.name;
-      const status = typeof payload?.status === "string" ? payload.status : item.state;
-      return typeof name === "string" ? `Tool ${status}: ${name}` : null;
-    }
-    case "command_execution": {
-      const command = typeof payload?.command === "string" ? payload.command : "";
-      const output = streams.command_output;
-      return command || output
-        ? `Command:\n${command}${output ? `\nOutput:\n${output}` : ""}`
-        : null;
-    }
-    case "file_change": {
-      const path = typeof payload?.path === "string" ? payload.path : "";
-      const kind = typeof payload?.changeKind === "string" ? payload.changeKind : "change";
-      return path ? `File ${kind}: ${path}` : null;
-    }
-    case "web_search": {
-      const query = typeof payload?.query === "string" ? payload.query : "";
-      return query ? `Web search: ${query}` : null;
-    }
-    case "error": {
-      const message = typeof payload?.message === "string" ? payload.message : "";
-      return message ? `Error:\n${message}` : null;
-    }
-    default:
-      return null;
-  }
-}
-
 export function ContinueInProviderDialog(props: {
   isOpen: boolean;
   thread: Thread;
   projectLocation: ProjectLocation;
   installedAgents: AgentStatus[];
   lastDraftConfig?: ProjectDraftConfig;
+  /** Thread-owner-aware file picker; remote panes pass one that uploads to the host. */
+  pickFiles?: (() => Promise<string[] | null>) | undefined;
   onClose: () => void;
   onContinue: (
     targetAgentKind: string,
@@ -248,51 +164,70 @@ export function ContinueInProviderDialog(props: {
     targetPresentationMode: ThreadPresentationMode,
     prompt: string,
     segments: PromptSegment[] | undefined,
-    closeOriginal: boolean,
+    intent: ContinueIntent,
     extractedContext: ExtractContextResult | null,
   ) => void;
 }) {
   const { thread, installedAgents, onClose, onContinue } = props;
   const { t } = useLingui();
 
+  const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
+  const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
+  const agentSelectionUsage = useSharedSettings((s) => s.agentSelectionUsage);
+  const crossagentSelectionUsage = useSharedSettings((s) => s.crossagentSelectionUsage);
+  const crossagentRoutingOverrides = useSharedSettings((s) => s.crossagentRoutingOverrides);
+  const favoriteModels = useSharedSettings((s) => s.favoriteModels);
+
   const otherAgents = installedAgents.filter((a) => a.kind !== thread.agentKind);
-  const [selectedKind, setSelectedKind] = useState<string>(otherAgents[0]?.kind ?? "");
+  const sourceAgent = installedAgents.find((a) => a.kind === thread.agentKind);
+  const sourcePresentationMode =
+    thread.presentationMode ?? sourceAgent?.capabilities.presentationMode ?? "terminal";
+
+  // Propose the provider the user actually reaches for most; `proposedRanking`
+  // feeds `preferredConfigPatch` below so the proposal carries the model the
+  // selection normally launches with.
+  const rankedTargets = rankContinueProviders(
+    otherAgents,
+    lastPresentationModeByAgent,
+    sourcePresentationMode,
+    crossagentRankingPreferences({
+      agentSelectionUsage,
+      crossagentSelectionUsage,
+      crossagentRoutingOverrides,
+      favoriteModels,
+    }),
+  );
+  const proposedAgent =
+    otherAgents.find((a) => a.kind === rankedTargets[0]?.provider) ?? otherAgents[0];
+  const proposedRanking = rankedTargets.find((entry) => entry.provider === proposedAgent?.kind);
+  const proposedPresentationMode = resolveInitialPresentationMode(
+    proposedAgent,
+    lastPresentationModeByAgent,
+    sourcePresentationMode,
+  );
+
+  const [selectedKind, setSelectedKind] = useState<string>(proposedAgent?.kind ?? "");
   const [phase, setPhase] = useState<Phase>("select");
   const [errorMessage, setErrorMessage] = useState("");
-  const [pendingCloseOriginal, setPendingCloseOriginal] = useState(false);
+  const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
   const attachments = useAttachments();
 
-  const sourceAgent = installedAgents.find((a) => a.kind === thread.agentKind);
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
-  const sourcePresentationMode =
-    thread.presentationMode ?? sourceAgent?.capabilities.presentationMode ?? "terminal";
   const sourceRuntimeStatus = sourceAgent
     ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
     : undefined;
-  const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
-  const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
-  const [targetPresentationMode, setTargetPresentationMode] = useState<ThreadPresentationMode>(() =>
-    resolveInitialPresentationMode(
-      selectedAgent,
-      lastPresentationModeByAgent,
-      sourcePresentationMode,
-    ),
-  );
+  const [targetPresentationMode, setTargetPresentationMode] =
+    useState<ThreadPresentationMode>(proposedPresentationMode);
 
   // --- Target provider config ---
   const [targetConfig, setTargetConfig] = useState<ThreadConfig>(() =>
-    selectedAgent
-      ? resolveDefaultConfig(
-          selectedAgent,
-          resolveInitialPresentationMode(
-            selectedAgent,
-            lastPresentationModeByAgent,
-            sourcePresentationMode,
-          ),
-          savedConfigForAgent(selectedAgent, props.lastDraftConfig),
-        )
+    proposedAgent
+      ? resolveDefaultConfig(proposedAgent, proposedPresentationMode, {
+          ...savedConfigForAgent(proposedAgent, props.lastDraftConfig),
+          ...preferredConfigPatch(proposedRanking),
+        })
       : { model: "" },
   );
 
@@ -419,54 +354,26 @@ export function ContinueInProviderDialog(props: {
     };
   }
 
-  function buildTranscriptContext(): ExtractContextResult | null {
-    const state = useAppStore.getState();
-    const itemIds = state.runtimeItemIdsByThread[thread.id] ?? [];
-    const itemsById = state.runtimeItemsByIdByThread[thread.id];
-    if (!itemsById || itemIds.length === 0) return null;
-
-    const transcript = itemIds
-      .map((itemId) => itemsById[itemId])
-      .filter((item): item is RuntimeChatItem => Boolean(item && !item.parentItemId))
-      .map(formatRuntimeItemForHandoff)
-      .filter((text): text is string => Boolean(text?.trim()))
-      .join("\n\n");
-
-    if (!transcript.trim()) return null;
-    const sourceLabel = sourceAgent?.label ?? thread.agentKind;
-    const summary = [
-      `Context captured from the ${sourceLabel} chat transcript because provider resume and terminal scrollback were unavailable.`,
-      "",
-      transcript.length > MAX_TRANSCRIPT_CONTEXT_CHARS
-        ? `${transcript.slice(-MAX_TRANSCRIPT_CONTEXT_CHARS)}\n\n[earlier transcript truncated]`
-        : transcript,
-    ].join("\n");
-
-    return {
-      summary,
-      sourceProvider: thread.agentKind,
-      sourceSessionId: thread.sessionRef?.providerSessionId ?? thread.id,
-      ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-      extractedAt: new Date().toISOString(),
-    };
-  }
-
-  async function handleAction(closeOriginal: boolean, inputSegments?: PromptSegment[]) {
+  async function handleAction(intent: ContinueIntent, inputSegments?: PromptSegment[]) {
     const submission = buildSubmission(inputSegments);
     if (!submission) return;
-    setPendingCloseOriginal(closeOriginal);
+    setPendingIntent(intent);
     setPendingSubmission(submission);
     setLastPresentationMode(selectedKind, targetPresentationMode);
 
-    if (!thread.sessionRef) {
+    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
+      // No session to extract from — or a mirrored thread, whose `extractContext`
+      // is a host-side procedure this renderer deliberately does not route. The
+      // stored transcript (hydrated from the host snapshot) is the context.
+      const fallback = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
       onContinue(
         selectedKind,
         targetConfig,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
-        closeOriginal,
-        null,
+        intent,
+        fallback,
       );
       return;
     }
@@ -488,11 +395,11 @@ export function ContinueInProviderDialog(props: {
         targetPresentationMode,
         submission.prompt,
         submission.segments,
-        closeOriginal,
+        intent,
         result,
       );
     } catch (err) {
-      const fallback = buildTranscriptContext();
+      const fallback = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
       if (fallback) {
         onContinue(
           selectedKind,
@@ -500,7 +407,7 @@ export function ContinueInProviderDialog(props: {
           targetPresentationMode,
           submission.prompt,
           submission.segments,
-          closeOriginal,
+          intent,
           fallback,
         );
         return;
@@ -530,13 +437,14 @@ export function ContinueInProviderDialog(props: {
       targetPresentationMode,
       submission.prompt,
       submission.segments,
-      pendingCloseOriginal,
+      pendingIntent,
       null,
     );
   }
 
   const canSubmit = Boolean(selectedKind && targetConfig.model);
   const targetProviderFallback = t`the target provider`;
+  const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
   return (
     <>
@@ -553,12 +461,22 @@ export function ContinueInProviderDialog(props: {
             <Modal.Body className="px-5 pb-5 pt-2">
               {phase === "select" && (
                 <div className="flex flex-col gap-4">
-                  <PresentationModeTabs
-                    presentationMode={targetPresentationMode}
-                    supportsTerminal={supportsTargetTerminalMode}
-                    supportsGui={supportsTargetGuiMode}
-                    onChange={handlePresentationModeChange}
-                  />
+                  <div className="flex flex-col gap-1.5">
+                    <PresentationModeTabs
+                      presentationMode={targetPresentationMode}
+                      supportsTerminal={supportsTargetTerminalMode}
+                      supportsGui={supportsTargetGuiMode}
+                      onChange={handlePresentationModeChange}
+                    />
+                    {switchOpensNewThread && (
+                      <p className="text-center text-xs text-muted">
+                        <Trans>
+                          Switching starts a new thread with the same title, because the chat can
+                          only continue in place between two chat providers.
+                        </Trans>
+                      </p>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-1.5">
                     <ThreadComposer
                       autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
@@ -602,7 +520,7 @@ export function ContinueInProviderDialog(props: {
                             void attachments.addClipboardImage(file, `handoff:${thread.id}`);
                           }}
                           onSubmit={(segments) => {
-                            void handleAction(false, segments);
+                            void handleAction("fork", segments);
                           }}
                         />
                       }
@@ -612,7 +530,7 @@ export function ContinueInProviderDialog(props: {
                       submitLabel={t`Fork`}
                       onPromptChange={() => undefined}
                       onSubmit={() => {
-                        void handleAction(false);
+                        void handleAction("fork");
                       }}
                       afterControls={
                         <Button
@@ -622,11 +540,11 @@ export function ContinueInProviderDialog(props: {
                           size="sm"
                           variant="ghost"
                           onPress={() => {
-                            void readBridge()
-                              .pickFiles()
-                              .then((paths) => {
-                                if (paths) attachments.addFiles(paths);
-                              });
+                            void (
+                              props.pickFiles ? props.pickFiles() : readBridge().pickFiles()
+                            ).then((paths) => {
+                              if (paths) attachments.addFiles(paths);
+                            });
                           }}
                         >
                           <Paperclip className="size-4" />
@@ -670,7 +588,7 @@ export function ContinueInProviderDialog(props: {
                     variant="secondary"
                     isDisabled={!canSubmit}
                     onPress={() => {
-                      void handleAction(false);
+                      void handleAction("fork");
                     }}
                   >
                     <Trans>Fork</Trans>
@@ -679,10 +597,10 @@ export function ContinueInProviderDialog(props: {
                     variant="tertiary"
                     isDisabled={!canSubmit}
                     onPress={() => {
-                      void handleAction(true);
+                      void handleAction("switch");
                     }}
                   >
-                    <Trans>Move</Trans>
+                    <Trans>Switch</Trans>
                   </Button>
                 </>
               )}

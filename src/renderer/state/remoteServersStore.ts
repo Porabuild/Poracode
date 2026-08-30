@@ -1063,6 +1063,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
               ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
               ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
+              ...(input.title ? { title: input.title } : {}),
+              ...(input.groupId ? { groupId: input.groupId } : {}),
+              ...(input.groupName ? { groupName: input.groupName } : {}),
             }),
           );
           const compensateIfAbandoned = async (): Promise<

@@ -155,7 +155,10 @@ async function invokeRemoteProcedure(
       const input = route.payload as IpcProcedurePayload<"saveHandoffContext">;
       return client.uploadAttachment({
         threadId: input.threadId,
-        fileName: "handoff-context.md",
+        // Unique per handoff, like the local `saveHandoffContextFile`: one
+        // thread can hand off more than once, and a fixed name would let a
+        // later summary clobber the file an earlier user message points at.
+        fileName: `handoff-context-${crypto.randomUUID()}.md`,
         data: new TextEncoder().encode(input.content),
       });
     }

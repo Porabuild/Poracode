@@ -96,7 +96,12 @@ import {
   buildThreadRuntimeItemsPage,
   descriptor,
 } from "./snapshots";
-import { applyRemoteThreadCommand, runProjectCommand, runRemoteProcedure } from "./threadCommands";
+import {
+  applyRemoteThreadCommand,
+  applyRemoteThreadSwitch,
+  runProjectCommand,
+  runRemoteProcedure,
+} from "./threadCommands";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 
 export function threadIdFromPath(pathname: string, suffix: string): string | null {
@@ -824,22 +829,25 @@ export async function handleHttp(
     if (req.method === "POST" && url.pathname === "/api/threads/start") {
       ctx.security.requireBearer(req, ["session:operate"]);
       const payload = startThreadPayloadSchema.parse(await readJsonBody(req));
-      if (!payload.threadId) {
+      const threadId = payload.threadId;
+      if (!threadId) {
         throw new RemoteHttpError(
           "thread_id_required",
           "Remote thread start requires an existing thread id.",
           400,
         );
       }
-      const thread = dbGetThread(payload.threadId);
+      const thread = dbGetThread(threadId);
       if (!thread) {
         throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
       }
-      assertRemoteThreadStartExperimentSafe(payload.threadId);
+      assertRemoteThreadStartExperimentSafe(threadId);
       const mcpSnapshot =
         ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
       const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
-        ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
+        payload.providerSwitch
+          ? applyRemoteThreadSwitch(ctx, { ...payload, threadId, ...mcpSnapshot })
+          : ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
       );
       writeJson(res, 200, result);
       return;

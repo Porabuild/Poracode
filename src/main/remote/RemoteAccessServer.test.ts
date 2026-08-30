@@ -3110,6 +3110,348 @@ describe("RemoteAccessServer", () => {
     expect(dbCompleteRemoteCommand).toHaveBeenCalledWith("prompt-item-1", result);
   });
 
+  it("flips the durable row before a switched remote start and mirrors the retarget", async () => {
+    const db = mockThreadDb([
+      createTestThread({
+        agentKind: "claude",
+        config: { model: "opus" },
+        presentationMode: "gui",
+        threadStatusSource: "server",
+        sessionRef: {
+          providerSessionId: "claude-session",
+          discoveredAt: "2026-08-29T00:00:00.000Z",
+        },
+      }),
+    ]);
+    const dispatched: unknown[] = [];
+    let supervisorStarted = false;
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => {
+      // The new session's first state events persist DURING the supervisor
+      // call — the row must already name the new provider by then.
+      expect(db.threads()[0]).toMatchObject({ agentKind: "codex", status: "launching" });
+      supervisorStarted = true;
+      return { threadId: "thread-1" } as never;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      dispatchThreadCommand: (command) => {
+        dispatched.push(command);
+        return true;
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    const ticket = await issueWebSocketTicket(info, token);
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket);
+    const ws = new WebSocket(wsUrl);
+    const readWs = createWsReader(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+    await expect(readWs()).resolves.toMatchObject({ type: "ready" });
+
+    const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        threadId: "thread-1",
+        projectLocation: { kind: "posix", path: "/repo" },
+        agentKind: "codex",
+        config: { model: "gpt-5-codex" },
+        prompt: "",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "gui",
+        providerSwitch: { fromAgentKind: "claude" },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(supervisorStarted).toBe(true);
+    const switched = db.threads()[0];
+    expect(switched).toMatchObject({
+      agentKind: "codex",
+      status: "launching",
+      config: { model: "gpt-5-codex" },
+      presentationMode: "gui",
+    });
+    // The old session's ref belongs to the provider being left behind.
+    expect(switched?.sessionRef).toBeUndefined();
+    // The renderer mirror rides the start command, launch-runtime suppressed:
+    // the HTTP path owns the supervisor call.
+    expect(dispatched).toEqual([
+      {
+        kind: "start",
+        threadId: "thread-1",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5-codex" },
+        prompt: "",
+        presentationMode: "gui",
+        launchRuntime: false,
+        providerSwitch: { fromAgentKind: "claude" },
+      },
+    ]);
+    // Paired clients learn the row changed and refresh their projections.
+    await expect(readWs()).resolves.toMatchObject({
+      type: "event",
+      event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
+    });
+    ws.close();
+  });
+
+  it("restores the previous provider row when a switched remote start fails", async () => {
+    const db = mockThreadDb([
+      createTestThread({
+        agentKind: "claude",
+        config: { model: "opus" },
+        status: "working",
+        attention: "working",
+        activeTurnStartedAt: "2026-08-29T00:00:00.000Z",
+        presentationMode: "gui",
+        sessionRef: {
+          providerSessionId: "claude-session",
+          discoveredAt: "2026-08-29T00:00:00.000Z",
+        },
+      }),
+    ]);
+    const dispatched: unknown[] = [];
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => {
+      throw new Error("no such adapter");
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      dispatchThreadCommand: (command) => {
+        dispatched.push(command);
+        return true;
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        threadId: "thread-1",
+        projectLocation: { kind: "posix", path: "/repo" },
+        agentKind: "codex",
+        config: { model: "gpt-5-codex" },
+        prompt: "",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "gui",
+        providerSwitch: { fromAgentKind: "claude" },
+      }),
+    });
+
+    expect(response.status).toBe(500);
+    // The row is authoritative about provider and config again; the restored
+    // session ref is dead either way (the supervisor closes the session before
+    // the failure point) but the row must not keep the failed target's shape.
+    expect(db.threads()[0]).toMatchObject({
+      agentKind: "claude",
+      status: "inactive",
+      attention: "none",
+      config: { model: "opus" },
+    });
+    expect(db.threads()[0]?.activeTurnStartedAt).toBeUndefined();
+    expect(dispatched.at(-1)).toMatchObject({
+      kind: "start",
+      threadId: "thread-1",
+      agentKind: "claude",
+      launchRuntime: false,
+      providerSwitch: { fromAgentKind: "codex", previousStatus: "inactive" },
+    });
+  });
+
+  it("rejects a provider switch that carries the previous provider session", async () => {
+    mockThreadDb([createTestThread({ presentationMode: "gui" })]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        threadId: "thread-1",
+        projectLocation: { kind: "posix", path: "/repo" },
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "continue",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "gui",
+        sessionRef: {
+          providerSessionId: "claude-session",
+          discoveredAt: "2026-08-29T00:00:00.000Z",
+        },
+        providerSwitch: { fromAgentKind: "claude" },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("rejects in-place switches for terminal threads and stale providers", async () => {
+    const db = mockThreadDb([createTestThread({ presentationMode: "terminal" })]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+    const request = (fromAgentKind: string) =>
+      fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          threadId: "thread-1",
+          projectLocation: { kind: "posix", path: "/repo" },
+          agentKind: "codex",
+          config: { model: "gpt-5" },
+          prompt: "continue",
+          initialSize: { cols: 120, rows: 30 },
+          presentationMode: "gui",
+          providerSwitch: { fromAgentKind },
+        }),
+      });
+
+    expect((await request("claude")).status).toBe(409);
+    db.threads()[0]!.presentationMode = "gui";
+    expect((await request("claude")).status).toBe(409);
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("serializes overlapping provider switches for the same thread", async () => {
+    const db = mockThreadDb([createTestThread({ agentKind: "claude", presentationMode: "gui" })]);
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let supervisorCalls = 0;
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => {
+      supervisorCalls += 1;
+      if (supervisorCalls === 1) await firstGate;
+      return { threadId: "thread-1" } as never;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+    const request = (agentKind: string, fromAgentKind: string) =>
+      fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          threadId: "thread-1",
+          projectLocation: { kind: "posix", path: "/repo" },
+          agentKind,
+          config: { model: `${agentKind}-model` },
+          prompt: "continue",
+          initialSize: { cols: 120, rows: 30 },
+          presentationMode: "gui",
+          providerSwitch: { fromAgentKind },
+        }),
+      });
+
+    const first = request("codex", "claude");
+    await vi.waitFor(() => expect(callSupervisor).toHaveBeenCalledTimes(1));
+    const second = request("copilot", "codex");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    expect(db.threads()[0]?.agentKind).toBe("codex");
+
+    releaseFirst();
+    expect((await first).status).toBe(200);
+    expect((await second).status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledTimes(2);
+    expect(db.threads()[0]?.agentKind).toBe("copilot");
+  });
+
+  it("persists an explicit title and group from a remote start command", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
+    const db = mockThreadDb();
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => ({ threadId: "thread-fork" }) as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/thread-fork/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "start",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "Pick up the task",
+        title: "TICKET-1 (fork)",
+        groupId: "group-1",
+        groupName: "Incident",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    // A remote fork inherits its source's title and group; the durable row
+    // must carry both or the next client snapshot strips them.
+    expect(db.threads()[0]).toMatchObject({
+      id: "thread-fork",
+      title: "TICKET-1 (fork)",
+      groupId: "group-1",
+      groupName: "Incident",
+    });
+  });
+
   it("persists simple thread commands and mirrors them to the renderer", async () => {
     const db = mockThreadDb([
       createTestThread({ worktreePath: "/repo/wt" }),

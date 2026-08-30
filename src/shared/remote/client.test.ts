@@ -665,6 +665,50 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("rejects a v6 host that predates provider_handoff runtime items", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(6, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
+  it("forwards providerSwitch on a thread start so the host records the handoff divider", async () => {
+    let startBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      async (url, init) => {
+        if (new URL(url).pathname !== "/api/threads/start") {
+          return descriptorResponse(PORACODE_REMOTE_PROTOCOL_VERSION, ["session:operate"]);
+        }
+        startBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "windows", path: "C:\\proj" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "Continue",
+      presentationMode: "gui",
+      providerSwitch: { fromAgentKind: "claude" },
+    });
+
+    expect(startBody).toMatchObject({
+      threadId: "thread-1",
+      agentKind: "codex",
+      providerSwitch: { fromAgentKind: "claude" },
+    });
+  });
+
   it("falls back to the legacy environment endpoint when the Poracode endpoint is unavailable", async () => {
     const requestedPaths: string[] = [];
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async (url) => {

@@ -668,6 +668,9 @@ export function ThreadsView(props: ThreadsViewProps) {
           closing={threadMenu.closing}
           initialRenaming={renameOnOpen}
           onAction={(action) => props.onThreadAction(menuThread, action)}
+          {...(props.onContinueInProvider
+            ? { onContinueInProvider: props.onContinueInProvider }
+            : {})}
           onNewThreadInWorktree={props.onNewThreadInWorktree}
           onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
           onMoveThreadToWorktree={props.onMoveThreadToWorktree}

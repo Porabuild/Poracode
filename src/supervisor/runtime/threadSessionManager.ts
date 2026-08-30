@@ -183,6 +183,13 @@ export class ThreadSessionManager {
           segments,
           requestedItemId,
         ),
+      emitProviderHandoff: (threadId, fromAgentKind, toAgentKind, requestedItemId) =>
+        this.structuredTurnQueue.emitProviderHandoff(
+          threadId,
+          fromAgentKind,
+          toAgentKind,
+          requestedItemId,
+        ),
     });
     this.invalidSessionRecovery = new InvalidSessionRecoveryCoordinator({
       spawnPipeline: this.spawnPipeline,
@@ -500,6 +507,10 @@ export class ThreadSessionManager {
     const threadId = payload.threadId ?? randomUUID();
     const pending = this.startLocks.get(threadId);
     if (pending) {
+      if (payload.providerSwitch) {
+        await pending;
+        return this.startThread(payload);
+      }
       return { threadId };
     }
     this.recentlyRemovedThreadIds.delete(threadId);

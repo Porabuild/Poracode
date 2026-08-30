@@ -132,6 +132,9 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       target: schema.threads.id,
       set: {
         title: thread.title,
+        // Mutable: a thread can be switched to another provider in place,
+        // keeping its id and transcript.
+        agentKind: thread.agentKind,
         agentInstanceId: thread.agentInstanceId ?? null,
         config: JSON.stringify(thread.config),
         status: thread.status,

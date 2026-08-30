@@ -301,6 +301,41 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
+  it("persists a provider handoff divider and keeps it out of the turn anchor", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        itemType: "assistant_message",
+        payload: { content: [{ kind: "text", text: "Answer from the first provider" }] },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "assistant-1" },
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "handoff-1",
+        itemType: "provider_handoff",
+        payload: {
+          fromAgentKind: "claude",
+          toAgentKind: "copilot",
+          at: "2026-08-29T00:00:00.000Z",
+        },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "handoff-1" },
+    ]);
+
+    const items = dbGetThreadRuntimeItems("thread-1");
+    expect(items.map((item) => item.type)).toEqual(["assistant_message", "provider_handoff"]);
+    expect(items.at(-1)?.payload).toMatchObject({
+      fromAgentKind: "claude",
+      toAgentKind: "copilot",
+    });
+    // The divider records no work, so a completed turn must still hang off the
+    // assistant row that produced it.
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
+  });
+
   it("retires a still-open request item when the turn completes", () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {

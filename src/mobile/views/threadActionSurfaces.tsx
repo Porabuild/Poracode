@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Archive,
+  ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
@@ -13,12 +14,26 @@ import {
   Terminal,
   Trash2,
 } from "lucide-react";
-import type { Project, ProjectAction, Thread } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  Project,
+  ProjectAction,
+  Thread,
+  ThreadConfig,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
+import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import {
+  rankContinueProviders,
+  resolveInitialPresentationMode,
+} from "@/shared/continueProviderRanking";
+import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { BottomSheet } from "../components";
 import { worktreeBranchOf, worktreeSiblingIds } from "../threadUtils";
-import type { ThreadAction } from "../useRemoteDesktop";
+import type { ContinueProviderInput, ThreadAction } from "../useRemoteDesktop";
 import { groupEntryTitle, type GroupEntry } from "./threadGrouping";
 
 export interface ThreadActionCallbacks {
@@ -40,12 +55,100 @@ export interface ThreadActionCallbacks {
     readonly worktreePath?: string;
     readonly sourceThreadId?: string;
   }) => void;
+  /** Continue the thread under another provider on its host (switch or fork). */
+  readonly onContinueInProvider?:
+    | ((thread: Thread, input: ContinueProviderInput) => void)
+    | undefined;
   readonly onRunProjectAction: (input: {
     readonly projectId: string;
     readonly actionId: string;
     readonly worktreePath?: string;
     readonly sourceThreadId?: string;
   }) => void;
+}
+
+/**
+ * Ranked "continue elsewhere" targets for a thread: the host's installed
+ * agents minus the thread's own, ordered by the user's actual usage so the
+ * realistic pick sits on top. Mirrors the desktop dialog's proposal.
+ */
+function useContinueProviderTargets(thread: Thread, project: Project | undefined) {
+  const statuses = useProjectAgentStatuses(project?.location);
+  const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
+  const agentSelectionUsage = useSharedSettings((s) => s.agentSelectionUsage);
+  const crossagentSelectionUsage = useSharedSettings((s) => s.crossagentSelectionUsage);
+  const crossagentRoutingOverrides = useSharedSettings((s) => s.crossagentRoutingOverrides);
+  const favoriteModels = useSharedSettings((s) => s.favoriteModels);
+  const sourceMode = thread.presentationMode ?? "terminal";
+  const others = statuses.filter((s) => s.installed && s.kind !== thread.agentKind);
+  const ranked = rankContinueProviders(
+    others,
+    lastPresentationModeByAgent,
+    sourceMode,
+    crossagentRankingPreferences({
+      agentSelectionUsage,
+      crossagentSelectionUsage,
+      crossagentRoutingOverrides,
+      favoriteModels,
+    }),
+  );
+  const order = new Map(ranked.map((entry, index) => [entry.provider, index]));
+  const targets = [...others].sort(
+    (a, b) => (order.get(a.kind) ?? others.length) - (order.get(b.kind) ?? others.length),
+  );
+  const configFor = (agent: AgentStatus): ThreadConfig => {
+    const selection = ranked.find((entry) => entry.provider === agent.kind)?.preferredSelection;
+    const model = selection?.model ?? agent.capabilities.models[0]?.id ?? "";
+    return {
+      model,
+      ...(selection?.effort ? { effort: selection.effort } : {}),
+      ...(selection?.fast ? { fast: true } : {}),
+    };
+  };
+  const presentationFor = (agent: AgentStatus): ThreadPresentationMode =>
+    resolveInitialPresentationMode(agent, lastPresentationModeByAgent, sourceMode);
+  return { targets, configFor, presentationFor };
+}
+
+function ContinueProviderPage(props: {
+  readonly fork: boolean;
+  readonly targets: readonly AgentStatus[];
+  readonly configFor: (agent: AgentStatus) => ThreadConfig;
+  readonly onBack: () => void;
+  readonly onPick: (agent: AgentStatus) => void;
+}) {
+  const { t } = useLingui();
+
+  return (
+    <>
+      <div className="m-sheet-head">
+        <span className="truncate">
+          {props.fork ? t`Fork to another provider` : t`Continue in another provider`}
+        </span>
+      </div>
+      <div className="m-sheet-list">
+        <button type="button" className="m-sheet-action" onClick={props.onBack}>
+          <ChevronLeft className="size-4 shrink-0 text-muted" />
+          <span>{t`Back`}</span>
+        </button>
+        {props.targets.map((agent) => (
+          <button
+            type="button"
+            key={agent.kind}
+            className="m-sheet-action"
+            onClick={() => props.onPick(agent)}
+          >
+            <span className="flex-1 truncate">
+              {agent.label}
+              <span className="block truncate text-xs text-muted">
+                {props.configFor(agent).model}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
 }
 
 function RunActionsPage(props: {
@@ -142,6 +245,7 @@ export function ThreadActionsSheet(props: {
   readonly closing?: boolean;
   readonly initialRenaming?: boolean;
   readonly onAction: (action: ThreadAction) => void;
+  readonly onContinueInProvider?: ThreadActionCallbacks["onContinueInProvider"];
   readonly onNewThreadInWorktree: ThreadActionCallbacks["onNewThreadInWorktree"];
   readonly onDeleteWorktreeGroup: ThreadActionCallbacks["onDeleteWorktreeGroup"];
   readonly onMoveThreadToWorktree: ThreadActionCallbacks["onMoveThreadToWorktree"];
@@ -152,8 +256,11 @@ export function ThreadActionsSheet(props: {
   const { thread } = props;
   const { t } = useLingui();
   const [renaming, setRenaming] = useState(props.initialRenaming ?? false);
-  const [submenu, setSubmenu] = useState<"run" | "move" | null>(null);
+  const [submenu, setSubmenu] = useState<"run" | "move" | "continue" | "fork-provider" | null>(
+    null,
+  );
   const runActions = props.project?.scripts?.actions ?? [];
+  const continueTargets = useContinueProviderTargets(thread, props.project);
 
   const act = (action: ThreadAction) => {
     props.onAction(action);
@@ -191,6 +298,25 @@ export function ThreadActionsSheet(props: {
               onPick={(withChanges) =>
                 runAndClose(() => props.onMoveThreadToWorktree(thread, withChanges))
               }
+            />
+          ) : submenu === "continue" || submenu === "fork-provider" ? (
+            <ContinueProviderPage
+              fork={submenu === "fork-provider"}
+              targets={continueTargets.targets}
+              configFor={continueTargets.configFor}
+              onBack={() => setSubmenu(null)}
+              onPick={(agent) => {
+                const fork = submenu === "fork-provider";
+                if (!props.onContinueInProvider) return;
+                runAndClose(() =>
+                  props.onContinueInProvider?.(thread, {
+                    targetAgentKind: agent.kind,
+                    targetConfig: continueTargets.configFor(agent),
+                    targetPresentationMode: continueTargets.presentationFor(agent),
+                    fork,
+                  }),
+                );
+              }}
             />
           ) : (
             <RunActionsPage
@@ -245,6 +371,28 @@ export function ThreadActionsSheet(props: {
                   <span className="flex-1">{t`Move to Worktree`}</span>
                   <ChevronRight className="size-4 shrink-0 text-muted" />
                 </button>
+              ) : null}
+              {props.onContinueInProvider && continueTargets.targets.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="m-sheet-action"
+                    onClick={() => setSubmenu("continue")}
+                  >
+                    <ArrowRightLeft className="size-4 shrink-0 text-muted" />
+                    <span className="flex-1">{t`Continue in...`}</span>
+                    <ChevronRight className="size-4 shrink-0 text-muted" />
+                  </button>
+                  <button
+                    type="button"
+                    className="m-sheet-action"
+                    onClick={() => setSubmenu("fork-provider")}
+                  >
+                    <GitFork className="size-4 shrink-0 text-muted" />
+                    <span className="flex-1">{t`Fork to another provider`}</span>
+                    <ChevronRight className="size-4 shrink-0 text-muted" />
+                  </button>
+                </>
               ) : null}
               {runActions.length > 0 ? (
                 <button type="button" className="m-sheet-action" onClick={() => setSubmenu("run")}>

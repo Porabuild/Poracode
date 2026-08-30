@@ -14,13 +14,14 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useProject, useThread } from "@/renderer/state/useThread";
+import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import type { RemoteTerminalTransport } from "@/renderer/components/thread/TerminalPane";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
 import {
-  useInstalledAgents,
+  useThreadAgentStatuses,
   useProjectAgentStatuses,
   useThreadPendingLaunch,
 } from "@/renderer/hooks/uiSelectors";
@@ -42,7 +43,7 @@ export function ThreadPane(props: {
     targetPresentationMode: ThreadPresentationMode,
     prompt: string,
     segments: PromptSegment[] | undefined,
-    closeOriginal: boolean,
+    intent: ContinueIntent,
     extractedContext: ExtractContextResult | null,
   ) => void;
 }) {
@@ -51,7 +52,10 @@ export function ThreadPane(props: {
     thread?.groupId ? state.experiments[thread.groupId] : undefined,
   );
   const project = useProject(thread?.projectId);
-  const installedAgents = useInstalledAgents();
+  const installedAgents = useThreadAgentStatuses({
+    remoteServerId: thread?.remoteServerId,
+    projectLocation: project?.location,
+  });
   const projectAgentStatuses = useProjectAgentStatuses(project?.location);
   const remoteRuntime = useRemoteServersStore((state) =>
     thread?.remoteServerId ? state.runtime[thread.remoteServerId] : undefined,
@@ -69,6 +73,7 @@ export function ThreadPane(props: {
     prompt: pendingLaunchPrompt,
     segments: pendingLaunchSegments,
     userMessageItemId: pendingLaunchUserMessageItemId,
+    providerSwitch: pendingLaunchProviderSwitch,
   } = useThreadPendingLaunch(props.threadId);
   const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = useAppStore.getState();
 
@@ -177,7 +182,8 @@ export function ThreadPane(props: {
       {...(pendingLaunchPrompt !== undefined ? { pendingLaunchPrompt } : {})}
       {...(pendingLaunchSegments ? { pendingLaunchSegments } : {})}
       {...(pendingLaunchUserMessageItemId ? { pendingLaunchUserMessageItemId } : {})}
-      installedAgents={thread.remoteServerId ? effectiveAgentStatuses : installedAgents}
+      {...(pendingLaunchProviderSwitch ? { pendingLaunchProviderSwitch } : {})}
+      installedAgents={installedAgents}
       {...(thread.remoteServerId
         ? {
             canShowProjectEntryInExplorer: false,
@@ -187,8 +193,8 @@ export function ThreadPane(props: {
         : {})}
       {...(saveRemoteClipboardImage ? { saveClipboardImage: saveRemoteClipboardImage } : {})}
       onContinueInProvider={
-        props.onContinueInProvider && !thread.remoteServerId
-          ? (targetKind, tConfig, targetPresentationMode, prompt, segments, closeOrig, ctx) => {
+        props.onContinueInProvider
+          ? (targetKind, tConfig, targetPresentationMode, prompt, segments, intent, ctx) => {
               props.onContinueInProvider?.(
                 thread,
                 targetKind,
@@ -196,7 +202,7 @@ export function ThreadPane(props: {
                 targetPresentationMode,
                 prompt,
                 segments,
-                closeOrig,
+                intent,
                 ctx,
               );
             }

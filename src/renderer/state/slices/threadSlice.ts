@@ -99,6 +99,14 @@ export interface ThreadSlice {
     input: {
       status: ThreadStatus;
       attention: ThreadAttention;
+      /**
+       * Provider that owns the emitting session. When it disagrees with the
+       * thread's current provider the update is a straggler from a session the
+       * thread has already been switched away from, so its `sessionRef` is
+       * dropped rather than merged. Absent on updates with no session behind
+       * them (and from hosts predating the field), which stay unfiltered.
+       */
+      agentKind?: string;
       config?: ThreadConfig;
       /** Undefined preserves the current snapshot; null clears an authoritative snapshot. */
       launchConfig?: ThreadConfig | null;
@@ -108,6 +116,22 @@ export interface ThreadSlice {
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
       errorMessage?: string;
+    },
+  ) => void;
+  /**
+   * Reassign a live thread to a different provider in place, keeping its id,
+   * title, and transcript. Unlike `updateThreadRuntime` this deliberately
+   * clears `sessionRef`: the monotonic merge there can only ever adopt a newer
+   * ref, and shipping the old provider's session id to the new adapter would
+   * make it try to resume a session that is not its own.
+   */
+  applyProviderSwitch: (
+    threadId: string,
+    input: {
+      agentKind: string;
+      agentInstanceId?: string;
+      config: ThreadConfig;
+      presentationMode: ThreadPresentationMode;
     },
   ) => void;
   archiveThread: (threadId: string) => void;
@@ -251,6 +275,72 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     recordThreadStarted(thread);
     return thread;
   },
+  applyProviderSwitch: (threadId, input) =>
+    set((state) => {
+      const now = new Date().toISOString();
+      let changed = false;
+      const threads = state.threads.map((thread): Thread => {
+        if (thread.id !== threadId) return thread;
+        changed = true;
+        // Everything dropped here belongs to the provider being left behind:
+        // its session, its instance, its slash commands, and any error it
+        // failed with. Only the thread's identity and transcript carry over.
+        const {
+          sessionRef: _clearedSessionRef,
+          agentInstanceId: _clearedInstanceId,
+          slashCommands: _clearedSlashCommands,
+          errorMessage: _clearedError,
+          doneAt: _clearedDoneAt,
+          threadStatusSource: _clearedStatusSource,
+          ...rest
+        } = thread;
+        return {
+          ...rest,
+          agentKind: input.agentKind,
+          ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
+          config: input.config,
+          presentationMode: input.presentationMode,
+          ...(input.presentationMode !== "terminal"
+            ? { threadStatusSource: "server" as ThreadStatusSource }
+            : {}),
+          status: "launching" as ThreadStatus,
+          attention: "none" as ThreadAttention,
+          canResumeWithConfig: false,
+          done: false,
+          updatedAt: now,
+          activeTurnStartedAt: now,
+        };
+      });
+      if (!changed) return {};
+      // The old provider's authoritative launch snapshot describes a session
+      // that no longer exists; drop it so the new provider's first launch owns it.
+      const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
+        state.runtimeLaunchConfigByThreadId;
+      // Any approval or user-input prompt still open belongs to the session
+      // being abandoned. Nothing resolves it once that session is gone, so
+      // leaving it would block the pane on an answer no agent is waiting for.
+      const { [threadId]: _droppedRequests, ...runtimeRequestsByThread } =
+        state.runtimeRequestsByThread;
+      // Context usage is merged, not replaced, so an old window size the new
+      // provider never reports would survive mixed into its numbers — a 200k
+      // Claude window rendered under a Codex thread.
+      const { [threadId]: _droppedContext, ...runtimeContextByThread } =
+        state.runtimeContextByThread;
+      // A steer staged against the abandoned session has nothing left to
+      // consume it; no `thread-reset` is emitted on this path to clear it.
+      const { [threadId]: _droppedSteer, ...pendingSteerByThreadId } = state.pendingSteerByThreadId;
+      return {
+        threads,
+        runtimeLaunchConfigByThreadId,
+        ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),
+        ...(state.runtimeContextByThread[threadId] ? { runtimeContextByThread } : {}),
+        ...(state.pendingSteerByThreadId[threadId] ? { pendingSteerByThreadId } : {}),
+        lastRuntimeConfigByThreadId: {
+          ...state.lastRuntimeConfigByThreadId,
+          [threadId]: input.config,
+        },
+      };
+    }),
   deleteThread: (threadId) =>
     set((state) => {
       clearRuntimeStructuralChangeHint(threadId);
@@ -365,6 +455,14 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     }),
   updateThreadRuntime: (threadId, input) =>
     set((state) => {
+      const currentThread = state.threads.find((thread) => thread.id === threadId);
+      if (
+        currentThread &&
+        input.agentKind !== undefined &&
+        input.agentKind !== currentThread.agentKind
+      ) {
+        return {};
+      }
       let changed = false;
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
