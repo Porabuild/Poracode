@@ -31,6 +31,7 @@ export function createNodeHttpClient(): HttpClient {
             : req.body !== undefined
               ? { body: req.body }
               : {}),
+          ...(req.redirect ? { redirect: req.redirect } : {}),
           signal: controller.signal,
         });
         const bodyBytes = new Uint8Array(await res.arrayBuffer());
