@@ -26,6 +26,14 @@ function addColumnIfMissing(
   }
 }
 
+function createRuntimeItemParentIndex(sqlite: SqliteDatabase): void {
+  addColumnIfMissing(sqlite, "thread_runtime_items", "parent_item_id", "TEXT");
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_parent " +
+      "ON thread_runtime_items (thread_id, parent_item_id)",
+  );
+}
+
 function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string): void {
   const rows = sqlite
     .prepare(`SELECT rowid AS rowid, ${column} AS json FROM ${table} WHERE ${column} IS NOT NULL`)
@@ -464,6 +472,11 @@ export const DATABASE_MIGRATIONS = [
     // behavior instead of vanishing from sidebars.
     migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "workspace_id", "TEXT"),
   },
+  {
+    version: 38,
+    name: "runtime item parent index",
+    migrate: createRuntimeItemParentIndex,
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -553,6 +566,7 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     for (const [table, column, definition] of SAFE_COLUMN_REPAIRS) {
       addColumnIfMissing(sqlite, table, column, definition);
     }
+    createRuntimeItemParentIndex(sqlite);
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );

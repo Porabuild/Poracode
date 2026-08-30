@@ -42,8 +42,9 @@ describe("database migration registry", () => {
       [35, "threads.archived_at"],
       [36, "runtime item stream chunks"],
       [37, "threads.workspace_id"],
+      [38, "runtime item parent index"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(37);
+    expect(LATEST_SCHEMA_VERSION).toBe(38);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
