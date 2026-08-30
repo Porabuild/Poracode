@@ -1080,6 +1080,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     disabledAgents: state.disabledAgents,
     providerOrder: state.providerOrder,
     acpRegistryInstalledAgents: state.acpRegistryInstalledAgents,
+    acpRegistryAutoInstallOptOuts: state.acpRegistryAutoInstallOptOuts,
     agentInstances: state.agentInstances,
     collapseTerminalComposer: state.collapseTerminalComposer,
     cliPickerTarget: state.cliPickerTarget,

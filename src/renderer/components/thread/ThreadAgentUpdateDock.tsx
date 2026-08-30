@@ -13,6 +13,8 @@ import { runAgentInstallCommand } from "@/renderer/actions/agentLoginActions";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { getComposerRuntimeUpdate } from "@/renderer/components/providers/providerComposer";
+import { CombinedRuntimeVersionList } from "@/renderer/components/providers/CombinedRuntimeVersionList";
+import { useCombinedProviderRuntimeUpdates } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import {
   currentWslDistros,
   envLabelForStatus,
@@ -27,8 +29,8 @@ import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
  * (Windows for Windows projects, the matching WSL distro for WSL projects), so
  * a draft against a WSL project never offers to update the Windows binary —
  * and vice versa. Providers with independently versioned composer runtimes can
- * register a runtime-specific probe and update command; otherwise this uses the
- * provider binary metadata on `AgentStatus`.
+ * register runtime-specific or combined-runtime probes and update commands;
+ * otherwise this uses the provider binary metadata on `AgentStatus`.
  *
  * Mirrors `ThreadAuthRequiredDock` in pattern. Hidden when:
  *   - The agent is not installed in the project's env.
@@ -49,6 +51,8 @@ export function ThreadAgentUpdateDock(props: {
     { updateKey: string; version: string | undefined } | undefined
   >(undefined);
   const [pending, setPending] = useState(false);
+  const combinedUpdates = useCombinedProviderRuntimeUpdates([agentStatus]);
+  const combinedEntry = combinedUpdates.entryFor(agentStatus);
 
   const registryAgentId = extractAcpGenericInstanceId(agentStatus.kind);
   const runtimeUpdate = getComposerRuntimeUpdate(agentStatus.kind)?.({ agentStatus, project });
@@ -61,6 +65,7 @@ export function ThreadAgentUpdateDock(props: {
   const runtimeUpdateHandled = runtimeUpdate !== undefined;
 
   useEffect(() => {
+    if (combinedEntry.supported) return;
     if (registryAgentId) return;
     if (!installed || !installedVersion) return;
     if (runtimeUpdateHandled && !npmPackageName) return;
@@ -96,6 +101,7 @@ export function ThreadAgentUpdateDock(props: {
     };
   }, [
     agentStatus.kind,
+    combinedEntry.supported,
     installed,
     installedVersion,
     npmPackageMaxExclusiveMajor,
@@ -112,11 +118,56 @@ export function ThreadAgentUpdateDock(props: {
     latestVersion && latestVersion.updateKey === updateKey ? latestVersion.version : undefined;
 
   const isOutdated =
+    !combinedEntry.supported &&
     registryAgentId === undefined &&
     installed &&
     resolvedLatest !== undefined &&
     installedVersion !== undefined &&
     isNewerVersion(resolvedLatest, installedVersion);
+
+  useEffect(() => {
+    if (!combinedEntry.supported) {
+      onUpdatingChange?.(false);
+      return;
+    }
+    onUpdatingChange?.(combinedEntry.pending);
+    return () => onUpdatingChange?.(false);
+  }, [combinedEntry.pending, combinedEntry.supported, onUpdatingChange]);
+
+  if (combinedEntry.supported) {
+    if (!combinedEntry.updateAvailable) return null;
+    return (
+      <ThreadDockSection
+        placement="composer"
+        collapsed={false}
+        ariaLabel={t`Agent update available`}
+      >
+        <ThreadDockHeader
+          icon={Download}
+          iconClassName="text-foreground"
+          title={t`Update available`}
+          actions={
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 min-w-0 px-2 text-xs text-foreground"
+              isDisabled={combinedEntry.pending}
+              isPending={combinedEntry.pending}
+              onPress={() => void combinedUpdates.updateStatus(agentStatus)}
+            >
+              {combinedEntry.pending ? (
+                <PixelLoader size="xs" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+              <Trans>Update</Trans>
+            </Button>
+          }
+        />
+        <CombinedRuntimeVersionList entry={combinedEntry} className="px-7 pb-1.5 text-[11px]" />
+      </ThreadDockSection>
+    );
+  }
 
   if (!isOutdated || !resolvedLatest || !installedVersion) {
     return null;

@@ -2,6 +2,7 @@ import type {
   AgentEnvVarAuthMethod,
   AgentOwnedAuthMethod,
   AgentStatus,
+  AgentStatusesResponse,
   AgentTerminalAuthMethod,
   Project,
   RefreshAgentScopeEnv,
@@ -88,6 +89,20 @@ export function scopeEnvForStatus(status: AgentStatus): RefreshAgentScopeEnv {
   return status.envKind === "wsl" && status.envDistro
     ? { kind: "wsl", distro: status.envDistro }
     : { kind: "native" };
+}
+
+/** Pick one kind's status out of a refresh response for a native/WSL target. */
+export function findStatusForTarget(
+  response: AgentStatusesResponse | undefined,
+  kind: string,
+  target: RefreshAgentScopeEnv,
+): AgentStatus | undefined {
+  if (!response) return undefined;
+  return target.kind === "wsl"
+    ? response.wsl.find(
+        (candidate) => candidate.kind === kind && candidate.envDistro === target.distro,
+      )
+    : response.windows.find((candidate) => candidate.kind === kind);
 }
 
 export function statusUpdateScope(status: AgentStatus): {

@@ -838,7 +838,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.sessionConfigSync.rememberOptions([], []);
 
     if (sessionRef) {
-      if (this.agentSessionCapabilities?.resume !== undefined) {
+      if (this.agentSessionCapabilities?.resume != null) {
         console.log("[acp] resuming session:", sessionRef.providerSessionId);
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
@@ -1177,6 +1177,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private reportTransportOutcome(errorMessage: string | undefined): void {
     if (this.transportOutcomeReported) return;
     this.transportOutcomeReported = true;
+    this.sessionRequests.cancelPending();
     if (errorMessage) {
       this.listener?.onError(errorMessage);
     }

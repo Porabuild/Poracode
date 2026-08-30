@@ -178,6 +178,196 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetThread("thread-1")?.workspaceId).toBeUndefined();
   });
 
+  it("adopts generic Antigravity ACP threads during the v38 migration", () => {
+    dbUpsertThread(
+      testThread({
+        agentKind: "acp-generic:antigravity-acp",
+        agentInstanceId: "antigravity-acp",
+        presentationMode: "gui",
+      }),
+      0,
+    );
+    getSqlite()
+      .prepare(
+        `INSERT INTO scheduled_tasks
+          (id, name, prompt, agent_kind, config, recurrence, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "schedule-antigravity",
+        "Antigravity",
+        "Run",
+        "acp-generic:antigravity-acp",
+        JSON.stringify({ model: "gemini" }),
+        JSON.stringify({ type: "daily", hour: 9, minute: 0 }),
+        "2026-08-01T00:00:00.000Z",
+        "2026-08-01T00:00:00.000Z",
+      );
+    getSqlite()
+      .prepare(
+        `INSERT INTO pr_watches (project_id, pr_number, head_branch, agent_kind, config)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "project-1",
+        42,
+        "feature",
+        "acp-generic:antigravity-acp",
+        JSON.stringify({ model: "gemini" }),
+      );
+    getSqlite()
+      .prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?")
+      .run(
+        JSON.stringify({ agentKind: "acp-generic:antigravity-acp", model: "gemini-3-pro" }),
+        "project-1",
+      );
+    getSqlite()
+      .prepare(
+        `INSERT INTO scheduled_tasks
+          (id, name, prompt, agent_kind, config, recurrence, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "schedule-antigravity-v39",
+        "Antigravity",
+        "Run",
+        "antigravity",
+        JSON.stringify({ model: "gemini-3.5-flash-low" }),
+        JSON.stringify({ type: "daily", hour: 9, minute: 0 }),
+        "2026-08-01T00:00:00.000Z",
+        "2026-08-01T00:00:00.000Z",
+      );
+    getSqlite()
+      .prepare(
+        `INSERT INTO pr_watches (project_id, pr_number, head_branch, agent_kind, config)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "project-1",
+        43,
+        "feature-v39",
+        "antigravity",
+        JSON.stringify({ model: "gemini-3.5-flash-low" }),
+      );
+    dbSetState("schema_version", "37");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetThread("thread-1")).toMatchObject({
+      agentKind: "antigravity",
+      presentationMode: "gui",
+    });
+    expect(dbGetThread("thread-1")?.agentInstanceId).toBeUndefined();
+    expect(dbGetProject("project-1")?.lastDraftConfig).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3-pro",
+      presentationMode: "gui",
+    });
+    expect(
+      JSON.parse(
+        (
+          getSqlite()
+            .prepare("SELECT config FROM scheduled_tasks WHERE id = ?")
+            .get("schedule-antigravity-v39") as { config: string }
+        ).config,
+      ),
+    ).toMatchObject({ model: "gemini-3.5-flash", effort: "Medium" });
+    expect(
+      JSON.parse(
+        (
+          getSqlite()
+            .prepare("SELECT config FROM pr_watches WHERE project_id = ? AND pr_number = ?")
+            .get("project-1", 43) as { config: string }
+        ).config,
+      ),
+    ).toMatchObject({ model: "gemini-3.5-flash", effort: "Medium" });
+    expect(
+      getSqlite()
+        .prepare("SELECT agent_kind FROM scheduled_tasks WHERE id = ?")
+        .get("schedule-antigravity"),
+    ).toEqual({ agent_kind: "antigravity" });
+    expect(
+      getSqlite()
+        .prepare("SELECT agent_kind FROM pr_watches WHERE project_id = ? AND pr_number = ?")
+        .get("project-1", 42),
+    ).toEqual({ agent_kind: "antigravity" });
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("normalizes persisted Antigravity ACP model variants during the v39 migration", () => {
+    dbUpsertThread(
+      testThread({
+        agentKind: "antigravity",
+        config: { model: "gemini-3.7-flash-high" },
+        presentationMode: "gui",
+      }),
+      0,
+    );
+    dbUpsertThread(
+      testThread({
+        id: "terminal-thread",
+        agentKind: "antigravity",
+        config: { model: "gemini-3.5-flash-low", effort: "Low" },
+        presentationMode: "terminal",
+      }),
+      0,
+    );
+    getSqlite()
+      .prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?")
+      .run(
+        JSON.stringify({
+          agentKind: "antigravity",
+          model: "gemini-3-flash-agent",
+          presentationMode: "gui",
+        }),
+        "project-1",
+      );
+    dbSetState("schema_version", "38");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetThread("thread-1")?.config).toMatchObject({
+      model: "gemini-3.7-flash",
+      effort: "High",
+    });
+    expect(dbGetThread("terminal-thread")?.config).toMatchObject({
+      model: "gemini-3.5-flash-low",
+      effort: "Low",
+    });
+    expect(dbGetProject("project-1")?.lastDraftConfig).toMatchObject({
+      model: "gemini-3.5-flash",
+      effort: "High",
+      presentationMode: "gui",
+    });
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("repairs Antigravity project drafts for databases that already recorded v39", () => {
+    getSqlite()
+      .prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?")
+      .run(
+        JSON.stringify({
+          agentKind: "antigravity",
+          model: "gemini-3-flash-agent",
+          presentationMode: "gui",
+        }),
+        "project-1",
+      );
+    dbSetState("schema_version", "39");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetProject("project-1")?.lastDraftConfig).toMatchObject({
+      model: "gemini-3.5-flash",
+      effort: "High",
+      presentationMode: "gui",
+    });
+    expect(dbGetState("schema_version")).toBe("40");
+  });
+
   it("round-trips project MCP servers through the projects table", () => {
     dbUpsertProject(
       {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { readBridge } from "@/renderer/bridge";
 import type { PromptSegment } from "@/shared/contracts";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
-import { fileNameFromPath, isImagePath, toLocalFileUrl } from "@/shared/promptContent";
+import { fileNameFromPath, isImagePath, mimeForPath, toLocalFileUrl } from "@/shared/promptContent";
 
 export interface Attachment {
   id: string;
@@ -52,31 +52,6 @@ export function storableAttachment(attachment: Attachment): Attachment {
   return rest;
 }
 
-const MIME_BY_EXT: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  webp: "image/webp",
-  svg: "image/svg+xml",
-  bmp: "image/bmp",
-  ico: "image/x-icon",
-  avif: "image/avif",
-  pdf: "application/pdf",
-  txt: "text/plain",
-  json: "application/json",
-  md: "text/markdown",
-};
-
-function getExtension(name: string): string {
-  const dot = name.lastIndexOf(".");
-  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
-}
-
-function inferMimeType(name: string): string | undefined {
-  return MIME_BY_EXT[getExtension(name)];
-}
-
 export type SaveClipboardImage = (input: {
   threadId: string;
   data: Uint8Array;
@@ -113,7 +88,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   function addFiles(paths: string[]) {
     const newAttachments = paths.map((path): Attachment => {
       const name = fileNameFromPath(path);
-      const mimeType = inferMimeType(name);
+      const mimeType = mimeForPath(name);
       return {
         id: crypto.randomUUID(),
         path,

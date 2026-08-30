@@ -141,3 +141,40 @@ describe("profile agent registry", () => {
     ).toBeUndefined();
   });
 });
+
+describe("first-class ACP registry aliases", () => {
+  it("adopts antigravity-acp into the built-in adapter without a duplicate generic provider", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "antigravity-acp",
+        driver: "acp-generic",
+        displayName: "Google Antigravity",
+        version: "1.0.0",
+        config: { binary: "agy_acp_server.par", args: ["--uid="] },
+      },
+    ]);
+
+    expect(adapters.filter((adapter) => adapter.kind === "antigravity")).toHaveLength(1);
+    expect(adapters.some((adapter) => adapter.kind === "acp-generic:antigravity-acp")).toBe(false);
+    expect(adapters.find((adapter) => adapter.kind === "antigravity")).toMatchObject({
+      firstClassAcpRegistryId: "antigravity-acp",
+      capabilities: { presentationModes: ["terminal", "gui"] },
+    });
+  });
+
+  it("does not enable Chat from a disabled antigravity-acp instance", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "antigravity-acp",
+        driver: "acp-generic",
+        enabled: false,
+        config: { binary: "agy_acp_server.par" },
+      },
+    ]);
+
+    expect(adapters.find((adapter) => adapter.kind === "antigravity")?.capabilities).toMatchObject({
+      presentationModes: ["terminal"],
+    });
+    expect(adapters.some((adapter) => adapter.kind === "acp-generic:antigravity-acp")).toBe(false);
+  });
+});

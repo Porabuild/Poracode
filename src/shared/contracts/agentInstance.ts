@@ -99,10 +99,16 @@ export function extractAcpGenericInstanceId(kind: string): string | undefined {
   return kindInstanceId(kind, ACP_GENERIC_KIND_PREFIX);
 }
 
-export const acpGenericInstanceConfigSchema = z.object({
+export const acpGenericCommandConfigSchema = z.object({
   /** Absolute path or PATH-resolvable command name (e.g. `npx @zed-industries/codex-acp`). */
   binary: z.string().min(1),
   args: z.array(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+  version: z.string().optional(),
+});
+export type AcpGenericCommandConfig = z.infer<typeof acpGenericCommandConfigSchema>;
+
+export const acpGenericInstanceConfigSchema = acpGenericCommandConfigSchema.extend({
   /** "project" → use the thread's project cwd; "fixed" → use `fixedCwd`. */
   cwd: z.enum(["project", "fixed"]).default("project"),
   fixedCwd: z.string().optional(),
@@ -113,6 +119,16 @@ export const acpGenericInstanceConfigSchema = z.object({
     .object({
       models: z.array(z.string()).optional(),
       modes: z.array(z.string()).optional(),
+    })
+    .optional(),
+  /**
+   * Registry-managed binary commands installed independently per runtime
+   * environment. Legacy instances omit this and keep using the root command.
+   */
+  environmentCommands: z
+    .object({
+      native: acpGenericCommandConfigSchema.optional(),
+      wsl: z.record(z.string().min(1), acpGenericCommandConfigSchema).optional(),
     })
     .optional(),
 });
@@ -130,6 +146,15 @@ export type AgentInstanceConfigMap = z.infer<typeof agentInstanceConfigMapSchema
 
 export function parseAcpGenericInstanceConfig(value: unknown): AcpGenericInstanceConfig {
   return acpGenericInstanceConfigSchema.parse(value ?? {});
+}
+
+export function acpGenericCommandForEnvironment(
+  config: AcpGenericInstanceConfig,
+  environment: { kind: "native" } | { kind: "wsl"; distro: string },
+): AcpGenericCommandConfig | undefined {
+  const commands = config.environmentCommands;
+  if (!commands) return config;
+  return environment.kind === "wsl" ? commands.wsl?.[environment.distro] : commands.native;
 }
 
 // ── claude profile driver config ────────────────────────────────────────

@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
+import type { AgentCapability } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { RENDERER_PROVIDER_MODULE_PATHS } from "./bootstrap";
 import { getCommitGenDefaults } from "./commitGen";
@@ -88,6 +89,43 @@ describe("renderer provider manifests", () => {
       expect(getConflictResolverDefaults(kind), `${kind} conflict defaults`).toBeDefined();
     }
     expect(getConfigNormalizer("codex")).toBeDefined();
+    expect(getConfigNormalizer("antigravity")).toBeDefined();
     expect(getGuiSlashCommands("codex")).toBeDefined();
+  });
+
+  it("maps Antigravity permission aliases between terminal and ACP runtimes", () => {
+    const normalize = getConfigNormalizer("antigravity")!;
+    const baseCapabilities = {
+      defaultApprovalPolicy: "default",
+    } as AgentCapability;
+
+    expect(
+      normalize({
+        capabilities: {
+          ...baseCapabilities,
+          approvalPolicies: [
+            { id: "default", label: "Default" },
+            { id: "auto_edit", label: "Auto Edit" },
+            { id: "never", label: "YOLO" },
+          ],
+        },
+        config: { model: "gemini-3.7-flash", approvalPolicy: "yolo" },
+        presentationMode: "gui",
+      }),
+    ).toEqual({ approvalPolicy: "never" });
+
+    expect(
+      normalize({
+        capabilities: {
+          ...baseCapabilities,
+          approvalPolicies: [
+            { id: "default", label: "Default" },
+            { id: "yolo", label: "YOLO" },
+          ],
+        },
+        config: { model: "gemini-3.7-flash", approvalPolicy: "never" },
+        presentationMode: "terminal",
+      }),
+    ).toEqual({ approvalPolicy: "yolo" });
   });
 });

@@ -2,11 +2,25 @@ import { describe, expect, it } from "vitest";
 import {
   buildPromptContentBlocks,
   formatDiffCommentPrompt,
+  isAudioPath,
   isPdfPath,
+  mimeForPath,
   resolveLocalFileUrlPath,
   toFileUrl,
   toLocalFileUrl,
 } from "./promptContent";
+
+describe("attachment MIME inference", () => {
+  it("recognizes ACP audio and embedded-resource MIME types", () => {
+    expect(isAudioPath("recording.mp3")).toBe(true);
+    expect(isAudioPath("recording.bin", "audio/flac")).toBe(true);
+    expect(mimeForPath("recording.m4a")).toBe("audio/mp4");
+    expect(mimeForPath("notes.md")).toBe("text/markdown");
+    expect(mimeForPath("component.tsx")).toBe("text/plain");
+    expect(mimeForPath("workflow.yaml")).toBe("text/plain");
+    expect(mimeForPath("brief.pdf")).toBe("application/pdf");
+  });
+});
 
 describe("buildPromptContentBlocks", () => {
   it("keeps text-only prompts as a text block", () => {

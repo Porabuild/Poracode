@@ -12,6 +12,7 @@
  * adapter via `createAcpGenericAdapter`.
  */
 import type { AgentInstanceConfig } from "@/shared/contracts";
+import { ANTIGRAVITY_ACP_REGISTRY_ID } from "@/shared/agents/antigravity";
 import { createAcpGenericAdapter } from "./acp-generic";
 import { createAntigravityAdapter } from "./antigravity";
 import type { AgentAdapter } from "./base";
@@ -40,6 +41,12 @@ export function createAgentRegistry(): AgentAdapter[] {
  * instance's id resolve to its adapter via `kind === "acp-generic:<id>"`.
  */
 export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentAdapter[] {
+  const antigravityAcpInstance = userInstances.find(
+    (instance) =>
+      instance.id === ANTIGRAVITY_ACP_REGISTRY_ID &&
+      instance.driver === "acp-generic" &&
+      instance.enabled !== false,
+  );
   const builtIns = [
     createClaudeAdapter(),
     createCopilotAdapter(),
@@ -50,15 +57,25 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
     createGrokAdapter(),
     createKimiAdapter(),
     createMuseAdapter(),
-    createAntigravityAdapter(),
+    createAntigravityAdapter(antigravityAcpInstance),
     createCommandCodeAdapter(),
     createCursorAdapter(),
     createOpenCodeAdapter(),
     createPiAdapter(),
     createFactoryAdapter(),
   ];
+  const firstClassRegistryIds = new Set(
+    builtIns.flatMap((adapter) =>
+      adapter.firstClassAcpRegistryId ? [adapter.firstClassAcpRegistryId] : [],
+    ),
+  );
   const userAdapters = userInstances
-    .filter((inst) => inst.enabled !== false && inst.driver === "acp-generic")
+    .filter(
+      (inst) =>
+        inst.enabled !== false &&
+        inst.driver === "acp-generic" &&
+        !firstClassRegistryIds.has(inst.id),
+    )
     .map((inst) => createAcpGenericAdapter(inst));
   // One entry per multi-profile provider. Everything else here is generic, so
   // giving a new provider profiles means adding its factory below (and its

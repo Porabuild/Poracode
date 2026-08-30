@@ -64,9 +64,35 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)                          |
 | OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                   |
 | Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                   |
-| Antigravity  | auto (managed by `agy`)                                                  | (none)                                   | terminal              | No                                 |
+| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                           | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`)   |
 | Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                                 |
 | Muse Code    | muse-spark-1.2 / 1.1 / 1.2-contributor                                   | none…ultra                               | terminal              | No (no ACP mode yet; GUI deferred) |
+
+Antigravity is one built-in agent and one registry card with two managed runtime
+prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry
+artifact backs Chat. Install reconciles whichever prerequisite is missing; the
+registry alias is not exposed as a second provider (a pre-adoption
+`installKind: "generic"` install keeps its own registry card so it stays
+updatable and removable). When detection finds the CLI
+in an environment where the artifact is missing, the supervisor installs it for
+that environment in the background (once per environment per session), so chat
+works without a manual second install. Removing the artifact records an opt-out
+in `acpRegistryAutoInstallOptOuts`, so a deliberate removal is never undone; the
+next explicit install clears it. Composer, registry-card, and
+provider-settings update surfaces compare both installed versions with their
+independent latest sources, then one action updates whichever runtimes are stale.
+
+### ACP session ownership
+
+Poracode's persisted threads are the sole conversation list and source of truth.
+Do not call or expose provider-native ACP `session/list`, and do not import a
+provider's independent conversation history, even when the agent advertises the
+capability. This is an intentional product boundary, not missing provider support.
+
+ACP `session/resume` and legacy `session/load` are used only with a provider
+session ID already associated with a Poracode thread. Provider detection may
+advertise resume support, but it must not turn provider session discovery into a
+second thread index.
 
 ## Adding a New Provider — Full Checklist
 
@@ -175,9 +201,8 @@ most often forgotten.
 - [ ] OSC status (title spinner / iTerm2 progress) → `handleOscTitle`/
       `handleOscNotification` (see Grok). Only wire when the CLI actually emits OSC.
 
-> Reference template for a **TUI-only, no-ACP, no-plugin** CLI: `antigravity/`
-> (single managed model) or `commandcode/` (multi-model + npm install/update + a
-> synthesized terminal Login method).
+> Reference template for a **TUI-only, no-ACP, no-plugin** CLI: `commandcode/`
+> (multi-model + npm install/update + a synthesized terminal Login method).
 
 ## Giving a Provider Multiple Profiles
 

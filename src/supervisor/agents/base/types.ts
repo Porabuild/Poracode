@@ -383,6 +383,8 @@ export interface AgentMetadata {
   binary?: string;
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;
+  /** ACP Registry artifact adopted as a runtime of this built-in provider. */
+  firstClassAcpRegistryId?: string;
   spawnEnv?: {
     native?: Record<string, string>;
     wsl?: Record<string, string>;
@@ -580,13 +582,15 @@ export interface OneShotGenerationOptions {
 }
 
 export interface AgentOneShotRunner {
+  /** Explicit child-lane choice when an adapter supports both structured and one-shot execution. */
+  readonly subagentExecutionPreference?: "structured" | "one-shot";
   defaultOneShotModel?: string;
   /** Allow CLI adapters to omit `--model` and use the target environment's own live default. */
   allowsImplicitOneShotModel?: boolean;
   /**
-   * Build a bypass-permissions CLI invocation so an agent WITHOUT a structured
-   * (GUI) runtime can still be spawned as a one-shot subagent child. Implemented
-   * only by CLI-only providers (e.g. Command Code, Antigravity). Distinct from
+   * Build a bypass-permissions CLI invocation so an agent can be spawned as a
+   * one-shot subagent child. Implemented by CLI-only providers and providers
+   * that explicitly retain their CLI child lane. Distinct from
    * {@link buildOneShotCommand} — that lane is read-only title/commit generation
    * and may isolate the cwd; this one runs real work in the project cwd with
    * permissions unlocked.

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { writeItemStreams } from "./runtimeStreamStore";
 
@@ -100,6 +101,72 @@ function repairEmptyThreadModels(sqlite: SqliteDatabase): void {
     if (typeof config.model !== "string" || config.model.trim().length > 0) continue;
     config.model = "auto";
     update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
+function normalizeAntigravityAcpConfigs(sqlite: SqliteDatabase): void {
+  for (const table of ["threads", "scheduled_tasks", "pr_watches"]) {
+    const columns = columnNames(sqlite, table);
+    if (!columns.has("agent_kind") || !columns.has("config")) continue;
+    const rows = sqlite
+      .prepare(
+        `SELECT rowid, config, ${columns.has("presentation_mode") ? "presentation_mode" : "NULL"} AS presentation_mode ` +
+          `FROM ${table} WHERE agent_kind = 'antigravity'`,
+      )
+      .all() as { rowid: number; config: string | null; presentation_mode: string | null }[];
+    const update = sqlite.prepare(`UPDATE ${table} SET config = ? WHERE rowid = ?`);
+    for (const row of rows) {
+      if (!row.config) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(row.config);
+      } catch {
+        continue;
+      }
+      if (!parsed || typeof parsed !== "object") continue;
+      const config = parsed as { model?: unknown; effort?: unknown };
+      if (typeof config.model !== "string") continue;
+      const normalized = normalizePersistedAntigravityModelSelection(
+        config.model,
+        typeof config.effort === "string" ? config.effort : undefined,
+        table !== "threads" || row.presentation_mode === "gui",
+      );
+      if (normalized.model === config.model) continue;
+      config.model = normalized.model;
+      if (normalized.effort) config.effort = normalized.effort;
+      update.run(JSON.stringify(config), row.rowid);
+    }
+  }
+
+  if (!columnNames(sqlite, "projects").has("last_draft_config")) return;
+  const drafts = sqlite
+    .prepare("SELECT id, last_draft_config FROM projects WHERE last_draft_config IS NOT NULL")
+    .all() as { id: string; last_draft_config: string }[];
+  const updateDraft = sqlite.prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?");
+  for (const row of drafts) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.last_draft_config);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const config = parsed as {
+      agentKind?: unknown;
+      model?: unknown;
+      effort?: unknown;
+      presentationMode?: unknown;
+    };
+    if (config.agentKind !== "antigravity" || typeof config.model !== "string") continue;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      config.model,
+      typeof config.effort === "string" ? config.effort : undefined,
+      config.presentationMode === "gui",
+    );
+    if (normalized.model === config.model) continue;
+    config.model = normalized.model;
+    if (normalized.effort) config.effort = normalized.effort;
+    updateDraft.run(JSON.stringify(config), row.id);
   }
 }
 
@@ -463,6 +530,68 @@ export const DATABASE_MIGRATIONS = [
     // same unfiled rule projects use), so pre-upgrade threads keep today's
     // behavior instead of vanishing from sidebars.
     migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "workspace_id", "TEXT"),
+  },
+  {
+    version: 38,
+    name: "adopt Antigravity ACP provider",
+    migrate: (sqlite) => {
+      const legacyKind = "acp-generic:antigravity-acp";
+      const threadColumns = columnNames(sqlite, "threads");
+      if (threadColumns.has("agent_kind")) {
+        sqlite
+          .prepare(
+            threadColumns.has("agent_instance_id")
+              ? "UPDATE threads SET agent_kind = 'antigravity', agent_instance_id = NULL WHERE agent_kind = ?"
+              : "UPDATE threads SET agent_kind = 'antigravity' WHERE agent_kind = ?",
+          )
+          .run(legacyKind);
+      }
+      for (const table of ["scheduled_tasks", "pr_watches"]) {
+        if (columnNames(sqlite, table).has("agent_kind")) {
+          sqlite
+            .prepare(`UPDATE ${table} SET agent_kind = 'antigravity' WHERE agent_kind = ?`)
+            .run(legacyKind);
+        }
+      }
+      // Project drafts remember the last-composed provider/model — the last
+      // persisted copy of the dead kind. Rewriting it keeps every upgraded
+      // project's remembered draft selection instead of silently falling back
+      // to the first installed agent on the next new thread.
+      if (columnNames(sqlite, "projects").has("last_draft_config")) {
+        const selectDrafts = sqlite
+          .prepare("SELECT id, last_draft_config FROM projects WHERE last_draft_config IS NOT NULL")
+          .all() as { id: string; last_draft_config: string }[];
+        const updateDraft = sqlite.prepare(
+          "UPDATE projects SET last_draft_config = ? WHERE id = ?",
+        );
+        for (const row of selectDrafts) {
+          try {
+            const config = JSON.parse(row.last_draft_config) as {
+              agentKind?: unknown;
+            };
+            if (config?.agentKind !== legacyKind) continue;
+            config.agentKind = "antigravity";
+            (config as { presentationMode?: string }).presentationMode = "gui";
+            updateDraft.run(JSON.stringify(config), row.id);
+          } catch {
+            // Unparseable draft config — leave it; readers fall back safely.
+          }
+        }
+      }
+    },
+  },
+  {
+    version: 39,
+    name: "normalize Antigravity ACP model variants",
+    migrate: normalizeAntigravityAcpConfigs,
+  },
+  {
+    version: 40,
+    name: "repair Antigravity persisted model variants",
+    // v39 originally omitted project drafts and could reinterpret the one
+    // ACP/CLI-overlapping 3.5 slug. Re-run the now context-aware repair for
+    // profiles that already recorded schema 39 in a dev or nightly build.
+    migrate: normalizeAntigravityAcpConfigs,
   },
 ] as const satisfies readonly DatabaseMigration[];
 

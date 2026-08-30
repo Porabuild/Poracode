@@ -76,8 +76,10 @@ const execFileAsync = promisify(execFile);
  * before the switch would keep serving a stale deepseek-era picker.
  * v20 resolves per-machine agent-setting overrides (`machineSettings`) into
  * detection, so statuses cached under kind-global settings must be re-probed.
+ * v21 adds Antigravity's independently detected terminal and ACP runtimes and
+ * ACP-probed resume capability, so terminal-only cached statuses are invalid.
  */
-export const STATUS_CACHE_VERSION = 20;
+export const STATUS_CACHE_VERSION = 21;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

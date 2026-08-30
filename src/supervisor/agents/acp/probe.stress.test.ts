@@ -41,6 +41,15 @@ async function waitForFile(path: string): Promise<void> {
 }
 
 describe("probeAcpCapabilities live-process paths", () => {
+  it.each([
+    { env: { FAKE_SESSION_RESUME_CAPABILITY: "1" }, capability: "session/resume" },
+    { env: { FAKE_LOAD_CAPABILITY: "1" }, capability: "session/load" },
+  ] as const)("reports resumability from $capability", async ({ env }) => {
+    const result = await probeWith(env, 3_000);
+
+    expect(result?.supportsResume).toBe(true);
+  });
+
   it("uses initialize._meta.modelState after a successful session handshake", async () => {
     const result = await probeWith({ FAKE_INIT_MODELS: "grok-4.5" }, 3_000);
 

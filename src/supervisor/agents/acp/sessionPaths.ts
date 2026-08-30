@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { RequestError } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
 import { isHomeScopeLocation } from "@/shared/homeScope";
+import { mimeForPath } from "@/shared/promptContent";
 import { toWslUncPath } from "@/shared/wsl";
 
 /**
@@ -223,22 +224,7 @@ export function toAcpResourceUri(location: ProjectLocation, rawPath: string): st
 }
 
 export function guessMimeType(path: string): string {
-  const ext = path.split(".").pop()?.toLowerCase();
-  switch (ext) {
-    case "png":
-      return "image/png";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "gif":
-      return "image/gif";
-    case "webp":
-      return "image/webp";
-    case "svg":
-      return "image/svg+xml";
-    default:
-      return "application/octet-stream";
-  }
+  return mimeForPath(path) ?? "application/octet-stream";
 }
 
 export function sliceTextFileContent(

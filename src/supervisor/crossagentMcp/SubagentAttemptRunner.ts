@@ -2,7 +2,6 @@ import type { RuntimeEvent } from "@/shared/contracts";
 import type { StructuredSessionHandle } from "@/supervisor/agents/base";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
 import type { PreparedSubagentRun, ResolvedSpawnAttempt } from "./spawnPlan";
-import { resolveSubagentExecution } from "./types";
 import type { SubagentRunHost, SubagentRunStatus } from "./types";
 
 export interface AttemptExecutionState {
@@ -33,7 +32,7 @@ export class SubagentAttemptRunner {
     attempt: ResolvedSpawnAttempt,
     callbacks: AttemptCallbacks,
   ): void {
-    if (resolveSubagentExecution(attempt.adapter) === "one-shot") {
+    if (attempt.execution === "one-shot") {
       this.runOneShot(state, attemptIndex, attempt, callbacks);
       return;
     }
