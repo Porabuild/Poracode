@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
@@ -399,6 +400,38 @@ describe("createAntigravityAdapter", () => {
     await adapter.detectInstall();
     expect(resolveSubagentExecution(adapter)).toBe("one-shot");
   });
+
+  it("prefers the structured Chat lane once the ACP runtime is detected", async () => {
+    // `agy -p` cannot forward permissions or take steering mid-run, so a
+    // machine with both runtimes must hand subagents to Chat rather than the
+    // CLI one-shot.
+    vi.mocked(detectAgentInstall).mockResolvedValue({
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: true,
+      version: "1.2.0",
+      authState: "authenticated",
+      executablePath: "/bin/agy",
+      capabilities: defaultAntigravityCapabilities,
+    });
+    const adapter = createAntigravityAdapter({
+      id: "antigravity-acp",
+      driver: "acp-generic",
+      displayName: "Google Antigravity",
+      version: "1.0.0",
+      enabled: true,
+      config: {
+        binary: process.execPath,
+        args: [fileURLToPath(new URL("../acp/fixtures/fake-acp-agent.mjs", import.meta.url))],
+        cwd: "project",
+        authMode: "none",
+      },
+    });
+
+    const status = await adapter.detectInstall();
+    expect(status.runtimeVariants?.acp?.installed).toBe(true);
+    expect(resolveSubagentExecution(adapter)).toBe("structured");
+  }, 70_000);
 
   it("leaves Home launches on agy's projectless default", () => {
     const home: ProjectLocation = { kind: "windows", path: "C:\\Users\\demo" };

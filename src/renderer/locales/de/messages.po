@@ -1935,6 +1935,11 @@ msgstr "Branches"
 msgid "Bring back to panel"
 msgstr "Zurück ins Panel holen"
 
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Bring every {0} runtime up to date"
+msgstr "Alle {0}-Laufzeiten auf den neuesten Stand bringen"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Holen Sie ihn zurück in dieses Panel oder wechseln Sie zum Fenster, in dem er läuft."
@@ -6158,6 +6163,10 @@ msgstr "Installieren Sie {0}, um einen Thread zu erstellen."
 msgid "Install {0}."
 msgstr "Installieren Sie {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Install {badge}"
+msgstr "{badge} installieren"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Install {env}"
 #~ msgstr "Installieren Sie {env}"
@@ -8186,6 +8195,10 @@ msgstr "Auf diesem Computer noch nicht erkannt."
 msgid "Not found"
 msgstr "Nicht gefunden"
 
+#: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
+msgid "not installed"
+msgstr "nicht installiert"
+
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8266,7 +8279,6 @@ msgstr "Nur offizielle Quellen"
 
 #: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Offline"
 msgstr "Offline"
 
@@ -10619,7 +10631,6 @@ msgstr "Läuft in {runOut} aus"
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Runtime"
 msgstr "Laufzeit"
 
@@ -13092,8 +13103,10 @@ msgstr "Der Quell-Branch des Experiments konnte nicht ermittelt werden."
 msgid "Unable to install {0} hooks."
 msgstr "{0}-Hooks können nicht installiert werden."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "{0} konnte nicht installiert werden."
 
@@ -13478,10 +13491,20 @@ msgstr "Aktualisierung"
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Update"
 msgstr "Aktualisieren"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Update {0}"
+msgstr "{0} aktualisieren"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Update {0} ({env})"
+msgstr "{0} aktualisieren ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel

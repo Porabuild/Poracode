@@ -11,6 +11,8 @@ export interface HttpRequest {
   body?: string;
   bodyBytes?: Uint8Array;
   timeoutMs?: number;
+  /** Redirect policy for requests carrying credentials. Defaults to `follow`. */
+  redirect?: "follow" | "error" | "manual";
 }
 
 export interface HttpResponse {

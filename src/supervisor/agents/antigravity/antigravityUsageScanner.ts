@@ -1,9 +1,15 @@
 import {
   antigravityPoolWindows,
   antigravityQuotaSummaryWindows,
+  type HostPort,
   type UsageWindow,
   type UsageSnapshot,
 } from "@poracode/agents-usage";
+import {
+  resolveAntigravityAcpCredentials,
+  type AntigravityAcpCredentials,
+} from "./antigravityAcpCredentials";
+import { collectAntigravityCloudUsage } from "./antigravityCloudUsage";
 import {
   GET_COMMAND_MODEL_CONFIGS,
   GET_USER_STATUS,
@@ -15,18 +21,16 @@ import {
 import { resolveAntigravityLsEndpoints } from "./antigravityProcessScan";
 
 /**
- * Antigravity usage from its local language server (LS-only by design).
+ * Antigravity usage from its local language server, with official ACP OAuth fallback.
  *
  * While `agy` (or the Antigravity IDE) is running it hosts a local language
  * server — a Connect-RPC service reachable on a loopback port. We read its
  * `RetrieveUserQuotaSummary` for the current two-group / 5h+weekly quota model,
  * and `GetUserStatus` for the plan name (and as a legacy fallback when the quota
- * summary is unavailable on older builds). When the LS is not reachable the
- * snapshot is app-not-running: there is no live session. We deliberately do NOT
- * fall back to `agy`'s Cloud Code surface — it reports a different backend's
- * quota (Gemini-only, with different reset windows and counts), so mixing it in
- * would flip the panel to inconsistent numbers as `agy` starts and stops.
+ * summary is unavailable on older builds).
  *
+ * When no LS is reachable, the official ACP server's persisted Google OAuth
+ * artifact is used to query the corresponding Cloud Code quota-summary API.
  * Discovery (process trees, loopback ports, CSRF tokens) lives in
  * `antigravityProcessScan.ts`; the RPC calls + response parsing live in
  * `antigravityLanguageServer.ts`. This file orchestrates the two.
@@ -52,7 +56,7 @@ async function legacyPoolWindows(
 }
 
 /** Probe the running language server; undefined when none is reachable. */
-async function scanLanguageServer(
+export async function scanAntigravityLanguageServerUsage(
   nowMs: number,
   wslDistros: readonly string[],
 ): Promise<UsageSnapshot | undefined> {
@@ -85,14 +89,35 @@ async function scanLanguageServer(
   return undefined;
 }
 
-/** Build the Antigravity usage snapshot from its local language server. */
+export interface AntigravityUsageScannerDeps {
+  scanLanguageServer(
+    nowMs: number,
+    wslDistros: readonly string[],
+  ): Promise<UsageSnapshot | undefined>;
+  resolveAcpCredentials(): Promise<AntigravityAcpCredentials | undefined>;
+  collectCloudUsage(
+    nowMs: number,
+    host: HostPort,
+    credentials: AntigravityAcpCredentials,
+  ): Promise<UsageSnapshot>;
+}
+
+const defaultDeps: AntigravityUsageScannerDeps = {
+  scanLanguageServer: scanAntigravityLanguageServerUsage,
+  resolveAcpCredentials: resolveAntigravityAcpCredentials,
+  collectCloudUsage: collectAntigravityCloudUsage,
+};
+
+/** Build the Antigravity usage snapshot from the best available source. */
 export async function scanAntigravityUsage(
   nowMs: number,
   wslDistros: readonly string[] = [],
+  host: HostPort,
+  deps: AntigravityUsageScannerDeps = defaultDeps,
 ): Promise<UsageSnapshot> {
-  const ls = await scanLanguageServer(nowMs, wslDistros).catch(() => undefined);
+  const ls = await deps.scanLanguageServer(nowMs, wslDistros).catch(() => undefined);
   if (ls && ls.windows.length > 0) return ls;
-  // No reachable LS: `agy`/the IDE isn't running. The user may well be signed
-  // in, so this is "start the app", not "sign in".
+  const credentials = await deps.resolveAcpCredentials().catch(() => undefined);
+  if (credentials) return deps.collectCloudUsage(nowMs, host, credentials);
   return { providerId: "antigravity", status: "app-not-running", windows: [], fetchedAt: nowMs };
 }

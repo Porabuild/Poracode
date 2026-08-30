@@ -6,6 +6,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useMachines } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
@@ -192,6 +193,11 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
   const isMachineScopedSection =
     activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
+  // Mirrors `AgentsMachineBar`'s own render condition: the floating pill only
+  // appears once a second machine exists, and only then does the scroll area
+  // need to reserve room so its last rows are not covered by it.
+  const machines = useMachines();
+  const showsMachineBar = isMachineScopedSection && machines.length > 1;
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const section = renderSection(activeSection, navigateToSection);
 
@@ -254,7 +260,9 @@ export function SettingsOverlay(props: { onClose: () => void }) {
             <div
               key={activeSection}
               data-settings-scroll-area="true"
-              className="relative min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable]"
+              className={`relative min-h-0 flex-1 overflow-y-auto px-6 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable] ${
+                showsMachineBar ? "pb-20" : "pb-8"
+              }`}
             >
               {section}
               {isAgentsSectionActive && isRefreshingAgents ? (

@@ -69,6 +69,25 @@ export function fullAccessToggle(input: {
  * Approval-policy dropdown shared by Antigravity, Claude, Command Code, and
  * Gemini. Produces a menu control bound to `capabilities.approvalPolicies`.
  */
+/**
+ * The chip label is looked up by id, so an id the active surface does not
+ * advertise falls through to the raw value (`yolo` instead of `YOLO`). A
+ * thread can hold one after switching presentation surfaces or after a
+ * provider's capability set changes, so resolve against what is on offer now,
+ * preferring the provider's declared default over the first entry.
+ */
+export function resolveComposerApprovalPolicy(
+  capabilities: AgentCapability,
+  config: ThreadConfig,
+): string {
+  const policies = capabilities.approvalPolicies;
+  const advertises = (id: string | undefined) =>
+    id !== undefined && policies.some((policy) => policy.id === id);
+  if (advertises(config.approvalPolicy)) return config.approvalPolicy!;
+  if (advertises(capabilities.defaultApprovalPolicy)) return capabilities.defaultApprovalPolicy!;
+  return policies[0]?.id ?? "default";
+}
+
 export function approvalPolicyDropdown(input: {
   policies: AgentCapability["approvalPolicies"];
   currentPolicy: string;
@@ -112,8 +131,7 @@ export function standardPlanApprovalControls(input: {
       ? [
           approvalPolicyDropdown({
             policies: capabilities.approvalPolicies,
-            currentPolicy:
-              config.approvalPolicy ?? capabilities.approvalPolicies[0]?.id ?? "default",
+            currentPolicy: resolveComposerApprovalPolicy(capabilities, config),
             isDisabled,
             onChange: (value) => onConfigChange({ approvalPolicy: value }),
           }),
@@ -170,7 +188,7 @@ export function buildAcpComposerControls({
     controls.push(
       approvalPolicyDropdown({
         policies: capabilities.approvalPolicies,
-        currentPolicy: config.approvalPolicy ?? capabilities.approvalPolicies[0]?.id ?? "default",
+        currentPolicy: resolveComposerApprovalPolicy(capabilities, config),
         isDisabled,
         onChange: (value) => onConfigChange({ approvalPolicy: value }),
       }),

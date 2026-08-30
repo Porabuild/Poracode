@@ -1935,6 +1935,11 @@ msgstr "브랜치"
 msgid "Bring back to panel"
 msgstr "패널로 되돌리기"
 
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Bring every {0} runtime up to date"
+msgstr "{0}의 모든 런타임을 최신 상태로 업데이트"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "이 패널로 되돌리거나 실행 중인 창으로 이동하세요."
@@ -6158,6 +6163,10 @@ msgstr "스레드를 생성하려면 {0}을(를) 설치하세요."
 msgid "Install {0}."
 msgstr "{0}을(를) 설치합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Install {badge}"
+msgstr "{badge} 설치"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Install {env}"
 #~ msgstr "{env} 설치"
@@ -8186,6 +8195,10 @@ msgstr "이 기기에서 아직 감지되지 않았습니다."
 msgid "Not found"
 msgstr "찾을 수 없음"
 
+#: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
+msgid "not installed"
+msgstr "설치되지 않음"
+
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8266,7 +8279,6 @@ msgstr "공식 소스만"
 
 #: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Offline"
 msgstr "오프라인"
 
@@ -10619,7 +10631,6 @@ msgstr "{runOut} 후 소진"
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Runtime"
 msgstr "런타임"
 
@@ -13092,8 +13103,10 @@ msgstr "실험의 소스 브랜치를 확인할 수 없습니다."
 msgid "Unable to install {0} hooks."
 msgstr "{0} 후크를 설치할 수 없습니다."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "{0}을(를) 설치할 수 없습니다."
 
@@ -13478,10 +13491,20 @@ msgstr "업데이트"
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Update"
 msgstr "업데이트"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Update {0}"
+msgstr "{0} 업데이트"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Update {0} ({env})"
+msgstr "{0} 업데이트({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
