@@ -1,11 +1,9 @@
-import { GitBranch } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { LightballTabs, type LightballTab } from "@/renderer/components/common";
 import { MobilePageBottomBar } from "@/renderer/components/layout/MobilePageBottomActions";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { showFilesPanel } from "@/renderer/actions/panelActions";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
@@ -25,23 +23,16 @@ export function MobileWorkspacePage() {
   );
   const activeTab: MobileWorkspaceTab = rightPanelTab === "files" ? "files" : "changes";
   const worktreePath = gitReviewContext?.worktreePath;
-  const gitStatus = useGitStore((state) =>
-    worktreePath
-      ? state.worktreeStatuses[worktreePath]
-      : project
-        ? state.statuses[project.id]
-        : undefined,
-  );
   const resolvedWorktreeBranch =
     project && worktreePath ? resolveWorktreeBranch(project.id, worktreePath) : undefined;
-  const branchLabel = gitStatus?.branch ?? resolvedWorktreeBranch ?? project?.name ?? t`Git`;
   const filesRootContext = project
     ? buildFileEditorContext(project, worktreePath, resolvedWorktreeBranch)
     : null;
   const tabs: ReadonlyArray<LightballTab<MobileWorkspaceTab>> = [
-    { id: "changes", label: t`Changes` },
     { id: "files", label: t`Files` },
+    { id: "changes", label: t`Git` },
   ];
+  const pageTitle = activeTab === "files" ? t`Files` : t`Git`;
 
   function closePage() {
     const panelStore = usePanelStore.getState();
@@ -64,11 +55,10 @@ export function MobileWorkspacePage() {
   return (
     <PageLayout
       title={t`Git`}
-      compactTitle={project?.name ?? t`Git`}
+      compactTitle={pageTitle}
       compactHeaderChildren={
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 px-1">
-          <GitBranch className="size-3.5 shrink-0 text-muted" />
-          <span className="min-w-0 truncate text-sm font-semibold">{branchLabel}</span>
+        <div className="pointer-events-none absolute left-1/2 min-w-0 max-w-[60%] -translate-x-1/2 truncate text-sm font-semibold">
+          {pageTitle}
         </div>
       }
       onCompactBack={closePage}
@@ -116,10 +106,10 @@ export function MobileWorkspacePage() {
               active={activeTab}
               onChange={selectTab}
               ariaLabel={t`Workspace view`}
-              className="m-mobile-workspace__tabs w-full"
+              className="m-floating-selector m-mobile-workspace__tabs w-full"
               equalWidth
               delayActiveText
-              shape="rounded"
+              shape="pill"
             />
           </MobilePageBottomBar>
         </section>

@@ -92,6 +92,8 @@ describe("ThreadUsageBubble", () => {
 
     const bubble = screen.getByRole("button", { name: /usage/i });
     expect(bubble).not.toHaveTextContent(/\S/);
+    expect(bubble).toHaveClass("m-chip--resource-meter");
+    expect(bubble.querySelector("span")).toHaveStyle({ width: "18px", height: "18px" });
     expect(bubble.querySelectorAll("svg circle")).toHaveLength(4);
   });
 

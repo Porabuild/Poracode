@@ -171,14 +171,14 @@ function getControlCollapseTier(control: ComposerControl): number | undefined {
   return control.tier ?? DEFAULT_LABEL_COLLAPSE_LEVEL;
 }
 
-function isMobileOverflowControl(control: ComposerControl): boolean {
+export function shouldMoveComposerControlToMobileOverflow(control: ComposerControl): boolean {
   if (
     (control.kind === undefined || control.kind === "toggle" || control.kind === "menu") &&
     control.iconKind === "permission"
   ) {
     return true;
   }
-  return control.kind === "toggle" && ["Fast", "Plan", "Work"].includes(control.label);
+  return control.kind === "toggle" && ["Plan", "Work"].includes(control.label);
 }
 
 function getOptionLabel(option: OptionMenuOption): string {
@@ -294,7 +294,7 @@ export function ThreadComposer(props: {
   const mobileOverflowControls = mobileComposer
     ? controls
         .map((control, index) => ({ control, index }))
-        .filter(({ control }) => isMobileOverflowControl(control))
+        .filter(({ control }) => shouldMoveComposerControlToMobileOverflow(control))
     : [];
   const probeContentCacheRef = useRef<{ key: string; content: ReactNode } | undefined>(undefined);
   const derivedToolbarLayoutKey = controls
@@ -633,7 +633,7 @@ export function ThreadComposer(props: {
   const renderControlsList = (targetWrapLevel: number, forceShowLabels = false) =>
     controls.map((control, index) => {
       const rendered = renderControlItem(control, index, targetWrapLevel, forceShowLabels);
-      return mobileComposer && isMobileOverflowControl(control) ? (
+      return mobileComposer && shouldMoveComposerControlToMobileOverflow(control) ? (
         <div key={`mobile-overflow-source-${index}`} className="poracode-mobile-overflow-source">
           {rendered}
         </div>
@@ -679,7 +679,7 @@ export function ThreadComposer(props: {
 
   const renderProbeControlsList = (targetWrapLevel: number, forceShowLabels = false) => {
     const rendered = controls.flatMap((control, index) =>
-      mobileComposer && targetWrapLevel >= 3 && isMobileOverflowControl(control)
+      mobileComposer && targetWrapLevel >= 3 && shouldMoveComposerControlToMobileOverflow(control)
         ? []
         : [renderProbeControlItem(control, index, targetWrapLevel, forceShowLabels)],
     );

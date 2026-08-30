@@ -2473,9 +2473,9 @@ html[data-compact-layout] .m-thread--terminal .m-thread-content {
    stay mounted while this surface floats over their bottom edge. */
 html[data-compact-layout] .poracode-thread-composer-section {
   position: absolute;
-  right: var(--m-page-inline);
+  right: max(var(--m-page-inline), 0.9rem);
   bottom: calc(0.75rem + env(safe-area-inset-bottom));
-  left: var(--m-page-inline);
+  left: max(var(--m-page-inline), 0.9rem);
   z-index: 12;
   filter: drop-shadow(0 12px 28px rgb(0 0 0 / 0.32));
 }
@@ -3164,6 +3164,53 @@ html[data-compact-layout] .poracode-mobile-browser-chrome .poracode-browser-tab-
   overflow-y: auto;
   padding: 0.625rem var(--m-page-inline) calc(5rem + env(safe-area-inset-bottom));
   scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+.m-settings__body--actions {
+  overflow: hidden;
+  padding: 0;
+  scroll-padding-bottom: 0;
+}
+
+.m-project-actions {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+}
+
+.m-project-actions__scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem var(--m-page-inline) 0.75rem;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.m-project-actions__description {
+  margin: 0 0 0.625rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.m-project-actions__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.m-project-actions__card {
+  border: var(--m-list-row-border, 1px solid var(--hairline));
+  border-radius: var(--m-list-row-radius, 1.25rem);
+  background: var(--m-list-row-surface, var(--surface));
+  padding: 0.625rem;
+}
+
+.m-project-actions__bottom {
+  flex: none;
+  padding: 0.5rem var(--m-page-inline) calc(0.5rem + env(safe-area-inset-bottom));
 }
 
 /* Shared full-page scroll surface: content starts below the translucent header
@@ -6049,7 +6096,7 @@ html[data-mobile-platform="ios"][data-mobile-standalone]
   width: 1.75rem;
   min-width: 1.75rem;
   gap: 0;
-  border-radius: 0.625rem;
+  border-radius: 9999px;
   padding: 0;
   justify-content: center;
 }
@@ -6672,10 +6719,10 @@ html[data-compact-layout]
   .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])
   .poracode-composer-shell
   .poracode-composer-send {
-  width: var(--m-floating-control-inner-size);
-  height: var(--m-floating-control-inner-size);
-  min-width: var(--m-floating-control-inner-size);
-  min-height: var(--m-floating-control-inner-size);
+  width: calc(var(--m-floating-control-height) - 0.75rem);
+  height: calc(var(--m-floating-control-height) - 0.75rem);
+  min-width: calc(var(--m-floating-control-height) - 0.75rem);
+  min-height: calc(var(--m-floating-control-height) - 0.75rem);
   /* Match the home bubble's circular action inside the pill's rounded end. */
   border-radius: var(--m-floating-control-radius);
 }
@@ -7082,7 +7129,15 @@ html[data-compact-layout]
 
 .m-compose-summary__item {
   display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
   align-items: center;
+  justify-content: center;
+}
+
+.m-compose-summary__item > svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 /* Fast is only summarized when it's on (ComposerCompactSummary gates on the
@@ -7213,6 +7268,29 @@ html[data-compact-layout]
   .poracode-composer-toolbar
   [data-slot="button"].button--icon-only {
   min-width: 2.25rem;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-toolbar
+  [data-slot="button"]:is(.poracode-composer-add-menu, .poracode-composer-send) {
+  width: 2rem;
+  min-width: 2rem;
+  max-width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+  max-height: 2rem;
+  flex: 0 0 2rem;
+  padding: 0;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-toolbar
+  .poracode-composer-add-menu {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
 html[data-compact-layout] .poracode-mobile-overflow-source {

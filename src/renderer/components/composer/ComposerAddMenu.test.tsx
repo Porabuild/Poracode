@@ -40,6 +40,9 @@ describe("ComposerAddMenu", () => {
     );
 
     expect(container.querySelector("button button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add attachment or capability" })).toHaveClass(
+      "poracode-composer-add-menu",
+    );
   });
 
   it("hides the file picker action when file attachments are unavailable", () => {

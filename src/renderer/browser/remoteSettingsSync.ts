@@ -21,6 +21,11 @@ import type { SharedSettingsInput } from "@/shared/settings";
 let desktopSettings: RemoteSettings | null = null;
 let pendingPushes = 0;
 let settingsGeneration = 0;
+const additiveRemoteSettingsKeys = new Set<keyof RemoteSettings>([
+  "usage",
+  "searchUseIgnoreFiles",
+  "searchExclude",
+]);
 // Monotonic id of the most recent push. Only its resolution may write back to
 // desktopSettings, so a slow or failed earlier push can't clobber the value a
 // newer push already committed (nor a late push repopulate after a reset).
@@ -42,7 +47,13 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
   // before that edit; let the push response win instead of flip-flopping.
   if (pendingPushes > 0) return;
   desktopSettings = settings;
-  applyExternalSharedSettings(settings);
+  const { usage, searchUseIgnoreFiles, searchExclude, ...requiredSettings } = settings;
+  applyExternalSharedSettings({
+    ...requiredSettings,
+    ...(usage !== undefined ? { usage } : {}),
+    ...(searchUseIgnoreFiles !== undefined ? { searchUseIgnoreFiles } : {}),
+    ...(searchExclude !== undefined ? { searchExclude } : {}),
+  });
 }
 
 /** Forget the synced snapshot (disconnect / switching desktops). */
@@ -66,6 +77,9 @@ export function pushDesktopSettingsDiff(
   const patch: RemoteSettingsPatch = {};
   const merged: RemoteSettings = { ...synced };
   for (const key of REMOTE_SETTINGS_KEYS) {
+    // An omitted additive key identifies an older host. Do not repeatedly
+    // send that host a field its remote-v3 settings schema cannot retain.
+    if (additiveRemoteSettingsKeys.has(key) && synced[key] === undefined) continue;
     if (settingChanged(settings[key], synced[key])) {
       (patch as Record<string, unknown>)[key] = settings[key];
       (merged as Record<string, unknown>)[key] = settings[key];

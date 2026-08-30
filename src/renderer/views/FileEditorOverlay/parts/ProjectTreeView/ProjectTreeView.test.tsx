@@ -100,6 +100,7 @@ function renderCompactTree() {
 describe("ProjectTreeView compact search", () => {
   beforeEach(() => {
     tree.setSearchQuery.mockReset();
+    tree.handleRootAction.mockReset();
     useProjectTreeStore.getState().resetForRoot("project-1:");
   });
 
@@ -139,5 +140,15 @@ describe("ProjectTreeView compact search", () => {
 
     await waitFor(() => expect(screen.queryByPlaceholderText("Search files")).toBeNull());
     expect(tree.setSearchQuery).toHaveBeenCalledWith("");
+  });
+
+  it("puts file creation in the bottom-right add menu", async () => {
+    renderCompactTree();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "New File" }));
+
+    expect(tree.handleRootAction).toHaveBeenCalledWith("new-file");
+    expect(screen.queryByRole("button", { name: "Collapse all folders" })).toBeNull();
   });
 });

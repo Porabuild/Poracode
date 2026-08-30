@@ -1029,37 +1029,41 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     submitLabel={t`Send message`}
                     onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                     {...(() => {
+                      const contextIndicator = showContextIndicator ? (
+                        <ThreadContextIndicator
+                          summary={contextSummary}
+                          isOpen={contextDockOpen}
+                          onToggle={() => setContextDockOpen((open) => !open)}
+                        />
+                      ) : null;
+                      const addMenu = (
+                        <ComposerAddMenu
+                          mcpServers={mcpServers}
+                          customMcpServers={customMcpServers}
+                          readOnly={!providerOwnsMcp}
+                          computerUse={{
+                            enabled: thread.config?.computerUse === true,
+                            visible: !providerOwnsMcp && thread.config?.computerUse === true,
+                            onToggle: () => {},
+                          }}
+                          showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
+                          onPickFiles={() => {
+                            void (
+                              props.pickFiles
+                                ? props.pickFiles()
+                                : readBridge().pickFiles({ attachmentThreadId: thread.id })
+                            )
+                              .then((paths) => {
+                                if (paths) attachments.addFiles(paths);
+                              })
+                              .catch((error: unknown) => toast.danger(friendlyError(error)));
+                          }}
+                        />
+                      );
                       const renderExtras = () => (
                         <>
-                          {showContextIndicator ? (
-                            <ThreadContextIndicator
-                              summary={contextSummary}
-                              isOpen={contextDockOpen}
-                              onToggle={() => setContextDockOpen((open) => !open)}
-                            />
-                          ) : null}
-                          <ComposerAddMenu
-                            mcpServers={mcpServers}
-                            customMcpServers={customMcpServers}
-                            readOnly={!providerOwnsMcp}
-                            computerUse={{
-                              enabled: thread.config?.computerUse === true,
-                              visible: !providerOwnsMcp && thread.config?.computerUse === true,
-                              onToggle: () => {},
-                            }}
-                            showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
-                            onPickFiles={() => {
-                              void (
-                                props.pickFiles
-                                  ? props.pickFiles()
-                                  : readBridge().pickFiles({ attachmentThreadId: thread.id })
-                              )
-                                .then((paths) => {
-                                  if (paths) attachments.addFiles(paths);
-                                })
-                                .catch((error: unknown) => toast.danger(friendlyError(error)));
-                            }}
-                          />
+                          {compactLayout ? addMenu : contextIndicator}
+                          {compactLayout ? contextIndicator : addMenu}
                         </>
                       );
                       const renderVoiceInput = () => (
@@ -1075,7 +1079,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           voiceInputRef={voiceInputRef}
                         />
                       );
-                      return isCliThread
+                      return isCliThread || compactLayout
                         ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                         : {
                             afterControls: (

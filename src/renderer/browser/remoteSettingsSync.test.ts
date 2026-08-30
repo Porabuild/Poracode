@@ -56,6 +56,33 @@ describe("pushDesktopSettingsDiff push ordering", () => {
     expect(h.applyExternalSharedSettings).toHaveBeenCalledWith(remote);
   });
 
+  it("hydrates additive desktop search preferences when the host provides them", () => {
+    const remote = {
+      ...settings("v0"),
+      searchUseIgnoreFiles: false,
+      searchExclude: { "**/generated": true },
+    } as RemoteSettings;
+
+    applyDesktopSettings(remote);
+
+    expect(h.applyExternalSharedSettings).toHaveBeenCalledWith(remote);
+  });
+
+  it("does not push additive preferences omitted by an older host", () => {
+    applyDesktopSettings(settings("v0"));
+    const client = {
+      updateSettings: vi.fn<RemoteDesktopClient["updateSettings"]>(),
+    } as unknown as RemoteDesktopClient;
+
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      searchUseIgnoreFiles: false,
+      searchExclude: { "**/generated": true },
+    } as SharedSettingsInput);
+
+    expect(client.updateSettings).not.toHaveBeenCalled();
+  });
+
   it("forwards a persistent composer MCP toggle change to the desktop", async () => {
     applyDesktopSettings({
       ...settings("v0"),

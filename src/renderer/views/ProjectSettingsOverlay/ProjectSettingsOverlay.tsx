@@ -97,7 +97,11 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
         compactLayout && compactPage === "index" ? (
           <MobileProjectSettingsIndex onOpenSection={openSection} />
         ) : compactLayout ? (
-          <div className="m-settings__body">{sectionContent}</div>
+          <div
+            className={`m-settings__body${activeSection === "actions" ? " m-settings__body--actions" : ""}`}
+          >
+            {sectionContent}
+          </div>
         ) : (
           sectionContent
         )

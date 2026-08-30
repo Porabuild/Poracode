@@ -849,6 +849,7 @@ msgid "Activity metric"
 msgstr "Метрика активності"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5083,6 +5084,7 @@ msgstr "Форматувати файли"
 msgid "Forward"
 msgstr "Вперед"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/parts/PortsPanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Forward a port"
 msgstr "Переспрямувати порт"
@@ -7071,6 +7073,7 @@ msgstr "Новий код"
 #~ msgid "New file"
 #~ msgstr "Новий файл"
 
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New File"
@@ -7084,6 +7087,7 @@ msgstr "Новий файл"
 #~ msgid "New folder"
 #~ msgstr "Нова папка"
 
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New Folder"
@@ -9194,6 +9198,7 @@ msgstr "Приховувати вміст сповіщень"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/parts/PortsPanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
@@ -12584,8 +12589,8 @@ msgid "Unknown"
 msgstr "Невідомо"
 
 #: src/renderer/notifications.ts
-msgid "Unknown project"
-msgstr "Невідомий проєкт"
+#~ msgid "Unknown project"
+#~ msgstr "Невідомий проєкт"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx

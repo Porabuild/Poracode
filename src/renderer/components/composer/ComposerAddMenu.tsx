@@ -210,7 +210,7 @@ export function ComposerAddMenu(props: {
     <Button
       isIconOnly
       aria-label={t`Add attachment or capability`}
-      className="poracode-composer-menu min-w-9 px-2"
+      className="poracode-composer-menu poracode-composer-add-menu min-w-9 px-2"
       size="sm"
       variant="ghost"
       {...(mobile ? { onPress: () => setIsOpen(true) } : {})}

@@ -27,6 +27,7 @@ import {
   useProjectTreeStore,
 } from "@/renderer/state/projectTreeStore";
 import { InlineDraftRow } from "./parts/InlineDraftRow";
+import { ProjectTreeCreateMenu } from "./parts/ProjectTreeCreateMenu";
 import { TreeEntryRow } from "./parts/TreeEntryRow";
 import { useProjectTree } from "./parts/useProjectTree";
 import type { TreeDraftState } from "./parts/useProjectTree";
@@ -192,20 +193,11 @@ export function ProjectTreeView(props: {
               </Tooltip>
             </MobilePageBottomAction>
             <MobilePageBottomAction side="right">
-              <Tooltip delay={200}>
-                <Tooltip.Trigger>
-                  <MobileCircleButton
-                    aria-label={t`Collapse all folders`}
-                    className="text-muted"
-                    onPress={() => void tree.handleRootAction("collapse-all")}
-                  >
-                    <ChevronsDownUp className="size-4" />
-                  </MobileCircleButton>
-                </Tooltip.Trigger>
-                <Tooltip.Content placement="top">
-                  <Trans>Collapse all folders</Trans>
-                </Tooltip.Content>
-              </Tooltip>
+              <ProjectTreeCreateMenu
+                onCreate={(type) =>
+                  void tree.handleRootAction(type === "file" ? "new-file" : "new-folder")
+                }
+              />
             </MobilePageBottomAction>
           </>
         ) : null}

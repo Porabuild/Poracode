@@ -33,7 +33,6 @@ import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
-import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 
 function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
   const { t } = useLingui();
@@ -149,7 +148,7 @@ export function CompactThreadHeader(props: {
   project: Project;
   agentStatus: AgentStatus | undefined;
 }) {
-  const { thread, agentStatus } = props;
+  const { thread } = props;
   const [renaming, setRenaming] = useState(false);
   const remote = useProjectRemoteServer(props.project);
   return (
@@ -166,13 +165,6 @@ export function CompactThreadHeader(props: {
           />
         ) : (
           <>
-            <ThreadHeaderStatusButton
-              threadId={thread.id}
-              fallbackThread={thread}
-              fallbackAgentKind={thread.agentKind}
-              agentLabel={agentStatus?.label}
-              agentIcon={agentStatus?.icon}
-            />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="m-topbar__title">{thread.title}</span>
               <span className="flex min-w-0 items-center gap-1 text-[10px] leading-4 text-muted/70">

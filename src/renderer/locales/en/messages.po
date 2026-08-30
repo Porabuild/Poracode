@@ -854,6 +854,7 @@ msgid "Activity metric"
 msgstr "Activity metric"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5088,6 +5089,7 @@ msgstr "Format files"
 msgid "Forward"
 msgstr "Forward"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/parts/PortsPanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Forward a port"
 msgstr "Forward a port"
@@ -7076,6 +7078,7 @@ msgstr "New code"
 #~ msgid "New file"
 #~ msgstr "New file"
 
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New File"
@@ -7089,6 +7092,7 @@ msgstr "New File"
 #~ msgid "New folder"
 #~ msgstr "New folder"
 
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New Folder"
@@ -9199,6 +9203,7 @@ msgstr "Redact notification content"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/parts/PortsPanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
@@ -12589,8 +12594,8 @@ msgid "Unknown"
 msgstr "Unknown"
 
 #: src/renderer/notifications.ts
-msgid "Unknown project"
-msgstr "Unknown project"
+#~ msgid "Unknown project"
+#~ msgstr "Unknown project"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx

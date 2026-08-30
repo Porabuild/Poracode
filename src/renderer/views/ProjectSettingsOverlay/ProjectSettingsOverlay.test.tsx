@@ -56,4 +56,20 @@ describe("ProjectSettingsOverlay", () => {
     fireEvent.click(document.querySelector(".m-back")!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("uses the compact header and an icon-only bottom add action", () => {
+    layout.compact = true;
+
+    render(<ProjectSettingsOverlay projectId={project.id} onClose={() => {}} />);
+
+    const main = screen.getByRole("main");
+    fireEvent.click(within(main).getByRole("button", { name: "Actions" }));
+
+    expect(within(main).queryByRole("heading", { name: "Actions" })).not.toBeInTheDocument();
+    expect(within(main).getByText(/Custom commands available/)).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: "Add action" })).toHaveClass(
+      "m-home-compose-action",
+    );
+    expect(within(main).queryByText("Add action")).not.toBeInTheDocument();
+  });
 });

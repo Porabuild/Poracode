@@ -424,6 +424,27 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
               ),
             }));
             break;
+          case "clear-group":
+            useAppStore.setState((state) => {
+              const groupId = state.threads.find((t) => t.id === command.threadId)?.groupId;
+              let threads = state.threads.map((candidate) =>
+                candidate.id === command.threadId
+                  ? { ...candidate, groupId: undefined, groupName: undefined }
+                  : candidate,
+              );
+              if (groupId) {
+                const remainder = threads.filter((candidate) => candidate.groupId === groupId);
+                if (remainder.length === 1) {
+                  threads = threads.map((candidate) =>
+                    candidate.id === remainder[0]!.id
+                      ? { ...candidate, groupId: undefined, groupName: undefined }
+                      : candidate,
+                  );
+                }
+              }
+              return { threads };
+            });
+            break;
           case "set-worktree": {
             useAppStore
               .getState()

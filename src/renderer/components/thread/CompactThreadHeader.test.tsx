@@ -51,12 +51,13 @@ describe("CompactThreadHeader", () => {
   });
 
   it("shows the project and hosting machine beneath the thread title", () => {
-    const { getByText } = render(
+    const { getByText, queryByTestId } = render(
       <CompactThreadHeader thread={thread} project={project} agentStatus={undefined} />,
     );
 
     expect(getByText("Casual greeting")).toBeInTheDocument();
     const projectLine = getByText("Lightcode").parentElement;
     expect(projectLine).toHaveTextContent("LightcodeMacBook 16");
+    expect(queryByTestId("thread-status")).not.toBeInTheDocument();
   });
 });

@@ -117,7 +117,10 @@ describe("ThreadChangesBubble", () => {
     });
 
     render(<ThreadChangesBubble compact projectId="project-1" worktreePath={worktreePath} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    const bubble = screen.getByRole("button", { name: "Review changes" });
+    expect(bubble.querySelector(".lucide-git-fork")).not.toBeNull();
+    expect(bubble.querySelector(".lucide-git-branch")).toBeNull();
+    fireEvent.click(bubble);
 
     expect(usePanelStore.getState()).toMatchObject({
       gitReviewContext: { projectId: "project-1", worktreePath },
@@ -126,6 +129,21 @@ describe("ThreadChangesBubble", () => {
       mobileUtilityPage: "workspace",
       rightPanelTab: "git",
     });
+  });
+
+  it("uses the branch icon for compact root-project changes", () => {
+    compactLayoutMock.value = true;
+    useGitStore.setState({
+      statuses: {
+        "project-1": makeStatus({ totalInsertions: 4 }),
+      },
+    });
+
+    render(<ThreadChangesBubble compact projectId="project-1" />);
+
+    const bubble = screen.getByRole("button", { name: "Review changes" });
+    expect(bubble.querySelector(".lucide-git-branch")).not.toBeNull();
+    expect(bubble.querySelector(".lucide-git-fork")).toBeNull();
   });
 
   it("shows the PR number beside its status-colored icon in the Git bubble", () => {

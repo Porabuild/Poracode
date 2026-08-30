@@ -102,11 +102,15 @@ describe("MobileWorkspacePage", () => {
     });
   });
 
-  it("switches between the dedicated Changes and Files panes", () => {
+  it("switches between the dedicated Git and Files panes", () => {
     render(<MobileWorkspacePage />);
 
-    expect(screen.getByRole("tab", { name: "Changes" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("feature/mobile-git")).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Files", "Git"]);
+    expect(screen.getByRole("tablist", { name: "Workspace view" })).toHaveClass(
+      "m-floating-selector",
+      "rounded-full",
+    );
+    expect(screen.getByRole("tab", { name: "Git" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTestId("git-workspace-pane")).toBeInTheDocument();
     expect(screen.getByTestId("git-workspace-pane")).toHaveAttribute("data-hide-toolbar", "true");
     expect(screen.getByTestId("git-workspace-pane")).toHaveAttribute("data-touch-mode", "true");
@@ -139,14 +143,14 @@ describe("MobileWorkspacePage", () => {
       "false",
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Changes" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Git" }));
     expect(usePanelStore.getState().rightPanelTab).toBe("git");
   });
 
   it("closes the compact page without leaving the desktop panel visible", () => {
     render(<MobileWorkspacePage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Back from Repo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back from Git" }));
 
     expect(usePanelStore.getState()).toMatchObject({
       gitReviewContext: null,
