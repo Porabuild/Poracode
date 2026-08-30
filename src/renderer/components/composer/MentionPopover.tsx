@@ -125,12 +125,19 @@ export function MentionPopover(props: {
               )}
               <span className="poracode-mention-popover__label truncate">{entry.name}</span>
               {isMcp || isPlugin || (isThread && entry.detail) ? (
-                <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
-                  {entry.detail}
+                <span
+                  className="poracode-mention-popover__detail ml-auto shrink-0 max-w-[14rem] text-xs text-[var(--muted)]"
+                  title={entry.detail}
+                >
+                  {/* text-overflow needs a block container; the detail span is a flex box */}
+                  <span className="block truncate">{entry.detail}</span>
                 </span>
               ) : dir ? (
-                <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
-                  {dir}
+                <span
+                  className="poracode-mention-popover__detail ml-auto shrink-0 max-w-[14rem] text-xs text-[var(--muted)]"
+                  title={dir}
+                >
+                  <span className="block truncate">{dir}</span>
                 </span>
               ) : null}
             </div>

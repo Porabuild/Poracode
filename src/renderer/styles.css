@@ -2760,10 +2760,24 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   vertical-align: middle;
   user-select: none;
   cursor: default;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.poracode-thread-mention-chip {
+/* Cursor + hover/active + transition only on the clickable message chip; the
+   composer chip is an inert contentEditable decoration and must not advertise
+   a click. */
+button.poracode-thread-mention-chip {
   cursor: var(--interactive-cursor, pointer);
+  transition: background 120ms ease;
+}
+
+button.poracode-thread-mention-chip:hover {
+  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+}
+
+button.poracode-thread-mention-chip:active {
+  background: color-mix(in oklab, var(--accent) 28%, var(--surface));
 }
 
 .poracode-thread-mention-chip:focus-visible {
@@ -2772,7 +2786,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-slash-chip[data-skill-name],
-.poracode-slash-chip[data-mcp-name] {
+.poracode-slash-chip[data-mcp-name],
+.poracode-thread-mention-chip {
   gap: 0.25em;
 }
 
@@ -2793,10 +2808,13 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-slash-chip__name {
-  display: inline-flex;
-  align-items: center;
-  font-weight: 400;
+  display: inline-block;
+  min-width: 0;
+  max-width: min(20rem, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 400;
 }
 
 .poracode-diff-comment-chip {
