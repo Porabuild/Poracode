@@ -55,6 +55,7 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
   var checkpointResponse: RichChatControllerTestResponse<RichCheckpoint>?
   var stringResponse: RichChatControllerTestResponse<String>?
   var mutationResponse: RichChatControllerTestResponse<Void> = .value(())
+  var mutationResponses: [String: RichChatControllerTestResponse<Void>] = [:]
   var historyBarrier: RichChatControllerTestBarrier?
   var mutationBarrier: RichChatControllerTestBarrier?
   private(set) var terminalWatchIDs: [String] = []
@@ -79,6 +80,13 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
   ) {
     mutationResponse = response
     mutationBarrier = barrier
+  }
+
+  func configureMutation(
+    _ response: RichChatControllerTestResponse<Void>,
+    for operation: String
+  ) {
+    mutationResponses[operation] = response
   }
 
   func configureBinary(_ response: RichChatControllerTestResponse<RichChatBinaryPayload>) {
@@ -300,7 +308,7 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
   private func mutation(_ name: String) async throws {
     calls.append(name)
     if let mutationBarrier { await mutationBarrier.suspend() }
-    try mutationResponse.get()
+    try (mutationResponses[name] ?? mutationResponse).get()
   }
 }
 

@@ -16,6 +16,7 @@ final class ThreadLifecycleTransportTests: XCTestCase {
       .prepareWorktree(projectID: "project-1", worktreePath: "worktree"),
       .start(ThreadLifecycleTestValues.relaunch()),
       .setGroup(groupID: "group-1", groupName: "Group"),
+      .clearGroup,
       .rename(title: "Renamed"),
       .acknowledge,
       .setDone(true),
@@ -36,7 +37,7 @@ final class ThreadLifecycleTransportTests: XCTestCase {
     }
 
     let requests = await http.requests()
-    XCTAssertEqual(requests.count, 13)
+    XCTAssertEqual(requests.count, 14)
     XCTAssertEqual(requests[0].path, "/api/threads/start")
     XCTAssertEqual(
       requests[0].headers[ProtocolConstants.commandIdHeader],

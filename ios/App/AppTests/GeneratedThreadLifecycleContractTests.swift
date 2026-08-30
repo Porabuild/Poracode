@@ -63,6 +63,7 @@ final class GeneratedThreadLifecycleContractTests: XCTestCase {
       ),
       ("start", .start(ThreadLifecycleTestValues.relaunch()), true),
       ("set-group", .setGroup(groupID: "group-1", groupName: "Group"), false),
+      ("clear-group", .clearGroup, false),
       ("rename", .rename(title: "Renamed"), false),
       ("acknowledge", .acknowledge, false),
       ("set-done", .setDone(true), false),

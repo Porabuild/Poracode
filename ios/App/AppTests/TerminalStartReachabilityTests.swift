@@ -201,16 +201,70 @@ final class TerminalStartReachabilityTests: XCTestCase {
   // MARK: - Visible reachability
 
   func testTheShellIsReachableFromAProjectAndFromAThread() throws {
+    let home = try [
+      "App/Features/Home/HomeProjectFilterSheet.swift",
+      "App/Features/Home/Views/HomeProjectActionsDrawer.swift",
+      "App/Features/Home/Pages/HomeProjectMenuDestinationView.swift",
+    ].map(Self.source).joined(separator: "\n")
+    XCTAssertTrue(home.contains("destination = .terminal(option)"))
+    XCTAssertTrue(home.contains("TerminalStrings.shellOpen"))
+    XCTAssertTrue(home.contains("case .terminal(let option):"))
+    XCTAssertTrue(home.contains("ProjectShellTerminalView("))
+
     let project = try Self.source("App/Features/Projects/ProjectEditView.swift")
     XCTAssertTrue(project.contains("ProjectShellTerminalView("))
-    XCTAssertTrue(project.contains("projectLocation: project.location"))
+    XCTAssertTrue(project.contains("projectLocation: currentProject.location"))
 
-    let thread = try Self.source("App/Features/RichChat/UI/RichChatThreadView.swift")
-    XCTAssertTrue(thread.contains("ProjectShellTerminalView("))
+    let destinations = try Self.source("App/Features/Threads/ThreadDetailDestinations.swift")
+    XCTAssertTrue(destinations.contains("ProjectShellTerminalView("))
     XCTAssertTrue(
-      thread.contains("worktreePath: thread?.worktreePath"),
+      destinations.contains("worktreePath: thread.worktreePath"),
       "A thread's shell must start where that thread actually runs"
     )
+  }
+
+  func testTerminalPresentationThreadsReachTheNativePTYSurface() throws {
+    let filter = try Self.source("App/Transport/SessionCoordinators.swift")
+    XCTAssertTrue(filter.contains("isVisibleInNativeList"))
+    XCTAssertTrue(filter.contains("isTerminalPresentation"))
+    XCTAssertTrue(filter.contains("presentationMode?.lowercased() ?? terminalPresentationMode"))
+
+    let projection = try Self.source("App/Features/Home/ProjectThreadsView.swift")
+    XCTAssertTrue(projection.contains("ThreadPresentationFilter.isVisibleInNativeList(thread)"))
+    let rows = try Self.source("App/Features/Components/ThreadRowComponents.swift")
+    XCTAssertTrue(rows.contains("Image(systemName: \"terminal\")"))
+    XCTAssertTrue(
+      rows.contains("ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)")
+    )
+
+    let thread = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadView.swift")
+    let pageState = try Self.source(
+      "App/Features/RichChat/UI/Pages/RichChatThreadPageState.swift"
+    )
+    XCTAssertTrue(thread.contains("RichTerminalView("))
+    XCTAssertTrue(
+      thread.contains("ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)")
+    )
+    XCTAssertTrue(thread.contains("suite.terminal.state.cursor?.transcript"))
+    XCTAssertTrue(pageState.contains("await suite.terminal.watch(terminalID: threadID)"))
+
+    let defaults = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+    XCTAssertTrue(defaults.contains("ThreadPresentationFilter.matches("))
+    XCTAssertTrue(defaults.contains("mode: presentationMode.rawValue"))
+  }
+
+  func testConfiguredProjectActionsReachARealContextualShell() throws {
+    let drawer = try [
+      "App/Features/Home/Views/HomeProjectActionsDrawer.swift",
+      "App/Features/Home/Pages/HomeProjectMenuDestinationView.swift",
+    ].map(Self.source).joined(separator: "\n")
+    XCTAssertTrue(drawer.contains("currentProject.scripts?.actions"))
+    XCTAssertTrue(drawer.contains("destination = .projectAction(option, action)"))
+    XCTAssertTrue(drawer.contains("initialCommand: action.command"))
+
+    let terminal = try Self.source("App/Features/Terminal/ProjectShellTerminalView.swift")
+    XCTAssertTrue(terminal.contains("guard !sentInitialCommand"))
+    XCTAssertTrue(terminal.contains("shell.terminal.write(initialCommand + \"\\n\")"))
   }
 
   /// The shell surface reuses the terminal view that is backed by real routes.
@@ -218,6 +272,7 @@ final class TerminalStartReachabilityTests: XCTestCase {
   func testTheShellSurfaceOffersOnlyRealControls() throws {
     let view = try Self.source("App/Features/Terminal/ProjectShellTerminalView.swift")
     XCTAssertTrue(view.contains("RichTerminalView("))
+    XCTAssertTrue(view.contains("textSizeRole: .project"))
     XCTAssertFalse(view.contains("Button(\""), "No raw, unlocalised control labels")
     XCTAssertTrue(view.contains("TerminalStrings.shellStart"))
   }

@@ -16,11 +16,19 @@ final class NativeJourneyUITests: XCTestCase {
       let controlCapability = environment["NATIVE_E2E_CONTROL_CAPABILITY"],
       !controlCapability.isEmpty
     else {
-      throw JourneyError.invalidHarnessResponse
+      throw XCTSkip("Native E2E harness is not configured.")
     }
     controlURL = url
     capability = controlCapability
     app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+    if let interfaceStyle = environment["NATIVE_E2E_INTERFACE_STYLE"],
+      interfaceStyle == "Dark" || interfaceStyle == "Light"
+    {
+      app.launchArguments += [
+        "-AppleInterfaceStyle", interfaceStyle,
+        "-ios.appearance.mode", interfaceStyle.lowercased(),
+      ]
+    }
   }
 
   func testRealNativeRemoteJourney() async throws {
@@ -55,9 +63,15 @@ final class NativeJourneyUITests: XCTestCase {
     XCTAssertGreaterThanOrEqual(projectFilter.frame.height, 44)
     projectFilter.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     XCTAssertTrue(app.navigationBars["Filter projects"].waitForExistence(timeout: 5))
-    app.swipeDown()
+    let projectFilterDone = app.buttons["native-e2e.project-filter.done"]
+    XCTAssertTrue(projectFilterDone.waitForExistence(timeout: 5))
+    projectFilterDone.tap()
 
-    app.buttons["native-e2e.new-thread"].tap()
+    _ = try await control(path: "/v1/frames/event-agent-status", method: "POST")
+    let newThread = app.buttons["native-e2e.new-thread"]
+    XCTAssertTrue(newThread.waitForExistence(timeout: 5))
+    try await waitUntilEnabled(newThread)
+    newThread.tap()
     XCTAssertTrue(app.textFields["native-e2e.new-thread-prompt"].waitForExistence(timeout: 5))
     attachScreenshot("01b-quick-compose")
     app.buttons["Cancel"].tap()
@@ -76,10 +90,12 @@ final class NativeJourneyUITests: XCTestCase {
     try await waitForJournal(hostID: "primary", operationID: "route:thread-send", count: 1)
 
     for fixture in [
-      "runtime-live-turn-started", "runtime-live-item-started", "runtime-live-content-delta",
+      "runtime-live-turn-started", "runtime-live-user-item-started",
+      "runtime-live-item-started", "runtime-live-content-delta",
     ] {
       _ = try await control(path: "/v1/frames/\(fixture)", method: "POST")
     }
+    XCTAssertTrue(app.staticTexts[message].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["Native live update"].waitForExistence(timeout: 10))
     try await waitForJournal(hostID: "primary", operationID: "runtime:content.delta", count: 1)
 
@@ -220,6 +236,12 @@ final class NativeJourneyUITests: XCTestCase {
     try await poll {
       let host = try await self.scenarioState().host(hostID)
       return host.operationJournal.filter { $0.operationId == operationID }.count >= count
+    }
+  }
+
+  private func waitUntilEnabled(_ element: XCUIElement) async throws {
+    try await poll {
+      element.exists && element.isEnabled
     }
   }
 

@@ -30,6 +30,52 @@ struct RichContextUsagePresentation: Equatable, Sendable {
   let percent: Int?
 }
 
+enum RichPlanStepStatus: String, Equatable, Sendable {
+  case pending
+  case inProgress = "in_progress"
+  case completed
+}
+
+struct RichPlanStepPresentation: Equatable, Sendable, Identifiable {
+  let id: Int
+  let text: String
+  let status: RichPlanStepStatus
+}
+
+struct RichPlanPresentation: Equatable, Sendable {
+  let sourceItemID: String
+  let steps: [RichPlanStepPresentation]
+
+  var completedCount: Int { steps.count { $0.status == .completed } }
+  var isActive: Bool { steps.contains { $0.status == .inProgress } }
+}
+
+struct RichRuntimeErrorPresentation: Equatable, Sendable, Identifiable {
+  let id: String
+  let message: String
+}
+
+enum RichDelegatedAgentKind: String, Equatable, Sendable, Hashable, CaseIterable {
+  case subagent
+  case crossagent
+  case workflow
+}
+
+struct RichDelegatedAgentPresentation: Equatable, Sendable, Identifiable {
+  let id: String
+  let kind: RichDelegatedAgentKind
+  let title: String
+  let stepCount: Int
+}
+
+enum RichMessageSupplementPresentation: Equatable, Sendable {
+  case skill(name: String, pluginName: String?)
+  case mcp(name: String)
+  case diffComment(target: String, body: String)
+  case file(path: String, name: String?, isAttachment: Bool)
+
+}
+
 enum RichChatPresentation {
   private static let preferredStreams = [
     "assistant_text", "reasoning_text", "plan_text", "command_output",
@@ -37,6 +83,9 @@ enum RichChatPresentation {
   ]
 
   static func text(for item: RichRuntimeItem) -> String {
+    if item.type == "question_answer" {
+      return RichQuestionAnswerPresentation.text(for: item)
+    }
     let stream = preferredStreams.compactMap { item.streams[$0] }
       .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
       .joined(separator: "\n")
@@ -51,6 +100,67 @@ enum RichChatPresentation {
       if let value = object[key]?.stringValue, !value.isEmpty { return value }
     }
     return ""
+  }
+
+  /// Visible message prose, kept separate from `text(for:)` because the latter
+  /// is also the canonical copy/handoff representation and intentionally names
+  /// skills, files, and images. Those structured blocks render as native cards
+  /// instead of being duplicated inside the prose.
+  static func messageBody(for item: RichRuntimeItem) -> String {
+    let stream = preferredStreams.compactMap { item.streams[$0] }
+      .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+      .joined(separator: "\n")
+    if !stream.isEmpty { return stream }
+
+    guard item.type == RichItemType.userMessage || item.type == RichItemType.assistantMessage else {
+      return text(for: item)
+    }
+    var result = ""
+    var crossedStructuredBlock = false
+    for block in RichContentDecoder.decodeMessageContent(item.payload) ?? [] {
+      guard case .text(let text) = block else {
+        crossedStructuredBlock = true
+        continue
+      }
+      if crossedStructuredBlock, !result.isEmpty {
+        result = result.trimmingCharacters(in: .whitespaces)
+        let suffix = text.trimmingCharacters(in: .whitespaces)
+        if !suffix.isEmpty { result += " \(suffix)" }
+      } else {
+        result += text
+      }
+      crossedStructuredBlock = false
+    }
+    return result
+  }
+
+  static func messageSupplements(for item: RichRuntimeItem) -> [RichMessageSupplementPresentation] {
+    guard item.type == RichItemType.userMessage || item.type == RichItemType.assistantMessage else {
+      return []
+    }
+    return (RichContentDecoder.decodeMessageContent(item.payload) ?? []).compactMap {
+      block -> RichMessageSupplementPresentation? in
+      switch block {
+      case .skill(let name, _, _, let pluginName):
+        return RichMessageSupplementPresentation.skill(name: name, pluginName: pluginName)
+      case .mcp(let name):
+        return RichMessageSupplementPresentation.mcp(name: name)
+      case .diffComment(let path, let lineNumber, _, _, let body):
+        return RichMessageSupplementPresentation.diffComment(
+          target: "\(path):\(lineNumber)",
+          body: body
+        )
+      case .file(let path, let name, let mimeType, let source):
+        guard mimeType?.lowercased().hasPrefix("image/") != true else { return nil }
+        return RichMessageSupplementPresentation.file(
+          path: path,
+          name: name,
+          isAttachment: source == .attachment
+        )
+      case .text, .image:
+        return nil
+      }
+    }
   }
 
   static func images(for item: RichRuntimeItem) -> [RichImagePresentation] {
@@ -96,6 +206,104 @@ enum RichChatPresentation {
     )
   }
 
+  static func latestActivePlan(in items: [RichRuntimeItem]) -> RichPlanPresentation? {
+    for item in items.reversed() where item.type == RichItemType.plan {
+      let steps = planSteps(item)
+      guard !steps.isEmpty else { continue }
+      guard !steps.allSatisfy({ $0.status == .completed }) else { return nil }
+      return RichPlanPresentation(sourceItemID: item.id, steps: steps)
+    }
+    return nil
+  }
+
+  /// Runtime errors since the latest user message, matching the compact PWA's
+  /// scope. Abort-only cancellation noise is intentionally omitted.
+  static func recentErrors(in items: [RichRuntimeItem]) -> [RichRuntimeErrorPresentation] {
+    var result: [RichRuntimeErrorPresentation] = []
+    for item in items.reversed() {
+      if item.type == RichItemType.userMessage { break }
+      guard item.type == RichItemType.error,
+        let message = item.payload?.objectValue?["message"]?.stringValue?
+          .trimmingCharacters(in: .whitespacesAndNewlines),
+        !message.isEmpty,
+        message.range(
+          of: #"^(?:error:\s*)?(?:aborterror:\s*)?aborted\.?$"#,
+          options: [.regularExpression, .caseInsensitive]
+        ) == nil
+      else { continue }
+      result.append(RichRuntimeErrorPresentation(id: item.id, message: message))
+    }
+    return result.reversed()
+  }
+
+  static func authenticationRequired(
+    agentStatus: AgentStatusRecord?,
+    recentErrors: [RichRuntimeErrorPresentation]
+  ) -> Bool {
+    guard let agentStatus else { return false }
+    let presentationAuthState =
+      agentStatus.raw["presentationAuthStates"]?.objectValue?["gui"]?.stringValue
+      .flatMap(AgentStatusRecord.AuthState.init(rawValue:))
+      ?? agentStatus.authState
+    guard presentationAuthState != .authenticated else { return false }
+    return presentationAuthState == .missing
+      || recentErrors.contains { isAuthenticationError($0.message) }
+  }
+
+  static func visibleRecentErrors(
+    _ errors: [RichRuntimeErrorPresentation],
+    agentStatus: AgentStatusRecord?
+  ) -> [RichRuntimeErrorPresentation] {
+    guard authenticationRequired(agentStatus: agentStatus, recentErrors: errors) else {
+      return errors
+    }
+    return errors.filter { !isAuthenticationError($0.message) }
+  }
+
+  static func activeDelegatedAgents(
+    in items: [RichRuntimeItem]
+  ) -> [RichDelegatedAgentPresentation] {
+    let childCounts = Dictionary(
+      grouping: items.compactMap { item in
+        item.parentItemID.map { ($0, item.id) }
+      }, by: \.0
+    ).mapValues(\.count)
+
+    return items.compactMap { item in
+      guard item.parentItemID == nil,
+        item.type == "tool_call",
+        item.state != .completed,
+        let payload = item.payload?.objectValue,
+        let name = payload["name"]?.stringValue,
+        !name.isEmpty,
+        let kind = delegatedAgentKind(payload: payload, name: name)
+      else { return nil }
+      let arguments = payload["args"]?.objectValue
+      let title =
+        arguments?["description"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        ?? payload["title"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        ?? name
+      let reportedSteps = payload["progress"]?.objectValue?["stepCount"]?.exactInt64Value
+      return RichDelegatedAgentPresentation(
+        id: item.id,
+        kind: kind,
+        title: title.isEmpty ? name : title,
+        stepCount: reportedSteps.map { max(0, Int(clamping: $0)) }
+          ?? childCounts[item.id, default: 0]
+      )
+    }
+  }
+
+  static func completedTurnDuration(_ milliseconds: Int64) -> String? {
+    guard milliseconds >= 1_000 else { return nil }
+    let formatter = DateComponentsFormatter()
+    formatter.allowedUnits = milliseconds >= 3_600_000 ? [.hour, .minute] : [.minute, .second]
+    formatter.unitsStyle = .abbreviated
+    formatter.maximumUnitCount = 2
+    formatter.zeroFormattingBehavior = .dropLeading
+    return formatter.string(from: TimeInterval(milliseconds) / 1_000)
+  }
+
   /// Mirrors the Android dock rule: a positive reported window plus at least one
   /// reported occupancy signal. Anything less stays hidden rather than guessed.
   static func contextUsage(_ usage: RichContextUsage?) -> RichContextUsagePresentation? {
@@ -128,6 +336,42 @@ enum RichChatPresentation {
       method: "requestPermission",
       response: .object(response)
     )
+  }
+
+  /// Matches the compact PWA composer: prose submitted while a regular
+  /// approval is open declines that approval first, then becomes the next
+  /// turn. Free-form questions and plan review remain on their dedicated
+  /// request controls instead of being guessed from composer text.
+  static func composerDenyResolution(
+    for request: RichOpenRequest
+  ) -> RichChatRequestResolution? {
+    let approvalTypes: Set<RichRequestType> = [
+      .commandExecutionApproval,
+      .fileReadApproval,
+      .fileChangeApproval,
+      .applyPatchApproval,
+      .toolCallApproval,
+    ]
+    guard approvalTypes.contains(request.type) else { return nil }
+    if let toolName = request.payload.details?.objectValue?["toolName"]?.stringValue,
+      toolName == "ExitPlanMode" || toolName == "exit_plan_mode"
+    {
+      return nil
+    }
+    let options =
+      request.payload.options ?? [
+        RichRequestOption(optionID: "allow", label: RichChatStrings.allow, description: nil),
+        RichRequestOption(optionID: "deny", label: RichChatStrings.deny, description: nil),
+      ]
+    guard
+      let deny = options.first(where: { option in
+        let value = "\(option.optionID) \(option.label)".lowercased()
+        return ["deny", "denied", "decline", "reject", "abort", "cancel"].contains {
+          value.contains($0)
+        }
+      })
+    else { return nil }
+    return requestResolution(request: request, optionIDs: [deny.optionID])
   }
 
   static func typeLabel(for item: RichRuntimeItem) -> String {
@@ -171,6 +415,77 @@ enum RichChatPresentation {
     case .file(let path, let name, _, _): name ?? path
     case .image(_, _, let path, let name, _): name ?? path
     }
+  }
+
+  private static func planSteps(_ item: RichRuntimeItem) -> [RichPlanStepPresentation] {
+    if let values = item.payload?.objectValue?["steps"]?.arrayValue {
+      let steps = values.enumerated().compactMap { index, raw -> RichPlanStepPresentation? in
+        guard let object = raw.objectValue,
+          let text = object["step"]?.stringValue?.trimmingCharacters(
+            in: .whitespacesAndNewlines
+          ),
+          !text.isEmpty,
+          let rawStatus = object["status"]?.stringValue,
+          let status = RichPlanStepStatus(rawValue: rawStatus)
+        else { return nil }
+        return RichPlanStepPresentation(id: index, text: text, status: status)
+      }
+      if !steps.isEmpty { return steps }
+    }
+
+    let text = item.streams["plan_text", default: ""]
+    return text.split(whereSeparator: \.isNewline).enumerated().compactMap {
+      index, rawLine -> RichPlanStepPresentation? in
+      let line = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !line.isEmpty else { return nil }
+      let pattern =
+        #"^(?:(?:[-*+]|\d+[.)])\s+(?:\[([ xX~>])\]\s+)?|\[([ xX~>])\]\s+)(.+?)\s*$"#
+      guard let expression = try? NSRegularExpression(pattern: pattern),
+        let match = expression.firstMatch(
+          in: line,
+          range: NSRange(line.startIndex..., in: line)
+        ),
+        let textRange = Range(match.range(at: 3), in: line)
+      else { return nil }
+      let marker = [match.range(at: 1), match.range(at: 2)]
+        .compactMap { Range($0, in: line).map { String(line[$0]) } }
+        .first
+      let status: RichPlanStepStatus =
+        marker == "x" || marker == "X" ? .completed : marker == ">" ? .inProgress : .pending
+      return RichPlanStepPresentation(
+        id: index,
+        text: String(line[textRange]).trimmingCharacters(in: .whitespacesAndNewlines),
+        status: status
+      )
+    }
+  }
+
+  private static func isAuthenticationError(_ message: String) -> Bool {
+    let normalized = message.lowercased()
+    return normalized.contains("failed to authenticate")
+      || normalized.contains("invalid authentication credentials")
+      || normalized.contains("api error: 401")
+      || normalized.contains("please run /login")
+      || normalized.contains("session expired")
+      || normalized.contains("authentication_failed")
+      || normalized.contains("oauth_org_not_allowed")
+      || normalized.range(of: #"\bnot logged in\b"#, options: .regularExpression) != nil
+  }
+
+  private static func delegatedAgentKind(
+    payload: [String: RichJSON],
+    name: String
+  ) -> RichDelegatedAgentKind? {
+    if name == "Workflow" { return .workflow }
+    if payload["isCrossagent"]?.boolValue == true { return .crossagent }
+    if payload["isSubAgent"]?.boolValue == true { return .subagent }
+    let arguments = payload["args"]?.objectValue
+    if ["subagent_type", "agent_type", "agentType"].contains(where: {
+      arguments?[$0]?.stringValue?.isEmpty == false
+    }) {
+      return .subagent
+    }
+    return nil
   }
 
   private static func collectRemoteImages(

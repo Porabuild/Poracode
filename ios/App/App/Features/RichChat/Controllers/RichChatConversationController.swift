@@ -12,6 +12,7 @@ enum RichChatConversationOperation: Equatable, Sendable {
   case clearSteer
   case stage
   case rollback
+  case revertCheckpoint
 }
 
 struct RichChatConversationControllerState: Equatable, Sendable {
@@ -92,16 +93,17 @@ final class RichChatConversationController {
     if state.failure == .ambiguousOutcome { state.failure = nil }
   }
 
-  func send(_ input: RichChatSendInput) async {
+  @discardableResult
+  func send(_ input: RichChatSendInput) async -> Bool {
     guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       state.failure = .invalidRequest
-      return
+      return false
     }
     guard !state.isSending else {
       state.failure = .busy
-      return
+      return false
     }
-    guard let context = operationContext(capability: .sessionOperate) else { return }
+    guard let context = operationContext(capability: .sessionOperate) else { return false }
     state.isSending = true
     state.failure = nil
     sendTask.launch { [weak self] in
@@ -116,6 +118,9 @@ final class RichChatConversationController {
       if self.owns(context) { self.state.isSending = false }
     }
     await sendTask.wait()
+    return owns(context)
+      && state.failure == nil
+      && state.lastCompletedOperation == .send
   }
 
   func interrupt() async {
@@ -167,14 +172,16 @@ final class RichChatConversationController {
     }
   }
 
-  func setPendingSteer(_ input: RichSetPendingSteerInput) async {
+  @discardableResult
+  func setPendingSteer(_ input: RichSetPendingSteerInput) async -> Bool {
     guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       state.failure = .invalidRequest
-      return
+      return false
     }
     await runMutation(.setSteer, refreshOnSuccess: false) { gateway, target in
       try await gateway.setRichSteer(target: target, input: input)
     }
+    return state.lastCompletedOperation == .setSteer && state.failure == nil
   }
 
   func clearPendingSteer() async {
@@ -205,6 +212,35 @@ final class RichChatConversationController {
         config: config
       )
     }
+  }
+
+  @discardableResult
+  func revertToCheckpoint(_ input: RichChatCheckpointRevertInput) async -> Bool {
+    guard !input.checkpointItemID.isEmpty, input.rollbackTurnCount >= 0 else {
+      state.failure = .invalidRequest
+      return false
+    }
+    await runMutation(.revertCheckpoint, refreshOnSuccess: true) { gateway, target in
+      if input.rollbackTurnCount > 0 {
+        // Match the PWA: provider rollback is best-effort. File restore and
+        // authoritative runtime truncation still proceed when a provider does
+        // not support rollback or rejects it.
+        try? await gateway.rollbackRichConversation(
+          target: target,
+          turnCount: input.rollbackTurnCount,
+          config: input.config
+        )
+      }
+      if let projectLocation = input.projectLocation {
+        try await gateway.restoreRichCheckpoint(
+          target: target,
+          itemID: input.checkpointItemID,
+          projectLocation: projectLocation
+        )
+      }
+      try await gateway.truncateRichRuntime(target: target, after: input.checkpointItemID)
+    }
+    return state.lastCompletedOperation == .revertCheckpoint && state.failure == nil
   }
 
   private struct OperationContext: Sendable {

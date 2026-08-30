@@ -89,6 +89,10 @@ final class ThreadLifecycleController {
     await run(.setGroup(groupID: id, groupName: name), action: .setGroup)
   }
 
+  func clearGroup(target: ThreadLifecycleTarget? = nil) async {
+    await run(.clearGroup, action: .setGroup, capturedTarget: target)
+  }
+
   func rename(to title: String, target: ThreadLifecycleTarget? = nil) async {
     await run(.rename(title: title), action: .rename, capturedTarget: target)
   }

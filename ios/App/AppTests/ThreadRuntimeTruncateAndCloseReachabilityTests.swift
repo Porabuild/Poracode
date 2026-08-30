@@ -219,7 +219,10 @@ final class ThreadRuntimeTruncateAndCloseReachabilityTests: XCTestCase {
   }
 
   func testTheThreadViewOffersCloseBehindConfirmationAndNavigatesOnlyOnSuccess() throws {
-    let view = try Self.source("App/Features/RichChat/UI/RichChatThreadView.swift")
+    let view = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadView.swift")
+    let menuContent = try Self.source(
+      "App/Features/Threads/Components/ThreadDetailActionMenuContent.swift"
+    )
     XCTAssertTrue(view.contains("suite.conversation.close()"))
     XCTAssertTrue(view.contains("RichChatStrings.closeThreadConfirmationTitle"))
     XCTAssertTrue(
@@ -227,7 +230,40 @@ final class ThreadRuntimeTruncateAndCloseReachabilityTests: XCTestCase {
     )
     XCTAssertTrue(view.contains("guard operation == .close else { return }"))
     XCTAssertTrue(view.contains("dismiss()"))
-    XCTAssertTrue(view.contains(".disabled(!canCloseThread)"))
+    XCTAssertTrue(menuContent.contains(".disabled(!canClose)"))
+  }
+
+  func testTheThreadMenuOffersCompactPWAWorkspaceAndLifecycleParity() throws {
+    let actions = try Self.source("App/Features/Threads/ThreadDetailActionMenu.swift")
+    let menuContent = try Self.source(
+      "App/Features/Threads/Components/ThreadDetailActionMenuContent.swift"
+    )
+    let lifecycleControls = try Self.source(
+      "App/Features/Threads/ThreadLifecycleControls.swift"
+    )
+    let destinations = try Self.source("App/Features/Threads/ThreadDetailDestinations.swift")
+    for destination in [
+      "ProjectNotesPageView(session: session, projectID: project.id)",
+      "workspace(.files)",
+      "workspace(.git)",
+      "ProjectShellTerminalView(",
+      "AdvancedOperationsSessionView(",
+    ] {
+      XCTAssertTrue(destinations.contains(destination), destination)
+    }
+    for lifecycleAction in [
+      "perform(.rename)", "perform(.relaunch)", "perform(.setPinned(",
+      "perform(.setDone(", "perform(.acknowledge)", "perform(.archive)",
+      "perform(.delete)",
+    ] {
+      XCTAssertTrue(
+        actions.contains(lifecycleAction) || menuContent.contains(lifecycleAction)
+          || lifecycleControls.contains(lifecycleAction),
+        lifecycleAction
+      )
+    }
+    XCTAssertTrue(actions.contains(".threadLifecycleDestructiveConfirmation("))
+    XCTAssertTrue(destinations.contains("workspaceLocation: workspaceLocation"))
   }
 
   func testEveryNewStringIsPresentInAllThirteenLocales() throws {

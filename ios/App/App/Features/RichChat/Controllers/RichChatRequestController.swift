@@ -73,28 +73,29 @@ final class RichChatRequestController {
     if state.failure == .ambiguousOutcome { state.failure = nil }
   }
 
+  @discardableResult
   func resolve(
     _ resolution: RichChatRequestResolution,
     request: RichOpenRequest
-  ) async {
+  ) async -> Bool {
     guard !isBackgrounded, let target = state.target, let access = state.access else {
       state.failure = .unavailable
-      return
+      return false
     }
     guard request.threadID == target.threadID,
       request.requestID == resolution.requestID,
       !resolution.method.isEmpty
     else {
       state.failure = .invalidRequest
-      return
+      return false
     }
     guard state.resolvingRequestID == nil else {
       state.failure = .busy
-      return
+      return false
     }
     if let failure = access.controllerGate(.requestsResolve) {
       state.failure = failure
-      return
+      return false
     }
 
     let owner = revision
@@ -127,6 +128,7 @@ final class RichChatRequestController {
       }
     }
     await task.wait()
+    return state.lastResolvedRequestID == resolution.requestID && state.failure == nil
   }
 
   private func owns(target: RichChatThreadTarget, revision: UInt64) -> Bool {

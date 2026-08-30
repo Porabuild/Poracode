@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum RichChatCheckpointPresentation: String, Identifiable {
+  case checkpoints
+  var id: String { rawValue }
+}
+
 struct RichChatCheckpointView: View {
   let projectLocation: ProjectLocation
   let config: [String: RichJSON]
@@ -7,7 +12,40 @@ struct RichChatCheckpointView: View {
   let conversation: RichChatConversationController
   let canOperate: Bool
 
-  @State private var showing = false
+  @State private var presentation: RichChatCheckpointPresentation?
+
+  var body: some View {
+    Button {
+      presentation = .checkpoints
+    } label: {
+      Label(
+        RichChatStrings.checkpoints,
+        systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90"
+      )
+      .frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.bordered)
+    .disabled(controller.state.activeMutation != nil)
+    .sheet(item: $presentation) { _ in
+      RichChatCheckpointSheet(
+        projectLocation: projectLocation,
+        config: config,
+        controller: controller,
+        conversation: conversation,
+        canOperate: canOperate
+      )
+    }
+  }
+}
+
+struct RichChatCheckpointSheet: View {
+  let projectLocation: ProjectLocation
+  let config: [String: RichJSON]
+  let controller: RichChatCheckpointController
+  let conversation: RichChatConversationController
+  let canOperate: Bool
+
+  @Environment(\.dismiss) private var dismiss
   @State private var confirmation: Confirmation?
 
   private enum Confirmation: Identifiable {
@@ -23,16 +61,23 @@ struct RichChatCheckpointView: View {
   }
 
   var body: some View {
-    Button {
-      showing = true
-      Task { await controller.load(projectLocation: projectLocation) }
-    } label: {
-      Label(RichChatStrings.checkpoints, systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-        .frame(maxWidth: .infinity)
+    NavigationStack {
+      content
+        .navigationTitle(RichChatStrings.checkpoints)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button(RichChatStrings.cancel) { dismiss() }
+          }
+          ToolbarItem(placement: .topBarTrailing) {
+            Button(RichChatStrings.refreshCheckpoints, systemImage: "arrow.clockwise") {
+              Task { await controller.load(projectLocation: projectLocation) }
+            }
+            .labelStyle(.iconOnly)
+          }
+        }
     }
-    .buttonStyle(.bordered)
-    .disabled(controller.state.activeMutation != nil)
-    .sheet(isPresented: $showing) { checkpointSheet }
+    .task { await controller.load(projectLocation: projectLocation) }
     .confirmationDialog(
       confirmationTitle,
       isPresented: Binding(
@@ -41,56 +86,46 @@ struct RichChatCheckpointView: View {
       ),
       titleVisibility: .visible
     ) {
-      switch confirmation {
-      case .restore(let checkpoint):
-        Button(RichChatStrings.restoreFiles, role: .destructive) {
-          Task { await controller.restore(itemID: checkpoint.id, projectLocation: projectLocation) }
-          confirmation = nil
-        }
-        .disabled(!canOperate)
-      case .rollback:
-        Button(RichChatStrings.rollback, role: .destructive) {
-          Task { await conversation.rollback(turnCount: 1, config: config) }
-          confirmation = nil
-        }
-        .disabled(!canOperate)
-      case nil:
-        EmptyView()
-      }
+      confirmationButtons
       Button(RichChatStrings.cancel, role: .cancel) { confirmation = nil }
     } message: {
       Text(confirmationMessage)
     }
   }
 
-  private var checkpointSheet: some View {
-    NavigationStack {
-      Group {
-        switch controller.state.loadState {
-        case .idle, .loading:
-          LoadingStateView(message: RichChatStrings.loadingCheckpoints)
-        case .empty:
-          ContentUnavailableView(RichChatStrings.noCheckpoints, systemImage: "clock.badge.xmark")
-        case .failed(let failure):
-          ErrorStateView(message: RichChatStrings.failure(failure), retryTitle: RichChatStrings.retry) {
-            Task { await controller.load(projectLocation: projectLocation) }
-          }
-        case .loaded:
-          checkpointList
-        }
+  @ViewBuilder
+  private var content: some View {
+    switch controller.state.loadState {
+    case .idle, .loading:
+      LoadingStateView(message: RichChatStrings.loadingCheckpoints)
+    case .empty:
+      ContentUnavailableView(RichChatStrings.noCheckpoints, systemImage: "clock.badge.xmark")
+    case .failed(let failure):
+      ErrorStateView(message: RichChatStrings.failure(failure), retryTitle: RichChatStrings.retry) {
+        Task { await controller.load(projectLocation: projectLocation) }
       }
-      .navigationTitle(RichChatStrings.checkpoints)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button(RichChatStrings.cancel) { showing = false }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-          Button(RichChatStrings.refreshCheckpoints, systemImage: "arrow.clockwise") {
-            Task { await controller.load(projectLocation: projectLocation) }
-          }
-          .labelStyle(.iconOnly)
-        }
+    case .loaded:
+      checkpointList
+    }
+  }
+
+  @ViewBuilder
+  private var confirmationButtons: some View {
+    switch confirmation {
+    case .restore(let checkpoint):
+      Button(RichChatStrings.restoreFiles, role: .destructive) {
+        Task { await controller.restore(itemID: checkpoint.id, projectLocation: projectLocation) }
+        confirmation = nil
       }
+      .disabled(!canOperate)
+    case .rollback:
+      Button(RichChatStrings.rollback, role: .destructive) {
+        Task { await conversation.rollback(turnCount: 1, config: config) }
+        confirmation = nil
+      }
+      .disabled(!canOperate)
+    case nil:
+      EmptyView()
     }
   }
 
@@ -119,6 +154,7 @@ struct RichChatCheckpointView: View {
         .disabled(!canOperate)
       }
     }
+    .listStyle(.insetGrouped)
   }
 
   private var checkpoints: [RichCheckpoint] {

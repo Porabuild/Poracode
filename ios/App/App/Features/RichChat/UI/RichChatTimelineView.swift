@@ -1,5 +1,18 @@
 import SwiftUI
 
+enum RichChatTimelineScrollPolicy {
+  static func shouldFollowBottom(
+    isFollowingBottom: Bool,
+    latestItemType: String?
+  ) -> Bool {
+    isFollowingBottom || latestItemType == RichItemType.userMessage
+  }
+}
+
+private enum RichChatTimelineScrollAnchor: Hashable {
+  case bottom
+}
+
 struct RichChatTimelineView: View {
   let controller: RichChatTranscriptController
   let mediaController: RichChatMediaController
@@ -8,6 +21,11 @@ struct RichChatTimelineView: View {
   /// mutations, re-checks the lease, and asks for an authoritative refresh
   /// after an ambiguous completion.
   let conversation: RichChatConversationController
+  let checkpointController: RichChatCheckpointController
+  let projectLocation: ProjectLocation?
+  let config: [String: RichJSON]
+  let sharedTreeThreadCount: Int
+  let allowsCheckpointRevert: Bool
   /// Whether the selected host currently permits `session:operate` mutations.
   let canOperate: Bool
   /// Whether an authoritative transcript read is in flight. Mutating the
@@ -15,12 +33,18 @@ struct RichChatTimelineView: View {
   /// user is no longer looking at.
   let isRefreshing: Bool
 
+  @Environment(\.richChatCompactOverlayClearance) private var compactOverlayClearance
+
   @State private var truncateIntent: RichChatTruncateIntent?
+  @State private var revertIntent: RichChatMessageRevertPlan?
+  @State private var followsBottom = true
+  @State private var bottomIsVisible = false
+  @State private var completedInitialScroll = false
 
   var body: some View {
     ScrollViewReader { proxy in
       ScrollView {
-        LazyVStack(alignment: .leading, spacing: 10) {
+        LazyVStack(alignment: .leading, spacing: 6) {
           if controller.state.olderCursor != nil || controller.state.isLoadingOlder {
             Button {
               Task { await controller.loadOlder() }
@@ -35,7 +59,7 @@ struct RichChatTimelineView: View {
             .disabled(controller.state.isLoadingOlder)
           }
           if let entries = controller.state.timeline?.visibleEntries {
-            ForEach(Array(entries.enumerated()), id: \.element.stableID) { _, entry in
+            ForEach(entries, id: \.stableID) { entry in
               RichChatTimelineEntryView(
                 entry: entry,
                 mediaController: mediaController,
@@ -44,17 +68,63 @@ struct RichChatTimelineView: View {
               .id(entry.stableID)
             }
           }
+          Color.clear
+            .frame(height: 1)
+            .id(RichChatTimelineScrollAnchor.bottom)
+            .onAppear {
+              bottomIsVisible = true
+              followsBottom = true
+            }
+            .onDisappear { bottomIsVisible = false }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
       }
       .scrollDismissesKeyboard(.interactively)
+      .simultaneousGesture(
+        DragGesture(minimumDistance: 8)
+          .onChanged { value in
+            if value.translation.height > 8 { followsBottom = false }
+          }
+      )
       .accessibilityLabel(RichChatStrings.timeline)
       .accessibilityIdentifier("native-e2e.timeline")
-      .onChange(of: lastEntryID) { _, entryID in
-        guard let entryID else { return }
-        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(entryID, anchor: .bottom) }
+      .onAppear {
+        DispatchQueue.main.async {
+          proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+          completedInitialScroll = true
+        }
       }
+      .onChange(of: latestRuntimeItem) { _, item in
+        guard
+          RichChatTimelineScrollPolicy.shouldFollowBottom(
+            isFollowingBottom: followsBottom,
+            latestItemType: item?.type
+          )
+        else { return }
+        followsBottom = true
+        withAnimation(.easeOut(duration: 0.2)) {
+          proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+        }
+      }
+      .overlay(alignment: .bottomTrailing) {
+        if completedInitialScroll && !bottomIsVisible {
+          PoracodeCircleButton {
+            followsBottom = true
+            withAnimation(.easeOut(duration: 0.2)) {
+              proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+            }
+          } label: {
+            Image(systemName: "arrow.down")
+              .font(.subheadline.weight(.semibold))
+          }
+          .accessibilityLabel(RichChatStrings.scrollToBottom)
+          .padding(.trailing, 12)
+          .padding(.bottom, compactOverlayClearance + 12)
+          .transition(.scale.combined(with: .opacity))
+        }
+      }
+      .animation(.snappy(duration: 0.2), value: bottomIsVisible)
       .confirmationDialog(
         RichChatStrings.truncateConfirmationTitle,
         isPresented: Binding(
@@ -69,31 +139,67 @@ struct RichChatTimelineView: View {
       } message: { _ in
         Text(RichChatStrings.truncateConfirmationMessage)
       }
+      .confirmationDialog(
+        RichChatMessageActionStrings.revertTitle,
+        isPresented: Binding(
+          get: { revertIntent != nil },
+          set: { if !$0 { revertIntent = nil } }
+        ),
+        titleVisibility: .visible,
+        presenting: revertIntent
+      ) { plan in
+        Button(RichChatMessageActionStrings.revert, role: .destructive) {
+          confirmRevert(plan)
+        }
+        Button(RichChatStrings.cancel, role: .cancel) { revertIntent = nil }
+      } message: { plan in
+        Text(revertMessage(plan))
+      }
     }
   }
 
-  private var lastEntryID: String? {
-    controller.state.timeline?.visibleEntries.last?.stableID
+  private var latestRuntimeItem: RichRuntimeItem? {
+    controller.state.timeline?.rawItems.last
   }
 
   /// The action is offered only while the host is operable, no mutation is
   /// already running, and no authoritative read is replacing the transcript.
   private var actions: RichChatTimelineActions {
+    let rawItems = controller.state.timeline?.rawItems ?? []
+    let common = RichChatTimelineActions(
+      lastVisibleItemID: lastItemID,
+      rawItems: rawItems,
+      completedTurns: controller.state.completedTurns,
+      checkpoints: checkpointController.state.collection,
+      isTurnActive: controller.state.transcript?.openTurn == true,
+      requestRevert: nil,
+      requestTruncate: nil
+    )
     guard canOperate, !isRefreshing, !isBusy else {
-      return RichChatTimelineActions(lastVisibleItemID: lastItemID, requestTruncate: nil)
+      return common
     }
-    return RichChatTimelineActions(lastVisibleItemID: lastItemID) { itemID in
-      let eligible = RichChatTruncateEligibility.isEligible(
-        itemID: itemID,
-        lastVisibleItemID: lastItemID
-      )
-      guard eligible else { return }
-      truncateIntent = RichChatTruncateIntent(id: itemID)
-    }
+    return RichChatTimelineActions(
+      lastVisibleItemID: lastItemID,
+      rawItems: rawItems,
+      completedTurns: controller.state.completedTurns,
+      checkpoints: checkpointController.state.collection,
+      isTurnActive: controller.state.transcript?.openTurn == true,
+      requestRevert: allowsCheckpointRevert ? { plan in revertIntent = plan } : nil,
+      requestTruncate: { itemID in
+        let eligible = RichChatTruncateEligibility.isEligible(
+          itemID: itemID,
+          lastVisibleItemID: lastItemID
+        )
+        guard eligible else { return }
+        truncateIntent = RichChatTruncateIntent(id: itemID)
+      }
+    )
   }
 
   private var isBusy: Bool {
-    conversation.state.activeMutation != nil || conversation.state.isSending
+    conversation.state.activeMutation != nil
+      || conversation.state.isSending
+      || checkpointController.state.activeMutation != nil
   }
 
   /// The last *item* id, which is not always the last entry id: a trailing
@@ -114,9 +220,41 @@ struct RichChatTimelineView: View {
     else { return }
     Task { await conversation.truncate(after: intent.id) }
   }
+
+  private func confirmRevert(_ selectedPlan: RichChatMessageRevertPlan) {
+    revertIntent = nil
+    guard canOperate, !isRefreshing, !isBusy,
+      let currentPlan = actions.revertPlan(itemID: selectedPlan.userItemID),
+      currentPlan == selectedPlan
+    else { return }
+    Task {
+      let succeeded = await conversation.revertToCheckpoint(
+        RichChatCheckpointRevertInput(
+          checkpointItemID: currentPlan.checkpointItemID,
+          rollbackTurnCount: currentPlan.rollbackTurnCount,
+          config: config,
+          projectLocation: currentPlan.hasFileCheckpoint ? projectLocation : nil
+        )
+      )
+      if succeeded, let projectLocation {
+        await checkpointController.load(projectLocation: projectLocation)
+      }
+    }
+  }
+
+  private func revertMessage(_ plan: RichChatMessageRevertPlan) -> String {
+    var parts = [RichChatMessageActionStrings.revertMessage]
+    if !plan.hasFileCheckpoint || projectLocation == nil {
+      parts.append(RichChatMessageActionStrings.noFileCheckpoint)
+    }
+    if sharedTreeThreadCount > 0 {
+      parts.append(RichChatMessageActionStrings.sharedTreeWarning(sharedTreeThreadCount))
+    }
+    return parts.joined(separator: "\n\n")
+  }
 }
 
-private extension RichTimelineEntry {
+extension RichTimelineEntry {
   var stableID: String {
     switch self {
     case .item(let node): node.item.id
@@ -126,7 +264,7 @@ private extension RichTimelineEntry {
 
   /// Last addressable runtime item inside this entry, or `nil` when the entry
   /// carries none. Group stable ids are presentation-only and never sent.
-  var lastItemID: String? {
+  fileprivate var lastItemID: String? {
     switch self {
     case .item(let node): node.lastItemID
     case .group(_, let members): members.last?.lastItemID
@@ -137,162 +275,5 @@ private extension RichTimelineEntry {
 extension RichVisibleTimelineNode {
   fileprivate var lastItemID: String? {
     children.last?.lastItemID ?? item.id
-  }
-}
-
-private struct RichChatTimelineEntryView: View {
-  let entry: RichTimelineEntry
-  let mediaController: RichChatMediaController
-  let actions: RichChatTimelineActions
-
-  var body: some View {
-    switch entry {
-    case .item(let node):
-      RichChatTimelineNodeView(
-        node: node,
-        mediaController: mediaController,
-        actions: actions,
-        depth: 0
-      )
-    case .group(let stableID, let members):
-      RichChatTimelineGroupView(
-        stableID: stableID,
-        members: members,
-        mediaController: mediaController,
-        actions: actions
-      )
-    }
-  }
-}
-
-private struct RichChatTimelineGroupView: View {
-  let stableID: String
-  let members: [RichVisibleTimelineNode]
-  let mediaController: RichChatMediaController
-  let actions: RichChatTimelineActions
-  @State private var expanded = false
-
-  var body: some View {
-    DisclosureGroup(isExpanded: $expanded) {
-      VStack(alignment: .leading, spacing: 8) {
-        ForEach(members, id: \.item.id) { member in
-          RichChatTimelineNodeView(
-            node: member,
-            mediaController: mediaController,
-            actions: actions,
-            depth: 0
-          )
-        }
-      }
-      .padding(.top, 8)
-    } label: {
-      Text(activityGroupTitle)
-        .font(.subheadline.weight(.semibold))
-    }
-    .padding(12)
-    .background(.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    .accessibilityLabel(expanded ? RichChatStrings.collapseActivity : RichChatStrings.expandActivity)
-  }
-
-  private var activityGroupTitle: String {
-    let format = RichChatStrings.value("rich_chat_activity_group", "%lld activity items")
-    return String(format: format, locale: .current, Int64(members.count))
-  }
-}
-
-private struct RichChatTimelineNodeView: View {
-  let node: RichVisibleTimelineNode
-  let mediaController: RichChatMediaController
-  let actions: RichChatTimelineActions
-  let depth: Int
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      RichChatTimelineItemView(
-        item: node.item,
-        mediaController: mediaController,
-        actions: actions
-      )
-      ForEach(Array(node.children.enumerated()), id: \.element.stableID) { _, child in
-        switch child {
-        case .item(let childNode):
-          RichChatTimelineNodeView(
-            node: childNode,
-            mediaController: mediaController,
-            actions: actions,
-            depth: depth + 1
-          )
-        case .group(let stableID, let members):
-          RichChatTimelineGroupView(
-            stableID: stableID,
-            members: members,
-            mediaController: mediaController,
-            actions: actions
-          )
-          .padding(.leading, 12)
-        }
-      }
-    }
-    .padding(.leading, depth == 0 ? 0 : 12)
-  }
-}
-
-private struct RichChatTimelineItemView: View {
-  let item: RichRuntimeItem
-  let mediaController: RichChatMediaController
-  let actions: RichChatTimelineActions
-
-  var body: some View {
-    let text = RichChatPresentation.text(for: item)
-    let images = RichChatPresentation.images(for: item)
-    VStack(alignment: .leading, spacing: 7) {
-      HStack {
-        Text(RichChatPresentation.typeLabel(for: item))
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(item.type == RichItemType.userMessage ? Color.accentColor : .secondary)
-        Spacer()
-        if item.state != .completed {
-          Text(RichChatStrings.working)
-            .font(.caption2)
-            .foregroundStyle(.tint)
-        }
-      }
-      if !text.isEmpty {
-        Text(text)
-          .font(item.type == RichItemType.userMessage ? .body : .callout.monospaced())
-          .textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      ForEach(images) { source in
-        RichChatImageView(source: source, controller: mediaController)
-      }
-    }
-    .padding(12)
-    .background(background, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(RichChatPresentation.typeLabel(for: item)): \(text)")
-    .contextMenu { truncateAction }
-    .accessibilityActions { truncateAction }
-  }
-
-  /// Present only when the desktop can actually accept the mutation for this
-  /// item, so the menu never implies an operation the real socket seam or the
-  /// current lease would refuse.
-  @ViewBuilder
-  private var truncateAction: some View {
-    if actions.canTruncate(itemID: item.id), let requestTruncate = actions.requestTruncate {
-      Button(RichChatStrings.truncateAction, systemImage: "scissors", role: .destructive) {
-        requestTruncate(item.id)
-      }
-      .accessibilityLabel(RichChatStrings.truncateAccessibilityLabel)
-    }
-  }
-
-  private var background: Color {
-    switch item.type {
-    case RichItemType.userMessage: .accentColor.opacity(0.14)
-    case RichItemType.assistantMessage: .primary.opacity(0.055)
-    default: .primary.opacity(0.035)
-    }
   }
 }

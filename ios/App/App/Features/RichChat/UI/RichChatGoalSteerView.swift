@@ -54,11 +54,14 @@ struct RichChatGoalSteerView: View {
     VStack(alignment: .leading, spacing: 7) {
       HStack {
         Label(RichChatStrings.goal, systemImage: "scope")
-          .font(.subheadline.weight(.semibold))
+          .poracodeChatText(.metadata, weight: .semibold)
         Spacer()
-        Text(RichChatStrings.goalStatus(goal.status)).font(.caption).foregroundStyle(.secondary)
+        Text(RichChatStrings.goalStatus(goal.status))
+          .poracodeChatText(.metadata)
+          .foregroundStyle(.secondary)
       }
       Text(goal.objective)
+        .poracodeChatText(.body)
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 6) {
           if goal.availableActions.contains("edit") {
@@ -88,8 +91,9 @@ struct RichChatGoalSteerView: View {
   private var steerCard: some View {
     VStack(alignment: .leading, spacing: 7) {
       Label(RichChatStrings.pendingSteer, systemImage: "arrow.triangle.branch")
-        .font(.subheadline.weight(.semibold))
+        .poracodeChatText(.metadata, weight: .semibold)
       Text(pendingSteer?.prompt ?? RichChatStrings.noPendingSteer)
+        .poracodeChatText(.body)
         .foregroundStyle(pendingSteer == nil ? .secondary : .primary)
       HStack {
         Button(pendingSteer == nil ? RichChatStrings.addSteer : RichChatStrings.editSteer) {

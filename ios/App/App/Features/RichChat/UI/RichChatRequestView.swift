@@ -9,7 +9,7 @@ struct RichChatRequestsView: View {
     if !requests.isEmpty {
       VStack(alignment: .leading, spacing: 8) {
         Text(RichChatStrings.requests)
-          .font(.headline)
+          .poracodeChatText(.body, weight: .semibold)
         ForEach(requests) { request in
           RichChatRequestCard(
             request: request,
@@ -33,14 +33,14 @@ private struct RichChatRequestCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       Text(request.payload.summary)
-        .font(.subheadline.weight(.semibold))
+        .poracodeChatText(.body, weight: .semibold)
       if let details = request.payload.details {
         DisclosureGroup(
           RichChatStrings.showDetails,
           isExpanded: $showsDetails
         ) {
           Text(detailsText(details))
-            .font(.caption.monospaced())
+            .poracodeChatText(.command)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 4)
@@ -67,7 +67,7 @@ private struct RichChatRequestCard: View {
       }
       if let failure = controller.state.failure {
         Text(RichChatStrings.failure(failure))
-          .font(.caption)
+          .poracodeChatText(.metadata)
           .foregroundStyle(.red)
       }
     }
@@ -106,7 +106,7 @@ private struct RichChatRequestCard: View {
     VStack(alignment: .leading) {
       Text(option.label)
       if let description = option.description {
-        Text(description).font(.caption).foregroundStyle(.secondary)
+        Text(description).poracodeChatText(.metadata).foregroundStyle(.secondary)
       }
     }
   }
@@ -121,10 +121,12 @@ private struct RichChatRequestCard: View {
   }
 
   private func resolve(_ optionIDs: [String]) {
-    guard let resolution = RichChatPresentation.requestResolution(
-      request: request,
-      optionIDs: optionIDs
-    ) else { return }
+    guard
+      let resolution = RichChatPresentation.requestResolution(
+        request: request,
+        optionIDs: optionIDs
+      )
+    else { return }
     Task { await controller.resolve(resolution, request: request) }
   }
 

@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct RichChatUploadedAttachment: Identifiable, Equatable {
   let id = UUID()
@@ -11,159 +10,282 @@ struct RichChatUploadedAttachment: Identifiable, Equatable {
 struct RichChatComposerView: View {
   @Binding var draft: String
   @Binding var attachments: [RichChatUploadedAttachment]
+  @Binding var skills: [RichChatSelectedSkill]
+  @Binding var mcps: [RichChatSelectedMCP]
+  @Binding var queuedSegments: [RichPromptSegment]
+  @Binding var composerExpanded: Bool
   let canOperate: Bool
-  let isWorking: Bool
+  let isTurnActive: Bool
   let controller: RichChatConversationController
+  let requestController: RichChatRequestController
+  let activeRequest: RichOpenRequest?
+  let canResolveRequests: Bool
   let mediaController: RichChatMediaController
-  let config: [String: RichJSON]
+  let agentKind: String
+  @Binding var configuration: ThreadConfig
+  let agentStatus: AgentStatusRecord?
+  let threadSlashCommands: [RemoteSlashCommand]?
+  let canConfigure: Bool
+  let fileMentionController: RichChatFileMentionController
+  let onSubmissionStarted: () -> Void
+  let onSubmissionFinished: (_ succeeded: Bool) -> Void
+  let skillPickerContext: RichChatSkillPickerContext?
 
-  @State private var showingImporter = false
   @State private var importing = false
   @State private var attachmentError: String?
-  @FocusState private var focused: Bool
+  @State private var controlsPresented: RichChatComposerControlsPresentation?
+  @State private var showsSkillPicker = false
 
   var body: some View {
     VStack(spacing: 6) {
-      if !attachments.isEmpty { attachmentChips }
+      if !attachments.isEmpty || !skills.isEmpty || !mcps.isEmpty || !queuedSegments.isEmpty {
+        RichChatComposerContextBar(
+          attachments: $attachments,
+          skills: $skills,
+          mcps: $mcps,
+          queuedSegments: $queuedSegments,
+          configuration: $configuration
+        )
+      }
       if let attachmentError {
-        Text(attachmentError).font(.caption).foregroundStyle(.red)
+        Text(attachmentError).poracodeChatText(.metadata).foregroundStyle(.red)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
       if canOperate {
+        if !slashSuggestions.isEmpty { slashCommandPanel }
+        if !mentionSuggestionsAreEmpty { mentionSuggestionsPanel }
         composerRow
       } else {
-        Label(RichChatStrings.readOnly, systemImage: "lock")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity)
+        PoracodeStatusBubble {
+          Label(RichChatStrings.readOnly, systemImage: "lock")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
       }
     }
-    .padding(.horizontal, 12)
+    .padding(.horizontal, 16)
     .padding(.vertical, 8)
-    .background(.bar)
-    .fileImporter(
-      isPresented: $showingImporter,
-      allowedContentTypes: [.data],
-      allowsMultipleSelection: false
-    ) { result in
-      if case .success(let urls) = result, let url = urls.first {
-        Task { await upload(url) }
+    .sheet(item: $controlsPresented) { _ in
+      RichChatComposerControlsSheet(
+        configuration: $configuration,
+        agentStatus: agentStatus,
+        presentationMode: .gui
+      )
+    }
+    .sheet(isPresented: $showsSkillPicker) {
+      if let skillPickerContext {
+        RichChatComposerSkillPicker(context: skillPickerContext, selection: $skills)
       }
     }
+    .onAppear { fileMentionController.update(draft: draft) }
+    .onChange(of: draft) { _, value in fileMentionController.update(draft: value) }
   }
 
   private var composerRow: some View {
-    HStack(alignment: .bottom, spacing: 8) {
-      Button {
-        showingImporter = true
-      } label: {
-        if importing { ProgressView() } else { Image(systemName: "paperclip") }
-      }
-      .buttonStyle(.bordered)
-      .disabled(importing || controller.state.isSending)
-      .accessibilityLabel(RichChatStrings.addAttachment)
-
-      TextField(RichChatStrings.message, text: $draft, axis: .vertical)
-        .lineLimit(1...6)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .focused($focused)
-        .accessibilityLabel(RichChatStrings.message)
-        .accessibilityIdentifier("native-e2e.composer")
-        .onSubmit { send() }
-
-      if isWorking || controller.state.isSending {
-        Button { Task { await controller.interrupt() } } label: {
-          Image(systemName: "stop.fill")
-        }
-        .buttonStyle(.borderedProminent)
-        .accessibilityLabel(RichChatStrings.stop)
-        .accessibilityIdentifier("native-e2e.interrupt")
-      } else {
-        Button(action: send) {
-          Image(systemName: "arrow.up")
-        }
-        .poracodeProminentButtonStyle()
-        .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || importing)
-        .accessibilityLabel(RichChatStrings.send)
-        .accessibilityIdentifier("native-e2e.send")
-      }
+    let hasPrompt =
+      !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      || !queuedSegments.isEmpty || !skills.isEmpty || !mcps.isEmpty
+    let canOpenControls = agentStatus != nil && canConfigure
+    return RichChatAdaptiveComposer(
+      text: $draft,
+      isExpanded: $composerExpanded,
+      hasPrompt: hasPrompt,
+      hasTrailingAction: hasPrompt || isTurnActive || controller.state.isSending,
+      submit: send
+    ) {
+      RichChatComposerInlineConfiguration(
+        agentKind: agentKind,
+        configuration: configuration,
+        catalog: slashCommandCatalog,
+        canOpen: canOpenControls,
+        open: { controlsPresented = .controls }
+      )
+    } toolbar: {
+      RichChatComposerAttachmentButton(
+        attachments: $attachments,
+        importing: $importing,
+        errorMessage: $attachmentError,
+        mediaController: mediaController,
+        disabled: controller.state.isSending,
+        openSkills: skillPickerContext == nil ? nil : { showsSkillPicker = true },
+        openControls: canOpenControls ? { controlsPresented = .controls } : nil,
+        compactToolbar: true
+      )
+      .controlSize(.small)
+      .frame(width: 32, height: 32)
+      RichChatComposerInlineConfiguration(
+        agentKind: agentKind,
+        configuration: configuration,
+        catalog: slashCommandCatalog,
+        canOpen: canOpenControls,
+        showsStatusIcons: false,
+        open: { controlsPresented = .controls }
+      )
+      RichChatComposerConfigurationIcon(
+        systemImage: configuration.mode == "plan" ? "list.bullet.clipboard" : "hammer",
+        canOpen: canOpenControls,
+        open: { controlsPresented = .controls }
+      )
+      RichChatComposerConfigurationIcon(
+        systemImage: "checkmark.shield",
+        canOpen: canOpenControls,
+        open: { controlsPresented = .controls }
+      )
+    } trailing: {
+      RichChatComposerTrailingAction(
+        hasPrompt: hasPrompt,
+        isTurnActive: isTurnActive,
+        isSending: controller.state.isSending,
+        showsSendWhenEmpty: composerExpanded,
+        importing: importing,
+        isResolvingRequest: requestController.state.resolvingRequestID != nil,
+        interrupt: { Task { await controller.interrupt() } },
+        send: send
+      )
     }
   }
 
-  private var attachmentChips: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: 6) {
-        ForEach(attachments) { attachment in
-          Button {
-            attachments.removeAll { $0.id == attachment.id }
-          } label: {
-            Label(attachment.name, systemImage: "xmark.circle.fill")
-              .font(.caption)
+  private var slashCommandCatalog: RichChatComposerControlCatalog {
+    RichChatComposerControlCatalog(
+      agentStatus: agentStatus,
+      presentationMode: .gui,
+      configuration: configuration,
+      threadSlashCommands: threadSlashCommands
+    )
+  }
+
+  private var slashSuggestions: [RichChatSlashCommandOption] {
+    Array(slashCommandCatalog.slashSuggestions(for: draft).prefix(6))
+  }
+
+  private var slashCommandPanel: some View {
+    VStack(spacing: 0) {
+      ForEach(slashSuggestions) { command in
+        Button {
+          if let skill = command.skill {
+            if !skills.contains(where: { $0.id == skill.id }) { skills.append(skill) }
+            draft = ""
+          } else {
+            draft = "/\(command.displayID) "
           }
-          .buttonStyle(.bordered)
-          .accessibilityLabel("\(RichChatStrings.removeAttachment): \(attachment.name)")
+          composerExpanded = true
+        } label: {
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("/\(command.displayID)")
+              .font(.callout.monospaced().weight(.semibold))
+              .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 2) {
+              Text(command.label)
+                .font(.callout)
+                .foregroundStyle(.primary)
+              if let detail = command.description ?? command.argumentHint {
+                Text(detail)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                  .lineLimit(2)
+              }
+            }
+            Spacer(minLength: 0)
+          }
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+          .padding(.horizontal, 10)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("/\(command.displayID), \(command.label)")
+        if command.id != slashSuggestions.last?.id { Divider() }
       }
     }
+    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+  }
+
+  private var mcpSuggestions: [RichChatMCPMentionOption] {
+    RichChatMCPMentionCatalog.suggestions(for: draft)
+  }
+
+  private var mentionSuggestionsAreEmpty: Bool {
+    mcpSuggestions.isEmpty && fileMentionController.suggestions.isEmpty
+  }
+
+  private var mentionSuggestionsPanel: some View {
+    RichChatMentionSuggestionsView(
+      mcps: mcpSuggestions,
+      files: fileMentionController.suggestions,
+      selectMCP: selectMCPMention,
+      selectFile: selectFileMention
+    )
+  }
+
+  private func selectMCPMention(_ option: RichChatMCPMentionOption) {
+    var nextConfiguration = configuration
+    RichChatMCPMentionCatalog.enable(option.configKey, in: &nextConfiguration)
+    configuration = nextConfiguration
+    let selection = option.selection
+    if !mcps.contains(where: { $0.id == selection.id }) { mcps.append(selection) }
+    draft = fileMentionController.consumeTrigger(from: draft)
+    composerExpanded = true
+  }
+
+  private func selectFileMention(_ entry: ProjectWorkspaceEntry) {
+    queuedSegments.append(.file(path: entry.path))
+    draft = fileMentionController.consumeTrigger(from: draft)
+    composerExpanded = true
   }
 
   private func send() {
-    let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    let typedText = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    let structuredPrompt =
+      queuedSegments.compactMap(\.promptText)
+      + skills.map { $0.invocation }
+      + mcps.map { "@\($0.name)" }
+    let text =
+      typedText.isEmpty
+      ? structuredPrompt.joined(separator: " ") : typedText
     guard !text.isEmpty else { return }
-    let segments = attachments.map {
+    let attachmentSegments = attachments.map {
       RichPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
+    let segments = queuedSegments + skills.map(\.segment) + mcps.map(\.segment) + attachmentSegments
+    let queuesSteer = isTurnActive && !controller.state.isSending
+    onSubmissionStarted()
     Task {
-      await controller.send(
-        RichChatSendInput(
-          prompt: text,
-          config: config,
-          segments: segments.isEmpty ? nil : segments,
-          userMessageItemID: "user-\(UUID().uuidString.lowercased())"
+      if let activeRequest,
+        let denial = RichChatPresentation.composerDenyResolution(for: activeRequest)
+      {
+        guard canResolveRequests,
+          await requestController.resolve(denial, request: activeRequest)
+        else {
+          onSubmissionFinished(false)
+          return
+        }
+      }
+      let succeeded: Bool
+      if queuesSteer {
+        succeeded = await controller.setPendingSteer(
+          RichSetPendingSteerInput(
+            prompt: text,
+            segments: segments.isEmpty ? nil : segments,
+            config: configuration.richChatObject
+          )
         )
-      )
-      if controller.state.failure == nil {
+      } else {
+        succeeded = await controller.send(
+          RichChatSendInput(
+            prompt: text,
+            config: configuration.richChatObject,
+            segments: segments.isEmpty ? nil : segments,
+            userMessageItemID: "user-\(UUID().uuidString.lowercased())"
+          )
+        )
+      }
+      if succeeded {
         draft = ""
         attachments = []
-        focused = false
+        skills = []
+        mcps = []
+        queuedSegments = []
+        composerExpanded = false
       }
-    }
-  }
-
-  private func upload(_ url: URL) async {
-    importing = true
-    attachmentError = nil
-    defer { importing = false }
-    let scoped = url.startAccessingSecurityScopedResource()
-    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-    do {
-      let values = try url.resourceValues(forKeys: [.fileSizeKey, .contentTypeKey, .nameKey])
-      guard let size = values.fileSize,
-        RichAttachmentPolicy.evaluate(name: values.name ?? url.lastPathComponent, byteCount: Int64(size))
-          .accepted
-      else {
-        attachmentError = RichChatStrings.invalidAttachment
-        return
-      }
-      let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-      let name = values.name ?? url.lastPathComponent
-      let mime = values.contentType?.preferredMIMEType ?? "application/octet-stream"
-      let plan = RichChatMediaController.attachmentPlan(name: name, contentType: mime, data: data)
-      await mediaController.upload(plan)
-      guard mediaController.state.failure == nil,
-        let path = mediaController.state.uploadedAttachmentPath
-      else {
-        attachmentError = mediaController.state.failure.map(RichChatStrings.failure)
-          ?? RichChatStrings.uploadFailed
-        return
-      }
-      attachments.append(
-        RichChatUploadedAttachment(name: name, mimeType: mime, remotePath: path)
-      )
-    } catch {
-      attachmentError = RichChatStrings.uploadFailed
+      onSubmissionFinished(succeeded)
     }
   }
 }

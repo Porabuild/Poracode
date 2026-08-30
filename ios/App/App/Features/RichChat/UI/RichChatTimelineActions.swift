@@ -30,9 +30,37 @@ enum RichChatTruncateEligibility {
 @MainActor
 struct RichChatTimelineActions {
   let lastVisibleItemID: String?
+  var rawItems: [RichRuntimeItem] = []
+  var completedTurns: [RichCompletedTurn] = []
+  var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
+  var isTurnActive = false
+  var requestRevert: ((RichChatMessageRevertPlan) -> Void)?
   let requestTruncate: ((String) -> Void)?
 
-  static let none = RichChatTimelineActions(lastVisibleItemID: nil, requestTruncate: nil)
+  static let none = RichChatTimelineActions(
+    lastVisibleItemID: nil,
+    requestRevert: nil,
+    requestTruncate: nil
+  )
+
+  func canCopy(item: RichRuntimeItem, text: String) -> Bool {
+    RichChatMessageCopyEligibility.isEligible(
+      item: item,
+      text: text,
+      items: rawItems,
+      isTurnActive: isTurnActive
+    )
+  }
+
+  func revertPlan(itemID: String) -> RichChatMessageRevertPlan? {
+    guard requestRevert != nil, !isTurnActive else { return nil }
+    return RichChatMessageRevertPlanner.plan(
+      userItemID: itemID,
+      items: rawItems,
+      completedTurns: completedTurns,
+      checkpoints: checkpoints
+    )
+  }
 
   func canTruncate(itemID: String) -> Bool {
     requestTruncate != nil
@@ -40,5 +68,12 @@ struct RichChatTimelineActions {
         itemID: itemID,
         lastVisibleItemID: lastVisibleItemID
       )
+  }
+
+  func completedTurnLabel(itemID: String) -> String? {
+    guard let turn = completedTurns.first(where: { $0.anchorItemID == itemID }),
+      let duration = RichChatPresentation.completedTurnDuration(turn.durationMilliseconds)
+    else { return nil }
+    return RichChatMessageActionStrings.workedFor(duration)
   }
 }

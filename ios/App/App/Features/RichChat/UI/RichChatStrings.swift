@@ -5,6 +5,10 @@ enum RichChatStrings {
     NSLocalizedString(key, tableName: nil, bundle: .main, value: fallback, comment: "")
   }
 
+  private static func messageActionValue(_ key: String, _ fallback: String) -> String {
+    Bundle.main.localizedString(forKey: key, value: fallback, table: "RichChatMessageActions")
+  }
+
   static let refreshTranscript = value("rich_chat_refresh_transcript", "Refresh transcript")
   static let refreshRequired = value(
     "rich_chat_refresh_required",
@@ -48,6 +52,7 @@ enum RichChatStrings {
   )
 
   static let timeline = value("rich_chat_timeline_description", "Rich conversation timeline")
+  static let scrollToBottom = value("rich_chat_scroll_to_bottom", "Scroll to Bottom")
   static let expandActivity = value("rich_chat_expand_activity", "Expand activity")
   static let collapseActivity = value("rich_chat_collapse_activity", "Collapse activity")
   static let working = value("rich_chat_working", "Working…")
@@ -55,17 +60,21 @@ enum RichChatStrings {
   static let you = value("rich_chat_you", "You")
   static let assistant = value("rich_chat_assistant", "Assistant")
   static let reasoning = value("rich_chat_reasoning", "Reasoning")
+  static let thought = value("rich_chat_thought", "Thought")
   static let command = value("rich_chat_command", "Command")
   static let fileChanges = value("rich_chat_file_changes", "File changes")
   static let webSearch = value("rich_chat_web_search", "Web search")
   static let image = value("rich_chat_image", "Image")
   static let activity = value("rich_chat_activity", "Activity")
+  static let tool = value("rich_chat_tool", "Tool")
   static let conversationImage = value("rich_chat_image_description", "Conversation image")
   static let imageUnavailable = value(
     "rich_chat_image_unavailable", "This image could not be displayed safely."
   )
 
   static let addAttachment = value("rich_chat_add_attachment", "Add attachment")
+  static let composerControls = value("rich_chat_composer_controls", "Composer controls")
+  static let thinking = value("rich_chat_thinking", "Thinking")
   static let invalidAttachment = value(
     "rich_chat_attachment_invalid", "Choose a non-empty file no larger than 20 MiB."
   )
@@ -87,6 +96,12 @@ enum RichChatStrings {
   static let clearGoal = value("rich_chat_clear_goal", "Clear goal")
   static let save = value("rich_chat_save", "Save")
   static let pendingSteer = value("rich_chat_pending_steer", "Pending steer")
+  static let plan = messageActionValue("rich.plan", "Plan")
+  static let errors = messageActionValue("rich.errors", "Errors")
+  static func activityCount(_ count: Int) -> String {
+    let format = value("rich_chat_activity_group", "%lld activity items")
+    return String(format: format, locale: .current, Int64(count))
+  }
   static let noPendingSteer = value(
     "rich_chat_no_pending_steer", "No follow-up instruction is staged."
   )
@@ -172,6 +187,13 @@ enum RichChatStrings {
   static let truncateConfirm = value("rich_chat_truncate_confirm_button", "Delete")
 
   static let closeThread = value("rich_chat_close_thread", "Close Thread")
+  static let continueInProvider = value(
+    "rich_chat_continue_in_provider", "Continue in another provider"
+  )
+  static let handoffFork = value("rich_chat_handoff_fork", "Fork Conversation")
+  static let handoffPrompt = value(
+    "rich_chat_handoff_prompt", "Tell the new provider what to do next…"
+  )
   static let closeThreadConfirmationTitle = value(
     "rich_chat_close_thread_confirm_title",
     "Close this thread?"
@@ -181,6 +203,11 @@ enum RichChatStrings {
     "The desktop stops this thread's runtime. The transcript stays available."
   )
   static let removeAttachment = value("rich_chat_remove_attachment_action", "Remove attachment")
+  static let removeFile = value("rich_chat_remove_file_action", "Remove file")
+  static let removeReviewComment = value(
+    "rich_chat_remove_review_comment_action", "Remove review comment"
+  )
+  static let removeSkill = value("rich_chat_remove_skill_action", "Remove skill")
   static let goalStatusActive = value("rich_chat_goal_status_active", "Active")
   static let goalStatusPaused = value("rich_chat_goal_status_paused", "Paused")
   static let goalStatusBudgetLimited = value(
@@ -212,9 +239,10 @@ enum RichChatStrings {
     case .authenticationExpired: authRequired
     case .invalidRequest: invalidRequest
     case .invalidResponse: invalidResponse
-    case .rawTransportUnavailable: value(
-      "rich_chat_raw_transport_unavailable", "This media transfer is not available."
-    )
+    case .rawTransportUnavailable:
+      value(
+        "rich_chat_raw_transport_unavailable", "This media transfer is not available."
+      )
     case .ambiguousOutcome: requestUncertain
     case .rejected, .transport: requestFailed
     }
