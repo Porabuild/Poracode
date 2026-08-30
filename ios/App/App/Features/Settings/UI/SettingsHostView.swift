@@ -42,7 +42,7 @@ struct SettingsHostView: View {
       }
     }
     .task(id: activationIdentity) {
-      composition.activate(selection)
+      composition.activate(activeSelection)
     }
     .overlay(alignment: .bottom) {
       SettingsMutationBanner(
@@ -52,13 +52,18 @@ struct SettingsHostView: View {
       )
       .padding()
     }
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        HostSelectionMenu(session: session)
+      }
+    }
   }
 
   private var splitList: some View {
     List(selection: $route) {
       routeSections(stackNavigation: false)
     }
-    .navigationTitle(SettingsUIStrings.title)
+    .navigationTitle(SettingsUIStrings.desktopSettingsTitle)
     .listStyle(.sidebar)
   }
 
@@ -66,7 +71,7 @@ struct SettingsHostView: View {
     List {
       routeSections(stackNavigation: true)
     }
-    .navigationTitle(SettingsUIStrings.title)
+    .navigationTitle(SettingsUIStrings.desktopSettingsTitle)
     .listStyle(.insetGrouped)
   }
 
@@ -74,33 +79,52 @@ struct SettingsHostView: View {
   private func routeSections(stackNavigation: Bool) -> some View {
     hostHeader
     Section(SettingsUIStrings.selectSection) {
-      routeLink(.agents, systemImage: "cpu", stackNavigation: stackNavigation)
+      routeLink(.profile, systemImage: "person.crop.circle", stackNavigation: stackNavigation)
       routeLink(
         .usage,
         systemImage: "gauge.with.dots.needle.67percent",
         stackNavigation: stackNavigation
       )
-      routeLink(.devices, systemImage: "desktopcomputer", stackNavigation: stackNavigation)
-      routeLink(.activity, systemImage: "chart.bar.xaxis", stackNavigation: stackNavigation)
-      routeLink(.tokens, systemImage: "number.circle", stackNavigation: stackNavigation)
-      routeLink(.profile, systemImage: "person.crop.circle", stackNavigation: stackNavigation)
-    }
-    Section(SettingsUIStrings.configurationSection) {
       NavigationLink {
-        AppearanceSettingsView()
+        RemoteIntegrationsSessionView(
+          session: session,
+          initialRoute: .schedules,
+          embeddedInNavigationStack: true
+        )
       } label: {
         VStack(alignment: .leading, spacing: 2) {
-          Label(SettingsUIStrings.appearanceTitle, systemImage: "circle.lefthalf.filled")
-          Text(SettingsUIStrings.appearanceDescription)
+          Label(RemoteIntegrationsStrings.schedules, systemImage: "calendar.badge.clock")
+          Text(RemoteIntegrationsStrings.schedulesDescription)
             .font(.caption)
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
       }
-      NotificationPermissionControl()
-        .tint(.secondary)
       routeLink(.generation, systemImage: "sparkles", stackNavigation: stackNavigation)
+      routeLink(.agents, systemImage: "cpu", stackNavigation: stackNavigation)
+    }
+    Section(SettingsUIStrings.configurationSection) {
+      NavigationLink {
+        ArchivedThreadsView(session: session)
+      } label: {
+        VStack(alignment: .leading, spacing: 2) {
+          Label(ArchivedThreadsStrings.title, systemImage: "archivebox")
+          Text(ArchivedThreadsStrings.description)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+        .padding(.vertical, 2)
+      }
+      routeLink(.devices, systemImage: "desktopcomputer", stackNavigation: stackNavigation)
+      routeLink(.activity, systemImage: "chart.bar.xaxis", stackNavigation: stackNavigation)
+      routeLink(.tokens, systemImage: "number.circle", stackNavigation: stackNavigation)
       routeLink(.workspace, systemImage: "folder.badge.gearshape", stackNavigation: stackNavigation)
+      NavigationLink {
+        GlobalMCPSettingsView(session: session)
+      } label: {
+        Label(ProjectSettingsStrings.mcpServers, systemImage: "server.rack")
+      }
       NavigationLink {
         SettingsIntegrationsSessionView(session: session)
       } label: {
@@ -113,7 +137,7 @@ struct SettingsHostView: View {
   @ViewBuilder
   private var hostHeader: some View {
     Section(SettingsUIStrings.selectedHost) {
-      if let selection {
+      if let selection = activeSelection {
         Label(selection.name, systemImage: "desktopcomputer")
           .font(.body.weight(.medium))
         if selection.gate(.sessionOperate) != nil {
@@ -167,7 +191,7 @@ struct SettingsHostView: View {
     SettingsRouteView(
       session: session,
       route: value,
-      selection: selection,
+      selection: activeSelection,
       composition: composition,
       query: $query
     )
@@ -175,10 +199,15 @@ struct SettingsHostView: View {
 
   private var activationIdentity: SettingsRefreshIdentity {
     SettingsRefreshIdentity(
-      selection: selection,
+      selection: activeSelection,
       route: route ?? .agents,
       query: query
     )
+  }
+
+  private var activeSelection: SettingsHostSelection? {
+    guard session.selectedConnectionId != nil else { return selection }
+    return session.currentSettingsHostSelection
   }
 }
 
@@ -215,10 +244,15 @@ struct SettingsRouteView: View {
         session: session,
         connectionID: selection?.lease.connectionID,
         controller: composition.hostInformation,
+        composition: composition,
         refresh: refresh
       )
     case .usage:
-      SettingsUsageView(controller: composition.hostInformation, refresh: refresh)
+      SettingsUsageView(
+        controller: composition.hostInformation,
+        composition: composition,
+        refresh: refresh
+      )
     case .devices:
       SettingsDevicesView(controller: composition.hostInformation, refresh: refresh)
     case .activity:
@@ -228,7 +262,11 @@ struct SettingsRouteView: View {
     case .profile:
       SettingsProfileView(composition: composition, query: $query, refresh: refresh)
     case .generation:
-      SettingsGenerationView(composition: composition, refresh: refresh)
+      SettingsGenerationView(
+        composition: composition,
+        agentStatuses: composition.hostInformation.agentStatuses,
+        refresh: refresh
+      )
     case .workspace:
       SettingsWorkspaceView(composition: composition, refresh: refresh)
     }

@@ -17,6 +17,7 @@ final class PullRequestsController {
 
   private(set) var entries: [PullRequestsEntry] = []
   private(set) var failures: [ProjectFailure] = []
+  private(set) var projects: [RemoteProject] = []
   private(set) var isLoading = false
   private(set) var didLoad = false
   private(set) var hasProjects = false
@@ -40,9 +41,10 @@ final class PullRequestsController {
   func load() async {
     loadGeneration += 1
     let generation = loadGeneration
-    let projects = session.projects.sorted {
+    let projects = session.activeWorkspaceProjects.sorted {
       $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
     }
+    self.projects = projects
     hasProjects = !projects.isEmpty
     entries = []
     failures = []
@@ -78,7 +80,13 @@ final class PullRequestsController {
           throw GitHubOperationsFailure.invalidResponse
         }
         entries.append(
-          contentsOf: summaries.map { PullRequestsEntry(projectName: project.name, summary: $0) }
+          contentsOf: summaries.map {
+            PullRequestsEntry(
+              project: project,
+              summary: $0,
+              viewerLogin: GitHubResultProjection.viewerLogin(result)
+            )
+          }
         )
       } catch is CancellationError {
         return

@@ -4,7 +4,9 @@ struct AppearanceSettingsView: View {
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedThemeID =
     PoracodeThemePreset.defaultID
   @AppStorage(PoracodeAppearanceMode.storageKey) private var appearanceModeID =
-    PoracodeAppearanceMode.system.rawValue
+    PoracodeAppearanceMode.defaultMode.rawValue
+  @AppStorage(PoracodeChatTextSize.storageKey) private var chatTextSize =
+    PoracodeChatTextSize.defaultValue
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.poracodeTheme) private var activeTheme
 
@@ -37,6 +39,32 @@ struct AppearanceSettingsView: View {
         Text(SettingsUIStrings.themeDescription)
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
+
+      Section {
+        HStack(spacing: 12) {
+          Image(systemName: "textformat.size.smaller")
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+          Slider(
+            value: chatTextSizeBinding,
+            in: chatTextSizeRange,
+            step: 1
+          )
+          .accessibilityLabel(SettingsUIStrings.chatTextSize)
+          Image(systemName: "textformat.size.larger")
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+          Text(verbatim: String(PoracodeChatTextSize.resolve(chatTextSize)))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .frame(minWidth: 24, alignment: .trailing)
+        }
+      } header: {
+        Text(SettingsUIStrings.chatTextSize)
+      } footer: {
+        Text(SettingsUIStrings.chatTextSizeDescription)
+      }
+      .listRowBackground(activeTheme.variant(for: colorScheme).surface)
     }
     .scrollContentBackground(.hidden)
     .background(activeTheme.variant(for: colorScheme).background)
@@ -62,6 +90,17 @@ struct AppearanceSettingsView: View {
 
   private var resolvedColorScheme: ColorScheme {
     PoracodeAppearanceMode.resolve(appearanceModeID).preferredColorScheme ?? colorScheme
+  }
+
+  private var chatTextSizeBinding: Binding<Double> {
+    Binding(
+      get: { Double(PoracodeChatTextSize.resolve(chatTextSize)) },
+      set: { chatTextSize = PoracodeChatTextSize.resolve(Int($0.rounded())) }
+    )
+  }
+
+  private var chatTextSizeRange: ClosedRange<Double> {
+    Double(PoracodeChatTextSize.range.lowerBound)...Double(PoracodeChatTextSize.range.upperBound)
   }
 }
 

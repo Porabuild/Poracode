@@ -1,6 +1,324 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "thread.status.support.hooks": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enhanced (Hooks)" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Erweitert (Hooks)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mejorado (hooks)" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Avancé (hooks)" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "拡張（フック）" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "향상됨(후크)" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Rozszerzone (hooki)" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Avançado (hooks)" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Расширенный (хуки)" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Gelişmiş (kancalar)" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Розширений (хуки)" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Nâng cao (hook)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "增强（钩子）" } }
+      }
+    },
+    "thread.status.support.cli": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Basic (CLI)" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Basis (CLI)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Básico (CLI)" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Basique (CLI)" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "基本（CLI）" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "기본(CLI)" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Podstawowe (CLI)" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Básico (CLI)" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Базовый (CLI)" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Temel (CLI)" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Базовий (CLI)" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Cơ bản (CLI)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "基础（CLI）" } }
+      }
+    },
+    "thread.status.support.acp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "de": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "es": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "ACP" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "ACP" } }
+      }
+    },
+    "thread.status.support.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Support" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Unterstützung" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Compatibilidad" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Prise en charge" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "サポート" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "지원" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Obsługa" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Suporte" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Поддержка" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Destek" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Підтримка" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Hỗ trợ" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "支持" } }
+      }
+    },
+    "thread.status.support.hooks.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status updates come from the CLI hook plugin." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Statusaktualisierungen stammen vom CLI-Hook-Plugin." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Las actualizaciones de estado provienen del complemento de hooks de la CLI." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Les mises à jour d’état proviennent du plug-in de hook CLI." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ステータス更新はCLIフックプラグインから取得されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "상태 업데이트는 CLI 후크 플러그인에서 제공됩니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Aktualizacje stanu pochodzą z wtyczki hooków CLI." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "As atualizações de status vêm do plugin de hooks da CLI." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Обновления статуса поступают из плагина CLI-хуков." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Durum güncellemeleri CLI kanca eklentisinden gelir." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Оновлення стану надходять із плагіна CLI-хуків." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Cập nhật trạng thái đến từ plugin hook CLI." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "状态更新来自 CLI 钩子插件。" } }
+      }
+    },
+    "thread.status.support.cli.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status is inferred from terminal output. Install the hook plugin in desktop settings for structured updates." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Der Status wird aus der Terminalausgabe abgeleitet. Installieren Sie das Hook-Plugin in den Desktop-Einstellungen für strukturierte Aktualisierungen." } },
+        "es": { "stringUnit": { "state": "translated", "value": "El estado se infiere de la salida del terminal. Instala el complemento de hooks en los ajustes del escritorio para obtener actualizaciones estructuradas." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "L’état est déduit de la sortie du terminal. Installez le plug-in de hook dans les réglages du bureau pour obtenir des mises à jour structurées." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ステータスはターミナル出力から推定されます。構造化された更新を利用するには、デスクトップ設定でフックプラグインをインストールしてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "상태는 터미널 출력에서 추론됩니다. 구조화된 업데이트를 받으려면 데스크톱 설정에서 후크 플러그인을 설치하세요." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Stan jest określany na podstawie wyjścia terminala. Aby otrzymywać strukturalne aktualizacje, zainstaluj wtyczkę hooków w ustawieniach komputera." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "O status é inferido pela saída do terminal. Instale o plugin de hooks nas configurações do desktop para receber atualizações estruturadas." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Статус определяется по выводу терминала. Установите плагин хуков в настройках десктопа для структурированных обновлений." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Durum terminal çıktısından belirlenir. Yapılandırılmış güncellemeler için masaüstü ayarlarından kanca eklentisini yükleyin." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Стан визначається з виводу термінала. Установіть плагін хуків у налаштуваннях комп’ютера для структурованих оновлень." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Trạng thái được suy ra từ đầu ra terminal. Hãy cài plugin hook trong phần cài đặt máy tính để nhận cập nhật có cấu trúc." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "状态根据终端输出推断。请在桌面端设置中安装钩子插件，以获得结构化更新。" } }
+      }
+    },
+    "thread.status.support.acp.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status is provided by the agent control protocol (ACP)." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Der Status wird vom Agent Control Protocol (ACP) bereitgestellt." } },
+        "es": { "stringUnit": { "state": "translated", "value": "El estado lo proporciona el protocolo de control de agentes (ACP)." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "L’état est fourni par le protocole de contrôle des agents (ACP)." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ステータスはエージェント制御プロトコル（ACP）から提供されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "상태는 에이전트 제어 프로토콜(ACP)에서 제공됩니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Stan jest dostarczany przez protokół sterowania agentem (ACP)." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "O status é fornecido pelo protocolo de controle de agentes (ACP)." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Статус предоставляется протоколом управления агентом (ACP)." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Durum, aracı kontrol protokolü (ACP) tarafından sağlanır." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Стан надається протоколом керування агентом (ACP)." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Trạng thái được cung cấp bởi giao thức điều khiển tác nhân (ACP)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "状态由智能体控制协议（ACP）提供。" } }
+      }
+    },
+    "thread.status.support.pending.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Support mode appears once the session connects." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Der Unterstützungsmodus wird angezeigt, sobald die Sitzung verbunden ist." } },
+        "es": { "stringUnit": { "state": "translated", "value": "El modo de compatibilidad aparecerá cuando se conecte la sesión." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Le mode de prise en charge apparaît une fois la session connectée." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "セッションに接続するとサポートモードが表示されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "세션이 연결되면 지원 모드가 표시됩니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Tryb obsługi pojawi się po połączeniu sesji." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "O modo de suporte aparece quando a sessão se conecta." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Режим поддержки появится после подключения сеанса." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Destek modu oturum bağlandıktan sonra görünür." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Режим підтримки з’явиться після підключення сеансу." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chế độ hỗ trợ sẽ xuất hiện sau khi phiên kết nối." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "会话连接后将显示支持模式。" } }
+      }
+    },
+    "thread.status.launching": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Launching…" } }, "de": { "stringUnit": { "state": "translated", "value": "Wird gestartet…" } }, "es": { "stringUnit": { "state": "translated", "value": "Iniciando…" } }, "fr": { "stringUnit": { "state": "translated", "value": "Démarrage…" } }, "ja": { "stringUnit": { "state": "translated", "value": "起動中…" } }, "ko": { "stringUnit": { "state": "translated", "value": "시작 중…" } }, "pl": { "stringUnit": { "state": "translated", "value": "Uruchamianie…" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Iniciando…" } }, "ru": { "stringUnit": { "state": "translated", "value": "Запуск…" } }, "tr": { "stringUnit": { "state": "translated", "value": "Başlatılıyor…" } }, "uk": { "stringUnit": { "state": "translated", "value": "Запуск…" } }, "vi": { "stringUnit": { "state": "translated", "value": "Đang khởi chạy…" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在启动…" } }
+      }
+    },
+    "thread.status.inactive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Inactive" } }, "de": { "stringUnit": { "state": "translated", "value": "Inaktiv" } }, "es": { "stringUnit": { "state": "translated", "value": "Inactivo" } }, "fr": { "stringUnit": { "state": "translated", "value": "Inactif" } }, "ja": { "stringUnit": { "state": "translated", "value": "停止中" } }, "ko": { "stringUnit": { "state": "translated", "value": "비활성" } }, "pl": { "stringUnit": { "state": "translated", "value": "Nieaktywny" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Inativa" } }, "ru": { "stringUnit": { "state": "translated", "value": "Неактивна" } }, "tr": { "stringUnit": { "state": "translated", "value": "Etkin değil" } }, "uk": { "stringUnit": { "state": "translated", "value": "Неактивна" } }, "vi": { "stringUnit": { "state": "translated", "value": "Không hoạt động" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "未激活" } }
+      }
+    },
+    "thread.status.error": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Error" } }, "de": { "stringUnit": { "state": "translated", "value": "Fehler" } }, "es": { "stringUnit": { "state": "translated", "value": "Error" } }, "fr": { "stringUnit": { "state": "translated", "value": "Erreur" } }, "ja": { "stringUnit": { "state": "translated", "value": "エラー" } }, "ko": { "stringUnit": { "state": "translated", "value": "오류" } }, "pl": { "stringUnit": { "state": "translated", "value": "Błąd" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Erro" } }, "ru": { "stringUnit": { "state": "translated", "value": "Ошибка" } }, "tr": { "stringUnit": { "state": "translated", "value": "Hata" } }, "uk": { "stringUnit": { "state": "translated", "value": "Помилка" } }, "vi": { "stringUnit": { "state": "translated", "value": "Lỗi" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "错误" } }
+      }
+    },
+    "thread.status.finished": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Finished" } }, "de": { "stringUnit": { "state": "translated", "value": "Abgeschlossen" } }, "es": { "stringUnit": { "state": "translated", "value": "Finalizado" } }, "fr": { "stringUnit": { "state": "translated", "value": "Terminé" } }, "ja": { "stringUnit": { "state": "translated", "value": "完了" } }, "ko": { "stringUnit": { "state": "translated", "value": "완료" } }, "pl": { "stringUnit": { "state": "translated", "value": "Zakończono" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Concluída" } }, "ru": { "stringUnit": { "state": "translated", "value": "Завершена" } }, "tr": { "stringUnit": { "state": "translated", "value": "Tamamlandı" } }, "uk": { "stringUnit": { "state": "translated", "value": "Завершено" } }, "vi": { "stringUnit": { "state": "translated", "value": "Đã hoàn tất" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "已完成" } }
+      }
+    },
+    "thread.status.needsApproval": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Needs Approval" } }, "de": { "stringUnit": { "state": "translated", "value": "Genehmigung erforderlich" } }, "es": { "stringUnit": { "state": "translated", "value": "Requiere aprobación" } }, "fr": { "stringUnit": { "state": "translated", "value": "Approbation requise" } }, "ja": { "stringUnit": { "state": "translated", "value": "承認が必要" } }, "ko": { "stringUnit": { "state": "translated", "value": "승인 필요" } }, "pl": { "stringUnit": { "state": "translated", "value": "Wymaga zatwierdzenia" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Requer aprovação" } }, "ru": { "stringUnit": { "state": "translated", "value": "Требуется одобрение" } }, "tr": { "stringUnit": { "state": "translated", "value": "Onay gerekiyor" } }, "uk": { "stringUnit": { "state": "translated", "value": "Потрібне схвалення" } }, "vi": { "stringUnit": { "state": "translated", "value": "Cần phê duyệt" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要批准" } }
+      }
+    },
+    "thread.status.needsReply": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Needs Reply" } }, "de": { "stringUnit": { "state": "translated", "value": "Antwort erforderlich" } }, "es": { "stringUnit": { "state": "translated", "value": "Requiere respuesta" } }, "fr": { "stringUnit": { "state": "translated", "value": "Réponse requise" } }, "ja": { "stringUnit": { "state": "translated", "value": "返信が必要" } }, "ko": { "stringUnit": { "state": "translated", "value": "응답 필요" } }, "pl": { "stringUnit": { "state": "translated", "value": "Wymaga odpowiedzi" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Requer resposta" } }, "ru": { "stringUnit": { "state": "translated", "value": "Требуется ответ" } }, "tr": { "stringUnit": { "state": "translated", "value": "Yanıt gerekiyor" } }, "uk": { "stringUnit": { "state": "translated", "value": "Потрібна відповідь" } }, "vi": { "stringUnit": { "state": "translated", "value": "Cần trả lời" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要回复" } }
+      }
+    },
+    "thread.status.working": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Working" } }, "de": { "stringUnit": { "state": "translated", "value": "Arbeitet" } }, "es": { "stringUnit": { "state": "translated", "value": "Trabajando" } }, "fr": { "stringUnit": { "state": "translated", "value": "En cours" } }, "ja": { "stringUnit": { "state": "translated", "value": "作業中" } }, "ko": { "stringUnit": { "state": "translated", "value": "작업 중" } }, "pl": { "stringUnit": { "state": "translated", "value": "Pracuje" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Trabalhando" } }, "ru": { "stringUnit": { "state": "translated", "value": "Работает" } }, "tr": { "stringUnit": { "state": "translated", "value": "Çalışıyor" } }, "uk": { "stringUnit": { "state": "translated", "value": "Працює" } }, "vi": { "stringUnit": { "state": "translated", "value": "Đang làm việc" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在工作" } }
+      }
+    },
+    "thread.status.idle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Idle" } }, "de": { "stringUnit": { "state": "translated", "value": "Bereit" } }, "es": { "stringUnit": { "state": "translated", "value": "En espera" } }, "fr": { "stringUnit": { "state": "translated", "value": "En attente" } }, "ja": { "stringUnit": { "state": "translated", "value": "待機中" } }, "ko": { "stringUnit": { "state": "translated", "value": "대기 중" } }, "pl": { "stringUnit": { "state": "translated", "value": "Bezczynny" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Ociosa" } }, "ru": { "stringUnit": { "state": "translated", "value": "Ожидание" } }, "tr": { "stringUnit": { "state": "translated", "value": "Boşta" } }, "uk": { "stringUnit": { "state": "translated", "value": "Очікування" } }, "vi": { "stringUnit": { "state": "translated", "value": "Đang chờ" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "空闲" } }
+      }
+    },
+    "thread.lifecycle.moveWorktree.withChanges": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move to Worktree with Changes" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Mit Änderungen in Worktree verschieben" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mover al árbol de trabajo con cambios" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Déplacer vers l’arbre de travail avec les modifications" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "変更を含めてワークツリーに移動" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "변경 사항과 함께 워크트리로 이동" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przenieś do drzewa roboczego ze zmianami" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mover para árvore de trabalho com alterações" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Переместить в рабочее дерево с изменениями" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Değişikliklerle çalışma ağacına taşı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перемістити в робоче дерево зі змінами" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Di chuyển vào cây làm việc cùng các thay đổi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "连同更改移至工作树" } }
+      }
+    },
+    "thread.lifecycle.moveWorktree.clean": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move to Clean Worktree" } },
+        "de": { "stringUnit": { "state": "translated", "value": "In sauberen Worktree verschieben" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mover a un árbol de trabajo limpio" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Déplacer vers un arbre de travail propre" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クリーンなワークツリーに移動" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "깨끗한 워크트리로 이동" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przenieś do czystego drzewa roboczego" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mover para uma árvore de trabalho limpa" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Переместить в чистое рабочее дерево" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Temiz çalışma ağacına taşı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перемістити в чисте робоче дерево" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Di chuyển vào cây làm việc sạch" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移至干净的工作树" } }
+      }
+    },
+    "thread.lifecycle.moveWorktree.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move Thread to Worktree?" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Thread in einen Worktree verschieben?" } },
+        "es": { "stringUnit": { "state": "translated", "value": "¿Mover el hilo a un árbol de trabajo?" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Déplacer le fil vers un arbre de travail ?" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "スレッドをワークツリーに移動しますか？" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "스레드를 워크트리로 이동할까요?" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przenieść wątek do drzewa roboczego?" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mover a conversa para uma árvore de trabalho?" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Переместить ветку в рабочее дерево?" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "İleti dizisi çalışma ağacına taşınsın mı?" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перемістити гілку в робоче дерево?" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Di chuyển luồng vào cây làm việc?" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将线程移至工作树？" } }
+      }
+    },
+    "thread.lifecycle.moveWorktree.withChanges.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The current runtime will stop. A new worktree and branch will be created, and uncommitted changes will move there before the thread resumes." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Die aktuelle Laufzeit wird beendet. Ein neuer Worktree und Branch werden erstellt und nicht übertragene Änderungen dorthin verschoben, bevor der Thread fortgesetzt wird." } },
+        "es": { "stringUnit": { "state": "translated", "value": "La ejecución actual se detendrá. Se crearán un árbol de trabajo y una rama nuevos, y los cambios sin confirmar se moverán allí antes de reanudar el hilo." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "L’exécution actuelle va s’arrêter. Un nouvel arbre de travail et une nouvelle branche seront créés, puis les modifications non validées y seront déplacées avant la reprise du fil." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "現在のランタイムを停止します。新しいワークツリーとブランチを作成し、未コミットの変更をそこへ移動してからスレッドを再開します。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "현재 런타임이 중지됩니다. 새 워크트리와 브랜치를 만들고 커밋되지 않은 변경 사항을 이동한 후 스레드를 다시 시작합니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Bieżące środowisko zostanie zatrzymane. Zostanie utworzone nowe drzewo robocze i gałąź, a niezatwierdzone zmiany zostaną tam przeniesione przed wznowieniem wątku." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "A execução atual será interrompida. Uma nova árvore de trabalho e ramificação serão criadas, e as alterações não confirmadas serão movidas para lá antes de a conversa continuar." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Текущая среда выполнения будет остановлена. Будут созданы новое рабочее дерево и ветка, а незакоммиченные изменения перенесены туда до возобновления ветки." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Geçerli çalışma durdurulacak. Yeni bir çalışma ağacı ve dal oluşturulacak, kaydedilmemiş değişiklikler ileti dizisi sürdürülmeden önce buraya taşınacak." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Поточне середовище виконання буде зупинено. Буде створено нове робоче дерево й гілку, а незафіксовані зміни перенесено туди до відновлення гілки." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Phiên chạy hiện tại sẽ dừng. Một cây làm việc và nhánh mới sẽ được tạo, rồi các thay đổi chưa commit sẽ được chuyển sang đó trước khi luồng tiếp tục." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前运行时将停止。系统会创建新的工作树和分支，并在恢复线程前将未提交的更改移到其中。" } }
+      }
+    },
+    "thread.lifecycle.moveWorktree.clean.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The current runtime will stop. A clean worktree and branch will be created before the thread resumes." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Die aktuelle Laufzeit wird beendet. Ein sauberer Worktree und Branch werden erstellt, bevor der Thread fortgesetzt wird." } },
+        "es": { "stringUnit": { "state": "translated", "value": "La ejecución actual se detendrá. Se crearán un árbol de trabajo limpio y una rama antes de reanudar el hilo." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "L’exécution actuelle va s’arrêter. Un arbre de travail propre et une branche seront créés avant la reprise du fil." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "現在のランタイムを停止します。クリーンなワークツリーとブランチを作成してからスレッドを再開します。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "현재 런타임이 중지됩니다. 깨끗한 워크트리와 브랜치를 만든 후 스레드를 다시 시작합니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Bieżące środowisko zostanie zatrzymane. Czyste drzewo robocze i gałąź zostaną utworzone przed wznowieniem wątku." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "A execução atual será interrompida. Uma árvore de trabalho limpa e uma ramificação serão criadas antes de a conversa continuar." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Текущая среда выполнения будет остановлена. Перед возобновлением ветки будут созданы чистое рабочее дерево и новая ветка." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Geçerli çalışma durdurulacak. İleti dizisi sürdürülmeden önce temiz bir çalışma ağacı ve dal oluşturulacak." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Поточне середовище виконання буде зупинено. Перед відновленням гілки буде створено чисте робоче дерево й нову гілку." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Phiên chạy hiện tại sẽ dừng. Một cây làm việc sạch và nhánh mới sẽ được tạo trước khi luồng tiếp tục." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前运行时将停止。系统会先创建干净的工作树和分支，再恢复线程。" } }
+      }
+    },
+    "thread.lifecycle.moveWorktree.confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Verschieben" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mover" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Déplacer" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "移動" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이동" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przenieś" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mover" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Переместить" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Taşı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перемістити" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Di chuyển" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移动" } }
+      }
+    },
+    "thread.lifecycle.newInWorktree": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New Thread in Worktree" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Neuer Thread im Worktree" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Nuevo hilo en el árbol de trabajo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Nouveau fil dans l’arbre de travail" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ワークツリーで新しいスレッド" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "워크트리에서 새 스레드" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nowy wątek w drzewie roboczym" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Nova conversa na árvore de trabalho" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Новая ветка в рабочем дереве" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Çalışma ağacında yeni ileti dizisi" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Нова гілка в робочому дереві" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Luồng mới trong cây làm việc" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在工作树中新建线程" } }
+      }
+    },
     "thread.lifecycle.actions": {
       "extractionState": "manual",
       "localizations": {
@@ -827,6 +1145,89 @@
           "stringUnit": {
             "state": "translated",
             "value": "确认"
+          }
+        }
+      }
+    },
+    "thread.lifecycle.removeFromGroup": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Group"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus Gruppe entfernen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar del grupo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer du groupe"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループから削除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그룹에서 제거"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usuń z grupy"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover do grupo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить из группы"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gruptan kaldır"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити з групи"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xóa khỏi nhóm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从群组中移除"
           }
         }
       }

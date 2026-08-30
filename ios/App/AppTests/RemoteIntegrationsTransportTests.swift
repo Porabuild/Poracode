@@ -9,12 +9,13 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
     RemoteIntegrationsBlockingURLProtocol.reset()
   }
 
-  func testAllNineRoutesUseExactPathsMethodsQueryBodiesAndBearer() async throws {
+  func testAllTenRoutesUseExactPathsMethodsQueryBodiesAndBearer() async throws {
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.hostUpdate)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.hostUpdate)
     try RemoteIntegrationsURLProtocol.enqueue([:], status: 202)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.schedulesRead)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.schedulesCommand)
+    try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.scheduleRuns)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.prWatchRead)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.ok)
     try RemoteIntegrationsURLProtocol.enqueue(RemoteIntegrationsFixtures.prWatchUpsert)
@@ -53,13 +54,16 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
         )
       )
     )
+    _ = try await client.remoteIntegrationsScheduleRuns(
+      id: RemoteIntegrationsFixtures.scheduleID
+    )
     _ = try await client.remoteIntegrationsPRWatch(key)
     try await client.remoteIntegrationsCheckPRWatch(key)
     _ = try await client.remoteIntegrationsUpsertPRWatch(input)
     try await client.remoteIntegrationsDeletePRWatch(key)
 
     let requests = RemoteIntegrationsURLProtocol.requests
-    XCTAssertEqual(requests.count, 9)
+    XCTAssertEqual(requests.count, 10)
     XCTAssertEqual(
       requests.map { $0.url?.path(percentEncoded: true) },
       [
@@ -68,6 +72,7 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
         "/prefix/api/host-update/install",
         "/prefix/api/schedules",
         "/prefix/api/schedules/command",
+        "/prefix/api/schedules/runs",
         "/prefix/api/pr-watches",
         "/prefix/api/pr-watches/check",
         "/prefix/api/pr-watches",
@@ -76,18 +81,25 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
     )
     XCTAssertEqual(
       requests.map(\.httpMethod),
-      ["GET", "POST", "POST", "GET", "POST", "GET", "POST", "POST", "DELETE"]
+      ["GET", "POST", "POST", "GET", "POST", "GET", "GET", "POST", "POST", "DELETE"]
     )
     XCTAssertTrue(
       requests.allSatisfy {
         $0.value(forHTTPHeaderField: "Authorization") == "Bearer host-token"
       }
     )
-    for index in [0, 1, 2, 3, 5] {
+    for index in [0, 1, 2, 3, 5, 6] {
       XCTAssertNil(RemoteIntegrationsURLProtocol.bodies[index])
       XCTAssertNil(requests[index].value(forHTTPHeaderField: "Content-Type"))
     }
-    let query = try XCTUnwrap(URLComponents(url: requests[5].url!, resolvingAgainstBaseURL: false))
+    let runsQuery = try XCTUnwrap(
+      URLComponents(url: requests[5].url!, resolvingAgainstBaseURL: false)
+    )
+    XCTAssertEqual(
+      runsQuery.queryItems,
+      [URLQueryItem(name: "id", value: RemoteIntegrationsFixtures.scheduleID)]
+    )
+    let query = try XCTUnwrap(URLComponents(url: requests[6].url!, resolvingAgainstBaseURL: false))
     XCTAssertEqual(
       query.queryItems,
       [
@@ -96,7 +108,7 @@ final class RemoteIntegrationsTransportTests: XCTestCase {
       ])
     let scheduleBody = try bodyObject(index: 4)
     XCTAssertEqual(scheduleBody["kind"] as? String, "create")
-    let deleteBody = try bodyObject(index: 8)
+    let deleteBody = try bodyObject(index: 9)
     XCTAssertEqual(deleteBody["projectId"] as? String, "project one")
     XCTAssertEqual(deleteBody["prNumber"] as? Int, 42)
   }

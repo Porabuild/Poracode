@@ -27,7 +27,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
     XCTAssertEqual(harness.session.refreshSnapshotCount, 1)
-    XCTAssertEqual(harness.session.openedThreadIds, ["t-a"])
     XCTAssertEqual(harness.navigation.event?.threadTitle, "Thread A")
   }
 
@@ -39,8 +38,20 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     await harness.settle()
 
     XCTAssertNil(harness.controller.pendingHostSwitch)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
     XCTAssertNil(harness.navigation.event)
+  }
+
+  func testTerminalNotificationPublishesTheNativeDestinationWithoutLegacyPreflight() async {
+    let harness = Harness()
+    harness.session.snapshot = makeSnapshot(
+      threads: [makeThread(id: "terminal", title: "Terminal", presentationMode: "terminal")])
+
+    harness.controller.submit(
+      route(connection: connectionA, desktopId: "desk-a", threadId: "terminal"))
+    await harness.settle()
+
+    XCTAssertEqual(harness.navigation.event?.route.threadId, "terminal")
+    XCTAssertEqual(harness.navigation.event?.threadTitle, "Terminal")
   }
 
   // MARK: - Cross-host confirm / cancel
@@ -57,7 +68,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertEqual(pending?.route.threadId, "t-b")
     // Nothing may move before the user answers.
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
     XCTAssertNil(harness.navigation.event)
   }
 
@@ -75,7 +85,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertEqual(harness.session.switchHostCalls, [connectionB])
     XCTAssertEqual(harness.session.selectedConnectionId, connectionB)
-    XCTAssertEqual(harness.session.openedThreadIds, ["t-b"])
     XCTAssertEqual(harness.navigation.event?.route.clientConnectionId, connectionB)
     XCTAssertEqual(harness.navigation.event?.threadTitle, "Thread B")
   }
@@ -94,7 +103,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
     XCTAssertEqual(harness.session.selectedConnectionId, connectionA)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
     XCTAssertNil(harness.navigation.event)
   }
 
@@ -123,8 +131,7 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     await harness.settle()
 
     XCTAssertEqual(harness.session.switchHostCalls, [connectionC])
-    XCTAssertEqual(harness.session.openedThreadIds, ["t-c"])
-    XCTAssertFalse(harness.session.openedThreadIds.contains("t-b"))
+    XCTAssertEqual(harness.navigation.event?.route.threadId, "t-c")
   }
 
   func testSameHostTapSupersedesPendingCrossHostConfirmation() async {
@@ -143,7 +150,7 @@ final class NotificationRouteConfirmationTests: XCTestCase {
 
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
-    XCTAssertEqual(harness.session.openedThreadIds, ["t-a"])
+    XCTAssertEqual(harness.navigation.event?.route.threadId, "t-a")
   }
 
   func testColdLaunchTapIsRetainedAndStillRequiresConfirmation() async {
@@ -202,7 +209,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
     XCTAssertEqual(harness.session.selectedConnectionId, connectionA)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
     XCTAssertNil(harness.navigation.event)
   }
 
@@ -219,7 +225,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
 
     XCTAssertEqual(harness.session.switchHostCalls, [connectionB])
     XCTAssertEqual(harness.session.selectedConnectionId, connectionA)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
     XCTAssertNil(harness.navigation.event)
   }
 
@@ -238,7 +243,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
 
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
   }
 
   func testForegroundDoesNotReviveCancelledConfirmation() async {
@@ -253,7 +257,6 @@ final class NotificationRouteConfirmationTests: XCTestCase {
 
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
-    XCTAssertTrue(harness.session.openedThreadIds.isEmpty)
     XCTAssertNil(harness.navigation.event)
   }
 
@@ -366,7 +369,11 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     )
   }
 
-  private func makeThread(id: String, title: String) -> RemoteThread {
+  private func makeThread(
+    id: String,
+    title: String,
+    presentationMode: String = "gui"
+  ) -> RemoteThread {
     RemoteThread(
       id: id,
       remoteServerId: nil,
@@ -384,7 +391,7 @@ final class NotificationRouteConfirmationTests: XCTestCase {
       archived: false,
       done: false,
       starred: false,
-      presentationMode: "gui",
+      presentationMode: presentationMode,
       createdAt: "2020-01-01T00:00:00.000Z",
       updatedAt: "2020-01-02T00:00:00.000Z",
       activeTurnStartedAt: nil,
@@ -453,7 +460,6 @@ private final class RouteSessionDouble: NotificationRouteSession {
 
   private(set) var switchHostCalls: [ClientConnectionID] = []
   private(set) var refreshSnapshotCount = 0
-  private(set) var openedThreadIds: [String] = []
 
   func switchHost(_ connectionId: ClientConnectionID) async {
     switchHostCalls.append(connectionId)
@@ -468,7 +474,4 @@ private final class RouteSessionDouble: NotificationRouteSession {
     refreshSnapshotCount += 1
   }
 
-  func openThread(id: String) {
-    openedThreadIds.append(id)
-  }
 }

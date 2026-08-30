@@ -6,12 +6,50 @@ struct TerminalViewportSize: Equatable, Hashable, Sendable {
   let rows: Int
 }
 
+enum PoracodeTerminalTextSize {
+  /// Existing key remains the agent-terminal preference for upgrade compatibility.
+  static let storageKey = "poracode.terminal-text-size.v1"
+  static let projectStorageKey = "poracode.project-terminal-text-size.v1"
+  static let defaultValue = 13
+  static let range = 8...20
+
+  static func resolve(_ value: Int) -> Int {
+    min(range.upperBound, max(range.lowerBound, value))
+  }
+}
+
+enum PoracodeTerminalTextSizeRole: Equatable, Sendable {
+  case agent
+  case project
+
+  var storageKey: String {
+    switch self {
+    case .agent: PoracodeTerminalTextSize.storageKey
+    case .project: PoracodeTerminalTextSize.projectStorageKey
+    }
+  }
+
+  func initialValue(in defaults: UserDefaults = .standard) -> Int {
+    if let stored = defaults.object(forKey: storageKey) as? NSNumber {
+      return PoracodeTerminalTextSize.resolve(stored.intValue)
+    }
+    // Before project terminals gained an independent control, both surfaces
+    // used the agent-terminal key. Preserve that value on upgrade.
+    if self == .project,
+      let legacy = defaults.object(forKey: PoracodeTerminalTextSize.storageKey) as? NSNumber
+    {
+      return PoracodeTerminalTextSize.resolve(legacy.intValue)
+    }
+    return PoracodeTerminalTextSize.defaultValue
+  }
+}
+
 enum TerminalViewportMetrics {
   static let contentInset: CGFloat = 12
 
   static func size(
     for bounds: CGSize,
-    font: UIFont = TerminalTextAttributes.font()
+    font: UIFont = TerminalTextAttributes.font(pointSize: 13)
   ) -> TerminalViewportSize? {
     let usableWidth = bounds.width - (contentInset * 2)
     let usableHeight = bounds.height - (contentInset * 2)
@@ -28,6 +66,7 @@ enum TerminalViewportMetrics {
 struct TerminalTextSurface: UIViewRepresentable {
   let transcript: String
   let accessibilityLabel: String
+  let fontSize: CGFloat
 
   func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -52,13 +91,15 @@ struct TerminalTextSurface: UIViewRepresentable {
 
   func updateUIView(_ view: UITextView, context: Context) {
     view.accessibilityLabel = accessibilityLabel
-    guard context.coordinator.transcript != transcript else { return }
+    guard context.coordinator.transcript != transcript || context.coordinator.fontSize != fontSize
+    else { return }
     let distanceFromBottom = view.contentSize.height - view.contentOffset.y - view.bounds.height
     let shouldFollowOutput = context.coordinator.transcript.isEmpty || distanceFromBottom < 72
     let rendered = TerminalANSIParser.render(transcript)
-    view.attributedText = TerminalTextAttributes.attributed(rendered)
+    view.attributedText = TerminalTextAttributes.attributed(rendered, pointSize: fontSize)
     view.accessibilityValue = rendered.plainText
     context.coordinator.transcript = transcript
+    context.coordinator.fontSize = fontSize
     if shouldFollowOutput, !rendered.plainText.isEmpty {
       view.scrollRangeToVisible(NSRange(location: view.attributedText.length, length: 0))
     }
@@ -66,23 +107,25 @@ struct TerminalTextSurface: UIViewRepresentable {
 
   final class Coordinator {
     var transcript = ""
+    var fontSize: CGFloat = 0
   }
 }
 
 enum TerminalTextAttributes {
-  static func font() -> UIFont {
-    UIFontMetrics(forTextStyle: .body).scaledFont(
-      for: .monospacedSystemFont(ofSize: 13, weight: .regular)
-    )
+  static func font(pointSize: CGFloat) -> UIFont {
+    .monospacedSystemFont(ofSize: pointSize, weight: .regular)
   }
 
-  static func attributed(_ rendered: TerminalRenderedText) -> NSAttributedString {
+  static func attributed(
+    _ rendered: TerminalRenderedText,
+    pointSize: CGFloat
+  ) -> NSAttributedString {
     let result = NSMutableAttributedString()
     for run in rendered.runs {
       var foreground = color(run.style.foreground) ?? UIColor(white: 0.86, alpha: 1)
       var background = color(run.style.background) ?? .clear
       if run.style.inverse { swap(&foreground, &background) }
-      let base = font()
+      let base = font(pointSize: pointSize)
       var traits: UIFontDescriptor.SymbolicTraits = []
       if run.style.bold { traits.insert(.traitBold) }
       if run.style.italic { traits.insert(.traitItalic) }

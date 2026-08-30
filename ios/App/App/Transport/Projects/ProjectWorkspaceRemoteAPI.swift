@@ -33,6 +33,29 @@ protocol ProjectWorkspaceRemoteAPI: Sendable {
     baseModifiedAtMs: Double
   ) async throws -> ProjectFileWriteResult
 
+  func remoteCreateProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    type: AdvancedProjectEntryType
+  ) async throws
+
+  func remoteRenameProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    nextName: String
+  ) async throws
+
+  func remoteMoveProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    nextParentPath: String?
+  ) async throws
+
+  func remoteDeleteProjectEntry(
+    location: ProjectLocation,
+    path: String
+  ) async throws
+
   func remoteGetGitStatus(
     location: ProjectLocation,
     detail: ProjectGitStatusDetail?
@@ -145,6 +168,51 @@ extension RemoteAPIClient: ProjectWorkspaceRemoteAPI {
     }
   }
 
+  func remoteCreateProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    type: AdvancedProjectEntryType
+  ) async throws {
+    try await remoteProjectEntryMutation(
+      .createProjectEntry(
+        .init(projectLocation: location, path: path, entryType: type)
+      )
+    )
+  }
+
+  func remoteRenameProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    nextName: String
+  ) async throws {
+    try await remoteProjectEntryMutation(
+      .renameProjectEntry(
+        .init(projectLocation: location, path: path, nextName: nextName)
+      )
+    )
+  }
+
+  func remoteMoveProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    nextParentPath: String?
+  ) async throws {
+    try await remoteProjectEntryMutation(
+      .moveProjectEntry(
+        .init(projectLocation: location, path: path, nextParentPath: nextParentPath)
+      )
+    )
+  }
+
+  func remoteDeleteProjectEntry(
+    location: ProjectLocation,
+    path: String
+  ) async throws {
+    try await remoteProjectEntryMutation(
+      .deleteProjectEntry(.init(projectLocation: location, path: path))
+    )
+  }
+
   func remoteGetGitStatus(
     location: ProjectLocation,
     detail: ProjectGitStatusDetail?
@@ -226,11 +294,28 @@ extension RemoteAPIClient: ProjectWorkspaceRemoteAPI {
     } catch is CancellationError {
       throw CancellationError()
     } catch let error as RemoteClientError
-      where RemoteMutationClassification.classify(statusCode: error.status, code: error.code) == .requestMayHaveCommitted
+      where RemoteMutationClassification.classify(statusCode: error.status, code: error.code)
+      == .requestMayHaveCommitted
     {
       throw ProjectRemoteMutationError.ambiguousOutcome
     } catch {
       throw error
+    }
+  }
+
+  private func remoteProjectEntryMutation(_ request: AdvancedOperationRequest) async throws {
+    let body = try AdvancedOperationsRemoteV3Contract.requestEnvelope(request)
+    let response = try await projectWorkspaceMutationRequest(body)
+    do {
+      let result = try AdvancedOperationsRemoteV3Contract.result(
+        for: request.procedure,
+        envelope: response
+      )
+      guard result == .omitted else { throw ProjectSessionGatewayError.invalidResponse }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      throw ProjectRemoteMutationError.ambiguousOutcome
     }
   }
 }

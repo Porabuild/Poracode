@@ -305,21 +305,33 @@ struct PairingCandidateTracker: Sendable, Equatable {
     }
 }
 
-// MARK: - GUI thread list filter
+// MARK: - Native thread presentation filter
 
 /// Authoritative default for missing `presentationMode` is **terminal**.
-/// GUI list/open is an allowlist: only exactly `gui` may use ThreadDetail.
+/// Native lists expose the two presentation surfaces iOS implements and hide
+/// unknown future modes until a matching destination exists.
 enum ThreadPresentationFilter {
-    /// Only this exact (case-insensitive) mode is openable in the GUI shell.
     static let guiPresentationMode = "gui"
+    static let terminalPresentationMode = "terminal"
 
-    static func isVisibleInGUIList(_ thread: RemoteThread) -> Bool {
-        isGUIPresentation(thread.presentationMode)
+    static func isVisibleInNativeList(_ thread: RemoteThread) -> Bool {
+        isNativePresentation(thread.presentationMode)
     }
 
-    /// Programmatic guard for openThread — nil/terminal/other are blocked.
     static func isGUIPresentation(_ presentationMode: String?) -> Bool {
-        presentationMode?.lowercased() == guiPresentationMode
+        resolvedPresentationMode(presentationMode) == guiPresentationMode
+    }
+
+    static func isTerminalPresentation(_ presentationMode: String?) -> Bool {
+        resolvedPresentationMode(presentationMode) == terminalPresentationMode
+    }
+
+    static func isNativePresentation(_ presentationMode: String?) -> Bool {
+        isGUIPresentation(presentationMode) || isTerminalPresentation(presentationMode)
+    }
+
+    static func matches(_ presentationMode: String?, mode: String) -> Bool {
+        resolvedPresentationMode(presentationMode) == mode.lowercased()
     }
 
     static func visibleThreads(
@@ -329,7 +341,11 @@ enum ThreadPresentationFilter {
         threads.filter {
             $0.projectId == projectId
                 && !$0.isArchived
-                && isVisibleInGUIList($0)
+                && isVisibleInNativeList($0)
         }
+    }
+
+    private static func resolvedPresentationMode(_ presentationMode: String?) -> String {
+        presentationMode?.lowercased() ?? terminalPresentationMode
     }
 }

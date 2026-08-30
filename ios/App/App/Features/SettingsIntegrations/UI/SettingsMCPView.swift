@@ -11,7 +11,26 @@ struct SettingsMCPView: View {
   let controller: SettingsIntegrationsMCPController
   let oauth: SettingsIntegrationsOAuthController
   let canOperate: Bool
+  let onImport: ((SettingsMCPServer) -> Void)?
+  let onUpdateConfigured: ((SettingsMCPServer) -> Void)?
   @State private var source = Source.user
+  @State private var toolServer: SettingsMCPServer?
+
+  init(
+    controller: SettingsIntegrationsMCPController,
+    oauth: SettingsIntegrationsOAuthController,
+    canOperate: Bool,
+    onImport: ((SettingsMCPServer) -> Void)?,
+    onUpdateConfigured: ((SettingsMCPServer) -> Void)?,
+    preferredSource: Source = .user
+  ) {
+    self.controller = controller
+    self.oauth = oauth
+    self.canOperate = canOperate
+    self.onImport = onImport
+    self.onUpdateConfigured = onUpdateConfigured
+    _source = State(initialValue: preferredSource)
+  }
 
   var body: some View {
     List {
@@ -50,6 +69,9 @@ struct SettingsMCPView: View {
     .navigationTitle(SettingsIntegrationsStrings.mcpServers)
     .toolbar { refreshButton }
     .task(id: discoveryTaskIdentity) { await discover() }
+    .sheet(item: $toolServer) { server in
+      toolSheet(server)
+    }
   }
 
   @ViewBuilder private var oauthStatus: some View {
@@ -86,6 +108,9 @@ struct SettingsMCPView: View {
 
   private func candidateRow(_ candidate: SettingsExternalMCPServer) -> some View {
     let server = controller.server(from: candidate)
+    let configured = controller.configuredServers.contains {
+      $0.name.localizedCaseInsensitiveCompare(server.name) == .orderedSame
+    }
     return VStack(alignment: .leading, spacing: 8) {
       HStack {
         Text(candidate.name).font(.headline)
@@ -95,8 +120,20 @@ struct SettingsMCPView: View {
             .accessibilityLabel(SettingsIntegrationsStrings.unsupportedImport)
         }
       }
-      serverActions(server, unsupported: candidate.unsupportedReason != nil)
-      probeSummary(server.id)
+      HStack {
+        serverActions(server, unsupported: candidate.unsupportedReason != nil)
+        if let onImport {
+          Button(
+            configured
+              ? SettingsIntegrationsStrings.configured : SettingsIntegrationsStrings.importSkill
+          ) {
+            onImport(server)
+          }
+          .buttonStyle(.borderedProminent)
+          .disabled(configured || candidate.unsupportedReason != nil)
+        }
+      }
+      probeSummary(server)
     }
     .padding(.vertical, 4)
   }
@@ -108,7 +145,7 @@ struct SettingsMCPView: View {
         Text(server.descriptionText).foregroundStyle(.secondary)
       }
       serverActions(server, unsupported: false)
-      probeSummary(server.id)
+      probeSummary(server)
     }
     .padding(.vertical, 4)
   }
@@ -139,8 +176,8 @@ struct SettingsMCPView: View {
     .disabled(!canOperate || unsupported)
   }
 
-  @ViewBuilder private func probeSummary(_ serverID: String) -> some View {
-    if let result = controller.probeResults[serverID] {
+  @ViewBuilder private func probeSummary(_ server: SettingsMCPServer) -> some View {
+    if let result = controller.probeResults[server.id] {
       HStack(spacing: 12) {
         Label(probeStatus(result), systemImage: probeSymbol(result))
         LabeledContent(SettingsIntegrationsStrings.tools, value: String(result.toolCount))
@@ -149,13 +186,58 @@ struct SettingsMCPView: View {
           value: Measurement(value: Double(result.latencyMs), unit: UnitDuration.milliseconds)
             .formatted(.measurement(width: .abbreviated))
         )
+        if result.tools?.isEmpty == false {
+          Button(SettingsIntegrationsStrings.tools) {
+            toolServer = server
+          }
+          .buttonStyle(.borderless)
+        }
       }
       .font(.caption)
       .foregroundStyle(.secondary)
-    } else if controller.probeFailures.contains(serverID) {
+    } else if controller.probeFailures.contains(server.id) {
       Label(SettingsIntegrationsStrings.mutationFailed, systemImage: "exclamationmark.triangle")
         .font(.caption)
         .foregroundStyle(.secondary)
+    }
+  }
+
+  private func toolSheet(_ server: SettingsMCPServer) -> some View {
+    NavigationStack {
+      List(controller.probeResults[server.id]?.tools ?? [], id: \.self) { tool in
+        Toggle(
+          tool,
+          isOn: Binding(
+            get: {
+              let current = currentConfiguredServer(for: server) ?? server
+              return !(current.disabledTools ?? []).contains(tool)
+            },
+            set: { enabled in
+              guard let onUpdateConfigured,
+                let current = currentConfiguredServer(for: server)
+              else { return }
+              var disabled = Set(current.disabledTools ?? [])
+              if enabled { disabled.remove(tool) } else { disabled.insert(tool) }
+              onUpdateConfigured(current.replacingDisabledTools(disabled.sorted()))
+            }
+          )
+        )
+        .disabled(onUpdateConfigured == nil || currentConfiguredServer(for: server) == nil)
+      }
+      .navigationTitle(server.name)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button(SettingsUIStrings.done) { toolServer = nil }
+        }
+      }
+    }
+  }
+
+  private func currentConfiguredServer(for server: SettingsMCPServer) -> SettingsMCPServer? {
+    controller.configuredServers.first {
+      $0.id == server.id
+        && $0.name.localizedCaseInsensitiveCompare(server.name) == .orderedSame
     }
   }
 
@@ -215,4 +297,18 @@ extension SettingsMCPView.Source {
 private struct MCPDiscoveryTaskIdentity: Hashable {
   let source: SettingsMCPView.Source
   let context: SettingsIntegrationsContext?
+}
+
+extension SettingsMCPServer {
+  fileprivate func replacingDisabledTools(_ value: [String]) -> SettingsMCPServer {
+    SettingsMCPServer(
+      id: id,
+      name: name,
+      descriptionText: descriptionText,
+      enabled: enabled,
+      timeoutMs: timeoutMs,
+      disabledTools: value.isEmpty ? nil : value,
+      transport: transport
+    )
+  }
 }

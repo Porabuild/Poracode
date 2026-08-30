@@ -47,6 +47,14 @@ final class LiveActivityTokenController {
     }
   }
 
+  func endAllActivities() async {
+    for activity in Activity<DesktopSessionAttributes>.activities {
+      await activity.end(nil, dismissalPolicy: .immediate)
+      cancelObservation(activity.id)
+      await registrations.removeActivity(activity.id)
+    }
+  }
+
   private func observe(_ activity: Activity<DesktopSessionAttributes>) {
     guard activityTasks[activity.id] == nil,
       let route = LiveActivityRouting.route(for: activity.attributes)

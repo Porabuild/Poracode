@@ -20,6 +20,7 @@ enum RemoteIntegrationsRemoteV3Contract {
     route("host-update-install", "POST", "/api/host-update/install", .projectsManage, 202, "empty"),
     route("schedules-read", "GET", "/api/schedules", .sessionRead, 200, "empty"),
     route("schedules-command", "POST", "/api/schedules/command", .sessionOperate, 200, "json"),
+    route("schedule-runs-read", "GET", "/api/schedules/runs", .sessionRead, 200, "empty"),
     route("pr-watch-read", "GET", "/api/pr-watches", .sessionRead, 200, "empty"),
     route("pr-watch-check", "POST", "/api/pr-watches/check", .sessionOperate, 200, "json"),
     route("pr-watch-upsert", "POST", "/api/pr-watches", .sessionOperate, 200, "json"),
@@ -75,6 +76,24 @@ enum RemoteIntegrationsRemoteV3Contract {
       data,
       codec: RemoteRootCodecs.routeU2ESchedulesU2DCommandU2EResponse,
       boundary: "schedules command response"
+    )
+  }
+
+  static func scheduleRunsQuery(id: String) throws -> [URLQueryItem] {
+    let canonical = try canonical(
+      JSONDecoding.encoder.encode(["id": id]),
+      codec: RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EQuery,
+      boundary: "schedule runs query"
+    )
+    let value = try JSONDecoding.decode([String: String].self, from: canonical)
+    return [URLQueryItem(name: "id", value: value["id"])]
+  }
+
+  static func scheduleRunsResponse(_ data: Data) throws -> Data {
+    try canonical(
+      data,
+      codec: RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EResponse,
+      boundary: "schedule runs response"
     )
   }
 

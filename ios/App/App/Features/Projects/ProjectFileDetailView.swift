@@ -10,6 +10,8 @@ struct ProjectFileDetailView: View {
   let onSave: () -> Void
   let onReload: () -> Void
 
+  @State private var showsMarkdownPreview = false
+
   var body: some View {
     Group {
       if let selectedEntry {
@@ -25,6 +27,7 @@ struct ProjectFileDetailView: View {
     .navigationTitle(selectedEntry?.name ?? ProjectWorkspaceStrings.files)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { editorToolbar }
+    .onChange(of: selectedEntry?.path) { _, _ in showsMarkdownPreview = false }
     .safeAreaInset(edge: .bottom) {
       if case .failed(let failure) = controller.fileWrite.loadState,
         ProjectWorkspaceSaveRecovery.classify(failure) == .none
@@ -54,7 +57,9 @@ struct ProjectFileDetailView: View {
   private func fileContent(_ result: ProjectFileReadResult) -> some View {
     switch result.status {
     case .ready:
-      if access.permitsWrite {
+      if isMarkdown, showsMarkdownPreview {
+        markdownPreview(editor.draft.isEmpty ? result.content ?? "" : editor.draft)
+      } else if access.permitsWrite {
         editableContent
       } else {
         readOnlyContent(result.content ?? "")
@@ -100,6 +105,23 @@ struct ProjectFileDetailView: View {
     }
   }
 
+  private func markdownPreview(_ content: String) -> some View {
+    ScrollView {
+      Text(markdown(content))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .textSelection(.enabled)
+        .padding()
+        .accessibilityLabel(ProjectWorkspaceStrings.fileContentsLabel)
+    }
+  }
+
+  private func markdown(_ content: String) -> AttributedString {
+    (try? AttributedString(
+      markdown: content,
+      options: .init(interpretedSyntax: .full)
+    )) ?? AttributedString(content)
+  }
+
   private func unavailableFile(
     _ title: String,
     description: String,
@@ -114,28 +136,52 @@ struct ProjectFileDetailView: View {
 
   @ToolbarContentBuilder
   private var editorToolbar: some ToolbarContent {
-    if selectedEntry != nil, access.permitsWrite {
+    if selectedEntry != nil {
       ToolbarItemGroup(placement: .topBarTrailing) {
-        if editor.isDirty {
-          Button(ProjectWorkspaceStrings.discard, action: onDiscard)
-        }
-        Button {
-          onSave()
-        } label: {
-          if controller.fileWrite.loadState == .loading {
-            ProgressView()
-              .accessibilityLabel(ProjectWorkspaceStrings.saving)
-          } else {
-            Label(ProjectWorkspaceStrings.save, systemImage: "square.and.arrow.down")
+        if canPreviewMarkdown {
+          Button {
+            showsMarkdownPreview.toggle()
+          } label: {
+            Image(
+              systemName: showsMarkdownPreview ? "chevron.left.forwardslash.chevron.right" : "eye")
           }
+          .accessibilityLabel(
+            showsMarkdownPreview
+              ? ProjectWorkspaceStrings.editorLabel : ProjectWorkspaceStrings.fileContentsLabel
+          )
         }
-        .disabled(!editor.canSave || controller.fileWrite.loadState == .loading)
-        .accessibilityLabel(
-          controller.fileWrite.loadState == .loading
-            ? ProjectWorkspaceStrings.saving : ProjectWorkspaceStrings.save
-        )
+        if access.permitsWrite {
+          if editor.isDirty {
+            Button(ProjectWorkspaceStrings.discard, action: onDiscard)
+          }
+          Button {
+            onSave()
+          } label: {
+            if controller.fileWrite.loadState == .loading {
+              ProgressView()
+                .accessibilityLabel(ProjectWorkspaceStrings.saving)
+            } else {
+              Label(ProjectWorkspaceStrings.save, systemImage: "square.and.arrow.down")
+            }
+          }
+          .disabled(!editor.canSave || controller.fileWrite.loadState == .loading)
+          .accessibilityLabel(
+            controller.fileWrite.loadState == .loading
+              ? ProjectWorkspaceStrings.saving : ProjectWorkspaceStrings.save
+          )
+        }
       }
     }
+  }
+
+  private var isMarkdown: Bool {
+    guard let name = selectedEntry?.name.lowercased() else { return false }
+    return name.hasSuffix(".md") || name.hasSuffix(".mdx") || name.hasSuffix(".markdown")
+      || name.hasSuffix(".mdown")
+  }
+
+  private var canPreviewMarkdown: Bool {
+    isMarkdown && controller.fileRead.value?.status == .ready
   }
 
   private func saveFailure(_ failure: ProjectOperationFailure) -> some View {

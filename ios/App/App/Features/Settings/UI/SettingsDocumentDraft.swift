@@ -126,6 +126,14 @@ struct SettingsDocumentDraft: Equatable, Sendable {
     )
     patch.setString(.worktreeBasePath, worktreeBasePath, document.worktreeBasePath)
     patch.setString(.wslWorktreeBasePath, wslWorktreeBasePath, document.wslWorktreeBasePath)
+    for (key, value) in gitPatch(comparedTo: document).values {
+      patch[key] = value
+    }
+    return patch
+  }
+
+  func gitPatch(comparedTo document: SettingsDocument) -> SettingsPatch {
+    var patch = SettingsPatch()
     patch.setString(
       .prAutomationDefault, prAutomationDefault.rawValue, document.prAutomationDefault.rawValue
     )

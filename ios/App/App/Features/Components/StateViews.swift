@@ -1,7 +1,15 @@
 import SwiftUI
 
+enum StateViewStrings {
+  static let loading = String(localized: "common.state.loading", defaultValue: "Loading…")
+  static let errorTitle = String(
+    localized: "common.error.title", defaultValue: "Something went wrong"
+  )
+  static let retry = String(localized: "common.action.retry", defaultValue: "Try Again")
+}
+
 struct LoadingStateView: View {
-    var message: String = "Loading…"
+    var message: String = StateViewStrings.loading
 
     var body: some View {
         VStack(spacing: 12) {
@@ -37,12 +45,12 @@ struct EmptyStateView: View {
 
 struct ErrorStateView: View {
     let message: String
-    var retryTitle: String = "Try Again"
+    var retryTitle: String = StateViewStrings.retry
     var retry: (() -> Void)?
 
     var body: some View {
         ContentUnavailableView {
-            Label("Something went wrong", systemImage: "exclamationmark.triangle")
+            Label(StateViewStrings.errorTitle, systemImage: "exclamationmark.triangle")
         } description: {
             Text(message)
         } actions: {

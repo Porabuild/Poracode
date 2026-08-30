@@ -121,16 +121,20 @@
     let controller: BrowserMirrorController
     let projection: BrowserMirrorViewProjection
     @Binding var address: String
+    @Binding var isEditing: Bool
+    @FocusState private var isFocused: Bool
 
     var body: some View {
       BrowserMirrorControlSurface {
         HStack(spacing: 8) {
           TextField(BrowserMirrorStrings.address, text: $address)
+            .focused($isFocused)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .keyboardType(.URL)
             .submitLabel(.go)
             .onSubmit { navigate() }
+            .onChange(of: isFocused) { _, value in isEditing = value }
             .accessibilityLabel(BrowserMirrorStrings.address)
           BrowserMirrorToolbarButton(action: navigate) {
             Image(systemName: "arrow.right")
@@ -144,6 +148,7 @@
 
     private func navigate() {
       guard projection.canSubmitAddress, !address.isEmpty else { return }
+      isFocused = false
       Task { await controller.perform(.navigate(address)) }
     }
   }

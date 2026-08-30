@@ -38,6 +38,45 @@ struct SettingsAgentStatus: Codable, Equatable, Sendable {
   var authState: SettingsAgentAuthState? {
     payload.objectValue?["authState"]?.stringValue.flatMap(SettingsAgentAuthState.init(rawValue:))
   }
+
+  var models: [SettingsAgentModel] {
+    guard let values = payload.objectValue?["capabilities"]?.objectValue?["models"]?.arrayValue
+    else { return [] }
+    return values.compactMap { value in
+      guard let object = value.objectValue,
+        let id = object["id"]?.stringValue,
+        !id.isEmpty,
+        id != "auto",
+        let label = object["label"]?.stringValue,
+        !label.isEmpty
+      else { return nil }
+      return SettingsAgentModel(id: id, label: label)
+    }
+  }
+
+  var supportsOneShot: Bool {
+    payload.objectValue?["capabilities"]?.objectValue?["supportsOneShot"]?.boolValue ?? false
+  }
+
+  var efforts: [String] {
+    stringArray("efforts")
+  }
+
+  var fastModels: Set<String> {
+    Set(stringArray("fastModels"))
+  }
+
+  private func stringArray(_ key: String) -> [String] {
+    guard let values = payload.objectValue?["capabilities"]?.objectValue?[key]?.arrayValue else {
+      return []
+    }
+    return values.compactMap(\.stringValue).filter { !$0.isEmpty }
+  }
+}
+
+struct SettingsAgentModel: Equatable, Hashable, Identifiable, Sendable {
+  let id: String
+  let label: String
 }
 
 struct SettingsAgentStatuses: Codable, Equatable, Sendable {

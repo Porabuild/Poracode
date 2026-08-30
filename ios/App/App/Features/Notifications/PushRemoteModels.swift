@@ -8,6 +8,7 @@ struct PushRegistrationRequest: Codable, Sendable, Equatable {
   var routing: PushRegistrationRoute
   var pushToStartToken: String?
   var activityTokens: [String: String]?
+  var alertPreferences: PushAlertPreferences
 
   init(
     deviceId: String,
@@ -15,7 +16,8 @@ struct PushRegistrationRequest: Codable, Sendable, Equatable {
     appVersion: String,
     routing: PushRegistrationRoute,
     pushToStartToken: String? = nil,
-    activityTokens: [String: String]? = nil
+    activityTokens: [String: String]? = nil,
+    alertPreferences: PushAlertPreferences = .all
   ) {
     self.deviceId = deviceId
     self.deviceToken = deviceToken
@@ -23,7 +25,24 @@ struct PushRegistrationRequest: Codable, Sendable, Equatable {
     self.routing = routing
     self.pushToStartToken = pushToStartToken
     self.activityTokens = activityTokens
+    self.alertPreferences = alertPreferences
   }
+}
+
+struct PushAlertPreferences: Codable, Sendable, Equatable {
+  struct Statuses: Codable, Sendable, Equatable {
+    var done: Bool
+    var needsAttention: Bool
+    var error: Bool
+  }
+
+  var sound: Bool
+  var statuses: Statuses
+
+  static let all = PushAlertPreferences(
+    sound: true,
+    statuses: Statuses(done: true, needsAttention: true, error: true)
+  )
 }
 
 struct PushRegistrationResponse: Codable, Sendable, Equatable {

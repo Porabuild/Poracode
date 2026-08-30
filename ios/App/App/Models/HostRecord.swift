@@ -227,5 +227,6 @@ enum HostOperationKind: String, Sendable, Equatable {
     case recover
     case add
     case switchSelected
+    case rename
     case remove
 }

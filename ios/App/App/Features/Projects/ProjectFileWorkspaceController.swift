@@ -1,6 +1,19 @@
 import Foundation
 import Observation
 
+enum ProjectWorkspaceEntryMutation: Equatable, Sendable {
+  case create(path: String, type: AdvancedProjectEntryType)
+  case rename(path: String, nextName: String)
+  case move(path: String, nextParentPath: String?)
+  case delete(path: String)
+
+  var affectedPath: String {
+    switch self {
+    case .create(let path, _), .rename(let path, _), .move(let path, _), .delete(let path): path
+    }
+  }
+}
+
 @MainActor
 @Observable
 final class ProjectFileWorkspaceController {
@@ -10,6 +23,7 @@ final class ProjectFileWorkspaceController {
   private(set) var treeSearch = ProjectWorkspaceValueState<ProjectTreeSearchResult>()
   private(set) var fileRead = ProjectWorkspaceValueState<ProjectFileReadResult>()
   private(set) var fileWrite = ProjectWorkspaceValueState<ProjectFileWriteResult>()
+  private(set) var entryMutation = ProjectWorkspaceValueState<Bool>()
 
   private let gateway: any ProjectWorkspaceGateway
   private var revisions: [ProjectWorkspaceControllerOperation: UInt64] = [:]
@@ -156,6 +170,45 @@ final class ProjectFileWorkspaceController {
     }
   }
 
+  func mutateEntry(_ mutation: ProjectWorkspaceEntryMutation) async -> Bool {
+    guard entryMutation.loadState != .loading else { return false }
+    guard let capture = begin(.entryMutation, scope: .sessionOperate) else { return false }
+    entryMutation.value = nil
+    entryMutation.loadState = .loading
+    do {
+      switch mutation {
+      case .create(let path, let type):
+        try await gateway.createProjectEntry(path: path, type: type, lease: capture.context.lease)
+      case .rename(let path, let nextName):
+        try await gateway.renameProjectEntry(
+          path: path,
+          nextName: nextName,
+          lease: capture.context.lease
+        )
+      case .move(let path, let nextParentPath):
+        try await gateway.moveProjectEntry(
+          path: path,
+          nextParentPath: nextParentPath,
+          lease: capture.context.lease
+        )
+      case .delete(let path):
+        try await gateway.deleteProjectEntry(path: path, lease: capture.context.lease)
+      }
+      guard owns(capture) else { return false }
+      entryMutation.value = true
+      entryMutation.loadState = .loaded
+      return true
+    } catch is CancellationError {
+      guard owns(capture) else { return false }
+      entryMutation.loadState = .idle
+      return false
+    } catch {
+      guard owns(capture) else { return false }
+      entryMutation.loadState = .failed(.map(error))
+      return false
+    }
+  }
+
   private func begin(
     _ operation: ProjectWorkspaceControllerOperation,
     scope: ProjectControllerCapability
@@ -191,6 +244,7 @@ final class ProjectFileWorkspaceController {
     treeSearch = .init()
     fileRead = .init()
     fileWrite = .init()
+    entryMutation = .init()
   }
 
   private func setFailure(
@@ -203,6 +257,7 @@ final class ProjectFileWorkspaceController {
     case .treeSearch: treeSearch.loadState = .failed(failure)
     case .fileRead: fileRead.loadState = .failed(failure)
     case .fileWrite: fileWrite.loadState = .failed(failure)
+    case .entryMutation: entryMutation.loadState = .failed(failure)
     default: break
     }
   }
@@ -216,6 +271,6 @@ final class ProjectFileWorkspaceController {
 
 extension ProjectWorkspaceControllerOperation {
   fileprivate static let allFileOperations: [Self] = [
-    .fileSearch, .treeList, .treeSearch, .fileRead, .fileWrite,
+    .fileSearch, .treeList, .treeSearch, .fileRead, .fileWrite, .entryMutation,
   ]
 }

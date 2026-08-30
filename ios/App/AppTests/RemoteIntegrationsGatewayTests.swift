@@ -20,6 +20,14 @@ final class RemoteIntegrationsGatewayTests: XCTestCase {
       .http(statusCode: 403, code: "missing_scope", missingScope: "session:read")
     ) { _ = try await gateway.schedules(lease: lease) }
     await assertGatewayError(
+      .http(statusCode: 403, code: "missing_scope", missingScope: "session:read")
+    ) {
+      _ = try await gateway.scheduleRuns(
+        id: RemoteIntegrationsFixtures.scheduleID,
+        lease: lease
+      )
+    }
+    await assertGatewayError(
       .http(statusCode: 403, code: "missing_scope", missingScope: "session:operate")
     ) {
       _ = try await gateway.scheduleCommand(
@@ -153,6 +161,11 @@ private actor RemoteIntegrationsAPIFake: RemoteIntegrationsRemoteAPI {
   func remoteIntegrationsInstallHostUpdate() throws { _ = try respond(true) }
   func remoteIntegrationsSchedules() throws -> RemoteIntegrationsSchedulesResponse {
     try respond(Self.schedules)
+  }
+  func remoteIntegrationsScheduleRuns(
+    id: String
+  ) throws -> RemoteIntegrationsScheduleRunsResponse {
+    try respond(.init(runs: []))
   }
   func remoteIntegrationsScheduleCommand(
     _ command: RemoteIntegrationsScheduleCommand

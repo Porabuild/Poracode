@@ -235,6 +235,34 @@ actor HostCatalog {
         }
     }
 
+    func rename(
+        _ connectionId: ClientConnectionID,
+        label: String,
+        owning id: UInt64
+    ) async throws -> HostMutationResult {
+        let normalized = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { throw HostCatalogError.invalidLabel }
+        return try await mutate(owning: id, kind: .rename) { document in
+            guard let index = document.hosts.firstIndex(where: {
+                $0.connectionId == connectionId
+            }) else {
+                throw HostCatalogError.unknownHost
+            }
+            var next = document
+            next.hosts[index].label = normalized
+            return TransactionPlan(
+                kind: .rename,
+                connectionId: connectionId,
+                document: next,
+                vaultAccount: nil,
+                vaultBytes: nil,
+                deleteVaultAccount: nil,
+                legacySource: nil,
+                targetTombstoneBytes: nil
+            )
+        }
+    }
+
     func remove(
         _ connectionId: ClientConnectionID,
         owning id: UInt64
@@ -489,5 +517,6 @@ enum HostCatalogError: Error, Sendable, Equatable {
     case journalInconsistent
     case registryMismatch
     case unknownHost
+    case invalidLabel
     case missingCredential
 }

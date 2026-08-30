@@ -27,6 +27,17 @@ final class ProjectControllerSettingsController {
     self.session = session
   }
 
+  func deactivate() {
+    guard session != nil else { return }
+    for identity in Array(requestRevisionByProject.keys) {
+      requestRevisionByProject[identity, default: 0] &+= 1
+      if loadStateByProject[identity] == .loading {
+        loadStateByProject[identity] = .idle
+      }
+    }
+    session = nil
+  }
+
   func cachedSettings(for identity: ProjectIdentity) -> ProjectSettings? {
     settingsByProject[identity]
   }

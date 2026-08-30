@@ -91,9 +91,29 @@ struct SettingsIntegrationsSessionView: View {
   @State private var selectedProjectIdentity: ProjectIdentity?
   @State private var accessSource: SettingsIntegrationsSessionAccessSource
   @State private var composition: SettingsIntegrationsComposition
+  private let initialRoute: SettingsIntegrationsScreen.Route
+  private let embeddedInNavigationStack: Bool
+  private let requiredProjectIdentity: ProjectIdentity?
+  private let configuredMCPServers: [SettingsMCPServer]
+  private let onImportMCPServer: ((SettingsMCPServer) -> Void)?
+  private let onUpdateMCPServer: ((SettingsMCPServer) -> Void)?
 
-  init(session: AppSession) {
+  init(
+    session: AppSession,
+    initialProjectIdentity: ProjectIdentity? = nil,
+    initialRoute: SettingsIntegrationsScreen.Route = .skills,
+    embeddedInNavigationStack: Bool = false,
+    configuredMCPServers: [SettingsMCPServer] = [],
+    onImportMCPServer: ((SettingsMCPServer) -> Void)? = nil,
+    onUpdateMCPServer: ((SettingsMCPServer) -> Void)? = nil
+  ) {
     self.session = session
+    self.initialRoute = initialRoute
+    self.embeddedInNavigationStack = embeddedInNavigationStack
+    self.configuredMCPServers = configuredMCPServers
+    self.onImportMCPServer = onImportMCPServer
+    self.onUpdateMCPServer = onUpdateMCPServer
+    requiredProjectIdentity = embeddedInNavigationStack ? initialProjectIdentity : nil
     let accessSource = SettingsIntegrationsSessionAccessSource()
     let transport = SettingsIntegrationsExactHostTransportSource(
       credentials: session.deps.hostCatalog,
@@ -106,7 +126,7 @@ struct SettingsIntegrationsSessionView: View {
         return access
       }
     )
-    _selectedProjectIdentity = State(initialValue: nil)
+    _selectedProjectIdentity = State(initialValue: initialProjectIdentity)
     _accessSource = State(initialValue: accessSource)
     _composition = State(
       initialValue: SettingsIntegrationsComposition(
@@ -118,9 +138,7 @@ struct SettingsIntegrationsSessionView: View {
   var body: some View {
     let projects = session.currentSettingsIntegrationsProjects
     let normalizedProject = normalizedProjectIdentity(in: projects)
-    let selection = session.currentSettingsIntegrationsSelection(
-      projectIdentity: normalizedProject
-    )
+    let selection = resolvedSelection(projectIdentity: normalizedProject)
 
     SettingsIntegrationsScreen(
       controller: composition,
@@ -133,7 +151,11 @@ struct SettingsIntegrationsSessionView: View {
           composition.deactivateTransientWork()
           selectedProjectIdentity = identity
         }
-      )
+      ),
+      initialRoute: initialRoute,
+      embeddedInNavigationStack: embeddedInNavigationStack,
+      onImportMCPServer: onImportMCPServer,
+      onUpdateMCPServer: onUpdateMCPServer
     )
     .task(id: lifecycleIdentity(selection: selection)) {
       guard scenePhase == .active else {
@@ -150,6 +172,9 @@ struct SettingsIntegrationsSessionView: View {
       composition.activate(selection)
       await composition.resumeAfterForeground()
     }
+    .onChange(of: configuredMCPServers, initial: true) { _, servers in
+      composition.mcp.setConfiguredServers(servers)
+    }
     .onChange(of: scenePhase) { _, phase in
       if phase == .background {
         composition.suspendForBackground()
@@ -159,6 +184,13 @@ struct SettingsIntegrationsSessionView: View {
       accessSource.access = nil
       composition.deactivateTransientWork()
     }
+    .toolbar {
+      if requiredProjectIdentity == nil {
+        ToolbarItem(placement: .topBarTrailing) {
+          HostSelectionMenu(session: session)
+        }
+      }
+    }
   }
 
   private func normalizedProjectIdentity(
@@ -167,6 +199,15 @@ struct SettingsIntegrationsSessionView: View {
     guard let selectedProjectIdentity else { return nil }
     return projects.contains(where: { $0.id == selectedProjectIdentity })
       ? selectedProjectIdentity : nil
+  }
+
+  private func resolvedSelection(
+    projectIdentity: ProjectIdentity?
+  ) -> SettingsIntegrationsSelection? {
+    if let requiredProjectIdentity, projectIdentity != requiredProjectIdentity {
+      return nil
+    }
+    return session.currentSettingsIntegrationsSelection(projectIdentity: projectIdentity)
   }
 
   private func lifecycleIdentity(

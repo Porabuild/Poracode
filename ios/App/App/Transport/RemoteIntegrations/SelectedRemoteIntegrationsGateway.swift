@@ -11,6 +11,10 @@ protocol RemoteIntegrationsGateway: Sendable {
   func schedules(
     lease: RemoteIntegrationsHostLease
   ) async throws -> RemoteIntegrationsSchedulesResponse
+  func scheduleRuns(
+    id: String,
+    lease: RemoteIntegrationsHostLease
+  ) async throws -> RemoteIntegrationsScheduleRunsResponse
   func scheduleCommand(
     _ command: RemoteIntegrationsScheduleCommand,
     lease: RemoteIntegrationsHostLease
@@ -75,6 +79,15 @@ actor SelectedRemoteIntegrationsGateway: RemoteIntegrationsGateway {
   ) async throws -> RemoteIntegrationsSchedulesResponse {
     try await execute(lease: lease, scope: .sessionRead) {
       try await $0.remoteIntegrationsSchedules()
+    }
+  }
+
+  func scheduleRuns(
+    id: String,
+    lease: RemoteIntegrationsHostLease
+  ) async throws -> RemoteIntegrationsScheduleRunsResponse {
+    try await execute(lease: lease, scope: .sessionRead) {
+      try await $0.remoteIntegrationsScheduleRuns(id: id)
     }
   }
 

@@ -47,6 +47,11 @@ final class ProjectControllerCommandController {
     )
   }
 
+  func deactivate() {
+    operationRevision &+= 1
+    state = ProjectControllerCommandState()
+  }
+
   func updateAccess(_ session: ProjectControllerSession) {
     guard state.session?.lease == session.lease else {
       activate(session)

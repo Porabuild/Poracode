@@ -1,24 +1,16 @@
 import SwiftUI
 
-/// Liquid Glass on iOS 26 with a native material and bordered fallback on the
-/// iOS 17 deployment target.
+/// Content cards use standard material. Liquid Glass remains reserved for the
+/// functional action layer on iOS 26.
 enum AdvancedOperationsChrome {
   static let cornerRadius: CGFloat = 18
 
   @MainActor
   @ViewBuilder
   static func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-    if #available(iOS 26, macOS 26, *) {
-      GlassEffectContainer(spacing: 16) {
-        content()
-          .padding(16)
-          .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
-      }
-    } else {
-      content()
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
-    }
+    content()
+      .padding(16)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
   }
 
   @MainActor

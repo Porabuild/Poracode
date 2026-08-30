@@ -5,7 +5,10 @@ struct HostSwitcherView: View {
     @Bindable var session: AppSession
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var pendingRemoval: HostRecord?
+    @State private var pendingRename: HostRecord?
+    @State private var renameDraft = ""
     @State private var showAddHost = false
+    @State private var destination: HostDestination?
 
     var body: some View {
         Group {
@@ -21,6 +24,9 @@ struct HostSwitcherView: View {
         #endif
         .sheet(isPresented: $showAddHost) {
             AddHostSheet(session: session)
+        }
+        .navigationDestination(item: $destination) { destination in
+            HostDestinationView(session: session, destination: destination)
         }
         .confirmationDialog(
             pendingRemoval.map { HostStrings.removeConfirmTitle($0.label) } ?? HostStrings.removeHost,
@@ -42,6 +48,25 @@ struct HostSwitcherView: View {
         } message: {
             Text(HostStrings.removeConfirmMessage)
         }
+        .alert(
+            ThreadLifecycleStrings.rename,
+            isPresented: Binding(
+                get: { pendingRename != nil },
+                set: { if !$0 { pendingRename = nil } }
+            )
+        ) {
+            TextField(HostStrings.renamePrompt, text: $renameDraft)
+            Button(ThreadLifecycleStrings.rename) {
+                guard let host = pendingRename else { return }
+                let label = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !label.isEmpty else { return }
+                Task { await session.renameHost(host.connectionId, label: label) }
+                pendingRename = nil
+            }
+            Button(HostStrings.cancel, role: .cancel) {
+                pendingRename = nil
+            }
+        }
     }
 
     private var isRegularWidth: Bool {
@@ -50,30 +75,43 @@ struct HostSwitcherView: View {
 
     private var compactLayout: some View {
         List {
-            hostSection
-            addSection
+            hostSection(showsEmptyAction: false)
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            PoracodeBottomActionDock(placement: .trailing) {
+                PoracodeCircleButton {
+                    showAddHost = true
+                } label: {
+                    Label(HostStrings.addHost, systemImage: "plus")
+                        .labelStyle(.iconOnly)
+                }
+                .accessibilityLabel(HostStrings.addHostAccessibility)
+                .accessibilityIdentifier("native-e2e.connections.add")
+            }
+        }
     }
 
     private var regularLayout: some View {
         List {
-            hostSection
+            hostSection(showsEmptyAction: true)
             addSection
         }
         .listStyle(.sidebar)
     }
 
     @ViewBuilder
-    private var hostSection: some View {
+    private func hostSection(showsEmptyAction: Bool) -> some View {
         if session.hosts.isEmpty {
             ContentUnavailableView {
                 Label(HostStrings.emptyTitle, systemImage: "desktopcomputer")
             } description: {
                 Text(HostStrings.emptyDescription)
             } actions: {
-                Button(HostStrings.addHost) { showAddHost = true }
-                    .poracodeProminentButtonStyle()
+                if showsEmptyAction {
+                    Button(HostStrings.addHost) { showAddHost = true }
+                        .poracodeProminentButtonStyle()
+                }
             }
             .accessibilityElement(children: .combine)
         } else {
@@ -99,22 +137,68 @@ struct HostSwitcherView: View {
     private func hostRow(_ host: HostRecord) -> some View {
         let selected = session.selectedConnectionId == host.connectionId
         let secondary = session.hostsLRU.first { $0 != session.selectedConnectionId } == host.connectionId
-        return Button {
-            guard !selected else { return }
-            Task { await session.switchHost(host.connectionId) }
-        } label: {
-            hostRowLabel(host, selected: selected, secondary: secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("native-e2e.connection-row")
-        .accessibilityLabel(
-            HostStrings.hostAccessibility(
-                label: host.label,
-                selected: selected
-            )
+        let status = HostConnectionStatus(
+            session.state.hostSocketStates[host.connectionId]
+                ?? (selected ? session.socketState : .idle)
         )
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityHint(selected ? HostStrings.currentHost : HostStrings.switchAction)
+        return HStack(spacing: 0) {
+            Button {
+                guard !selected else { return }
+                Task { await session.switchHost(host.connectionId) }
+            } label: {
+                hostRowLabel(
+                    host,
+                    selected: selected,
+                    secondary: secondary,
+                    status: status
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("native-e2e.connection-row")
+            .accessibilityLabel(
+                HostStrings.hostAccessibility(
+                    label: host.label,
+                    selected: selected
+                )
+            )
+            .accessibilityValue(status.label)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityHint(selected ? HostStrings.currentHost : HostStrings.switchAction)
+
+            Menu {
+                Button(ProjectManagementStrings.title, systemImage: "folder") {
+                    destination = HostDestination(
+                        connectionID: host.connectionId,
+                        kind: .projects
+                    )
+                }
+                Button(SettingsUIStrings.desktopSettingsTitle, systemImage: "desktopcomputer") {
+                    destination = HostDestination(
+                        connectionID: host.connectionId,
+                        kind: .desktopSettings
+                    )
+                }
+                Button(ThreadLifecycleStrings.rename, systemImage: "pencil") {
+                    beginRename(host)
+                }
+                if !selected {
+                    Button(HostStrings.switchAction, systemImage: "arrow.left.arrow.right") {
+                        Task { await session.switchHost(host.connectionId) }
+                    }
+                }
+                Divider()
+                Button(HostStrings.removeHost, systemImage: "trash", role: .destructive) {
+                    pendingRemoval = host
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(HostStrings.switcherTitle)
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 pendingRemoval = host
@@ -124,6 +208,21 @@ struct HostSwitcherView: View {
             .accessibilityLabel(HostStrings.removeHost)
         }
         .contextMenu {
+            Button(ProjectManagementStrings.title, systemImage: "folder") {
+                destination = HostDestination(
+                    connectionID: host.connectionId,
+                    kind: .projects
+                )
+            }
+            Button(SettingsUIStrings.desktopSettingsTitle, systemImage: "desktopcomputer") {
+                destination = HostDestination(
+                    connectionID: host.connectionId,
+                    kind: .desktopSettings
+                )
+            }
+            Button(ThreadLifecycleStrings.rename, systemImage: "pencil") {
+                beginRename(host)
+            }
             if !selected {
                 Button(HostStrings.switchAction, systemImage: "arrow.left.arrow.right") {
                     Task { await session.switchHost(host.connectionId) }
@@ -139,32 +238,32 @@ struct HostSwitcherView: View {
     private func hostRowLabel(
         _ host: HostRecord,
         selected: Bool,
-        secondary: Bool
+        secondary: Bool,
+        status: HostConnectionStatus
     ) -> some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) {
-                hostRowContent(host, selected: selected, secondary: secondary)
-            }
-        } else {
-            hostRowContent(host, selected: selected, secondary: secondary)
-        }
+        hostRowContent(
+            host,
+            selected: selected,
+            secondary: secondary,
+            status: status
+        )
+    }
+
+    private func beginRename(_ host: HostRecord) {
+        renameDraft = host.label
+        pendingRename = host
     }
 
     private func hostRowContent(
         _ host: HostRecord,
         selected: Bool,
-        secondary: Bool
+        secondary: Bool,
+        status: HostConnectionStatus
     ) -> some View {
         HStack(spacing: 12) {
             hostGlyph(selected: selected)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    if selected {
-                        Circle()
-                            .fill(session.socketState == .online ? Color.green : Color.secondary)
-                            .frame(width: 8, height: 8)
-                            .accessibilityHidden(true)
-                    }
                     Text(host.label)
                         .font(.body.weight(selected ? .semibold : .regular))
                         .foregroundStyle(.primary)
@@ -173,7 +272,7 @@ struct HostSwitcherView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                statusPills(selected: selected, secondary: secondary)
+                statusPills(status: status, selected: selected, secondary: secondary)
             }
             Spacer(minLength: 8)
             if selected {
@@ -186,18 +285,33 @@ struct HostSwitcherView: View {
         .contentShape(Rectangle())
     }
 
-    private func hostGlyph(selected: Bool) -> some View {
+    private func hostGlyph(selected _: Bool) -> some View {
         Image(systemName: "desktopcomputer")
             .font(.title3)
-            .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+            .foregroundStyle(.secondary)
             .frame(width: 36, height: 36)
             .modifier(HostGlyphBackground())
             .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private func statusPills(selected: Bool, secondary: Bool) -> some View {
+    private func statusPills(
+        status: HostConnectionStatus,
+        selected: Bool,
+        secondary: Bool
+    ) -> some View {
         HStack(spacing: 6) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(status.color)
+                    .frame(width: 6, height: 6)
+                Text(status.label)
+            }
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(status.color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .modifier(HostPillBackground(tint: false))
             if selected {
                 Text(HostStrings.selectedBadge)
                     .font(.caption2.weight(.semibold))
@@ -213,6 +327,39 @@ struct HostSwitcherView: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+enum HostConnectionStatus: Equatable {
+    case online
+    case connecting
+    case offline
+
+    init(_ state: RemoteWebSocketClient.ConnectionState) {
+        switch state {
+        case .online:
+            self = .online
+        case .connecting, .reconnecting:
+            self = .connecting
+        case .idle, .suspended, .failed:
+            self = .offline
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .online: HostStrings.statusOnline
+        case .connecting: HostStrings.statusConnecting
+        case .offline: HostStrings.statusOffline
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .online: .green
+        case .connecting: .orange
+        case .offline: .secondary
+        }
     }
 }
 
@@ -248,11 +395,7 @@ struct HostSwitcherEntry: View {
 
 private struct HostGlyphBackground: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(in: Circle())
-        } else {
-            content.background(.ultraThinMaterial, in: Circle())
-        }
+        content.background(.thinMaterial, in: Circle())
     }
 }
 
@@ -260,12 +403,10 @@ private struct HostPillBackground: ViewModifier {
     var tint: Bool
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(in: Capsule())
-        } else if tint {
+        if tint {
             content.background(Color.accentColor.opacity(0.15), in: Capsule())
         } else {
-            content.background(.thinMaterial, in: Capsule())
+            content.background(Color.secondary.opacity(0.12), in: Capsule())
         }
     }
 }

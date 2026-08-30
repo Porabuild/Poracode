@@ -63,6 +63,7 @@ struct SessionRuntimeState {
     var hosts: [HostRecord] = []
     var hostsLRU: [ClientConnectionID] = []
     var socketState: RemoteWebSocketClient.ConnectionState = .idle
+    var hostSocketStates: [ClientConnectionID: RemoteWebSocketClient.ConnectionState] = [:]
 
     var snapshot: RemoteShellSnapshot?
     /// Latest authoritative shell snapshot for each paired host. The selected
@@ -93,6 +94,9 @@ struct SessionRuntimeState {
     var webSocket: (any SessionLiveSocket)?
     /// Always a baseline once a live session is attempted; `0` after snapshot failure.
     var lastSeenSeq: Int = 0
+    /// Sequence advertised by the latest socket `ready` frame. Events at or
+    /// below this boundary are replay, so transient user alerts are not shown.
+    var socketReplayCeiling: Int = 0
 
     var isBootstrapping = false
     /// Once-per-process: SwiftUI `.task` reentry must not re-bootstrap after completion.
@@ -156,12 +160,14 @@ struct SessionRuntimeState {
         selectedConnectionId = nil
         hosts = []
         hostsLRU = []
+        hostSocketStates = [:]
         snapshot = nil
         hostSnapshots = [:]
         clearThreadSurface()
         threadOwnership.invalidate()
         openThreadEpoch = threadOwnership.epoch
         lastSeenSeq = 0
+        socketReplayCeiling = 0
         isResyncing = false
         needsAuthoritativeRefresh = false
         resyncCoordinator.reset()

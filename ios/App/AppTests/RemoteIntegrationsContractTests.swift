@@ -3,12 +3,12 @@ import XCTest
 @testable import App
 
 final class RemoteIntegrationsContractTests: XCTestCase {
-  func testNineRoutesMatchGeneratedMetadataExactly() {
+  func testTenRoutesMatchGeneratedMetadataExactly() {
     let routes = RemoteIntegrationsRemoteV3Contract.routes
-    XCTAssertEqual(routes.count, 9)
-    XCTAssertEqual(Set(routes.map(\.id)).count, 9)
+    XCTAssertEqual(routes.count, 10)
+    XCTAssertEqual(Set(routes.map(\.id)).count, 10)
     XCTAssertEqual(routes.filter { $0.scope == .projectsManage }.count, 3)
-    XCTAssertEqual(routes.filter { $0.scope == .sessionRead }.count, 2)
+    XCTAssertEqual(routes.filter { $0.scope == .sessionRead }.count, 3)
     XCTAssertEqual(routes.filter { $0.scope == .sessionOperate }.count, 4)
     XCTAssertEqual(
       routes.first { $0.id == "host-update-install" }?.status,
@@ -38,6 +38,22 @@ final class RemoteIntegrationsContractTests: XCTestCase {
     )
     XCTAssertEqual(schedules.schedules.count, 1)
     XCTAssertFalse(String(describing: schedules).contains(RemoteIntegrationsFixtures.secret))
+
+    let runsData = try RemoteIntegrationsFixtures.data(RemoteIntegrationsFixtures.scheduleRuns)
+    let canonicalRuns = try RemoteIntegrationsRemoteV3Contract.scheduleRunsResponse(runsData)
+    let runs = try JSONDecoder().decode(
+      RemoteIntegrationsScheduleRunsResponse.self,
+      from: canonicalRuns
+    )
+    XCTAssertEqual(runs.runs.first?.status, .interrupted)
+    XCTAssertEqual(runs.runs.first?.hasError, true)
+    XCTAssertFalse(String(describing: runs).contains(RemoteIntegrationsFixtures.secret))
+    XCTAssertEqual(
+      try RemoteIntegrationsRemoteV3Contract.scheduleRunsQuery(
+        id: RemoteIntegrationsFixtures.scheduleID
+      ).first?.value,
+      RemoteIntegrationsFixtures.scheduleID
+    )
 
     let watchData = try RemoteIntegrationsFixtures.data(RemoteIntegrationsFixtures.prWatchRead)
     let canonicalWatch = try RemoteIntegrationsRemoteV3Contract.prWatchReadResponse(watchData)

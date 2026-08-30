@@ -8,21 +8,28 @@ final class NotificationIngress {
   let routes: NotificationRouteController
   let registrations: PushRegistrationController
   let liveActivities: LiveActivityTokenController
+  let remotePresentations: RemoteUserNotificationPresentationCenter
 
   init(
     routes: NotificationRouteController = .shared,
     registrations: PushRegistrationController = .shared,
-    liveActivities: LiveActivityTokenController? = nil
+    liveActivities: LiveActivityTokenController? = nil,
+    remotePresentations: RemoteUserNotificationPresentationCenter = .shared
   ) {
     self.routes = routes
     self.registrations = registrations
     self.liveActivities =
       liveActivities ?? LiveActivityTokenController(registrations: registrations)
+    self.remotePresentations = remotePresentations
   }
 
   func attach(session: AppSession) {
     routes.attach(session: session)
-    liveActivities.start()
+    if NotificationDeliveryPreference.isEnabled() {
+      liveActivities.start()
+    } else {
+      Task { await liveActivities.endAllActivities() }
+    }
   }
 
   func receiveNotificationResponse(userInfo: [AnyHashable: Any]) {
@@ -34,11 +41,15 @@ final class NotificationIngress {
   func foregroundPresentationOptions(
     for userInfo: [AnyHashable: Any]
   ) -> UNNotificationPresentationOptions {
-    NotificationForegroundPresentation.options(
-      route: NotificationPayloadParser.parse(userInfo: userInfo),
+    let route = NotificationPayloadParser.parse(userInfo: userInfo)
+    let options = NotificationForegroundPresentation.options(
+      route: route,
       hasRoutingEnvelope: NotificationPayloadParser.hasRoutingEnvelope(userInfo: userInfo),
-      selectedConnectionId: routes.selectedConnectionId
+      selectedConnectionId: routes.selectedConnectionId,
+      preference: NotificationAlertPreference.current()
     )
+    guard !options.isEmpty, let route else { return options }
+    return remotePresentations.shouldPresentPush(for: route) ? options : []
   }
 
   func receiveURL(_ url: URL) -> Bool {
@@ -51,6 +62,7 @@ final class NotificationIngress {
 
   func setForeground(_ foreground: Bool) {
     routes.setForeground(foreground)
+    remotePresentations.setForeground(foreground)
     Task { await registrations.setForeground(foreground) }
   }
 }

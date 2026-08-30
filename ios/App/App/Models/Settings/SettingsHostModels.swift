@@ -8,6 +8,7 @@ struct SettingsHostLease: Equatable, Hashable, Sendable {
 enum SettingsCapability: String, CaseIterable, Hashable, Sendable {
   case sessionRead = "session:read"
   case sessionOperate = "session:operate"
+  case projectsManage = "projects:manage"
 }
 
 struct SettingsSessionAccess: Equatable, Sendable {

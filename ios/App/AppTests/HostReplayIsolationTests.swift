@@ -202,7 +202,9 @@ final class HostReplayIsolationTests: XCTestCase {
 
   // MARK: - Session-level host switching
 
-  private func makeSession() -> AppSession {
+  private func makeSession(
+    remoteNotificationPresentations: RemoteUserNotificationPresentationCenter = .shared
+  ) -> AppSession {
     let keychain = InMemoryKeychainIO()
     let repo = SessionCredentialRepository(
       suiteName: "poracode.tests.isolation.\(UUID().uuidString)",
@@ -216,7 +218,8 @@ final class HostReplayIsolationTests: XCTestCase {
         ),
         makeAPI: { endpoint, token in FakeRemoteAPI(endpoint: endpoint, accessToken: token) },
         makeSocket: { _ in FakeLiveSocket() }
-      )
+      ),
+      remoteNotificationPresentations: remoteNotificationPresentations
     )
   }
 
@@ -343,5 +346,47 @@ final class HostReplayIsolationTests: XCTestCase {
       )
     )
     XCTAssertTrue(session.state.replay.isEmpty)
+  }
+
+  func testNotificationEventAdvancesLiveCursorButReplayAndMalformedBodiesDoNotAlert() {
+    let presentations = RemoteUserNotificationPresentationCenter()
+    presentations.setForeground(true)
+    let session = makeSession(remoteNotificationPresentations: presentations)
+    let connectionId = ClientConnectionID()
+    session.state.selectedConnectionId = connectionId
+    session.state.profile = ConnectionProfile(
+      desktopId: "desktop",
+      label: "Desktop",
+      httpBaseURL: "https://a.test",
+      wsBaseURL: "wss://a.test",
+      appVersion: "1.0.0",
+      scopes: ["session:read"],
+      pairedAt: Date(timeIntervalSince1970: 1_700_000_000)
+    )
+    session.state.socketReplayCeiling = 4
+    let payload = JSONValue.object([
+      "type": .string("remote-user-notification"),
+      "threadId": .string("thread"),
+      "category": .string("done"),
+      "projectName": .string("Project"),
+      "threadTitle": .string("Thread"),
+      "status": .string("idle"),
+    ])
+
+    XCTAssertTrue(session.events.applySequencedEvent(seq: 4, event: payload))
+    XCTAssertEqual(session.state.lastSeenSeq, 4)
+    XCTAssertNil(presentations.banner)
+
+    XCTAssertTrue(session.events.applySequencedEvent(seq: 5, event: payload))
+    XCTAssertEqual(session.state.lastSeenSeq, 5)
+    XCTAssertEqual(presentations.banner?.route.clientConnectionId, connectionId)
+
+    let malformed = JSONValue.object([
+      "type": .string("remote-user-notification"),
+      "threadId": .string("thread"),
+      "category": .string("done"),
+    ])
+    XCTAssertFalse(session.events.applySequencedEvent(seq: 6, event: malformed))
+    XCTAssertEqual(session.state.lastSeenSeq, 5)
   }
 }

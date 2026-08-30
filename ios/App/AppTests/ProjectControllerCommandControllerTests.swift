@@ -10,6 +10,25 @@ private final class ProjectControllerChangeRecorder {
 
 @MainActor
 final class ProjectControllerCommandControllerTests: XCTestCase {
+  func testDeactivateClearsPreviousHostProjectsAndCommandAuthority() async {
+    let gateway = ProjectControllerGatewayFake()
+    let controller = ProjectControllerCommandController(gateway: gateway)
+    controller.activate(
+      ProjectControllerTestValues.session(ProjectControllerTestValues.hostA),
+      projects: [ProjectControllerTestValues.project("old", name: "Old host")],
+      snapshotSequence: 8
+    )
+
+    controller.deactivate()
+    await controller.perform(.remove(projectId: "old"))
+    let calls = await gateway.commandCalls
+
+    XCTAssertNil(controller.state.session)
+    XCTAssertTrue(controller.state.projects.isEmpty)
+    XCTAssertEqual(controller.state.snapshotSequence, 0)
+    XCTAssertTrue(calls.isEmpty)
+  }
+
   func testCommandInstallsExactListSchedulesRefreshAndDoesNotAdvanceSnapshotSequence() async {
     let gateway = ProjectControllerGatewayFake()
     let refresh = ProjectControllerRefreshSchedulerFake()

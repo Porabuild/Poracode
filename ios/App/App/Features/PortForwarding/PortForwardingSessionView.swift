@@ -74,6 +74,9 @@ struct PortForwardingSessionView: View {
           Button(PortForwardingStrings.close) { dismiss() }
         }
       }
+      ToolbarItem(placement: .primaryAction) {
+        HostSelectionMenu(session: session)
+      }
     }
   }
 }

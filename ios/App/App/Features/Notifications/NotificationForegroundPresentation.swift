@@ -13,10 +13,16 @@ enum NotificationForegroundPresentation {
   static func options(
     route: NotificationRoute?,
     hasRoutingEnvelope: Bool,
-    selectedConnectionId: ClientConnectionID?
+    selectedConnectionId: ClientConnectionID?,
+    preference: NotificationAlertPreference = .current()
   ) -> UNNotificationPresentationOptions {
-    guard hasRoutingEnvelope else { return [.banner, .list, .sound] }
+    guard preference.foregroundMode == .always else { return [] }
+    let presented: UNNotificationPresentationOptions =
+      preference.soundEnabled
+      ? [.banner, .list, .sound]
+      : [.banner, .list]
+    guard hasRoutingEnvelope else { return presented }
     guard let route, route.clientConnectionId == selectedConnectionId else { return [] }
-    return [.banner, .list, .sound]
+    return presented
   }
 }

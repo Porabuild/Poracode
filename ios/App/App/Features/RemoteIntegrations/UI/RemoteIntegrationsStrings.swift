@@ -126,8 +126,26 @@ enum RemoteIntegrationsStrings {
   static var running: String { text("remoteIntegrations.schedule.running", "Running") }
   static var succeeded: String { text("remoteIntegrations.schedule.succeeded", "Succeeded") }
   static var failed: String { text("remoteIntegrations.schedule.failed", "Failed") }
+  static var interrupted: String {
+    text("remoteIntegrations.schedule.interrupted", "Interrupted")
+  }
+  static var previousRuns: String {
+    text("remoteIntegrations.schedule.previousRuns", "Previous Runs")
+  }
+  static var noRuns: String {
+    text("remoteIntegrations.schedule.noRuns", "No runs yet")
+  }
   static var createSchedule: String {
     text("remoteIntegrations.schedule.create", "Create Schedule")
+  }
+  static var createWithAgent: String {
+    text("remoteIntegrations.schedule.createWithAgent", "Create with Agent")
+  }
+  static var createWithAgentPrompt: String {
+    text(
+      "remoteIntegrations.schedule.createWithAgent.prompt",
+      "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
+    )
   }
   static var editSchedule: String {
     text("remoteIntegrations.schedule.edit", "Edit Schedule")
@@ -173,6 +191,39 @@ enum RemoteIntegrationsStrings {
   }
   static var noMatchingSchedules: String {
     text("remoteIntegrations.schedule.noMatching", "No matching schedules.")
+  }
+  static var searchSchedules: String {
+    text("remoteIntegrations.schedule.search", "Search scheduled tasks")
+  }
+  static var suggestions: String {
+    text("remoteIntegrations.schedule.suggestions", "Suggestions")
+  }
+  static var dailyBrief: String {
+    text("remoteIntegrations.schedule.preset.dailyBrief", "Daily brief")
+  }
+  static var dailyBriefPrompt: String {
+    text(
+      "remoteIntegrations.schedule.preset.dailyBrief.prompt",
+      "Review my recent work and summarize today's priorities and next steps."
+    )
+  }
+  static var weeklyReview: String {
+    text("remoteIntegrations.schedule.preset.weeklyReview", "Weekly review")
+  }
+  static var weeklyReviewPrompt: String {
+    text(
+      "remoteIntegrations.schedule.preset.weeklyReview.prompt",
+      "Summarize this week's progress, unfinished work, and the most important risks for next week."
+    )
+  }
+  static var keepOnTrack: String {
+    text("remoteIntegrations.schedule.preset.keepOnTrack", "Keep me on track")
+  }
+  static var keepOnTrackPrompt: String {
+    text(
+      "remoteIntegrations.schedule.preset.keepOnTrack.prompt",
+      "Check my recent progress and give me one focused recommendation for what to do next."
+    )
   }
 
   static func nextRunCaption(_ date: String) -> String {

@@ -122,8 +122,73 @@ final class ProjectWorkspacePresentationTests: XCTestCase {
     XCTAssertNil(ProjectWorkspacePath.parent(of: ""))
   }
 
+  func testReviewCommentsPreferExactGUIThreadThenNewestMatchingGUIThread() {
+    let old = thread(id: "old", mode: "gui", updatedAt: "2026-01-01T00:00:00Z")
+    let newest = thread(id: "new", mode: "gui", updatedAt: "2026-01-03T00:00:00Z")
+    let terminal = thread(id: "terminal", mode: "terminal", updatedAt: "2026-01-04T00:00:00Z")
+    var wrongWorktree = newest
+    wrongWorktree.id = "worktree"
+    wrongWorktree.worktreePath = "/tmp/worktree"
+
+    XCTAssertEqual(
+      ProjectReviewCommentThreadResolver.resolve(
+        threads: [old, newest, terminal, wrongWorktree],
+        projectID: "project",
+        worktreePath: nil,
+        originThreadID: "old"
+      )?.id,
+      "old"
+    )
+    XCTAssertEqual(
+      ProjectReviewCommentThreadResolver.resolve(
+        threads: [old, newest, terminal, wrongWorktree],
+        projectID: "project",
+        worktreePath: nil,
+        originThreadID: nil
+      )?.id,
+      "new"
+    )
+    XCTAssertNil(
+      ProjectReviewCommentThreadResolver.resolve(
+        threads: [terminal],
+        projectID: "project",
+        worktreePath: nil,
+        originThreadID: "terminal"
+      )
+    )
+  }
+
   private func fixtureCase(id: String) throws -> ProjectWorkspaceFixtureCase {
     let fixture = try ProjectWorkspaceFixtures.load()
     return try XCTUnwrap(fixture.cases.first { $0.id == id })
+  }
+
+  private func thread(id: String, mode: String, updatedAt: String) -> RemoteThread {
+    RemoteThread(
+      id: id,
+      remoteServerId: nil,
+      remoteId: nil,
+      projectId: "project",
+      title: id,
+      agentKind: "codex",
+      agentInstanceId: nil,
+      config: .empty,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: nil,
+      worktreePath: nil,
+      worktreeBranch: nil,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: mode,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: updatedAt,
+      activeTurnStartedAt: nil,
+      lastTurnStartedAt: nil,
+      lastTurnEndedAt: nil,
+      errorMessage: nil,
+      parentThreadId: nil
+    )
   }
 }

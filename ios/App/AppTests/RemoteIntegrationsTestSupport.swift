@@ -52,6 +52,22 @@ enum RemoteIntegrationsFixtures {
   static var schedulesCommand: [String: Any] {
     ["schedules": [schedule], "schedule": schedule]
   }
+  static var scheduleRuns: [String: Any] {
+    [
+      "runs": [
+        [
+          "id": "22222222-2222-4222-8222-222222222222",
+          "scheduleId": scheduleID,
+          "threadId": "33333333-3333-4333-8333-333333333333",
+          "startedAt": "2026-08-12T12:00:00Z",
+          "completedAt": NSNull(),
+          "status": "interrupted",
+          "summary": NSNull(),
+          "error": secret,
+        ]
+      ]
+    ]
+  }
 
   static var prWatch: [String: Any] {
     [

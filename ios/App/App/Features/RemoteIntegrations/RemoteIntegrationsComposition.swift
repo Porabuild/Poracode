@@ -9,11 +9,13 @@ final class RemoteIntegrationsComposition {
 
   let update: RemoteIntegrationsUpdateController
   let schedules: RemoteIntegrationsSchedulesController
+  let scheduleRuns: RemoteIntegrationsScheduleRunsController
   let prWatch: RemoteIntegrationsPRWatchController
 
   init(gateway: any RemoteIntegrationsGateway) {
     update = RemoteIntegrationsUpdateController(gateway: gateway)
     schedules = RemoteIntegrationsSchedulesController(gateway: gateway)
+    scheduleRuns = RemoteIntegrationsScheduleRunsController(gateway: gateway)
     prWatch = RemoteIntegrationsPRWatchController(gateway: gateway)
   }
 
@@ -23,6 +25,7 @@ final class RemoteIntegrationsComposition {
     let lease = selection?.lease
     update.activate(lease)
     schedules.activate(lease)
+    scheduleRuns.activate(lease)
     prWatch.activate(lease)
   }
 

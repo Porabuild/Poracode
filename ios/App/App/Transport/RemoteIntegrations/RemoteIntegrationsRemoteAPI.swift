@@ -5,6 +5,8 @@ protocol RemoteIntegrationsRemoteAPI: Sendable {
   func remoteIntegrationsCheckHostUpdate() async throws -> RemoteIntegrationsHostUpdateState
   func remoteIntegrationsInstallHostUpdate() async throws
   func remoteIntegrationsSchedules() async throws -> RemoteIntegrationsSchedulesResponse
+  func remoteIntegrationsScheduleRuns(id: String) async throws
+    -> RemoteIntegrationsScheduleRunsResponse
   func remoteIntegrationsScheduleCommand(
     _ command: RemoteIntegrationsScheduleCommand
   ) async throws -> RemoteIntegrationsSchedulesResponse
@@ -57,6 +59,20 @@ extension RemoteAPIClient: RemoteIntegrationsRemoteAPI {
     try await remoteIntegrationsRead(
       route: "schedules-read",
       canonicalize: RemoteIntegrationsRemoteV3Contract.schedulesReadResponse
+    )
+  }
+
+  func remoteIntegrationsScheduleRuns(
+    id: String
+  ) async throws -> RemoteIntegrationsScheduleRunsResponse {
+    let items = try RemoteIntegrationsRemoteV3Contract.scheduleRunsQuery(id: id)
+    let data = try await requestData(
+      path: remoteIntegrationsPath(for: "schedule-runs-read"),
+      queryItems: items
+    )
+    return try remoteIntegrationsDecode(
+      RemoteIntegrationsScheduleRunsResponse.self,
+      RemoteIntegrationsRemoteV3Contract.scheduleRunsResponse(data)
     )
   }
 
@@ -184,7 +200,8 @@ extension RemoteAPIClient: RemoteIntegrationsRemoteAPI {
     } catch is CancellationError {
       throw CancellationError()
     } catch let error as RemoteClientError
-      where RemoteMutationClassification.classify(statusCode: error.status, code: error.code) == .requestMayHaveCommitted
+      where RemoteMutationClassification.classify(statusCode: error.status, code: error.code)
+      == .requestMayHaveCommitted
     {
       throw RemoteIntegrationsRemoteMutationError.ambiguousOutcome
     } catch {

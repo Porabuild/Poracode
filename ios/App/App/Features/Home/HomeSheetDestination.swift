@@ -7,6 +7,7 @@ import Foundation
 /// identifiable destination makes the presentation state exclusive by
 /// construction, so adding entries cannot reintroduce that race.
 enum HomeSheetDestination: Identifiable, Hashable, Sendable {
+  case search
   case more
   case projectManagement
   case settings
@@ -18,6 +19,7 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
 
   var id: String {
     switch self {
+    case .search: "search"
     case .more: "more"
     case .projectManagement: "projectManagement"
     case .settings: "settings"

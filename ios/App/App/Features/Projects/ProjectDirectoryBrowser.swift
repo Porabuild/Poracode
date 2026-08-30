@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectDirectoryBrowser: View {
   @Environment(\.dismiss) private var dismiss
   @Bindable var controller: ProjectControllerDirectoryController
+  let initialPath: String
   let select: (String) -> Void
 
   var body: some View {
@@ -39,16 +40,24 @@ struct ProjectDirectoryBrowser: View {
         }
       }
     }
-    .task {
-      if controller.state.listing == nil {
-        await controller.navigate(to: "")
-      }
+    .task(id: initialPath) {
+      await controller.navigate(to: initialPath)
     }
   }
 
   private func directoryList(_ listing: BrowseHostDirectoryResult) -> some View {
     List {
       Section {
+        Label {
+          Text(listing.isDriveList ? ProjectManagementStrings.folder : listing.path)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .textSelection(.enabled)
+        } icon: {
+          Image(systemName: listing.isDriveList ? "externaldrive" : "folder")
+            .foregroundStyle(.secondary)
+        }
         if let parent = listing.parentPath {
           Button {
             Task { await controller.navigate(to: parent) }
@@ -80,6 +89,11 @@ struct ProjectDirectoryBrowser: View {
             }
           }
           .foregroundStyle(.primary)
+        }
+
+        ForEach(listing.entries.filter { $0.type == .file }) { entry in
+          Label(entry.name, systemImage: "doc")
+            .foregroundStyle(.secondary)
         }
       } footer: {
         if listing.truncated {

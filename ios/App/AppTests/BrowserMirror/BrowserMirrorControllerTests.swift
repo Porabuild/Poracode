@@ -9,6 +9,49 @@ import XCTest
 
 @MainActor
 final class BrowserMirrorControllerTests: XCTestCase {
+  func testOmniboxNormalizationMatchesCompactPWA() {
+    let cases = [
+      (" https://example.com/path ", "https://example.com/path"),
+      ("about:blank", "about:blank"),
+      ("localhost:3000/settings", "http://localhost:3000/settings"),
+      ("127.0.0.1:8080", "http://127.0.0.1:8080"),
+      ("[::1]:5173", "http://[::1]:5173"),
+      ("example.com/docs", "https://example.com/docs"),
+      ("swift concurrency", "https://duckduckgo.com/?q=swift%20concurrency"),
+      ("poracode", "https://duckduckgo.com/?q=poracode"),
+      ("", ""),
+    ]
+
+    for (input, expected) in cases {
+      XCTAssertEqual(BrowserMirrorAddressNormalizer.normalize(input), expected, input)
+    }
+  }
+
+  func testNavigateActionUsesNormalizedOmniboxValue() {
+    XCTAssertEqual(
+      BrowserMirrorUIAction.navigate("native iOS").command(in: BrowserMirrorTestValues.state),
+      .navigate(
+        tabId: "tab-main",
+        url: "https://duckduckgo.com/?q=native%20iOS"
+      )
+    )
+  }
+
+  func testFirstEmptyPresentationCreatesPWAHomeTabOnlyOnce() async {
+    let gateway = BrowserMirrorGatewaySpy()
+    await gateway.setState(.empty)
+    let socket = BrowserMirrorSocketSpy()
+    let controller = makeController(gateway: gateway, socket: socket)
+
+    await controller.beginWatching()
+    await controller.endWatching()
+    await gateway.setState(.empty)
+    await controller.beginWatching()
+
+    let commands = await gateway.recordedCommands()
+    XCTAssertEqual(commands, [.createTab(url: BrowserMirrorUIAction.newTabHomeURL)])
+  }
+
   func testBackgroundUnwatchesStopsAndForegroundResumesExistingIntent() async {
     let gateway = BrowserMirrorGatewaySpy()
     let socket = BrowserMirrorSocketSpy()
@@ -306,6 +349,49 @@ final class BrowserMirrorControllerTests: XCTestCase {
     XCTAssertEqual(y, 360, accuracy: 0.000_001)
     XCTAssertGreaterThan(deltaX, 0)
     XCTAssertGreaterThan(deltaY, 0)
+  }
+
+  func testIncrementalScrollKeepsTheGestureStartAsItsRemoteAnchor() async {
+    let gateway = BrowserMirrorGatewaySpy()
+    let socket = BrowserMirrorSocketSpy()
+    let controller = makeController(gateway: gateway, socket: socket)
+    await controller.beginWatching()
+    await controller.socketReady(lease: BrowserMirrorTestValues.lease, socketGeneration: 7)
+    let key = BrowserMirrorSocketKey(
+      lease: BrowserMirrorTestValues.lease,
+      socketGeneration: 7
+    )
+    controller.receive(.frame(BrowserMirrorTestValues.frame()), key: key)
+    let rect = BrowserMirrorRect(left: 0, top: 0, width: 390, height: 844)
+    let anchor = BrowserMirrorPoint(x: 195, y: 422)
+
+    await controller.sendScroll(
+      anchoredAt: anchor,
+      from: anchor,
+      to: BrowserMirrorPoint(x: 190, y: 412),
+      in: rect
+    )
+    await controller.sendScroll(
+      anchoredAt: anchor,
+      from: BrowserMirrorPoint(x: 190, y: 412),
+      to: BrowserMirrorPoint(x: 185, y: 402),
+      in: rect
+    )
+
+    let inputs = await socket.recordedCalls().compactMap { call -> BrowserMirrorInput? in
+      if case .input(let input, _) = call { return input }
+      return nil
+    }
+    XCTAssertEqual(inputs.count, 2)
+    for input in inputs {
+      guard case .scroll(let x, let y, let deltaX, let deltaY) = input else {
+        return XCTFail()
+      }
+      XCTAssertEqual(x, 640, accuracy: 0.000_001)
+      XCTAssertEqual(y, 360, accuracy: 0.000_001)
+      XCTAssertGreaterThan(deltaX, 0)
+      XCTAssertGreaterThan(deltaY, 0)
+    }
   }
 
   private func makeController(

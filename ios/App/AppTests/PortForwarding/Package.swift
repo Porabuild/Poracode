@@ -12,6 +12,14 @@ let package = Package(
     .target(
       name: "PortForwarding",
       path: "PackageSources/PortForwarding",
+      exclude: [
+        // UIKit presentation is compiled by the App test build. The isolation
+        // package runs controller, transport, security, and projection tests on macOS.
+        "Feature/PortForwardingSessionComposition.swift",
+        "Feature/PortForwardingSessionView.swift",
+        "Feature/PortForwardingView.swift",
+        "Transport/PortForwardingHostCatalog.swift",
+      ],
       resources: [.process("Feature/PortForwarding.xcstrings")],
       swiftSettings: [
         .swiftLanguageMode(.v6),

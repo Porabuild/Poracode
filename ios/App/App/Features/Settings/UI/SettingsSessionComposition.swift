@@ -72,12 +72,17 @@ struct SettingsSessionView: View {
   }
 
   var body: some View {
-    SettingsHostView(
-      session: session,
-      selection: session.currentSettingsHostSelection,
-      gateway: gateway,
-      initialRoute: initialRoute
-    )
+    NavigationStack {
+      if let initialRoute {
+        SettingsMoreRouteView(session: session, route: initialRoute)
+      } else {
+        DeviceSettingsView(
+          session: session,
+          selection: session.currentSettingsHostSelection,
+          gateway: gateway
+        )
+      }
+    }
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {
         Button(SettingsUIStrings.done) { dismiss() }
@@ -120,6 +125,13 @@ struct SettingsMoreRouteView: View {
       )
       .padding()
     }
+    .toolbar {
+      if route == .usage {
+        ToolbarItem(placement: .topBarTrailing) {
+          HostSelectionMenu(session: session)
+        }
+      }
+    }
   }
 }
 
@@ -133,11 +145,10 @@ struct SettingsMoreIndexView: View {
   }
 
   var body: some View {
-    SettingsHostView(
+    DeviceSettingsView(
       session: session,
       selection: session.currentSettingsHostSelection,
-      gateway: gateway,
-      usesStackNavigation: true
+      gateway: gateway
     )
   }
 }

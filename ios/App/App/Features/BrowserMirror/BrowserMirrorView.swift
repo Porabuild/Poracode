@@ -10,6 +10,7 @@
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var address = ""
+    @State private var isEditingAddress = false
     @State private var viewportMode = BrowserMirrorViewportMode.fit
 
     var body: some View {
@@ -22,24 +23,18 @@
             content(projection)
           }
         } else {
-          // Address bar and navigation sit above the tab strip, matching the
-          // mobile web browser toolbar order.
           VStack(spacing: 10) {
-            VStack(spacing: 10) {
-              BrowserMirrorAddressBar(
-                controller: controller,
-                projection: projection,
-                address: $address
-              )
-              BrowserMirrorNavigationControls(controller: controller, projection: projection)
-            }
-            BrowserMirrorTabStrip(controller: controller, projection: projection)
             viewportContent(projection)
+          }
+          .safeAreaInset(edge: .bottom, spacing: 0) {
+            compactChrome(projection)
           }
         }
       }
       .navigationTitle(BrowserMirrorStrings.title)
-      .onChange(of: projection.addressValue) { _, value in address = value }
+      .onChange(of: projection.addressValue) { _, value in
+        if !isEditingAddress { address = value }
+      }
       .onAppear { address = projection.addressValue }
     }
 
@@ -49,10 +44,30 @@
         BrowserMirrorAddressBar(
           controller: controller,
           projection: projection,
-          address: $address
+          address: $address,
+          isEditing: $isEditingAddress
         )
         BrowserMirrorNavigationControls(controller: controller, projection: projection)
         viewportContent(projection)
+      }
+    }
+
+    @ViewBuilder
+    private func compactChrome(_ projection: BrowserMirrorViewProjection) -> some View {
+      VStack(spacing: 8) {
+        BrowserMirrorTabStrip(controller: controller, projection: projection)
+        BrowserMirrorAddressBar(
+          controller: controller,
+          projection: projection,
+          address: $address,
+          isEditing: $isEditingAddress
+        )
+        BrowserMirrorNavigationControls(controller: controller, projection: projection)
+      }
+      .padding(.vertical, 8)
+      .background(.ultraThinMaterial)
+      .overlay(alignment: .top) {
+        Divider()
       }
     }
 

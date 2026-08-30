@@ -123,12 +123,6 @@ struct GitHubPullRequestSummary: Identifiable, Equatable, Sendable {
   var id: Int64 { number }
 }
 
-struct GitHubWorkflowSummary: Identifiable, Equatable, Sendable {
-  let id: Int64
-  let name: String
-  let state: String
-}
-
 enum GitHubResultProjection {
   static func availability(_ result: GitHubOperationResult) -> Bool? {
     result.document?["available"]?.boolValue
@@ -174,18 +168,6 @@ enum GitHubResultProjection {
     return values.compactMap(pullRequest)
   }
 
-  static func workflows(_ result: GitHubOperationResult) -> [GitHubWorkflowSummary]? {
-    guard let values = result.document?["workflows"]?.arrayValue else { return nil }
-    return values.compactMap { value in
-      guard let object = value.objectValue,
-        let id = object["id"]?.integerValue,
-        let name = object["name"]?.stringValue,
-        let state = object["state"]?.stringValue
-      else { return nil }
-      return GitHubWorkflowSummary(id: id, name: name, state: state)
-    }
-  }
-
   private static func pullRequest(_ value: GitHubJSONValue) -> GitHubPullRequestSummary? {
     guard let object = value.objectValue else { return nil }
     // ghListPullRequests rows nest the PR data under "pr"; ghListPrs rows are
@@ -217,4 +199,5 @@ enum GitHubResultProjection {
   static func viewerLogin(_ result: GitHubOperationResult) -> String? {
     result.document?["viewerLogin"]?.stringValue
   }
+
 }

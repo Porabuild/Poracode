@@ -14,9 +14,14 @@ struct AdvancedOperationDraft: Equatable, Sendable {
   var includesSegments: Bool
   var segments: [AdvancedSegmentDraft]
 
-  init(procedure: AdvancedOperationProcedure) {
+  init(procedure: AdvancedOperationProcedure, initialLanguage: String? = nil) {
     self.procedure = procedure
     values = [:]
+    if let initialLanguage,
+      AdvancedOperationsForm.fields(for: procedure).contains(where: { $0.key == .language })
+    {
+      values[.language] = initialLanguage
+    }
     flags = Dictionary(
       uniqueKeysWithValues: AdvancedOperationsForm.flags(for: procedure).map {
         ($0.key, $0.isOptional ? AdvancedOptionalFlag.unset : .off)

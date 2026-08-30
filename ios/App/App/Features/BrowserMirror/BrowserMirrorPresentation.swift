@@ -62,7 +62,9 @@ struct BrowserMirrorViewProjection: Equatable, Sendable {
     tabs = state.tabs.enumerated().map { index, tab in
       BrowserMirrorTabRow(
         id: tab.tabId,
-        title: tab.title.isEmpty ? BrowserMirrorStrings.untitledTab : tab.title,
+        title: tab.title.isEmpty
+          ? (tab.url.isEmpty ? BrowserMirrorStrings.untitledTab : tab.url)
+          : tab.title,
         isActive: tab.tabId == state.activeTabId,
         isLoading: tab.loading,
         canMoveBefore: index > 0,

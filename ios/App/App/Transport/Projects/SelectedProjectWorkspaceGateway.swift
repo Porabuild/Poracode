@@ -85,6 +85,53 @@ actor SelectedProjectWorkspaceGateway: ProjectWorkspaceGateway {
     }
   }
 
+  func createProjectEntry(
+    path: String,
+    type: AdvancedProjectEntryType,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    try await execute(lease: lease, scope: .sessionOperate) { api in
+      try await api.remoteCreateProjectEntry(location: lease.location, path: path, type: type)
+    }
+  }
+
+  func renameProjectEntry(
+    path: String,
+    nextName: String,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    try await execute(lease: lease, scope: .sessionOperate) { api in
+      try await api.remoteRenameProjectEntry(
+        location: lease.location,
+        path: path,
+        nextName: nextName
+      )
+    }
+  }
+
+  func moveProjectEntry(
+    path: String,
+    nextParentPath: String?,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    try await execute(lease: lease, scope: .sessionOperate) { api in
+      try await api.remoteMoveProjectEntry(
+        location: lease.location,
+        path: path,
+        nextParentPath: nextParentPath
+      )
+    }
+  }
+
+  func deleteProjectEntry(
+    path: String,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    try await execute(lease: lease, scope: .sessionOperate) { api in
+      try await api.remoteDeleteProjectEntry(location: lease.location, path: path)
+    }
+  }
+
   func getGitStatus(
     detail: ProjectGitStatusDetail?,
     lease: ProjectWorkspaceLease

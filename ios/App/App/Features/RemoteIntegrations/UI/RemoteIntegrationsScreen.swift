@@ -3,21 +3,30 @@ import SwiftUI
 struct RemoteIntegrationsScreen: View {
   @Environment(\.scenePhase) private var scenePhase
 
+  @Bindable var session: AppSession
   let selection: RemoteIntegrationsHostSelection?
   let projects: [RemoteIntegrationsProjectOption]
+  let scheduleAgents: [AgentStatusRecord]
+  let onCreateScheduleWithAgent: (() -> Void)?
 
   @State private var composition: RemoteIntegrationsComposition
   @State private var route: RemoteIntegrationsRoute? = .update
   private let singleRoute: RemoteIntegrationsRoute?
 
   init(
+    session: AppSession,
     selection: RemoteIntegrationsHostSelection?,
     projects: [RemoteIntegrationsProjectOption] = [],
+    scheduleAgents: [AgentStatusRecord] = [],
     gateway: any RemoteIntegrationsGateway,
-    singleRoute: RemoteIntegrationsRoute? = nil
+    singleRoute: RemoteIntegrationsRoute? = nil,
+    onCreateScheduleWithAgent: (() -> Void)? = nil
   ) {
+    self.session = session
     self.selection = selection
     self.projects = projects
+    self.scheduleAgents = scheduleAgents
+    self.onCreateScheduleWithAgent = onCreateScheduleWithAgent
     self.singleRoute = singleRoute
     _composition = State(initialValue: RemoteIntegrationsComposition(gateway: gateway))
     _route = State(initialValue: singleRoute ?? .update)
@@ -111,15 +120,19 @@ struct RemoteIntegrationsScreen: View {
       )
     case .schedules:
       RemoteIntegrationsSchedulesView(
+        session: session,
         selection: selection,
         projects: projects,
+        agents: scheduleAgents,
         composition: composition,
-        isPresentationActive: scenePhase == .active
+        isPresentationActive: scenePhase == .active,
+        createWithAgent: onCreateScheduleWithAgent
       )
     case .prWatches:
       RemoteIntegrationsPRWatchesView(
         selection: selection,
         projects: projects,
+        agents: scheduleAgents,
         composition: composition,
         isPresentationActive: scenePhase == .active
       )

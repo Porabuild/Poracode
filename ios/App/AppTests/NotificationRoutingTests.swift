@@ -3,6 +3,7 @@ import XCTest
 
 @testable import App
 
+@MainActor
 final class NotificationRoutingTests: XCTestCase {
   private let connectionA = ClientConnectionID(rawValue: "11111111-1111-4111-8111-111111111111")!
   private let connectionB = ClientConnectionID(rawValue: "22222222-2222-4222-8222-222222222222")!
@@ -108,6 +109,17 @@ final class NotificationRoutingTests: XCTestCase {
     XCTAssertFalse(NotificationPermissionController.isUsable(.notDetermined))
   }
 
+  func testNotificationDeliveryPreferenceDefaultsOnAndPersistsVersionedChoice() throws {
+    let suite = "NotificationDeliveryPreferenceTests-\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+
+    XCTAssertTrue(NotificationDeliveryPreference.isEnabled(in: defaults))
+    NotificationDeliveryPreference.setEnabled(false, in: defaults)
+    XCTAssertFalse(NotificationDeliveryPreference.isEnabled(in: defaults))
+    XCTAssertTrue(NotificationDeliveryPreference.storageKey.hasSuffix(".v1"))
+  }
+
   func testForegroundPresentationIsExactHostAware() {
     let routedA = NotificationRoute(
       version: 1, clientConnectionId: connectionA, desktopId: "d", threadId: "t")
@@ -115,7 +127,17 @@ final class NotificationRoutingTests: XCTestCase {
       _ route: NotificationRoute?, _ envelope: Bool, _ selected: ClientConnectionID?
     ) -> UNNotificationPresentationOptions {
       NotificationForegroundPresentation.options(
-        route: route, hasRoutingEnvelope: envelope, selectedConnectionId: selected)
+        route: route,
+        hasRoutingEnvelope: envelope,
+        selectedConnectionId: selected,
+        preference: NotificationAlertPreference(
+          soundEnabled: true,
+          foregroundMode: .always,
+          doneEnabled: true,
+          needsAttentionEnabled: true,
+          errorEnabled: true
+        )
+      )
     }
 
     // Same-host routed notification presents.
@@ -132,6 +154,34 @@ final class NotificationRoutingTests: XCTestCase {
     XCTAssertEqual(options(nil, true, nil), [])
   }
 
+  func testAlertPreferencesDefaultOnPersistAndControlForegroundPresentation() throws {
+    let suite = "NotificationAlertPreferenceTests-\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+
+    var preference = NotificationAlertPreference.current(in: defaults)
+    XCTAssertTrue(preference.soundEnabled)
+    XCTAssertEqual(preference.foregroundMode, .always)
+    XCTAssertEqual(preference.pushPreferences, .all)
+
+    preference.soundEnabled = false
+    preference.foregroundMode = .backgroundOnly
+    preference.doneEnabled = false
+    preference.persist(in: defaults)
+    XCTAssertEqual(NotificationAlertPreference.current(in: defaults), preference)
+    XCTAssertEqual(
+      NotificationForegroundPresentation.options(
+        route: nil,
+        hasRoutingEnvelope: false,
+        selectedConnectionId: nil,
+        preference: preference
+      ),
+      []
+    )
+    XCTAssertTrue(NotificationAlertPreference.soundStorageKey.hasSuffix(".v1"))
+    XCTAssertTrue(NotificationAlertPreference.foregroundStorageKey.hasSuffix(".v1"))
+  }
+
   func testForegroundRoutingEnvelopeDetection() {
     XCTAssertTrue(
       NotificationPayloadParser.hasRoutingEnvelope(userInfo: [
@@ -142,5 +192,104 @@ final class NotificationRoutingTests: XCTestCase {
         "aps": ["alert": "x"]
       ]))
     XCTAssertFalse(NotificationPayloadParser.hasRoutingEnvelope(userInfo: [:]))
+  }
+
+  func testLiveSocketNotificationPresentsOnceAndSuppressesRacingPush() throws {
+    var soundCount = 0
+    let center = RemoteUserNotificationPresentationCenter(
+      deduplicationWindow: 15,
+      playSound: { soundCount += 1 }
+    )
+    center.setForeground(true)
+    let route = NotificationRoute(
+      version: 1, clientConnectionId: connectionA, desktopId: "desktop", threadId: "thread")
+    center.receive(
+      notification(category: .done),
+      route: route,
+      isReplay: false,
+      isThreadOpen: false,
+      preference: alertPreference(),
+      now: Date(timeIntervalSince1970: 100),
+      schedulesDismiss: false
+    )
+    XCTAssertEqual(center.banner?.route, route)
+    XCTAssertEqual(soundCount, 1)
+    XCTAssertFalse(
+      center.shouldPresentPush(for: route, now: Date(timeIntervalSince1970: 101)),
+      "the generic APNs banner must not duplicate the richer in-app banner"
+    )
+  }
+
+  func testPushWinningTheRaceSuppressesTheSocketBanner() {
+    var soundCount = 0
+    let center = RemoteUserNotificationPresentationCenter(
+      deduplicationWindow: 15,
+      playSound: { soundCount += 1 }
+    )
+    center.setForeground(true)
+    let route = NotificationRoute(
+      version: 1, clientConnectionId: connectionA, desktopId: "desktop", threadId: "thread")
+    XCTAssertTrue(center.shouldPresentPush(for: route, now: Date(timeIntervalSince1970: 100)))
+    center.receive(
+      notification(category: .error),
+      route: route,
+      isReplay: false,
+      isThreadOpen: false,
+      preference: alertPreference(),
+      now: Date(timeIntervalSince1970: 101),
+      schedulesDismiss: false
+    )
+    XCTAssertNil(center.banner)
+    XCTAssertEqual(soundCount, 0)
+  }
+
+  func testReplayBackgroundPreferenceAndOpenThreadSuppressPresentation() {
+    let route = NotificationRoute(
+      version: 1, clientConnectionId: connectionA, desktopId: "desktop", threadId: "thread")
+    let center = RemoteUserNotificationPresentationCenter()
+    center.setForeground(true)
+
+    center.receive(
+      notification(category: .done), route: route, isReplay: true, isThreadOpen: false,
+      preference: alertPreference(), schedulesDismiss: false)
+    XCTAssertNil(center.banner, "historical replay must never alert")
+
+    var backgroundOnly = alertPreference()
+    backgroundOnly.foregroundMode = .backgroundOnly
+    center.receive(
+      notification(category: .done), route: route, isReplay: false, isThreadOpen: false,
+      preference: backgroundOnly, schedulesDismiss: false)
+    XCTAssertNil(center.banner)
+
+    center.receive(
+      notification(category: .done), route: route, isReplay: false, isThreadOpen: true,
+      preference: alertPreference(), schedulesDismiss: false)
+    XCTAssertNil(center.banner)
+    XCTAssertFalse(
+      center.shouldPresentPush(for: route),
+      "the active thread also suppresses its racing push banner"
+    )
+  }
+
+  private func notification(
+    category: RemoteUserNotificationCategory
+  ) -> RemoteUserNotificationEvent {
+    RemoteUserNotificationEvent(
+      threadId: "thread",
+      category: category,
+      projectName: "Project",
+      threadTitle: "Thread",
+      status: category == .error ? "error" : "idle"
+    )
+  }
+
+  private func alertPreference() -> NotificationAlertPreference {
+    NotificationAlertPreference(
+      soundEnabled: true,
+      foregroundMode: .always,
+      doneEnabled: true,
+      needsAttentionEnabled: true,
+      errorEnabled: true
+    )
   }
 }

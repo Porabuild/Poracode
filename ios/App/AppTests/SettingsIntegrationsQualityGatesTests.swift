@@ -6,7 +6,7 @@ import XCTest
 final class SettingsIntegrationsQualityGatesTests: XCTestCase {
   func testEveryProductionSwiftFileStaysBelowFiveHundredLines() throws {
     let files = try productionSwiftFiles()
-    XCTAssertEqual(files.count, 18)
+    XCTAssertEqual(files.count, 21)
     for file in files {
       let text = try String(contentsOf: file, encoding: .utf8)
       XCTAssertLessThan(
@@ -197,6 +197,29 @@ final class SettingsIntegrationsQualityGatesTests: XCTestCase {
     )
     XCTAssertTrue(integrationsSource.contains("NavigationLink(value: item)"))
     XCTAssertFalse(integrationsSource.contains("dismiss()"))
+
+    let compositionSource = try String(
+      contentsOf: root.appendingPathComponent(
+        "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift"
+      ),
+      encoding: .utf8
+    )
+    XCTAssertTrue(compositionSource.contains("if requiredProjectIdentity == nil"))
+    XCTAssertTrue(compositionSource.contains("HostSelectionMenu(session: session)"))
+    XCTAssertTrue(compositionSource.contains("configuredMCPServers"))
+    XCTAssertTrue(compositionSource.contains("onImportMCPServer"))
+    XCTAssertTrue(compositionSource.contains("onUpdateMCPServer"))
+
+    let mcpSource = try String(
+      contentsOf: root.appendingPathComponent(
+        "ios/App/App/Features/SettingsIntegrations/UI/SettingsMCPView.swift"
+      ),
+      encoding: .utf8
+    )
+    XCTAssertTrue(mcpSource.contains("if let onImport"))
+    XCTAssertTrue(mcpSource.contains("SettingsIntegrationsStrings.configured"))
+    XCTAssertTrue(mcpSource.contains("SettingsIntegrationsStrings.importSkill"))
+    XCTAssertTrue(mcpSource.contains("replacingDisabledTools"))
   }
 
   private func project(

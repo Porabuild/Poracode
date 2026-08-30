@@ -105,6 +105,96 @@ final class PushRegistrationTests: XCTestCase {
     let pending = try await harness.outbox.pending()
     XCTAssertEqual(pending, [])
   }
+
+  func testDisablingDeliveryUnregistersEveryHostAndReenableRegistersAgain() async throws {
+    let harness = try await PushHarness.make(hosts: [
+      ("https://a.test", [1]),
+      ("https://b.test", [1]),
+    ])
+    await harness.controller.receiveAPNSToken(Data([0x01]))
+    await harness.controller.setForeground(true)
+    await harness.recorder.clearRegistrations()
+
+    await harness.controller.setDeliveryEnabled(false)
+
+    let unregisters = await harness.recorder.unregisterCalls
+    XCTAssertEqual(Set(unregisters.map(\.endpoint)), Set(["https://a.test", "https://b.test"]))
+    for host in harness.hosts {
+      let state = try await harness.state.host(host.connectionId)
+      XCTAssertEqual(state, .empty)
+    }
+    let pendingAfterDisable = try await harness.outbox.pending()
+    XCTAssertTrue(pendingAfterDisable.isEmpty)
+
+    await harness.controller.setDeliveryEnabled(true)
+
+    let registrations = await harness.recorder.registrationCalls
+    XCTAssertEqual(Set(registrations.map(\.endpoint)), Set(["https://a.test", "https://b.test"]))
+  }
+
+  func testDisabledRelaunchRescansHostsWhenNoOutboxEntrySurvived() async throws {
+    let harness = try await PushHarness.make(
+      hosts: [("https://a.test", [1])],
+      deliveryEnabled: false
+    )
+    await harness.controller.receiveAPNSToken(Data([0x01]))
+
+    await harness.controller.setForeground(true)
+
+    let unregisters = await harness.recorder.unregisterCalls
+    let registrations = await harness.recorder.registrationCalls
+    let pending = try await harness.outbox.pending()
+    XCTAssertEqual(unregisters.map(\.endpoint), ["https://a.test"])
+    XCTAssertTrue(registrations.isEmpty)
+    XCTAssertTrue(pending.isEmpty)
+  }
+
+  func testFailedDisableUnregisterBlocksReregistrationUntilExactOutboxClears() async throws {
+    let harness = try await PushHarness.make(hosts: [("https://a.test", [1])])
+    await harness.controller.receiveAPNSToken(Data([0x01]))
+    await harness.controller.setForeground(true)
+    await harness.recorder.clearRegistrations()
+    await harness.recorder.setUnregisterError(
+      RemoteClientError(message: "offline", status: 0, code: "network")
+    )
+
+    await harness.controller.setDeliveryEnabled(false)
+    await harness.controller.setDeliveryEnabled(true)
+
+    let blockedRegistrations = await harness.recorder.registrationCalls
+    let pendingFailure = try await harness.outbox.pending()
+    XCTAssertTrue(blockedRegistrations.isEmpty)
+    XCTAssertEqual(pendingFailure.count, 1)
+
+    await harness.recorder.setUnregisterError(nil)
+    await harness.controller.reconcileNow()
+
+    let recoveredRegistrations = await harness.recorder.registrationCalls
+    let pendingAfterRecovery = try await harness.outbox.pending()
+    XCTAssertEqual(recoveredRegistrations.count, 1)
+    XCTAssertTrue(pendingAfterRecovery.isEmpty)
+  }
+
+  func testDisableOvertakingRegisterUnregistersAgainAfterStaleResponse() async throws {
+    let harness = try await PushHarness.make(hosts: [("https://a.test", [1])])
+    let barrier = ProjectControllerTestBarrier()
+    await harness.recorder.setRegistrationBarrier(barrier)
+    await harness.controller.receiveAPNSToken(Data([0x01]))
+
+    let registration = Task { await harness.controller.setForeground(true) }
+    await barrier.waitUntilReached()
+    await harness.controller.setDeliveryEnabled(false)
+    let unregistersBeforeResponse = await harness.recorder.unregisterCalls
+    XCTAssertEqual(unregistersBeforeResponse.count, 1)
+
+    await barrier.release()
+    await registration.value
+
+    let unregisters = await harness.recorder.unregisterCalls
+    let pending = try await harness.outbox.pending()
+    XCTAssertEqual(unregisters.count, 2)
+    XCTAssertTrue(pending.isEmpty)
+  }
 }
 
 private struct PushHarness {
@@ -114,7 +204,10 @@ private struct PushHarness {
   var outbox: PushUnregisterOutbox
   var hosts: [HostRecord]
 
-  static func make(hosts specs: [(String, [Int]?)]) async throws -> PushHarness {
+  static func make(
+    hosts specs: [(String, [Int]?)],
+    deliveryEnabled: Bool = true
+  ) async throws -> PushHarness {
     let catalog = HostCatalog.ephemeralForTests()
     let pushIO = InMemoryKeychainIO()
     let vault = PushTokenVault(io: pushIO)
@@ -153,7 +246,8 @@ private struct PushHarness {
       makeAPI: { endpoint, token in
         PushFakeAPI(endpoint: endpoint, accessToken: token, recorder: recorder)
       },
-      appVersion: { "9.9.9" }
+      appVersion: { "9.9.9" },
+      deliveryEnabled: deliveryEnabled
     )
     return PushHarness(
       controller: controller, recorder: recorder, state: state, outbox: outbox, hosts: records)
@@ -199,6 +293,7 @@ private actor PushAPIRecorder {
   var environments: [String: RemoteEnvironmentDescriptor] = [:]
   var registrationCalls: [RegistrationCall] = []
   var unregisterCalls: [UnregisterCall] = []
+  var registrationBarrier: ProjectControllerTestBarrier?
   var echoVersion: Int? = 1
   var unregisterError: RemoteClientError?
 
@@ -214,9 +309,12 @@ private actor PushAPIRecorder {
   }
 
   func register(endpoint: String, accessToken: String, request: PushRegistrationRequest)
-    -> PushRegistrationResponse
+    async -> PushRegistrationResponse
   {
     registrationCalls.append(.init(endpoint: endpoint, accessToken: accessToken, request: request))
+    let barrier = registrationBarrier
+    registrationBarrier = nil
+    if let barrier { await barrier.suspend() }
     return PushRegistrationResponse(
       ok: true,
       routing: echoVersion.map { .init(version: $0) }
@@ -229,6 +327,9 @@ private actor PushAPIRecorder {
   }
 
   func clearRegistrations() { registrationCalls = [] }
+  func setRegistrationBarrier(_ barrier: ProjectControllerTestBarrier?) {
+    registrationBarrier = barrier
+  }
   func setEchoVersion(_ version: Int?) { echoVersion = version }
   func setUnregisterError(_ error: RemoteClientError?) { unregisterError = error }
 }

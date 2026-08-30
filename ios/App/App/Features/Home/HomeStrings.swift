@@ -22,6 +22,13 @@ enum HomeStrings {
     )
   }
 
+  static var projectThreadsEmptyDescription: String {
+    String(
+      localized: "home.project.threads.empty.description",
+      defaultValue: "Active conversations for this project will appear here."
+    )
+  }
+
   static var emptyTitle: String {
     String(localized: "home.projects.empty.title", defaultValue: "No projects yet")
   }
@@ -227,6 +234,10 @@ enum HomeStrings {
 
   static var starred: String {
     String(localized: "home.thread.starred", defaultValue: "Starred")
+  }
+
+  static var unsentDraft: String {
+    String(localized: "home.thread.unsentDraft", defaultValue: "Has unsent draft")
   }
 
   static func worktreeAccessibility(_ branch: String, _ count: Int) -> String {

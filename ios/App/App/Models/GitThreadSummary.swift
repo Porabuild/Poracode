@@ -32,6 +32,16 @@ struct GitThreadSummary: Sendable, Equatable {
   var hasLocalChanges: Bool { totalInsertions > 0 || totalDeletions > 0 }
   var isDiverged: Bool { ahead > 0 || behind > 0 }
 
+  init(status: ProjectGitStatus) {
+    isRepo = status.isRepo
+    branch = status.branch
+    totalInsertions = status.totalInsertions
+    totalDeletions = status.totalDeletions
+    ahead = status.ahead
+    behind = status.behind
+    pullRequest = nil
+  }
+
   init(wire value: JSONValue) throws {
     guard let object = value.objectValue else {
       throw GitStateDecoding.invalid("RemoteThreadGitSummary")

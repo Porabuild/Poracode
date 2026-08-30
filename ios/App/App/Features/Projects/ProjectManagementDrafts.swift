@@ -28,25 +28,44 @@ struct ProjectCreationDraft: Equatable, Sendable {
 
     switch kind {
     case .addExisting:
-      if !cleanName.isEmpty, let error = ProjectValidation.projectNameError(cleanName) {
-        throw ProjectDraftError.invalidName(error)
-      }
-      return .addExisting(path: cleanPath, name: cleanName.isEmpty ? nil : cleanName)
+      return .addExisting(path: cleanPath, name: nil)
     case .create:
       if let error = ProjectValidation.projectNameError(cleanName) {
         throw ProjectDraftError.invalidName(error)
       }
       return .create(parentPath: cleanPath, name: cleanName)
     case .clone:
-      if let error = ProjectValidation.projectNameError(cleanName) {
-        throw ProjectDraftError.invalidName(error)
-      }
       let cleanURL = ProjectValidation.jsTrim(cloneURL)
       guard ProjectValidation.isSafeCloneURL(cleanURL) else {
         throw ProjectDraftError.invalidCloneURL
       }
-      return .clone(parentPath: cleanPath, name: cleanName, source: .url(cleanURL))
+      let cloneName = ProjectCloneNaming.folderName(from: cleanURL)
+      guard !cloneName.isEmpty else { throw ProjectDraftError.invalidCloneURL }
+      if let error = ProjectValidation.projectNameError(cloneName) {
+        throw ProjectDraftError.invalidName(error)
+      }
+      return .clone(parentPath: cleanPath, name: cloneName, source: .url(cleanURL))
     }
+  }
+}
+
+/// Matches the compact PWA clone flow: the destination folder is derived from
+/// the repository URL instead of asking for a second, redundant project name.
+enum ProjectCloneNaming {
+  static func folderName(from rawURL: String) -> String {
+    var value = ProjectValidation.jsTrim(rawURL)
+    if let suffixStart = value.firstIndex(where: { $0 == "?" || $0 == "#" }) {
+      value = String(value[..<suffixStart])
+    }
+    if value.lowercased().hasSuffix(".git") {
+      value.removeLast(4)
+    }
+    while let last = value.last, last == "/" || last == "\\" {
+      value.removeLast()
+    }
+    guard !value.isEmpty else { return "" }
+    let separator = value.lastIndex(where: { $0 == "/" || $0 == ":" || $0 == "\\" })
+    return separator.map { String(value[value.index(after: $0)...]) } ?? value
   }
 }
 

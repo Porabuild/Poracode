@@ -6,6 +6,7 @@ import XCTest
 private actor ProjectWorkspaceGatewayFake: ProjectWorkspaceGateway {
   private(set) var searchLeases: [ProjectWorkspaceLease] = []
   private(set) var writeLeases: [ProjectWorkspaceLease] = []
+  private(set) var mutations: [ProjectWorkspaceEntryMutation] = []
   var searchResult = ProjectFileSearchResult(entries: [], totalIndexed: 0)
   var writeResult = ProjectFileWriteResult(modifiedAtMs: 2)
   var writeError: ProjectSessionGatewayError?
@@ -67,6 +68,37 @@ private actor ProjectWorkspaceGatewayFake: ProjectWorkspaceGateway {
     return writeResult
   }
 
+  func createProjectEntry(
+    path: String,
+    type: AdvancedProjectEntryType,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    mutations.append(.create(path: path, type: type))
+  }
+
+  func renameProjectEntry(
+    path: String,
+    nextName: String,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    mutations.append(.rename(path: path, nextName: nextName))
+  }
+
+  func moveProjectEntry(
+    path: String,
+    nextParentPath: String?,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    mutations.append(.move(path: path, nextParentPath: nextParentPath))
+  }
+
+  func deleteProjectEntry(
+    path: String,
+    lease: ProjectWorkspaceLease
+  ) async throws {
+    mutations.append(.delete(path: path))
+  }
+
   func getGitDiff(
     filePath: String?,
     staged: Bool,
@@ -85,6 +117,8 @@ private actor ProjectWorkspaceGatewayFake: ProjectWorkspaceGateway {
   func waitUntilSleepingSearchStarted() async {
     while !sleepingSearchStarted { await Task.yield() }
   }
+
+  func mutationLog() -> [ProjectWorkspaceEntryMutation] { mutations }
 }
 
 @MainActor
@@ -197,6 +231,38 @@ final class ProjectWorkspaceControllerTests: XCTestCase {
     XCTAssertEqual(writeLeases.count, 1)
   }
 
+  func testFileEntryMutationsUseTheOwnedControllerChannel() async throws {
+    let gateway = ProjectWorkspaceGatewayFake()
+    let controller = ProjectFileWorkspaceController(gateway: gateway)
+    controller.activate(makeProjectWorkspaceContext(capabilities: [.sessionOperate]))
+
+    let created = await controller.mutateEntry(.create(path: "Sources/New.swift", type: .file))
+    let renamed = await controller.mutateEntry(
+      .rename(path: "Sources/New.swift", nextName: "App.swift")
+    )
+    let moved = await controller.mutateEntry(
+      .move(path: "Sources/App.swift", nextParentPath: nil)
+    )
+    let deleted = await controller.mutateEntry(.delete(path: "App.swift"))
+    XCTAssertTrue(created)
+    XCTAssertTrue(renamed)
+    XCTAssertTrue(moved)
+    XCTAssertTrue(deleted)
+
+    let mutations = await gateway.mutationLog()
+    XCTAssertEqual(
+      mutations,
+      [
+        .create(path: "Sources/New.swift", type: .file),
+        .rename(path: "Sources/New.swift", nextName: "App.swift"),
+        .move(path: "Sources/App.swift", nextParentPath: nil),
+        .delete(path: "App.swift"),
+      ]
+    )
+    XCTAssertEqual(controller.entryMutation.loadState, .loaded)
+    XCTAssertEqual(controller.entryMutation.value, true)
+  }
+
   func testGitReadControllerLoadsIndependentDiffAndSnapshotChannels() async throws {
     let gateway = ProjectWorkspaceGatewayFake()
     let snapshot = ProjectGitSnapshot(
@@ -220,5 +286,31 @@ final class ProjectWorkspaceControllerTests: XCTestCase {
     XCTAssertEqual(controller.diff.loadState, .loaded)
     XCTAssertEqual(controller.snapshot.value, snapshot)
     XCTAssertEqual(controller.snapshot.loadState, .loaded)
+  }
+
+  func testNativeUnifiedDiffClassifiesHeadersBeforeChangedLines() {
+    let lines = NativeUnifiedDiffLine.parse(
+      "diff --git a/App.swift b/App.swift\n--- a/App.swift\n+++ b/App.swift\n@@ -1 +1 @@\n-old\n+new\n same"
+    )
+
+    XCTAssertEqual(
+      lines.map(\.kind),
+      [.metadata, .metadata, .metadata, .hunk, .deletion, .addition, .context]
+    )
+    XCTAssertEqual(lines[4].annotationTarget?.lineNumber, 1)
+    XCTAssertEqual(lines[4].annotationTarget?.side, .old)
+    XCTAssertEqual(lines[5].annotationTarget?.lineNumber, 1)
+    XCTAssertEqual(lines[5].annotationTarget?.side, .new)
+    XCTAssertEqual(lines[6].annotationTarget?.lineNumber, 2)
+    XCTAssertEqual(lines[6].annotationTarget?.side, .new)
+  }
+
+  func testNativeUnifiedDiffKeepsChangedCodeSeparateFromItsMarker() {
+    let lines = NativeUnifiedDiffLine.parse("@@ -1 +1 @@\n-const oldValue = 1\n+const newValue = 2")
+
+    XCTAssertEqual(lines[1].kind, .deletion)
+    XCTAssertEqual(lines[2].kind, .addition)
+    XCTAssertEqual(lines[1].text.dropFirst(), "const oldValue = 1")
+    XCTAssertEqual(lines[2].text.dropFirst(), "const newValue = 2")
   }
 }

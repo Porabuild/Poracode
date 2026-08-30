@@ -28,6 +28,12 @@ final class ProjectControllerDirectoryController {
     state = ProjectControllerDirectoryState(lease: session.lease)
   }
 
+  func deactivate() {
+    navigationRevision &+= 1
+    session = nil
+    state = ProjectControllerDirectoryState()
+  }
+
   func updateAccess(_ session: ProjectControllerSession) {
     guard self.session?.lease == session.lease else {
       activate(session)

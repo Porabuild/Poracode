@@ -15,6 +15,31 @@ protocol SettingsRemoteAPI: Sendable {
   ) async throws -> SettingsProfileIdentityResponse
   func settingsRead() async throws -> SettingsReadResponse
   func settingsWrite(_ patch: SettingsPatch) async throws -> SettingsReadResponse
+  func globalMCPSettingsRead() async throws -> GlobalMCPSettingsResponse
+  func globalMCPSettingsCommand(_ command: GlobalMCPSettingsCommand) async throws
+    -> GlobalMCPSettingsResponse
+  func globalMCPSettingsOperation(_ operation: GlobalMCPSettingsOperation) async throws
+    -> GlobalMCPSettingsOperationResult
+}
+
+extension SettingsRemoteAPI {
+  func globalMCPSettingsRead() async throws -> GlobalMCPSettingsResponse {
+    throw RemoteClientError.invalidResponse("MCP settings are unavailable.")
+  }
+
+  func globalMCPSettingsCommand(_ command: GlobalMCPSettingsCommand) async throws
+    -> GlobalMCPSettingsResponse
+  {
+    _ = command
+    throw RemoteClientError.invalidResponse("MCP settings are unavailable.")
+  }
+
+  func globalMCPSettingsOperation(_ operation: GlobalMCPSettingsOperation) async throws
+    -> GlobalMCPSettingsOperationResult
+  {
+    _ = operation
+    throw RemoteClientError.invalidResponse("MCP settings are unavailable.")
+  }
 }
 
 enum SettingsRemoteMutationError: Error, Sendable {
@@ -82,7 +107,8 @@ extension RemoteAPIClient: SettingsRemoteAPI {
   }
 
   func settingsRead() async throws -> SettingsReadResponse {
-    try await get(route: "settings-read", canonicalize: SettingsRemoteV3Contract.settingsReadResponse)
+    try await get(
+      route: "settings-read", canonicalize: SettingsRemoteV3Contract.settingsReadResponse)
   }
 
   func settingsWrite(_ patch: SettingsPatch) async throws -> SettingsReadResponse {
@@ -92,6 +118,39 @@ extension RemoteAPIClient: SettingsRemoteAPI {
     return try await mutate(
       route: "settings-write", body: body,
       canonicalize: SettingsRemoteV3Contract.settingsWriteResponse
+    )
+  }
+
+  func globalMCPSettingsRead() async throws -> GlobalMCPSettingsResponse {
+    try await get(
+      route: "mcp-settings-read",
+      canonicalize: SettingsRemoteV3Contract.mcpSettingsReadResponse
+    )
+  }
+
+  func globalMCPSettingsCommand(_ command: GlobalMCPSettingsCommand) async throws
+    -> GlobalMCPSettingsResponse
+  {
+    let body = try SettingsRemoteV3Contract.mcpSettingsCommandRequest(
+      JSONDecoding.encoder.encode(command)
+    )
+    return try await mutate(
+      route: "mcp-settings-command",
+      body: body,
+      canonicalize: SettingsRemoteV3Contract.mcpSettingsCommandResponse
+    )
+  }
+
+  func globalMCPSettingsOperation(_ operation: GlobalMCPSettingsOperation) async throws
+    -> GlobalMCPSettingsOperationResult
+  {
+    let body = try SettingsRemoteV3Contract.mcpSettingsOperationRequest(
+      JSONDecoding.encoder.encode(operation)
+    )
+    return try await mutate(
+      route: "mcp-settings-operation",
+      body: body,
+      canonicalize: SettingsRemoteV3Contract.mcpSettingsOperationResponse
     )
   }
 
@@ -114,7 +173,8 @@ extension RemoteAPIClient: SettingsRemoteAPI {
     } catch is CancellationError {
       throw CancellationError()
     } catch let error as RemoteClientError
-      where RemoteMutationClassification.classify(statusCode: error.status, code: error.code) == .requestMayHaveCommitted
+      where RemoteMutationClassification.classify(statusCode: error.status, code: error.code)
+      == .requestMayHaveCommitted
     {
       throw SettingsRemoteMutationError.ambiguousOutcome
     } catch {
@@ -142,8 +202,8 @@ extension RemoteAPIClient: SettingsRemoteAPI {
     _ type: Value.Type,
     _ data: Data
   ) throws -> Value {
-    do { return try JSONDecoding.decode(type, from: data) }
-    catch is CancellationError { throw CancellationError() }
-    catch { throw RemoteClientError.invalidResponse("Invalid Settings response.") }
+    do { return try JSONDecoding.decode(type, from: data) } catch is CancellationError {
+      throw CancellationError()
+    } catch { throw RemoteClientError.invalidResponse("Invalid Settings response.") }
   }
 }

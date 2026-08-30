@@ -65,6 +65,9 @@ final class PortForwardingControllerTests: XCTestCase {
     XCTAssertTrue(try XCTUnwrap(projection.detected.first { $0.id == 3000 }).canStart)
     XCTAssertEqual(projection.active.count, 1)
     XCTAssertFalse(projection.active[0].title.isEmpty)
-    XCTAssertFalse(projection.active[0].value.isEmpty)
+    XCTAssertEqual(
+      projection.active[0].value,
+      PortForwardingStrings.onDesktop(try XCTUnwrap(controller.snapshot.forwards.first).targetPort)
+    )
   }
 }

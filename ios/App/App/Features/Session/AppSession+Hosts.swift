@@ -84,6 +84,7 @@ extension AppSession {
         }
         await cancelStaleSessionWork(invalidateSocket: false)
         await sessionPool.forget(.host(connectionId))
+        richChatComposerDrafts.clear(connectionID: connectionId)
         let snapshot: HostCatalogSnapshot
         do {
             snapshot = try await deps.hostCatalog.snapshot()
@@ -113,12 +114,61 @@ extension AppSession {
         state.resetForUnpair()
     }
 
+    func renameHost(_ connectionId: ClientConnectionID, label: String) async {
+        let normalized = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty,
+              state.hosts.contains(where: { $0.connectionId == connectionId })
+        else { return }
+
+        let began = state.operationOwner.beginMetadata(.renameHost)
+        do {
+            let activated = try await deps.hostCatalog.activate(
+                id: began.operationId,
+                kind: .rename
+            )
+            guard activated,
+                  state.operationOwner.isCurrent(began.epoch),
+                  state.operationOwner.isCurrentOperation(began.operationId),
+                  state.workGeneration == began.workGeneration
+            else { return }
+            let result = try await deps.hostCatalog.rename(
+                connectionId,
+                label: normalized,
+                owning: began.operationId
+            )
+            guard result.didApply,
+                  state.operationOwner.isCurrent(began.epoch),
+                  state.operationOwner.isCurrentOperation(began.operationId),
+                  state.workGeneration == began.workGeneration
+            else { return }
+
+            let snapshot = try await deps.hostCatalog.snapshot()
+            guard state.operationOwner.isCurrent(began.epoch),
+                  state.operationOwner.isCurrentOperation(began.operationId),
+                  state.workGeneration == began.workGeneration
+            else { return }
+            applyCatalogSnapshot(snapshot)
+            if connectionId == state.selectedConnectionId,
+               let record = snapshot.document.host(id: connectionId)
+            {
+                state.profile = record.asProfile()
+                sessionPool.captureSelectedCache()
+            }
+        } catch {
+            guard state.operationOwner.isCurrent(began.epoch),
+                  state.operationOwner.isCurrentOperation(began.operationId)
+            else { return }
+            state.phase = .localStoreInconsistent
+        }
+    }
+
     func applyCatalogSnapshot(_ snapshot: HostCatalogSnapshot) {
         state.hosts = snapshot.hosts
         state.hostsLRU = snapshot.lru
         state.selectedConnectionId = snapshot.selectedConnectionId
         let retained = Set(snapshot.hosts.map(\.connectionId))
         state.hostSnapshots = state.hostSnapshots.filter { retained.contains($0.key) }
+        state.hostSocketStates = state.hostSocketStates.filter { retained.contains($0.key) }
     }
 
     /// Refreshes the selected live host and fetches lightweight shell snapshots

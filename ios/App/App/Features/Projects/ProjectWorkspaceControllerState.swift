@@ -11,6 +11,7 @@ enum ProjectWorkspaceControllerOperation: Hashable, Sendable {
   case treeSearch
   case fileRead
   case fileWrite
+  case entryMutation
   case gitStatus
   case gitDiff
   case gitDiffBatch

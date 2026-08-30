@@ -22,6 +22,15 @@ enum RemoteIntegrationsPresentation {
     }
   }
 
+  static func scheduleRunStatus(_ status: RemoteIntegrationsScheduleRunStatus) -> String {
+    switch status {
+    case .running: RemoteIntegrationsStrings.running
+    case .succeeded: RemoteIntegrationsStrings.succeeded
+    case .failed: RemoteIntegrationsStrings.failed
+    case .interrupted: RemoteIntegrationsStrings.interrupted
+    }
+  }
+
   static func recurrence(_ recurrence: RemoteIntegrationsScheduleRecurrence) -> String {
     switch recurrence {
     case .hourly(let minute): return RemoteIntegrationsStrings.minuteValue(minute)

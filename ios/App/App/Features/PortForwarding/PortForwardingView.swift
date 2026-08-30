@@ -94,27 +94,29 @@ struct PortForwardingView: View {
     }
     .navigationTitle(PortForwardingStrings.title)
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItemGroup(placement: .primaryAction) {
-        Button {
-          manualPresented = true
-        } label: {
-          Label(PortForwardingStrings.manualForward, systemImage: "plus")
-        }
-        .disabled(!canUse)
-        .accessibilityIdentifier("port-forwarding.manual")
-
-        Button {
+    .safeAreaInset(edge: .bottom, spacing: 0) {
+      PoracodeBottomActionBar {
+        PoracodeCircleButton {
           run { await controller.scan() }
         } label: {
           if projection.isScanning {
             ProgressView().accessibilityLabel(PortForwardingStrings.scanning)
           } else {
             Label(PortForwardingStrings.scan, systemImage: "arrow.clockwise")
+              .labelStyle(.iconOnly)
           }
         }
         .disabled(projection.isScanning || controller.operation != .none)
         .accessibilityIdentifier("port-forwarding.scan")
+      } trailing: {
+        PoracodeCircleButton {
+          manualPresented = true
+        } label: {
+          Label(PortForwardingStrings.manualForward, systemImage: "plus")
+            .labelStyle(.iconOnly)
+        }
+        .disabled(!canUse)
+        .accessibilityIdentifier("port-forwarding.manual")
       }
     }
     .alert(
@@ -186,8 +188,8 @@ struct PortForwardingView: View {
           Text(hint)
         } actions: {
           action()
-      }
-      .padding(.vertical, 12)
+        }
+        .padding(.vertical, 12)
       }
     }
   }
@@ -261,16 +263,19 @@ struct PortForwardingView: View {
           } label: {
             Label(PortForwardingStrings.openInBrowser, systemImage: "safari")
           }
+          .disabled(!row.canOpen || row.isBusy)
           Button {
             copyURL(row)
           } label: {
             Label(PortForwardingStrings.copyURL, systemImage: "doc.on.doc")
           }
+          .disabled(row.isBusy || copyAddress == nil)
           Button(role: .destructive) {
             run { await controller.stop(forwardID: row.id) }
           } label: {
             Label(PortForwardingStrings.stopForwarding, systemImage: "powerplug")
           }
+          .disabled(!row.canStop || row.isBusy)
         } label: {
           Image(systemName: "ellipsis")
             .frame(width: 34, height: 34)

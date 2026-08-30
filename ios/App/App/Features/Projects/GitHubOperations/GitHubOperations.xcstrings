@@ -1,6 +1,172 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "githubOperations.createPr.openDialog": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Open dialog"
+        }
+      },
+      "de": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Dialog öffnen"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Abrir diálogo"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ouvrir la boîte de dialogue"
+        }
+      },
+      "ja": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "ダイアログを開く"
+        }
+      },
+      "ko": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "대화상자 열기"
+        }
+      },
+      "pl": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Otwórz okno dialogowe"
+        }
+      },
+      "pt-BR": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Abrir caixa de diálogo"
+        }
+      },
+      "ru": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Открывать диалог"
+        }
+      },
+      "tr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "İletişim kutusunu aç"
+        }
+      },
+      "uk": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Відкрити діалог"
+        }
+      },
+      "vi": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Mở hộp thoại"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "打开对话框"
+        }
+      }
+    }
+  },
+  "githubOperations.createPr.autoGenerate": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Auto-generate"
+        }
+      },
+      "de": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Automatisch generieren"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Autogenerar"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Générer automatiquement"
+        }
+      },
+      "ja": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "自動生成"
+        }
+      },
+      "ko": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "자동 생성"
+        }
+      },
+      "pl": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Generuj automatycznie"
+        }
+      },
+      "pt-BR": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Gerar automaticamente"
+        }
+      },
+      "ru": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Создавать автоматически"
+        }
+      },
+      "tr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Otomatik oluştur"
+        }
+      },
+      "uk": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Генерувати автоматично"
+        }
+      },
+      "vi": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Tự động tạo"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "自动生成"
+        }
+      }
+    }
+  },
     "githubOperations.title" : {"localizations" : {"en":{"stringUnit":{"state":"translated","value":"GitHub operations"}},"de":{"stringUnit":{"state":"translated","value":"GitHub-Aktionen"}},"es":{"stringUnit":{"state":"translated","value":"Operaciones de GitHub"}},"fr":{"stringUnit":{"state":"translated","value":"Opérations GitHub"}},"ja":{"stringUnit":{"state":"translated","value":"GitHub 操作"}},"ko":{"stringUnit":{"state":"translated","value":"GitHub 작업"}},"pl":{"stringUnit":{"state":"translated","value":"Operacje GitHub"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Operações do GitHub"}},"ru":{"stringUnit":{"state":"translated","value":"Операции GitHub"}},"tr":{"stringUnit":{"state":"translated","value":"GitHub işlemleri"}},"uk":{"stringUnit":{"state":"translated","value":"Операції GitHub"}},"vi":{"stringUnit":{"state":"translated","value":"Thao tác GitHub"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"GitHub 操作"}}}},
     "githubOperations.availability" : {"localizations" : {"en":{"stringUnit":{"state":"translated","value":"Availability and repositories"}},"de":{"stringUnit":{"state":"translated","value":"Verfügbarkeit und Repositorys"}},"es":{"stringUnit":{"state":"translated","value":"Disponibilidad y repositorios"}},"fr":{"stringUnit":{"state":"translated","value":"Disponibilité et dépôts"}},"ja":{"stringUnit":{"state":"translated","value":"利用可否とリポジトリ"}},"ko":{"stringUnit":{"state":"translated","value":"사용 가능 여부 및 저장소"}},"pl":{"stringUnit":{"state":"translated","value":"Dostępność i repozytoria"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Disponibilidade e repositórios"}},"ru":{"stringUnit":{"state":"translated","value":"Доступность и репозитории"}},"tr":{"stringUnit":{"state":"translated","value":"Kullanılabilirlik ve depolar"}},"uk":{"stringUnit":{"state":"translated","value":"Доступність і репозиторії"}},"vi":{"stringUnit":{"state":"translated","value":"Khả dụng và kho lưu trữ"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"可用性和仓库"}}}},
     "githubOperations.pullRequests" : {"localizations" : {"en":{"stringUnit":{"state":"translated","value":"Pull requests"}},"de":{"stringUnit":{"state":"translated","value":"Pull Requests"}},"es":{"stringUnit":{"state":"translated","value":"Solicitudes de incorporación"}},"fr":{"stringUnit":{"state":"translated","value":"Demandes de tirage"}},"ja":{"stringUnit":{"state":"translated","value":"プルリクエスト"}},"ko":{"stringUnit":{"state":"translated","value":"풀 리퀘스트"}},"pl":{"stringUnit":{"state":"translated","value":"Żądania ściągnięcia"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Solicitações de pull"}},"ru":{"stringUnit":{"state":"translated","value":"Запросы на слияние"}},"tr":{"stringUnit":{"state":"translated","value":"Çekme istekleri"}},"uk":{"stringUnit":{"state":"translated","value":"Запити на злиття"}},"vi":{"stringUnit":{"state":"translated","value":"Yêu cầu kéo"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"拉取请求"}}}},
@@ -79,6 +245,18 @@
     ,"githubOperations.failure.invalidResponse" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"GitHub returned an invalid response."}},"de":{"stringUnit":{"state":"translated","value":"GitHub hat eine ungültige Antwort zurückgegeben."}},"es":{"stringUnit":{"state":"translated","value":"GitHub devolvió una respuesta no válida."}},"fr":{"stringUnit":{"state":"translated","value":"GitHub a renvoyé une réponse non valide."}},"ja":{"stringUnit":{"state":"translated","value":"GitHub から無効な応答が返されました。"}},"ko":{"stringUnit":{"state":"translated","value":"GitHub가 잘못된 응답을 반환했습니다."}},"pl":{"stringUnit":{"state":"translated","value":"GitHub zwrócił nieprawidłową odpowiedź."}},"pt-BR":{"stringUnit":{"state":"translated","value":"O GitHub retornou uma resposta inválida."}},"ru":{"stringUnit":{"state":"translated","value":"GitHub вернул недопустимый ответ."}},"tr":{"stringUnit":{"state":"translated","value":"GitHub geçersiz bir yanıt döndürdü."}},"uk":{"stringUnit":{"state":"translated","value":"GitHub повернув недійсну відповідь."}},"vi":{"stringUnit":{"state":"translated","value":"GitHub đã trả về phản hồi không hợp lệ."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"GitHub 返回了无效响应。"}}}}
     ,"githubOperations.failure.ambiguousOutcome" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"The result is uncertain. Refresh before trying again."}},"de":{"stringUnit":{"state":"translated","value":"Das Ergebnis ist ungewiss. Aktualisiere vor einem erneuten Versuch."}},"es":{"stringUnit":{"state":"translated","value":"El resultado es incierto. Actualiza antes de volver a intentarlo."}},"fr":{"stringUnit":{"state":"translated","value":"Le résultat est incertain. Actualisez avant de réessayer."}},"ja":{"stringUnit":{"state":"translated","value":"結果が不明です。再試行する前に更新してください。"}},"ko":{"stringUnit":{"state":"translated","value":"결과가 확실하지 않습니다. 다시 시도하기 전에 새로 고침하세요."}},"pl":{"stringUnit":{"state":"translated","value":"Wynik jest niepewny. Odśwież przed ponowną próbą."}},"pt-BR":{"stringUnit":{"state":"translated","value":"O resultado é incerto. Atualize antes de tentar novamente."}},"ru":{"stringUnit":{"state":"translated","value":"Результат неизвестен. Обновите данные перед повторной попыткой."}},"tr":{"stringUnit":{"state":"translated","value":"Sonuç belirsiz. Yeniden denemeden önce yenileyin."}},"uk":{"stringUnit":{"state":"translated","value":"Результат невизначений. Оновіть дані перед повторною спробою."}},"vi":{"stringUnit":{"state":"translated","value":"Kết quả không chắc chắn. Hãy làm mới trước khi thử lại."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"结果不确定。请刷新后再重试。"}}}}
     ,"githubOperations.failure.busy" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Another GitHub action is still running."}},"de":{"stringUnit":{"state":"translated","value":"Eine andere GitHub-Aktion wird noch ausgeführt."}},"es":{"stringUnit":{"state":"translated","value":"Todavía se está ejecutando otra acción de GitHub."}},"fr":{"stringUnit":{"state":"translated","value":"Une autre action GitHub est toujours en cours."}},"ja":{"stringUnit":{"state":"translated","value":"別の GitHub 操作がまだ実行中です。"}},"ko":{"stringUnit":{"state":"translated","value":"다른 GitHub 작업이 아직 실행 중입니다."}},"pl":{"stringUnit":{"state":"translated","value":"Inna akcja GitHub jest nadal uruchomiona."}},"pt-BR":{"stringUnit":{"state":"translated","value":"Outra ação do GitHub ainda está em execução."}},"ru":{"stringUnit":{"state":"translated","value":"Другое действие GitHub всё ещё выполняется."}},"tr":{"stringUnit":{"state":"translated","value":"Başka bir GitHub eylemi hâlâ çalışıyor."}},"uk":{"stringUnit":{"state":"translated","value":"Інша дія GitHub усе ще виконується."}},"vi":{"stringUnit":{"state":"translated","value":"Một hành động GitHub khác vẫn đang chạy."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"另一个 GitHub 操作仍在运行。"}}}}
+    ,"githubOperations.pinWorkflow" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Pin workflow"}},"de":{"stringUnit":{"state":"translated","value":"Workflow anheften"}},"es":{"stringUnit":{"state":"translated","value":"Fijar flujo de trabajo"}},"fr":{"stringUnit":{"state":"translated","value":"Épingler le flux de travail"}},"ja":{"stringUnit":{"state":"translated","value":"ワークフローをピン留め"}},"ko":{"stringUnit":{"state":"translated","value":"워크플로 고정"}},"pl":{"stringUnit":{"state":"translated","value":"Przypnij przepływ pracy"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Fixar workflow"}},"ru":{"stringUnit":{"state":"translated","value":"Закрепить рабочий процесс"}},"tr":{"stringUnit":{"state":"translated","value":"İş akışını sabitle"}},"uk":{"stringUnit":{"state":"translated","value":"Закріпити робочий процес"}},"vi":{"stringUnit":{"state":"translated","value":"Ghim quy trình"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"固定工作流"}}}}
+    ,"githubOperations.unpinWorkflow" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Unpin workflow"}},"de":{"stringUnit":{"state":"translated","value":"Workflow lösen"}},"es":{"stringUnit":{"state":"translated","value":"Desfijar flujo de trabajo"}},"fr":{"stringUnit":{"state":"translated","value":"Détacher le flux de travail"}},"ja":{"stringUnit":{"state":"translated","value":"ワークフローのピン留めを解除"}},"ko":{"stringUnit":{"state":"translated","value":"워크플로 고정 해제"}},"pl":{"stringUnit":{"state":"translated","value":"Odepnij przepływ pracy"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Desafixar workflow"}},"ru":{"stringUnit":{"state":"translated","value":"Открепить рабочий процесс"}},"tr":{"stringUnit":{"state":"translated","value":"İş akışının sabitlemesini kaldır"}},"uk":{"stringUnit":{"state":"translated","value":"Відкріпити робочий процес"}},"vi":{"stringUnit":{"state":"translated","value":"Bỏ ghim quy trình"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"取消固定工作流"}}}}
+    ,"githubOperations.attempt" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Attempt"}},"de":{"stringUnit":{"state":"translated","value":"Versuch"}},"es":{"stringUnit":{"state":"translated","value":"Intento"}},"fr":{"stringUnit":{"state":"translated","value":"Tentative"}},"ja":{"stringUnit":{"state":"translated","value":"試行"}},"ko":{"stringUnit":{"state":"translated","value":"시도"}},"pl":{"stringUnit":{"state":"translated","value":"Próba"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Tentativa"}},"ru":{"stringUnit":{"state":"translated","value":"Попытка"}},"tr":{"stringUnit":{"state":"translated","value":"Deneme"}},"uk":{"stringUnit":{"state":"translated","value":"Спроба"}},"vi":{"stringUnit":{"state":"translated","value":"Lần thử"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"尝试"}}}}
+    ,"githubOperations.succeeded" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Succeeded"}},"de":{"stringUnit":{"state":"translated","value":"Erfolgreich"}},"es":{"stringUnit":{"state":"translated","value":"Correcto"}},"fr":{"stringUnit":{"state":"translated","value":"Réussi"}},"ja":{"stringUnit":{"state":"translated","value":"成功"}},"ko":{"stringUnit":{"state":"translated","value":"성공"}},"pl":{"stringUnit":{"state":"translated","value":"Powodzenie"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Bem-sucedido"}},"ru":{"stringUnit":{"state":"translated","value":"Успешно"}},"tr":{"stringUnit":{"state":"translated","value":"Başarılı"}},"uk":{"stringUnit":{"state":"translated","value":"Успішно"}},"vi":{"stringUnit":{"state":"translated","value":"Thành công"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"成功"}}}}
+    ,"githubOperations.failed" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Failed"}},"de":{"stringUnit":{"state":"translated","value":"Fehlgeschlagen"}},"es":{"stringUnit":{"state":"translated","value":"Fallido"}},"fr":{"stringUnit":{"state":"translated","value":"Échec"}},"ja":{"stringUnit":{"state":"translated","value":"失敗"}},"ko":{"stringUnit":{"state":"translated","value":"실패"}},"pl":{"stringUnit":{"state":"translated","value":"Niepowodzenie"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Falhou"}},"ru":{"stringUnit":{"state":"translated","value":"Ошибка"}},"tr":{"stringUnit":{"state":"translated","value":"Başarısız"}},"uk":{"stringUnit":{"state":"translated","value":"Помилка"}},"vi":{"stringUnit":{"state":"translated","value":"Thất bại"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"失败"}}}}
+    ,"githubOperations.cancelled" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Cancelled"}},"de":{"stringUnit":{"state":"translated","value":"Abgebrochen"}},"es":{"stringUnit":{"state":"translated","value":"Cancelado"}},"fr":{"stringUnit":{"state":"translated","value":"Annulé"}},"ja":{"stringUnit":{"state":"translated","value":"キャンセル済み"}},"ko":{"stringUnit":{"state":"translated","value":"취소됨"}},"pl":{"stringUnit":{"state":"translated","value":"Anulowano"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Cancelado"}},"ru":{"stringUnit":{"state":"translated","value":"Отменено"}},"tr":{"stringUnit":{"state":"translated","value":"İptal edildi"}},"uk":{"stringUnit":{"state":"translated","value":"Скасовано"}},"vi":{"stringUnit":{"state":"translated","value":"Đã hủy"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已取消"}}}}
+    ,"githubOperations.skipped" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Skipped"}},"de":{"stringUnit":{"state":"translated","value":"Übersprungen"}},"es":{"stringUnit":{"state":"translated","value":"Omitido"}},"fr":{"stringUnit":{"state":"translated","value":"Ignoré"}},"ja":{"stringUnit":{"state":"translated","value":"スキップ済み"}},"ko":{"stringUnit":{"state":"translated","value":"건너뜀"}},"pl":{"stringUnit":{"state":"translated","value":"Pominięto"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Ignorado"}},"ru":{"stringUnit":{"state":"translated","value":"Пропущено"}},"tr":{"stringUnit":{"state":"translated","value":"Atlandı"}},"uk":{"stringUnit":{"state":"translated","value":"Пропущено"}},"vi":{"stringUnit":{"state":"translated","value":"Đã bỏ qua"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已跳过"}}}}
+    ,"githubOperations.timedOut" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Timed out"}},"de":{"stringUnit":{"state":"translated","value":"Zeitüberschreitung"}},"es":{"stringUnit":{"state":"translated","value":"Tiempo agotado"}},"fr":{"stringUnit":{"state":"translated","value":"Délai dépassé"}},"ja":{"stringUnit":{"state":"translated","value":"タイムアウト"}},"ko":{"stringUnit":{"state":"translated","value":"시간 초과"}},"pl":{"stringUnit":{"state":"translated","value":"Przekroczono limit czasu"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Tempo esgotado"}},"ru":{"stringUnit":{"state":"translated","value":"Время ожидания истекло"}},"tr":{"stringUnit":{"state":"translated","value":"Zaman aşımına uğradı"}},"uk":{"stringUnit":{"state":"translated","value":"Час очікування минув"}},"vi":{"stringUnit":{"state":"translated","value":"Hết thời gian"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已超时"}}}}
+    ,"githubOperations.inProgress" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"In progress"}},"de":{"stringUnit":{"state":"translated","value":"In Bearbeitung"}},"es":{"stringUnit":{"state":"translated","value":"En curso"}},"fr":{"stringUnit":{"state":"translated","value":"En cours"}},"ja":{"stringUnit":{"state":"translated","value":"進行中"}},"ko":{"stringUnit":{"state":"translated","value":"진행 중"}},"pl":{"stringUnit":{"state":"translated","value":"W toku"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Em andamento"}},"ru":{"stringUnit":{"state":"translated","value":"Выполняется"}},"tr":{"stringUnit":{"state":"translated","value":"Devam ediyor"}},"uk":{"stringUnit":{"state":"translated","value":"Виконується"}},"vi":{"stringUnit":{"state":"translated","value":"Đang thực hiện"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"进行中"}}}}
+    ,"githubOperations.queued" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Queued"}},"de":{"stringUnit":{"state":"translated","value":"In Warteschlange"}},"es":{"stringUnit":{"state":"translated","value":"En cola"}},"fr":{"stringUnit":{"state":"translated","value":"En file d’attente"}},"ja":{"stringUnit":{"state":"translated","value":"キュー内"}},"ko":{"stringUnit":{"state":"translated","value":"대기열에 있음"}},"pl":{"stringUnit":{"state":"translated","value":"W kolejce"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Na fila"}},"ru":{"stringUnit":{"state":"translated","value":"В очереди"}},"tr":{"stringUnit":{"state":"translated","value":"Kuyrukta"}},"uk":{"stringUnit":{"state":"translated","value":"У черзі"}},"vi":{"stringUnit":{"state":"translated","value":"Đang trong hàng đợi"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已排队"}}}}
+    ,"githubOperations.waiting" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Waiting"}},"de":{"stringUnit":{"state":"translated","value":"Wartet"}},"es":{"stringUnit":{"state":"translated","value":"En espera"}},"fr":{"stringUnit":{"state":"translated","value":"En attente"}},"ja":{"stringUnit":{"state":"translated","value":"待機中"}},"ko":{"stringUnit":{"state":"translated","value":"대기 중"}},"pl":{"stringUnit":{"state":"translated","value":"Oczekiwanie"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Aguardando"}},"ru":{"stringUnit":{"state":"translated","value":"Ожидание"}},"tr":{"stringUnit":{"state":"translated","value":"Bekliyor"}},"uk":{"stringUnit":{"state":"translated","value":"Очікування"}},"vi":{"stringUnit":{"state":"translated","value":"Đang chờ"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"等待中"}}}}
+    ,"githubOperations.unknown" : {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Unknown"}},"de":{"stringUnit":{"state":"translated","value":"Unbekannt"}},"es":{"stringUnit":{"state":"translated","value":"Desconocido"}},"fr":{"stringUnit":{"state":"translated","value":"Inconnu"}},"ja":{"stringUnit":{"state":"translated","value":"不明"}},"ko":{"stringUnit":{"state":"translated","value":"알 수 없음"}},"pl":{"stringUnit":{"state":"translated","value":"Nieznany"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Desconhecido"}},"ru":{"stringUnit":{"state":"translated","value":"Неизвестно"}},"tr":{"stringUnit":{"state":"translated","value":"Bilinmiyor"}},"uk":{"stringUnit":{"state":"translated","value":"Невідомо"}},"vi":{"stringUnit":{"state":"translated","value":"Không xác định"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"未知"}}}}
   },
   "version" : "1.0"
 }

@@ -9,19 +9,35 @@ import SwiftUI
 final class ProjectWorkspaceSelectionSource {
   @ObservationIgnored private weak var session: AppSession?
   private(set) var identity: ProjectIdentity
+  private(set) var projectLocation: ProjectLocation
   private(set) var location: ProjectLocation
   private(set) var projectGeneration: UInt64 = 1
 
-  init(session: AppSession, identity: ProjectIdentity, location: ProjectLocation) {
+  init(
+    session: AppSession,
+    identity: ProjectIdentity,
+    location: ProjectLocation,
+    workspaceLocation: ProjectLocation? = nil
+  ) {
     self.session = session
     self.identity = identity
-    self.location = location
+    projectLocation = location
+    self.location = workspaceLocation ?? location
   }
 
-  func synchronize(identity: ProjectIdentity, location: ProjectLocation) {
-    guard self.identity != identity || self.location != location else { return }
+  func synchronize(
+    identity: ProjectIdentity,
+    location: ProjectLocation,
+    workspaceLocation: ProjectLocation? = nil
+  ) {
+    let resolvedWorkspaceLocation = workspaceLocation ?? location
+    guard
+      self.identity != identity || projectLocation != location
+        || self.location != resolvedWorkspaceLocation
+    else { return }
     self.identity = identity
-    self.location = location
+    projectLocation = location
+    self.location = resolvedWorkspaceLocation
     projectGeneration &+= 1
     if projectGeneration == 0 { projectGeneration = 1 }
   }
@@ -33,7 +49,7 @@ final class ProjectWorkspaceSelectionSource {
       let currentProject = session.state.snapshot?.projects.first(where: {
         $0.id == identity.projectId
       }),
-      currentProject.location == location
+      currentProject.location == projectLocation
     else { return nil }
 
     return ProjectWorkspaceContext(
@@ -131,14 +147,16 @@ final class ProjectWorkspaceSelectionSource {
       profile.protocolVersion == record.protocolVersion
     else { return nil }
 
-    let location = GitHubProjectLocation(self.location)
     let foreground = !session.state.liveLifecycle.isInBackground
     return GitHubControllerContext(
       lease: GitHubProjectLease(
         clientConnectionId: identity.connectionId.uuid,
         desktopId: profile.desktopId,
         hostGeneration: base.lease.hostLease.generation,
-        project: GitHubProjectIdentity(projectId: identity.projectId, location: location),
+        project: GitHubProjectIdentity(
+          projectId: identity.projectId,
+          location: GitHubProjectLocation(projectLocation)
+        ),
         projectGeneration: projectGeneration
       ),
       grantedScopes: Set(profile.scopes).intersection(record.scopes),
@@ -151,12 +169,14 @@ final class ProjectWorkspaceSelectionSource {
 
 private struct ProjectWorkspaceSessionID: Hashable {
   let identity: ProjectIdentity
-  let location: ProjectLocation
+  let projectLocation: ProjectLocation
+  let workspaceLocation: ProjectLocation
 }
 
 enum ProjectWorkspaceEntryPoint: Hashable, Sendable {
   case workspace(ProjectWorkspaceMode)
   case gitHubActions
+  case pullRequest(PullRequestReviewRoute)
 }
 
 /// Production composition boundary for the project workspace. Controllers are
@@ -167,6 +187,8 @@ struct ProjectWorkspaceSessionView: View {
   @Bindable var session: AppSession
   let identity: ProjectIdentity
   let location: ProjectLocation
+  let workspaceLocation: ProjectLocation
+  let originThreadID: String?
   let entryPoint: ProjectWorkspaceEntryPoint
 
   @State private var source: ProjectWorkspaceSelectionSource
@@ -175,22 +197,31 @@ struct ProjectWorkspaceSessionView: View {
   @State private var gitOperationsController: GitOperationsController
   @State private var gitHubOperationsControllers: GitHubOperationsControllerSuite
   @State private var reviewController: ProjectReviewInterestController
+  @State private var prGenerationSource: AdvancedOperationsSelectionSource
+  @State private var prGenerationComposition: AdvancedOperationsComposition
+  @State private var prGenerationTransport: AdvancedOperationsExactHostTransportSource
+  private let settingsGateway: any SettingsSessionGateway
 
   init(
     session: AppSession,
     identity: ProjectIdentity,
     location: ProjectLocation,
+    workspaceLocation: ProjectLocation? = nil,
+    originThreadID: String? = nil,
     entryPoint: ProjectWorkspaceEntryPoint = .workspace(.files)
   ) {
     self.session = session
     self.identity = identity
     self.location = location
+    self.workspaceLocation = workspaceLocation ?? location
+    self.originThreadID = originThreadID
     self.entryPoint = entryPoint
 
     let source = ProjectWorkspaceSelectionSource(
       session: session,
       identity: identity,
-      location: location
+      location: location,
+      workspaceLocation: workspaceLocation
     )
     let gateway = SelectedProjectWorkspaceGateway { @MainActor [weak source] in
       source?.selection
@@ -209,6 +240,9 @@ struct ProjectWorkspaceSessionView: View {
         try await gitHubTransport.selection(for: lease)
       }
     )
+    let prGenerationSource = session.makeAdvancedOperationsSelectionSource(
+      surface: .project(identity, expectedLocation: location)
+    )
     _source = State(initialValue: source)
     _fileController = State(initialValue: ProjectFileWorkspaceController(gateway: gateway))
     _gitController = State(initialValue: ProjectGitReadController(gateway: gateway))
@@ -224,15 +258,33 @@ struct ProjectWorkspaceSessionView: View {
         contextProvider: { @MainActor [weak source] in source?.reviewContext }
       )
     )
+    _prGenerationSource = State(initialValue: prGenerationSource)
+    _prGenerationComposition = State(
+      initialValue: session.makeAdvancedOperationsComposition(source: prGenerationSource)
+    )
+    _prGenerationTransport = State(
+      initialValue: session.makeAdvancedOperationsTransportSource(source: prGenerationSource)
+    )
+    settingsGateway = session.makeSettingsSessionGateway()
   }
 
   var body: some View {
     content
-      .task(id: ProjectWorkspaceSessionID(identity: identity, location: location)) {
+      .task(
+        id: ProjectWorkspaceSessionID(
+          identity: identity,
+          projectLocation: location,
+          workspaceLocation: workspaceLocation
+        )
+      ) {
         gitOperationsController.deactivate()
         gitHubOperationsControllers.deactivate()
         reviewController.release()
-        source.synchronize(identity: identity, location: location)
+        source.synchronize(
+          identity: identity,
+          location: location,
+          workspaceLocation: workspaceLocation
+        )
         synchronizeGitOperationsOwnership()
         synchronizeGitHubOperationsOwnership()
       }
@@ -242,27 +294,36 @@ struct ProjectWorkspaceSessionView: View {
       .task(id: GitHubOperationsActivationID(source.gitHubOperationsContext)) {
         synchronizeGitHubOperationsOwnership()
       }
+      .task(id: prGenerationSource.ownerKey) {
+        prGenerationSource.synchronize()
+        await resolvePrGenerationHost()
+      }
+      .task(id: prGenerationSource.binding) { await resolvePrGenerationHost() }
       .onChange(of: scenePhase) { _, phase in
         switch phase {
         case .background:
           gitOperationsController.enterBackground()
           gitHubOperationsControllers.enterBackground()
           reviewController.release()
+          prGenerationSource.enterBackground()
         case .active:
           synchronizeGitOperationsOwnership()
           synchronizeGitHubOperationsOwnership()
+          prGenerationSource.leaveBackground()
         case .inactive:
           break
         @unknown default:
           gitOperationsController.enterBackground()
           gitHubOperationsControllers.enterBackground()
           reviewController.release()
+          prGenerationSource.enterBackground()
         }
       }
       .onDisappear {
         gitOperationsController.deactivate()
         gitHubOperationsControllers.deactivate()
         reviewController.release()
+        prGenerationSource.enterBackground()
       }
   }
 
@@ -279,14 +340,42 @@ struct ProjectWorkspaceSessionView: View {
         gitHubOperationsContext: source.gitHubOperationsContext,
         gitHubOperationsControllers: gitHubOperationsControllers,
         reviewDestination: reviewDestination,
+        enqueueReviewComment: enqueueReviewComment,
+        generatePullRequestSummary: generatePullRequestSummary,
         initialMode: initialMode
       )
     case .gitHubActions:
-      GitHubOperationsPanel(
+      GitHubActionsPageView(
         context: source.gitHubOperationsContext,
-        controllers: gitHubOperationsControllers
+        workflows: gitHubOperationsControllers.workflows,
+        mutations: gitHubOperationsControllers.workflowMutations
+      )
+    case .pullRequest(let route):
+      PullRequestReviewPageView(
+        context: source.gitHubOperationsContext,
+        route: route,
+        controller: gitHubOperationsControllers.pullRequests,
+        mutations: gitHubOperationsControllers.pullRequestMutations
       )
     }
+  }
+
+  private var enqueueReviewComment: ((RichPromptSegment) -> Void)? {
+    guard identity.connectionId == session.selectedConnectionId else { return nil }
+    let expectedWorktreePath = workspaceLocation == location ? nil : workspaceLocation.displayPath
+    guard
+      let thread = ProjectReviewCommentThreadResolver.resolve(
+        threads: session.snapshot?.threads ?? [],
+        projectID: identity.projectId,
+        worktreePath: expectedWorktreePath,
+        originThreadID: originThreadID
+      )
+    else { return nil }
+    let key = RichChatComposerDraftKey(
+      connectionID: identity.connectionId,
+      threadID: thread.id
+    )
+    return { segment in session.richChatComposerDrafts.enqueue(segment, for: key) }
   }
 
   /// The review surface is offered only for a consistent host/project lease; the
@@ -320,5 +409,75 @@ struct ProjectWorkspaceSessionView: View {
       return
     }
     gitHubOperationsControllers.leaveBackground(context)
+  }
+
+  private func resolvePrGenerationHost() async {
+    prGenerationSource.invalidateHost()
+    guard scenePhase != .background else { return }
+    do {
+      let resolved = try await prGenerationTransport.resolve()
+      guard !Task.isCancelled else { return }
+      prGenerationSource.adoptResolvedHost(resolved)
+    } catch is CancellationError {
+      return
+    } catch {
+      prGenerationSource.adoptResolvedHost(nil)
+    }
+  }
+
+  private func generatePullRequestSummary(
+    branch: String,
+    baseBranch: String
+  ) async throws -> AdvancedGeneratedPrSummary {
+    guard let access = prGenerationComposition.access(.generatePrSummary),
+      access.isUsable,
+      access.permits(.sessionOperate),
+      case .projectLocation(let projectLocation) = access.lease.owner,
+      let settingsSelection = session.currentSettingsHostSelection,
+      settingsSelection.lease.connectionID == access.lease.host.connectionID,
+      settingsSelection.lease.generation == access.lease.sessionGeneration
+    else { throw AdvancedOperationFailure.invalidRequest }
+
+    async let settingsResponse = settingsGateway.readSettings(lease: settingsSelection.lease)
+    async let statusesResponse = settingsGateway.agentStatuses(lease: settingsSelection.lease)
+    let (settingsEnvelope, statuses) = try await (settingsResponse, statusesResponse)
+    let settings = settingsEnvelope.settings
+    let candidates: [SettingsAgentStatus]
+    if case .wsl = projectLocation {
+      candidates = statuses.wsl
+    } else {
+      candidates = statuses.windows
+    }
+    let usable = candidates.filter { $0.installed && $0.authState == .authenticated }
+    let requested = settings.commitGenProvider
+    let agentKind =
+      requested != "auto" && usable.contains(where: { $0.kind == requested })
+      ? requested
+      : usable.first?.kind
+    guard let agentKind else { throw AdvancedOperationFailure.invalidRequest }
+
+    let request = AdvancedOperationRequest.generatePrSummary(
+      .init(
+        projectLocation: projectLocation,
+        agentKind: agentKind,
+        branch: branch,
+        baseBranch: baseBranch,
+        effort: settings.commitGenEffort.nilIfEmpty,
+        language: AIContentLanguagePreference.stored().modelLanguageName(),
+        model: settings.commitGenModel.nilIfEmpty
+      )
+    )
+    let result = try await prGenerationComposition.gateway.call(request, lease: access.lease)
+    guard case .generatedPrSummary(let summary) = result,
+      !summary.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else { throw AdvancedOperationFailure.invalidResponse }
+    return summary
+  }
+}
+
+extension String {
+  fileprivate var nilIfEmpty: String? {
+    let value = trimmingCharacters(in: .whitespacesAndNewlines)
+    return value.isEmpty ? nil : value
   }
 }

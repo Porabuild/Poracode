@@ -5,8 +5,10 @@ struct ProjectThreadsView: View {
   let project: RemoteProject
   @State private var lifecycle: ThreadLifecycleController
   @State private var renameIntent: ThreadRenameIntent?
+  @State private var groupRenameIntent: ThreadGroupRenameIntent?
   @State private var relaunchIntent: ThreadRelaunchIntent?
   @State private var failureMessage: String?
+  @State private var expandedGroupIDs = Set<String>()
 
   init(session: AppSession, project: RemoteProject) {
     self._session = Bindable(wrappedValue: session)
@@ -18,41 +20,100 @@ struct ProjectThreadsView: View {
     session.threads(for: project.id)
   }
 
+  private var entries: [HomeThreadListEntry] {
+    guard let connectionID = session.selectedConnectionId else { return [] }
+    return HomeThreadListPresentation.entries(
+      from: threads.map {
+        UnifiedThreadListItem(
+          connectionID: connectionID,
+          hostName: session.state.profile?.label ?? "",
+          project: project,
+          thread: $0
+        )
+      }
+    )
+  }
+
   var body: some View {
     Group {
       if threads.isEmpty {
         EmptyStateView(
-          title: "No threads",
+          title: HomeStrings.emptyThreadsTitle,
           systemImage: "bubble.left.and.bubble.right",
-          description: "Active threads for this project will show up here."
+          description: HomeStrings.projectThreadsEmptyDescription
         )
       } else {
-        List(threads) { thread in
-          if let connectionId = session.selectedConnectionId {
-            HStack(spacing: 8) {
-              NavigationLink(
-                value: ThreadRoute(
-                  id: CompositeRemoteID(
-                    connectionId: connectionId,
-                    remoteId: thread.id
-                  ),
-                  title: thread.title
+        List {
+          ForEach(entries) { entry in
+            switch entry {
+            case .thread(let item):
+              threadRow(item.thread)
+            case .worktree(let group):
+              DisclosureGroup(isExpanded: expansionBinding(group.id)) {
+                ForEach(group.threads) { item in threadRow(item.thread) }
+              } label: {
+                groupLabel(
+                  group.worktreeBranch,
+                  count: group.threads.count,
+                  systemImage: "arrow.triangle.branch"
                 )
-              ) {
-                // Authoritative cached Git summary for the selected host only.
-                ThreadRowView(
-                  thread: thread,
-                  gitSummary: session.gitSummary(forThread: thread.id)
-                )
+                .contextMenu {
+                  Button {
+                    markAllDone(group.threads.map(\.thread))
+                  } label: {
+                    PoracodeActionLabel(
+                      ThreadLifecycleStrings.markDone,
+                      systemImage: "checkmark.circle"
+                    )
+                  }
+                  .buttonStyle(.plain)
+                  .disabled(!canOperate(group.threads.map(\.thread)))
+                  Button(role: .destructive) {
+                    requestDeleteWorktree(group)
+                  } label: {
+                    PoracodeActionLabel(
+                      ThreadLifecycleStrings.delete,
+                      systemImage: "trash",
+                      tone: .destructive
+                    )
+                  }
+                  .buttonStyle(.plain)
+                  .disabled(!canOperate(group.threads.map(\.thread)))
+                }
               }
-              .accessibilityLabel(threadAccessibilityLabel(thread))
-              .accessibilityIdentifier("native-e2e.thread.\(thread.id)")
-              ThreadLifecycleActionMenu(
-                thread: thread,
-                enabled: canOperate(on: thread),
-                isBusy: lifecycle.isBusy,
-                perform: { action in perform(action, on: thread) }
-              )
+            case .conversation(let group):
+              DisclosureGroup(isExpanded: expansionBinding(group.id)) {
+                ForEach(group.threads) { item in threadRow(item.thread) }
+              } label: {
+                groupLabel(
+                  group.groupName,
+                  count: group.threads.count,
+                  systemImage: "square.stack.3d.up.fill"
+                )
+                .contextMenu {
+                  Button {
+                    groupRenameIntent = ThreadGroupRenameIntent(
+                      id: group.groupID,
+                      title: group.groupName,
+                      threads: group.threads.map(\.thread)
+                    )
+                  } label: {
+                    PoracodeActionLabel(ThreadLifecycleStrings.rename, systemImage: "pencil")
+                  }
+                  .buttonStyle(.plain)
+                  .disabled(!canOperate(group.threads.map(\.thread)))
+                  Button {
+                    markAllDone(group.threads.map(\.thread))
+                  } label: {
+                    PoracodeActionLabel(
+                      ThreadLifecycleStrings.markDone,
+                      systemImage: "checkmark.circle"
+                    )
+                  }
+                  .buttonStyle(.plain)
+                  .disabled(!canOperate(group.threads.map(\.thread)))
+                }
+              }
             }
           }
         }
@@ -74,24 +135,28 @@ struct ProjectThreadsView: View {
         break
       }
     }
+    .threadRenameAlert(intent: $renameIntent) {
+      submitRename()
+    }
     .alert(
       ThreadLifecycleStrings.rename,
       isPresented: Binding(
-        get: { renameIntent != nil },
-        set: { if !$0 { renameIntent = nil } }
+        get: { groupRenameIntent != nil },
+        set: { if !$0 { groupRenameIntent = nil } }
       )
     ) {
       TextField(
         ThreadLifecycleStrings.renamePrompt,
         text: Binding(
-          get: { renameIntent?.title ?? "" },
-          set: { renameIntent?.title = $0 }
+          get: { groupRenameIntent?.title ?? "" },
+          set: { groupRenameIntent?.title = $0 }
         )
       )
-      Button(ThreadLifecycleStrings.cancel, role: .cancel) { renameIntent = nil }
-      Button(ThreadLifecycleStrings.rename) { submitRename() }
+      Button(ThreadLifecycleStrings.cancel, role: .cancel) { groupRenameIntent = nil }
+      Button(ThreadLifecycleStrings.rename) { submitGroupRename() }
         .disabled(
-          renameIntent?.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+          groupRenameIntent?.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ?? true)
     }
     .sheet(item: $relaunchIntent) { intent in
       ThreadRelaunchSheet(
@@ -103,39 +168,72 @@ struct ProjectThreadsView: View {
         submit: { submitRelaunch(intent: intent, prompt: $0) }
       )
     }
-    .confirmationDialog(
-      destructiveConfirmationTitle,
-      isPresented: Binding(
-        get: { lifecycle.pendingDestructiveIntent != nil },
-        set: { if !$0 { lifecycle.cancelDestructiveIntent() } }
-      ),
-      titleVisibility: .visible
-    ) {
-      Button(destructiveConfirmationButton, role: .destructive) {
-        Task { await lifecycle.confirmDestructiveIntent() }
-      }
-      Button(ThreadLifecycleStrings.cancel, role: .cancel) {
-        lifecycle.cancelDestructiveIntent()
-      }
+    .threadLifecycleDestructiveConfirmation(controller: lifecycle) {
+      Task { await lifecycle.confirmDestructiveIntent() }
     }
-    .alert(
-      ThreadLifecycleStrings.actionFailed,
-      isPresented: Binding(
-        get: { failureMessage != nil },
-        set: {
-          if !$0 {
-            failureMessage = nil
-            lifecycle.clearLastOutcome()
-          }
+    .threadLifecycleFailureAlert(message: $failureMessage) {
+      failureMessage = nil
+      lifecycle.clearLastOutcome()
+    }
+  }
+
+  private func expansionBinding(_ id: String) -> Binding<Bool> {
+    Binding(
+      get: { expandedGroupIDs.contains(id) },
+      set: { expanded in
+        if expanded {
+          expandedGroupIDs.insert(id)
+        } else {
+          expandedGroupIDs.remove(id)
         }
-      )
-    ) {
-      Button(ThreadLifecycleStrings.cancel, role: .cancel) {
-        failureMessage = nil
-        lifecycle.clearLastOutcome()
       }
-    } message: {
-      Text(failureMessage ?? "")
+    )
+  }
+
+  private func groupLabel(_ title: String, count: Int, systemImage: String) -> some View {
+    HStack(spacing: 10) {
+      Label(title, systemImage: systemImage)
+        .font(.body.weight(.semibold))
+        .lineLimit(1)
+      Spacer(minLength: 8)
+      Text("\(count)")
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(.secondary)
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(title), \(HomeStrings.threadCount(count))")
+  }
+
+  @ViewBuilder
+  private func threadRow(_ thread: RemoteThread) -> some View {
+    if let connectionID = session.selectedConnectionId {
+      HStack(spacing: 8) {
+        NavigationLink(
+          value: ThreadRoute(
+            id: CompositeRemoteID(
+              connectionId: connectionID,
+              remoteId: thread.id
+            ),
+            title: thread.title
+          )
+        ) {
+          PoracodeThreadRow(
+            thread: thread,
+            gitSummary: session.gitSummary(forThread: thread.id),
+            hasDraft: hasDraft(thread),
+            showsRelativeTime: true,
+            showsGitBranch: thread.worktreePath?.isEmpty == false
+          )
+        }
+        .accessibilityLabel(threadAccessibilityLabel(thread))
+        .accessibilityIdentifier("native-e2e.thread.\(thread.id)")
+        ThreadLifecycleActionMenu(
+          thread: thread,
+          enabled: canOperate(on: thread),
+          isBusy: lifecycle.isBusy,
+          perform: { action in perform(action, on: thread) }
+        )
+      }
     }
   }
 
@@ -145,6 +243,10 @@ struct ProjectThreadsView: View {
       && session.currentThreadSessionAccess?.isOnline == true
       && session.currentThreadSessionAccess?.isForeground == true
       && session.currentThreadSessionAccess?.scopes.contains("session:operate") == true
+  }
+
+  private func canOperate(_ threads: [RemoteThread]) -> Bool {
+    !threads.isEmpty && !lifecycle.isBusy && threads.allSatisfy { canOperate(on: $0) }
   }
 
   private func activate(_ thread: RemoteThread) -> ThreadLifecycleTarget? {
@@ -171,6 +273,8 @@ struct ProjectThreadsView: View {
       Task { await lifecycle.setDone(done, target: target) }
     case .acknowledge:
       Task { await lifecycle.acknowledge(target: target) }
+    case .removeFromGroup:
+      Task { await lifecycle.clearGroup(target: target) }
     case .archive:
       lifecycle.archive()
     case .unarchive:
@@ -191,6 +295,47 @@ struct ProjectThreadsView: View {
     Task { await lifecycle.rename(to: title, target: intent.target) }
   }
 
+  private func submitGroupRename() {
+    guard let intent = groupRenameIntent else { return }
+    let title = intent.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !title.isEmpty, canOperate(intent.threads) else { return }
+    groupRenameIntent = nil
+    Task {
+      for thread in intent.threads {
+        guard let target = session.threadLifecycleTarget(threadID: thread.id) else { return }
+        lifecycle.activate(target)
+        await lifecycle.setGroup(id: intent.id, name: title)
+        if case .failed(_, _)? = lifecycle.lastOutcome { return }
+      }
+      await session.refreshSnapshot()
+    }
+  }
+
+  private func markAllDone(_ threads: [RemoteThread]) {
+    guard canOperate(threads) else { return }
+    Task {
+      for thread in threads where !thread.isDone {
+        guard let target = session.threadLifecycleTarget(threadID: thread.id) else { return }
+        lifecycle.activate(target)
+        await lifecycle.setDone(true, target: target)
+        if case .failed(_, _)? = lifecycle.lastOutcome { return }
+      }
+      await session.refreshSnapshot()
+    }
+  }
+
+  private func requestDeleteWorktree(_ group: HomeWorktreeThreadGroup) {
+    let threads = group.threads.map(\.thread)
+    guard canOperate(threads), let first = threads.first,
+      activate(first) != nil
+    else { return }
+    lifecycle.deleteWorktreeGroup(
+      projectID: project.id,
+      worktreePath: group.worktreePath,
+      threadIDs: threads.map(\.id)
+    )
+  }
+
   /// Relaunching a thread the user can already see is `thread-start-existing`
   /// (`POST /api/threads/start`), not the generic thread-command surface: the
   /// thread identity and its real execution location are already known, so the
@@ -207,117 +352,26 @@ struct ProjectThreadsView: View {
     Task { await lifecycle.start(request, target: intent.target) }
   }
 
-  private var destructiveConfirmationTitle: String {
-    switch lifecycle.pendingDestructiveIntent {
-    case .archive:
-      ThreadLifecycleStrings.archiveConfirmation
-    case .delete, .deleteWorktreeGroup:
-      ThreadLifecycleStrings.deleteConfirmation
-    case nil:
-      ThreadLifecycleStrings.actions
-    }
-  }
-
-  private var destructiveConfirmationButton: String {
-    switch lifecycle.pendingDestructiveIntent {
-    case .archive:
-      ThreadLifecycleStrings.archive
-    case .delete, .deleteWorktreeGroup:
-      ThreadLifecycleStrings.delete
-    case nil:
-      ThreadLifecycleStrings.cancel
-    }
-  }
-
   private func threadAccessibilityLabel(_ thread: RemoteThread) -> String {
-    var parts = [thread.title, thread.status.replacingOccurrences(of: "_", with: " ")]
-    if thread.isStarred { parts.append("starred") }
-    if thread.isDone { parts.append("done") }
+    var parts = [thread.title, ThreadLifecycleStrings.status(thread.status)]
+    if thread.isStarred { parts.append(HomeStrings.starred) }
+    if hasDraft(thread) { parts.append(HomeStrings.unsentDraft) }
+    if thread.isDone { parts.append(SettingsUIStrings.done) }
     return parts.joined(separator: ", ")
   }
-}
 
-struct ThreadRowView: View {
-  let thread: RemoteThread
-  /// Cached host-published summary. `nil` on older hosts, offline, or after a
-  /// host switch — the row then renders no Git line rather than stale data.
-  var gitSummary: GitThreadSummary?
-  var projectName: String?
-  var hostName: String?
-  var showsRelativeTime = false
-
-  var body: some View {
-    HStack(alignment: .top, spacing: 12) {
-      StatusDot(status: thread.status)
-        .padding(.top, 4)
-      VStack(alignment: .leading, spacing: 4) {
-        HStack {
-          Text(thread.title)
-            .font(.body.weight(.medium))
-            .lineLimit(2)
-          if thread.isStarred {
-            Image(systemName: "star.fill")
-              .font(.caption)
-              .foregroundStyle(.yellow)
-              .accessibilityLabel("Starred")
-          }
-          Spacer(minLength: 8)
-          if showsRelativeTime, let updated = CompactThreadDate.parse(thread.updatedAt) {
-            Text(updated, style: .relative)
-              .font(.caption.monospacedDigit())
-              .foregroundStyle(.secondary)
-              .lineLimit(1)
-          }
-        }
-        if let projectName, let hostName {
-          HStack(spacing: 5) {
-            Text(projectName)
-              .lineLimit(1)
-            Image(systemName: "desktopcomputer")
-              .accessibilityHidden(true)
-            Text(hostName)
-              .lineLimit(1)
-          }
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        }
-        HStack(spacing: 8) {
-          Text(thread.agentKind)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-          Text(thread.status.replacingOccurrences(of: "_", with: " "))
-            .font(.caption)
-            .foregroundStyle(statusColor(thread.status))
-        }
-        ThreadGitSummaryBadge(summary: gitSummary)
-        if let error = thread.errorMessage, thread.status == "error" {
-          Text(error)
-            .font(.caption2)
-            .foregroundStyle(.red)
-            .lineLimit(2)
-        }
-      }
-    }
-    .padding(.vertical, 2)
-  }
-
-  private func statusColor(_ status: String) -> Color {
-    switch status {
-    case "working", "launching": return .blue
-    case "needs_approval", "needs_reply": return .orange
-    case "error": return .red
-    case "finished", "idle": return .secondary
-    default: return .secondary
-    }
+  private func hasDraft(_ thread: RemoteThread) -> Bool {
+    guard let connectionID = session.selectedConnectionId else { return false }
+    return session.richChatComposerDrafts.hasDraft(
+      for: RichChatComposerDraftKey(connectionID: connectionID, threadID: thread.id)
+    )
   }
 }
 
-private enum CompactThreadDate {
-  static func parse(_ value: String) -> Date? {
-    let fractional = ISO8601DateFormatter()
-    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
-  }
+private struct ThreadGroupRenameIntent: Identifiable {
+  let id: String
+  var title: String
+  let threads: [RemoteThread]
 }
 
 struct UnifiedThreadListItem: Identifiable, Sendable, Equatable {
@@ -341,7 +395,8 @@ enum UnifiedThreadPresentation {
     hostSnapshots: [ClientConnectionID: RemoteShellSnapshot]
   ) -> [UnifiedThreadListItem] {
     hosts.flatMap { host -> [UnifiedThreadListItem] in
-      let snapshot = host.connectionId == selectedConnectionID
+      let snapshot =
+        host.connectionId == selectedConnectionID
         ? (selectedSnapshot ?? hostSnapshots[host.connectionId])
         : hostSnapshots[host.connectionId]
       guard let snapshot else { return [] }
@@ -352,8 +407,8 @@ enum UnifiedThreadPresentation {
       )
       return snapshot.threads.compactMap { thread in
         guard !thread.isArchived,
-              ThreadPresentationFilter.isVisibleInGUIList(thread),
-              let project = projects[thread.projectId]
+          ThreadPresentationFilter.isVisibleInNativeList(thread),
+          let project = projects[thread.projectId]
         else { return nil }
         return UnifiedThreadListItem(
           connectionID: host.connectionId,
@@ -371,27 +426,6 @@ enum UnifiedThreadPresentation {
         return lhs.thread.updatedAt > rhs.thread.updatedAt
       }
       return lhs.id < rhs.id
-    }
-  }
-}
-
-struct StatusDot: View {
-  let status: String
-
-  var body: some View {
-    Circle()
-      .fill(color)
-      .frame(width: 10, height: 10)
-      .accessibilityHidden(true)
-  }
-
-  private var color: Color {
-    switch status {
-    case "working", "launching": return .blue
-    case "needs_approval", "needs_reply": return .orange
-    case "error": return .red
-    case "finished": return .green
-    default: return .secondary
     }
   }
 }

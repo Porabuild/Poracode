@@ -128,6 +128,9 @@ struct ProjectIdentity: Codable, Hashable, Sendable, Identifiable {
 }
 
 struct RemoteProject: Codable, Sendable, Identifiable, Hashable {
+    /// Persisted host-owned identifier for the built-in Home scope.
+    static let homeScopeID = "__lightcode_home__"
+
     var id: String
     var remoteServerId: String?
     var remoteId: String?

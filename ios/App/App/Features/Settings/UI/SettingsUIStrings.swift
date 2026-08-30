@@ -18,6 +18,120 @@ enum SettingsUIStrings {
   static var noData: String { text("settings.state.noData", "No information available") }
   static var unavailable: String { text("settings.state.unavailable", "Settings unavailable") }
 
+  static var generalTitle: String { text("settings.general.title", "General") }
+  static var generalDescription: String {
+    text(
+      "settings.general.description",
+      "Choose the display language for Poracode's interface."
+    )
+  }
+  static var language: String { text("settings.general.language", "Language") }
+  static var openSettings: String { text("settings.general.openSettings", "Open Settings") }
+  static var commitPRLanguage: String {
+    text("settings.general.commitPRLanguage", "Commit & PR language")
+  }
+  static var homeShortcuts: String {
+    text("settings.general.homeShortcuts", "Home shortcuts")
+  }
+  static var homeShortcutsDescription: String {
+    text(
+      "settings.general.homeShortcuts.description",
+      "Choose which shortcuts appear in More. Tap Edit to reorder them."
+    )
+  }
+
+  static var deviceSettingsSummary: String {
+    text(
+      "settings.device.summary",
+      "Most preferences stay on this device. Git defaults sync with the selected desktop."
+    )
+  }
+  static var notificationsTitle: String {
+    text("settings.notifications.title", "Notifications")
+  }
+  static var notificationsDescription: String {
+    text("settings.notifications.description", "Alerts when threads need you")
+  }
+  static var notificationSound: String {
+    text("settings.notifications.sound", "Play notification sound")
+  }
+  static var notificationPresentation: String {
+    text("settings.notifications.presentation", "Show notifications")
+  }
+  static var notificationBackgroundOnly: String {
+    text("settings.notifications.backgroundOnly", "Only when unfocused")
+  }
+  static var notificationAlways: String {
+    text("settings.notifications.always", "Always")
+  }
+  static var notifyAbout: String {
+    text("settings.notifications.notifyAbout", "Notify me about")
+  }
+  static var notificationDone: String {
+    text("settings.notifications.done", "Done")
+  }
+  static var notificationNeedsAttention: String {
+    text("settings.notifications.needsAttention", "Needs attention")
+  }
+  static var notificationError: String {
+    text("settings.notifications.error", "Error")
+  }
+  static var terminalTitle: String { text("settings.terminal.title", "Terminal") }
+  static var terminalDescription: String {
+    text("settings.terminal.description", "Fonts and scrolling")
+  }
+  static var terminalSystemBehavior: String {
+    text(
+      "settings.terminal.systemBehavior",
+      "Terminal text follows Dynamic Type, and scrolling uses native iOS touch behavior."
+    )
+  }
+  static var terminalTextSize: String {
+    text("settings.terminal.textSize", "Terminal text size")
+  }
+  static var agentTerminalTextSize: String {
+    text("settings.terminal.agentTextSize", "Agent terminal text size")
+  }
+  static var projectTerminalTextSize: String {
+    text("settings.terminal.projectTextSize", "Project terminal text size")
+  }
+  static var gitTitle: String { text("settings.git.title", "Git") }
+  static var gitDescription: String {
+    text("settings.git.description", "Pull request defaults on the selected desktop")
+  }
+  static var gitNativeBehavior: String {
+    text(
+      "settings.git.nativeBehavior",
+      "Git review opens as a full-screen native page on iOS."
+    )
+  }
+  static var defaultCreatePRAction: String {
+    text("settings.git.defaultCreatePRAction", "Default Create PR action")
+  }
+  static var openDialog: String {
+    text("settings.git.openDialog", "Open dialog")
+  }
+  static var autoGenerate: String {
+    text("settings.git.autoGenerate", "Auto-generate")
+  }
+  static var desktopSettingsTitle: String {
+    text("settings.desktop.title", "Desktop Settings")
+  }
+  static var desktopSettingsDescription: String {
+    text(
+      "settings.desktop.description",
+      "Schedules, AI, agents, and archived threads on the paired desktop"
+    )
+  }
+  static var desktopSettingsSummary: String {
+    text(
+      "settings.desktop.summary",
+      "Edits the paired desktop and syncs back to it."
+    )
+  }
+  static var privacyPolicy: String { text("settings.privacy", "Privacy Policy") }
+  static var support: String { text("settings.support", "Support") }
+
   static var appearanceTitle: String { text("settings.appearance.title", "Appearance") }
   static var appearanceDescription: String {
     text("settings.appearance.description", "Color mode and app theme")
@@ -33,11 +147,28 @@ enum SettingsUIStrings {
       "Popular editor themes adapted to Poracode. Each follows the selected appearance mode."
     )
   }
+  static var chatTextSize: String {
+    text("settings.appearance.chatTextSize", "Chat text size")
+  }
+  static var chatTextSizeDescription: String {
+    text(
+      "settings.appearance.chatTextSize.description",
+      "Adjust conversation text while keeping Dynamic Type scaling."
+    )
+  }
 
   static var agentsTitle: String { text("settings.route.agents", "Agents") }
   static var agentsDescription: String {
     text("settings.route.agents.description", "Installation and sign-in status")
   }
+  static var visibleModels: String {
+    text("settings.agents.visibleModels", "Visible models")
+  }
+  static var modelOrder: String {
+    text("settings.agents.modelOrder", "Model order")
+  }
+  static var automatic: String { text("settings.generation.auto", "Auto") }
+  static var disabled: String { text("settings.generation.disabled", "Disabled") }
   static var usageTitle: String { text("settings.route.usage", "Usage") }
   static var usageDescription: String {
     text("settings.route.usage.description", "Limits, credits, and token totals")
@@ -96,11 +227,30 @@ enum SettingsUIStrings {
   static var credits: String { text("settings.usage.credits", "Credits") }
   static var cost: String { text("settings.usage.cost", "Cost") }
   static var totalTokens: String { text("settings.usage.totalTokens", "Total tokens") }
+  static func tokenCount(_ value: String) -> String {
+    String(format: text("settings.usage.tokenCount", "%@ tokens"), value)
+  }
   static var cached: String { text("settings.usage.cached", "Cached data") }
   static var noProvidersTracked: String {
     text("settings.usage.noProvidersTracked", "No providers are being tracked.")
   }
   static var unlimited: String { text("settings.usage.unlimited", "Unlimited") }
+  static var overPace: String {
+    text("settings.usage.pace.over", "Over pace — runs out early")
+  }
+  static var ranOut: String { text("settings.usage.pace.ranOut", "Ran out") }
+  static var runsOutEarly: String {
+    text("settings.usage.pace.runsOutEarly", "Runs out early")
+  }
+  static func projectedByReset(_ percent: Int) -> String {
+    text2("settings.usage.pace.projected", "≈%@%% by reset", percent.formatted())
+  }
+  static func ranOutResetsIn(_ value: String) -> String {
+    text2("settings.usage.pace.ranOutResets", "Ran out · resets in %@", value)
+  }
+  static func runsOutIn(_ value: String) -> String {
+    text2("settings.usage.pace.runsOutIn", "Runs out in %@", value)
+  }
   static var periodToday: String { text("settings.usage.period.today", "Today") }
   static var periodSevenDays: String { text("settings.usage.period.sevenDays", "7 days") }
   static var periodThirtyDays: String { text("settings.usage.period.thirtyDays", "30 days") }

@@ -66,7 +66,8 @@
             Button(BrowserMirrorStrings.dismiss) { dismiss() }
           }
         }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+          HostSelectionMenu(session: session)
           Button(
             composition.controller.watchIntent
               ? BrowserMirrorStrings.stopMirroring

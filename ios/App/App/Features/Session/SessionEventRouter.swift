@@ -13,7 +13,10 @@ struct SessionEventRouter {
             return
         }
         switch message {
-        case .ready:
+        case .ready(let seq):
+            // The server emits ready before replaying buffered events. Preserve
+            // that boundary so historical notifications advance without alerting.
+            host.state.socketReplayCeiling = seq
             host.scheduleInterestFlushAfterReady()
         case .event(let seq, let event):
             _ = applySequencedEvent(seq: seq, event: event)
@@ -29,6 +32,17 @@ struct SessionEventRouter {
     @discardableResult
     func applySequencedEvent(seq: Int, event: JSONValue) -> Bool {
         guard host.state.resyncCoordinator.allowsLiveEvents else { return false }
+        do {
+            if let notification = try RemoteUserNotificationEvent.decodeIfPresent(event) {
+                host.receiveRichChatSupervisoryEvent(event, sequence: seq)
+                present(notification, seq: seq)
+                noteAppliedSeq(seq)
+                return true
+            }
+        } catch {
+            // A known notification with a malformed body must not advance the cursor.
+            return false
+        }
         switch SessionReplayEventRouter(host: host).route(seq: seq, event: event) {
         case .rejected:
             return false
@@ -63,6 +77,24 @@ struct SessionEventRouter {
         applyLiveEvent(event)
         noteAppliedSeq(seq)
         return true
+    }
+
+    private func present(_ notification: RemoteUserNotificationEvent, seq: Int) {
+        guard let connectionId = host.state.selectedConnectionId,
+              let desktopId = host.state.profile?.desktopId
+        else { return }
+        let route = NotificationRoute(
+            version: NotificationRoute.version,
+            clientConnectionId: connectionId,
+            desktopId: desktopId,
+            threadId: notification.threadId
+        )
+        host.remoteNotificationPresentations.receive(
+            notification,
+            route: route,
+            isReplay: seq <= host.state.socketReplayCeiling,
+            isThreadOpen: host.state.openThreadId == notification.threadId
+        )
     }
 
     /// Mirrors the socket's applied cursor into the host state and the selected

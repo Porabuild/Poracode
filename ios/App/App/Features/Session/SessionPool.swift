@@ -181,6 +181,7 @@ final class SessionPool {
         if host.state.webSocket != nil {
             host.state.webSocket = nil
         }
+        host.state.hostSocketStates.removeAll()
         for socket in sockets {
             await socket.stop()
         }
@@ -300,6 +301,7 @@ final class SessionPool {
             host.state.gitInterestCoordinator.reset()
             host.state.explicitGitInterests = []
         }
+        clearConnectionState(for: key)
         await socket?.stop()
     }
 
@@ -319,20 +321,18 @@ final class SessionPool {
         slots[key]?.socket
     }
 
-    func wraps(_ client: RemoteWebSocketClient, key: SessionPoolKey? = nil) -> Bool {
-        let target = key ?? currentKey()
-        let candidates: [any SessionLiveSocket]
-        if let socket = slots[target]?.socket {
-            candidates = [socket]
-        } else {
-            candidates = []
-        }
-        for socket in candidates {
-            if let box = socket as? RemoteWebSocketClientBox, box.wraps(client) {
-                return true
+    func key(wrapping client: RemoteWebSocketClient) -> SessionPoolKey? {
+        for (key, slot) in slots {
+            if let box = slot.socket as? RemoteWebSocketClientBox, box.wraps(client) {
+                return key
             }
         }
-        return false
+        return nil
+    }
+
+    func wraps(_ client: RemoteWebSocketClient, key: SessionPoolKey? = nil) -> Bool {
+        let target = key ?? currentKey()
+        return self.key(wrapping: client) == target
     }
 
     func evictToPolicy() async {
@@ -347,6 +347,7 @@ final class SessionPool {
             let socket = slots[key]?.socket
             slots[key]?.socket = nil
             slots[key]?.generation &+= 1
+            clearConnectionState(for: key)
             await socket?.stop()
         }
         while liveSocketCount() > SessionPoolEviction.maxLiveSockets {
@@ -355,6 +356,7 @@ final class SessionPool {
             let socket = slots[victim]?.socket
             slots[victim]?.socket = nil
             slots[victim]?.generation &+= 1
+            clearConnectionState(for: victim)
             await socket?.stop()
         }
     }
@@ -370,6 +372,12 @@ final class SessionPool {
     private func isAllowed(_ key: SessionPoolKey) -> Bool {
         let allowed = allowedKeys()
         return key == allowed.selected || key == allowed.secondary
+    }
+
+    private func clearConnectionState(for key: SessionPoolKey) {
+        if case .host(let id) = key {
+            host.state.hostSocketStates.removeValue(forKey: id)
+        }
     }
 
     private func owns(_ lease: SessionLease) -> Bool {
@@ -391,6 +399,7 @@ final class SessionPool {
         slot.socket = nil
         slots[key] = slot
         if key == currentKey() { host.state.webSocket = nil }
+        clearConnectionState(for: key)
         await socket?.stop()
     }
 

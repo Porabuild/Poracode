@@ -39,6 +39,20 @@ enum GitHubOperationsStrings {
   static var inputs: String { localized("githubOperations.inputs") }
   static var inputsHint: String { localized("githubOperations.inputsHint") }
   static var failedOnly: String { localized("githubOperations.failedOnly") }
+  static var pinWorkflow: String { localized("githubOperations.pinWorkflow") }
+  static var unpinWorkflow: String { localized("githubOperations.unpinWorkflow") }
+  static var attempt: String { localized("githubOperations.attempt") }
+  static var succeeded: String { localized("githubOperations.succeeded") }
+  static var failed: String { localized("githubOperations.failed") }
+  static var cancelled: String { localized("githubOperations.cancelled") }
+  static var skipped: String { localized("githubOperations.skipped") }
+  static var timedOut: String { localized("githubOperations.timedOut") }
+  static var inProgress: String { localized("githubOperations.inProgress") }
+  static var queued: String { localized("githubOperations.queued") }
+  static var waiting: String { localized("githubOperations.waiting") }
+  static var unknown: String { localized("githubOperations.unknown") }
+  static var openDialog: String { localized("githubOperations.createPr.openDialog") }
+  static var autoGenerate: String { localized("githubOperations.createPr.autoGenerate") }
 
   static func action(_ procedure: GitHubProcedure) -> String {
     localized(procedure.rawValue)

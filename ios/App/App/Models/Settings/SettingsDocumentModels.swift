@@ -6,8 +6,11 @@ enum SettingsAgentValue: Codable, Equatable, Sendable {
 
   init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    if let value = try? container.decode(Bool.self) { self = .bool(value) }
-    else { self = .string(try container.decode(String.self)) }
+    if let value = try? container.decode(Bool.self) {
+      self = .bool(value)
+    } else {
+      self = .string(try container.decode(String.self))
+    }
   }
 
   func encode(to encoder: Encoder) throws {
@@ -36,11 +39,42 @@ enum SettingsPRMergeMethod: String, Codable, Sendable {
   case merge, squash, rebase
 }
 
+struct SettingsUsagePreferences: Codable, Equatable, Sendable {
+  var autoRefresh: Bool
+  var refreshIntervalMinutes: Int
+  var providerRefreshIntervals: [String: Int]
+  var showEstimatedCost: Bool
+  var showInSidebar: Bool
+  var sidebarHiddenProviders: [String]
+  var disabledProviders: [String]
+  var providerOrder: [String]
+  var collapsedProviders: [String]
+  var selectedRingGroups: [String: String]
+
+  var settingsJSON: SettingsJSON {
+    .object([
+      "autoRefresh": .bool(autoRefresh),
+      "refreshIntervalMinutes": .integer(Int64(refreshIntervalMinutes)),
+      "providerRefreshIntervals": .object(
+        providerRefreshIntervals.mapValues { .integer(Int64($0)) }
+      ),
+      "showEstimatedCost": .bool(showEstimatedCost),
+      "showInSidebar": .bool(showInSidebar),
+      "sidebarHiddenProviders": .array(sidebarHiddenProviders.map(SettingsJSON.string)),
+      "disabledProviders": .array(disabledProviders.map(SettingsJSON.string)),
+      "providerOrder": .array(providerOrder.map(SettingsJSON.string)),
+      "collapsedProviders": .array(collapsedProviders.map(SettingsJSON.string)),
+      "selectedRingGroups": .object(selectedRingGroups.mapValues(SettingsJSON.string)),
+    ])
+  }
+}
+
 struct SettingsDocument: Codable, Equatable, Sendable {
   let agentSettings: [String: [String: SettingsAgentValue]]
   let hiddenModels: [String: [String]]
   let disabledAgents: [String]
   let providerOrder: [String]
+  var usage: SettingsUsagePreferences? = nil
   let enabledMcpServers: [String: Bool]
   let disabledBuiltInMcpServers: [String: Bool]
   let titleGenProvider: String
@@ -72,6 +106,8 @@ struct SettingsDocument: Codable, Equatable, Sendable {
   let worktreeStorageMode: SettingsWorktreeStorageMode
   let worktreeBasePath: String
   let wslWorktreeBasePath: String
+  var searchUseIgnoreFiles: Bool? = nil
+  var searchExclude: [String: Bool]? = nil
   let prAutomationDefault: SettingsPRAutomationDefault
   let prMergeMethod: SettingsPRMergeMethod
 }
@@ -81,7 +117,7 @@ struct SettingsReadResponse: Codable, Equatable, Sendable {
 }
 
 enum SettingsPatchKey: String, Codable, CaseIterable, Sendable {
-  case agentSettings, hiddenModels, disabledAgents, providerOrder
+  case agentSettings, hiddenModels, disabledAgents, providerOrder, usage
   case enabledMcpServers, disabledBuiltInMcpServers
   case titleGenProvider, titleGenModel, titleGenEffort, titleGenFast
   case commitGenProvider, commitGenModel, commitGenEffort, commitGenFast
@@ -92,6 +128,7 @@ enum SettingsPatchKey: String, Codable, CaseIterable, Sendable {
   case wslConflictResolverProvider, wslConflictResolverModel, wslConflictResolverEffort
   case wslConflictResolverFast, wslConflictResolverPresentationMode
   case worktreeStorageMode, worktreeBasePath, wslWorktreeBasePath
+  case searchUseIgnoreFiles, searchExclude
   case prAutomationDefault, prMergeMethod
 }
 

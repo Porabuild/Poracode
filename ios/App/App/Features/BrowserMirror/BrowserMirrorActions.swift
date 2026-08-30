@@ -1,6 +1,43 @@
 import Foundation
 
+enum BrowserMirrorAddressNormalizer {
+  private static let webSchemePattern = #"^[A-Za-z]+://"#
+  private static let localHostPattern =
+    #"^(localhost|(?:\d{1,3}\.){3}\d{1,3}|\[(?:[0-9a-f:]+)\])(?::\d+)?(?:[/?#]|$)"#
+  private static let searchQueryAllowed = CharacterSet(
+    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()"
+  )
+
+  /// Matches the compact PWA omnibox contract: explicit URLs pass through,
+  /// local development addresses use HTTP, and ordinary words become a search.
+  static func normalize(_ input: String) -> String {
+    let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return "" }
+
+    if trimmed.range(of: webSchemePattern, options: .regularExpression) != nil
+      || trimmed.lowercased().hasPrefix("about:")
+    {
+      return trimmed
+    }
+    if trimmed.range(
+      of: localHostPattern,
+      options: [.regularExpression, .caseInsensitive]
+    ) != nil {
+      return "http://\(trimmed)"
+    }
+    if trimmed.rangeOfCharacter(from: .whitespacesAndNewlines) != nil
+      || !trimmed.contains(".")
+    {
+      let query = trimmed.addingPercentEncoding(withAllowedCharacters: searchQueryAllowed) ?? ""
+      return "https://duckduckgo.com/?q=\(query)"
+    }
+    return "https://\(trimmed)"
+  }
+}
+
 enum BrowserMirrorUIAction: Equatable, Sendable {
+  static let newTabHomeURL = "https://duckduckgo.com"
+
   case createTab
   case closeTab(String)
   case activateTab(String)
@@ -13,7 +50,7 @@ enum BrowserMirrorUIAction: Equatable, Sendable {
   func command(in state: BrowserMirrorState) -> BrowserMirrorCommand? {
     switch self {
     case .createTab:
-      return .createTab(url: nil)
+      return .createTab(url: Self.newTabHomeURL)
     case .closeTab(let tabId):
       return .closeTab(tabId: tabId)
     case .activateTab(let tabId):
@@ -21,8 +58,9 @@ enum BrowserMirrorUIAction: Equatable, Sendable {
     case .moveTab(let tabId, let target, let position):
       return .moveTab(tabId: tabId, targetTabId: target, position: position)
     case .navigate(let url):
-      guard let tabId = state.activeTabId, !url.isEmpty else { return nil }
-      return .navigate(tabId: tabId, url: url)
+      let normalized = BrowserMirrorAddressNormalizer.normalize(url)
+      guard let tabId = state.activeTabId, !normalized.isEmpty else { return nil }
+      return .navigate(tabId: tabId, url: normalized)
     case .back:
       guard let tab = state.activeTab, tab.canGoBack else { return nil }
       return .back(tabId: tab.tabId)

@@ -78,19 +78,26 @@ final class PairingScannerModel {
 
   private func handle(payload: String) {
     guard phase == .scanning, accepted == nil else { return }
+    _ = propose(payload: payload)
+  }
+
+  @discardableResult
+  func propose(payload: String) -> Bool {
+    guard accepted == nil else { return false }
     let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
     guard
       let url = URL(string: trimmed),
       let candidate = PairingURL.validatedPairingCandidate(from: url)
     else {
       reject()
-      return
+      return false
     }
     camera?.setDelivering(false)
     noticeTask?.cancel()
     noticeTask = nil
     notice = nil
     accepted = candidate
+    return true
   }
 
   /// A stray QR code must not dump the user back to the start: correct inline and

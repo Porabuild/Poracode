@@ -1,9 +1,17 @@
 import Foundation
 import PhotosUI
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 extension HomeQuickComposeView {
+  func normalizePresentationMode() {
+    guard launchSeed == nil, !supportsPresentationMode(presentationMode) else { return }
+    presentationMode = HomeComposerCatalog.preferredPresentationMode(
+      from: session.state.replay.agentStatuses.ordered
+    )
+  }
+
   func normalizeProject() {
     if !projects.contains(where: { $0.id == projectID }) { projectID = projects.first?.id ?? "" }
   }
@@ -16,16 +24,58 @@ extension HomeQuickComposeView {
     mediaSuite.select(access: access, threadID: threadID)
   }
 
+  /// Resign the expanded editor before removing it from the hierarchy. If the
+  /// conditional surface disappears in the same update, UIKit can retain the
+  /// removed text field as first responder and block the next composer.
+  func resignPromptFocus() {
+    promptFocused = false
+    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+      for window in scene.windows {
+        window.endEditing(true)
+      }
+    }
+    UIApplication.shared.sendAction(
+      #selector(UIResponder.resignFirstResponder),
+      to: nil,
+      from: nil,
+      for: nil
+    )
+  }
+
+  func collapseComposer(animated: Bool = true) {
+    resignPromptFocus()
+    if animated {
+      withAnimation(.snappy(duration: 0.2)) { isExpanded = false }
+    } else {
+      isExpanded = false
+    }
+    DispatchQueue.main.async {
+      // SwiftUI can retain the outgoing text field for the navigation animation.
+      // Repeat dismissal after the hierarchy has committed the collapsed state.
+      resignPromptFocus()
+    }
+  }
+
   func start() {
-    let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    let typedText = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    let mentionPrompt =
+      (fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" })
+      .joined(separator: " ")
+    let text = typedText.isEmpty ? launchSeed?.defaultPrompt ?? mentionPrompt : typedText
     guard !text.isEmpty, let project = selectedProject, let defaults,
       let configuration = effectiveConfiguration,
       let target = session.threadLifecycleTarget(threadID: threadID)
     else { return }
     failureMessage = nil
-    let segments = attachments.map {
+    let attachmentSegments = attachments.map {
       ThreadPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
+    let segments =
+      fileMentions.map(ThreadPromptSegment.file(path:))
+      + mentionedMCPs.map { .mcp(id: $0.id, name: $0.name) }
+      + skills.map(\.threadSegment)
+      + attachmentSegments
+    let launchAgentKind = selectedAgent?.kind ?? defaults.agentKind
     Task {
       let worktree: (path: String, branch: String, isNew: Bool)?
       if let selection = branchSelection, let path = selection.worktreePath {
@@ -43,19 +93,25 @@ extension HomeQuickComposeView {
         worktree = (prepared.path, prepared.branch, true)
       }
       lifecycle.activate(target)
+      let launchPrompt = (launchSeed?.promptPrefix ?? "") + text
       await lifecycle.relaunch(
         ThreadRelaunchRequest(
           projectID: project.id,
-          agentKind: selectedAgentKind ?? defaults.agentKind,
+          agentKind: launchAgentKind,
           config: configuration,
-          prompt: text,
-          agentInstanceID: selectedAgentKind == nil ? defaults.agentInstanceID : nil,
+          prompt: launchPrompt,
+          agentInstanceID: launchAgentKind == defaults.agentKind ? defaults.agentInstanceID : nil,
           focus: true,
+          groupID: launchSeed?.groupID,
+          groupName: launchSeed?.groupName,
           isNewWorktree: worktree?.isNew == true ? true : nil,
           presentationMode: presentationMode,
-          segments: segments.isEmpty ? nil : segments,
-          worktreeBranch: worktree?.branch,
-          worktreePath: worktree?.path
+          segments: launchSeed?.promptPrefix.map {
+            [.text(content: $0), .text(content: text)] + segments
+          } ?? (segments.isEmpty ? nil : segments),
+          title: launchSeed?.title,
+          worktreeBranch: worktree?.branch ?? launchSeed?.worktreeBranch,
+          worktreePath: worktree?.path ?? launchSeed?.worktreePath
         ),
         target: target
       )
@@ -64,7 +120,10 @@ extension HomeQuickComposeView {
         await session.refreshSnapshot()
         prompt = ""
         attachments = []
-        isExpanded = false
+        skills = []
+        fileMentions = []
+        mentionedMCPs = []
+        collapseComposer(animated: false)
         onStarted(target.threadID)
         threadID = UUID().uuidString.lowercased()
         activateMedia()

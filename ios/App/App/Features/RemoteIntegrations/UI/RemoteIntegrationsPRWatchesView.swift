@@ -3,6 +3,7 @@ import SwiftUI
 struct RemoteIntegrationsPRWatchesView: View {
   let selection: RemoteIntegrationsHostSelection?
   let projects: [RemoteIntegrationsProjectOption]
+  let agents: [AgentStatusRecord]
   let composition: RemoteIntegrationsComposition
   let isPresentationActive: Bool
 
@@ -14,11 +15,13 @@ struct RemoteIntegrationsPRWatchesView: View {
   init(
     selection: RemoteIntegrationsHostSelection?,
     projects: [RemoteIntegrationsProjectOption],
+    agents: [AgentStatusRecord],
     composition: RemoteIntegrationsComposition,
     isPresentationActive: Bool
   ) {
     self.selection = selection
     self.projects = projects
+    self.agents = agents
     self.composition = composition
     self.isPresentationActive = isPresentationActive
     _projectID = State(initialValue: projects.first?.id ?? "")
@@ -42,6 +45,7 @@ struct RemoteIntegrationsPRWatchesView: View {
       RemoteIntegrationsPRWatchEditor(
         target: target,
         projects: projects,
+        agents: agents,
         controller: composition.prWatch
       )
     }

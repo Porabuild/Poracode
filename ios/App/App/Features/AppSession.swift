@@ -108,6 +108,15 @@ final class AppSession {
         }
     }
 
+    /// Projects that behave like real workspace destinations on compact utility pages.
+    /// The built-in Home scope can own threads, but it has no repository, notes,
+    /// workflows, or other project-backed operations.
+    var activeWorkspaceProjects: [RemoteProject] {
+        projects.filter {
+            $0.disabled != true && $0.id != RemoteProject.homeScopeID
+        }
+    }
+
     var selectedConnectionId: ClientConnectionID? {
         get { state.selectedConnectionId }
         set { state.selectedConnectionId = newValue }
@@ -128,6 +137,8 @@ final class AppSession {
     var state = SessionRuntimeState()
     let deps: SessionDependencies
     let projectSyncPreferences: ProjectSyncPreferences
+    let remoteNotificationPresentations: RemoteUserNotificationPresentationCenter
+    let richChatComposerDrafts = RichChatComposerDraftStore()
 
     private(set) var pairing: PairingCoordinator!
     private(set) var live: LiveConnectionController!
@@ -168,10 +179,12 @@ final class AppSession {
 
     init(
         dependencies: SessionDependencies = .live,
-        projectSyncPreferences: ProjectSyncPreferences = .shared
+        projectSyncPreferences: ProjectSyncPreferences = .shared,
+        remoteNotificationPresentations: RemoteUserNotificationPresentationCenter = .shared
     ) {
         self.deps = dependencies
         self.projectSyncPreferences = projectSyncPreferences
+        self.remoteNotificationPresentations = remoteNotificationPresentations
         self.pairing = PairingCoordinator(host: self)
         self.live = LiveConnectionController(host: self)
         self.threads = ThreadController(host: self)
@@ -389,6 +402,22 @@ final class AppSession {
         sessionPool.wraps(client)
     }
 
+    func socketKey(wrapping client: RemoteWebSocketClient) -> SessionPoolKey? {
+        sessionPool.key(wrapping: client)
+    }
+
+    func recordSocketState(
+        _ value: RemoteWebSocketClient.ConnectionState,
+        for key: SessionPoolKey
+    ) {
+        if case .host(let id) = key {
+            state.hostSocketStates[id] = value
+        }
+        if key == sessionPool.currentKey() {
+            state.socketState = value
+        }
+    }
+
 }
 
 // MARK: - WebSocket delegate
@@ -399,8 +428,8 @@ extension AppSession: RemoteWebSocketClientDelegate {
         didChange state: RemoteWebSocketClient.ConnectionState
     ) async {
         await MainActor.run {
-            guard self.socketWraps(client) else { return }
-            self.state.socketState = state
+            guard let key = self.socketKey(wrapping: client) else { return }
+            self.recordSocketState(state, for: key)
         }
     }
 

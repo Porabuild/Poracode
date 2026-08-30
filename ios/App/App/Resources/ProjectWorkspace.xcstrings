@@ -2906,6 +2906,60 @@
         }
       }
     },
+    "workspace.git.diff.addComment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add Comment" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Kommentar hinzufügen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Añadir comentario" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Ajouter le commentaire" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "コメントを追加" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "댓글 추가" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dodaj komentarz" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Adicionar comentário" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Добавить комментарий" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yorum Ekle" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Додати коментар" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Thêm nhận xét" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "添加评论" } }
+      }
+    },
+    "workspace.git.diff.leaveComment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Leave a comment" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Kommentar hinterlassen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Deja un comentario" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Laisser un commentaire" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "コメントを入力" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "댓글 남기기" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dodaj komentarz" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Deixe um comentário" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Оставьте комментарий" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yorum bırakın" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Залиште коментар" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Để lại nhận xét" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "留下评论" } }
+      }
+    },
+    "workspace.git.diff.reviewComment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Review comment" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Review-Kommentar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comentario de revisión" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Commentaire de révision" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "レビューコメント" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "검토 댓글" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Komentarz do przeglądu" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Comentário de revisão" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Комментарий к проверке" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "İnceleme yorumu" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Коментар до перевірки" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Nhận xét đánh giá" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "评审评论" } }
+      }
+    },
     "workspace.git.diff.empty": {
       "extractionState": "manual",
       "localizations": {

@@ -88,7 +88,10 @@ final class BrowserMirrorInputGeometryTests: XCTestCase {
     XCTAssertEqual(BrowserMirrorUIAction.back.command(in: state), .back(tabId: "tab-main"))
     XCTAssertNil(BrowserMirrorUIAction.forward.command(in: state))
     XCTAssertEqual(BrowserMirrorUIAction.reload.command(in: state), .reload(tabId: "tab-main"))
-    XCTAssertEqual(BrowserMirrorUIAction.createTab.command(in: state), .createTab(url: nil))
+    XCTAssertEqual(
+      BrowserMirrorUIAction.createTab.command(in: state),
+      .createTab(url: "https://duckduckgo.com")
+    )
   }
 
   private func decode<Value: Decodable>(_ type: Value.Type, _ value: Any?) throws -> Value {

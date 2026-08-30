@@ -13,6 +13,7 @@ private actor ProjectWorkspaceRemoteAPIFake: ProjectWorkspaceRemoteAPI {
 
   private(set) var searchCalls: [SearchCall] = []
   private(set) var writeCalls = 0
+  private(set) var createCalls: [(ProjectLocation, String, AdvancedProjectEntryType)] = []
   var searchResult = ProjectFileSearchResult(entries: [], totalIndexed: 0)
   var writeResult = ProjectFileWriteResult(modifiedAtMs: 2)
   var searchGate: ProjectWorkspaceTestGate<ProjectFileSearchResult>?
@@ -47,6 +48,14 @@ private actor ProjectWorkspaceRemoteAPIFake: ProjectWorkspaceRemoteAPI {
   ) async throws -> ProjectFileWriteResult {
     writeCalls += 1
     return writeResult
+  }
+
+  func remoteCreateProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    type: AdvancedProjectEntryType
+  ) async throws {
+    createCalls.append((location, path, type))
   }
 }
 
@@ -108,6 +117,26 @@ final class SelectedProjectWorkspaceGatewayTests: XCTestCase {
     XCTAssertEqual(result.modifiedAtMs, 2)
     let writeCalls = await api.writeCalls
     XCTAssertEqual(writeCalls, 1)
+  }
+
+  func testEntryMutationUsesOperateScopeAndExactWorkspaceLocation() async throws {
+    let context = makeProjectWorkspaceContext(capabilities: [.sessionOperate])
+    let api = ProjectWorkspaceRemoteAPIFake()
+    let box = ProjectWorkspaceSelectionBox()
+    box.selection = ProjectWorkspaceTransportSelection(context: context, api: api)
+    let gateway = SelectedProjectWorkspaceGateway { box.selection }
+
+    try await gateway.createProjectEntry(
+      path: "Sources/New.swift",
+      type: .file,
+      lease: context.lease
+    )
+
+    let calls = await api.createCalls
+    XCTAssertEqual(calls.count, 1)
+    XCTAssertEqual(calls.first?.0, context.lease.location)
+    XCTAssertEqual(calls.first?.1, "Sources/New.swift")
+    XCTAssertEqual(calls.first?.2, .file)
   }
 
   func testDifferentProjectGenerationCancelsBeforeTransport() async throws {

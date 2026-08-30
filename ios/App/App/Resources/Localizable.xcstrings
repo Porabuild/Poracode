@@ -1,6 +1,60 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "common.action.retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Try Again" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Erneut versuchen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Intentar de nuevo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Réessayer" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "もう一度試す" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "다시 시도" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Spróbuj ponownie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Tentar novamente" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Повторить" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Tekrar Dene" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Спробувати ще раз" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Thử lại" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试" } }
+      }
+    },
+    "common.error.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Something went wrong" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Etwas ist schiefgelaufen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Algo salió mal" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Un problème est survenu" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "問題が発生しました" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "문제가 발생했습니다" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Coś poszło nie tak" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Algo deu errado" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Что-то пошло не так" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bir sorun oluştu" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Щось пішло не так" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đã xảy ra lỗi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "出现问题" } }
+      }
+    },
+    "common.state.loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loading…" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Wird geladen…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Cargando…" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Chargement…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "読み込み中…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "불러오는 중…" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wczytywanie…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Carregando…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Загрузка…" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yükleniyor…" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Завантаження…" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đang tải…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载…" } }
+      }
+    },
     "home.accessibility.error": {
       "extractionState": "manual",
       "localizations": {
@@ -1827,6 +1881,42 @@
         }
       }
     },
+    "home.thread.unsentDraft": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Hat einen nicht gesendeten Entwurf" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Has unsent draft" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Tiene un borrador sin enviar" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Contient un brouillon non envoyé" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "未送信の下書きがあります" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "보내지 않은 초안 있음" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Ma niewysłany szkic" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Tem um rascunho não enviado" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Есть неотправленный черновик" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Gönderilmemiş taslak var" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Є ненадіслана чернетка" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Có bản nháp chưa gửi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "有未发送的草稿" } }
+      }
+    },
+    "home.project.threads.empty.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Active conversations for this project will appear here." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Aktive Unterhaltungen für dieses Projekt werden hier angezeigt." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Las conversaciones activas de este proyecto aparecerán aquí." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Les conversations actives de ce projet apparaîtront ici." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このプロジェクトのアクティブな会話がここに表示されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 프로젝트의 활성 대화가 여기에 표시됩니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Tutaj pojawią się aktywne rozmowy w tym projekcie." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "As conversas ativas deste projeto aparecerão aqui." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Здесь появятся активные беседы этого проекта." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu projedeki etkin konuşmalar burada görünür." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Тут з’являться активні розмови цього проєкту." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Các cuộc trò chuyện đang hoạt động của dự án này sẽ xuất hiện tại đây." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此项目的活跃对话将显示在这里。" } }
+      }
+    },
     "home.threads.empty.description": {
       "extractionState": "manual",
       "localizations": {
@@ -3396,6 +3486,89 @@
           "stringUnit": {
             "state": "translated",
             "value": "暂无连接"
+          }
+        }
+      }
+    },
+    "hosts.rename.prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection name"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindungsname"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre de la conexión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de la connexion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続名"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 이름"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nazwa połączenia"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome da conexão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Название подключения"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı adı"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назва підключення"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên kết nối"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接名称"
           }
         }
       }
@@ -9455,6 +9628,78 @@
         }
       }
     },
+    "onboarding.scan.photo.action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose a photo" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Foto auswählen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Elegir una foto" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Choisir une photo" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "写真を選択" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "사진 선택" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wybierz zdjęcie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Escolher uma foto" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выбрать фото" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf seç" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Вибрати фото" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chọn ảnh" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择照片" } }
+      }
+    },
+    "onboarding.scan.photo.reading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reading photo…" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Foto wird gelesen …" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Leyendo foto…" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Lecture de la photo…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "写真を読み取り中…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "사진 읽는 중…" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Odczytywanie zdjęcia…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Lendo foto…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Чтение фото…" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf okunuyor…" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Читання фото…" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đang đọc ảnh…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在读取照片…" } }
+      }
+    },
+    "onboarding.scan.photo.noCode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No QR code was found in that photo." } },
+        "de": { "stringUnit": { "state": "translated", "value": "In diesem Foto wurde kein QR-Code gefunden." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se encontró ningún código QR en esa foto." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucun code QR n’a été trouvé sur cette photo." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "その写真にQRコードが見つかりませんでした。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "해당 사진에서 QR 코드를 찾을 수 없습니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nie znaleziono kodu QR na tym zdjęciu." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Nenhum código QR foi encontrado nessa foto." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "На этом фото не найден QR-код." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu fotoğrafta QR kodu bulunamadı." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "На цьому фото не знайдено QR-код." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không tìm thấy mã QR trong ảnh đó." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未在该照片中找到二维码。" } }
+      }
+    },
+    "onboarding.scan.photo.invalid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "That photo does not contain a Poracode pairing code." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Dieses Foto enthält keinen Poracode-Kopplungscode." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Esa foto no contiene un código de emparejamiento de Poracode." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Cette photo ne contient pas de code d’association Poracode." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "その写真にはPoracodeのペアリングコードが含まれていません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "해당 사진에는 Poracode 페어링 코드가 없습니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "To zdjęcie nie zawiera kodu parowania Poracode." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Essa foto não contém um código de pareamento do Poracode." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "На этом фото нет кода сопряжения Poracode." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu fotoğraf Poracode eşleştirme kodu içermiyor." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "На цьому фото немає коду сполучення Poracode." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Ảnh đó không chứa mã ghép nối Poracode." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "该照片不包含 Poracode 配对码。" } }
+      }
+    },
     "onboarding.scan.preparing": {
       "extractionState": "manual",
       "localizations": {
@@ -13593,6 +13838,40 @@
         }
       }
     },
+    "projects.notes.bold": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bold" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Fett" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Negrita" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Gras" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "太字" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "굵게" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Pogrubienie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Negrito" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Жирный" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Kalın" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Жирний" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đậm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "粗体" } }
+      }
+    },
+    "projects.notes.italic": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Italic" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Kursiv" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Cursiva" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Italique" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "斜体" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "기울임꼴" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Kursywa" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Itálico" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Курсив" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "İtalik" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Курсив" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Nghiêng" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "斜体" } }
+      }
+    },
     "projects.notes.placeholder": {
       "localizations": {
         "en": {
@@ -16904,6 +17183,60 @@
         }
       }
     },
+    "rich_chat_continue_in_provider": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Continue in another provider" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Mit einem anderen Anbieter fortfahren" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Continuar con otro proveedor" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Continuer avec un autre fournisseur" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "別のプロバイダーで続ける" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "다른 제공업체에서 계속" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Kontynuuj u innego dostawcy" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Continuar em outro provedor" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Продолжить у другого провайдера" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Başka bir sağlayıcıda devam et" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Продовжити з іншим провайдером" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tiếp tục với nhà cung cấp khác" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在其他提供商中继续" } }
+      }
+    },
+    "rich_chat_handoff_fork": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fork Conversation" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Konversation abzweigen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Bifurcar conversación" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Dupliquer la conversation" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "会話をフォーク" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대화 분기" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Rozgałęź rozmowę" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Bifurcar conversa" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ответвить диалог" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Konuşmayı çatalla" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Розгалузити розмову" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tách nhánh cuộc trò chuyện" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "分支对话" } }
+      }
+    },
+    "rich_chat_handoff_prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Tell the new provider what to do next…" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Sage dem neuen Anbieter, was als Nächstes zu tun ist…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Indica al nuevo proveedor qué hacer a continuación…" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Indiquez au nouveau fournisseur la suite à donner…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "新しいプロバイダーに次に行うことを伝える…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "새 제공업체에 다음 작업을 알려주세요…" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Powiedz nowemu dostawcy, co zrobić dalej…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Diga ao novo provedor o que fazer a seguir…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Укажите новому провайдеру, что делать дальше…" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yeni sağlayıcıya sırada ne yapacağını söyleyin…" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Скажіть новому провайдеру, що робити далі…" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Cho nhà cung cấp mới biết cần làm gì tiếp theo…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "告诉新提供商接下来要做什么…" } }
+      }
+    },
     "rich_chat_close_thread": {
       "extractionState": "manual",
       "localizations": {
@@ -17315,6 +17648,89 @@
           "stringUnit": {
             "state": "translated",
             "value": "命令"
+          }
+        }
+      }
+    },
+    "rich_chat_composer_controls": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Composer controls"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Composer-Steuerung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controles del Redactor"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commandes du compositeur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンポーザーの操作"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작성기 컨트롤"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sterowanie kompozytorem"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controles do Composer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Управление полем ввода"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Composer denetimleri"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Керування полем вводу"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Điều khiển trình soạn thảo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Composer 控件"
           }
         }
       }
@@ -21220,6 +21636,42 @@
         }
       }
     },
+    "rich_chat_remove_file_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove file" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Datei entfernen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Eliminar archivo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Supprimer le fichier" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを削除" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "파일 제거" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Usuń plik" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Remover arquivo" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить файл" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Dosyayı kaldır" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Видалити файл" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xóa tệp" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除文件" } }
+      }
+    },
+    "rich_chat_remove_review_comment_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove review comment" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Review-Kommentar entfernen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Eliminar comentario de revisión" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Supprimer le commentaire de révision" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "レビューコメントを削除" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "검토 댓글 제거" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Usuń komentarz do przeglądu" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Remover comentário de revisão" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить комментарий к проверке" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "İnceleme yorumunu kaldır" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Видалити коментар до перевірки" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xóa nhận xét đánh giá" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除评审评论" } }
+      }
+    },
     "rich_chat_remove_attachment_action": {
       "extractionState": "manual",
       "localizations": {
@@ -21301,6 +21753,24 @@
             "value": "移除附件"
           }
         }
+      }
+    },
+    "rich_chat_remove_skill_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove skill" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Skill entfernen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Eliminar habilidad" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Supprimer la compétence" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "スキルを削除" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "스킬 제거" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Usuń umiejętność" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Remover habilidade" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить навык" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yeteneği kaldır" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Видалити навичку" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xóa kỹ năng" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除技能" } }
       }
     },
     "rich_chat_request_failed": {
@@ -23046,6 +23516,172 @@
         }
       }
     },
+    "rich_chat_thinking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denkt …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pensando"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réflexion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考中"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "생각 중"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Myślenie"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pensando"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Размышление"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düşünme"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Міркування"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang suy nghĩ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考"
+          }
+        }
+      }
+    },
+    "rich_chat_scroll_to_bottom": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll to Bottom"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach unten scrollen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desplazarse al final"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire défiler vers le bas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一番下までスクロール"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "맨 아래로 스크롤"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Przewiń na dół"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rolar até o fim"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прокрутить вниз"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En alta kaydır"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прокрутити вниз"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuộn xuống cuối"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "滚动到底部"
+          }
+        }
+      }
+    },
     "rich_chat_timeline_description": {
       "extractionState": "manual",
       "localizations": {
@@ -23793,6 +24429,9 @@
         }
       }
     },
+    "hosts.status.online": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Online"}},"de":{"stringUnit":{"state":"translated","value":"Online"}},"es":{"stringUnit":{"state":"translated","value":"En línea"}},"fr":{"stringUnit":{"state":"translated","value":"En ligne"}},"ja":{"stringUnit":{"state":"translated","value":"オンライン"}},"ko":{"stringUnit":{"state":"translated","value":"온라인"}},"pl":{"stringUnit":{"state":"translated","value":"Online"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Online"}},"ru":{"stringUnit":{"state":"translated","value":"В сети"}},"tr":{"stringUnit":{"state":"translated","value":"Çevrimiçi"}},"uk":{"stringUnit":{"state":"translated","value":"У мережі"}},"vi":{"stringUnit":{"state":"translated","value":"Trực tuyến"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"在线"}}}},
+    "hosts.status.connecting": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Connecting"}},"de":{"stringUnit":{"state":"translated","value":"Verbindung wird hergestellt"}},"es":{"stringUnit":{"state":"translated","value":"Conectando"}},"fr":{"stringUnit":{"state":"translated","value":"Connexion"}},"ja":{"stringUnit":{"state":"translated","value":"接続中"}},"ko":{"stringUnit":{"state":"translated","value":"연결 중"}},"pl":{"stringUnit":{"state":"translated","value":"Łączenie"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Conectando"}},"ru":{"stringUnit":{"state":"translated","value":"Подключение"}},"tr":{"stringUnit":{"state":"translated","value":"Bağlanıyor"}},"uk":{"stringUnit":{"state":"translated","value":"Підключення"}},"vi":{"stringUnit":{"state":"translated","value":"Đang kết nối"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"正在连接"}}}},
+    "hosts.status.offline": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Offline"}},"de":{"stringUnit":{"state":"translated","value":"Offline"}},"es":{"stringUnit":{"state":"translated","value":"Sin conexión"}},"fr":{"stringUnit":{"state":"translated","value":"Hors ligne"}},"ja":{"stringUnit":{"state":"translated","value":"オフライン"}},"ko":{"stringUnit":{"state":"translated","value":"오프라인"}},"pl":{"stringUnit":{"state":"translated","value":"Offline"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Offline"}},"ru":{"stringUnit":{"state":"translated","value":"Не в сети"}},"tr":{"stringUnit":{"state":"translated","value":"Çevrimdışı"}},"uk":{"stringUnit":{"state":"translated","value":"Не в мережі"}},"vi":{"stringUnit":{"state":"translated","value":"Ngoại tuyến"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"离线"}}}},
     "rich_chat_you": {
       "extractionState": "manual",
       "localizations": {

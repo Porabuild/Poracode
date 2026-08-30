@@ -13,13 +13,21 @@ enum SettingsJSON: Codable, Equatable, Sendable {
 
   init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    if container.decodeNil() { self = .null }
-    else if let value = try? container.decode(Bool.self) { self = .bool(value) }
-    else if let value = try? container.decode(Int64.self) { self = .integer(value) }
-    else if let value = try? container.decode(Double.self) { self = .number(value) }
-    else if let value = try? container.decode(String.self) { self = .string(value) }
-    else if let value = try? container.decode([SettingsJSON].self) { self = .array(value) }
-    else { self = .object(try container.decode([String: SettingsJSON].self)) }
+    if container.decodeNil() {
+      self = .null
+    } else if let value = try? container.decode(Bool.self) {
+      self = .bool(value)
+    } else if let value = try? container.decode(Int64.self) {
+      self = .integer(value)
+    } else if let value = try? container.decode(Double.self) {
+      self = .number(value)
+    } else if let value = try? container.decode(String.self) {
+      self = .string(value)
+    } else if let value = try? container.decode([SettingsJSON].self) {
+      self = .array(value)
+    } else {
+      self = .object(try container.decode([String: SettingsJSON].self))
+    }
   }
 
   func encode(to encoder: Encoder) throws {
@@ -37,6 +45,11 @@ enum SettingsJSON: Codable, Equatable, Sendable {
 
   var objectValue: [String: SettingsJSON]? {
     guard case .object(let value) = self else { return nil }
+    return value
+  }
+
+  var arrayValue: [SettingsJSON]? {
+    guard case .array(let value) = self else { return nil }
     return value
   }
 

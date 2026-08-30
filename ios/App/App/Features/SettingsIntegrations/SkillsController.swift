@@ -7,6 +7,8 @@ final class SettingsIntegrationsSkillsController {
   private(set) var access: SettingsIntegrationsAccess?
   private(set) var scanState: SettingsIntegrationsLoadState = .idle
   private(set) var skills: [SettingsSkillEntry] = []
+  private(set) var effectiveSkillIDs = Set<String>()
+  private(set) var invocation: String?
   private(set) var marketplaceState: SettingsIntegrationsLoadState = .idle
   private(set) var marketplace: SettingsSkillMarketplaceResult?
   private(set) var notice: SettingsIntegrationsMutationNotice?
@@ -26,6 +28,8 @@ final class SettingsIntegrationsSkillsController {
     scanState = .idle
     marketplaceState = .idle
     skills = []
+    effectiveSkillIDs = []
+    invocation = nil
     marketplace = nil
     clearFeedback()
   }
@@ -47,6 +51,8 @@ final class SettingsIntegrationsSkillsController {
         try Task.checkCancellation()
         guard self.owns(captured, access) else { return }
         self.skills = result.skills
+        self.effectiveSkillIDs = Set(result.effectiveSkillIDs)
+        self.invocation = result.invocation
         self.scanState = .loaded
       } catch is CancellationError {
       } catch {
@@ -236,6 +242,8 @@ final class SettingsIntegrationsSkillsController {
     try Task.checkCancellation()
     guard owns(captured, access) else { throw CancellationError() }
     skills = result.skills
+    effectiveSkillIDs = Set(result.effectiveSkillIDs)
+    invocation = result.invocation
     scanState = .loaded
   }
 

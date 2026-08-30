@@ -17,6 +17,7 @@ final class BrowserMirrorController {
   private let socket: any BrowserMirrorSocketGateway
   private var subscription: Subscription = .none
   private var startedLease: BrowserMirrorHostLease?
+  private var completedInitialTabCheck = false
 
   init(
     access: BrowserMirrorHostAccess?,
@@ -96,6 +97,7 @@ final class BrowserMirrorController {
   func beginWatching() async {
     watchIntent = true
     await refresh()
+    await createInitialTabIfNeeded()
     await startSocketIfAllowed()
   }
 
@@ -265,13 +267,29 @@ final class BrowserMirrorController {
     to end: BrowserMirrorPoint,
     in imageRect: BrowserMirrorRect
   ) async {
-    guard let mapping = coordinateMapping(point: start, imageRect: imageRect) else { return }
+    await sendScroll(
+      anchoredAt: start,
+      from: start,
+      to: end,
+      in: imageRect
+    )
+  }
+
+  /// Sends one incremental drag segment while preserving the gesture's initial
+  /// page coordinate as the wheel anchor, matching the compact PWA mirror.
+  func sendScroll(
+    anchoredAt anchor: BrowserMirrorPoint,
+    from previous: BrowserMirrorPoint,
+    to current: BrowserMirrorPoint,
+    in imageRect: BrowserMirrorRect
+  ) async {
+    guard let mapping = coordinateMapping(point: anchor, imageRect: imageRect) else { return }
     await send(
       .scroll(
         x: mapping.pagePoint.x,
         y: mapping.pagePoint.y,
-        deltaX: (start.x - end.x) * mapping.pointsToDeviceScale,
-        deltaY: (start.y - end.y) * mapping.pointsToDeviceScale
+        deltaX: (previous.x - current.x) * mapping.pointsToDeviceScale,
+        deltaY: (previous.y - current.y) * mapping.pointsToDeviceScale
       ))
   }
 
@@ -300,6 +318,16 @@ final class BrowserMirrorController {
 
   func acknowledgeMutationOutcome() {
     lastMutationOutcome = .none
+  }
+
+  /// Compact PWA opens its home page on the first empty presentation. This is
+  /// deliberately one-shot for the controller lifetime: closing the final tab
+  /// is an explicit user action and stop/start must not silently recreate it.
+  private func createInitialTabIfNeeded() async {
+    guard !completedInitialTabCheck, loadState == .ready else { return }
+    completedInitialTabCheck = true
+    guard browserState.tabs.isEmpty, isOperable else { return }
+    await perform(.createTab(url: BrowserMirrorUIAction.newTabHomeURL))
   }
 
   private func startSocketIfAllowed() async {

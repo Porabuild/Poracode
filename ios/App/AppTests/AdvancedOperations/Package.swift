@@ -16,6 +16,11 @@ let package = Package(
     .target(
       name: "AdvancedOperations",
       path: "PackageSources/AdvancedOperations",
+      exclude: [
+        "Feature/AdvancedOperationsSelectionSource.swift",
+        "Feature/AdvancedOperationsSessionComposition.swift",
+        "Feature/AdvancedOperationsSessionView.swift",
+      ],
       resources: [.process("Feature/AdvancedOperations.xcstrings")],
       swiftSettings: [
         .swiftLanguageMode(.v6),

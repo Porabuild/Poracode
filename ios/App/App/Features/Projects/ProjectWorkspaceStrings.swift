@@ -85,6 +85,15 @@ enum ProjectWorkspaceStrings {
     "Choose a staged or unstaged file to inspect its diff."
   )
   static let noDiff = localized("workspace.git.diff.empty", "No diff available")
+  static let reviewComment = localized("workspace.git.diff.reviewComment", "Review comment")
+  static let leaveReviewComment = localized(
+    "workspace.git.diff.leaveComment",
+    "Leave a comment"
+  )
+  static let addReviewComment = localized(
+    "workspace.git.diff.addComment",
+    "Add Comment"
+  )
   static let mergeInProgress = localized(
     "workspace.git.mergeInProgress",
     "Merge in progress"

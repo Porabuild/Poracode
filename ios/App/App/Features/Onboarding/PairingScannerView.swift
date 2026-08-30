@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -15,6 +16,9 @@ struct PairingScannerView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var model = PairingScannerModel()
+  @State private var selectedPhoto: PhotosPickerItem?
+  @State private var isDecodingPhoto = false
+  @State private var photoError: String?
 
   var body: some View {
     ZStack {
@@ -29,6 +33,10 @@ struct PairingScannerView: View {
       guard let candidate else { return }
       dismiss()
       onCandidate(candidate)
+    }
+    .onChange(of: selectedPhoto) { _, item in
+      guard let item else { return }
+      Task { await decodePhoto(item) }
     }
   }
 
@@ -57,6 +65,7 @@ struct PairingScannerView: View {
         )
       }
       .accessibilityIdentifier("native-e2e.pair.scan.viewfinder")
+      .safeAreaInset(edge: .bottom, spacing: 0) { scannerFallbackBar }
     case .permissionDenied:
       guidanceCard(
         PairingScannerGuidance(
@@ -97,6 +106,9 @@ struct PairingScannerView: View {
     PairingScannerGuidanceCard(
       guidance: guidance,
       action: action,
+      photoSelection: $selectedPhoto,
+      isDecodingPhoto: isDecodingPhoto,
+      photoError: photoError,
       usePairingLink: {
         dismiss()
         onUsePairingLink()
@@ -107,6 +119,62 @@ struct PairingScannerView: View {
       }
     )
     .padding(24)
+  }
+
+  private var scannerFallbackBar: some View {
+    let decodingPhoto = isDecodingPhoto
+    return VStack(spacing: 8) {
+      if let photoError {
+        Text(photoError)
+          .font(.footnote)
+          .foregroundStyle(.white.opacity(0.8))
+          .multilineTextAlignment(.center)
+      }
+      HStack(spacing: 12) {
+        PhotosPicker(selection: $selectedPhoto, matching: .images) {
+          Label(
+            decodingPhoto ? OnboardingStrings.scanPhotoReading : OnboardingStrings.scanPhoto,
+            systemImage: decodingPhoto ? "hourglass" : "photo"
+          )
+          .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .disabled(decodingPhoto)
+        Button {
+          dismiss()
+          onUsePairingLink()
+        } label: {
+          Label(OnboardingStrings.scanUsePairingLink, systemImage: "link")
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+      }
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 14)
+    .background(.ultraThinMaterial)
+  }
+
+  private func decodePhoto(_ item: PhotosPickerItem) async {
+    isDecodingPhoto = true
+    photoError = nil
+    defer {
+      isDecodingPhoto = false
+      selectedPhoto = nil
+    }
+    do {
+      guard let data = try await item.loadTransferable(type: Data.self) else {
+        photoError = OnboardingStrings.scanPhotoNoCode
+        return
+      }
+      let payload = try await PairingPhotoCodeDecoder.decode(data)
+      if !model.propose(payload: payload) {
+        photoError = OnboardingStrings.scanPhotoInvalid
+      }
+    } catch is CancellationError {
+    } catch {
+      photoError = OnboardingStrings.scanPhotoNoCode
+    }
   }
 
   private var closeButton: some View {

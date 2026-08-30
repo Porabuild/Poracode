@@ -136,6 +136,20 @@ final class ProjectSessionGatewayCompositionTests: XCTestCase {
     XCTAssertEqual(source.context?.lease.projectGeneration, 1)
     XCTAssertNotNil(source.selection)
 
+    let worktreeLocation = ProjectLocation.posix(path: "/workspace/.poracode/worktrees/feature")
+    let worktreeSource = ProjectWorkspaceSelectionSource(
+      session: app,
+      identity: identity,
+      location: initialLocation,
+      workspaceLocation: worktreeLocation
+    )
+    XCTAssertEqual(worktreeSource.projectLocation, initialLocation)
+    XCTAssertEqual(worktreeSource.context?.lease.location, worktreeLocation)
+    XCTAssertNotNil(
+      worktreeSource.selection,
+      "A thread workspace must validate the project root while operating on its worktree"
+    )
+
     source.synchronize(identity: identity, location: movedLocation)
     XCTAssertNil(source.context, "A relocated lease must not run against an old snapshot")
     app.state.snapshot = shellSnapshot(projectId: identity.projectId, location: movedLocation)

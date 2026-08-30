@@ -63,7 +63,9 @@ extension HomeQuickComposeView {
     let models = availableAgents.flatMap { agent in modelOptions(for: agent) }.filter {
       $0.matches(modelSearch)
     }
-    if models.isEmpty, let defaults {
+    if models.isEmpty, let defaults,
+      defaults.agentKind != launchSeed?.excludedAgentKind
+    {
       let label = HomeComposerCatalog.normalizedLabel(
         agentKind: defaults.agentKind,
         modelID: defaults.configuration.model,
@@ -90,6 +92,7 @@ extension HomeQuickComposeView {
       selectedModel = model.modelID
       selectedEffort = defaultEffort(for: agent, modelID: model.modelID)
       fast = false
+      configuredConfiguration = nil
       selector = nil
     } label: {
       HStack(spacing: 12) {
@@ -167,44 +170,79 @@ extension HomeQuickComposeView {
         }
       }
       .poracodeDrawerRowSurface()
-    }
 
-    Section(HomeStrings.worktreeMode) {
-      ForEach(HomeComposerWorktree.allCases) { option in
-        Button {
-          worktreeSelection = option
-          if option == .branch, branchSelection?.reusesWorktree == true {
-            branchSelection = nil
-          }
+      if let skillPickerContext {
+        NavigationLink {
+          RichChatComposerSkillPicker(
+            context: skillPickerContext,
+            selection: $skills,
+            embeddedInNavigationStack: true
+          )
         } label: {
-          selectorRow(option.label, icon: option.icon, selected: worktreeSelection == option)
+          HStack(spacing: 12) {
+            Image(systemName: "wand.and.stars")
+              .frame(width: 18)
+              .foregroundStyle(.secondary)
+            Text(SettingsIntegrationsStrings.skills).foregroundStyle(.primary)
+            Spacer()
+            if !skills.isEmpty {
+              Text("\(skills.count)").foregroundStyle(.secondary)
+            }
+          }
         }
-        .buttonStyle(.plain)
         .poracodeDrawerRowSurface()
       }
 
-      NavigationLink {
-        branchPicker
+      Button {
+        openComposerControls()
       } label: {
-        HStack(spacing: 12) {
-          Image(
-            systemName: branchSelection?.reusesWorktree == true
-              ? "arrow.triangle.branch" : "point.3.connected.trianglepath.dotted"
-          )
-          .foregroundStyle(.secondary)
-          VStack(alignment: .leading, spacing: 2) {
-            Text(HomeStrings.branch).foregroundStyle(.primary)
-            Text(selectedBranchLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        HomeComposerContextRow(
+          title: RichChatStrings.composerControls,
+          icon: "slider.horizontal.3"
+        )
+      }
+      .buttonStyle(.plain)
+      .poracodeDrawerRowSurface()
+    }
+
+    if launchSeed == nil {
+      Section(HomeStrings.worktreeMode) {
+        ForEach(HomeComposerWorktree.allCases) { option in
+          Button {
+            worktreeSelection = option
+            if option == .branch, branchSelection?.reusesWorktree == true {
+              branchSelection = nil
+            }
+          } label: {
+            selectorRow(option.label, icon: option.icon, selected: worktreeSelection == option)
+          }
+          .buttonStyle(.plain)
+          .poracodeDrawerRowSurface()
+        }
+
+        NavigationLink {
+          branchPicker
+        } label: {
+          HStack(spacing: 12) {
+            Image(
+              systemName: branchSelection?.reusesWorktree == true
+                ? "arrow.triangle.branch" : "point.3.connected.trianglepath.dotted"
+            )
+            .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+              Text(HomeStrings.branch).foregroundStyle(.primary)
+              Text(selectedBranchLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
           }
         }
-      }
-      .poracodeDrawerRowSurface()
+        .poracodeDrawerRowSurface()
 
-      if worktreeSelection != .branch, branchSelection?.reusesWorktree != true {
-        TextField(GitOperationsStrings.branchName, text: $worktreeBranchName)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .poracodeDrawerRowSurface()
+        if worktreeSelection != .branch, branchSelection?.reusesWorktree != true {
+          TextField(GitOperationsStrings.branchName, text: $worktreeBranchName)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .poracodeDrawerRowSurface()
+        }
       }
     }
 
@@ -217,6 +255,7 @@ extension HomeQuickComposeView {
       }
       .buttonStyle(.plain)
       .poracodeDrawerRowSurface()
+      .disabled(!supportsPresentationMode(.gui))
 
       Button {
         presentationMode = .terminal
@@ -226,6 +265,7 @@ extension HomeQuickComposeView {
       }
       .buttonStyle(.plain)
       .poracodeDrawerRowSurface()
+      .disabled(!supportsPresentationMode(.terminal))
     }
   }
 

@@ -153,6 +153,44 @@ enum RemoteIntegrationsScheduleStatus: String, Codable, Equatable, Sendable {
   case failed
 }
 
+enum RemoteIntegrationsScheduleRunStatus: String, Codable, Equatable, Sendable {
+  case running
+  case succeeded
+  case failed
+  case interrupted
+}
+
+struct RemoteIntegrationsScheduleRun: Decodable, Equatable, Identifiable, Sendable {
+  let id: String
+  let scheduleId: String
+  let threadId: String
+  let startedAt: String
+  let completedAt: String?
+  let status: RemoteIntegrationsScheduleRunStatus
+  let summary: String?
+  let hasError: Bool
+
+  private enum CodingKeys: String, CodingKey {
+    case id, scheduleId, threadId, startedAt, completedAt, status, summary, error
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    id = try values.decode(String.self, forKey: .id)
+    scheduleId = try values.decode(String.self, forKey: .scheduleId)
+    threadId = try values.decode(String.self, forKey: .threadId)
+    startedAt = try values.decode(String.self, forKey: .startedAt)
+    completedAt = try values.decodeIfPresent(String.self, forKey: .completedAt)
+    status = try values.decode(RemoteIntegrationsScheduleRunStatus.self, forKey: .status)
+    summary = try values.decodeIfPresent(String.self, forKey: .summary)
+    hasError = try values.decodeIfPresent(String.self, forKey: .error) != nil
+  }
+}
+
+struct RemoteIntegrationsScheduleRunsResponse: Decodable, Equatable, Sendable {
+  let runs: [RemoteIntegrationsScheduleRun]
+}
+
 struct RemoteIntegrationsScheduledTask: Codable, Equatable, Identifiable, Sendable {
   let id: String
   let name: String

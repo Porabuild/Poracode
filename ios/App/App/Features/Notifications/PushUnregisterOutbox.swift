@@ -47,6 +47,16 @@ actor PushUnregisterOutbox {
     endpoint: String, accessToken: String, deviceId: String, route: PushRegistrationRoute
   ) throws -> Entry {
     var document = try currentDocument()
+    let cutoff = now().addingTimeInterval(-Self.expiry)
+    let entryCount = document.entries.count
+    document.entries.removeAll { $0.createdAt < cutoff }
+    if let existing = document.entries.first(where: {
+      $0.endpoint == endpoint && $0.accessToken == accessToken && $0.deviceId == deviceId
+        && $0.route == route
+    }) {
+      if document.entries.count != entryCount { try save(document) }
+      return existing
+    }
     let entry = Entry(
       id: UUID(),
       endpoint: endpoint,

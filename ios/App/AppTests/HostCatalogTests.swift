@@ -122,6 +122,56 @@ final class HostCatalogTests: XCTestCase {
         assertNil(try await resumed.journalRawData())
     }
 
+    func testRenameIsCrashSafeAndPreservesCredentialAndHostIdentity() async throws {
+        let suffix = UUID().uuidString
+        let (catalog, keychain, directory) = makeHarness(suffix: suffix)
+        defer { Task { await catalog.wipeForTests() } }
+
+        let record = HostRecord(connectionId: ClientConnectionID(), profile: makeProfile())
+        assertTrue(try await catalog.activate(id: 1, kind: .add))
+        _ = try await catalog.pairAdd(record: record, token: "rename-token", owning: 1)
+        let before = try await catalog.snapshot()
+
+        assertTrue(try await catalog.activate(id: 2, kind: .rename))
+        await catalog.setCrashAfterStage(.afterIntent)
+        do {
+            _ = try await catalog.rename(
+                record.connectionId,
+                label: "  Office Mac  ",
+                owning: 2
+            )
+            XCTFail("expected crash")
+        } catch {}
+
+        let resumed = restart(directory: directory, keychain: keychain)
+        defer { Task { await resumed.wipeForTests() } }
+        try await resumed.recover()
+        let after = try await resumed.snapshot()
+        let renamed = try XCTUnwrap(after.document.host(id: record.connectionId))
+
+        XCTAssertEqual(renamed.label, "Office Mac")
+        XCTAssertEqual(renamed.connectionId, record.connectionId)
+        XCTAssertEqual(renamed.desktopId, record.desktopId)
+        XCTAssertEqual(renamed.httpBaseURL, record.httpBaseURL)
+        XCTAssertEqual(renamed.wsBaseURL, record.wsBaseURL)
+        XCTAssertEqual(after.selectedConnectionId, before.selectedConnectionId)
+        XCTAssertEqual(after.lru, before.lru)
+        let token = try await resumed.token(for: record.connectionId)
+        let journal = try await resumed.journalRawData()
+        XCTAssertEqual(token, "rename-token")
+        XCTAssertNil(journal)
+    }
+
+    func testMetadataOperationDoesNotInvalidateLiveWorkGeneration() {
+        var owner = SessionOperationOwner()
+        let live = owner.begin(.connect)
+        let rename = owner.beginMetadata(.renameHost)
+
+        XCTAssertEqual(rename.epoch, live.epoch)
+        XCTAssertGreaterThan(rename.operationId, live.operationId)
+        XCTAssertEqual(rename.workGeneration, live.workGeneration)
+    }
+
     func testJournalCrashAfterVaultRecoversExactBytes() async throws {
         let suffix = UUID().uuidString
         let (catalog, keychain, directory) = makeHarness(suffix: suffix)
@@ -314,6 +364,38 @@ final class HostCatalogTests: XCTestCase {
         XCTAssertEqual(migrated.version, HostTransactionJournal.currentVersion)
         XCTAssertNil(migrated.legacySource)
         XCTAssertNil(migrated.targetTombstoneBytes)
+    }
+
+    func testV2JournalMigratesToRenameCapableVersion() throws {
+        let id = ClientConnectionID()
+        let record = HostRecord(connectionId: id, profile: makeProfile())
+        let document = HostRegistryDocument(
+            formatVersion: HostRegistryDocument.formatVersion,
+            selectedConnectionId: id,
+            lru: [id],
+            hosts: [record]
+        )
+        let legacy = HostTransactionJournal.Record(
+            version: 2,
+            operationId: 8,
+            kind: .switchSelected,
+            connectionId: id,
+            phase: .registryApplied,
+            targetRegistryBytes: try HostRegistryCoding.encode(document),
+            targetVaultAccount: nil,
+            targetVaultBytes: nil,
+            deleteVaultAccount: nil,
+            legacySource: nil,
+            targetTombstoneBytes: nil
+        )
+
+        guard case .current(let migrated) = HostTransactionJournal.decode(
+            try HostTransactionJournal.encode(legacy)
+        ) else {
+            return XCTFail("v2 journal should migrate")
+        }
+        XCTAssertEqual(migrated.version, HostTransactionJournal.currentVersion)
+        XCTAssertEqual(migrated.kind, .switchSelected)
     }
 
     func testJournalRejectsDestructiveAccountMismatch() throws {

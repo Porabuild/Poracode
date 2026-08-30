@@ -5,12 +5,14 @@ import Foundation
 enum HostTransactionJournal {
     /// v2 captures exact legacy-source bytes so an interrupted explicit removal
     /// can resume without deleting credentials written after the operation began.
-    static let currentVersion = 2
+    /// v3 adds a metadata-only rename operation without changing registry shape.
+    static let currentVersion = 3
     static let account = HostVault.journalAccount
 
     enum Kind: String, Codable, Sendable, Equatable {
         case add
         case switchSelected
+        case rename
         case remove
     }
 
@@ -84,6 +86,24 @@ enum HostTransactionJournal {
                     )
                 )
             }
+            if version == 2 {
+                let legacy = try HostRegistryCoding.decode(LegacyRecordV2.self, from: data)
+                return validated(
+                    Record(
+                        version: currentVersion,
+                        operationId: legacy.operationId,
+                        kind: legacy.kind.current,
+                        connectionId: legacy.connectionId,
+                        phase: legacy.phase,
+                        targetRegistryBytes: legacy.targetRegistryBytes,
+                        targetVaultAccount: legacy.targetVaultAccount,
+                        targetVaultBytes: legacy.targetVaultBytes,
+                        deleteVaultAccount: legacy.deleteVaultAccount,
+                        legacySource: legacy.legacySource,
+                        targetTombstoneBytes: legacy.targetTombstoneBytes
+                    )
+                )
+            }
             if version < currentVersion { return .corrupt }
             let record = try HostRegistryCoding.decode(Record.self, from: data)
             guard record.version == currentVersion else { return .corrupt }
@@ -118,6 +138,14 @@ enum HostTransactionJournal {
                   document.host(id: record.connectionId) != nil,
                   document.selectedConnectionId == record.connectionId
             else { return .corrupt }
+        case .rename:
+            guard record.targetVaultAccount == nil,
+                  record.targetVaultBytes == nil,
+                  record.deleteVaultAccount == nil,
+                  record.legacySource == nil,
+                  record.targetTombstoneBytes == nil,
+                  document.host(id: record.connectionId) != nil
+            else { return .corrupt }
         case .remove:
             guard record.targetVaultAccount == nil,
                   record.targetVaultBytes == nil,
@@ -140,6 +168,34 @@ enum HostTransactionJournal {
         var targetVaultBytes: Data?
         var deleteVaultAccount: String?
         var clearLegacySource: Bool
+    }
+
+    private enum LegacyKindV2: String, Codable {
+        case add
+        case switchSelected
+        case remove
+
+        var current: Kind {
+            switch self {
+            case .add: .add
+            case .switchSelected: .switchSelected
+            case .remove: .remove
+            }
+        }
+    }
+
+    private struct LegacyRecordV2: Codable {
+        var version: Int
+        var operationId: UInt64
+        var kind: LegacyKindV2
+        var connectionId: ClientConnectionID
+        var phase: Phase
+        var targetRegistryBytes: Data
+        var targetVaultAccount: String?
+        var targetVaultBytes: Data?
+        var deleteVaultAccount: String?
+        var legacySource: LegacyHostSourceSnapshot?
+        var targetTombstoneBytes: Data?
     }
 }
 

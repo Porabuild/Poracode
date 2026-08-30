@@ -9,15 +9,23 @@ struct ProjectWorkspaceView: View {
   let gitHubOperationsContext: GitHubControllerContext?
   let gitHubOperationsControllers: GitHubOperationsControllerSuite
   let reviewDestination: ProjectReviewDetailsView?
+  let enqueueReviewComment: ((RichPromptSegment) -> Void)?
+  let generatePullRequestSummary:
+    @MainActor (_ branch: String, _ baseBranch: String) async throws
+      -> AdvancedGeneratedPrSummary
 
   @State private var mode: ProjectWorkspaceMode
   @State private var selectedFile: ProjectWorkspaceEntry?
   @State private var selectedChange: ProjectGitFileChange?
+  @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
   @State private var currentDirectory = ""
   @State private var editor = ProjectWorkspaceEditorState()
   @State private var pendingAction: ProjectWorkspacePendingAction?
   @State private var presentedAlert: ProjectWorkspaceAlert?
   @State private var activeLease: ProjectWorkspaceLease?
+  @State private var isFileSearchPresented = false
+  @State private var fileQuery = ""
+  @State private var requestedCreationType: AdvancedProjectEntryType?
 
   init(
     context: ProjectWorkspaceContext?,
@@ -28,6 +36,11 @@ struct ProjectWorkspaceView: View {
     gitHubOperationsContext: GitHubControllerContext?,
     gitHubOperationsControllers: GitHubOperationsControllerSuite,
     reviewDestination: ProjectReviewDetailsView?,
+    enqueueReviewComment: ((RichPromptSegment) -> Void)? = nil,
+    generatePullRequestSummary:
+      @escaping @MainActor (
+        _ branch: String, _ baseBranch: String
+      ) async throws -> AdvancedGeneratedPrSummary,
     initialMode: ProjectWorkspaceMode = .files
   ) {
     self.context = context
@@ -38,61 +51,94 @@ struct ProjectWorkspaceView: View {
     self.gitHubOperationsContext = gitHubOperationsContext
     self.gitHubOperationsControllers = gitHubOperationsControllers
     self.reviewDestination = reviewDestination
+    self.enqueueReviewComment = enqueueReviewComment
+    self.generatePullRequestSummary = generatePullRequestSummary
     _mode = State(initialValue: initialMode)
   }
 
   var body: some View {
-    NavigationSplitView {
-      VStack(spacing: 0) {
-        ProjectWorkspaceModeSwitcher(
-          selection: mode,
-          access: access,
-          onSelect: requestMode
-        )
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        Divider()
-        sidebar
-      }
-      .navigationTitle(ProjectWorkspaceStrings.title)
-    } detail: {
-      detail
+    ProjectWorkspacePage(
+      mode: $mode,
+      preferredCompactColumn: $preferredCompactColumn
+    ) {
+      sidebar(mode: .files)
+    } filesDetail: {
+      detail(mode: .files)
+    } gitSidebar: {
+      sidebar(mode: .git)
+    } gitDetail: {
+      detail(mode: .git)
+    } bottomControls: {
+      bottomControls
     }
-    .navigationSplitViewStyle(.balanced)
     .task(id: ProjectWorkspaceActivationID(context)) {
       await activateAndLoad()
     }
     .onChange(of: gitOperationsController.state.completedMutationCount) { _, completed in
       guard completed > 0 else { return }
-      Task { await gitController.loadStatus(detail: .full) }
+      Task { await refreshGitAfterMutation() }
     }
     .alert(item: $presentedAlert) { alert in
-      switch alert {
-      case .discardChanges:
-        Alert(
-          title: Text(ProjectWorkspaceStrings.unsavedChanges),
-          message: Text(
-            ProjectWorkspaceStrings.discardMessage(
-              path: editor.path ?? selectedFile?.path ?? ""
-            )
-          ),
-          primaryButton: .destructive(Text(ProjectWorkspaceStrings.discard)) {
-            confirmPendingAction()
-          },
-          secondaryButton: .cancel {
-            pendingAction = nil
-          }
-        )
-      case .reloadAfterSave:
-        Alert(
-          title: Text(ProjectWorkspaceStrings.saveNeedsReload),
-          message: Text(ProjectWorkspaceStrings.saveNeedsReloadDescription),
-          primaryButton: .default(Text(ProjectWorkspaceStrings.reload)) {
-            Task { await reloadSelectedFile() }
-          },
-          secondaryButton: .cancel(Text(ProjectWorkspaceStrings.keepEditing))
-        )
+      workspaceAlert(alert)
+    }
+    .confirmationDialog(
+      GitOperationsStrings.destructiveTitle,
+      isPresented: gitConfirmationPresented,
+      titleVisibility: .visible
+    ) {
+      Button(GitOperationsStrings.confirm, role: .destructive) {
+        Task { await gitOperationsController.confirmPendingMutation() }
       }
+      Button(GitOperationsStrings.cancel, role: .cancel) {
+        gitOperationsController.cancelPendingMutation()
+      }
+    } message: {
+      Text(GitOperationsStrings.destructiveMessage)
+    }
+  }
+
+  @ViewBuilder
+  private var bottomControls: some View {
+    if access.permitsRead {
+      ProjectWorkspaceBottomControls(
+        canCreate: access.permitsWrite,
+        mode: Binding(
+          get: { mode },
+          set: { requestMode($0) }
+        ),
+        isSearchPresented: $isFileSearchPresented,
+        query: $fileQuery,
+        requestedCreationType: $requestedCreationType
+      )
+    }
+  }
+
+  private func workspaceAlert(_ alert: ProjectWorkspaceAlert) -> Alert {
+    switch alert {
+    case .discardChanges:
+      Alert(
+        title: Text(ProjectWorkspaceStrings.unsavedChanges),
+        message: Text(
+          ProjectWorkspaceStrings.discardMessage(
+            path: editor.path ?? selectedFile?.path ?? ""
+          )
+        ),
+        primaryButton: .destructive(Text(ProjectWorkspaceStrings.discard)) {
+          confirmPendingAction()
+        },
+        secondaryButton: .cancel {
+          pendingAction = nil
+        }
+      )
+    case .reloadAfterSave:
+      Alert(
+        title: Text(ProjectWorkspaceStrings.saveNeedsReload),
+        message: Text(ProjectWorkspaceStrings.saveNeedsReloadDescription),
+        primaryButton: .default(Text(ProjectWorkspaceStrings.reload)) {
+          Task { await reloadSelectedFile() }
+        },
+        secondaryButton: .cancel(Text(ProjectWorkspaceStrings.keepEditing))
+      )
     }
   }
 
@@ -105,7 +151,7 @@ struct ProjectWorkspaceView: View {
   }
 
   @ViewBuilder
-  private var sidebar: some View {
+  private func sidebar(mode: ProjectWorkspaceMode) -> some View {
     if access.permitsRead {
       switch mode {
       case .files:
@@ -113,9 +159,13 @@ struct ProjectWorkspaceView: View {
           controller: fileController,
           currentDirectory: currentDirectory,
           selectedEntry: selectedFile,
+          canMutate: access.permitsWrite,
+          query: $fileQuery,
+          requestedCreationType: $requestedCreationType,
           onOpen: requestEntry,
           onOpenDirectory: requestDirectory,
-          onRefresh: { await fileController.listTree(directoryPath: currentDirectory) }
+          onRefresh: { await fileController.listTree(directoryPath: currentDirectory) },
+          onEntryMutated: entryMutated
         )
       case .git:
         ProjectGitSidebarView(
@@ -127,7 +177,9 @@ struct ProjectWorkspaceView: View {
           reviewDestination: reviewDestination,
           selectedChange: selectedChange,
           onSelect: selectChange,
-          onRefresh: { await gitController.loadStatus(detail: .full) }
+          onOpenInEditor: openChangeInEditor,
+          onRefresh: { await gitController.loadStatus(detail: .full) },
+          generatePullRequestSummary: generatePullRequestSummary
         )
       }
     } else {
@@ -136,7 +188,7 @@ struct ProjectWorkspaceView: View {
   }
 
   @ViewBuilder
-  private var detail: some View {
+  private func detail(mode: ProjectWorkspaceMode) -> some View {
     if access.permitsRead {
       switch mode {
       case .files:
@@ -155,6 +207,7 @@ struct ProjectWorkspaceView: View {
           context: gitOperationsContext,
           operationsController: gitOperationsController,
           selectedChange: selectedChange,
+          enqueueReviewComment: enqueueReviewComment,
           onReload: { Task { await reloadSelectedDiff() } }
         )
       }
@@ -226,6 +279,7 @@ struct ProjectWorkspaceView: View {
     switch action {
     case .mode(let nextMode):
       mode = nextMode
+      preferredCompactColumn = .sidebar
       if nextMode == .git {
         await gitController.loadStatus(detail: .full)
       } else {
@@ -241,6 +295,19 @@ struct ProjectWorkspaceView: View {
       editor.beginLoading(path: entry.path)
       await fileController.readFile(path: entry.path)
       installSelectedRead(path: entry.path)
+      preferredCompactColumn = .detail
+    case .openEditor(let path):
+      let entry = ProjectWorkspaceEntry(
+        path: path,
+        name: path.split(separator: "/").last.map(String.init) ?? path,
+        type: .file
+      )
+      mode = .files
+      selectedFile = entry
+      editor.beginLoading(path: path)
+      await fileController.readFile(path: path)
+      installSelectedRead(path: path)
+      preferredCompactColumn = .detail
     case .discardOnly:
       break
     }
@@ -248,6 +315,7 @@ struct ProjectWorkspaceView: View {
 
   private func selectChange(_ change: ProjectGitFileChange) {
     selectedChange = change
+    preferredCompactColumn = .detail
     Task {
       await gitController.loadDiff(filePath: change.path, staged: change.staged)
     }
@@ -259,6 +327,32 @@ struct ProjectWorkspaceView: View {
       filePath: selectedChange.path,
       staged: selectedChange.staged
     )
+  }
+
+  private var gitConfirmationPresented: Binding<Bool> {
+    Binding(
+      get: { gitOperationsController.state.pendingConfirmation != nil },
+      set: { if !$0 { gitOperationsController.cancelPendingMutation() } }
+    )
+  }
+
+  private func openChangeInEditor(_ change: ProjectGitFileChange) {
+    request(.openEditor(change.path))
+  }
+
+  private func refreshGitAfterMutation() async {
+    await gitController.loadStatus(detail: .full)
+    guard let selectedChange else { return }
+    guard let status = gitController.status.value,
+      let refreshed = (status.staged + status.unstaged).first(where: {
+        $0.path == selectedChange.path
+      })
+    else {
+      self.selectedChange = nil
+      return
+    }
+    self.selectedChange = refreshed
+    await gitController.loadDiff(filePath: refreshed.path, staged: refreshed.staged)
   }
 
   private func saveSelectedFile() async {
@@ -293,6 +387,23 @@ struct ProjectWorkspaceView: View {
     installSelectedRead(path: path)
   }
 
+  private func entryMutated(_ mutation: ProjectWorkspaceEntryMutation) async {
+    if let selectedPath = selectedFile?.path,
+      selectedPath == mutation.affectedPath
+        || selectedPath.hasPrefix(mutation.affectedPath + "/")
+    {
+      selectedFile = nil
+      editor.clear()
+    }
+    if currentDirectory == mutation.affectedPath
+      || currentDirectory.hasPrefix(mutation.affectedPath + "/")
+    {
+      currentDirectory = ProjectWorkspacePath.parent(of: mutation.affectedPath) ?? ""
+    }
+    await fileController.listTree(directoryPath: currentDirectory)
+    await gitController.loadStatus(detail: .full)
+  }
+
   private func installSelectedRead(path: String) {
     guard selectedFile?.path == path,
       fileController.fileRead.loadState == .loaded,
@@ -308,6 +419,7 @@ struct ProjectWorkspaceView: View {
     pendingAction = nil
     presentedAlert = nil
     editor.clear()
+    preferredCompactColumn = .sidebar
   }
 }
 
@@ -315,6 +427,7 @@ private enum ProjectWorkspacePendingAction: Hashable {
   case mode(ProjectWorkspaceMode)
   case directory(String)
   case file(ProjectWorkspaceEntry)
+  case openEditor(String)
   case discardOnly
 }
 
@@ -323,70 +436,4 @@ private enum ProjectWorkspaceAlert: String, Identifiable {
   case reloadAfterSave
 
   var id: String { rawValue }
-}
-
-private struct ProjectWorkspaceModeSwitcher: View {
-  let selection: ProjectWorkspaceMode
-  let access: ProjectWorkspaceAccessState
-  let onSelect: (ProjectWorkspaceMode) -> Void
-
-  var body: some View {
-    VStack(spacing: 6) {
-      modeButtons
-      if case .ready(readOnly: true) = access {
-        Label(ProjectWorkspaceStrings.readOnly, systemImage: "lock")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .accessibilityHint(ProjectWorkspaceStrings.readOnlyDescription)
-      }
-    }
-  }
-
-  @ViewBuilder
-  private var modeButtons: some View {
-    if #available(iOS 26.0, *) {
-      GlassEffectContainer(spacing: 8) {
-        HStack(spacing: 8) {
-          glassButton(.files, title: ProjectWorkspaceStrings.files, symbol: "folder")
-          glassButton(.git, title: ProjectWorkspaceStrings.git, symbol: "arrow.triangle.branch")
-        }
-      }
-    } else {
-      HStack(spacing: 8) {
-        fallbackButton(.files, title: ProjectWorkspaceStrings.files, symbol: "folder")
-        fallbackButton(.git, title: ProjectWorkspaceStrings.git, symbol: "arrow.triangle.branch")
-      }
-    }
-  }
-
-  @available(iOS 26.0, *)
-  @ViewBuilder
-  private func glassButton(
-    _ mode: ProjectWorkspaceMode,
-    title: String,
-    symbol: String
-  ) -> some View {
-    if selection == mode {
-      Button(title, systemImage: symbol) { onSelect(mode) }
-        .buttonStyle(.glassProminent)
-    } else {
-      Button(title, systemImage: symbol) { onSelect(mode) }
-        .buttonStyle(.glass)
-    }
-  }
-
-  @ViewBuilder
-  private func fallbackButton(
-    _ mode: ProjectWorkspaceMode,
-    title: String,
-    symbol: String
-  ) -> some View {
-    if selection == mode {
-      Button(title, systemImage: symbol) { onSelect(mode) }
-        .buttonStyle(.borderedProminent)
-    } else {
-      Button(title, systemImage: symbol) { onSelect(mode) }
-        .buttonStyle(.bordered)
-    }
-  }
 }

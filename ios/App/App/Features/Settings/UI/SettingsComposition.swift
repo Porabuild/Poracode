@@ -46,13 +46,18 @@ final class SettingsComposition {
     switch route {
     case .agents:
       await hostInformation.refresh(.agents)
+      await document.load()
     case .usage:
       await hostInformation.refresh(.usage)
+      await document.load()
     case .devices:
       await hostInformation.refresh(.devices)
     case .activity, .tokens, .profile:
       await profile.load(query.request(timeZone: timeZone, date: date))
-    case .generation, .workspace:
+    case .generation:
+      await hostInformation.refresh(.agents)
+      await document.load()
+    case .workspace:
       await document.load()
     }
   }

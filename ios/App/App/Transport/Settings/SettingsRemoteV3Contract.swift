@@ -22,6 +22,9 @@ enum SettingsRemoteV3Contract {
     route("profile-identity", scope: .sessionOperate),
     route("settings-read", scope: .sessionRead),
     route("settings-write", scope: .sessionOperate),
+    route("mcp-settings-read", scope: .projectsManage),
+    route("mcp-settings-command", scope: .projectsManage),
+    route("mcp-settings-operation", scope: .projectsManage),
   ]
 
   static func metadata(id: String) -> SettingsRouteMetadata? {
@@ -118,6 +121,45 @@ enum SettingsRemoteV3Contract {
     return canonical
   }
 
+  static func mcpSettingsReadResponse(_ data: Data) throws -> Data {
+    let canonical = try canonical(
+      data, codec: RemoteRootCodecs.routeU2EMcpU2DSettingsU2DReadU2EResponse,
+      boundary: "MCP settings read response"
+    )
+    try assertMCPRedacted(canonical)
+    return canonical
+  }
+
+  static func mcpSettingsCommandRequest(_ data: Data) throws -> Data {
+    try canonical(
+      data, codec: RemoteRootCodecs.routeU2EMcpU2DSettingsU2DCommandU2ERequest,
+      boundary: "MCP settings command request"
+    )
+  }
+
+  static func mcpSettingsCommandResponse(_ data: Data) throws -> Data {
+    let canonical = try canonical(
+      data, codec: RemoteRootCodecs.routeU2EMcpU2DSettingsU2DCommandU2EResponse,
+      boundary: "MCP settings command response"
+    )
+    try assertMCPRedacted(canonical)
+    return canonical
+  }
+
+  static func mcpSettingsOperationRequest(_ data: Data) throws -> Data {
+    try canonical(
+      data, codec: RemoteRootCodecs.routeU2EMcpU2DSettingsU2DOperationU2ERequest,
+      boundary: "MCP settings operation request"
+    )
+  }
+
+  static func mcpSettingsOperationResponse(_ data: Data) throws -> Data {
+    try canonical(
+      data, codec: RemoteRootCodecs.routeU2EMcpU2DSettingsU2DOperationU2EResponse,
+      boundary: "MCP settings operation response"
+    )
+  }
+
   private static func route(
     _ id: String,
     scope: SettingsCapability
@@ -155,6 +197,13 @@ enum SettingsRemoteV3Contract {
     guard let agents = settings["agentSettings"] as? [String: Any] else { return }
     if let cursor = agents["cursor"] as? [String: Any], cursor["sdkApiKey"] != nil {
       throw RemoteClientError.invalidResponse("Invalid redacted settings payload.")
+    }
+  }
+
+  private static func assertMCPRedacted(_ data: Data) throws {
+    let response = try JSONDecoding.decode(GlobalMCPSettingsResponse.self, from: data)
+    guard response.servers.allSatisfy(\.transport.isRemoteRedacted) else {
+      throw RemoteClientError.invalidResponse("Invalid redacted MCP settings payload.")
     }
   }
 }

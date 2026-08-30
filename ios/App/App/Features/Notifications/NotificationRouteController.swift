@@ -11,7 +11,6 @@ protocol NotificationRouteSession: AnyObject {
   var snapshot: RemoteShellSnapshot? { get }
   func switchHost(_ connectionId: ClientConnectionID) async
   func refreshSnapshot() async
-  func openThread(id: String)
 }
 
 extension AppSession: NotificationRouteSession {}
@@ -151,7 +150,6 @@ final class NotificationRouteController {
       let thread = session.snapshot?.threads.first(where: { $0.id == route.threadId })
     else { return }
 
-    session.openThread(id: thread.id)
     guard isCurrent(submittedGeneration), !Task.isCancelled else { return }
     navigation.publish(route: route, threadTitle: thread.title)
   }

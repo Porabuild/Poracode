@@ -21,7 +21,23 @@ struct AdvancedOperationFormView: View {
     self.descriptor = descriptor
     self.owner = owner
     self.submit = submit
-    _draft = State(initialValue: AdvancedOperationDraft(procedure: descriptor.procedure))
+    _draft = State(
+      initialValue: AdvancedOperationDraft(
+        procedure: descriptor.procedure,
+        initialLanguage: Self.initialLanguage(for: descriptor.procedure)
+      )
+    )
+  }
+
+  private static func initialLanguage(for procedure: AdvancedOperationProcedure) -> String? {
+    switch procedure {
+    case .generateCommitMessage, .generatePrSummary:
+      AIContentLanguagePreference.stored().modelLanguageName()
+    case .generateTitle:
+      AIContentLanguagePreference.matchApp.modelLanguageName()
+    default:
+      nil
+    }
   }
 
   var body: some View {

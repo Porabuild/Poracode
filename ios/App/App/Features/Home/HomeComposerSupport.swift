@@ -12,7 +12,14 @@ extension HomeQuickComposeView {
     HomeComposerCatalog.availableAgents(
       from: session.state.replay.agentStatuses.ordered,
       presentationMode: presentationMode
-    )
+    ).filter { $0.kind != launchSeed?.excludedAgentKind }
+  }
+
+  func supportsPresentationMode(_ mode: ThreadPresentationMode) -> Bool {
+    HomeComposerCatalog.availableAgents(
+      from: session.state.replay.agentStatuses.ordered,
+      presentationMode: mode
+    ).contains { $0.kind != launchSeed?.excludedAgentKind }
   }
 
   var effortOptions: [String] {
@@ -61,13 +68,18 @@ extension HomeQuickComposeView {
 
   func launchDefaults(for project: RemoteProject) -> HomeThreadLaunchDefaults? {
     if let object = project.lastDraftConfig?.objectValue,
-      let agentKind = object["agentKind"]?.stringValue?.nilIfBlank
+      let agentKind = object["agentKind"]?.stringValue?.nilIfBlank,
+      let agent = availableAgents.first(where: { $0.kind == agentKind }),
+      let model = launchModel(
+        for: agent,
+        preferredID: object["model"]?.stringValue?.nilIfBlank
+      )
     {
       return HomeThreadLaunchDefaults(
         agentKind: agentKind,
         agentInstanceID: nil,
         configuration: ThreadLaunchConfiguration(
-          model: object["model"]?.stringValue?.nilIfBlank ?? "default",
+          model: model.modelID,
           effort: object["effort"]?.stringValue,
           contextSize: object["contextSize"]?.stringValue,
           fast: object["fast"]?.boolValue,
@@ -83,12 +95,149 @@ extension HomeQuickComposeView {
         )
       )
     }
-    guard let thread = session.threads(for: project.id).max(by: { $0.updatedAt < $1.updatedAt })
-    else { return nil }
+    let presentationThreads = session.threads(for: project.id).filter {
+      ThreadPresentationFilter.matches(
+        $0.presentationMode,
+        mode: presentationMode.rawValue
+      )
+    }
+    if let thread = presentationThreads.max(by: { $0.updatedAt < $1.updatedAt }),
+      let agent = availableAgents.first(where: { $0.kind == thread.agentKind }),
+      let model = launchModel(for: agent, preferredID: thread.config.model)
+    {
+      var configuration = thread.config.lifecycleLaunchConfiguration
+      configuration.model = model.modelID
+      return HomeThreadLaunchDefaults(
+        agentKind: thread.agentKind,
+        agentInstanceID: thread.agentInstanceId,
+        configuration: configuration
+      )
+    }
+    guard let agent = availableAgents.first, let model = launchModel(for: agent) else {
+      return nil
+    }
     return HomeThreadLaunchDefaults(
-      agentKind: thread.agentKind,
-      agentInstanceID: thread.agentInstanceId,
-      configuration: thread.config.lifecycleLaunchConfiguration
+      agentKind: agent.kind,
+      agentInstanceID: nil,
+      configuration: ThreadLaunchConfiguration(
+        model: model.modelID,
+        effort: defaultEffort(for: agent, modelID: model.modelID)
+      )
+    )
+  }
+
+  private func launchModel(
+    for agent: AgentStatusRecord,
+    preferredID: String? = nil
+  ) -> HomeComposerModel? {
+    let models = HomeComposerCatalog.models(for: agent, presentationMode: presentationMode)
+    if let advertised = preferredID.flatMap({ preferred in
+      models.first { $0.modelID == preferred }
+    }) {
+      return advertised
+    }
+    if let preferredID = preferredID?.nilIfBlank {
+      return HomeComposerModel(
+        agentKind: agent.kind,
+        modelID: preferredID,
+        label: HomeComposerCatalog.normalizedLabel(
+          agentKind: agent.kind,
+          modelID: preferredID,
+          advertisedLabel: preferredID
+        ),
+        subProviderLabel: nil
+      )
+    }
+    return models.first
+  }
+
+  var targetConfiguration: ThreadLaunchConfiguration? {
+    guard let agent = selectedAgent else { return nil }
+    let model =
+      selectedModel
+      ?? (agent.kind == defaults?.agentKind ? defaults?.configuration.model : nil)
+      ?? modelOptions(for: agent).first?.modelID
+    guard let model else { return nil }
+    let baseConfiguration =
+      configuredConfiguration
+      ?? (agent.kind == defaults?.agentKind ? defaults?.configuration : nil)
+    if var configuration = baseConfiguration {
+      configuration.model = model
+      configuration.effort = selectedEffort ?? configuration.effort
+      configuration.fast = fast
+      configuration.browserMcp = browserMcp ?? configuration.browserMcp
+      configuration.crossagentMcp = crossagentMcp ?? configuration.crossagentMcp
+      configuration.computerUse = computerUse ?? configuration.computerUse
+      configuration.chromeMcp = chromeMcp ?? configuration.chromeMcp
+      return configuration
+    }
+    return ThreadLaunchConfiguration(
+      model: model,
+      effort: selectedEffort ?? defaultEffort(for: agent, modelID: model),
+      fast: fast,
+      browserMcp: browserMcp,
+      crossagentMcp: crossagentMcp,
+      computerUse: computerUse,
+      chromeMcp: chromeMcp
+    )
+  }
+
+  func openComposerControls() {
+    guard let configuration = targetConfiguration else { return }
+    controlsConfiguration = ThreadConfig(configuration)
+    selector = nil
+    DispatchQueue.main.async { showingComposerControls = true }
+  }
+
+  func applyComposerControls(_ configuration: ThreadConfig) {
+    configuredConfiguration = ThreadLaunchConfiguration(configuration)
+    selectedModel = configuration.model
+    selectedEffort = configuration.effort
+    fast = configuration.fast == true
+    browserMcp = configuration.browserMcp
+    crossagentMcp = configuration.crossagentMcp
+    computerUse = configuration.computerUse
+    chromeMcp = configuration.chromeMcp
+    permissionMode = .configured
+  }
+}
+
+extension ThreadConfig {
+  init(_ configuration: ThreadLaunchConfiguration) {
+    self.init(
+      model: configuration.model,
+      effort: configuration.effort,
+      contextSize: configuration.contextSize,
+      fast: configuration.fast,
+      thinking: configuration.thinking,
+      mode: configuration.mode,
+      approvalPolicy: configuration.approvalPolicy,
+      approvalsReviewer: configuration.approvalsReviewer,
+      sandboxMode: configuration.sandboxMode,
+      browserMcp: configuration.browserMcp,
+      crossagentMcp: configuration.crossagentMcp,
+      computerUse: configuration.computerUse,
+      chromeMcp: configuration.chromeMcp
+    )
+  }
+}
+
+extension ThreadLaunchConfiguration {
+  init(_ configuration: ThreadConfig) {
+    self.init(
+      model: configuration.model,
+      effort: configuration.effort,
+      contextSize: configuration.contextSize,
+      fast: configuration.fast,
+      thinking: configuration.thinking,
+      mode: configuration.mode,
+      approvalPolicy: configuration.approvalPolicy,
+      approvalsReviewer: configuration.approvalsReviewer,
+      sandboxMode: configuration.sandboxMode,
+      browserMcp: configuration.browserMcp,
+      crossagentMcp: configuration.crossagentMcp,
+      computerUse: configuration.computerUse,
+      chromeMcp: configuration.chromeMcp
     )
   }
 }
@@ -123,11 +272,42 @@ struct HomeComposerBranchSelection: Equatable {
 }
 
 enum HomeComposerCatalog {
+  static func preferredPresentationMode(
+    from agents: [AgentStatusRecord]
+  ) -> ThreadPresentationMode {
+    if !availableAgents(from: agents, presentationMode: .gui).isEmpty {
+      return .gui
+    }
+    if !availableAgents(from: agents, presentationMode: .terminal).isEmpty {
+      return .terminal
+    }
+    return .gui
+  }
+
   static func availableAgents(
     from agents: [AgentStatusRecord],
     presentationMode: ThreadPresentationMode
   ) -> [AgentStatusRecord] {
-    agents.filter { $0.installed && !models(for: $0, presentationMode: presentationMode).isEmpty }
+    agents.filter {
+      $0.installed
+        && supportsPresentation($0, mode: presentationMode)
+    }
+  }
+
+  static func supportsPresentation(
+    _ agent: AgentStatusRecord,
+    mode: ThreadPresentationMode
+  ) -> Bool {
+    let capabilities = agent.capabilities
+    if let modes = capabilities["presentationModes"]?.arrayValue?.compactMap(\.stringValue),
+      !modes.isEmpty
+    {
+      return modes.contains(mode.rawValue)
+    }
+    if let single = capabilities["presentationMode"]?.stringValue, !single.isEmpty {
+      return single == mode.rawValue
+    }
+    return true
   }
 
   static func capabilities(
@@ -294,9 +474,15 @@ enum HomeComposerSelector: String, Identifiable {
 }
 
 enum HomeComposerPermission: String, CaseIterable, Identifiable {
-  case auto, bypass
+  case auto, bypass, configured
   var id: String { rawValue }
-  var label: String { self == .auto ? HomeStrings.auto : HomeStrings.bypass }
+  var label: String {
+    switch self {
+    case .auto: HomeStrings.auto
+    case .bypass: HomeStrings.bypass
+    case .configured: SettingsUIStrings.configurationSection
+    }
+  }
 }
 
 enum HomeComposerWorktree: String, CaseIterable, Identifiable {

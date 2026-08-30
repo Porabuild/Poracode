@@ -260,6 +260,28 @@ enum OnboardingStrings {
     String(localized: "onboarding.scan.fallback.link", defaultValue: "Paste a pairing link")
   }
 
+  static var scanPhoto: String {
+    String(localized: "onboarding.scan.photo.action", defaultValue: "Choose a photo")
+  }
+
+  static var scanPhotoReading: String {
+    String(localized: "onboarding.scan.photo.reading", defaultValue: "Reading photo…")
+  }
+
+  static var scanPhotoNoCode: String {
+    String(
+      localized: "onboarding.scan.photo.noCode",
+      defaultValue: "No QR code was found in that photo."
+    )
+  }
+
+  static var scanPhotoInvalid: String {
+    String(
+      localized: "onboarding.scan.photo.invalid",
+      defaultValue: "That photo does not contain a Poracode pairing code."
+    )
+  }
+
   // MARK: - Manual connection
 
   static var manualTitle: String {

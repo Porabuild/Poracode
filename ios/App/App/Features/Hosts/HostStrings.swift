@@ -22,6 +22,10 @@ enum HostStrings {
     String(localized: "hosts.remove.title", defaultValue: "Remove connection")
   }
 
+  static var renamePrompt: String {
+    String(localized: "hosts.rename.prompt", defaultValue: "Connection name")
+  }
+
   static func removeConfirmTitle(_ label: String) -> String {
     String(
       localized: "hosts.remove.confirm.title",
@@ -51,6 +55,18 @@ enum HostStrings {
 
   static var secondaryBadge: String {
     String(localized: "hosts.status.secondary", defaultValue: "Kept ready")
+  }
+
+  static var statusOnline: String {
+    String(localized: "hosts.status.online", defaultValue: "Online")
+  }
+
+  static var statusConnecting: String {
+    String(localized: "hosts.status.connecting", defaultValue: "Connecting")
+  }
+
+  static var statusOffline: String {
+    String(localized: "hosts.status.offline", defaultValue: "Offline")
   }
 
   static var emptyTitle: String {
@@ -91,6 +107,13 @@ enum HostStrings {
 
   static var pairingLink: String {
     String(localized: "hosts.add.pairingLink", defaultValue: "Pairing link")
+  }
+
+  static var pairingLinkPlaceholder: String {
+    String(
+      localized: "onboarding.linkSection.placeholder",
+      defaultValue: "https://…/#token=…"
+    )
   }
 
   static var serverURL: String {

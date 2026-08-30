@@ -11,26 +11,56 @@ struct SettingsIntegrationsScreen: View {
   let selection: SettingsIntegrationsSelection?
   let projects: [SettingsIntegrationsProjectOption]
   @Binding var selectedProjectIdentity: ProjectIdentity?
-  @State private var route: Route? = .skills
+  private let embeddedInNavigationStack: Bool
+  private let onImportMCPServer: ((SettingsMCPServer) -> Void)?
+  private let onUpdateMCPServer: ((SettingsMCPServer) -> Void)?
+  @State private var route: Route?
 
+  init(
+    controller: SettingsIntegrationsComposition,
+    selection: SettingsIntegrationsSelection?,
+    projects: [SettingsIntegrationsProjectOption],
+    selectedProjectIdentity: Binding<ProjectIdentity?>,
+    initialRoute: Route = .skills,
+    embeddedInNavigationStack: Bool = false,
+    onImportMCPServer: ((SettingsMCPServer) -> Void)? = nil,
+    onUpdateMCPServer: ((SettingsMCPServer) -> Void)? = nil
+  ) {
+    self.controller = controller
+    self.selection = selection
+    self.projects = projects
+    _selectedProjectIdentity = selectedProjectIdentity
+    self.embeddedInNavigationStack = embeddedInNavigationStack
+    self.onImportMCPServer = onImportMCPServer
+    self.onUpdateMCPServer = onUpdateMCPServer
+    _route = State(initialValue: initialRoute)
+  }
+
+  @ViewBuilder
   var body: some View {
-    NavigationSplitView {
-      List(selection: $route) {
-        projectPicker
-        Section {
-          ForEach(Route.allCases) { item in
-            NavigationLink(value: item) {
-              Label(label(item), systemImage: symbol(item))
+    if embeddedInNavigationStack {
+      detail
+        .navigationTitle(label(route ?? .skills))
+        .navigationBarTitleDisplayMode(.inline)
+    } else {
+      NavigationSplitView {
+        List(selection: $route) {
+          projectPicker
+          Section {
+            ForEach(Route.allCases) { item in
+              NavigationLink(value: item) {
+                Label(label(item), systemImage: symbol(item))
+              }
             }
           }
         }
+        .navigationTitle(SettingsIntegrationsStrings.title)
+        .listStyle(.sidebar)
+      } detail: {
+        detail
       }
-      .navigationTitle(SettingsIntegrationsStrings.title)
-      .listStyle(.sidebar)
-    } detail: {
-      detail
+      .navigationSplitViewStyle(.balanced)
     }
-    .navigationSplitViewStyle(.balanced)
   }
 
   private var projectPicker: some View {
@@ -68,7 +98,10 @@ struct SettingsIntegrationsScreen: View {
           SettingsMCPView(
             controller: controller.mcp,
             oauth: controller.oauth,
-            canOperate: controller.failure(for: .operate) == nil
+            canOperate: controller.failure(for: .operate) == nil,
+            onImport: onImportMCPServer,
+            onUpdateConfigured: onUpdateMCPServer,
+            preferredSource: onImportMCPServer == nil ? .user : .workspace
           )
         }
       }

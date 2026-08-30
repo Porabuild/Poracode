@@ -121,4 +121,111 @@ final class ProjectSettingsNotesTests: XCTestCase {
         XCTAssertTrue(bodyObject["doc"] is NSNull)
         XCTAssertFalse(bodyObject.keys.contains("projectId"))
     }
+
+    func testSearchRowsMirrorInheritedOverrideAndLockedPatternSemantics() {
+        let baseline = ProjectSearchSettingsPresentation.baseline(global: [
+            "**/dist": false,
+            "**/generated": true,
+        ])
+        let rows = ProjectSearchSettingsPresentation.rows(
+            baseline: baseline,
+            overrides: [
+                "**/node_modules": false,
+                "**/generated": true,
+                "**/custom": true,
+            ]
+        )
+
+        XCTAssertEqual(rows.first?.pattern, ProjectSearchSettingsPresentation.lockedPattern)
+        XCTAssertEqual(rows.first?.locked, true)
+        XCTAssertFalse(rows.contains { $0.pattern == "**/dist" })
+        XCTAssertFalse(rows.contains { $0.pattern == "**/node_modules" })
+        XCTAssertEqual(rows.first { $0.pattern == "**/.next" }?.inherited, true)
+        XCTAssertEqual(rows.first { $0.pattern == "**/generated" }?.inherited, false)
+        XCTAssertEqual(rows.first { $0.pattern == "**/custom" }?.inherited, false)
+    }
+
+    func testMCPDraftRoundTripsQuotedArgumentsAndSensitiveMaps() throws {
+        let original = ProjectMCPServer(
+            id: "server-id",
+            name: "fixture.server",
+            descriptionText: "Fixture",
+            enabled: true,
+            timeoutMs: 45_000,
+            disabledTools: ["dangerous"],
+            transport: .stdio(
+                command: "node",
+                args: ["plain", "two words", "quote\"value", ""],
+                env: SensitiveStringMap(["TOKEN": "secret", "MODE": "test"]),
+                cwd: "/srv/project"
+            )
+        )
+
+        let draft = ProjectMCPServerDraft(server: original)
+        XCTAssertFalse(String(describing: draft).contains("secret"))
+        XCTAssertFalse(String(reflecting: draft).contains("secret"))
+        let roundTrip = try draft.server(
+            existingNames: [original.name.lowercased()],
+            previousName: original.name
+        )
+
+        XCTAssertEqual(roundTrip, original)
+        XCTAssertFalse(String(describing: roundTrip).contains("secret"))
+        XCTAssertEqual(
+            ProjectMCPDraftParsing.arguments(#"one "two words" 'three words' """#),
+            ["one", "two words", "three words", ""]
+        )
+    }
+
+    func testMCPDraftRejectsReservedDuplicateAndInvalidTransportValues() throws {
+        var draft = ProjectMCPServerDraft(id: "new")
+        draft.name = "browser"
+        draft.command = "node"
+        XCTAssertThrowsError(try draft.server(existingNames: [], previousName: nil)) {
+            XCTAssertEqual($0 as? ProjectMCPDraftError, .nameReserved)
+        }
+
+        draft.name = "existing"
+        XCTAssertThrowsError(
+            try draft.server(existingNames: ["existing"], previousName: nil)
+        ) {
+            XCTAssertEqual($0 as? ProjectMCPDraftError, .nameDuplicate)
+        }
+
+        draft.name = "new-server"
+        draft.transportKind = .http
+        draft.url = "file:///tmp/not-http"
+        XCTAssertThrowsError(try draft.server(existingNames: [], previousName: nil)) {
+            XCTAssertEqual($0 as? ProjectMCPDraftError, .urlInvalid)
+        }
+        draft.url = "https://example.test/mcp"
+        draft.headersText = "missing separator"
+        XCTAssertThrowsError(try draft.server(existingNames: [], previousName: nil)) {
+            XCTAssertEqual($0 as? ProjectMCPDraftError, .headersInvalid)
+        }
+    }
+
+    func testMCPImportConversionPreservesTransportWithoutLeakingSecrets() throws {
+        let discovered = SettingsMCPServer(
+            id: "external",
+            name: "external-server",
+            descriptionText: "External",
+            enabled: true,
+            timeoutMs: 30_000,
+            disabledTools: nil,
+            transport: .http(
+                url: "https://example.test/mcp",
+                headers: ["Authorization": "Bearer secret"]
+            )
+        )
+        let project = ProjectMCPServer(imported: discovered)
+        let projected = SettingsMCPServer(projectServer: project)
+
+        XCTAssertEqual(projected, discovered)
+        XCTAssertFalse(String(describing: project).contains("Bearer secret"))
+        guard case .http(_, let headers) = project.transport else {
+            return XCTFail("Expected HTTP")
+        }
+        XCTAssertEqual(headers.secretValue(forKey: "Authorization"), "Bearer secret")
+    }
 }

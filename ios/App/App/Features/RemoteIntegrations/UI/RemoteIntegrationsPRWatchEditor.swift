@@ -5,6 +5,7 @@ struct RemoteIntegrationsPRWatchEditor: View {
 
   let target: RemoteIntegrationsPRWatchEditorTarget
   let projects: [RemoteIntegrationsProjectOption]
+  let agents: [AgentStatusRecord]
   let controller: RemoteIntegrationsPRWatchController
 
   @State private var draft: RemoteIntegrationsPRWatchDraft
@@ -14,15 +15,18 @@ struct RemoteIntegrationsPRWatchEditor: View {
   init(
     target: RemoteIntegrationsPRWatchEditorTarget,
     projects: [RemoteIntegrationsProjectOption],
+    agents: [AgentStatusRecord],
     controller: RemoteIntegrationsPRWatchController
   ) {
     self.target = target
     self.projects = projects
+    self.agents = RemoteIntegrationsScheduleAgentCatalog.available(agents)
     self.controller = controller
     switch target {
     case .create(let key):
       var value = RemoteIntegrationsPRWatchDraft(projectId: key.projectId)
       value.prNumber = key.prNumber
+      RemoteIntegrationsScheduleAgentCatalog.selectDefault(in: &value, agents: self.agents)
       _draft = State(initialValue: value)
     case .edit(let watch):
       _draft = State(initialValue: RemoteIntegrationsPRWatchDraft(watch))
@@ -54,15 +58,50 @@ struct RemoteIntegrationsPRWatchEditor: View {
         Section(RemoteIntegrationsStrings.automation) {
           Toggle(RemoteIntegrationsStrings.watchEnabled, isOn: $draft.watchEnabled)
           Toggle(RemoteIntegrationsStrings.autoMerge, isOn: $draft.autoMerge)
-          TextField(RemoteIntegrationsStrings.agent, text: $draft.agentKind)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-          TextField(RemoteIntegrationsStrings.model, text: $draft.model)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-          TextField(RemoteIntegrationsStrings.effort, text: $draft.effort)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
+          if agents.isEmpty {
+            TextField(RemoteIntegrationsStrings.agent, text: $draft.agentKind)
+              .textInputAutocapitalization(.never)
+              .autocorrectionDisabled()
+          } else {
+            Picker(RemoteIntegrationsStrings.agent, selection: $draft.agentKind) {
+              ForEach(agentOptions) { option in Text(option.label).tag(option.id) }
+            }
+            .onChange(of: draft.agentKind) { _, agentKind in
+              RemoteIntegrationsScheduleAgentCatalog.selectAgent(
+                agentKind,
+                in: &draft,
+                agents: agents
+              )
+            }
+          }
+
+          if modelOptions.isEmpty {
+            TextField(RemoteIntegrationsStrings.model, text: $draft.model)
+              .textInputAutocapitalization(.never)
+              .autocorrectionDisabled()
+          } else {
+            Picker(RemoteIntegrationsStrings.model, selection: $draft.model) {
+              ForEach(modelOptions) { option in Text(option.label).tag(option.id) }
+            }
+            .onChange(of: draft.model) { _, model in
+              RemoteIntegrationsScheduleAgentCatalog.selectModel(
+                model,
+                in: &draft,
+                agents: agents
+              )
+            }
+          }
+
+          if effortOptions.isEmpty {
+            TextField(RemoteIntegrationsStrings.effort, text: $draft.effort)
+              .textInputAutocapitalization(.never)
+              .autocorrectionDisabled()
+          } else {
+            Picker(RemoteIntegrationsStrings.effort, selection: $draft.effort) {
+              Text(HomeStrings.auto).tag("")
+              ForEach(effortOptions) { option in Text(option.label).tag(option.id) }
+            }
+          }
           Toggle(RemoteIntegrationsStrings.fastMode, isOn: $draft.fast)
         }
 
@@ -104,6 +143,30 @@ struct RemoteIntegrationsPRWatchEditor: View {
 
   private var projectName: String {
     projects.first(where: { $0.id == draft.projectId })?.name ?? draft.projectId
+  }
+
+  private var agentOptions: [RemoteIntegrationsSchedulePickerOption] {
+    RemoteIntegrationsScheduleAgentCatalog.agentOptions(
+      agents,
+      selectedKind: draft.agentKind
+    )
+  }
+
+  private var modelOptions: [RemoteIntegrationsSchedulePickerOption] {
+    RemoteIntegrationsScheduleAgentCatalog.modelOptions(
+      agents,
+      agentKind: draft.agentKind,
+      selectedModel: draft.model
+    )
+  }
+
+  private var effortOptions: [RemoteIntegrationsSchedulePickerOption] {
+    RemoteIntegrationsScheduleAgentCatalog.effortOptions(
+      agents,
+      agentKind: draft.agentKind,
+      model: draft.model,
+      selectedEffort: draft.effort
+    )
   }
 
   private var title: String {

@@ -31,7 +31,7 @@ final class SettingsTransportTests: XCTestCase {
     _ = try await client.settingsSetProfileIdentity(
       SettingsProfileIdentity(name: "Ada", handle: "ada", avatarColor: "#123456")
     )
-    _ = try await client.settingsRead()
+    let settings = try await client.settingsRead()
     _ = try await client.settingsWrite(
       SettingsPatch(values: [.titleGenFast: .bool(true)])
     )
@@ -64,6 +64,17 @@ final class SettingsTransportTests: XCTestCase {
     let patch = try requestObject(at: 7)
     XCTAssertEqual(patch["titleGenFast"] as? Bool, true)
     XCTAssertEqual(patch.count, 1)
+    XCTAssertEqual(settings.settings.usage?.providerOrder, ["codex"])
+  }
+
+  func testLegacySettingsResponseWithoutUsageStillDecodes() throws {
+    var settings = SettingsFixtures.settings
+    settings.removeValue(forKey: "usage")
+    let data = try SettingsFixtures.data(["settings": settings])
+
+    let response = try JSONDecoding.decode(SettingsReadResponse.self, from: data)
+
+    XCTAssertNil(response.settings.usage)
   }
 
   func testSettingsMutationNeverRetriesAndSignalsAmbiguousNetworkOutcome() async throws {

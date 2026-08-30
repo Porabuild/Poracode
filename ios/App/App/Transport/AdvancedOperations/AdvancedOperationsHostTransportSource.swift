@@ -30,24 +30,26 @@ protocol AdvancedOperationsCredentialRepository: Sendable {
 /// Credentials come from the paired-host registry and the vault for exactly the
 /// connection that was asked for. Nothing is derived from "the selected host"
 /// inside this step, so a host switch mid-resolution cannot be papered over.
-extension HostCatalog: AdvancedOperationsCredentialRepository {
-  func advancedOperationsCredentials(
-    for connectionID: ClientConnectionID
-  ) async throws -> AdvancedOperationsHostCredentials? {
-    let catalog = try snapshot()
-    guard let record = catalog.hosts.first(where: { $0.connectionId == connectionID }),
-      let credential = try token(for: connectionID), !credential.isEmpty
-    else { return nil }
-    return AdvancedOperationsHostCredentials(
-      connectionID: connectionID,
-      desktopID: record.desktopId,
-      endpoint: record.httpBaseURL,
-      credential: credential,
-      protocolVersion: record.protocolVersion,
-      scopes: Set(record.scopes)
-    )
+#if !SWIFT_PACKAGE
+  extension HostCatalog: AdvancedOperationsCredentialRepository {
+    func advancedOperationsCredentials(
+      for connectionID: ClientConnectionID
+    ) async throws -> AdvancedOperationsHostCredentials? {
+      let catalog = try snapshot()
+      guard let record = catalog.hosts.first(where: { $0.connectionId == connectionID }),
+        let credential = try token(for: connectionID), !credential.isEmpty
+      else { return nil }
+      return AdvancedOperationsHostCredentials(
+        connectionID: connectionID,
+        desktopID: record.desktopId,
+        endpoint: record.httpBaseURL,
+        credential: credential,
+        protocolVersion: record.protocolVersion,
+        scopes: Set(record.scopes)
+      )
+    }
   }
-}
+#endif
 
 /// One host binding resolved all the way down to an authenticated API.
 struct AdvancedOperationsResolvedHost: Sendable {

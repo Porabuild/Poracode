@@ -58,12 +58,26 @@ final class GitOperationsQualityGatesTests: XCTestCase {
       ),
       encoding: .utf8
     )
+    let gitDetailView = try String(
+      contentsOf: root.appendingPathComponent(
+        "ios/App/App/Features/Projects/ProjectGitDetailView.swift"
+      ),
+      encoding: .utf8
+    )
     XCTAssertTrue(sessionView.contains("@State private var gitOperationsController"))
     XCTAssertTrue(sessionView.contains("SelectedGitOperationsGateway"))
     XCTAssertTrue(workspaceView.contains("gitOperationsController:"))
     XCTAssertTrue(gitView.contains("NavigationLink"))
     XCTAssertTrue(gitView.contains("GitOperationsPanel"))
-    XCTAssertTrue(gitView.contains("GitOperationsFileActions"))
+    XCTAssertTrue(gitDetailView.contains("GitOperationsFileActions"))
+    XCTAssertTrue(gitView.contains(".contextMenu"))
+    XCTAssertTrue(gitView.contains(".swipeActions"))
+    XCTAssertTrue(gitView.contains(".gitStageAll"))
+    XCTAssertTrue(gitView.contains(".gitUnstageAll"))
+    XCTAssertTrue(gitView.contains(".gitRevertAll"))
+    XCTAssertTrue(workspaceView.contains("gitConfirmationPresented"))
+    XCTAssertTrue(workspaceView.contains("confirmPendingMutation"))
+    XCTAssertTrue(workspaceView.contains("openChangeInEditor"))
   }
 
   func testExplicitXcodeTargetAndGroupMembershipIsCompleteAndAdditive() throws {
@@ -111,7 +125,11 @@ final class GitOperationsQualityGatesTests: XCTestCase {
     for preserved in [
       "SettingsIntegrationsScreen.swift in Sources",
       "RichChatThreadView.swift in Sources",
+      "ThreadDetailActionMenu.swift in Sources",
+      "ThreadDetailDestinations.swift in Sources",
       "ProjectWorkspaceView.swift in Sources",
+      "ProjectGitDetailView.swift in Sources",
+      "NativeUnifiedDiffView.swift in Sources",
       "RemoteIntegrationsScreen.swift in Sources",
     ] {
       XCTAssertTrue(appSources.contains(preserved), preserved)
@@ -229,6 +247,8 @@ final class GitOperationsQualityGatesTests: XCTestCase {
       "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift",
       "ios/App/App/Features/Projects/ProjectWorkspaceView.swift",
       "ios/App/App/Features/Projects/ProjectGitWorkspaceViews.swift",
+      "ios/App/App/Features/Projects/ProjectGitDetailView.swift",
+      "ios/App/App/Features/Projects/NativeUnifiedDiffView.swift",
     ] {
       let file = root.appendingPathComponent(path)
       let lineCount = try String(contentsOf: file, encoding: .utf8)

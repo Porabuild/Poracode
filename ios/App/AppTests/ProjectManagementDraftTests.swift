@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import App
 
 final class ProjectManagementDraftTests: XCTestCase {
@@ -9,7 +10,7 @@ final class ProjectManagementDraftTests: XCTestCase {
       name: " Example ",
       cloneURL: ""
     ).command()
-    XCTAssertEqual(existing, .addExisting(path: "/work/existing", name: "Example"))
+    XCTAssertEqual(existing, .addExisting(path: "/work/existing", name: nil))
 
     let created = try ProjectCreationDraft(
       kind: .create,
@@ -22,17 +23,33 @@ final class ProjectManagementDraftTests: XCTestCase {
     let cloned = try ProjectCreationDraft(
       kind: .clone,
       path: "/work",
-      name: "Repo",
+      name: "Ignored custom name",
       cloneURL: " https://example.test/repo.git "
     ).command()
     XCTAssertEqual(
       cloned,
       .clone(
         parentPath: "/work",
-        name: "Repo",
+        name: "repo",
         source: .url("https://example.test/repo.git")
       )
     )
+  }
+
+  func testCloneFolderNameMatchesCompactPWAURLSemantics() {
+    XCTAssertEqual(
+      ProjectCloneNaming.folderName(from: "https://github.com/owner/repo.git"),
+      "repo"
+    )
+    XCTAssertEqual(
+      ProjectCloneNaming.folderName(from: "git@github.com:owner/repo.git"),
+      "repo"
+    )
+    XCTAssertEqual(
+      ProjectCloneNaming.folderName(from: "https://github.com/owner/repo/?ref=main"),
+      "repo"
+    )
+    XCTAssertEqual(ProjectCloneNaming.folderName(from: "   "), "")
   }
 
   func testCreationDraftRejectsUnsafeInputsBeforeTransport() {
@@ -50,6 +67,72 @@ final class ProjectManagementDraftTests: XCTestCase {
         cloneURL: "ext::payload"
       ).command()
     ) { XCTAssertEqual($0 as? ProjectDraftError, .invalidCloneURL) }
+  }
+
+  func testProjectManagementExcludesSyntheticHomeScopeAndSortsProjects() {
+    let projects = ProjectManagementPresentation.selectableProjects([
+      fixtureProject(id: "project-z", name: "Zulu"),
+      fixtureProject(id: RemoteProject.homeScopeID, name: "Home"),
+      fixtureProject(id: "project-a", name: "alpha"),
+    ])
+
+    XCTAssertEqual(projects.map(\.id), ["project-a", "project-z"])
+  }
+
+  func testNativeNoteSelectionPreservesUTF16TextExactly() {
+    let note = "Fix 👋 日本語 test"
+
+    XCTAssertEqual(
+      ProjectNoteTextSelection.text(in: note, range: (note as NSString).range(of: "👋 日本語")),
+      "👋 日本語"
+    )
+    XCTAssertEqual(
+      ProjectNoteTextSelection.text(in: note, range: NSRange(location: NSNotFound, length: 0)),
+      ""
+    )
+  }
+
+  func testNativeNoteDocumentRoundTripsPWAFormattingMarksAndUnicode() throws {
+    let paragraphs = [
+      ProjectNoteParagraph(runs: [
+        ProjectNoteTextRun(text: "Plain ", formats: []),
+        ProjectNoteTextRun(text: "bold 👋", formats: [.bold]),
+        ProjectNoteTextRun(text: " and ", formats: []),
+        ProjectNoteTextRun(text: "both 日本語", formats: [.bold, .italic]),
+      ]),
+      ProjectNoteParagraph(runs: [
+        ProjectNoteTextRun(text: "italic", formats: [.italic])
+      ]),
+    ]
+
+    let document = try XCTUnwrap(ProjectNoteDocument.document(from: paragraphs))
+    XCTAssertEqual(ProjectNoteDocument.paragraphs(document), paragraphs)
+    XCTAssertEqual(ProjectNoteDocument.text(document), "Plain bold 👋 and both 日本語\nitalic")
+
+    let attributedText = ProjectNoteDocument.attributedText(document)
+    let attributedDocument = try XCTUnwrap(ProjectNoteDocument.document(from: attributedText))
+    XCTAssertEqual(ProjectNoteDocument.paragraphs(attributedDocument), paragraphs)
+  }
+
+  func testNativeNoteDocumentPreservesEmptyAndHardBreakSemantics() throws {
+    XCTAssertNil(ProjectNoteDocument.fromText(""))
+
+    let document: JSONValue = .object([
+      "type": .string("doc"),
+      "content": .array([
+        .object([
+          "type": .string("paragraph"),
+          "content": .array([
+            .object(["type": .string("text"), "text": .string("first")]),
+            .object(["type": .string("hardBreak")]),
+            .object(["type": .string("text"), "text": .string("second")]),
+          ]),
+        ])
+      ]),
+    ])
+
+    XCTAssertEqual(ProjectNoteDocument.text(document), "first\nsecond")
+    XCTAssertEqual(ProjectNoteDocument.attributedText(document).string, "first\nsecond")
   }
 
   func testEditDraftKeepsRelocateAndPatchAsSeparateCommands() throws {
@@ -77,6 +160,39 @@ final class ProjectManagementDraftTests: XCTestCase {
     }
   }
 
+  func testNativeWorktreeDraftProjectsEveryPWAField() {
+    let project = RemoteProject(
+      id: "project-1",
+      name: "Project",
+      location: .posix(path: "/work/project"),
+      scripts: ProjectScripts(
+        setupScript: "pnpm install",
+        cleanupScript: "rm -rf node_modules",
+        worktreeCopyPatterns: [".env", ".env.*"],
+        actions: []
+      ),
+      worktreeLocation: ProjectWorktreeLocation(mode: .global, basePath: "/worktrees"),
+      createdAt: "2026-08-22T00:00:00Z"
+    )
+
+    let draft = ProjectWorktreeSettingsDraft(project: project)
+
+    XCTAssertEqual(draft.location, .custom)
+    XCTAssertEqual(draft.basePath, "/worktrees")
+    XCTAssertEqual(draft.setupScript, "pnpm install")
+    XCTAssertEqual(draft.cleanupScript, "rm -rf node_modules")
+    XCTAssertEqual(draft.copyPatterns, ".env\n.env.*")
+  }
+
+  func testNativeProjectSearchChoicePreservesInheritanceAndExplicitOverrides() {
+    XCTAssertEqual(ProjectIgnoreFilesChoice(nil), .inherit)
+    XCTAssertNil(ProjectIgnoreFilesChoice(nil).value)
+    XCTAssertEqual(ProjectIgnoreFilesChoice(true), .enabled)
+    XCTAssertEqual(ProjectIgnoreFilesChoice(true).value, true)
+    XCTAssertEqual(ProjectIgnoreFilesChoice(false), .disabled)
+    XCTAssertEqual(ProjectIgnoreFilesChoice(false).value, false)
+  }
+
   func testNoteEditingPreservesOrderAndTypedIdentity() {
     let first = ProjectNoteTodo(id: "1", text: "First", done: false, createdAt: "now")
     let second = ProjectNoteTodo(id: "2", text: "Second", done: false, createdAt: "now")
@@ -96,10 +212,13 @@ final class ProjectManagementDraftTests: XCTestCase {
     XCTAssertEqual(ProjectNoteEditing.deleting(second, from: added).map(\.id), ["1", "3"])
   }
 
-  private func fixtureProject() -> RemoteProject {
+  private func fixtureProject(
+    id: String = "project-1",
+    name: String = "Original"
+  ) -> RemoteProject {
     RemoteProject(
-      id: "project-1",
-      name: "Original",
+      id: id,
+      name: name,
       location: .posix(path: "/work/original"),
       createdAt: "2026-08-12T00:00:00Z"
     )

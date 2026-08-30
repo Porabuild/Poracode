@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// Dimmed surround with a clear scan window, accent corner brackets, where-to-look
@@ -9,7 +10,9 @@ struct PairingScannerViewfinder: View {
 
   @State private var sweepsDown = false
 
-  private let alignments: [Alignment] = [.topLeading, .topTrailing, .bottomTrailing, .bottomLeading]
+  private let alignments: [Alignment] = [
+    .topLeading, .topTrailing, .bottomTrailing, .bottomLeading,
+  ]
 
   var body: some View {
     GeometryReader { proxy in
@@ -133,6 +136,9 @@ struct PairingScannerGuidance: Equatable {
 struct PairingScannerGuidanceCard: View {
   let guidance: PairingScannerGuidance
   let action: (() -> Void)?
+  @Binding var photoSelection: PhotosPickerItem?
+  let isDecodingPhoto: Bool
+  let photoError: String?
   let usePairingLink: () -> Void
   let useManualEntry: () -> Void
 
@@ -160,6 +166,22 @@ struct PairingScannerGuidanceCard: View {
             .frame(maxWidth: .infinity)
             .accessibilityLabel(actionTitle)
             .accessibilityIdentifier("native-e2e.pair.scan.action")
+        }
+        PhotosPicker(selection: $photoSelection, matching: .images) {
+          Label(
+            isDecodingPhoto ? OnboardingStrings.scanPhotoReading : OnboardingStrings.scanPhoto,
+            systemImage: isDecodingPhoto ? "hourglass" : "photo"
+          )
+          .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .disabled(isDecodingPhoto)
+        if let photoError {
+          Text(photoError)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
         }
         Button(OnboardingStrings.scanUsePairingLink, action: usePairingLink)
           .buttonStyle(.bordered)

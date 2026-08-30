@@ -377,6 +377,7 @@ enum ThreadRemoteCommand: Encodable, Hashable, Sendable {
   case prepareWorktree(projectID: String, worktreePath: String)
   case start(ThreadRelaunchRequest)
   case setGroup(groupID: String, groupName: String)
+  case clearGroup
   case rename(title: String)
   case acknowledge
   case setDone(Bool)
@@ -407,6 +408,8 @@ enum ThreadRemoteCommand: Encodable, Hashable, Sendable {
       try values.encode("set-group", forKey: .kind)
       try values.encode(groupID, forKey: .groupID)
       try values.encode(groupName, forKey: .groupName)
+    case .clearGroup:
+      try values.encode("clear-group", forKey: .kind)
     case .rename(let title):
       try values.encode("rename", forKey: .kind)
       try values.encode(title, forKey: .title)

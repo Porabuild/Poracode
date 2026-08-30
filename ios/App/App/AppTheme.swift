@@ -6,6 +6,7 @@ enum PoracodeAppearanceMode: String, CaseIterable, Identifiable, Sendable {
   case dark
 
   static let storageKey = "ios.appearance.mode"
+  static let defaultMode = PoracodeAppearanceMode.system
 
   var id: Self { self }
 
@@ -26,7 +27,7 @@ enum PoracodeAppearanceMode: String, CaseIterable, Identifiable, Sendable {
   }
 
   static func resolve(_ storedValue: String) -> Self {
-    Self(rawValue: storedValue) ?? .system
+    Self(rawValue: storedValue) ?? defaultMode
   }
 }
 
@@ -177,7 +178,7 @@ struct PoracodeThemeRoot<Content: View>: View {
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedThemeID =
     PoracodeThemePreset.defaultID
   @AppStorage(PoracodeAppearanceMode.storageKey) private var appearanceModeID =
-    PoracodeAppearanceMode.system.rawValue
+    PoracodeAppearanceMode.defaultMode.rawValue
   @Environment(\.colorScheme) private var systemColorScheme
 
   @ViewBuilder let content: () -> Content
@@ -187,10 +188,103 @@ struct PoracodeThemeRoot<Content: View>: View {
     let theme = PoracodeThemePreset.resolve(selectedThemeID)
     let resolvedColorScheme = mode.preferredColorScheme ?? systemColorScheme
 
-    content()
+    ZStack {
+      theme.variant(for: resolvedColorScheme).background
+        .ignoresSafeArea()
+      content()
+    }
+      .scrollContentBackground(.hidden)
       .environment(\.poracodeTheme, theme)
       .tint(theme.variant(for: resolvedColorScheme).accent)
       .preferredColorScheme(mode.preferredColorScheme)
+  }
+}
+
+/// Device-local conversation typography. The persisted value intentionally
+/// matches the compact PWA's 8...20 preference range, while rendering maps it
+/// onto native iOS text baselines and continues to respect Dynamic Type.
+enum PoracodeChatTextSize {
+  static let storageKey = "poracode.rich-chat-text-size.v1"
+  static let defaultValue = 13
+  static let range = 8...20
+
+  static func resolve(_ value: Int) -> Int {
+    min(range.upperBound, max(range.lowerBound, value))
+  }
+}
+
+enum PoracodeChatTextRole: Equatable {
+  case heading1
+  case heading2
+  case heading3
+  case body
+  case command
+  case metadata
+
+  fileprivate var nativeBaseSize: CGFloat {
+    switch self {
+    case .heading1: 17.5
+    case .heading2: 16
+    case .heading3: 14
+    case .body: 13
+    case .command: 12
+    case .metadata: 11
+    }
+  }
+
+  fileprivate var relativeTextStyle: Font.TextStyle {
+    switch self {
+    case .heading1, .heading2: .headline
+    case .heading3: .subheadline
+    case .body: .body
+    case .command: .callout
+    case .metadata: .caption
+    }
+  }
+
+  fileprivate var design: Font.Design {
+    self == .command ? .monospaced : .default
+  }
+
+  func pointSize(for storedValue: Int) -> CGFloat {
+    let scale =
+      CGFloat(PoracodeChatTextSize.resolve(storedValue))
+      / CGFloat(PoracodeChatTextSize.defaultValue)
+    return nativeBaseSize * scale
+  }
+}
+
+private struct PoracodeChatTextModifier: ViewModifier {
+  @AppStorage(PoracodeChatTextSize.storageKey) private var storedSize =
+    PoracodeChatTextSize.defaultValue
+  @ScaledMetric private var dynamicTypeScale: CGFloat
+
+  let role: PoracodeChatTextRole
+  let weight: Font.Weight
+
+  init(role: PoracodeChatTextRole, weight: Font.Weight) {
+    self.role = role
+    self.weight = weight
+    _dynamicTypeScale = ScaledMetric(wrappedValue: 1, relativeTo: role.relativeTextStyle)
+  }
+
+  func body(content: Content) -> some View {
+    content.font(
+      .system(
+        size: role.pointSize(for: storedSize) * dynamicTypeScale,
+        weight: weight,
+        design: role.design
+      )
+    )
+  }
+}
+
+extension View {
+  func poracodeChatText(
+    _ role: PoracodeChatTextRole,
+    weight: Font.Weight = .regular
+  ) -> some View {
+    modifier(PoracodeChatTextModifier(role: role, weight: weight))
   }
 }
 

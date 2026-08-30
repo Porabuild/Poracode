@@ -118,10 +118,21 @@ struct ProjectManagementView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        Button(ProjectManagementStrings.add, systemImage: "plus") {
-          showingCreation = true
+        HostSelectionMenu(session: session)
+      }
+    }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
+      if hasManageCapability {
+        PoracodeBottomActionDock(placement: .trailing) {
+          PoracodeCircleButton {
+            showingCreation = true
+          } label: {
+            Label(ProjectManagementStrings.add, systemImage: "plus")
+              .labelStyle(.iconOnly)
+          }
+          .disabled(!canManageProjects)
+          .accessibilityIdentifier("native-e2e.projects.add")
         }
-        .disabled(!canManageProjects)
       }
     }
     .sheet(isPresented: $showingCreation) {
@@ -139,9 +150,6 @@ struct ProjectManagementView: View {
       titleVisibility: .visible
     ) {
       if let project = actionProject {
-        Button(ProjectManagementStrings.edit) {
-          editorProject = project
-        }
         Button(
           isSynced(project)
             ? ProjectManagementStrings.excludeFromSync
@@ -155,8 +163,15 @@ struct ProjectManagementView: View {
             )
           }
         }
-        Button(ProjectManagementStrings.remove, role: .destructive) {
-          removalProject = project
+        if hasManageCapability {
+          Button(ProjectManagementStrings.edit) {
+            editorProject = project
+          }
+          .disabled(!canManageProjects)
+          Button(ProjectManagementStrings.remove, role: .destructive) {
+            removalProject = project
+          }
+          .disabled(!canManageProjects)
         }
         Button(ProjectManagementStrings.cancel, role: .cancel) {}
       }
@@ -223,6 +238,10 @@ struct ProjectManagementView: View {
     session.currentProjectControllerSession?.gate(.projectsManage) == nil
   }
 
+  private var hasManageCapability: Bool {
+    session.currentProjectControllerSession?.capabilities.contains(.projectsManage) == true
+  }
+
   private var availabilityNotice: String? {
     guard let controllerSession = session.currentProjectControllerSession else { return nil }
     if !controllerSession.isOnline { return ProjectManagementStrings.offlineNotice }
@@ -233,7 +252,10 @@ struct ProjectManagementView: View {
   }
 
   private func activateControllers() {
-    guard let controllerSession = session.currentProjectControllerSession else { return }
+    guard let controllerSession = session.currentProjectControllerSession else {
+      deactivateControllers()
+      return
+    }
     commandController.activate(
       controllerSession,
       projects: managedProjects,
@@ -245,11 +267,25 @@ struct ProjectManagementView: View {
   }
 
   private func updateAccess() {
-    guard let controllerSession = session.currentProjectControllerSession else { return }
+    guard let controllerSession = session.currentProjectControllerSession else {
+      deactivateControllers()
+      return
+    }
     commandController.updateAccess(controllerSession)
     settingsController.activate(controllerSession)
     directoryController.updateAccess(controllerSession)
     notesController.activate(controllerSession)
+  }
+
+  private func deactivateControllers() {
+    commandController.deactivate()
+    settingsController.deactivate()
+    directoryController.deactivate()
+    notesController.deactivate()
+    showingCreation = false
+    actionProject = nil
+    removalProject = nil
+    editorProject = nil
   }
 
   private func receiveSnapshot() {
@@ -262,9 +298,7 @@ struct ProjectManagementView: View {
   }
 
   private var managedProjects: [RemoteProject] {
-    (session.state.snapshot?.projects ?? []).sorted {
-      $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-    }
+    ProjectManagementPresentation.selectableProjects(session.state.snapshot?.projects ?? [])
   }
 }
 

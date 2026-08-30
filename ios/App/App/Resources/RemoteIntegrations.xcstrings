@@ -5311,6 +5311,60 @@
         }
       }
     },
+    "remoteIntegrations.schedule.interrupted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Interrupted" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Unterbrochen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Interrumpida" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Interrompue" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "中断" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "중단됨" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przerwano" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Interrompida" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Прервано" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Kesintiye uğradı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перервано" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đã gián đoạn" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已中断" } }
+      }
+    },
+    "remoteIntegrations.schedule.noRuns": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No runs yet" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Noch keine Ausführungen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Aún no hay ejecuciones" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucune exécution pour le moment" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "実行履歴はまだありません" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "아직 실행 기록이 없습니다" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Brak uruchomień" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Ainda não há execuções" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Запусков пока нет" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Henüz çalışma yok" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Запусків ще немає" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chưa có lần chạy nào" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "尚无运行记录" } }
+      }
+    },
+    "remoteIntegrations.schedule.previousRuns": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Previous Runs" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Frühere Ausführungen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ejecuciones anteriores" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Exécutions précédentes" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "過去の実行" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이전 실행" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Poprzednie uruchomienia" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Execuções anteriores" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Предыдущие запуски" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Önceki Çalışmalar" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Попередні запуски" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Các lần chạy trước" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "以前的运行" } }
+      }
+    },
     "remoteIntegrations.schedule.failed": {
       "extractionState": "manual",
       "localizations": {
@@ -6632,6 +6686,176 @@
             "value": "没有匹配的计划。"
           }
         }
+      }
+    },
+    "remoteIntegrations.schedule.createWithAgent": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Create with Agent" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Mit Agent erstellen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Crear con un agente" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Créer avec un agent" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "エージェントで作成" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "에이전트로 만들기" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Utwórz z agentem" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Criar com agente" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Создать с агентом" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Ajanla oluştur" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Створити з агентом" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tạo bằng tác nhân" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "使用代理创建" } }
+      }
+    },
+    "remoteIntegrations.schedule.createWithAgent.prompt": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Hilf mir, einen Zeitplan zu erstellen. Frage nach fehlenden Details und erstelle ihn dann mit den Poracode-Zeitplansteuerungen für mich." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ayúdame a crear una programación. Pregunta por los detalles que falten y usa los controles de programación de Poracode para crearla." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Aide-moi à créer une planification. Demande les détails manquants, puis utilise les contrôles de planification Poracode pour la créer." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "スケジュール作成を手伝ってください。不足している詳細を確認し、Poracodeのスケジュール操作を使って作成してください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "일정 생성을 도와주세요. 누락된 세부 정보를 물어본 다음 Poracode 일정 제어를 사용하여 만들어 주세요." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Pomóż mi utworzyć harmonogram. Zapytaj o brakujące szczegóły, a następnie użyj kontrolek harmonogramu Poracode, aby go utworzyć." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Ajude-me a criar um agendamento. Pergunte os detalhes que faltarem e use os controles de agendamento do Poracode para criá-lo." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Помоги мне создать расписание. Спроси недостающие детали, а затем создай его с помощью элементов управления расписаниями Poracode." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bir zamanlama oluşturmama yardım et. Eksik ayrıntıları sor, ardından Poracode zamanlama kontrollerini kullanarak benim için oluştur." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Допоможи мені створити розклад. Запитай відсутні деталі, а потім створи його за допомогою елементів керування розкладами Poracode." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Hãy giúp tôi tạo lịch. Hỏi những chi tiết còn thiếu, sau đó dùng các điều khiển lịch của Poracode để tạo giúp tôi." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "帮助我创建计划。询问缺失的详细信息，然后使用 Poracode 计划控件为我创建。" } }
+      }
+    },
+    "remoteIntegrations.schedule.preset.dailyBrief": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Daily brief" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Tägliche Zusammenfassung" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Resumen diario" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Brief quotidien" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "デイリーブリーフ" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "일일 브리핑" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Codzienne podsumowanie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Resumo diário" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ежедневная сводка" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Günlük özet" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Щоденний огляд" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Bản tóm tắt hằng ngày" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日简报" } }
+      }
+    },
+    "remoteIntegrations.schedule.preset.dailyBrief.prompt": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Review my recent work and summarize today's priorities and next steps." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Prüfe meine letzte Arbeit und fasse die heutigen Prioritäten und nächsten Schritte zusammen." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Revisa mi trabajo reciente y resume las prioridades y los próximos pasos de hoy." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Examine mon travail récent et résume les priorités et les prochaines étapes d'aujourd'hui." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "最近の作業を確認し、今日の優先事項と次のステップをまとめてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "최근 작업을 검토하고 오늘의 우선순위와 다음 단계를 요약해 주세요." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przejrzyj moją ostatnią pracę i podsumuj dzisiejsze priorytety oraz kolejne kroki." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Revise meu trabalho recente e resuma as prioridades e os próximos passos de hoje." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Просмотри мою недавнюю работу и обобщи сегодняшние приоритеты и следующие шаги." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Son çalışmalarımı incele ve bugünün öncelikleriyle sonraki adımları özetle." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Переглянь мою нещодавню роботу та підсумуй сьогоднішні пріоритети й наступні кроки." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xem lại công việc gần đây của tôi và tóm tắt các ưu tiên cùng bước tiếp theo của hôm nay." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "查看我最近的工作，并总结今天的优先事项和后续步骤。" } }
+      }
+    },
+    "remoteIntegrations.schedule.preset.keepOnTrack": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Keep me on track" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Halte mich auf Kurs" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Manténme encaminado" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Garde-moi sur la bonne voie" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "順調に進める" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "계획대로 진행하기" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Pomóż mi trzymać się planu" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mantenha-me no caminho certo" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Помогай мне не сбиваться с курса" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Beni yolunda tut" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Допомагай мені тримати курс" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Giúp tôi đi đúng hướng" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "让我保持正轨" } }
+      }
+    },
+    "remoteIntegrations.schedule.preset.keepOnTrack.prompt": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Check my recent progress and give me one focused recommendation for what to do next." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Prüfe meinen letzten Fortschritt und gib mir eine konkrete Empfehlung für den nächsten Schritt." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Revisa mi progreso reciente y dame una recomendación concreta sobre qué hacer a continuación." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Examine mes progrès récents et donne-moi une recommandation précise pour la suite." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "最近の進捗を確認し、次に何をすべきか具体的な提案を1つしてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "최근 진행 상황을 확인하고 다음에 할 일에 대한 구체적인 권장 사항 하나를 알려 주세요." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Sprawdź moje ostatnie postępy i podaj jedną konkretną rekomendację, co zrobić dalej." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Verifique meu progresso recente e dê uma recomendação objetiva sobre o que fazer em seguida." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверь мой недавний прогресс и дай одну конкретную рекомендацию о следующем шаге." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Son ilerlememi kontrol et ve sırada ne yapmam gerektiğine dair tek bir net öneri ver." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перевір мій нещодавній прогрес і дай одну конкретну рекомендацію щодо наступного кроку." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Kiểm tra tiến độ gần đây của tôi và đưa ra một đề xuất cụ thể về việc cần làm tiếp theo." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "检查我最近的进展，并针对下一步给出一条明确建议。" } }
+      }
+    },
+    "remoteIntegrations.schedule.preset.weeklyReview": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Weekly review" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Wochenrückblick" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Revisión semanal" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Bilan hebdomadaire" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "週次レビュー" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "주간 검토" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przegląd tygodniowy" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Revisão semanal" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Еженедельный обзор" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Haftalık değerlendirme" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Щотижневий огляд" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đánh giá hằng tuần" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "每周回顾" } }
+      }
+    },
+    "remoteIntegrations.schedule.preset.weeklyReview.prompt": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Summarize this week's progress, unfinished work, and the most important risks for next week." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Fasse den Fortschritt dieser Woche, unerledigte Arbeit und die wichtigsten Risiken für nächste Woche zusammen." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Resume el progreso de esta semana, el trabajo pendiente y los riesgos más importantes para la próxima semana." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Résume les progrès de cette semaine, le travail inachevé et les risques les plus importants pour la semaine prochaine." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今週の進捗、未完了の作業、来週の重要なリスクをまとめてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이번 주의 진행 상황, 미완료 작업, 다음 주의 가장 중요한 위험을 요약해 주세요." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Podsumuj postępy w tym tygodniu, niedokończoną pracę i najważniejsze ryzyka na przyszły tydzień." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Resuma o progresso desta semana, o trabalho inacabado e os riscos mais importantes para a próxima semana." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Обобщи прогресс этой недели, незавершённую работу и самые важные риски на следующую неделю." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu haftanın ilerlemesini, tamamlanmamış işleri ve gelecek haftanın en önemli risklerini özetle." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Підсумуй прогрес цього тижня, незавершену роботу й найважливіші ризики на наступний тиждень." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tóm tắt tiến độ tuần này, công việc chưa hoàn thành và những rủi ro quan trọng nhất cho tuần tới." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "总结本周进展、未完成的工作以及下周最重要的风险。" } }
+      }
+    },
+    "remoteIntegrations.schedule.suggestions": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Suggestions" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Vorschläge" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sugerencias" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Suggestions" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "提案" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "제안" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Sugestie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Sugestões" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Предложения" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Öneriler" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Пропозиції" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Gợi ý" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "建议" } }
+      }
+    },
+    "remoteIntegrations.schedule.search": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Search scheduled tasks" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Geplante Aufgaben durchsuchen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Buscar tareas programadas" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Rechercher des tâches planifiées" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "スケジュールされたタスクを検索" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "예약된 작업 검색" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Szukaj zaplanowanych zadań" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Buscar tarefas agendadas" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Поиск запланированных задач" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Zamanlanmış görevlerde ara" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Пошук запланованих завдань" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tìm kiếm tác vụ đã lên lịch" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "搜索计划任务" } }
       }
     },
     "remoteIntegrations.schedule.once": {

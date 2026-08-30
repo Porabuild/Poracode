@@ -6,17 +6,9 @@ enum GitHubOperationsChrome {
   static func card<Content: View>(
     @ViewBuilder content: () -> Content
   ) -> some View {
-    if #available(iOS 26, macOS 26, *) {
-      GlassEffectContainer(spacing: 16) {
-        content()
-          .padding(16)
-          .glassEffect(.regular, in: .rect(cornerRadius: 18))
-      }
-    } else {
-      content()
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
-    }
+    content()
+      .padding(16)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
   }
 
   @MainActor

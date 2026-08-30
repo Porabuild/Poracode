@@ -212,6 +212,29 @@ extension ProjectWorkspaceRemoteAPI {
     baseModifiedAtMs: Double
   ) async throws -> ProjectFileWriteResult { throw ProjectWorkspaceTestError.unimplemented }
 
+  func remoteCreateProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    type: AdvancedProjectEntryType
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
+  func remoteRenameProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    nextName: String
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
+  func remoteMoveProjectEntry(
+    location: ProjectLocation,
+    path: String,
+    nextParentPath: String?
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
+  func remoteDeleteProjectEntry(
+    location: ProjectLocation,
+    path: String
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
   func remoteGetGitStatus(
     location: ProjectLocation,
     detail: ProjectGitStatusDetail?
@@ -271,6 +294,29 @@ extension ProjectWorkspaceGateway {
     baseModifiedAtMs: Double,
     lease: ProjectWorkspaceLease
   ) async throws -> ProjectFileWriteResult { throw ProjectWorkspaceTestError.unimplemented }
+
+  func createProjectEntry(
+    path: String,
+    type: AdvancedProjectEntryType,
+    lease: ProjectWorkspaceLease
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
+  func renameProjectEntry(
+    path: String,
+    nextName: String,
+    lease: ProjectWorkspaceLease
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
+  func moveProjectEntry(
+    path: String,
+    nextParentPath: String?,
+    lease: ProjectWorkspaceLease
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
+
+  func deleteProjectEntry(
+    path: String,
+    lease: ProjectWorkspaceLease
+  ) async throws { throw ProjectWorkspaceTestError.unimplemented }
 
   func getGitStatus(
     detail: ProjectGitStatusDetail?,

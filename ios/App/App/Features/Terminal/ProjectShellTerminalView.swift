@@ -11,14 +11,25 @@ struct ProjectShellTerminalView: View {
   @Bindable var session: AppSession
   let projectLocation: ProjectLocation
   let worktreePath: String?
+  let initialCommand: String?
+  let title: String?
 
   @Environment(\.scenePhase) private var scenePhase
   @State private var shell: ProjectShellTerminalSession
+  @State private var sentInitialCommand = false
 
-  init(session: AppSession, projectLocation: ProjectLocation, worktreePath: String? = nil) {
+  init(
+    session: AppSession,
+    projectLocation: ProjectLocation,
+    worktreePath: String? = nil,
+    initialCommand: String? = nil,
+    title: String? = nil
+  ) {
     self.session = session
     self.projectLocation = projectLocation
     self.worktreePath = worktreePath
+    self.initialCommand = initialCommand
+    self.title = title
     _shell = State(
       initialValue: ProjectShellTerminalSession(
         suite: session.makeRichChatControllerSuite()
@@ -28,11 +39,15 @@ struct ProjectShellTerminalView: View {
 
   var body: some View {
     content
-      .navigationTitle(TerminalStrings.shellTitle)
+      .navigationTitle(title ?? TerminalStrings.shellTitle)
       .navigationBarTitleDisplayMode(.inline)
       .task(id: activationID) { startIfPossible() }
       .onChange(of: session.phase) { updateAccess() }
       .onChange(of: session.socketState) { updateAccess() }
+      .onChange(of: shell.phase) { _, phase in
+        guard phase == .live else { return }
+        sendInitialCommandIfNeeded()
+      }
       .onChange(of: scenePhase) { _, phase in
         guard let access = session.currentRichChatAccess else { return }
         if phase == .background {
@@ -70,7 +85,8 @@ struct ProjectShellTerminalView: View {
         RichTerminalView(
           controller: shell.terminal,
           terminalID: shellID,
-          canOperate: canOperate
+          canOperate: canOperate,
+          textSizeRole: .project
         )
       }
     }
@@ -111,5 +127,15 @@ struct ProjectShellTerminalView: View {
       return
     }
     shell.updateAccess(access)
+  }
+
+  private func sendInitialCommandIfNeeded() {
+    guard !sentInitialCommand,
+      canOperate,
+      let initialCommand,
+      !initialCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else { return }
+    sentInitialCommand = true
+    Task { await shell.terminal.write(initialCommand + "\n") }
   }
 }

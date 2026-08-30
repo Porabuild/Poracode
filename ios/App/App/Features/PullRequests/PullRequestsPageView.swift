@@ -4,11 +4,15 @@ import UIKit
 /// Top-level Pull requests destination from the More sheet, mirroring the
 /// mobile web page: a category filter, grouped PR rows with author, repository,
 /// branch, diff size, and relative update time, per-project load failures, and
-/// pull-to-refresh. Rows open the pull request in Safari.
+/// pull-to-refresh. Rows push into the native review hierarchy; Safari remains
+/// available as a secondary context-menu action.
 struct PullRequestsPageView: View {
   @Bindable var session: AppSession
   @State private var controller: PullRequestsController
   @State private var category: PullRequestsCategory = .all
+  @State private var query = ""
+  @State private var hiddenProjectIDs: Set<String> = []
+  @State private var hiddenAccounts: Set<String> = []
 
   init(session: AppSession) {
     self.session = session
@@ -18,7 +22,12 @@ struct PullRequestsPageView: View {
   private var filtered: [PullRequestsEntry] {
     PullRequestsPresentation.sorted(
       PullRequestsPresentation.deduplicated(
-        controller.entries.filter { PullRequestsPresentation.matches($0, category: category) }
+        controller.entries.filter {
+          PullRequestsPresentation.matches($0, category: category)
+            && !hiddenProjectIDs.contains($0.project.id)
+            && !($0.viewerLogin.map(hiddenAccounts.contains) ?? false)
+            && PullRequestsPresentation.matches($0, query: query)
+        }
       )
     )
   }
@@ -73,18 +82,28 @@ struct PullRequestsPageView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        Button {
+        HostSelectionMenu(session: session)
+      }
+    }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
+      PoracodeBottomActionBar {
+        filtersMenu
+      } trailing: {
+        PoracodeCircleButton {
           Task { await controller.load() }
         } label: {
           if controller.isLoading {
             ProgressView().accessibilityLabel(PullRequestsStrings.refresh)
           } else {
             Label(PullRequestsStrings.refresh, systemImage: "arrow.clockwise")
+              .labelStyle(.iconOnly)
           }
         }
         .disabled(controller.isLoading)
+        .accessibilityIdentifier("native-e2e.pull-requests.refresh")
       }
     }
+    .searchable(text: $query, prompt: PullRequestsStrings.search)
     .safeAreaInset(edge: .top, spacing: 0) {
       Picker(PullRequestsStrings.title, selection: $category) {
         ForEach(PullRequestsCategory.allCases) { value in
@@ -99,14 +118,92 @@ struct PullRequestsPageView: View {
     .task(id: session.currentProjectControllerLease) {
       await controller.load()
     }
+    .onChange(of: session.selectedConnectionId) {
+      resetHostScopedPresentation()
+    }
     .refreshable { await controller.load() }
+  }
+
+  private var filtersMenu: some View {
+    PoracodeCircleMenu {
+      Section(PullRequestsStrings.projects) {
+        ForEach(controller.projects) { project in
+          Button {
+            hiddenProjectIDs = toggled(project.id, in: hiddenProjectIDs)
+          } label: {
+            if hiddenProjectIDs.contains(project.id) {
+              Text(project.name)
+            } else {
+              Label(project.name, systemImage: "checkmark")
+            }
+          }
+        }
+      }
+      if !accounts.isEmpty {
+        Section(PullRequestsStrings.accounts) {
+          ForEach(accounts, id: \.self) { account in
+            Button {
+              hiddenAccounts = toggled(account, in: hiddenAccounts)
+            } label: {
+              if hiddenAccounts.contains(account) {
+                Text(account)
+              } else {
+                Label(account, systemImage: "checkmark")
+              }
+            }
+          }
+        }
+      }
+      if hasHiddenFilters {
+        Button(PullRequestsStrings.showAll) {
+          hiddenProjectIDs.removeAll()
+          hiddenAccounts.removeAll()
+        }
+      }
+    } label: {
+      Label(PullRequestsStrings.filter, systemImage: "line.3.horizontal.decrease.circle")
+        .labelStyle(.iconOnly)
+        .symbolVariant(hasHiddenFilters ? .fill : .none)
+    }
+    .accessibilityLabel(PullRequestsStrings.filter)
+    .accessibilityIdentifier("native-e2e.pull-requests.filter")
+  }
+
+  private var accounts: [String] {
+    Array(Set(controller.entries.compactMap(\.viewerLogin))).sorted()
+  }
+
+  private var hasHiddenFilters: Bool {
+    !hiddenProjectIDs.isEmpty || !hiddenAccounts.isEmpty
+  }
+
+  private func toggled(_ value: String, in set: Set<String>) -> Set<String> {
+    var result = set
+    if result.contains(value) {
+      result.remove(value)
+    } else {
+      result.insert(value)
+    }
+    return result
+  }
+
+  /// Compact web remounts this page with the selected desktop as its key. The
+  /// native page stays mounted, so clear the equivalent host-owned UI state
+  /// before loading the replacement desktop's projects and accounts.
+  private func resetHostScopedPresentation() {
+    category = .all
+    query = ""
+    hiddenProjectIDs.removeAll()
+    hiddenAccounts.removeAll()
   }
 
   @ViewBuilder
   private var groupedRows: some View {
     if filtered.isEmpty {
       Section {
-        emptyRow(controller.entries.isEmpty ? PullRequestsStrings.empty : PullRequestsStrings.emptyFiltered)
+        emptyRow(
+          controller.entries.isEmpty ? PullRequestsStrings.empty : PullRequestsStrings.emptyFiltered
+        )
       }
     } else {
       ForEach(PullRequestsGroup.allCases) { group in
@@ -130,60 +227,79 @@ struct PullRequestsPageView: View {
       .padding(.vertical, 24)
   }
 
+  @ViewBuilder
   private func row(_ entry: PullRequestsEntry) -> some View {
-    Button {
-      open(entry)
-    } label: {
-      HStack(alignment: .top, spacing: 12) {
-        Image(systemName: "arrow.triangle.pull")
-          .foregroundStyle(statusColor(entry))
-          .padding(.top, 2)
-        VStack(alignment: .leading, spacing: 4) {
-          Text(entry.summary.title)
-            .font(.body.weight(.medium))
-            .foregroundStyle(.primary)
-            .multilineTextAlignment(.leading)
-            .lineLimit(2)
-          HStack(spacing: 6) {
-            Text(metaLine(entry))
-            if let branches = branchesLine(entry) {
-              Text(branches)
-                .monospaced()
-            }
-          }
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-        }
-        Spacer(minLength: 8)
-        VStack(alignment: .trailing, spacing: 4) {
-          if let time = entry.updatedAt.map(PullRequestsDate.format) {
-            Text(time)
-              .font(.caption2.monospacedDigit())
-              .foregroundStyle(.secondary)
-          }
-          if let changes = changesLine(entry) {
-            Text(changes.additions)
-              .font(.caption2.monospacedDigit())
-              .foregroundStyle(.green)
-            + Text(" ")
-              .font(.caption2)
-            + Text(changes.deletions)
-              .font(.caption2.monospacedDigit())
-              .foregroundStyle(.red)
-          }
+    if let connectionID = session.selectedConnectionId {
+      NavigationLink {
+        ProjectWorkspaceSessionView(
+          session: session,
+          identity: ProjectIdentity(connectionId: connectionID, projectId: entry.project.id),
+          location: entry.project.location,
+          entryPoint: .pullRequest(PullRequestReviewRoute(entry: entry))
+        )
+      } label: {
+        rowLabel(entry)
+      }
+      .contextMenu {
+        Button(PullRequestsStrings.openExternally, systemImage: "safari") {
+          open(entry)
         }
       }
-      .padding(.vertical, 2)
-      .contentShape(Rectangle())
-    }
-    .buttonStyle(.plain)
-    .contextMenu {
-      Button(PullRequestsStrings.openExternally, systemImage: "safari") {
+      .accessibilityLabel(accessibilityLabel(entry))
+    } else {
+      Button {
         open(entry)
+      } label: {
+        rowLabel(entry)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(accessibilityLabel(entry))
+    }
+  }
+
+  private func rowLabel(_ entry: PullRequestsEntry) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+      Image(systemName: "arrow.triangle.pull")
+        .foregroundStyle(statusColor(entry))
+        .padding(.top, 2)
+      VStack(alignment: .leading, spacing: 4) {
+        Text(entry.summary.title)
+          .font(.body.weight(.medium))
+          .foregroundStyle(.primary)
+          .multilineTextAlignment(.leading)
+          .lineLimit(2)
+        HStack(spacing: 6) {
+          Text(metaLine(entry))
+          if let branches = branchesLine(entry) {
+            Text(branches)
+              .monospaced()
+          }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+      }
+      Spacer(minLength: 8)
+      VStack(alignment: .trailing, spacing: 4) {
+        if let time = entry.updatedAt.map(PullRequestsDate.format) {
+          Text(time)
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
+        if let changes = changesLine(entry) {
+          Text(changes.additions)
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.green)
+            + Text(" ")
+            .font(.caption2)
+            + Text(changes.deletions)
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.red)
+        }
       }
     }
-    .accessibilityLabel(accessibilityLabel(entry))
+    .padding(.vertical, 2)
+    .contentShape(Rectangle())
   }
 
   private func open(_ entry: PullRequestsEntry) {

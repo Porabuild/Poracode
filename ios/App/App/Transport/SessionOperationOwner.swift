@@ -13,6 +13,7 @@ struct SessionOperationOwner: Sendable, Equatable {
         case unpair
         case connect
         case switchHost
+        case renameHost
         case removeHost
     }
 
@@ -39,6 +40,17 @@ struct SessionOperationOwner: Sendable, Equatable {
         return Begin(epoch: epoch, operationId: operationId, workGeneration: workGeneration)
     }
 
+    /// Begin a durable metadata mutation without invalidating live transport
+    /// leases or stealing the session epoch from an in-flight host switch. The
+    /// catalog operation id still serializes durable writes, while the caller
+    /// checks that exact id before publishing metadata back to UI state.
+    @discardableResult
+    mutating func beginMetadata(_ kind: Kind) -> Begin {
+        operationId &+= 1
+        self.kind = kind
+        return Begin(epoch: epoch, operationId: operationId, workGeneration: workGeneration)
+    }
+
     /// Bump work generation only (e.g. cancel stale HTTP without starting pair).
     /// Does **not** advance durable `operationId`.
     @discardableResult
@@ -49,6 +61,10 @@ struct SessionOperationOwner: Sendable, Equatable {
 
     func isCurrent(_ ownerEpoch: Int) -> Bool {
         ownerEpoch == epoch
+    }
+
+    func isCurrentOperation(_ id: UInt64) -> Bool {
+        id == operationId
     }
 
     func isCurrentWork(_ generation: Int) -> Bool {

@@ -4,6 +4,29 @@ import XCTest
 
 @MainActor
 final class ProjectControllerDataControllerTests: XCTestCase {
+  func testDeactivateInvalidatesSettingsResponseEvenAfterSameLeaseReactivates() async {
+    let gateway = ProjectControllerGatewayFake()
+    let barrier = ProjectControllerTestBarrier()
+    let identity = ProjectIdentity(
+      connectionId: ProjectControllerTestValues.hostA,
+      projectId: "project"
+    )
+    await gateway.enqueueSettings(.value(settings(serverID: "stale")))
+    await gateway.setSettingsBarriers([barrier])
+    let controller = ProjectControllerSettingsController(gateway: gateway)
+    let session = ProjectControllerTestValues.session(ProjectControllerTestValues.hostA)
+    controller.activate(session)
+
+    let operation = Task { await controller.load(identity) }
+    await barrier.waitUntilReached()
+    controller.deactivate()
+    controller.activate(session)
+    await barrier.release()
+    await operation.value
+
+    XCTAssertNil(controller.cachedSettings(for: identity))
+  }
+
   func testSettingsCacheUsesHostAndProjectIdentityAndInvalidatesCurrentHostOnly() async {
     let gateway = ProjectControllerGatewayFake()
     let controller = ProjectControllerSettingsController(gateway: gateway)
@@ -84,6 +107,27 @@ final class ProjectControllerDataControllerTests: XCTestCase {
     XCTAssertEqual(controller.state.listing, result)
     XCTAssertTrue(controller.state.listing?.isDriveList == true)
     XCTAssertEqual(controller.state.listing?.entries.map(\.name), ["資料", "Ångström", "z.txt"])
+  }
+
+  func testDirectoryDeactivateClearsPreviousHostListingAndLease() async {
+    let gateway = ProjectControllerGatewayFake()
+    let result = BrowseHostDirectoryResult(
+      path: "/old",
+      parentPath: "/",
+      homePath: "/home/user",
+      entries: [],
+      truncated: false
+    )
+    await gateway.enqueueBrowse(.value(result))
+    let controller = ProjectControllerDirectoryController(gateway: gateway)
+    controller.activate(ProjectControllerTestValues.session(ProjectControllerTestValues.hostA))
+    await controller.navigate(to: result.path)
+
+    controller.deactivate()
+
+    XCTAssertNil(controller.state.lease)
+    XCTAssertNil(controller.state.listing)
+    XCTAssertEqual(controller.state.requestedPath, "")
   }
 
   func testDirectoryClearsPreviousListingImmediatelyAndKeepsItClearOnFailure() async {

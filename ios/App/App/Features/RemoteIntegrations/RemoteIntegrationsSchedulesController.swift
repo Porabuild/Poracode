@@ -131,3 +131,63 @@ final class RemoteIntegrationsSchedulesController {
     isMutating = false
   }
 }
+
+@MainActor
+@Observable
+final class RemoteIntegrationsScheduleRunsController {
+  private(set) var lease: RemoteIntegrationsHostLease?
+  private(set) var scheduleID: String?
+  private(set) var state: RemoteIntegrationsLoadState = .idle
+  private(set) var runs: [RemoteIntegrationsScheduleRun] = []
+
+  @ObservationIgnored private let gateway: any RemoteIntegrationsGateway
+  @ObservationIgnored private var requestOrdinal: UInt64 = 0
+  @ObservationIgnored private var task: Task<Void, Never>?
+
+  init(gateway: any RemoteIntegrationsGateway) { self.gateway = gateway }
+
+  func activate(_ lease: RemoteIntegrationsHostLease?) {
+    guard self.lease != lease else { return }
+    replaceRequest()
+    self.lease = lease
+    scheduleID = nil
+    state = .idle
+    runs = []
+  }
+
+  func load(scheduleID: String) async {
+    guard let lease else { return }
+    replaceRequest()
+    let ordinal = requestOrdinal
+    self.scheduleID = scheduleID
+    state = .loading
+    runs = []
+    let gateway = self.gateway
+    let pending = Task {
+      do {
+        let response = try await gateway.scheduleRuns(id: scheduleID, lease: lease)
+        try Task.checkCancellation()
+        guard self.requestOrdinal == ordinal, self.lease == lease,
+          self.scheduleID == scheduleID
+        else { return }
+        self.runs = response.runs
+        self.state = .loaded
+      } catch is CancellationError {
+      } catch {
+        guard self.requestOrdinal == ordinal, self.lease == lease,
+          self.scheduleID == scheduleID
+        else { return }
+        self.state = .failed(RemoteIntegrationsFailure.map(error))
+      }
+      if self.requestOrdinal == ordinal { self.task = nil }
+    }
+    task = pending
+    await pending.value
+  }
+
+  private func replaceRequest() {
+    requestOrdinal &+= 1
+    task?.cancel()
+    task = nil
+  }
+}

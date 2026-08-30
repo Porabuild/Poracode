@@ -209,6 +209,13 @@ private actor RemoteIntegrationsControllerGateway: RemoteIntegrationsGateway {
     return .init(schedules: [], schedule: nil)
   }
 
+  func scheduleRuns(
+    id: String,
+    lease: RemoteIntegrationsHostLease
+  ) -> RemoteIntegrationsScheduleRunsResponse {
+    .init(runs: [])
+  }
+
   func scheduleCommand(
     _ command: RemoteIntegrationsScheduleCommand,
     lease: RemoteIntegrationsHostLease

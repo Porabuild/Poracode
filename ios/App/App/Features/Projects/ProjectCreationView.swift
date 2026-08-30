@@ -21,7 +21,7 @@ struct ProjectCreationView: View {
         .labelsHidden()
 
         Section {
-          TextField(ProjectManagementStrings.folder, text: $draft.path)
+          TextField(pathLabel, text: $draft.path)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
           Button(ProjectManagementStrings.browse, systemImage: "folder") {
@@ -29,10 +29,15 @@ struct ProjectCreationView: View {
           }
         }
 
-        Section {
-          TextField(ProjectManagementStrings.name, text: $draft.name)
-            .textInputAutocapitalization(.words)
-          if draft.kind == .clone {
+        if draft.kind == .create {
+          Section {
+            TextField(ProjectManagementStrings.name, text: $draft.name)
+              .textInputAutocapitalization(.words)
+          }
+        }
+
+        if draft.kind == .clone {
+          Section {
             TextField(ProjectManagementStrings.repositoryURL, text: $draft.cloneURL)
               .textInputAutocapitalization(.never)
               .autocorrectionDisabled()
@@ -57,7 +62,7 @@ struct ProjectCreationView: View {
           Button(ProjectManagementStrings.cancel) { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button(ProjectManagementStrings.add) {
+          Button(submitLabel) {
             submit()
           }
           .disabled(controller.state.isExecuting || !canSubmit)
@@ -65,7 +70,7 @@ struct ProjectCreationView: View {
       }
       .interactiveDismissDisabled(controller.state.isExecuting)
       .sheet(isPresented: $showingBrowser) {
-        ProjectDirectoryBrowser(controller: directoryController) { path in
+        ProjectDirectoryBrowser(controller: directoryController, initialPath: draft.path) { path in
           draft.path = path
         }
       }
@@ -79,6 +84,18 @@ struct ProjectCreationView: View {
 
   private var canSubmit: Bool {
     (try? draft.command()) != nil
+  }
+
+  private var pathLabel: String {
+    draft.kind == .addExisting ? ProjectManagementStrings.folder : ProjectManagementStrings.parent
+  }
+
+  private var submitLabel: String {
+    switch draft.kind {
+    case .addExisting: ProjectManagementStrings.add
+    case .create: ProjectManagementStrings.create
+    case .clone: ProjectManagementStrings.clone
+    }
   }
 
   private func submit() {

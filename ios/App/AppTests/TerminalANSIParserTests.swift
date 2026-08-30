@@ -46,5 +46,43 @@ final class TerminalANSIParserTests: XCTestCase {
     XCTAssertNotNil(size)
     XCTAssertTrue((1...1_000).contains(size?.columns ?? 0))
     XCTAssertTrue((1...1_000).contains(size?.rows ?? 0))
+    XCTAssertEqual(PoracodeTerminalTextSize.resolve(7), 8)
+    XCTAssertEqual(PoracodeTerminalTextSize.resolve(13), 13)
+    XCTAssertEqual(PoracodeTerminalTextSize.resolve(21), 20)
+    XCTAssertTrue(PoracodeTerminalTextSize.storageKey.hasSuffix(".v1"))
+    XCTAssertTrue(PoracodeTerminalTextSize.projectStorageKey.hasSuffix(".v1"))
+  }
+
+  func testProjectTerminalSizeFallsBackToTheLegacySharedValueUntilCustomized() throws {
+    let suite = "poracode.tests.terminal-size.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(17, forKey: PoracodeTerminalTextSize.storageKey)
+
+    XCTAssertEqual(PoracodeTerminalTextSizeRole.agent.initialValue(in: defaults), 17)
+    XCTAssertEqual(PoracodeTerminalTextSizeRole.project.initialValue(in: defaults), 17)
+
+    defaults.set(11, forKey: PoracodeTerminalTextSize.projectStorageKey)
+    XCTAssertEqual(PoracodeTerminalTextSizeRole.project.initialValue(in: defaults), 11)
+  }
+
+  func testVirtualTerminalAccessoryMatchesCompactKeyboardSequences() {
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.escape), "\u{1B}")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.tab), "\t")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.enter), "\r")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.backspace), "\u{7F}")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.up), "\u{1B}[A")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.left), "\u{1B}[D")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.c, modifiers: [.control]), "\u{3}")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.tab, modifiers: [.control]), "\u{1B}[9;5u")
+    XCTAssertEqual(TerminalVirtualKeyEncoder.encode(.tab, modifiers: [.shift]), "\u{1B}[Z")
+    XCTAssertEqual(
+      TerminalVirtualKeyEncoder.encode(.right, modifiers: [.shift, .command]),
+      "\u{1B}[1;10C"
+    )
+    XCTAssertEqual(
+      TerminalVirtualKeyEncoder.encode(.t, modifiers: [.command]),
+      "\u{1B}[84;9u"
+    )
   }
 }

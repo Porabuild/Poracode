@@ -79,6 +79,54 @@ final class ProjectWorkspaceRemoteAPITests: XCTestCase {
     }
   }
 
+  func testCreateEntryUsesCanonicalSingleAttemptProcedure() async throws {
+    ProjectWorkspaceURLProtocol.responses = [.http(status: 200, body: Data("{}".utf8))]
+
+    try await makeClient().remoteCreateProjectEntry(
+      location: .posix(path: "/repo"),
+      path: "Sources/New.swift",
+      type: .file
+    )
+
+    let request = try XCTUnwrap(ProjectWorkspaceURLProtocol.requests.last)
+    XCTAssertEqual(request.url?.path, "/prefix/api/git/call")
+    XCTAssertEqual(request.httpMethod, "POST")
+    let body = try XCTUnwrap(ProjectWorkspaceURLProtocol.bodies.last ?? nil)
+    let envelope = try JSONDecoder().decode(JSONValue.self, from: body)
+    XCTAssertEqual(
+      envelope,
+      .object([
+        "procedure": .string("createProjectEntry"),
+        "payload": .object([
+          "projectLocation": .object([
+            "kind": .string("posix"),
+            "path": .string("/repo"),
+          ]),
+          "path": .string("Sources/New.swift"),
+          "type": .string("file"),
+        ]),
+      ])
+    )
+    XCTAssertEqual(ProjectWorkspaceURLProtocol.requests.count, 1)
+  }
+
+  func testCreateEntryMalformedSuccessIsAmbiguousAndNeverRetried() async throws {
+    ProjectWorkspaceURLProtocol.responses = [
+      .http(status: 200, body: Data(#"{"result":{}}"#.utf8))
+    ]
+
+    do {
+      try await makeClient().remoteCreateProjectEntry(
+        location: .posix(path: "/repo"),
+        path: "Sources/New.swift",
+        type: .file
+      )
+      XCTFail("Expected ambiguous outcome")
+    } catch ProjectRemoteMutationError.ambiguousOutcome {
+      XCTAssertEqual(ProjectWorkspaceURLProtocol.requests.count, 1)
+    }
+  }
+
   func testInvalidGeneratedRequestNeverReachesTransport() async throws {
     do {
       _ = try await makeClient().remoteSearchProjectFiles(

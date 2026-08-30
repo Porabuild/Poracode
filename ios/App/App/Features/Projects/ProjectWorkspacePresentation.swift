@@ -167,3 +167,26 @@ enum ProjectWorkspacePath {
     return components.dropLast().joined(separator: "/")
   }
 }
+
+enum ProjectReviewCommentThreadResolver {
+  static func resolve(
+    threads: [RemoteThread],
+    projectID: String,
+    worktreePath: String?,
+    originThreadID: String?
+  ) -> RemoteThread? {
+    let candidates = threads.filter {
+      $0.projectId == projectID
+        && normalized($0.worktreePath) == normalized(worktreePath)
+        && !$0.isArchived && !$0.isDone
+        && ThreadPresentationFilter.isGUIPresentation($0.presentationMode)
+    }
+    return candidates.first(where: { $0.id == originThreadID })
+      ?? candidates.max(by: { $0.updatedAt < $1.updatedAt })
+  }
+
+  private static func normalized(_ value: String?) -> String? {
+    guard let value, !value.isEmpty else { return nil }
+    return value
+  }
+}

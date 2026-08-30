@@ -14,6 +14,8 @@ struct GitHubOperationFormView: View {
     accounts: [GitHubAccountSummary],
     pullRequests: [GitHubPullRequestSummary],
     workflows: [GitHubWorkflowSummary],
+    initialBranch: String = "",
+    initialBaseBranch: String = "main",
     submit: @escaping @MainActor (GitHubOperationRequest) async -> Void
   ) {
     self.procedure = procedure
@@ -23,7 +25,9 @@ struct GitHubOperationFormView: View {
       initialValue: GitHubOperationDraft(
         account: accounts.first,
         pullRequest: pullRequests.first,
-        workflow: workflows.first
+        workflow: workflows.first,
+        initialBranch: initialBranch,
+        initialBaseBranch: initialBaseBranch
       )
     )
   }
@@ -240,12 +244,16 @@ private struct GitHubOperationDraft {
   init(
     account: GitHubAccountSummary?,
     pullRequest: GitHubPullRequestSummary?,
-    workflow: GitHubWorkflowSummary?
+    workflow: GitHubWorkflowSummary?,
+    initialBranch: String = "",
+    initialBaseBranch: String = "main"
   ) {
     accountHost = account?.host ?? ""
     accountLogin = account?.login ?? ""
     pullRequestNumber = pullRequest.map { String($0.number) } ?? ""
     workflowId = workflow.map { String($0.id) } ?? ""
+    branch = initialBranch
+    baseBranch = initialBaseBranch
   }
 
   func request(

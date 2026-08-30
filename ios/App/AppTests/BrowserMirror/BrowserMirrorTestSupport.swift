@@ -108,6 +108,7 @@ actor BrowserMirrorGatewaySpy: BrowserMirrorGateway {
   func setCommandOutcome(_ value: CommandOutcome) { commandOutcome = value }
   func recordedStateCalls() -> [BrowserMirrorHostLease] { stateCalls }
   func recordedCommandCount() -> Int { commandCalls.count }
+  func recordedCommands() -> [BrowserMirrorCommand] { commandCalls.map(\.0) }
 
   func state(lease: BrowserMirrorHostLease) async throws -> BrowserMirrorState {
     stateCalls.append(lease)

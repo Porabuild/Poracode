@@ -1,0 +1,2928 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "projectSettings.general": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allgemein"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Général"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一般"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일반"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogólne"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geral"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Общие"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genel"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загальні"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "chung"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一般"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktrees"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktrees"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktrees"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbres de travail"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワークツリー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업 트리"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drzewa robocze"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Árvores de trabalho"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktrees"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çalışma ağaçları"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktrees"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cây làm việc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作树"
+          }
+        }
+      }
+    },
+    "projectSettings.actions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktionen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acciones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクション"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Działania"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ações"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Действия"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eylemler"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дії"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hành động"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作"
+          }
+        }
+      }
+    },
+    "projectSettings.skills": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compétences"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキル"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스킬"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umiejętności"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Навыки"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beceriler"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Навички"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "技能"
+          }
+        }
+      }
+    },
+    "projectSettings.mcp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP Servers"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP-Server"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servidores MCP"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveurs MCP"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCPサーバー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP 서버"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serwery MCP"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servidores MCP"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Серверы MCP"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP sunucuları"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сервери MCP"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ MCP"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP 服务器"
+          }
+        }
+      }
+    },
+    "projectSettings.mcp.add": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Add MCP Server"}},"de":{"stringUnit":{"state":"translated","value":"MCP-Server hinzufügen"}},"es":{"stringUnit":{"state":"translated","value":"Añadir servidor MCP"}},"fr":{"stringUnit":{"state":"translated","value":"Ajouter un serveur MCP"}},"ja":{"stringUnit":{"state":"translated","value":"MCPサーバーを追加"}},"ko":{"stringUnit":{"state":"translated","value":"MCP 서버 추가"}},"pl":{"stringUnit":{"state":"translated","value":"Dodaj serwer MCP"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Adicionar servidor MCP"}},"ru":{"stringUnit":{"state":"translated","value":"Добавить сервер MCP"}},"tr":{"stringUnit":{"state":"translated","value":"MCP sunucusu ekle"}},"uk":{"stringUnit":{"state":"translated","value":"Додати сервер MCP"}},"vi":{"stringUnit":{"state":"translated","value":"Thêm máy chủ MCP"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"添加 MCP 服务器"}}}},
+    "projectSettings.mcp.edit": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Edit MCP Server"}},"de":{"stringUnit":{"state":"translated","value":"MCP-Server bearbeiten"}},"es":{"stringUnit":{"state":"translated","value":"Editar servidor MCP"}},"fr":{"stringUnit":{"state":"translated","value":"Modifier le serveur MCP"}},"ja":{"stringUnit":{"state":"translated","value":"MCPサーバーを編集"}},"ko":{"stringUnit":{"state":"translated","value":"MCP 서버 편집"}},"pl":{"stringUnit":{"state":"translated","value":"Edytuj serwer MCP"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Editar servidor MCP"}},"ru":{"stringUnit":{"state":"translated","value":"Изменить сервер MCP"}},"tr":{"stringUnit":{"state":"translated","value":"MCP sunucusunu düzenle"}},"uk":{"stringUnit":{"state":"translated","value":"Редагувати сервер MCP"}},"vi":{"stringUnit":{"state":"translated","value":"Sửa máy chủ MCP"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"编辑 MCP 服务器"}}}},
+    "projectSettings.mcp.discoverImport": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Discover and Import"}},"de":{"stringUnit":{"state":"translated","value":"Entdecken und importieren"}},"es":{"stringUnit":{"state":"translated","value":"Detectar e importar"}},"fr":{"stringUnit":{"state":"translated","value":"Découvrir et importer"}},"ja":{"stringUnit":{"state":"translated","value":"検出して読み込む"}},"ko":{"stringUnit":{"state":"translated","value":"검색 및 가져오기"}},"pl":{"stringUnit":{"state":"translated","value":"Wykryj i zaimportuj"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Descobrir e importar"}},"ru":{"stringUnit":{"state":"translated","value":"Обнаружить и импортировать"}},"tr":{"stringUnit":{"state":"translated","value":"Keşfet ve içe aktar"}},"uk":{"stringUnit":{"state":"translated","value":"Виявити та імпортувати"}},"vi":{"stringUnit":{"state":"translated","value":"Khám phá và nhập"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"发现并导入"}}}},
+    "projectSettings.mcp.empty": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"No configured MCP servers yet"}},"de":{"stringUnit":{"state":"translated","value":"Noch keine MCP-Server konfiguriert"}},"es":{"stringUnit":{"state":"translated","value":"Aún no hay servidores MCP configurados"}},"fr":{"stringUnit":{"state":"translated","value":"Aucun serveur MCP configuré"}},"ja":{"stringUnit":{"state":"translated","value":"設定済みのMCPサーバーはまだありません"}},"ko":{"stringUnit":{"state":"translated","value":"아직 구성된 MCP 서버가 없습니다"}},"pl":{"stringUnit":{"state":"translated","value":"Brak skonfigurowanych serwerów MCP"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Ainda não há servidores MCP configurados"}},"ru":{"stringUnit":{"state":"translated","value":"Настроенных серверов MCP пока нет"}},"tr":{"stringUnit":{"state":"translated","value":"Henüz yapılandırılmış MCP sunucusu yok"}},"uk":{"stringUnit":{"state":"translated","value":"Налаштованих серверів MCP ще немає"}},"vi":{"stringUnit":{"state":"translated","value":"Chưa có máy chủ MCP nào được cấu hình"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"尚未配置 MCP 服务器"}}}},
+    "projectSettings.mcp.enabled": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Enabled"}},"de":{"stringUnit":{"state":"translated","value":"Aktiviert"}},"es":{"stringUnit":{"state":"translated","value":"Activado"}},"fr":{"stringUnit":{"state":"translated","value":"Activé"}},"ja":{"stringUnit":{"state":"translated","value":"有効"}},"ko":{"stringUnit":{"state":"translated","value":"활성화됨"}},"pl":{"stringUnit":{"state":"translated","value":"Włączony"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Ativado"}},"ru":{"stringUnit":{"state":"translated","value":"Включён"}},"tr":{"stringUnit":{"state":"translated","value":"Etkin"}},"uk":{"stringUnit":{"state":"translated","value":"Увімкнено"}},"vi":{"stringUnit":{"state":"translated","value":"Đã bật"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已启用"}}}},
+    "projectSettings.mcp.transport": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Transport"}},"de":{"stringUnit":{"state":"translated","value":"Transport"}},"es":{"stringUnit":{"state":"translated","value":"Transporte"}},"fr":{"stringUnit":{"state":"translated","value":"Transport"}},"ja":{"stringUnit":{"state":"translated","value":"トランスポート"}},"ko":{"stringUnit":{"state":"translated","value":"전송 방식"}},"pl":{"stringUnit":{"state":"translated","value":"Transport"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Transporte"}},"ru":{"stringUnit":{"state":"translated","value":"Транспорт"}},"tr":{"stringUnit":{"state":"translated","value":"Aktarım"}},"uk":{"stringUnit":{"state":"translated","value":"Транспорт"}},"vi":{"stringUnit":{"state":"translated","value":"Phương thức truyền"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"传输方式"}}}},
+    "projectSettings.mcp.timeout": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Timeout (ms)"}},"de":{"stringUnit":{"state":"translated","value":"Zeitlimit (ms)"}},"es":{"stringUnit":{"state":"translated","value":"Tiempo de espera (ms)"}},"fr":{"stringUnit":{"state":"translated","value":"Délai d’expiration (ms)"}},"ja":{"stringUnit":{"state":"translated","value":"タイムアウト（ms）"}},"ko":{"stringUnit":{"state":"translated","value":"시간 초과(ms)"}},"pl":{"stringUnit":{"state":"translated","value":"Limit czasu (ms)"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Tempo limite (ms)"}},"ru":{"stringUnit":{"state":"translated","value":"Тайм-аут (мс)"}},"tr":{"stringUnit":{"state":"translated","value":"Zaman aşımı (ms)"}},"uk":{"stringUnit":{"state":"translated","value":"Тайм-аут (мс)"}},"vi":{"stringUnit":{"state":"translated","value":"Thời gian chờ (ms)"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"超时（毫秒）"}}}},
+    "projectSettings.mcp.command": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Command"}},"de":{"stringUnit":{"state":"translated","value":"Befehl"}},"es":{"stringUnit":{"state":"translated","value":"Comando"}},"fr":{"stringUnit":{"state":"translated","value":"Commande"}},"ja":{"stringUnit":{"state":"translated","value":"コマンド"}},"ko":{"stringUnit":{"state":"translated","value":"명령"}},"pl":{"stringUnit":{"state":"translated","value":"Polecenie"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Comando"}},"ru":{"stringUnit":{"state":"translated","value":"Команда"}},"tr":{"stringUnit":{"state":"translated","value":"Komut"}},"uk":{"stringUnit":{"state":"translated","value":"Команда"}},"vi":{"stringUnit":{"state":"translated","value":"Lệnh"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"命令"}}}},
+    "projectSettings.mcp.arguments": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Arguments"}},"de":{"stringUnit":{"state":"translated","value":"Argumente"}},"es":{"stringUnit":{"state":"translated","value":"Argumentos"}},"fr":{"stringUnit":{"state":"translated","value":"Arguments"}},"ja":{"stringUnit":{"state":"translated","value":"引数"}},"ko":{"stringUnit":{"state":"translated","value":"인수"}},"pl":{"stringUnit":{"state":"translated","value":"Argumenty"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Argumentos"}},"ru":{"stringUnit":{"state":"translated","value":"Аргументы"}},"tr":{"stringUnit":{"state":"translated","value":"Bağımsız değişkenler"}},"uk":{"stringUnit":{"state":"translated","value":"Аргументи"}},"vi":{"stringUnit":{"state":"translated","value":"Đối số"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"参数"}}}},
+    "projectSettings.mcp.environment": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Environment Variables"}},"de":{"stringUnit":{"state":"translated","value":"Umgebungsvariablen"}},"es":{"stringUnit":{"state":"translated","value":"Variables de entorno"}},"fr":{"stringUnit":{"state":"translated","value":"Variables d’environnement"}},"ja":{"stringUnit":{"state":"translated","value":"環境変数"}},"ko":{"stringUnit":{"state":"translated","value":"환경 변수"}},"pl":{"stringUnit":{"state":"translated","value":"Zmienne środowiskowe"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Variáveis de ambiente"}},"ru":{"stringUnit":{"state":"translated","value":"Переменные окружения"}},"tr":{"stringUnit":{"state":"translated","value":"Ortam değişkenleri"}},"uk":{"stringUnit":{"state":"translated","value":"Змінні середовища"}},"vi":{"stringUnit":{"state":"translated","value":"Biến môi trường"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"环境变量"}}}},
+    "projectSettings.mcp.workingDirectory": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Working Directory"}},"de":{"stringUnit":{"state":"translated","value":"Arbeitsverzeichnis"}},"es":{"stringUnit":{"state":"translated","value":"Directorio de trabajo"}},"fr":{"stringUnit":{"state":"translated","value":"Répertoire de travail"}},"ja":{"stringUnit":{"state":"translated","value":"作業ディレクトリ"}},"ko":{"stringUnit":{"state":"translated","value":"작업 디렉터리"}},"pl":{"stringUnit":{"state":"translated","value":"Katalog roboczy"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Diretório de trabalho"}},"ru":{"stringUnit":{"state":"translated","value":"Рабочая папка"}},"tr":{"stringUnit":{"state":"translated","value":"Çalışma dizini"}},"uk":{"stringUnit":{"state":"translated","value":"Робоча папка"}},"vi":{"stringUnit":{"state":"translated","value":"Thư mục làm việc"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"工作目录"}}}},
+    "projectSettings.mcp.url": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"URL"}},"de":{"stringUnit":{"state":"translated","value":"URL"}},"es":{"stringUnit":{"state":"translated","value":"URL"}},"fr":{"stringUnit":{"state":"translated","value":"URL"}},"ja":{"stringUnit":{"state":"translated","value":"URL"}},"ko":{"stringUnit":{"state":"translated","value":"URL"}},"pl":{"stringUnit":{"state":"translated","value":"URL"}},"pt-BR":{"stringUnit":{"state":"translated","value":"URL"}},"ru":{"stringUnit":{"state":"translated","value":"URL"}},"tr":{"stringUnit":{"state":"translated","value":"URL"}},"uk":{"stringUnit":{"state":"translated","value":"URL"}},"vi":{"stringUnit":{"state":"translated","value":"URL"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"URL"}}}},
+    "projectSettings.mcp.headers": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Headers"}},"de":{"stringUnit":{"state":"translated","value":"Header"}},"es":{"stringUnit":{"state":"translated","value":"Encabezados"}},"fr":{"stringUnit":{"state":"translated","value":"En-têtes"}},"ja":{"stringUnit":{"state":"translated","value":"ヘッダー"}},"ko":{"stringUnit":{"state":"translated","value":"헤더"}},"pl":{"stringUnit":{"state":"translated","value":"Nagłówki"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Cabeçalhos"}},"ru":{"stringUnit":{"state":"translated","value":"Заголовки"}},"tr":{"stringUnit":{"state":"translated","value":"Üst bilgiler"}},"uk":{"stringUnit":{"state":"translated","value":"Заголовки"}},"vi":{"stringUnit":{"state":"translated","value":"Tiêu đề"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请求头"}}}},
+    "projectSettings.mcp.description": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Description"}},"de":{"stringUnit":{"state":"translated","value":"Beschreibung"}},"es":{"stringUnit":{"state":"translated","value":"Descripción"}},"fr":{"stringUnit":{"state":"translated","value":"Description"}},"ja":{"stringUnit":{"state":"translated","value":"説明"}},"ko":{"stringUnit":{"state":"translated","value":"설명"}},"pl":{"stringUnit":{"state":"translated","value":"Opis"}},"pt-BR":{"stringUnit":{"state":"translated","value":"Descrição"}},"ru":{"stringUnit":{"state":"translated","value":"Описание"}},"tr":{"stringUnit":{"state":"translated","value":"Açıklama"}},"uk":{"stringUnit":{"state":"translated","value":"Опис"}},"vi":{"stringUnit":{"state":"translated","value":"Mô tả"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"描述"}}}},
+    "projectSettings.mcp.error.name": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Enter a valid server name."}},"de":{"stringUnit":{"state":"translated","value":"Gib einen gültigen Servernamen ein."}},"es":{"stringUnit":{"state":"translated","value":"Introduce un nombre de servidor válido."}},"fr":{"stringUnit":{"state":"translated","value":"Saisissez un nom de serveur valide."}},"ja":{"stringUnit":{"state":"translated","value":"有効なサーバー名を入力してください。"}},"ko":{"stringUnit":{"state":"translated","value":"올바른 서버 이름을 입력하세요."}},"pl":{"stringUnit":{"state":"translated","value":"Wprowadź prawidłową nazwę serwera."}},"pt-BR":{"stringUnit":{"state":"translated","value":"Insira um nome de servidor válido."}},"ru":{"stringUnit":{"state":"translated","value":"Введите допустимое имя сервера."}},"tr":{"stringUnit":{"state":"translated","value":"Geçerli bir sunucu adı girin."}},"uk":{"stringUnit":{"state":"translated","value":"Введіть припустиме ім’я сервера."}},"vi":{"stringUnit":{"state":"translated","value":"Nhập tên máy chủ hợp lệ."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请输入有效的服务器名称。"}}}},
+    "projectSettings.mcp.error.uniqueName": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Enter a unique server name that is not reserved."}},"de":{"stringUnit":{"state":"translated","value":"Gib einen eindeutigen, nicht reservierten Servernamen ein."}},"es":{"stringUnit":{"state":"translated","value":"Introduce un nombre de servidor único que no esté reservado."}},"fr":{"stringUnit":{"state":"translated","value":"Saisissez un nom de serveur unique qui n’est pas réservé."}},"ja":{"stringUnit":{"state":"translated","value":"予約されていない一意のサーバー名を入力してください。"}},"ko":{"stringUnit":{"state":"translated","value":"예약되지 않은 고유한 서버 이름을 입력하세요."}},"pl":{"stringUnit":{"state":"translated","value":"Wprowadź unikalną, niezastrzeżoną nazwę serwera."}},"pt-BR":{"stringUnit":{"state":"translated","value":"Insira um nome de servidor exclusivo que não seja reservado."}},"ru":{"stringUnit":{"state":"translated","value":"Введите уникальное незарезервированное имя сервера."}},"tr":{"stringUnit":{"state":"translated","value":"Ayrılmış olmayan benzersiz bir sunucu adı girin."}},"uk":{"stringUnit":{"state":"translated","value":"Введіть унікальне незарезервоване ім’я сервера."}},"vi":{"stringUnit":{"state":"translated","value":"Nhập tên máy chủ duy nhất và không bị dành riêng."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请输入未被保留的唯一服务器名称。"}}}},
+    "projectSettings.mcp.error.configuration": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Complete the server configuration with valid values."}},"de":{"stringUnit":{"state":"translated","value":"Vervollständige die Serverkonfiguration mit gültigen Werten."}},"es":{"stringUnit":{"state":"translated","value":"Completa la configuración del servidor con valores válidos."}},"fr":{"stringUnit":{"state":"translated","value":"Complétez la configuration du serveur avec des valeurs valides."}},"ja":{"stringUnit":{"state":"translated","value":"有効な値でサーバー設定を完了してください。"}},"ko":{"stringUnit":{"state":"translated","value":"올바른 값으로 서버 구성을 완료하세요."}},"pl":{"stringUnit":{"state":"translated","value":"Uzupełnij konfigurację serwera prawidłowymi wartościami."}},"pt-BR":{"stringUnit":{"state":"translated","value":"Conclua a configuração do servidor com valores válidos."}},"ru":{"stringUnit":{"state":"translated","value":"Заполните конфигурацию сервера допустимыми значениями."}},"tr":{"stringUnit":{"state":"translated","value":"Sunucu yapılandırmasını geçerli değerlerle tamamlayın."}},"uk":{"stringUnit":{"state":"translated","value":"Заповніть конфігурацію сервера припустимими значеннями."}},"vi":{"stringUnit":{"state":"translated","value":"Hoàn tất cấu hình máy chủ bằng các giá trị hợp lệ."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请使用有效值完成服务器配置。"}}}},
+    "projectSettings.search": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Búsqueda"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Szukaj"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pesquisar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ara"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пошук"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tìm kiếm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索"
+          }
+        }
+      }
+    },
+    "projectSettings.general.name.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display name in the sidebar."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeigename in der Seitenleiste."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre que se muestra en la barra lateral."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le nom dans la barre latérale."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイドバーに名前を表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사이드바에 이름을 표시합니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nazwa wyświetlana na pasku bocznym."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome de exibição na barra lateral."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отображаемое имя в боковой панели."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kenar çubuğunda görünen ad."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відображуване ім'я в бічній панелі."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiển thị tên ở thanh bên."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在侧边栏中显示名称。"
+          }
+        }
+      }
+    },
+    "projectSettings.general.folder.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The repository location on disk. Update it if you moved the folder."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Speicherort des Repositorys auf der Festplatte. Aktualisieren Sie ihn, wenn Sie den Ordner verschoben haben."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La ubicación del repositorio en el disco. Actualízala si moviste la carpeta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'emplacement du dépôt sur le disque. Mettez-le à jour si vous avez déplacé le dossier."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ディスク上のリポジトリの場所。フォルダーを移動した場合は更新してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 업데이트하세요."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokalizacja repozytorium na dysku. Zaktualizuj ją, jeśli przeniesiono folder."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A localização do repositório no disco. Atualize-a se você moveu a pasta."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расположение репозитория на диске. Обновите его, если вы переместили папку."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deponun diskteki konumu. Klasörü taşıdıysanız güncelleyin."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Розташування репозиторію на диску. Оновіть його, якщо ви перемістили папку."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạn đã di chuyển thư mục."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存储库在磁盘上的位置。如果您移动了该文件夹，请更新此位置。"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.location": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktree location"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worktree-Speicherort"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ubicación del worktree"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emplacement de l'arbre de travail"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワークツリーの場所"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업 트리 위치"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokalizacja drzewa roboczego"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Localização da árvore de trabalho"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расположение worktree"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çalışma ağacı konumu"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Розташування worktree"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vị trí cây làm việc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作树位置"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.location.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Override where this project's worktrees are created. Applies to worktrees created from now on."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Legt abweichend fest, wo die Worktrees dieses Projekts erstellt werden. Gilt für ab jetzt erstellte Worktrees."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anula dónde se crean los worktrees de este proyecto. Se aplica a los worktrees creados a partir de ahora."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacez l'emplacement de création des arbres de travail de ce projet. S'applique aux arbres de travail créés à partir de maintenant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプロジェクトのワークツリーが作成される場所をオーバーライドします。これ以降に作成されるワークツリーに適用されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 프로젝트의 작업 트리가 생성되는 위치를 재정의합니다. 지금부터 생성되는 작업 트리에 적용됩니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zastąp miejsce tworzenia drzew roboczych tego projektu. Dotyczy drzew roboczych tworzonych od teraz."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Substitui onde as árvores de trabalho deste projeto são criadas. Aplica-se às árvores de trabalho criadas a partir de agora."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Переопределить, где создаются worktree этого проекта. Применяется к worktree, создаваемым с этого момента."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu projenin çalışma ağaçlarının nerede oluşturulacağını geçersiz kılın. Bundan sonra oluşturulan çalışma ağaçları için geçerlidir."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перевизначте, де створюються worktree цього проєкту. Застосовується до worktree, створених відтепер."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghi đè nơi tạo các cây làm việc của dự án này. Áp dụng cho các cây làm việc được tạo từ giờ trở đi."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覆盖此项目工作树的创建位置。适用于从现在起创建的工作树。"
+          }
+        }
+      }
+    },
+    "projectSettings.value.default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predeterminado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Par défaut"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デフォルト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본값"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domyślne"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По умолчанию"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Varsayılan"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "За замовчуванням"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mặc định"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认"
+          }
+        }
+      }
+    },
+    "projectSettings.value.custom": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzerdefiniert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personnalisé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタム"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "맞춤"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niestandardowe"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пользовательский"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Özel"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Користувацький"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tùy chỉnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定制"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.insideProject": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inside this project"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In diesem Projekt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dentro de este proyecto"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans ce projet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプロジェクト内"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 프로젝트 내부"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wewnątrz tego projektu"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dentro deste projeto"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Внутри этого проекта"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu projenin içinde"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Усередині цього проєкту"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bên trong dự án này"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此项目内"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.baseFolder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Base folder"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basisordner"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carpeta base"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dossier de base"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ベースフォルダー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 폴더"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder bazowy"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasta base"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Базовая папка"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temel klasör"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Базова папка"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thư mục gốc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "基础文件夹"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.setup": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setup script"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setup-Skript"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de configuración"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de configuration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セットアップスクリプト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정 스크립트"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrypt instalacyjny"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de configuração"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрипт настройки"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurulum komut dosyası"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрипт налаштування"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tập lệnh thiết lập"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置脚本"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.setup.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs in a terminal after a new worktree is created (e.g., pnpm install)."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird in einem Terminal ausgeführt, nachdem ein neuer Arbeitsbaum erstellt wurde (z. B. pnpm install)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ejecuta en una terminal después de crear un nuevo worktree (p. ej., pnpm install)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S'exécute dans un terminal après la création d'un nouvel arbre de travail (par exemple, pnpm install)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいワークツリーが作成された後にターミナルで実行されます (pnpm install など)。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 작업 트리가 생성된 후 터미널에서 실행됩니다(예: pnpm install)."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uruchamia się w terminalu po utworzeniu nowego drzewa roboczego (np. pnpm install)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "É executado em um terminal após a criação de uma nova árvore de trabalho (por exemplo, pnpm install)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выполняется в терминале после создания нового worktree (например, pnpm install)."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni bir çalışma ağacı oluşturulduktan sonra terminalde çalışır (örneğin, pnpm install)."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виконується в терміналі після створення нового worktree (наприклад, pnpm install)."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chạy trong terminal sau khi cây làm việc mới được tạo (ví dụ: pnpm install)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建新工作树后在终端中运行（例如，pnpm install）。"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.cleanup": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanup script"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereinigungsskript"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de limpieza"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de nettoyage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリーンアップスクリプト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정리 스크립트"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrypt czyszczący"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de limpeza"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрипт очистки"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temizleme komut dosyası"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрипт очищення"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tập lệnh dọn dẹp"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理脚本"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.cleanup.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs before a worktree is removed (e.g., rm -rf node_modules)."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird ausgeführt, bevor ein Arbeitsbaum entfernt wird (z. B. rm -rf node_modules)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ejecuta antes de eliminar un worktree (p. ej., rm -rf node_modules)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S'exécute avant la suppression d'un arbre de travail (par exemple, rm -rf node_modules)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワークツリーが削除される前に実行されます (例: rm -rf node_modules)。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업 트리가 제거되기 전에 실행됩니다(예: rm -rf node_modules)."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uruchamia się przed usunięciem drzewa roboczego (np. rm -rf node_modules)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "É executado antes que uma árvore de trabalho seja removida (por exemplo, rm -rf node_modules)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выполняется перед удалением worktree (например, rm -rf node_modules)."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir çalışma ağacı kaldırılmadan önce çalışır (ör. rm -rf node_modules)."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виконується перед видаленням worktree (наприклад, rm -rf node_modules)."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chạy trước khi cây làm việc bị xóa (ví dụ: rm -rf node_modules)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在删除工作树之前运行（例如，rm -rf node_modules）。"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.copy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy ignored files"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorierte Dateien kopieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar archivos ignorados"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier les fichiers ignorés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無視されたファイルをコピーする"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무시된 파일 복사"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skopiuj zignorowane pliki"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar arquivos ignorados"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копировать игнорируемые файлы"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yoksayılan dosyaları kopyala"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копіювати ігноровані файли"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép các tập tin bị bỏ qua"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制忽略的文件"
+          }
+        }
+      }
+    },
+    "projectSettings.worktrees.copy.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., .env.*)."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gitignorierte Dateien zum Kopieren aus dem Hauptprojekt in jeden neuen Arbeitsbaum. Muster im Gitignore-Stil, eines pro Zeile (z. B. .env.*)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivos ignorados por Git para copiar del proyecto principal a cada nuevo worktree. Patrones estilo gitignore, uno por línea (p. ej., .env.*)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichiers Gitignorés à copier du projet principal dans chaque nouvel arbre de travail. Modèles de style Gitignore, un par ligne (par exemple, .env.*)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メイン プロジェクトから各新しいワークツリーにコピーする、Gitignored ファイル。 Gitignore スタイルのパターン、1 行に 1 つ (例: .env.*)。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 프로젝트에서 각각의 새 작업 트리로 복사할 Gitignored 파일입니다. Gitignore 스타일 패턴, 한 줄에 하나씩(예: .env.*)"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pliki ignorowane przez Git do skopiowania z głównego projektu do każdego nowego drzewa roboczego. Wzorce w stylu Gitignore, po jednym w wierszu (np. .env.*)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arquivos gitignorados para copiar do projeto principal para cada nova árvore de trabalho. Padrões estilo Gitignore, um por linha (por exemplo, .env.*)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Игнорируемые Git файлы для копирования из основного проекта в каждый новый worktree. Шаблоны в стиле gitignore, по одному на строку (напр., .env.*)."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ana projeden her yeni çalışma ağacına kopyalanacak Git yok sayılan dosyalar. Gitignore tarzı desenler, her satıra bir tane (ör. .env.*)."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ігноровані Git файли для копіювання з основного проєкту до кожного нового worktree. Шаблони у стилі gitignore, по одному на рядок (напр., .env.*)."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các tệp được Gitignored để sao chép từ dự án chính vào từng cây làm việc mới. Các mẫu kiểu Gitignore, mỗi mẫu một dòng (ví dụ: .env.*)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gitignored 文件从主项目复制到每个新工作树中。 Gitignore 风格的模式，每行一个（例如 .env.*）。"
+          }
+        }
+      }
+    },
+    "projectSettings.actions.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom commands available from the project menu."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzerdefinierte Befehle im Projektmenü."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comandos personalizados disponibles en el menú del proyecto."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commandes personnalisées disponibles dans le menu du projet."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロジェクトメニューから使用できるカスタムコマンド。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프로젝트 메뉴에서 사용할 수 있는 사용자 지정 명령입니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Polecenia niestandardowe dostępne w menu projektu."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comandos personalizados disponíveis no menu do projeto."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пользовательские команды, доступные в меню проекта."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proje menüsündeki özel komutlar."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Користувацькі команди, доступні в меню проєкту."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các lệnh tùy chỉnh có trong menu dự án."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目菜单中可用的自定义命令。"
+          }
+        }
+      }
+    },
+    "projectSettings.actions.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action name"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktionsname"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre de la acción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de l'action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクション名"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "액션 이름"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nazwa akcji"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome da ação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя действия"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İşlem adı"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назва дії"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên hành động"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作名称"
+          }
+        }
+      }
+    },
+    "projectSettings.actions.command": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action command"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktionsbefehl"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comando de acción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commande d'action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションコマンド"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "액션 명령"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Polecenie akcji"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comando de ação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Команда действия"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eylem komutu"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Команда дії"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lệnh hành động"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作指令"
+          }
+        }
+      }
+    },
+    "projectSettings.actions.add": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add action"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktion hinzufügen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregar acción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter une action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションの追加"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업 추가"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dodaj akcję"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar ação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить действие"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İşlem ekle"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Додати дію"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm hành động"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加操作"
+          }
+        }
+      }
+    },
+    "projectSettings.search.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project-specific overrides on top of the global search settings."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektspezifische Überschreibungen zusätzlich zu den globalen Sucheinstellungen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anulaciones específicas del proyecto sobre los ajustes de búsqueda globales."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacements spécifiques au projet en plus des paramètres de recherche globaux."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グローバル検索設定に加えてプロジェクト固有のオーバーライド。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zastąpienia specyficzne dla projektu ponad globalnymi ustawieniami wyszukiwania."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Substituições específicas do projeto nas configurações de pesquisa global."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Переопределения для конкретного проекта поверх глобальных настроек поиска."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перевизначення для конкретного проєкту поверх глобальних налаштувань пошуку."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm chung."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在全局搜索设置基础上的项目特定覆盖。"
+          }
+        }
+      }
+    },
+    "projectSettings.search.ignoreFiles": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use ignore files"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignore-Dateien verwenden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar archivos ignore"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser les fichiers ignorés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無視ファイルを使用する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무시 파일 사용"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Użyj ignorowanych plików"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar arquivos de ignore"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использовать файлы ignore"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yoksayılan dosyaları kullan"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Використовувати файли ignore"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sử dụng tập tin bỏ qua"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用忽略文件"
+          }
+        }
+      }
+    },
+    "projectSettings.value.on": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "曜日"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요일"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "W"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Em"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В день"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gün"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У день"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vào"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日期"
+          }
+        }
+      }
+    },
+    "projectSettings.value.off": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "꺼짐"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wył."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desligado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выкл."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapalı"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вимк."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tắt"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "projectSettings.search.alwaysExcluded": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Always excluded"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immer ausgeschlossen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siempre excluido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toujours exclu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常に除外される"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "항상 제외됨"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zawsze wykluczone"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sempre excluído"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Всегда исключено"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Her zaman hariç tutuldu"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завжди виключено"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luôn bị loại trừ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总是被排除在外"
+          }
+        }
+      }
+    },
+    "projectSettings.search.inherited": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inherited"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geerbt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heredado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hérité"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "継承された"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "물려받은"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odziedziczone"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herdado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Наследовано"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miras alınan"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Успадковано"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kế thừa"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继承的"
+          }
+        }
+      }
+    },
+    "projectSettings.search.exclude": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exclude patterns"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muster ausschließen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patrones de exclusión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exclure les motifs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パターンを除外する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패턴 제외"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wyklucz wzorce"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrões de exclusão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Шаблоны исключения"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalıpları hariç tut"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Шаблони виключення"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loại trừ mẫu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排除模式"
+          }
+        }
+      }
+    },
+    "projectSettings.search.exclude.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files matching these globs are hidden from the @file mention search."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien, die mit diesen Globs übereinstimmen, werden bei der @file-Erwähnungssuche ausgeblendet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los archivos que coinciden con estos globs se ocultan de la búsqueda de menciones @file."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les fichiers correspondant à ces globs sont masqués dans la recherche de mention @file."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これらのグロブに一致するファイルは、@file メンション検索から非表示になります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pliki pasujące do tych globów są ukryte przed wyszukiwaniem wzmianek @file."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos que correspondem a esses globs ficam ocultos na pesquisa de menção @file."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Файлы, соответствующие этим glob-шаблонам, скрыты из поиска упоминаний @file."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Файли, що відповідають цим glob-шаблонам, приховані з пошуку згадок @file."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm kiếm @file."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
+          }
+        }
+      }
+    },
+    "projectSettings.search.addPattern": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add pattern"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muster hinzufügen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir patrón"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un motif"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パターンを追加する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패턴 추가"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dodaj wzór"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar padrão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить шаблон"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desen ekle"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Додати шаблон"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm mẫu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加模式"
+          }
+        }
+      }
+    },
+    "projectSettings.search.noPatterns": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No patterns."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Muster."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin patrones."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun motif."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パターンはありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패턴이 없습니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Żadnych wzorów."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem padrões."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет шаблонов."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desen yok."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Немає шаблонів."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có mẫu."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有模式。"
+          }
+        }
+      }
+    },
+    "projectSettings.actions.icon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icon"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symbol"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icono"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icône"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコン"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이콘"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ikona"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ícone"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значок"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simge"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Піктограма"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biểu tượng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图标"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

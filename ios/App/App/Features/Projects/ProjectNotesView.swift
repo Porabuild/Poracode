@@ -3,13 +3,20 @@ import SwiftUI
 /// Project notes and to-dos, mirroring the mobile web Notes panel: a free-form
 /// notes editor above a to-do list, with the add row at the bottom.
 struct ProjectNotesView: View {
+  @Bindable var session: AppSession
   let identity: ProjectIdentity
   @Bindable var controller: ProjectControllerNotesController
 
-  @State private var noteText = ""
+  @State private var noteDocument: JSONValue?
+  @State private var selectedNoteText = ""
+  @State private var noteEditorIsActive = false
+  @State private var activeNoteFormats = Set<ProjectNoteFormat>()
+  @State private var noteEditorCommand: ProjectNoteEditorCommand?
   @State private var newTodo = ""
   @State private var renamingTodo: ProjectNoteTodo?
   @State private var renameText = ""
+  @State private var composeIntent: ProjectNotesThreadComposeIntent?
+  @State private var startedThread: ProjectNotesStartedThread?
 
   var body: some View {
     Group {
@@ -29,17 +36,48 @@ struct ProjectNotesView: View {
     }
     .navigationTitle(ProjectManagementStrings.notes)
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItemGroup(placement: .keyboard) {
+        Button {
+          noteEditorCommand = ProjectNoteEditorCommand(format: .bold)
+        } label: {
+          Image(systemName: "bold")
+            .foregroundStyle(activeNoteFormats.contains(.bold) ? Color.accentColor : Color.primary)
+        }
+        .disabled(!noteEditorIsActive)
+        .accessibilityLabel(ProjectManagementStrings.bold)
+
+        Button {
+          noteEditorCommand = ProjectNoteEditorCommand(format: .italic)
+        } label: {
+          Image(systemName: "italic")
+            .foregroundStyle(
+              activeNoteFormats.contains(.italic) ? Color.accentColor : Color.primary
+            )
+        }
+        .disabled(!noteEditorIsActive)
+        .accessibilityLabel(ProjectManagementStrings.italic)
+
+        Spacer()
+        Button {
+          startThread(with: selectedNoteText)
+        } label: {
+          Label(HomeStrings.newThread, systemImage: "plus.bubble")
+        }
+        .disabled(!noteEditorIsActive || cleanSelectedNoteText.isEmpty)
+      }
+    }
     .task(id: identity) {
       await controller.load(identity)
     }
     .refreshable { await controller.load(identity) }
     .onChange(of: state.loadState) { _, loadState in
-      if case .loaded = loadState { noteText = ProjectNoteDocument.text(state.draft?.doc) }
-      if case .empty = loadState { noteText = "" }
+      if case .loaded = loadState { noteDocument = state.draft?.doc }
+      if case .empty = loadState { noteDocument = nil }
     }
     .onChange(of: state.failure) { _, failure in
       guard failure != nil else { return }
-      noteText = ProjectNoteDocument.text(state.lastConfirmed?.doc)
+      noteDocument = state.lastConfirmed?.doc
     }
     .overlay(alignment: .bottom) {
       if state.isSaving {
@@ -70,19 +108,40 @@ struct ProjectNotesView: View {
         renamingTodo = nil
       }
     }
+    .sheet(item: $composeIntent) { intent in
+      ProjectNotesThreadComposeSheet(session: session, intent: intent) { target in
+        startedThread = target
+      }
+    }
+    .navigationDestination(item: $startedThread) { target in
+      ProjectNotesThreadDestination(session: session, target: target)
+    }
   }
 
   private var noteList: some View {
+    GeometryReader { geometry in
+      noteList(editorHeight: max(220, geometry.size.height * 0.42))
+    }
+  }
+
+  private func noteList(editorHeight: CGFloat) -> some View {
     List {
       Section {
         ZStack(alignment: .topLeading) {
-          TextEditor(text: $noteText)
-            .frame(minHeight: 140)
-            .privacySensitive()
-            .onChange(of: noteText) { _, text in
-              edit(doc: ProjectNoteDocument.fromText(text))
-            }
-          if noteText.isEmpty {
+          ProjectNoteTextEditor(
+            document: $noteDocument,
+            selectedText: $selectedNoteText,
+            isEditing: $noteEditorIsActive,
+            activeFormats: $activeNoteFormats,
+            command: noteEditorCommand
+          )
+          .frame(minHeight: editorHeight)
+          .accessibilityIdentifier("native-e2e.notes.editor")
+          .privacySensitive()
+          .onChange(of: noteDocument) { _, document in
+            edit(doc: document)
+          }
+          if notePlainText.isEmpty {
             Text(ProjectManagementStrings.notesPlaceholder)
               .foregroundStyle(.tertiary)
               .padding(.top, 10)
@@ -95,6 +154,18 @@ struct ProjectNotesView: View {
       Section {
         ForEach(todos) { todo in
           todoRow(todo)
+            .contextMenu {
+              Button(ProjectManagementStrings.renameTodoAction, systemImage: "pencil") {
+                beginRename(todo)
+              }
+              Button(HomeStrings.newThread, systemImage: "plus.bubble") {
+                startThread(with: todo.text)
+              }
+              Button(ProjectManagementStrings.deleteTodo, systemImage: "trash", role: .destructive)
+              {
+                edit(todos: ProjectNoteEditing.deleting(todo, from: todos))
+              }
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
               Button(role: .destructive) {
                 edit(todos: ProjectNoteEditing.deleting(todo, from: todos))
@@ -102,8 +173,7 @@ struct ProjectNotesView: View {
                 Label(ProjectManagementStrings.deleteTodo, systemImage: "trash")
               }
               Button {
-                renameText = todo.text
-                renamingTodo = todo
+                beginRename(todo)
               } label: {
                 Label(ProjectManagementStrings.renameTodoAction, systemImage: "pencil")
               }
@@ -156,6 +226,17 @@ struct ProjectNotesView: View {
         ? ProjectManagementStrings.markAsNotDone(todo.text)
         : ProjectManagementStrings.markAsDone(todo.text)
     )
+    .accessibilityAction(named: HomeStrings.newThread) {
+      startThread(with: todo.text)
+    }
+  }
+
+  private var cleanSelectedNoteText: String {
+    ProjectValidation.jsTrim(selectedNoteText)
+  }
+
+  private var notePlainText: String {
+    ProjectNoteDocument.text(noteDocument)
   }
 
   private var state: ProjectControllerNotesState {
@@ -187,19 +268,30 @@ struct ProjectNotesView: View {
     let trimmed = ProjectValidation.jsTrim(text)
     guard !trimmed.isEmpty else { return }
     let updated = todos.map { current in
-      current.id == todo.id ? ProjectNoteTodo(
-        id: current.id,
-        text: trimmed,
-        done: current.done,
-        createdAt: current.createdAt
-      ) : current
+      current.id == todo.id
+        ? ProjectNoteTodo(
+          id: current.id,
+          text: trimmed,
+          done: current.done,
+          createdAt: current.createdAt
+        ) : current
     }
     edit(todos: updated)
   }
 
+  private func beginRename(_ todo: ProjectNoteTodo) {
+    renameText = todo.text
+    renamingTodo = todo
+  }
+
+  private func startThread(with text: String) {
+    let prompt = ProjectValidation.jsTrim(text)
+    guard !prompt.isEmpty else { return }
+    composeIntent = ProjectNotesThreadComposeIntent(identity: identity, prompt: prompt)
+  }
+
   private func edit(todos: [ProjectNoteTodo], updatedAt: String? = nil) {
-    let doc = todos == self.todos ? ProjectNoteDocument.fromText(noteText) : state.draft?.doc
-    edit(doc: doc, todos: todos, updatedAt: updatedAt)
+    edit(doc: noteDocument, todos: todos, updatedAt: updatedAt)
   }
 
   private func edit(doc: JSONValue?, updatedAt: String? = nil) {

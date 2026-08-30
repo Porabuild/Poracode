@@ -349,6 +349,7 @@ struct PairingCoordinator {
         }
         guard host.state.operationOwner.isCurrent(began.epoch) else { return }
         // Re-assert after await: never resurrect UI from a stale pair.
+        host.richChatComposerDrafts.clearAll()
         host.state.resetForUnpair()
     }
 

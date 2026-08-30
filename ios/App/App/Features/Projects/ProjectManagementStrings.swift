@@ -119,6 +119,12 @@ enum ProjectManagementStrings {
       defaultValue: "Write notes for this project…"
     )
   }
+  static var bold: String {
+    String(localized: "projects.notes.bold", defaultValue: "Bold")
+  }
+  static var italic: String {
+    String(localized: "projects.notes.italic", defaultValue: "Italic")
+  }
   static var todos: String {
     String(localized: "projects.notes.todos", defaultValue: "To-dos")
   }

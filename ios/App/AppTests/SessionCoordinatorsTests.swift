@@ -437,7 +437,7 @@ final class PairingCandidateTrackerTests: XCTestCase {
 // MARK: - Terminal presentation filter
 
 final class ThreadPresentationFilterTests: XCTestCase {
-  func testHidesTerminalPresentationMode() {
+  func testNativeListsIncludeGUIAndTerminalButRejectUnknownModes() {
     let gui = RemoteThread(
       id: "g1",
       remoteServerId: nil,
@@ -517,18 +517,26 @@ final class ThreadPresentationFilterTests: XCTestCase {
       parentThreadId: nil
     )
 
-    XCTAssertTrue(ThreadPresentationFilter.isVisibleInGUIList(gui))
-    XCTAssertFalse(ThreadPresentationFilter.isVisibleInGUIList(terminal))
-    // Authoritative default: missing presentationMode is terminal (not GUI).
-    XCTAssertFalse(ThreadPresentationFilter.isVisibleInGUIList(otherProject))
+    var unknown = terminal
+    unknown.id = "future"
+    unknown.presentationMode = "spatial"
+
+    XCTAssertTrue(ThreadPresentationFilter.isVisibleInNativeList(gui))
+    XCTAssertTrue(ThreadPresentationFilter.isVisibleInNativeList(terminal))
+    // Authoritative default: missing presentationMode is terminal.
+    XCTAssertTrue(ThreadPresentationFilter.isVisibleInNativeList(otherProject))
+    XCTAssertFalse(ThreadPresentationFilter.isVisibleInNativeList(unknown))
     XCTAssertFalse(ThreadPresentationFilter.isGUIPresentation(nil))
     XCTAssertTrue(ThreadPresentationFilter.isGUIPresentation("gui"))
+    XCTAssertTrue(ThreadPresentationFilter.isTerminalPresentation(nil))
+    XCTAssertTrue(ThreadPresentationFilter.isTerminalPresentation("TERMINAL"))
+    XCTAssertFalse(ThreadPresentationFilter.isNativePresentation("spatial"))
 
     let visible = ThreadPresentationFilter.visibleThreads(
-      from: [gui, terminal, otherProject],
+      from: [gui, terminal, otherProject, unknown],
       projectId: "p1"
     )
-    XCTAssertEqual(visible.map(\.id), ["g1"])
+    XCTAssertEqual(visible.map(\.id), ["g1", "t1"])
   }
 }
 
@@ -553,6 +561,27 @@ final class UnifiedThreadPresentationTests: XCTestCase {
     XCTAssertEqual(entries.map(\.thread.title), ["Second", "First"])
     XCTAssertNotEqual(entries[0].id, entries[1].id)
     XCTAssertEqual(CompositeRemoteID(rawValue: entries[0].id).decode()?.connectionId, second)
+  }
+
+  func testIncludesTerminalPresentationThreadsInTheNativeHomeProjection() {
+    let connection = ClientConnectionID()
+    let terminalSnapshot = snapshot(
+      title: "CLI session",
+      updatedAt: "2026-08-02T00:00:00Z",
+      presentationMode: "terminal"
+    )
+
+    let entries = UnifiedThreadPresentation.entries(
+      hosts: [host(connection, label: "MacBook")],
+      selectedConnectionID: connection,
+      selectedSnapshot: terminalSnapshot,
+      hostSnapshots: [connection: terminalSnapshot]
+    )
+
+    XCTAssertEqual(entries.map(\.thread.title), ["CLI session"])
+    XCTAssertTrue(
+      ThreadPresentationFilter.isTerminalPresentation(entries.first?.thread.presentationMode)
+    )
   }
 
   func testHomePresentationGroupsThreadsOnlyWithinOneHostProjectAndWorktree() {
@@ -618,6 +647,70 @@ final class UnifiedThreadPresentationTests: XCTestCase {
       threads: [items[0]]
     )
     XCTAssertEqual(withoutFinished.collapsedStatusTone, .working)
+  }
+
+  func testHomePresentationGroupsProviderHandoffsAfterWorktreePass() {
+    let connection = ClientConnectionID()
+    let rootProject = project(id: "project", name: "Poracode")
+    let groupedItems = [
+      item(
+        connection: connection,
+        hostName: "MacBook",
+        project: rootProject,
+        thread: thread(
+          id: "codex", title: "Original", worktreePath: nil,
+          groupID: "handoff", groupName: "Fix tests")
+      ),
+      item(
+        connection: connection,
+        hostName: "MacBook",
+        project: rootProject,
+        thread: thread(
+          id: "gemini", title: "Continuation", worktreePath: nil,
+          groupID: "handoff", groupName: "Fix tests")
+      ),
+    ]
+
+    guard
+      case .conversation(let group) =
+        HomeThreadListPresentation.entries(from: groupedItems).first
+    else { return XCTFail("Expected a provider-handoff group") }
+    XCTAssertEqual(group.groupID, "handoff")
+    XCTAssertEqual(group.groupName, "Fix tests")
+    XCTAssertEqual(group.threads.map(\.thread.id), ["codex", "gemini"])
+
+    let worktreeItems = groupedItems.map { value in
+      var updated = value
+      updated.thread.worktreePath = "/repo/worktree"
+      updated.thread.worktreeBranch = "feature"
+      return updated
+    }
+    guard case .worktree = HomeThreadListPresentation.entries(from: worktreeItems).first else {
+      return XCTFail("Worktree grouping must take precedence")
+    }
+  }
+
+  func testHomePresentationDoesNotMergeHandoffGroupIDsAcrossHosts() {
+    let first = ClientConnectionID()
+    let second = ClientConnectionID()
+    let rootProject = project(id: "project", name: "Poracode")
+    let entries = HomeThreadListPresentation.entries(from: [
+      item(
+        connection: first,
+        hostName: "MacBook",
+        project: rootProject,
+        thread: thread(id: "one", title: "One", worktreePath: nil, groupID: "same")
+      ),
+      item(
+        connection: second,
+        hostName: "Studio",
+        project: rootProject,
+        thread: thread(id: "two", title: "Two", worktreePath: nil, groupID: "same")
+      ),
+    ])
+
+    XCTAssertEqual(entries.count, 2)
+    XCTAssertTrue(entries.allSatisfy { if case .thread = $0 { true } else { false } })
   }
 
   func testHomePresentationDoesNotGroupSamePathAcrossHostsOrProjects() {
@@ -687,6 +780,142 @@ final class UnifiedThreadPresentationTests: XCTestCase {
     )
   }
 
+  func testHomeThreadSearchMatchesPWAStarredRecencyTitleAndLimitRules() {
+    let connection = ClientConnectionID()
+    let rootProject = project(id: "project", name: "Poracode")
+    let olderStarred = item(
+      connection: connection,
+      hostName: "MacBook",
+      project: rootProject,
+      thread: thread(
+        id: "starred",
+        title: "Native search",
+        worktreePath: nil,
+        starred: true,
+        updatedAt: "2026-01-01T00:00:00Z"
+      )
+    )
+    let newer = item(
+      connection: connection,
+      hostName: "Studio",
+      project: rootProject,
+      thread: thread(
+        id: "newer",
+        title: "Native layout",
+        worktreePath: nil,
+        updatedAt: "2026-02-01T00:00:00Z"
+      )
+    )
+    let projectOnlyMatch = item(
+      connection: connection,
+      hostName: "Studio",
+      project: project(id: "native-project", name: "Native search"),
+      thread: thread(id: "other", title: "Unrelated", worktreePath: nil)
+    )
+
+    XCTAssertEqual(
+      HomeThreadSearchPresentation.results(
+        from: [newer, projectOnlyMatch, olderStarred],
+        query: "native",
+        limit: 2
+      ).map(\.thread.id),
+      ["starred", "newer"]
+    )
+    XCTAssertEqual(
+      HomeThreadSearchPresentation.results(
+        from: [newer, projectOnlyMatch, olderStarred],
+        query: "search"
+      ).map(\.thread.id),
+      ["starred"]
+    )
+  }
+
+  func testHomeProjectFilterIncludesSyncedProjectsWithoutThreadsAcrossHosts() throws {
+    let first = ClientConnectionID()
+    let second = ClientConnectionID()
+    let zeroThreadProject = project(id: "zero", name: "Brand New")
+    let excludedProject = project(id: "excluded", name: "Excluded")
+    let firstSnapshot = RemoteShellSnapshot(
+      snapshotSeq: 1,
+      projects: [project(id: "project", name: "Poracode"), zeroThreadProject, excludedProject],
+      threads: [thread(id: "thread", title: "Existing", worktreePath: nil)],
+      runtimeSummariesByThread: [:],
+      updatedAt: "2026-01-01T00:00:00Z"
+    )
+    let secondSnapshot = snapshot(title: "Other host", updatedAt: "2026-01-02T00:00:00Z")
+
+    let options = HomeProjectOptionsPresentation.options(
+      hosts: [host(first, label: "MacBook"), host(second, label: "Studio")],
+      selectedConnectionID: first,
+      selectedSnapshot: firstSnapshot,
+      hostSnapshots: [first: firstSnapshot, second: secondSnapshot],
+      isSynced: { _, projectID in projectID != "excluded" },
+      isOnline: { $0 == first }
+    )
+
+    XCTAssertEqual(options.count, 3)
+    XCTAssertEqual(try XCTUnwrap(options.first { $0.project.id == "zero" }).threadCount, 0)
+    XCTAssertEqual(options.filter { $0.project.id == "project" }.count, 2)
+    XCTAssertEqual(Set(options.map(\.id)).count, options.count)
+    XCTAssertTrue(options.contains { $0.connectionID == first && $0.online })
+    XCTAssertTrue(options.contains { $0.connectionID == second && !$0.online })
+    XCTAssertFalse(options.contains { $0.project.id == "excluded" })
+  }
+
+  func testProjectActionMetadataUsesTheOwningHostWhenProjectIDsCollide() {
+    let selectedConnection = ClientConnectionID()
+    let targetConnection = ClientConnectionID()
+    let selectedProject = project(id: "shared", name: "Selected Host Project")
+    let targetProject = project(id: "shared", name: "Target Host Project")
+    let selectedSnapshot = RemoteShellSnapshot(
+      snapshotSeq: 10,
+      projects: [selectedProject],
+      threads: [],
+      runtimeSummariesByThread: [:],
+      updatedAt: "2026-08-20T00:00:00Z"
+    )
+    let targetSnapshot = RemoteShellSnapshot(
+      snapshotSeq: 11,
+      projects: [targetProject],
+      threads: [],
+      runtimeSummariesByThread: [:],
+      updatedAt: "2026-08-21T00:00:00Z"
+    )
+
+    let resolved = HomeProjectSnapshotResolver.project(
+      connectionID: targetConnection,
+      projectID: "shared",
+      selectedConnectionID: selectedConnection,
+      selectedSnapshot: selectedSnapshot,
+      hostSnapshots: [
+        selectedConnection: selectedSnapshot,
+        targetConnection: targetSnapshot,
+      ],
+      fallback: targetProject
+    )
+
+    XCTAssertEqual(resolved.name, "Target Host Project")
+    XCTAssertEqual(resolved.location, targetProject.location)
+  }
+
+  func testHomeProjectFilterTreatsAllAsEveryProjectSelected() {
+    let available: Set<String> = ["one", "two", "three"]
+
+    let excludingOne = HomeProjectFilterSelection.toggling(
+      "one",
+      selection: [],
+      available: available
+    )
+    XCTAssertEqual(excludingOne, ["two", "three"])
+
+    let allAgain = HomeProjectFilterSelection.toggling(
+      "one",
+      selection: excludingOne,
+      available: available
+    )
+    XCTAssertTrue(allAgain.isEmpty)
+  }
+
   func testHomeDeviceNameRemovesPoracodeConnectionPrefix() {
     XCTAssertEqual(HomeDeviceName.display("Poracode on H1FCM6T4GX"), "H1FCM6T4GX")
     XCTAssertEqual(HomeDeviceName.display("Pora.code on Studio"), "Studio")
@@ -740,7 +969,11 @@ final class UnifiedThreadPresentationTests: XCTestCase {
     title: String,
     worktreePath: String?,
     status: String = "idle",
-    done: Bool = false
+    done: Bool = false,
+    starred: Bool = false,
+    groupID: String? = nil,
+    groupName: String? = nil,
+    updatedAt: String = "2026-01-01T00:00:00Z"
   ) -> RemoteThread {
     RemoteThread(
       id: id,
@@ -758,22 +991,25 @@ final class UnifiedThreadPresentationTests: XCTestCase {
       worktreeBranch: worktreePath.map { _ in "feature" },
       archived: false,
       done: done,
-      starred: false,
+      starred: starred,
       presentationMode: "gui",
       createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
+      updatedAt: updatedAt,
       activeTurnStartedAt: nil,
       lastTurnStartedAt: nil,
       lastTurnEndedAt: nil,
       errorMessage: nil,
-      parentThreadId: nil
+      parentThreadId: nil,
+      groupId: groupID,
+      groupName: groupName
     )
   }
 
   private func snapshot(
     title: String,
     updatedAt: String,
-    starred: Bool = false
+    starred: Bool = false,
+    presentationMode: String? = "gui"
   ) -> RemoteShellSnapshot {
     RemoteShellSnapshot(
       snapshotSeq: 1,
@@ -807,7 +1043,7 @@ final class UnifiedThreadPresentationTests: XCTestCase {
           archived: false,
           done: false,
           starred: starred,
-          presentationMode: "gui",
+          presentationMode: presentationMode,
           createdAt: updatedAt,
           updatedAt: updatedAt,
           activeTurnStartedAt: nil,

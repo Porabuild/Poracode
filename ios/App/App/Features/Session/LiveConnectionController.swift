@@ -305,6 +305,9 @@ struct LiveConnectionController {
 
     func refreshSnapshot() async {
         guard host.state.canRead else { return }
+        // Bootstrap owns the authoritative snapshot while connecting. A Home/task
+        // refresh racing it can supersede the replay install and prevent socket start.
+        guard host.state.phase != .connecting else { return }
         guard let api = host.state.api else { return }
         let gen = host.state.workGeneration
         let endpoint = await api.httpEndpoint

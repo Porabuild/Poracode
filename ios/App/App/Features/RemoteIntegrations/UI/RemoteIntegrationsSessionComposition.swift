@@ -44,10 +44,24 @@ extension AppSession {
 
   var currentRemoteIntegrationsProjects: [RemoteIntegrationsProjectOption] {
     guard currentRemoteIntegrationsHostSelection != nil else { return [] }
-    return (state.snapshot?.projects ?? [])
-      .filter { !($0.disabled ?? false) }
+    let projects = activeWorkspaceProjects
+    return
+      projects
       .map { RemoteIntegrationsProjectOption(id: $0.id, name: $0.name) }
       .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+  }
+
+  var currentRemoteIntegrationsScheduleAgents: [AgentStatusRecord] {
+    guard currentRemoteIntegrationsHostSelection != nil else { return [] }
+    return HomeComposerCatalog.availableAgents(
+      from: state.replay.agentStatuses.ordered,
+      presentationMode: .gui
+    ).filter { agent in
+      agent.authState != .missing
+        && HomeComposerCatalog.capabilities(for: agent, presentationMode: .gui)[
+          "supportsOneShot"
+        ]?.boolValue == true
+    }
   }
 
   func makeRemoteIntegrationsGateway() -> any RemoteIntegrationsGateway {
@@ -65,6 +79,9 @@ struct RemoteIntegrationsSessionView: View {
   @Environment(\.dismiss) private var dismiss
 
   @Bindable var session: AppSession
+  @State private var showsScheduleComposer = false
+  @State private var scheduleComposerExpanded = true
+  @State private var startedScheduleThreadID: String?
   private let gateway: any RemoteIntegrationsGateway
   private let initialRoute: RemoteIntegrationsRoute?
   private let embeddedInNavigationStack: Bool
@@ -82,10 +99,18 @@ struct RemoteIntegrationsSessionView: View {
 
   var body: some View {
     RemoteIntegrationsScreen(
+      session: session,
       selection: session.currentRemoteIntegrationsHostSelection,
       projects: session.currentRemoteIntegrationsProjects,
+      scheduleAgents: session.currentRemoteIntegrationsScheduleAgents,
       gateway: gateway,
-      singleRoute: initialRoute
+      singleRoute: initialRoute,
+      onCreateScheduleWithAgent: scheduleComposerProject == nil
+        ? nil
+        : {
+          scheduleComposerExpanded = true
+          showsScheduleComposer = true
+        }
     )
     .toolbar {
       if !embeddedInNavigationStack {
@@ -93,6 +118,61 @@ struct RemoteIntegrationsSessionView: View {
           Button(RemoteIntegrationsStrings.dismiss) { dismiss() }
         }
       }
+      ToolbarItem(placement: .primaryAction) {
+        HostSelectionMenu(session: session)
+      }
+    }
+    .sheet(isPresented: $showsScheduleComposer) {
+      if let project = scheduleComposerProject {
+        NavigationStack {
+          VStack {
+            Spacer(minLength: 20)
+            HomeQuickComposeView(
+              session: session,
+              isExpanded: $scheduleComposerExpanded,
+              launchSeed: HomeThreadLaunchSeed(
+                fixedProjectID: project.id,
+                initialPrompt: RemoteIntegrationsStrings.createWithAgentPrompt
+              )
+            ) { threadID in
+              showsScheduleComposer = false
+              startedScheduleThreadID = threadID
+            }
+            .padding()
+          }
+          .background(Color(uiColor: .systemGroupedBackground))
+          .navigationTitle(RemoteIntegrationsStrings.createWithAgent)
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(RemoteIntegrationsStrings.cancel) { showsScheduleComposer = false }
+            }
+          }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+      }
+    }
+    .navigationDestination(
+      isPresented: Binding(
+        get: { startedScheduleThreadID != nil },
+        set: { if !$0 { startedScheduleThreadID = nil } }
+      )
+    ) {
+      if let startedScheduleThreadID {
+        RichChatThreadView(
+          session: session,
+          threadID: startedScheduleThreadID,
+          title: HomeStrings.newThread
+        )
+      }
+    }
+  }
+
+  private var scheduleComposerProject: RemoteProject? {
+    let projectIDs = Set(session.currentRemoteIntegrationsProjects.map(\.id))
+    return session.activeWorkspaceProjects.first {
+      $0.id != RemoteProject.homeScopeID && projectIDs.contains($0.id)
     }
   }
 }

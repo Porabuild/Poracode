@@ -43,7 +43,7 @@ final class PortForwardingCompositionTests: XCTestCase {
     XCTAssertFalse(recordOnly.canOpenPortForwarding)
   }
 
-  func testMenuEntryIsClosedWhenTheHostIsNotForegroundOnlineAndReady() {
+  func testOperationReadinessClosesWhenTheHostIsNotForegroundOnlineAndReady() {
     let background = makeSession()
     background.state.liveLifecycle.noteEnteredBackground(
       sessionExpired: false,
@@ -89,7 +89,10 @@ final class PortForwardingCompositionTests: XCTestCase {
         false,
         "Socket state \(socketState) must not read online"
       )
-      XCTAssertFalse(app.canOpenPortForwarding, "Socket state \(socketState) must close the menu")
+      XCTAssertFalse(
+        app.canOpenPortForwarding,
+        "Socket state \(socketState) must close live operations"
+      )
     }
 
     let online = makeSession()

@@ -190,4 +190,59 @@ final class SequencedReplayEventDecodingTests: XCTestCase {
     else { return XCTFail("additive fields must not reject a known event") }
     XCTAssertEqual(threadId, "t")
   }
+
+  func testRemoteUserNotificationStrictlyDecodesTheHostClassification() throws {
+    let payload = JSONValue.object([
+      "type": .string("remote-user-notification"),
+      "threadId": .string("thread-1"),
+      "category": .string("needsAttention"),
+      "projectName": .string("Poracode"),
+      "threadTitle": .string("Native parity"),
+      "status": .string("needs_approval"),
+      "futureField": .bool(true),
+    ])
+    let decoded = try XCTUnwrap(RemoteUserNotificationEvent.decodeIfPresent(payload))
+    XCTAssertEqual(decoded.threadId, "thread-1")
+    XCTAssertEqual(decoded.category, .needsAttention)
+    XCTAssertEqual(decoded.status, "needs_approval")
+    XCTAssertNil(
+      try RemoteUserNotificationEvent.decodeIfPresent(
+        .object(["type": .string("future-event")])
+      )
+    )
+  }
+
+  func testMalformedRemoteUserNotificationThrowsWithoutLeakingPayloadContent() {
+    let cases: [JSONValue] = [
+      .object([
+        "type": .string("remote-user-notification"),
+        "threadId": .string(""),
+        "category": .string("done"),
+        "projectName": .string("p"),
+        "threadTitle": .string("t"),
+        "status": .string("idle"),
+      ]),
+      .object([
+        "type": .string("remote-user-notification"),
+        "threadId": .string("t"),
+        "category": .string("warning"),
+        "projectName": .string("p"),
+        "threadTitle": .string("t"),
+        "status": .string("idle"),
+      ]),
+      .object([
+        "type": .string("remote-user-notification"),
+        "threadId": .string("t"),
+        "category": .string("done"),
+        "projectName": .string("p"),
+        "threadTitle": .string("private-title"),
+        "status": .string("future-status"),
+      ]),
+    ]
+    for payload in cases {
+      XCTAssertThrowsError(try RemoteUserNotificationEvent.decodeIfPresent(payload)) { error in
+        XCTAssertFalse(String(describing: error).contains("private-title"))
+      }
+    }
+  }
 }

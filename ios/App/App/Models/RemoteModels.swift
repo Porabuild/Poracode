@@ -76,6 +76,21 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     static let empty = ThreadConfig(model: "default")
 }
 
+struct RemoteSlashCommand: Codable, Sendable, Hashable {
+    let id: String
+    let label: String
+    var description: String? = nil
+    var argumentHint: String? = nil
+    var section: String? = nil
+    var skillName: String? = nil
+    var skillPath: String? = nil
+    var skillInvocation: String? = nil
+    var skillProvider: String? = nil
+    var skillScope: String? = nil
+    var pluginId: String? = nil
+    var pluginName: String? = nil
+}
+
 struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     var id: String
     var remoteServerId: String?
@@ -86,6 +101,7 @@ struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     var agentInstanceId: String?
     var config: ThreadConfig
     var status: String
+    var threadStatusSource: String?
     var attention: String
     var canResumeWithConfig: Bool?
     var worktreePath: String?
@@ -100,7 +116,10 @@ struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     var lastTurnStartedAt: String?
     var lastTurnEndedAt: String?
     var errorMessage: String?
+    var slashCommands: [RemoteSlashCommand]? = nil
     var parentThreadId: String?
+    var groupId: String?
+    var groupName: String?
 
     var isArchived: Bool { archived ?? false }
     var isDone: Bool { done ?? false }

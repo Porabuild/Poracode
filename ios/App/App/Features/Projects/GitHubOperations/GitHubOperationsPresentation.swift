@@ -1,5 +1,16 @@
 import Foundation
 
+enum GitHubPullRequestCreationMode: String, CaseIterable, Sendable {
+  static let storageKey = "poracode.pull-request-creation-mode.v1"
+
+  case dialog
+  case auto
+
+  static func resolved(_ rawValue: String) -> Self {
+    Self(rawValue: rawValue) ?? .dialog
+  }
+}
+
 enum GitHubActionCategory: CaseIterable, Sendable {
   case availability
   case pullRequests

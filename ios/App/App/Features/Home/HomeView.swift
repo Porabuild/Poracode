@@ -7,15 +7,21 @@ struct HomeView: View {
   @State private var path = NavigationPath()
   @Bindable private var notificationNavigation = NotificationNavigationCenter.shared
   @Bindable private var routes = NotificationRouteController.shared
+  @Bindable private var remoteNotifications = RemoteUserNotificationPresentationCenter.shared
   @State private var lastNotificationEventId: UInt64?
   @State private var sheetDestination: HomeSheetDestination?
   @State private var openingThreadID: String?
-  @State private var searchText = ""
-  @State private var searchPresented = false
-  @FocusState private var searchFocused: Bool
   @State private var selectedProjectIDs = Set<String>()
   @State private var composerExpanded = false
   @State private var isRefreshing = false
+  @State private var threadLifecycle: HomeThreadLifecycleCoordinator
+
+  init(session: AppSession) {
+    _session = Bindable(wrappedValue: session)
+    _threadLifecycle = State(
+      initialValue: HomeThreadLifecycleCoordinator(session: session)
+    )
+  }
 
   private var allUnifiedThreads: [UnifiedThreadListItem] {
     UnifiedThreadPresentation.entries(
@@ -38,7 +44,7 @@ struct HomeView: View {
   private var visibleThreads: [UnifiedThreadListItem] {
     HomeThreadListPresentation.filter(
       unifiedThreads,
-      searchText: searchText,
+      searchText: "",
       projectIDs: selectedProjectIDs
     )
   }
@@ -107,8 +113,8 @@ struct HomeView: View {
     .onChange(of: session.selectedConnectionId) {
       path = NavigationPath()
     }
-    .onChange(of: searchPresented) { _, presented in
-      searchFocused = presented
+    .onChange(of: projectFilterOptions.map(\.id), initial: true) {
+      selectedProjectIDs.formIntersection(projectFilterOptions.map(\.id))
     }
     .onChange(of: notificationNavigation.event) { _, event in
       consumeNotificationEvent(event)
@@ -121,6 +127,13 @@ struct HomeView: View {
     }
     .sheet(item: $sheetDestination) { destination in
       switch destination {
+      case .search:
+        HomeThreadSearchView(
+          items: unifiedThreads,
+          open: open,
+          drafts: session.richChatComposerDrafts,
+          lifecycle: threadLifecycle
+        )
       case .more:
         HomeMoreSheet(session: session, isRefreshing: $isRefreshing)
       case .projectManagement:
@@ -153,6 +166,24 @@ struct HomeView: View {
     } message: {
       Text(NotificationRouteStrings.hostSwitchMessage)
     }
+    .overlay(alignment: .top) {
+      if let banner = remoteNotifications.banner {
+        RemoteUserNotificationBannerView(
+          banner: banner,
+          open: {
+            remoteNotifications.dismiss()
+            routes.submit(banner.route)
+          },
+          dismiss: { remoteNotifications.dismiss() }
+        )
+        .padding(.horizontal, 12)
+        .safeAreaPadding(.top, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .zIndex(100)
+      }
+    }
+    .animation(.snappy(duration: 0.25), value: remoteNotifications.banner?.id)
+    .homeThreadLifecyclePresentation(threadLifecycle)
     .overlay(alignment: .bottom) {
       if let error = session.globalError {
         Text(error)
@@ -174,11 +205,13 @@ struct HomeView: View {
       }
     }
     .safeAreaInset(edge: .bottom, spacing: 0) {
-      homeActionDock
-        .frame(maxWidth: 560)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 6)
-        .zIndex(20)
+      if path.isEmpty {
+        homeActionDock
+          .frame(maxWidth: 560)
+          .padding(.horizontal, 12)
+          .padding(.bottom, 6)
+          .zIndex(20)
+      }
     }
   }
 
@@ -187,6 +220,8 @@ struct HomeView: View {
       event.route.clientConnectionId == session.selectedConnectionId
     else { return }
     lastNotificationEventId = event.id
+    sheetDestination = nil
+    composerExpanded = false
     path = NavigationPath()
     path.append(
       ThreadRoute(
@@ -200,76 +235,40 @@ struct HomeView: View {
   }
 
   private var threadList: some View {
-    VStack(spacing: 0) {
-      if searchPresented {
-        HStack(spacing: 10) {
-          Image(systemName: "magnifyingglass")
-            .foregroundStyle(.secondary)
-          TextField(HomeStrings.searchThreads, text: $searchText)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .submitLabel(.search)
-            .focused($searchFocused)
-          Button {
-            searchText = ""
-            searchPresented = false
-          } label: {
-            Image(systemName: "xmark.circle.fill")
-              .foregroundStyle(.secondary)
-          }
-          .accessibilityLabel(HomeStrings.cancel)
-        }
-        .padding(.horizontal, 14)
-        .frame(minHeight: 46)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .transition(.move(edge: .top).combined(with: .opacity))
-      }
-      if visibleThreads.isEmpty && !searchText.isEmpty {
-        ContentUnavailableView.search(text: searchText)
-          .frame(maxHeight: .infinity)
-      } else {
-        HomeThreadListView(
-          entries: threadEntries,
-          openingThreadID: openingThreadID,
-          gitSummary: gitSummary,
-          hostIsOnline: hostIsOnline,
-          open: open
-        )
-      }
-    }
+    HomeThreadListView(
+      entries: threadEntries,
+      openingThreadID: openingThreadID,
+      gitSummary: gitSummary,
+      hostIsOnline: hostIsOnline,
+      open: open,
+      openProject: openProject,
+      lifecycle: threadLifecycle,
+      drafts: session.richChatComposerDrafts
+    )
     .background(theme.variant(for: colorScheme).background)
   }
 
   private var projectFilterOptions: [HomeProjectFilterOption] {
-    Dictionary(
-      grouping: unifiedThreads, by: HomeThreadListPresentation.projectIdentity
+    HomeProjectOptionsPresentation.options(
+      hosts: session.state.hosts,
+      selectedConnectionID: session.state.selectedConnectionId,
+      selectedSnapshot: session.state.snapshot,
+      hostSnapshots: session.state.hostSnapshots,
+      isSynced: { connectionID, projectID in
+        session.projectSyncPreferences.isSynced(
+          connectionID: connectionID,
+          projectID: projectID
+        )
+      },
+      isOnline: hostIsOnline
     )
-    .compactMap { key, values -> HomeProjectFilterOption? in
-      guard let item = values.first else { return nil }
-      return HomeProjectFilterOption(
-        id: key,
-        connectionID: item.connectionID,
-        project: item.project,
-        host: HomeDeviceName.display(item.hostName),
-        online: hostIsOnline(item.connectionID),
-        threadCount: values.count
-      )
-    }
-    .sorted { lhs, rhs in
-      lhs.project.name.localizedCaseInsensitiveCompare(rhs.project.name) == .orderedAscending
-    }
   }
 
   private var homeActionDock: some View {
     HStack(alignment: .bottom, spacing: 12) {
       if !composerExpanded {
         PoracodeCircleButton {
-          withAnimation(.snappy(duration: 0.2)) {
-            searchPresented.toggle()
-            if !searchPresented { searchText = "" }
-          }
+          sheetDestination = .search
         } label: {
           Image(systemName: "magnifyingglass")
         }
@@ -321,6 +320,7 @@ struct HomeView: View {
 
   private func open(_ item: UnifiedThreadListItem) {
     guard openingThreadID == nil else { return }
+    dismissComposer(animated: false)
     openingThreadID = item.id
     Task {
       if session.selectedConnectionId != item.connectionID {
@@ -340,8 +340,33 @@ struct HomeView: View {
     }
   }
 
-  private func dismissComposer() {
-    withAnimation(.snappy(duration: 0.2)) {
+  private func openProject(_ item: UnifiedThreadListItem) {
+    guard openingThreadID == nil else { return }
+    dismissComposer(animated: false)
+    openingThreadID = item.id
+    Task {
+      if session.selectedConnectionId != item.connectionID {
+        await session.switchHost(item.connectionID)
+      }
+      defer { openingThreadID = nil }
+      guard session.selectedConnectionId == item.connectionID else { return }
+      path.append(
+        ProjectRoute(
+          id: CompositeRemoteID(
+            connectionId: item.connectionID,
+            remoteId: item.project.id
+          )
+        )
+      )
+    }
+  }
+
+  private func dismissComposer(animated: Bool = true) {
+    if animated {
+      withAnimation(.snappy(duration: 0.2)) {
+        composerExpanded = false
+      }
+    } else {
       composerExpanded = false
     }
   }

@@ -60,6 +60,29 @@ final class PushStorageTests: XCTestCase {
     XCTAssertEqual(expiredEntries, [])
   }
 
+  func testOutboxDeduplicatesAnExactPendingUnregister() async throws {
+    let io = InMemoryKeychainIO()
+    let outbox = PushUnregisterOutbox(io: io)
+    let route = PushRegistrationRoute(clientConnectionId: connection, desktopId: "desktop")
+
+    let first = try await outbox.enqueue(
+      endpoint: "https://relay.example/prefix",
+      accessToken: "access-secret",
+      deviceId: "device-id",
+      route: route
+    )
+    let duplicate = try await outbox.enqueue(
+      endpoint: "https://relay.example/prefix",
+      accessToken: "access-secret",
+      deviceId: "device-id",
+      route: route
+    )
+
+    XCTAssertEqual(duplicate.id, first.id)
+    let pending = try await outbox.pending()
+    XCTAssertEqual(pending.count, 1)
+  }
+
   func testOutboxPreservesFutureBytes() async throws {
     let io = InMemoryKeychainIO()
     let future = Data(#"{"version":9,"entries":[{"opaque":true}]}"#.utf8)

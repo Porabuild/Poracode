@@ -11,6 +11,7 @@
     let projection: BrowserMirrorViewProjection
     let mode: BrowserMirrorViewportMode
     let onRetry: () -> Void
+    @State private var drag: BrowserMirrorDragState?
 
     var body: some View {
       GeometryReader { geometry in
@@ -82,7 +83,47 @@
 
     private func gesture(in rect: BrowserMirrorRect) -> some Gesture {
       DragGesture(minimumDistance: 0, coordinateSpace: .local)
+        .onChanged { value in
+          guard projection.acceptsInput else {
+            drag = nil
+            return
+          }
+          let start = BrowserMirrorPoint(
+            x: value.startLocation.x,
+            y: value.startLocation.y
+          )
+          let current = BrowserMirrorPoint(x: value.location.x, y: value.location.y)
+          var next =
+            drag
+            ?? BrowserMirrorDragState(
+              anchor: start,
+              previous: start,
+              startedAt: value.time,
+              isScrolling: false
+            )
+          let distance = hypot(
+            current.x - next.anchor.x,
+            current.y - next.anchor.y
+          )
+          guard next.isScrolling || distance >= 8 else {
+            drag = next
+            return
+          }
+          next.isScrolling = true
+          let previous = next.previous
+          next.previous = current
+          drag = next
+          Task {
+            await controller.sendScroll(
+              anchoredAt: next.anchor,
+              from: previous,
+              to: current,
+              in: rect
+            )
+          }
+        }
         .onEnded { value in
+          defer { drag = nil }
           guard projection.acceptsInput else { return }
           let start = BrowserMirrorPoint(
             x: value.startLocation.x,
@@ -90,13 +131,31 @@
           )
           let end = BrowserMirrorPoint(x: value.location.x, y: value.location.y)
           let distance = hypot(value.translation.width, value.translation.height)
-          if distance < 8 {
+          let state = drag
+          if state?.isScrolling == true {
+            guard state?.previous != end else { return }
+            Task {
+              await controller.sendScroll(
+                anchoredAt: state?.anchor ?? start,
+                from: state?.previous ?? start,
+                to: end,
+                in: rect
+              )
+            }
+          } else if distance < 8,
+            value.time.timeIntervalSince(state?.startedAt ?? value.time) <= 0.6
+          {
             Task { await controller.sendTap(at: end, in: rect) }
-          } else {
-            Task { await controller.sendScroll(from: start, to: end, in: rect) }
           }
         }
     }
+  }
+
+  private struct BrowserMirrorDragState {
+    let anchor: BrowserMirrorPoint
+    var previous: BrowserMirrorPoint
+    let startedAt: Date
+    var isScrolling: Bool
   }
 
   extension BrowserMirrorRect {

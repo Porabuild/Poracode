@@ -49,7 +49,9 @@ extension AppSession {
     )
   }
 
-  /// Whether the session menu may offer port forwarding right now.
+  /// Whether a live port-forwarding operation may begin right now. The Ports
+  /// page itself stays reachable for an exact paired-host lease so it can show
+  /// native offline, readiness, and missing-scope states.
   var canOpenPortForwarding: Bool {
     guard let access = currentPortForwardingAccess else { return false }
     return access.protocolVersion == PortForwardingRemoteV3Contract.protocolVersion

@@ -41,7 +41,8 @@ struct PortForwardingViewProjection: Equatable, Sendable {
       PortForwardingDetectedRow(
         id: port.port,
         title: PortForwardingStrings.localhost(port.port),
-        subtitle: port.label ?? (port.protocolValue == .http ? PortForwardingStrings.webServer : nil),
+        subtitle: port.label
+          ?? (port.protocolValue == .http ? PortForwardingStrings.webServer : nil),
         canStart: operation == .none && !forwardedPorts.contains(port.port),
         isBusy: operation == .starting(port: port.port)
       )
@@ -55,8 +56,7 @@ struct PortForwardingViewProjection: Equatable, Sendable {
       return PortForwardingActiveRow(
         id: forward.id,
         title: PortForwardingStrings.port(forward.targetPort),
-        value: PortForwardingStrings.forwardingValue(
-          target: forward.targetPort, listener: forward.listenPort),
+        value: PortForwardingStrings.onDesktop(forward.targetPort),
         canOpen: operation == .none,
         canStop: operation == .none,
         isBusy: busy

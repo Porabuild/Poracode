@@ -54,6 +54,23 @@ final class ProjectControllerNotesController {
     self.session = session
   }
 
+  func deactivate() {
+    guard session != nil else { return }
+    activationRevision &+= 1
+    for operation in scheduledWriteByProject.values {
+      operation.cancel()
+    }
+    scheduledWriteByProject.removeAll(keepingCapacity: true)
+    for identity in Array(notesByProject.keys) {
+      loadRevisionByProject[identity, default: 0] &+= 1
+      if notesByProject[identity]?.loadState == .loading {
+        notesByProject[identity]?.loadState = .idle
+      }
+      notesByProject[identity]?.isSaving = false
+    }
+    session = nil
+  }
+
   func state(for identity: ProjectIdentity) -> ProjectControllerNotesState {
     notesByProject[identity] ?? ProjectControllerNotesState()
   }

@@ -4,6 +4,24 @@ import XCTest
 
 @MainActor
 final class ProjectControllerNotesControllerTests: XCTestCase {
+  func testDeactivateCancelsPendingWriteAndDropsHostAuthority() async {
+    let gateway = ProjectControllerGatewayFake()
+    let scheduler = ProjectControllerManualDebounceScheduler()
+    let identity = identity(for: ProjectControllerTestValues.hostA)
+    let controller = ProjectControllerNotesController(gateway: gateway, scheduler: scheduler)
+    controller.activate(ProjectControllerTestValues.session(identity.connectionId))
+    controller.edit(identity, doc: .string("draft"), todos: [], updatedAt: "draft")
+    XCTAssertEqual(scheduler.count, 1)
+
+    controller.deactivate()
+
+    XCTAssertNil(controller.session)
+    XCTAssertEqual(scheduler.count, 0)
+    await scheduler.runNext()
+    let calls = await gateway.notesWriteCalls
+    XCTAssertTrue(calls.isEmpty)
+  }
+
   func testEditsCoalesceAtExactlySixHundredMilliseconds() async {
     let gateway = ProjectControllerGatewayFake()
     let scheduler = ProjectControllerManualDebounceScheduler()

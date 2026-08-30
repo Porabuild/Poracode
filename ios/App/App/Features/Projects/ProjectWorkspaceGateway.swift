@@ -57,6 +57,29 @@ protocol ProjectWorkspaceGateway: Sendable {
     lease: ProjectWorkspaceLease
   ) async throws -> ProjectFileWriteResult
 
+  func createProjectEntry(
+    path: String,
+    type: AdvancedProjectEntryType,
+    lease: ProjectWorkspaceLease
+  ) async throws
+
+  func renameProjectEntry(
+    path: String,
+    nextName: String,
+    lease: ProjectWorkspaceLease
+  ) async throws
+
+  func moveProjectEntry(
+    path: String,
+    nextParentPath: String?,
+    lease: ProjectWorkspaceLease
+  ) async throws
+
+  func deleteProjectEntry(
+    path: String,
+    lease: ProjectWorkspaceLease
+  ) async throws
+
   func getGitStatus(
     detail: ProjectGitStatusDetail?,
     lease: ProjectWorkspaceLease

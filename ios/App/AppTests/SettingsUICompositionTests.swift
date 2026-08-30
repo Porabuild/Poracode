@@ -1,15 +1,197 @@
+import UIKit
 import XCTest
 
 @testable import App
 
 @MainActor
 final class SettingsUICompositionTests: XCTestCase {
+  func testHomeShortcutPreferencesMatchPWADefaultsAndNormalizeStoredValues() {
+    XCTAssertTrue(HomeShortcutPreferences.storageKey.hasSuffix(".v1"))
+    XCTAssertEqual(HomeShortcutPreferences.default.hidden, [.githubActions])
+    XCTAssertEqual(HomeShortcutPreferences.default.visible, [.pullRequests, .schedules])
+
+    let decoded = HomeShortcutPreferences(
+      storageValue:
+        #"{"hidden":["pullRequests","future"],"order":["schedules","schedules","future"]}"#
+    )
+    XCTAssertEqual(decoded.hidden, [.pullRequests])
+    XCTAssertEqual(decoded.order, [.schedules, .pullRequests, .githubActions])
+    XCTAssertEqual(decoded.visible, [.schedules, .githubActions])
+  }
+
+  func testHomeShortcutPreferencesRoundTripMutationAndRecoverMalformedStorage() {
+    var preferences = HomeShortcutPreferences.default
+    preferences.setVisible(true, for: .githubActions)
+    preferences.move(fromOffsets: IndexSet(integer: 2), toOffset: 0)
+
+    XCTAssertEqual(preferences.order, [.schedules, .pullRequests, .githubActions])
+    XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
+    XCTAssertEqual(HomeShortcutPreferences(storageValue: "not-json"), .default)
+  }
+
+  func testAIContentLanguageMatchesPWAResolutionAndPrefillsGenerationDrafts() {
+    XCTAssertEqual(AIContentLanguagePreference.resolved("future-value"), .matchApp)
+    XCTAssertEqual(
+      AIContentLanguagePreference.matchApp.modelLanguageName(preferredLanguages: ["de-DE"]),
+      "German"
+    )
+    XCTAssertEqual(
+      AIContentLanguagePreference.simplifiedChinese.modelLanguageName(
+        preferredLanguages: ["en-US"]
+      ),
+      "Simplified Chinese"
+    )
+    XCTAssertNil(
+      AIContentLanguagePreference.matchApp.modelLanguageName(preferredLanguages: ["en-US"])
+    )
+    XCTAssertTrue(AIContentLanguagePreference.storageKey.hasSuffix(".v1"))
+
+    let commit = AdvancedOperationDraft(
+      procedure: .generateCommitMessage,
+      initialLanguage: "German"
+    )
+    let unrelated = AdvancedOperationDraft(
+      procedure: .readAbsoluteFile,
+      initialLanguage: "German"
+    )
+    XCTAssertEqual(commit.value(.language), "German")
+    XCTAssertEqual(unrelated.value(.language), "")
+  }
+
   func testProfilePresentationMatchesPWAFormatting() {
     XCTAssertEqual(ProfilePresentation.initials("Svecherenko"), "SV")
     XCTAssertEqual(ProfilePresentation.initials("Ada Lovelace"), "AL")
     XCTAssertEqual(ProfilePresentation.compact(Int64(160_000)), "160K")
     XCTAssertEqual(ProfilePresentation.compact(Int64(97_500)), "97.5K")
     XCTAssertEqual(ProfilePresentation.duration(91_000), "1m 31s")
+  }
+
+  func testUsagePresentationAppliesPWAProviderOrderWithoutDroppingUnknownProviders() {
+    let snapshots = [
+      usageSnapshot("claude"),
+      usageSnapshot("gemini"),
+      usageSnapshot("codex"),
+    ]
+
+    XCTAssertEqual(
+      SettingsUsagePresentation.ordered(
+        snapshots,
+        providerOrder: ["codex", "claude", "not-loaded"]
+      ).map(\.providerId),
+      ["codex", "claude", "gemini"]
+    )
+  }
+
+  func testUsagePresentationUsesProductProviderNames() {
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("claude"), "Claude")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("codex"), "Codex")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("commandcode"), "Command Code")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("copilot"), "GitHub Copilot")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("factory"), "Droid")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("opencode"), "OpenCode")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("zai"), "z.ai")
+    XCTAssertEqual(SettingsUsagePresentation.providerLabel("custom-provider"), "Custom Provider")
+  }
+
+  func testUsageMeterMatchesPWAThresholdsValuesAndProjection() throws {
+    XCTAssertEqual(SettingsUsagePresentation.tone(for: 69.9), .normal)
+    XCTAssertEqual(SettingsUsagePresentation.tone(for: 70), .warning)
+    XCTAssertEqual(SettingsUsagePresentation.tone(for: 90), .danger)
+
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    let reset = now.addingTimeInterval(2.5 * 3_600)
+    let window = SettingsUsageWindow(
+      id: "session-5h",
+      label: "Session (5h)",
+      usedPercent: 60,
+      used: nil,
+      limit: nil,
+      unit: .percent,
+      currency: nil,
+      resetsAt: Int64(reset.timeIntervalSince1970 * 1_000)
+    )
+    let projection = try XCTUnwrap(SettingsUsagePresentation.projection(for: window, now: now))
+    XCTAssertEqual(projection.projectedPercent, 120, accuracy: 0.001)
+    XCTAssertFalse(projection.lastsToReset)
+    XCTAssertEqual(SettingsUsagePresentation.resetCountdown(window.resetsAt, now: now), "2h 30m")
+    XCTAssertEqual(SettingsUsagePresentation.windowValue(window), "60%")
+  }
+
+  func testNativeProviderIconCatalogCoversEveryUsageProvider() throws {
+    let usageProviderIDs = [
+      "antigravity", "claude", "codex", "commandcode", "copilot", "cursor", "factory",
+      "gemini", "grok", "kimi", "opencode", "qwen", "zai",
+    ]
+
+    for providerID in usageProviderIDs {
+      let assetName = try XCTUnwrap(ProviderIconPresentation.assetName(for: providerID))
+      let image = try XCTUnwrap(UIImage(named: assetName), providerID)
+      XCTAssertEqual(image.size, CGSize(width: 24, height: 24), providerID)
+      XCTAssertEqual(image.renderingMode, .alwaysTemplate, providerID)
+    }
+    XCTAssertEqual(
+      ProviderIconPresentation.assetName(for: "claude-profile:work"),
+      "ProviderClaude"
+    )
+  }
+
+  func testUsagePresentationHonorsSharedEstimatedCostPreferenceWithoutHidingTokens() {
+    let snapshot = SettingsUsageSnapshot(
+      providerId: "codex",
+      status: .ok,
+      windows: [],
+      fetchedAt: 0,
+      authenticatedAs: nil,
+      plan: nil,
+      error: nil,
+      rateLimitedUntil: nil,
+      cost: SettingsUsageCost(
+        amount: 1.25,
+        currency: "USD",
+        period: .today,
+        estimated: true
+      ),
+      credits: nil,
+      tokens: SettingsUsageTokens(
+        input: nil,
+        output: nil,
+        cacheRead: nil,
+        cacheWrite: nil,
+        total: 2_000,
+        period: .today
+      )
+    )
+
+    let visible = SettingsUsagePresentation.metaLine(snapshot, showsEstimatedCost: true)
+    let hidden = SettingsUsagePresentation.metaLine(snapshot, showsEstimatedCost: false)
+    XCTAssertTrue(visible?.contains("USD") == true)
+    XCTAssertFalse(hidden?.contains("USD") == true)
+    XCTAssertNotNil(hidden)
+  }
+
+  func testUsagePreferencePatchPreservesTheCompleteHostOwnedObject() throws {
+    let usage = SettingsUsagePreferences(
+      autoRefresh: true,
+      refreshIntervalMinutes: 10,
+      providerRefreshIntervals: ["codex": 15],
+      showEstimatedCost: true,
+      showInSidebar: false,
+      sidebarHiddenProviders: ["claude"],
+      disabledProviders: ["gemini"],
+      providerOrder: ["codex", "claude"],
+      collapsedProviders: ["claude"],
+      selectedRingGroups: ["antigravity": "gemini"]
+    )
+
+    let object = try XCTUnwrap(usage.settingsJSON.objectValue)
+    XCTAssertEqual(object["autoRefresh"], .bool(true))
+    XCTAssertEqual(object["refreshIntervalMinutes"], .integer(10))
+    XCTAssertEqual(object["providerOrder"], .array([.string("codex"), .string("claude")]))
+    XCTAssertEqual(object["collapsedProviders"], .array([.string("claude")]))
+    XCTAssertEqual(
+      object["selectedRingGroups"],
+      .object(["antigravity": .string("gemini")])
+    )
   }
 
   func testEightRoutesRequireReadAndHostGateUsesVersionReadinessAndScope() {
@@ -81,6 +263,24 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertNil(patch[.providerOrder])
   }
 
+  func testGitDraftPatchesOnlyHostOwnedAutomationValues() {
+    let document = settingsDocument()
+    var draft = SettingsDocumentDraft(document)
+    draft.prAutomationDefault = .merge
+    draft.prMergeMethod = .squash
+    draft.worktreeBasePath = "/must-not-write-from-git-page"
+
+    let patch = draft.gitPatch(comparedTo: document)
+
+    XCTAssertEqual(
+      patch.values,
+      [
+        .prAutomationDefault: .string("merge"),
+        .prMergeMethod: .string("squash"),
+      ]
+    )
+  }
+
   func testFailurePresentationDoesNotRenderAssociatedRemoteValues() {
     let secret = "Bearer host-token plaintext-secret"
     let values: [SettingsOperationFailure] = [
@@ -113,6 +313,38 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertTrue(presentation.installed)
     XCTAssertEqual(presentation.authState, .authenticated)
     XCTAssertFalse(String(describing: presentation).contains("never-render"))
+  }
+
+  func testAgentModelProjectionKeepsLabeledModelsAndExcludesAutomaticChoice() throws {
+    let status = try SettingsAgentStatus(
+      payload: .object([
+        "kind": .string("provider"),
+        "label": .string("Provider"),
+        "installed": .bool(true),
+        "authState": .string("authenticated"),
+        "capabilities": .object([
+          "supportsOneShot": .bool(true),
+          "efforts": .array([.string("medium"), .string("high")]),
+          "fastModels": .array([.string("model-b")]),
+          "models": .array([
+            .object(["id": .string("auto"), "label": .string("Automatic")]),
+            .object(["id": .string("model-a"), "label": .string("Model A")]),
+            .object(["id": .string("model-b"), "label": .string("Model B")]),
+          ]),
+        ]),
+      ])
+    )
+
+    XCTAssertEqual(
+      status.models,
+      [
+        SettingsAgentModel(id: "model-a", label: "Model A"),
+        SettingsAgentModel(id: "model-b", label: "Model B"),
+      ]
+    )
+    XCTAssertTrue(status.supportsOneShot)
+    XCTAssertEqual(status.efforts, ["medium", "high"])
+    XCTAssertEqual(status.fastModels, ["model-b"])
   }
 
   func testReplayReducerProjectsInitialWindowsAndWSLDistroLists() throws {
@@ -498,5 +730,21 @@ private func settingsDocument() -> SettingsDocument {
     wslWorktreeBasePath: "",
     prAutomationDefault: .off,
     prMergeMethod: .merge
+  )
+}
+
+private func usageSnapshot(_ providerID: String) -> SettingsUsageSnapshot {
+  SettingsUsageSnapshot(
+    providerId: providerID,
+    status: .ok,
+    windows: [],
+    fetchedAt: 0,
+    authenticatedAs: nil,
+    plan: nil,
+    error: nil,
+    rateLimitedUntil: nil,
+    cost: nil,
+    credits: nil,
+    tokens: nil
   )
 }

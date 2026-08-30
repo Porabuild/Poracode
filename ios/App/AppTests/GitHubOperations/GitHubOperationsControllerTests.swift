@@ -9,6 +9,83 @@ import XCTest
 
 @MainActor
 final class GitHubOperationsControllerTests: XCTestCase {
+  func testWorkflowProjectionsPreservePageAndRunDetailFields() throws {
+    let step: GitHubJSONValue = .object([
+      "number": .integer(1),
+      "name": .string("Checkout"),
+      "status": .string("completed"),
+      "conclusion": .string("success"),
+    ])
+    let job: GitHubJSONValue = .object([
+      "id": .integer(31),
+      "name": .string("Build"),
+      "status": .string("completed"),
+      "conclusion": .string("success"),
+      "url": .string("https://github.example/jobs/31"),
+      "steps": .array([step]),
+    ])
+    let run: GitHubJSONValue = .object([
+      "id": .integer(22),
+      "workflowId": .integer(11),
+      "workflowName": .string("CI"),
+      "name": .string("CI"),
+      "number": .integer(7),
+      "attempt": .integer(2),
+      "title": .string("Ship native Actions"),
+      "event": .string("push"),
+      "headBranch": .string("main"),
+      "headSha": .string("abcdef123456"),
+      "status": .string("completed"),
+      "conclusion": .string("success"),
+      "createdAt": .string("2026-08-22T10:00:00Z"),
+      "startedAt": .string("2026-08-22T10:00:01Z"),
+      "updatedAt": .string("2026-08-22T10:05:00Z"),
+      "url": .string("https://github.example/runs/22"),
+      "jobs": .array([job]),
+    ])
+
+    let runs = try XCTUnwrap(
+      GitHubResultProjection.workflowRuns(
+        GitHubOperationsSamples.result(
+          .ghListWorkflowRuns,
+          object: ["runs": .array([run])]
+        )
+      )
+    )
+    XCTAssertEqual(runs.first?.id, 22)
+    XCTAssertEqual(runs.first?.jobs.first?.steps.first?.name, "Checkout")
+
+    let definition = try XCTUnwrap(
+      GitHubResultProjection.workflowDefinition(
+        GitHubOperationsSamples.result(
+          .ghGetWorkflowDefinition,
+          object: [
+            "definition": .object([
+              "workflowId": .integer(11),
+              "ref": .string("main"),
+              "defaultBranch": .string("main"),
+              "dispatchable": .bool(true),
+              "triggers": .array([.string("workflow_dispatch")]),
+              "inputs": .array([
+                .object([
+                  "name": .string("target"),
+                  "description": .string("Deployment target"),
+                  "required": .bool(true),
+                  "type": .string("choice"),
+                  "defaultValue": .string("staging"),
+                  "options": .array([.string("staging"), .string("production")]),
+                ])
+              ]),
+            ])
+          ]
+        )
+      )
+    )
+    XCTAssertTrue(definition.dispatchable)
+    XCTAssertEqual(definition.inputs.first?.defaultValue, .string("staging"))
+    XCTAssertEqual(definition.inputs.first?.options, ["staging", "production"])
+  }
+
   func testPullRequestReadsAreLatestWinsAndCancellable() async {
     let recorder = GitHubCallRecorder()
     let gateway = GitHubStubGateway { request, _ in
@@ -159,4 +236,72 @@ final class GitHubOperationsControllerTests: XCTestCase {
     XCTAssertNil(controller.state.pendingConfirmation)
     XCTAssertNil(controller.state.activeMutation)
   }
+
+  #if canImport(App)
+    func testWorkflowPinsPersistPerDesktopAndProjectAndPreserveFutureDocuments() throws {
+      let suite = "poracode.tests.github-workflow-pins.\(UUID().uuidString)"
+      let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+      defer { defaults.removePersistentDomain(forName: suite) }
+      let preferences = GitHubWorkflowPinPreferences(defaults: defaults)
+      let projectA = GitHubWorkflowPinScope(desktopID: "desktop-a", projectID: "project-a")
+      let projectB = GitHubWorkflowPinScope(desktopID: "desktop-a", projectID: "project-b")
+
+      XCTAssertTrue(preferences.setPinned(true, workflowID: 7, in: projectA))
+      XCTAssertTrue(preferences.setPinned(true, workflowID: 3, in: projectA))
+      XCTAssertEqual(preferences.pinnedWorkflowIDs(in: projectA), [3, 7])
+      XCTAssertTrue(preferences.pinnedWorkflowIDs(in: projectB).isEmpty)
+      XCTAssertTrue(GitHubWorkflowPinPreferences.storageKey.hasSuffix(".v1"))
+
+      let future = Data(#"{"version":2,"pinsByDesktop":{"desktop-a":{"project-a":[99]}}}"#.utf8)
+      defaults.set(future, forKey: GitHubWorkflowPinPreferences.storageKey)
+      XCTAssertFalse(preferences.setPinned(true, workflowID: 11, in: projectA))
+      XCTAssertEqual(defaults.data(forKey: GitHubWorkflowPinPreferences.storageKey), future)
+    }
+
+    func testPinnedWorkflowsSortFirstThenUseLocalizedNameOrder() {
+      let workflows = [
+        GitHubWorkflowSummary(id: 1, name: "Zulu", path: "z.yml", state: "active"),
+        GitHubWorkflowSummary(id: 2, name: "Alpha", path: "a.yml", state: "active"),
+        GitHubWorkflowSummary(id: 3, name: "Beta", path: "b.yml", state: "active"),
+      ]
+
+      XCTAssertEqual(
+        GitHubWorkflowPinPresentation.ordered(workflows, pinnedIDs: [1, 3]).map(\.id),
+        [3, 1, 2]
+      )
+    }
+
+    func testWorkflowStatusPresentationMatchesCompactPWAStates() {
+      XCTAssertEqual(
+        GitHubActionsStatus.label("completed", "success"),
+        GitHubOperationsStrings.succeeded
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.label("completed", "startup_failure"),
+        GitHubOperationsStrings.failed
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.label("completed", "timed_out"),
+        GitHubOperationsStrings.timedOut
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.label("in_progress", ""),
+        GitHubOperationsStrings.inProgress
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.label("requested", ""),
+        GitHubOperationsStrings.queued
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.label("pending", ""),
+        GitHubOperationsStrings.waiting
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.label("completed", "mystery"),
+        GitHubOperationsStrings.unknown
+      )
+      XCTAssertEqual(
+        GitHubActionsStatus.symbol("completed", "skipped"), "arrow.forward.to.line.circle.fill")
+    }
+  #endif
 }

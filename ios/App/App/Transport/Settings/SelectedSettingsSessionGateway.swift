@@ -21,11 +21,49 @@ protocol SettingsSessionGateway: Sendable {
     _ patch: SettingsPatch,
     lease: SettingsHostLease
   ) async throws -> SettingsReadResponse
+  func readGlobalMCPSettings(lease: SettingsHostLease) async throws
+    -> GlobalMCPSettingsResponse
+  func commandGlobalMCPSettings(
+    _ command: GlobalMCPSettingsCommand,
+    lease: SettingsHostLease
+  ) async throws -> GlobalMCPSettingsResponse
+  func operateGlobalMCPSettings(
+    _ operation: GlobalMCPSettingsOperation,
+    lease: SettingsHostLease
+  ) async throws -> GlobalMCPSettingsOperationResult
+}
+
+extension SettingsSessionGateway {
+  func readGlobalMCPSettings(lease: SettingsHostLease) async throws
+    -> GlobalMCPSettingsResponse
+  {
+    _ = lease
+    throw SettingsGatewayError.transport
+  }
+
+  func commandGlobalMCPSettings(
+    _ command: GlobalMCPSettingsCommand,
+    lease: SettingsHostLease
+  ) async throws -> GlobalMCPSettingsResponse {
+    _ = command
+    _ = lease
+    throw SettingsGatewayError.transport
+  }
+
+  func operateGlobalMCPSettings(
+    _ operation: GlobalMCPSettingsOperation,
+    lease: SettingsHostLease
+  ) async throws -> GlobalMCPSettingsOperationResult {
+    _ = operation
+    _ = lease
+    throw SettingsGatewayError.transport
+  }
 }
 
 /// Owns scope, protocol, cancellation, and exact lease checks for Settings operations.
 actor SelectedSettingsSessionGateway: SettingsSessionGateway {
-  typealias SelectionProvider = @Sendable (SettingsHostLease) async throws
+  typealias SelectionProvider =
+    @Sendable (SettingsHostLease) async throws
     -> SettingsTransportSelection?
 
   private let selectionProvider: SelectionProvider
@@ -93,6 +131,32 @@ actor SelectedSettingsSessionGateway: SettingsSessionGateway {
   ) async throws -> SettingsReadResponse {
     try await execute(lease: lease, scope: .sessionOperate) {
       try await $0.settingsWrite(patch)
+    }
+  }
+
+  func readGlobalMCPSettings(lease: SettingsHostLease) async throws
+    -> GlobalMCPSettingsResponse
+  {
+    try await execute(lease: lease, scope: .projectsManage) {
+      try await $0.globalMCPSettingsRead()
+    }
+  }
+
+  func commandGlobalMCPSettings(
+    _ command: GlobalMCPSettingsCommand,
+    lease: SettingsHostLease
+  ) async throws -> GlobalMCPSettingsResponse {
+    try await execute(lease: lease, scope: .projectsManage) {
+      try await $0.globalMCPSettingsCommand(command)
+    }
+  }
+
+  func operateGlobalMCPSettings(
+    _ operation: GlobalMCPSettingsOperation,
+    lease: SettingsHostLease
+  ) async throws -> GlobalMCPSettingsOperationResult {
+    try await execute(lease: lease, scope: .projectsManage) {
+      try await $0.globalMCPSettingsOperation(operation)
     }
   }
 
