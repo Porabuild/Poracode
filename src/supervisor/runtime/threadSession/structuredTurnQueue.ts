@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PromptSegment } from "@/shared/contracts";
+import type { PromptSegment, ProviderHandoffItemPayload } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
@@ -106,6 +106,43 @@ export class StructuredTurnQueue {
         itemId,
         itemType: "user_message",
         payload: { content: buildPromptContentBlocks(prompt, segments) },
+      },
+    });
+    this.ctx.emit({
+      type: "thread-runtime-event",
+      threadId,
+      event: { type: "item.completed", threadId, itemId },
+    });
+    return itemId;
+  }
+
+  /**
+   * Record where a thread changed provider in place. Emitted from the spawn
+   * pipeline rather than the renderer so the divider lands on the durable event
+   * path — persisted to SQLite and broadcast to every paired client — and is
+   * ordered ahead of the prompt that the new provider answers.
+   */
+  emitProviderHandoff(
+    threadId: string,
+    fromAgentKind: string,
+    toAgentKind: string,
+    requestedItemId?: string,
+  ): string {
+    const itemId = requestedItemId ?? `handoff-${randomUUID()}`;
+    const payload: ProviderHandoffItemPayload = {
+      fromAgentKind,
+      toAgentKind,
+      at: new Date().toISOString(),
+    };
+    this.ctx.emit({
+      type: "thread-runtime-event",
+      threadId,
+      event: {
+        type: "item.started",
+        threadId,
+        itemId,
+        itemType: "provider_handoff",
+        payload,
       },
     });
     this.ctx.emit({

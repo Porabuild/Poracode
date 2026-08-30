@@ -166,6 +166,9 @@ function prepareThreadSyncStatement(sqlite: InstanceType<typeof Database>): Sqli
     ON CONFLICT(id) DO UPDATE SET
       workspace_id = excluded.workspace_id,
       title = excluded.title,
+      -- Mutable: a thread can be switched to another provider in place, keeping
+      -- its id and transcript. Omitting this pinned rows to their first agent.
+      agent_kind = excluded.agent_kind,
       agent_instance_id = excluded.agent_instance_id,
       config = excluded.config,
       status = excluded.status,

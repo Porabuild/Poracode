@@ -857,7 +857,7 @@ export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string |
       `SELECT item_id
        FROM thread_runtime_items
        WHERE thread_id = ?
-         AND type NOT IN ('user_message', 'plan', 'error')
+         AND type NOT IN ('user_message', 'plan', 'error', 'provider_handoff')
          AND type != ?
        ORDER BY position DESC
        LIMIT 1`,

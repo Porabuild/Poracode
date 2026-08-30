@@ -89,6 +89,13 @@ export type SupervisorEvent =
       threadId: string;
       status: ThreadStatus;
       attention: ThreadAttention;
+      /**
+       * Provider that owns the session this state came from. A thread can be
+       * switched to another provider in place, and the old session emits a
+       * final state as it is torn down — the renderer uses this to tell that
+       * straggler apart from the new provider's own updates.
+       */
+      agentKind?: string;
       config?: ThreadConfig;
       /** Effective launch-time config after plugin and global MCP policy is applied. */
       launchConfig?: ThreadConfig;

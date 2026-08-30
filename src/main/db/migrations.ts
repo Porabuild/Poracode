@@ -27,6 +27,14 @@ function addColumnIfMissing(
   }
 }
 
+function createRuntimeItemParentIndex(sqlite: SqliteDatabase): void {
+  addColumnIfMissing(sqlite, "thread_runtime_items", "parent_item_id", "TEXT");
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_parent " +
+      "ON thread_runtime_items (thread_id, parent_item_id)",
+  );
+}
+
 function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string): void {
   const rows = sqlite
     .prepare(`SELECT rowid AS rowid, ${column} AS json FROM ${table} WHERE ${column} IS NOT NULL`)
@@ -533,6 +541,11 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 38,
+    name: "runtime item parent index",
+    migrate: createRuntimeItemParentIndex,
+  },
+  {
+    version: 39,
     name: "adopt Antigravity ACP provider",
     migrate: (sqlite) => {
       const legacyKind = "acp-generic:antigravity-acp";
@@ -581,12 +594,12 @@ export const DATABASE_MIGRATIONS = [
     },
   },
   {
-    version: 39,
+    version: 40,
     name: "normalize Antigravity ACP model variants",
     migrate: normalizeAntigravityAcpConfigs,
   },
   {
-    version: 40,
+    version: 41,
     name: "repair Antigravity persisted model variants",
     // v39 originally omitted project drafts and could reinterpret the one
     // ACP/CLI-overlapping 3.5 slug. Re-run the now context-aware repair for
@@ -682,6 +695,7 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     for (const [table, column, definition] of SAFE_COLUMN_REPAIRS) {
       addColumnIfMissing(sqlite, table, column, definition);
     }
+    createRuntimeItemParentIndex(sqlite);
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );

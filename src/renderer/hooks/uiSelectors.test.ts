@@ -4,11 +4,14 @@ import { dockPanelTab } from "@/renderer/actions/panelActions";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { EMPTY_BOTTOM_PANEL_DOCKS, usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import type { AgentStatus } from "@/shared/contracts";
 import {
   useIsProjectGitPanelActive,
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
+  useThreadAgentStatuses,
 } from "./uiSelectors";
 
 const worktreePath = "/repo/.poracode/worktrees/feature";
@@ -25,6 +28,29 @@ beforeEach(() => {
     usagePanelOpen: true,
   });
   useDevTerminalStore.setState({ isOpen: false, activeProjectId: null, activeWorktreePath: null });
+  useAgentStatusesStore.setState({ agentStatuses: [], wslAgentStatuses: [] });
+});
+
+const agent = (kind: string, envKind: "windows" | "wsl", envDistro?: string): AgentStatus => ({
+  kind,
+  label: kind,
+  installed: true,
+  authState: "authenticated",
+  envKind,
+  ...(envDistro ? { envDistro } : {}),
+  capabilities: {
+    models: [],
+    efforts: [],
+    modelEfforts: {},
+    modes: [],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "terminal",
+    presentationMode: "gui",
+    settingDefs: [],
+  },
 });
 
 function openGitPanel(scope: { projectId: string; worktreePath?: string }) {
@@ -118,5 +144,31 @@ describe("sidebar panel-active selectors", () => {
 
     dockPanelTab("terminal", { zone: "bottom-panel", placement: "left" });
     expect(usePanelStore.getState().bottomPanelDocks).toEqual(EMPTY_BOTTOM_PANEL_DOCKS);
+  });
+});
+
+describe("thread agent statuses", () => {
+  it("uses the matching WSL distro inventory for a local WSL thread", () => {
+    useAgentStatusesStore.setState({
+      agentStatuses: [agent("windows-only", "windows")],
+      wslAgentStatuses: [
+        agent("ubuntu-agent", "wsl", "Ubuntu"),
+        agent("debian-agent", "wsl", "Debian"),
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useThreadAgentStatuses({
+        remoteServerId: undefined,
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+      }),
+    );
+
+    expect(result.current.map((status) => status.kind)).toEqual(["ubuntu-agent"]);
   });
 });

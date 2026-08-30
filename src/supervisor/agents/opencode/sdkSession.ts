@@ -359,6 +359,20 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
   }
 
+  forceCompleteTurn(): void {
+    const events = this.mapperState ? closeOpenItems(this.mapperState) : [];
+    if (this.turnActive) {
+      events.push({
+        type: "turn.completed",
+        threadId: this.threadId,
+        turnId: `opencode-${this.sessionId ?? "unknown"}`,
+        state: "interrupted",
+      });
+      this.turnActive = false;
+    }
+    this.emitRuntimeEvents(events);
+  }
+
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
     const acquired = this.requireAcquired();
     const pending = this.pendingRequests.get(requestId);

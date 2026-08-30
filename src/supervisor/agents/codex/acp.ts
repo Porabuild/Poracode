@@ -872,6 +872,38 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     await this.interruptActiveTurn(threadId, this.activeTurnId);
   }
 
+  forceCompleteTurn(): void {
+    const state = this.mapperState;
+    if (!state) return;
+    const itemIds = new Set(state.itemIdMap.values());
+    if (state.openAssistantItemId) itemIds.add(state.openAssistantItemId);
+    if (state.turnPlanItemId) itemIds.add(state.turnPlanItemId);
+    const events: RuntimeEvent[] = [...itemIds].map((itemId) => ({
+      type: "item.completed",
+      threadId: this.threadId,
+      itemId,
+    }));
+    const turnId = this.activeTurnId ?? state.currentTurnId;
+    if (turnId) {
+      events.push({
+        type: "turn.completed",
+        threadId: this.threadId,
+        turnId,
+        state: "interrupted",
+      });
+    }
+    state.itemIdMap.clear();
+    state.itemTypeMap.clear();
+    state.commandOutputSeenSet.clear();
+    state.fileChangeOutputMap.clear();
+    state.fileChangePathMap.clear();
+    state.reasoningSummaryIndexMap.clear();
+    delete state.openAssistantItemId;
+    delete state.turnPlanItemId;
+    delete state.currentTurnId;
+    this.emitRuntimeEvents(events);
+  }
+
   private flushPendingTurnInterrupt(threadId: string | undefined): Promise<void> {
     if (!this.pendingTurnInterrupt || !this.activeTurnId || !threadId) {
       return Promise.resolve();

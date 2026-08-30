@@ -34,8 +34,8 @@ import { gitMenuIcons } from "@/renderer/views/MainView/parts/Sidebar/parts/gitM
 import {
   useCurrentThreadIdsCount,
   useIsCurrentThread,
-  useProjectAgentStatuses,
   useRunningProjectActionIds,
+  useThreadAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
@@ -84,7 +84,16 @@ export function ThreadContextMenu(props: {
   const isExperimentCandidate = experiment !== undefined;
   const isCurrentThread = useIsCurrentThread(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
-  const projectAgents = useProjectAgentStatuses(project.location);
+  // The continue-in gate reads the pane's own population — the local installed
+  // list, or the host's installed statuses for a mirrored thread (see
+  // `useThreadAgentStatuses`). An enabled entry here must always be able to
+  // act once its pane mounts.
+  const installedAgents = useThreadAgentStatuses({
+    remoteServerId: thread.remoteServerId,
+    projectLocation: project.location,
+  });
+  const hasOtherInstalledAgents =
+    installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0;
   const worktreeGitItems = useWorktreeGitItems(
     thread.projectId,
     thread.worktreePath ?? "",
@@ -258,16 +267,14 @@ export function ThreadContextMenu(props: {
                 id: "continue-in",
                 label: t`Continue in...`,
                 icon: <ArrowRightLeft className="size-3.5" />,
-                isDisabled:
-                  !thread.sessionRef ||
-                  projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0,
-                ...(!thread.sessionRef ||
-                projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0
-                  ? {
-                      disabledReason: !thread.sessionRef
-                        ? t`No active session`
-                        : t`No other agents installed`,
-                    }
+                // No session-ref gate (matching the thread header): without one
+                // the handoff falls back to the stored transcript, which is
+                // precisely when continuing elsewhere is most useful. Remote
+                // threads take the same flow — the switch/fork launches on
+                // their host.
+                isDisabled: !hasOtherInstalledAgents,
+                ...(!hasOtherInstalledAgents
+                  ? { disabledReason: t`No other agents installed` }
                   : {}),
               },
             ]

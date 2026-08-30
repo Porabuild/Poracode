@@ -5,6 +5,7 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { LATEST_SCHEMA_VERSION } from "./migrations";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
@@ -301,6 +302,41 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
+  it("persists a provider handoff divider and keeps it out of the turn anchor", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        itemType: "assistant_message",
+        payload: { content: [{ kind: "text", text: "Answer from the first provider" }] },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "assistant-1" },
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "handoff-1",
+        itemType: "provider_handoff",
+        payload: {
+          fromAgentKind: "claude",
+          toAgentKind: "copilot",
+          at: "2026-08-29T00:00:00.000Z",
+        },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "handoff-1" },
+    ]);
+
+    const items = dbGetThreadRuntimeItems("thread-1");
+    expect(items.map((item) => item.type)).toEqual(["assistant_message", "provider_handoff"]);
+    expect(items.at(-1)?.payload).toMatchObject({
+      fromAgentKind: "claude",
+      toAgentKind: "copilot",
+    });
+    // The divider records no work, so a completed turn must still hang off the
+    // assistant row that produced it.
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
+  });
+
   it("retires a still-open request item when the turn completes", () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
@@ -478,6 +514,91 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       "assistant-1",
     ]);
     expect(page.nextCursor).toBe(1);
+  });
+
+  it("uses the parent lookup index when paging a thread", () => {
+    const plan = getSqlite()
+      .prepare(
+        `EXPLAIN QUERY PLAN
+         SELECT DISTINCT parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND parent_item_id IS NOT NULL`,
+      )
+      .all("thread-1") as Array<{ detail: string }>;
+
+    expect(plan.map((row) => row.detail).join("\n")).toContain(
+      "COVERING INDEX idx_runtime_items_thread_parent",
+    );
+  });
+
+  it("adds the parent lookup index when upgrading schema v37", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      UPDATE app_state SET value = '37' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("repairs a missing parent lookup column when upgrading a drifted schema v37", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      ALTER TABLE thread_runtime_items DROP COLUMN parent_item_id;
+      UPDATE app_state SET value = '37' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
+  it("repairs a missing parent lookup index at the current schema version", () => {
+    getSqlite().exec("DROP INDEX idx_runtime_items_thread_parent");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+  });
+
+  it("repairs the parent lookup index from the prerelease Antigravity schema v40", () => {
+    getSqlite().exec(`
+      DROP INDEX idx_runtime_items_thread_parent;
+      UPDATE app_state SET value = '40' WHERE key = 'schema_version';
+    `);
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const columns = getSqlite()
+      .prepare("PRAGMA index_info(idx_runtime_items_thread_parent)")
+      .all() as Array<{ name: string }>;
+    const schemaVersion = getSqlite()
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
+    expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("keeps buffered stream writes readable before the flush window elapses", () => {

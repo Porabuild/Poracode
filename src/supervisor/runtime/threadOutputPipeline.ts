@@ -161,6 +161,7 @@ export class ThreadOutputPipeline {
       threadId: session.threadId,
       status: session.status,
       attention: session.attention,
+      agentKind: session.agentKind,
       config: session.config,
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),

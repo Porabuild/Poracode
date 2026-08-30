@@ -178,7 +178,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetThread("thread-1")?.workspaceId).toBeUndefined();
   });
 
-  it("adopts generic Antigravity ACP threads during the v38 migration", () => {
+  it("adopts generic Antigravity ACP threads during the v39 migration", () => {
     dbUpsertThread(
       testThread({
         agentKind: "acp-generic:antigravity-acp",
@@ -295,7 +295,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
-  it("normalizes persisted Antigravity ACP model variants during the v39 migration", () => {
+  it("normalizes persisted Antigravity ACP model variants during the v40 migration", () => {
     dbUpsertThread(
       testThread({
         agentKind: "antigravity",
@@ -365,7 +365,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       effort: "High",
       presentationMode: "gui",
     });
-    expect(dbGetState("schema_version")).toBe("40");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("round-trips project MCP servers through the projects table", () => {

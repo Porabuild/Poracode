@@ -6,8 +6,11 @@ import {
   DEFAULT_TERMINAL_SIZE,
   type Project,
   type PromptSegment,
+  type ProviderHandoffItemPayload,
   type TerminalSize,
   type Thread,
+  type ThreadConfig,
+  type ThreadPresentationMode,
 } from "@/shared/contracts";
 import { buildThreadRelaunchStartInput, shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -25,6 +28,9 @@ import {
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
+import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
+import { DEFAULT_HANDOFF_PROMPT } from "@/renderer/actions/providerHandoff";
+import { continuesInPlace } from "@/shared/continueProviderRanking";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -96,6 +102,15 @@ export type ThreadAction =
   | { readonly kind: "archive" }
   | { readonly kind: "unarchive" }
   | { readonly kind: "delete" };
+
+/** Target selection for "Continue in another provider" from the phone. */
+export interface ContinueProviderInput {
+  readonly targetAgentKind: string;
+  readonly targetConfig: ThreadConfig;
+  readonly targetPresentationMode: ThreadPresentationMode;
+  /** Fork opens a second thread; switch replaces the source unless gui→gui. */
+  readonly fork: boolean;
+}
 
 export interface WorktreeGroupDeleteInput {
   readonly projectId: string;
@@ -1144,6 +1159,153 @@ export function useRemoteDesktop() {
     await refresh(desktop);
   }
 
+  /**
+   * Continue a thread under a different provider from the phone. A gui→gui
+   * switch retargets the thread in place: the store mirrors the desktop
+   * switch's optimistic paint (divider + retarget), then the host's start
+   * flips the durable row and relaunches the session. Anything else starts a
+   * replacement thread on the host and — for a switch — marks the source done.
+   */
+  async function continueThreadProvider(
+    thread: Thread,
+    input: ContinueProviderInput,
+  ): Promise<string | null> {
+    const desktop = activeDesktop;
+    if (!desktop) return null;
+    const store = useAppStore.getState();
+    const project = store.projects.find((p) => p.id === thread.projectId);
+    if (!project) return null;
+    const sourceMode = thread.presentationMode ?? "terminal";
+    const inPlace = !input.fork && continuesInPlace(sourceMode, input.targetPresentationMode);
+
+    // The phone has no composer here, so the handoff carries the transcript
+    // summary inline (the attachment-file route is a desktop-owned bridge
+    // path) plus the shared default instruction.
+    const context = buildTranscriptContext(thread, thread.agentKind);
+    const handoffPrompt = context
+      ? `[Context from previous ${context.sourceProvider} session]\n\n${context.summary}\n\n${DEFAULT_HANDOFF_PROMPT}`
+      : DEFAULT_HANDOFF_PROMPT;
+
+    if (inPlace) {
+      const handoffItemId = `handoff-${crypto.randomUUID()}`;
+      store.applyProviderSwitch(thread.id, {
+        agentKind: input.targetAgentKind,
+        config: input.targetConfig,
+        presentationMode: input.targetPresentationMode,
+      });
+      try {
+        // The launch location must be the thread's worktree, not the project
+        // root — the host starts from the client-supplied location verbatim.
+        const launchLocation = thread.worktreePath
+          ? buildWorktreeLocation(project.location, thread.worktreePath)
+          : project.location;
+        await clientFor(desktop).startThread({
+          threadId: thread.id,
+          projectLocation: launchLocation,
+          agentKind: input.targetAgentKind,
+          config: input.targetConfig,
+          prompt: handoffPrompt,
+          presentationMode: input.targetPresentationMode,
+          providerSwitch: { fromAgentKind: thread.agentKind, handoffItemId },
+        });
+      } catch (error) {
+        setOperationMessage(describeError(error, i18n._(msg`Unable to switch the provider.`)));
+        // The optimistic retarget converges back via the shell snapshot (the
+        // host never flipped). Painting the divider only after success keeps
+        // a failed switch from leaving a ghost divider over the old
+        // provider's transcript.
+        void refresh(desktop, { refreshSelectedThread: true });
+        return null;
+      }
+      const dividerPayload: ProviderHandoffItemPayload = {
+        fromAgentKind: thread.agentKind,
+        toAgentKind: input.targetAgentKind,
+        at: new Date().toISOString(),
+      };
+      store.applyRuntimeEvent(thread.id, {
+        type: "item.started",
+        threadId: thread.id,
+        itemId: handoffItemId,
+        itemType: "provider_handoff",
+        payload: dividerPayload,
+      });
+      store.applyRuntimeEvent(thread.id, {
+        type: "item.completed",
+        threadId: thread.id,
+        itemId: handoffItemId,
+      });
+      void refresh(desktop, { refreshSelectedThread: true });
+      return thread.id;
+    }
+
+    // Replacement thread on the host; paint it optimistically so the pane and
+    // sidebar have it the moment the launch resolves.
+    const hostThreadId = crypto.randomUUID();
+    let groupId = thread.groupId;
+    let groupName = thread.groupName;
+    if (input.fork) {
+      groupId = thread.groupId ?? crypto.randomUUID();
+      groupName = thread.groupName ?? thread.title;
+    }
+    const forkMarker = i18n._(msg`${""} (fork)`);
+    const title =
+      input.fork && !thread.title.endsWith(forkMarker)
+        ? i18n._(msg`${thread.title} (fork)`)
+        : thread.title;
+    store.createThread({
+      threadId: hostThreadId,
+      projectId: thread.projectId,
+      agentKind: input.targetAgentKind,
+      config: input.targetConfig,
+      prompt: handoffPrompt,
+      title,
+      presentationMode: input.targetPresentationMode,
+      ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+      ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
+      ...(groupId ? { groupId } : {}),
+      ...(groupName ? { groupName } : {}),
+    });
+    try {
+      await clientFor(desktop).startNewThread({
+        threadId: hostThreadId,
+        projectId: thread.projectId,
+        agentKind: input.targetAgentKind,
+        config: input.targetConfig,
+        prompt: handoffPrompt,
+        presentationMode: input.targetPresentationMode,
+        title,
+        ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+        ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
+        ...(groupId ? { groupId } : {}),
+        ...(groupName ? { groupName } : {}),
+      });
+    } catch (error) {
+      useAppStore.getState().deleteThread(hostThreadId);
+      setOperationMessage(describeError(error, i18n._(msg`Unable to start the thread.`)));
+      return null;
+    }
+    if (input.fork && !thread.groupId && groupId && groupName) {
+      // Pull the source into the fork's group on the host row, like the
+      // desktop fork does.
+      void clientFor(desktop)
+        .sendThreadCommand({ kind: "set-group", threadId: thread.id, groupId, groupName })
+        .catch(() => undefined);
+    }
+    if (!input.fork) {
+      try {
+        await clientFor(desktop).sendThreadCommand({
+          kind: "set-done",
+          threadId: thread.id,
+          done: true,
+        });
+      } catch {
+        // The replacement is live; a failed done-mark on the source is noise
+        // on top of a successful switch, and the snapshot converges it.
+      }
+    }
+    return hostThreadId;
+  }
+
   return {
     desktops,
     activeDesktopId,
@@ -1167,6 +1329,7 @@ export function useRemoteDesktop() {
     interrupt,
     startThread,
     applyThreadAction,
+    continueThreadProvider,
     deleteWorktreeGroup,
     moveThreadToWorktree,
     manageProject,

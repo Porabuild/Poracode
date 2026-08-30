@@ -29,6 +29,7 @@ import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
 import { remoteOwner, remoteThreadId } from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
+import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -48,9 +49,14 @@ export async function performInitialThreadLaunch(input: {
   prompt: string;
   segments?: PromptSegment[];
   userMessageItemId?: string;
+  providerSwitch?: PendingLaunchProviderSwitch;
   initialSize: TerminalSize;
 }): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
+  const providerSwitch = input.providerSwitch;
+  // A switched thread starts a brand-new session under the new provider; the
+  // previous provider's ref must not reach either the optimistic state or launch.
+  const resumableSessionRef = providerSwitch ? undefined : thread.sessionRef;
   const presentation = thread.presentationMode ?? "terminal";
   if (thread.config.model) {
     useSharedSettings
@@ -65,13 +71,16 @@ export async function performInitialThreadLaunch(input: {
   }
 
   const optimisticUserMessageItemId =
-    userMessageItemId ?? appendOptimisticInitialUserMessage(thread, prompt, segments);
-  if (optimisticUserMessageItemId) {
+    userMessageItemId ??
+    (providerSwitch
+      ? allocateInitialUserMessageItemId(thread, prompt)
+      : appendOptimisticInitialUserMessage(thread, prompt, segments));
+  if (optimisticUserMessageItemId && !providerSwitch) {
     useAppStore.getState().updateThreadRuntime(thread.id, {
       status: "working",
       attention: "working",
       canResumeWithConfig: thread.canResumeWithConfig,
-      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+      ...(resumableSessionRef ? { sessionRef: resumableSessionRef } : {}),
     });
   }
 
@@ -101,9 +110,10 @@ export async function performInitialThreadLaunch(input: {
     prompt,
     ...(segments ? { segments } : {}),
     initialSize,
-    ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+    ...(resumableSessionRef ? { sessionRef: resumableSessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+    ...(providerSwitch ? { providerSwitch } : {}),
   };
 
   // Mirrored remote threads must launch on their host. Spawning locally would
@@ -517,12 +527,9 @@ function appendOptimisticInitialUserMessage(
   prompt: string,
   segments?: PromptSegment[],
 ): string | undefined {
-  const presentation = thread.presentationMode ?? "terminal";
-  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
-    return undefined;
-  }
+  const itemId = allocateInitialUserMessageItemId(thread, prompt);
+  if (!itemId) return undefined;
 
-  const itemId = `user-${crypto.randomUUID()}`;
   useAppStore.getState().applyRuntimeEvent(thread.id, {
     type: "item.started",
     threadId: thread.id,
@@ -536,4 +543,12 @@ function appendOptimisticInitialUserMessage(
     itemId,
   });
   return itemId;
+}
+
+function allocateInitialUserMessageItemId(thread: Thread, prompt: string): string | undefined {
+  const presentation = thread.presentationMode ?? "terminal";
+  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
+    return undefined;
+  }
+  return `user-${crypto.randomUUID()}`;
 }

@@ -416,7 +416,8 @@ function isLiveAssistantActivity(
       event.itemType !== "user_message" &&
       event.itemType !== "error" &&
       event.itemType !== "plan" &&
-      event.itemType !== "goal"
+      event.itemType !== "goal" &&
+      event.itemType !== "provider_handoff"
     );
   }
   if (event.type !== "item.updated" && event.type !== "content.delta") return false;
@@ -426,7 +427,8 @@ function isLiveAssistantActivity(
     item.state !== "completed" &&
     item.type !== "user_message" &&
     item.type !== "plan" &&
-    item.type !== "goal"
+    item.type !== "goal" &&
+    item.type !== "provider_handoff"
   );
 }
 

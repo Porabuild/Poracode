@@ -390,9 +390,12 @@ describe("remote procedure routing registry", () => {
       fileName: expect.stringMatching(/^clipboard-.+\.png$/),
       data: image,
     });
+    // Unique per handoff: one thread can hand off more than once, and a fixed
+    // name would let a later summary rewrite the file an earlier user message
+    // still points at.
     expect(uploadAttachment).toHaveBeenNthCalledWith(2, {
       threadId: "remote-thread",
-      fileName: "handoff-context.md",
+      fileName: expect.stringMatching(/^handoff-context-.+\.md$/),
       data: new TextEncoder().encode("remote context"),
     });
     expect(callRemoteProcedure).not.toHaveBeenCalled();

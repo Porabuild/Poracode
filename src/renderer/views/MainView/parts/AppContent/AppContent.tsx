@@ -10,9 +10,9 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { continuesInPlace } from "@/shared/continueProviderRanking";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
-import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
@@ -23,6 +23,12 @@ import {
 } from "@/renderer/state/useThread";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { markThreadDone } from "@/renderer/actions/threadActions";
+import { buildHandoffLaunchInput } from "@/renderer/actions/providerHandoff";
+import { switchThreadProviderInPlace } from "@/renderer/actions/providerSwitchActions";
+import { continueRemoteThreadInNewThread } from "@/renderer/actions/providerSwitchRemoteActions";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
+import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import {
   resolvePaneDomKey,
   SplitPaneContainer,
@@ -31,7 +37,6 @@ import {
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
-import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
@@ -68,7 +73,7 @@ export function AppContent() {
     targetPresentationMode: ThreadPresentationMode,
     prompt: string,
     segments: PromptSegment[] | undefined,
-    closeOriginal: boolean,
+    intent: ContinueIntent,
     extractedContext: ExtractContextResult | null,
   ) {
     if (findExperimentByThreadId(sourceThread.id)) return;
@@ -76,9 +81,80 @@ export function AppContent() {
     const project = storeProjects.find((p) => p.id === sourceThread.projectId);
     if (!project) return;
 
+    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+    const agents = getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses);
+    // A mirrored thread's agents live on the host — its statuses carry the
+    // labels and capabilities, and the local list may not know either agent.
+    const owner = remoteOwner(sourceThread);
+    const runtime = owner ? useRemoteServersStore.getState().runtime[owner.desktopId] : undefined;
+    const hostStatuses = owner
+      ? ((project.location.kind === "wsl"
+          ? runtime?.agentStatuses?.wsl
+          : runtime?.agentStatuses?.windows) ?? [])
+      : [];
+    const statusSource = owner
+      ? hostStatuses.find((a) => a.kind === sourceThread.agentKind)
+      : agents.find((a) => a.kind === sourceThread.agentKind);
+    const targetLabel = owner
+      ? (hostStatuses.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind)
+      : (agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind);
+
+    // Switching in place keeps the whole thread — id, title, and transcript —
+    // and only changes which agent answers next; see `continuesInPlace`.
+    // Resolved from the same agent population the dialog used, so the caption
+    // it showed and the path taken here cannot disagree.
+    const sourcePresentationMode =
+      sourceThread.presentationMode ?? statusSource?.capabilities.presentationMode ?? "terminal";
+    const switchesInPlace =
+      intent === "switch" && continuesInPlace(sourcePresentationMode, targetPresentationMode);
+    if (switchesInPlace) {
+      await switchThreadProviderInPlace({
+        thread: sourceThread,
+        targetAgentKind,
+        targetConfig,
+        prompt,
+        segments,
+        extractedContext,
+        targetLabel,
+      });
+      return;
+    }
+
+    const isFork = intent === "fork";
+
+    // The title is the user's own label for the task, and the task is what
+    // carries over — so inherit it instead of generating a new one. A fork is
+    // marked because it sits beside the original in the same group, but forking
+    // a fork keeps one marker rather than stacking them.
+    // Formatting with an empty title yields the localized marker on its own,
+    // so the "already forked" check works in every locale.
+    const forkMarker = t`${""} (fork)`;
+    const title =
+      isFork && !sourceThread.title.endsWith(forkMarker)
+        ? t`${sourceThread.title} (fork)`
+        : sourceThread.title;
+
+    // A mirrored source builds its replacement on the host — a locally created
+    // thread would launch against the host's paths on this machine.
+    if (remoteOwner(sourceThread)) {
+      await continueRemoteThreadInNewThread({
+        thread: sourceThread,
+        targetAgentKind,
+        targetConfig,
+        targetPresentationMode,
+        prompt,
+        segments,
+        extractedContext,
+        title,
+        targetLabel,
+        fork: isFork,
+      });
+      return;
+    }
+
     let groupId: string | undefined;
     let groupName: string | undefined;
-    if (!closeOriginal) {
+    if (isFork) {
       groupId = sourceThread.groupId ?? crypto.randomUUID();
       groupName = sourceThread.groupName ?? sourceThread.title;
       if (!sourceThread.groupId) {
@@ -95,6 +171,7 @@ export function AppContent() {
       agentKind: targetAgentKind,
       config: targetConfig,
       prompt,
+      title,
       presentationMode: targetPresentationMode,
       ...(sourceThread.worktreePath ? { worktreePath: sourceThread.worktreePath } : {}),
       ...(sourceThread.worktreeBranch ? { worktreeBranch: sourceThread.worktreeBranch } : {}),
@@ -102,36 +179,17 @@ export function AppContent() {
       ...(groupName ? { groupName } : {}),
     });
 
-    if (extractedContext) {
-      try {
-        const filePath = await readBridge().saveHandoffContext({
-          threadId: thread.id,
-          content: extractedContext.summary,
-        });
-        const handoffPrompt = `This task was handed off from a ${extractedContext.sourceProvider} session. Use the attached context file as prior conversation context.`;
-        const launchSegments: PromptSegment[] = [
-          { kind: "text", content: `${handoffPrompt}\n\n` },
-          { kind: "attachment", path: filePath, mimeType: "text/markdown" },
-          { kind: "text", content: "\n\n" },
-          ...(segments ?? [{ kind: "text" as const, content: prompt }]),
-        ];
-        queueThreadLaunch(thread.id, `${handoffPrompt}\n\n${prompt}`, launchSegments);
-      } catch {
-        const fallbackPrompt = `[Context from previous ${extractedContext.sourceProvider} session]\n\n${extractedContext.summary}\n\n${prompt}`;
-        const fallbackSegments: PromptSegment[] = [
-          {
-            kind: "text",
-            content: `[Context from previous ${extractedContext.sourceProvider} session]\n\n${extractedContext.summary}\n\n`,
-          },
-          ...(segments ?? [{ kind: "text" as const, content: prompt }]),
-        ];
-        queueThreadLaunch(thread.id, fallbackPrompt, fallbackSegments);
-      }
-    } else {
-      queueThreadLaunch(thread.id, prompt, segments);
-    }
+    const launch = await buildHandoffLaunchInput({
+      threadId: thread.id,
+      prompt,
+      segments,
+      extractedContext,
+    });
+    queueThreadLaunch(thread.id, launch.prompt, launch.segments);
 
-    if (closeOriginal) {
+    if (isFork) {
+      useAppStore.getState().openThreadSideBySide(thread.id);
+    } else {
       const store = useAppStore.getState();
       const sourceVisible =
         store.view.kind === "thread" && store.view.panes.includes(sourceThread.id);
@@ -141,15 +199,8 @@ export function AppContent() {
         store.openThread(thread.id);
       }
       markThreadDone(sourceThread.id);
-    } else {
-      useAppStore.getState().openThreadSideBySide(thread.id);
     }
 
-    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-    const agents = getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses);
-    generateTitleAsync(thread.id, project.location, agents, prompt);
-
-    const targetLabel = agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind;
     toast.success(
       extractedContext
         ? t`Context transferred to ${targetLabel}`

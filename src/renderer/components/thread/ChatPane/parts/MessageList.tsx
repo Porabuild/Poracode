@@ -809,6 +809,7 @@ function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean
     case "assistant_message":
     case "plan":
     case "question_answer":
+    case "provider_handoff":
     case "error":
       return true;
     default:

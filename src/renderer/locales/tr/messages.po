@@ -171,6 +171,14 @@ msgstr "{0} ({envName}) v{newVersion} sürümüne güncellendi."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) güncellendi."
 
+#. placeholder {0}: ""
+#. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "{0} (fork)"
+msgstr "{0} (fork)"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -2121,7 +2129,6 @@ msgstr "Uzak sunucuya ulaşılamıyor. Çevrimiçi olduğunu doğrulayıp yenide
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -2577,7 +2584,6 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Yeni bir tuş kaydetmek için bir kısayola tıklayın veya başka bir tane eklemek için ＋ simgesine tıklayın."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
@@ -3245,8 +3251,8 @@ msgstr "Bağlam sıkıştırıldı: {before} → {after} belirteç"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Context extraction ({0})"
-msgstr "Bağlam çıkarma ({0})"
+#~ msgid "Context extraction ({0})"
+#~ msgstr "Bağlam çıkarma ({0})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Context manually compacted from {before} tokens"
@@ -3256,6 +3262,7 @@ msgstr "Bağlam {before} belirteçten manuel olarak sıkıştırıldı"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Bağlam manuel olarak sıkıştırıldı: {before} → {after} belirteç"
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Bağlam {targetLabel} hedefine aktarıldı"
@@ -3272,12 +3279,13 @@ msgstr "Bağlam pencereleri"
 msgid "Continue"
 msgstr "Devam et"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Continue in another provider"
 msgstr "Başka bir sağlayıcıda devam et"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Şurada devam et..."
@@ -3427,7 +3435,6 @@ msgid "Could not create the project folder."
 msgstr "Proje klasörü oluşturulamadı."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
 msgstr "Bağlam çıkarılamadı."
 
@@ -5028,7 +5035,6 @@ msgstr "Ekstra Yüksek"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
 msgstr "{0} öğesinden bağlam çıkarılıyor..."
 
@@ -5427,6 +5433,10 @@ msgstr "Fork"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "<0>{0}</0> üzerinden çatalla"
+
+#: src/mobile/views/threadActionSurfaces.tsx
+msgid "Fork to another provider"
+msgstr "Başka bir sağlayıcıda fork oluştur"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7335,8 +7345,6 @@ msgid "Most used reasoning"
 msgstr "En çok kullanılan akıl yürütme"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Taşı"
 
@@ -7612,7 +7620,7 @@ msgstr "Grupta yeni sekme"
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/app.tsx
+#: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -7696,8 +7704,8 @@ msgid "No active browser tab"
 msgstr "Etkin tarayıcı sekmesi yok"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-msgid "No active session"
-msgstr "Aktif oturum yok"
+#~ msgid "No active session"
+#~ msgstr "Aktif oturum yok"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -8164,6 +8172,10 @@ msgstr "Git deposu değil"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "Git deposu değil"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Not available for remote threads"
+#~ msgstr "Uzak konular için kullanılamaz"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Not detected on this machine yet."
@@ -11767,7 +11779,6 @@ msgid "Start with a schedule"
 msgstr "Bir zamanlamayla başlayın"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Start Without Context"
 msgstr "Bağlam Olmadan Başlayın"
 
@@ -11779,6 +11790,7 @@ msgstr "Bağlam Olmadan Başlayın"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "İş akışlarını başlatın ve çalıştırmalarını izleyin."
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
@@ -12017,6 +12029,7 @@ msgstr "Hızlı modu destekler"
 msgid "Swap notes and to-dos"
 msgstr "Notları ve yapılacak işleri değiştir"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Switch"
 msgstr "Geç"
@@ -12066,6 +12079,22 @@ msgstr "Önceki sekmeye geç"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 msgid "Switch workspace"
 msgstr "Çalışma alanını değiştir"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ProviderHandoffRow.tsx
+msgid "Switched from {fromLabel} to {toLabel}"
+msgstr "{fromLabel} sağlayıcısından {toLabel} sağlayıcısına geçildi"
+
+#: src/renderer/actions/providerSwitchActions.ts
+msgid "Switched to {targetLabel}"
+msgstr "{targetLabel} sağlayıcısına geçildi"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+msgstr "Sohbet yalnızca iki sohbet sağlayıcısı arasında yerinde sürdürülebildiğinden, geçiş yapmak aynı başlıkla yeni bir konu başlatır."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#~ msgid "Switching to a terminal provider starts a new thread with the same title."
+#~ msgstr "Terminal sağlayıcısına geçmek, aynı başlıkla yeni bir konu başlatır."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -12167,8 +12196,8 @@ msgid "Target branch"
 msgstr "Hedef şube"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Target provider"
-msgstr "Hedef sağlayıcı"
+#~ msgid "Target provider"
+#~ msgstr "Hedef sağlayıcı"
 
 #: src/renderer/components/providers/qwen/index.tsx
 msgid "Task"
@@ -12636,6 +12665,8 @@ msgstr "Bu profil Cursor SDK üzerinde çalışır. Cursor CLI ve ACP makinede t
 msgid "this project"
 msgstr "bu proje"
 
+#: src/renderer/actions/providerSwitchActions.ts
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -13210,6 +13241,10 @@ msgstr "Uzak iş parçacığı başlatılamadı."
 #: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "İş parçacığı başlatılamıyor."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to switch the provider."
+msgstr "Sağlayıcı değiştirilemedi."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

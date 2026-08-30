@@ -188,6 +188,7 @@ interface StartRemoteThreadCommon {
   readonly segments?: readonly PromptSegment[] | undefined;
   readonly presentationMode?: ThreadPresentationMode | undefined;
   readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
+  readonly providerSwitch?: StartThreadPayload["providerSwitch"] | undefined;
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
@@ -201,6 +202,10 @@ export interface StartRemoteNewThreadInput extends StartRemoteThreadCommon {
   readonly worktreePath?: string | undefined;
   readonly worktreeBranch?: string | undefined;
   readonly isNewWorktree?: boolean | undefined;
+  /** Explicit title (a remote fork inherits its source's). */
+  readonly title?: string | undefined;
+  readonly groupId?: string | undefined;
+  readonly groupName?: string | undefined;
 }
 
 /**
@@ -625,6 +630,7 @@ export class RemoteDesktopClient {
         ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
+        ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
       },
     });
     return parseResponse(z.object({ threadId: z.string() }), result, "thread");
@@ -646,6 +652,9 @@ export class RemoteDesktopClient {
       ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
       ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
       ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
+      ...(input.title ? { title: input.title } : {}),
+      ...(input.groupId ? { groupId: input.groupId } : {}),
+      ...(input.groupName ? { groupName: input.groupName } : {}),
     });
     return { threadId };
   }

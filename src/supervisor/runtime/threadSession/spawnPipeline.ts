@@ -270,6 +270,12 @@ export interface SpawnPipelineContext {
     segments?: PromptSegment[],
     requestedItemId?: string,
   ): string;
+  emitProviderHandoff(
+    threadId: string,
+    fromAgentKind: string,
+    toAgentKind: string,
+    requestedItemId?: string,
+  ): string;
 }
 
 /**
@@ -285,6 +291,15 @@ export class SpawnPipeline {
     payload: StartThreadPayload & { threadId: string },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
+    // A provider switch abandons whatever turn the old session still has open.
+    // Complete it locally — the same close-out the Stop watchdog applies when a
+    // provider never acknowledges — BEFORE teardown: teardown itself never
+    // completes items, so without this the half-streamed rows strand as
+    // forever-running output above the handoff divider, live and in SQLite.
+    if (payload.providerSwitch) {
+      ctx.sessions.get(payload.threadId)?.structuredSession?.forceCompleteTurn?.();
+      ctx.runtimeEventRouter.flush();
+    }
     await ctx.closeThread({ threadId: payload.threadId });
     if (ctx.pendingStartAborts.delete(payload.threadId)) {
       ctx.pendingStartInterrupts.delete(payload.threadId);
@@ -292,6 +307,7 @@ export class SpawnPipeline {
     }
 
     const adapter = this.requireAdapter(payload.agentKind);
+
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
     // Per-thread mode wins over the adapter default. Chat-mode threads route
     // input/output through the structured session even for adapters whose
@@ -361,8 +377,11 @@ export class SpawnPipeline {
     // newSession/loadSession) runs. When the renderer has already painted an
     // optimistic message and shipped its id with the payload, we reuse that
     // id end-to-end so the chat pane never sees a duplicate.
-    const optimisticUserMessageItemId =
-      !usesTerminalPresentation && initialPrompt.length > 0 && !payload.sessionRef
+    let optimisticUserMessageItemId =
+      !payload.providerSwitch &&
+      !usesTerminalPresentation &&
+      initialPrompt.length > 0 &&
+      !payload.sessionRef
         ? ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
@@ -510,6 +529,23 @@ export class SpawnPipeline {
         throw new Error(
           `Agent ${payload.agentKind} does not support ${requestedPresentation} presentation.`,
         );
+      }
+      if (payload.providerSwitch) {
+        ctx.emitProviderHandoff(
+          payload.threadId,
+          payload.providerSwitch.fromAgentKind,
+          payload.agentKind,
+          payload.providerSwitch.handoffItemId,
+        );
+        if (initialPrompt.length > 0) {
+          optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
+            payload.threadId,
+            initialPrompt,
+            effectiveSegments,
+            payload.userMessageItemId,
+          );
+          this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
+        }
       }
       const resolvedSessionRef =
         payload.sessionRef ??
