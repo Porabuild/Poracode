@@ -117,4 +117,48 @@ describe("Antigravity runtime detection", () => {
     });
     expect(agentStatusForPresentation(status, "gui").loginCommand).toBeUndefined();
   });
+
+  it("defaults Chat to the strongest mode the server advertises, not the CLI's yolo id", () => {
+    const chat = acpStatus(true);
+    const status = applyAntigravityAcpStatus(cliStatus(true), {
+      ...chat,
+      capabilities: {
+        ...chat.capabilities,
+        // Google's ACP modes as `mapAcpModes` normalizes them: YOLO arrives as
+        // `never`, while the CLI names the same posture `yolo`.
+        approvalPolicies: [
+          { id: "default", label: "Default" },
+          { id: "auto_edit", label: "Auto Edit" },
+          { id: "never", label: "YOLO" },
+        ],
+      },
+    });
+
+    // The CLI's `yolo` must not survive onto a surface that never advertised
+    // it — the composer would render the raw id and drafts would open with no
+    // valid permission selected.
+    for (const guiCapabilities of [
+      status.capabilities.presentationCapabilities?.gui,
+      status.runtimeVariants?.acp?.capabilities,
+      agentStatusForPresentation(status, "gui").capabilities,
+    ]) {
+      expect(guiCapabilities?.defaultApprovalPolicy).toBe("never");
+      expect(guiCapabilities?.bypassPermissions).toEqual({ approvalPolicy: "never" });
+    }
+
+    // The terminal surface keeps the CLI's own vocabulary.
+    expect(agentStatusForPresentation(status, "terminal").capabilities).toMatchObject({
+      defaultApprovalPolicy: "yolo",
+      bypassPermissions: { approvalPolicy: "yolo" },
+    });
+  });
+
+  it("inherits the root permission defaults while Chat advertises no modes of its own", () => {
+    const status = applyAntigravityAcpStatus(cliStatus(true), acpStatus(true));
+
+    expect(status.capabilities.presentationCapabilities?.gui?.approvalPolicies).toEqual([]);
+    expect(agentStatusForPresentation(status, "gui").capabilities).toMatchObject({
+      defaultApprovalPolicy: "yolo",
+    });
+  });
 });

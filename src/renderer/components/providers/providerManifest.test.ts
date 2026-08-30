@@ -128,4 +128,39 @@ describe("renderer provider manifests", () => {
       }),
     ).toEqual({ approvalPolicy: "yolo" });
   });
+
+  it("never shows Antigravity Chat a permission id the server did not advertise", () => {
+    const capabilities = {
+      models: [],
+      efforts: [],
+      modelEfforts: {},
+      modes: ["agent"],
+      approvalPolicies: [
+        { id: "default", label: "Default" },
+        { id: "auto_edit", label: "Auto Edit" },
+        { id: "never", label: "YOLO" },
+      ],
+      sandboxModes: [],
+      defaultApprovalPolicy: "never",
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "server",
+      presentationMode: "gui",
+      settingDefs: [],
+    } as unknown as AgentCapability;
+    const permissionControl = (approvalPolicy: string | undefined) =>
+      getComposerControls("antigravity")!({
+        capabilities,
+        config: { model: "gemini-3.7-flash", ...(approvalPolicy ? { approvalPolicy } : {}) },
+        isDisabled: false,
+        onConfigChange: () => {},
+        presentationMode: "gui",
+      }).find((control) => "options" in control && control.iconKind === "permission");
+
+    expect(permissionControl("auto_edit")).toMatchObject({ value: "auto_edit" });
+    // A thread carrying the CLI's `yolo` used to render the raw id as its
+    // label; it resolves to the equivalent advertised policy instead.
+    expect(permissionControl("yolo")).toMatchObject({ value: "never" });
+    expect(permissionControl(undefined)).toMatchObject({ value: "never" });
+  });
 });

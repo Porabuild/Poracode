@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import {
+  resolveApprovalPolicyValue,
   resolveFastValue,
   resolveProviderDraftConfig,
   resolveSavedProviderDraftConfig,
@@ -178,5 +179,37 @@ describe("resolveSavedProviderDraftConfig", () => {
         { codex: { model: "gpt-5.6-sol", contextSize: "400k" } },
       ),
     ).toMatchObject({ contextSize: "1m" });
+  });
+});
+
+describe("resolveApprovalPolicyValue", () => {
+  const guiPolicies = [
+    { id: "default", label: "Default" },
+    { id: "auto_edit", label: "Auto Edit" },
+    { id: "never", label: "YOLO" },
+  ];
+
+  it("keeps a saved policy the surface still advertises", () => {
+    const agent = agentWith({ approvalPolicies: guiPolicies, defaultApprovalPolicy: "never" });
+    expect(resolveApprovalPolicyValue(agent, "auto_edit")).toBe("auto_edit");
+  });
+
+  it("falls back to the declared default when the saved policy belongs to another runtime", () => {
+    // Antigravity's `agy` CLI names full bypass `yolo`; its Chat runtime calls
+    // the same posture `never`. Carrying `yolo` through left the composer with
+    // nothing selected.
+    const agent = agentWith({ approvalPolicies: guiPolicies, defaultApprovalPolicy: "never" });
+    expect(resolveApprovalPolicyValue(agent, "yolo")).toBe("never");
+    expect(resolveApprovalPolicyValue(agent, "")).toBe("never");
+    expect(resolveApprovalPolicyValue(agent, undefined)).toBe("never");
+  });
+
+  it("falls back to the first policy when the declared default is not advertised either", () => {
+    const agent = agentWith({ approvalPolicies: guiPolicies, defaultApprovalPolicy: "yolo" });
+    expect(resolveApprovalPolicyValue(agent, "yolo")).toBe("default");
+  });
+
+  it("stays empty for a provider that advertises no policies", () => {
+    expect(resolveApprovalPolicyValue(agentWith(), "yolo")).toBe("");
   });
 });
