@@ -7646,6 +7646,7 @@ msgstr "Новый тред — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Новый тред из этой задачи"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13309,6 +13310,7 @@ msgstr "Не удалось обновить публичный URL."
 msgid "Unable to update the thread."
 msgstr "Не удалось обновить поток."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Не назначено"

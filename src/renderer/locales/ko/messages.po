@@ -7646,6 +7646,7 @@ msgstr "새 스레드 — {projectName}"
 msgid "New thread from this to-do"
 msgstr "이 할 일의 새 스레드"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13309,6 +13310,7 @@ msgstr "공개 URL을 업데이트할 수 없습니다."
 msgid "Unable to update the thread."
 msgstr "스레드를 업데이트할 수 없습니다."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "미지정"

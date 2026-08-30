@@ -7645,6 +7645,7 @@ msgstr "新线程 —{projectName}"
 msgid "New thread from this to-do"
 msgstr "基于此待办事项的新线程"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13308,6 +13309,7 @@ msgstr "无法更新公共 URL。"
 msgid "Unable to update the thread."
 msgstr "无法更新线程。"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "未分配"

@@ -7646,6 +7646,7 @@ msgstr "Yeni konu — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Bu yapılacaklardan yeni konu"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13309,6 +13310,7 @@ msgstr "Genel URL güncellenemedi."
 msgid "Unable to update the thread."
 msgstr "İş parçacığı güncellenemiyor."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Atanmamış"

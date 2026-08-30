@@ -7646,6 +7646,7 @@ msgstr "New thread — {projectName}"
 msgid "New thread from this to-do"
 msgstr "New thread from this to-do"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13313,6 +13314,7 @@ msgstr "Unable to update the public URL."
 msgid "Unable to update the thread."
 msgstr "Unable to update the thread."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Unassigned"

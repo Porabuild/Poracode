@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentStatus, Project, Thread } from "@/shared/contracts";
@@ -96,6 +96,52 @@ describe("HomeView", () => {
 
     expect(screen.getByText("First project thread")).toBeInTheDocument();
     expect(screen.getByText("Second project thread")).toBeInTheDocument();
+  });
+
+  it("groups projects by workspace and keeps unassigned projects visible", () => {
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+        { id: "w2", name: "Side Hustle", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+      ],
+    } as never);
+    useAppStore.setState({
+      projects: [
+        makeProject({ name: "client-app", workspaceId: "w1" }),
+        makeProject({ id: "project-2", name: "weekend-app", workspaceId: "w2" }),
+        makeProject({ id: "project-3", name: "old-app", workspaceId: "deleted" }),
+        makeProject({ id: "project-4", name: "loose-app" }),
+      ],
+    });
+
+    render(<HomeView />);
+
+    const headings = screen.getAllByText(/^(Work|Side Hustle|Unassigned)$/);
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "Work",
+      "Side Hustle",
+      "Unassigned",
+    ]);
+    expect(
+      within(screen.getByRole("group", { name: "Work" })).getByRole("button", {
+        name: "client-app",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Side Hustle" })).getByRole("button", {
+        name: "weekend-app",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Unassigned" })).getByRole("button", {
+        name: "old-app",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Unassigned" })).getByRole("button", {
+        name: "loose-app",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("hides Home recents filed under another workspace but keeps untagged ones", () => {

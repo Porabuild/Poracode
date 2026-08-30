@@ -7646,6 +7646,7 @@ msgstr "Luồng mới — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Luồng mới từ việc cần làm này"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13309,6 +13310,7 @@ msgstr "Không thể cập nhật URL công khai."
 msgid "Unable to update the thread."
 msgstr "Không thể cập nhật luồng."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Chưa gán"

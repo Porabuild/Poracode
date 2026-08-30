@@ -7646,6 +7646,7 @@ msgstr "Nuevo hilo — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Nuevo hilo a partir de esta tarea"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13309,6 +13310,7 @@ msgstr "No se pudo actualizar la URL pública."
 msgid "Unable to update the thread."
 msgstr "No se pudo actualizar el hilo."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Sin asignar"

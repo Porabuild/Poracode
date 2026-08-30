@@ -7645,6 +7645,7 @@ msgstr "Nouveau fil de discussion — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Nouveau fil de cette tâche"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13308,6 +13309,7 @@ msgstr "Impossible de mettre à jour l'URL publique."
 msgid "Unable to update the thread."
 msgstr "Impossible de mettre à jour le fil."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Non attribué"

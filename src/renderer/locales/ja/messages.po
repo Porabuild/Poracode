@@ -7644,6 +7644,7 @@ msgstr "新しいスレッド —{projectName}"
 msgid "New thread from this to-do"
 msgstr "この ToDo からの新しいスレッド"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -13307,6 +13308,7 @@ msgstr "公開URLを更新できません。"
 msgid "Unable to update the thread."
 msgstr "スレッドを更新できません。"
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "未割り当て"
