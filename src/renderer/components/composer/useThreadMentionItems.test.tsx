@@ -181,4 +181,99 @@ describe("useThreadMentionItems", () => {
     expect(launchedWithoutTool.result.current).toHaveLength(0);
     launchedWithoutTool.unmount();
   });
+
+  it("prioritizes worktree threads over non-worktree threads and resolves full worktree name", () => {
+    useAppStore.setState({
+      threads: [
+        makeThread({
+          id: "main-recent",
+          updatedAt: "2026-08-29T20:00:00.000Z",
+        }),
+        makeThread({
+          id: "worktree-older",
+          worktreePath: "C:\\worktrees\\feature-gpu",
+          worktreeBranch: "feature/gpu-support",
+          updatedAt: "2026-08-29T10:00:00.000Z",
+        }),
+        makeThread({
+          id: "worktree-newer",
+          worktreePath: "C:\\worktrees\\feature-audio",
+          worktreeBranch: "feature/audio-driver",
+          updatedAt: "2026-08-29T15:00:00.000Z",
+        }),
+      ],
+    });
+
+    const hook = renderHook(() =>
+      useThreadMentionItems({ kind: "project", projectId: "project-1" }),
+    );
+
+    expect(hook.result.current.map((item) => item.threadId)).toEqual([
+      "worktree-newer",
+      "worktree-older",
+      "main-recent",
+    ]);
+    expect(hook.result.current[0]?.worktreeName).toBe("feature/audio-driver");
+    expect(hook.result.current[1]?.worktreeName).toBe("feature/gpu-support");
+    expect(hook.result.current[2]?.worktreeName).toBeUndefined();
+    hook.unmount();
+  });
+
+  it("falls back to the worktree folder name for threads without a recorded branch", () => {
+    useAppStore.setState({
+      threads: [
+        makeThread({
+          id: "branchless-worktree",
+          worktreePath: "C:\\worktrees\\feature-gpu",
+          updatedAt: "2026-08-29T10:00:00.000Z",
+        }),
+      ],
+    });
+
+    const hook = renderHook(() =>
+      useThreadMentionItems({ kind: "project", projectId: "project-1" }),
+    );
+
+    expect(hook.result.current).toHaveLength(1);
+    expect(hook.result.current[0]?.worktreeName).toBe("feature-gpu");
+    hook.unmount();
+  });
+
+  it("prioritizes current worktree threads first when currentWorktreePath is provided", () => {
+    useAppStore.setState({
+      threads: [
+        makeThread({
+          id: "main-thread",
+          updatedAt: "2026-08-29T20:00:00.000Z",
+        }),
+        makeThread({
+          id: "other-worktree",
+          worktreePath: "C:\\worktrees\\other-branch",
+          worktreeBranch: "feature/other",
+          updatedAt: "2026-08-29T18:00:00.000Z",
+        }),
+        makeThread({
+          id: "current-worktree",
+          worktreePath: "C:\\worktrees\\my-current-worktree",
+          worktreeBranch: "feature/my-worktree",
+          updatedAt: "2026-08-29T10:00:00.000Z",
+        }),
+      ],
+    });
+
+    const hook = renderHook(() =>
+      useThreadMentionItems({
+        kind: "project",
+        projectId: "project-1",
+        currentWorktreePath: "C:/worktrees/my-current-worktree",
+      }),
+    );
+
+    expect(hook.result.current.map((item) => item.threadId)).toEqual([
+      "current-worktree",
+      "other-worktree",
+      "main-thread",
+    ]);
+    hook.unmount();
+  });
 });

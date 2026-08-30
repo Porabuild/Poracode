@@ -14,7 +14,9 @@ export function createThreadMentionChipElement(input: ThreadMentionChipInput): H
   chip.contentEditable = "false";
   chip.dataset.threadMentionId = input.threadId;
   chip.dataset.threadMentionTitle = input.title;
-  chip.className = "poracode-slash-chip";
+  chip.className = "poracode-slash-chip poracode-thread-mention-chip";
+  const label = threadMentionLabel(input);
+  chip.title = label;
 
   const glyph = document.createElement("span");
   glyph.className = "poracode-slash-chip__slash";
@@ -23,7 +25,7 @@ export function createThreadMentionChipElement(input: ThreadMentionChipInput): H
 
   const name = document.createElement("span");
   name.className = "poracode-slash-chip__name";
-  name.textContent = threadMentionLabel(input);
+  name.textContent = label;
   chip.appendChild(name);
 
   return chip;

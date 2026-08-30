@@ -49,7 +49,8 @@ export interface ThreadMentionItem {
   threadId: string;
   title: string;
   updatedAt: string;
-  projectName?: string;
+  projectName?: string | undefined;
+  worktreeName?: string | undefined;
 }
 
 /** Stable empty list so an omitted `mcpMentions` prop doesn't churn renders. */
@@ -94,17 +95,24 @@ export function buildMentionResults(
       (item) =>
         q.length === 0 ||
         threadMentionLabel(item).toLowerCase().includes(q) ||
-        item.projectName?.toLowerCase().includes(q),
+        item.projectName?.toLowerCase().includes(q) ||
+        item.worktreeName?.toLowerCase().includes(q) ||
+        // Only match raw thread ids on longer queries: ids are UUIDs, so short
+        // all-hex queries (e.g. "ed", "da") would flood the result cap with
+        // id-only matches and displace title matches.
+        (q.length >= 6 && item.threadId.toLowerCase().includes(q)),
     )
     .slice(0, q.length === 0 ? 3 : 5)
-    .map((item) => ({
-      type: "thread" as const,
-      path: item.threadId,
-      name: threadMentionLabel(item),
-      detail: item.projectName
-        ? `${item.projectName} · ${item.threadId.slice(-8)}`
-        : item.threadId.slice(-8),
-    }));
+    .map((item) => {
+      const base = item.worktreeName || item.threadId.slice(-8);
+      const detail = item.projectName ? `${item.projectName} · ${base}` : base;
+      return {
+        type: "thread" as const,
+        path: item.threadId,
+        name: threadMentionLabel(item),
+        detail,
+      };
+    });
   return [...pluginResults, ...mcpResults, ...threadResults, ...fileResults];
 }
 
