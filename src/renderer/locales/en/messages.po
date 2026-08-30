@@ -4870,6 +4870,11 @@ msgstr "Exclude from sync"
 msgid "Exclude patterns"
 msgstr "Exclude patterns"
 
+#. placeholder {0}: parsed.exitCode
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Exit code {0}"
+msgstr "Exit code {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "Exit plan mode"
@@ -5052,6 +5057,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "failed"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -12216,9 +12222,17 @@ msgstr "Target branch"
 msgid "Task"
 msgstr "Task"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Task {id}"
+msgstr "Task {id}"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "Task match"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Task Notification"
+msgstr "Task Notification"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"

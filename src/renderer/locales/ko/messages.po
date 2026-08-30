@@ -4870,6 +4870,11 @@ msgstr "동기화에서 제외"
 msgid "Exclude patterns"
 msgstr "패턴 제외"
 
+#. placeholder {0}: parsed.exitCode
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Exit code {0}"
+msgstr "종료 코드 {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "계획 모드 종료"
@@ -5052,6 +5057,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "실패"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -12216,9 +12222,17 @@ msgstr "대상 브랜치"
 msgid "Task"
 msgstr "작업"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Task {id}"
+msgstr "작업 {id}"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "작업 일치"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Task Notification"
+msgstr "작업 알림"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
