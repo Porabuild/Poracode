@@ -37,11 +37,8 @@ export function MachineSelect(props: {
   const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
   const setSelectedMachine = useMachineSelectionStore((state) => state.setSelectedMachine);
 
-  const machineDetail = (machine: MachineDescriptor): string | undefined => {
-    if (machine.status === "offline") return t`Offline`;
-    if (machine.status === "connecting") return t`Connecting…`;
-    return undefined;
-  };
+  const machineDetail = (machine: MachineDescriptor): string | undefined =>
+    machine.status === "connecting" ? t`Connecting…` : undefined;
 
   const options: SelectOption[] = [
     ...props.machines.map((machine) => {
@@ -51,6 +48,9 @@ export function MachineSelect(props: {
         label: machine.label,
         icon: machineIcon(machine),
         ...(detail ? { detail } : {}),
+        // An offline machine has nothing to scope to, so it stays listed (its
+        // status dot says why) but unselectable instead of carrying a caption.
+        ...(machine.status === "offline" ? { isDisabled: true } : {}),
       };
     }),
     {
