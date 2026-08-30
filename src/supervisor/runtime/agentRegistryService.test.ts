@@ -707,6 +707,41 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     }
   });
 
+  it("retries a sweep that exhausted its attempts once the cooldown elapses", async () => {
+    vi.useFakeTimers();
+    try {
+      const { getAgentStatuses, service } = createService();
+      getAgentStatuses.mockResolvedValue({
+        windows: [antigravityStatus({ cli: true, acp: false })],
+        wsl: [],
+        fromCache: false,
+      });
+      acpRegistryMocks.installAcpRegistryAgent
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue([]);
+
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.runAllTimersAsync();
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+
+      // Both attempts spent: a further status query inside the cooldown must
+      // not re-download, but the machine coming back online later must not stay
+      // without chat until the app restarts.
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.runAllTimersAsync();
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.waitFor(() =>
+        expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(3),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not retry after the user opts out during a failed auto-install", async () => {
     vi.useFakeTimers();
     try {

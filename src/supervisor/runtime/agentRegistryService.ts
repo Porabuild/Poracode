@@ -62,6 +62,13 @@ import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
 
 const FIRST_CLASS_ACP_AUTO_INSTALL_ATTEMPTS = 2;
 const FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_DELAY_MS = 10_000;
+/**
+ * How long a failed sweep is left alone before a later status query may try
+ * again. Long enough that polling cannot hammer a download, short enough that a
+ * machine which was offline (or whose CDN fetch blipped) at launch reconciles
+ * without restarting the app.
+ */
+const FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_COOLDOWN_MS = 15 * 60_000;
 
 export interface AgentRegistryServiceDeps {
   adapters: Map<AgentKind, AgentAdapter>;
@@ -92,11 +99,13 @@ export class AgentRegistryService {
   >();
 
   /**
-   * Registry artifacts we already tried to auto-install this session, keyed by
-   * agent id + environment. One attempt per environment per run keeps a failing
-   * download (offline, CDN error) from re-running on every status query.
+   * Auto-install sweeps run so far this session, keyed by agent id +
+   * environment. Recorded before the attempt so a status-query burst cannot
+   * start several downloads of the same artifact, and kept unresolved on
+   * failure so the next sweep past the cooldown can retry — a transient failure
+   * used to disable chat for the rest of the session.
    */
-  private readonly attemptedAcpAutoInstalls = new Set<string>();
+  private readonly acpAutoInstallSweeps = new Map<string, { at: number; installed: boolean }>();
   /** Settings files confirmed free of legacy Antigravity ACP state on disk. */
   private readonly aliasPersistCheckedPaths = new Set<string>();
 
@@ -141,10 +150,15 @@ export class AgentRegistryService {
    * removed (`acpRegistryAutoInstallOptOuts`).
    */
   private async autoInstallFirstClassAcpRuntimes(response: AgentStatusesResponse): Promise<void> {
+    const now = Date.now();
     const candidates = collectFirstClassAcpAutoInstalls({
       statuses: [...response.windows, ...response.wsl],
       firstClassRegistryIds: this.firstClassRegistryIdsByKind(),
-    }).filter((task) => !this.attemptedAcpAutoInstalls.has(acpAutoInstallKey(task)));
+    }).filter((task) => {
+      const sweep = this.acpAutoInstallSweeps.get(acpAutoInstallKey(task));
+      if (!sweep) return true;
+      return !sweep.installed && now - sweep.at >= FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_COOLDOWN_MS;
+    });
     if (candidates.length === 0) return;
 
     const optedOut = new Set(
@@ -152,8 +166,14 @@ export class AgentRegistryService {
     );
     const installedKinds = new Set<AgentKind>();
     for (const task of candidates) {
-      this.attemptedAcpAutoInstalls.add(acpAutoInstallKey(task));
-      if (optedOut.has(task.agentId)) continue;
+      const sweepKey = acpAutoInstallKey(task);
+      this.acpAutoInstallSweeps.set(sweepKey, { at: Date.now(), installed: false });
+      // An opt-out is the user's decision, not a failure: settle it so the
+      // cooldown never reopens the question.
+      if (optedOut.has(task.agentId)) {
+        this.acpAutoInstallSweeps.set(sweepKey, { at: Date.now(), installed: true });
+        continue;
+      }
       for (let attempt = 1; attempt <= FIRST_CLASS_ACP_AUTO_INSTALL_ATTEMPTS; attempt += 1) {
         try {
           await installAcpRegistryAgentFromRegistry({
@@ -167,6 +187,7 @@ export class AgentRegistryService {
             respectAutoInstallOptOut: true,
           });
           installedKinds.add(task.agentKind);
+          this.acpAutoInstallSweeps.set(sweepKey, { at: Date.now(), installed: true });
           break;
         } catch (error) {
           console.warn(
@@ -183,6 +204,12 @@ export class AgentRegistryService {
             }
             await new Promise((resolve) =>
               setTimeout(resolve, FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_DELAY_MS),
+            );
+          } else {
+            console.warn(
+              `[supervisor] ${task.agentId} stays uninstalled for ${task.agentKind}; retrying no sooner than ${Math.round(
+                FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_COOLDOWN_MS / 60_000,
+              )} minutes from now. Its agent settings page offers a manual install.`,
             );
           }
         }
