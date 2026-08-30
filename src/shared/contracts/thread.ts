@@ -144,32 +144,75 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
-export const startThreadPayloadSchema = z.object({
-  threadId: z.string().min(1).optional(),
-  projectLocation: projectLocationSchema,
-  agentKind: agentKindSchema,
-  agentInstanceId: agentInstanceIdSchema.optional(),
-  config: threadConfigSchema,
-  prompt: z.string().default(""),
-  segments: z.array(promptSegmentSchema).optional(),
-  initialSize: terminalSizeSchema,
-  sessionRef: sessionRefSchema.optional(),
-  presentationMode: threadPresentationModeSchema.optional(),
-  /** Enabled custom MCP servers resolved by the renderer at launch time. */
-  mcpServers: mcpServerListSchema.optional(),
-  /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
-  disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
-  /** Supervisor-owned restrictions that must survive every restart of this thread. */
-  invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
-  disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+/**
+ * Set when a launch continues an existing thread under a different provider.
+ * The supervisor records the switch as a `provider_handoff` divider ahead of
+ * the prompt, reusing `handoffItemId` so a renderer's optimistic row dedupes
+ * against it. `sessionRef` must be omitted alongside this — the new provider
+ * has no session to resume.
+ */
+export const providerSwitchSchema = z.object({
+  fromAgentKind: agentKindSchema,
+  handoffItemId: z.string().min(1).optional(),
   /**
-   * Renderer-allocated id for the user_message item the chat pane has already
-   * painted optimistically. The supervisor reuses this id when emitting its
-   * own canonical user_message events, so the renderer's per-id dedupe drops
-   * the duplicate. Only set for GUI threads with a fresh prompt.
+   * Only set on the REVERT command the host sends after a failed switched
+   * start: the status the durable row was restored to, which the renderer
+   * mirror must apply after `applyProviderSwitch` (whose own status is always
+   * "launching" — right for a live switch, wrong for a reverted one).
    */
-  userMessageItemId: z.string().min(1).optional(),
+  previousStatus: threadStatusSchema.optional(),
 });
+export type ProviderSwitch = z.infer<typeof providerSwitchSchema>;
+
+export const startThreadPayloadSchema = z
+  .object({
+    threadId: z.string().min(1).optional(),
+    projectLocation: projectLocationSchema,
+    agentKind: agentKindSchema,
+    agentInstanceId: agentInstanceIdSchema.optional(),
+    config: threadConfigSchema,
+    prompt: z.string().default(""),
+    segments: z.array(promptSegmentSchema).optional(),
+    initialSize: terminalSizeSchema,
+    sessionRef: sessionRefSchema.optional(),
+    presentationMode: threadPresentationModeSchema.optional(),
+    /** Enabled custom MCP servers resolved by the renderer at launch time. */
+    mcpServers: mcpServerListSchema.optional(),
+    /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
+    disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+    /** Supervisor-owned restrictions that must survive every restart of this thread. */
+    invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+    disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+    /**
+     * Renderer-allocated id for the user_message item the chat pane has already
+     * painted optimistically. The supervisor reuses this id when emitting its
+     * own canonical user_message events, so the renderer's per-id dedupe drops
+     * the duplicate. Only set for GUI threads with a fresh prompt.
+     */
+    userMessageItemId: z.string().min(1).optional(),
+    /**
+     * Set when this launch continues an existing thread under a different
+     * provider. See {@link providerSwitchSchema}.
+     */
+    providerSwitch: providerSwitchSchema.optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (!payload.providerSwitch) return;
+    if (payload.sessionRef) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sessionRef"],
+        message: "A provider switch cannot resume the previous provider's session.",
+      });
+    }
+    if (payload.presentationMode !== "gui") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["presentationMode"],
+        message: "An in-place provider switch requires GUI presentation.",
+      });
+    }
+  });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
 
 export interface StartThreadResult {
@@ -309,6 +352,13 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      */
     groupId: z.string().min(1).optional(),
     groupName: z.string().min(1).optional(),
+    /**
+     * Set when this start continues an existing thread under a different
+     * provider (a remote "Continue in..." switch). The server retargets the
+     * durable row and forwards the command so the desktop renderer's store
+     * follows; see {@link providerSwitchSchema}.
+     */
+    providerSwitch: providerSwitchSchema.optional(),
   }),
   // Assigns an existing thread to a sidebar group. Used to pull an
   // orchestrator parent into the group its children are created in; the

@@ -183,6 +183,13 @@ export class ThreadSessionManager {
           segments,
           requestedItemId,
         ),
+      emitProviderHandoff: (threadId, fromAgentKind, toAgentKind, requestedItemId) =>
+        this.structuredTurnQueue.emitProviderHandoff(
+          threadId,
+          fromAgentKind,
+          toAgentKind,
+          requestedItemId,
+        ),
     });
     this.invalidSessionRecovery = new InvalidSessionRecoveryCoordinator({
       spawnPipeline: this.spawnPipeline,
@@ -500,7 +507,21 @@ export class ThreadSessionManager {
     const threadId = payload.threadId ?? randomUUID();
     const pending = this.startLocks.get(threadId);
     if (pending) {
+      if (payload.providerSwitch) {
+        await pending;
+        return this.startThread(payload);
+      }
       return { threadId };
+    }
+    const currentSession = this.sessions.get(threadId);
+    if (
+      payload.providerSwitch &&
+      currentSession &&
+      currentSession.agentKind !== payload.providerSwitch.fromAgentKind
+    ) {
+      throw new Error(
+        `Provider switch is stale: thread ${threadId} now belongs to ${currentSession.agentKind}.`,
+      );
     }
     this.recentlyRemovedThreadIds.delete(threadId);
 

@@ -171,6 +171,14 @@ msgstr "{0}({envName})이 v{newVersion}로 업데이트되었습니다."
 msgid "{0} ({envName}) updated."
 msgstr "{0}({envName})이 업데이트되었습니다."
 
+#. placeholder {0}: ""
+#. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "{0} (fork)"
+msgstr "{0} (포크)"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -1267,8 +1275,7 @@ msgstr "완료 섹션의 모든 스레드가 보관됩니다."
 msgid "All threads in Done will be permanently deleted."
 msgstr "완료 섹션의 모든 스레드가 영구적으로 삭제됩니다."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "모든 작업 영역"
@@ -2094,7 +2101,6 @@ msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확�
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -2550,7 +2556,6 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "단축키를 클릭하여 새 키를 기록하거나 ＋를 눌러 추가하세요."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
@@ -3218,8 +3223,8 @@ msgstr "압축된 컨텍스트:{before}→{after}토큰"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Context extraction ({0})"
-msgstr "컨텍스트 추출({0})"
+#~ msgid "Context extraction ({0})"
+#~ msgstr "컨텍스트 추출({0})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Context manually compacted from {before} tokens"
@@ -3229,6 +3234,7 @@ msgstr "{before} 토큰에서 수동으로 압축된 컨텍스트"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "수동으로 압축된 컨텍스트:{before}→{after}토큰"
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "컨텍스트가 {targetLabel}(으)로 전송되었습니다."
@@ -3245,12 +3251,13 @@ msgstr "컨텍스트 창"
 msgid "Continue"
 msgstr "계속"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Continue in another provider"
 msgstr "다른 제공업체에서 계속"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "다음에서 계속..."
@@ -3400,7 +3407,6 @@ msgid "Could not create the project folder."
 msgstr "프로젝트 폴더를 만들 수 없습니다."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
 msgstr "컨텍스트를 추출할 수 없습니다."
 
@@ -5001,7 +5007,6 @@ msgstr "매우 높음"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
 msgstr "{0}에서 컨텍스트를 추출하는 중..."
 
@@ -5396,6 +5401,10 @@ msgstr "포크"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "<0>{0}</0>에서 포크"
+
+#: src/mobile/views/threadActionSurfaces.tsx
+msgid "Fork to another provider"
+msgstr "다른 제공업체로 포크"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7271,8 +7280,6 @@ msgid "Most used reasoning"
 msgstr "가장 많이 사용한 추론 강도"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "이동"
 
@@ -7297,8 +7304,7 @@ msgstr "패널 이동"
 msgid "Move to clean worktree"
 msgstr "클린 작업 트리로 이동"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "작업 영역으로 이동"
 
@@ -7549,7 +7555,7 @@ msgstr "그룹에 새 탭"
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/app.tsx
+#: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -7633,8 +7639,8 @@ msgid "No active browser tab"
 msgstr "활성 브라우저 탭이 없습니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-msgid "No active session"
-msgstr "활성 세션 없음"
+#~ msgid "No active session"
+#~ msgstr "활성 세션 없음"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -8101,6 +8107,10 @@ msgstr "Git 저장소가 아닙니다."
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "Git 저장소가 아님"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Not available for remote threads"
+#~ msgstr "원격 스레드에서는 사용할 수 없습니다"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Not detected on this machine yet."
@@ -11700,7 +11710,6 @@ msgid "Start with a schedule"
 msgstr "일정으로 시작하기"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Start Without Context"
 msgstr "맥락 없이 시작하기"
 
@@ -11712,6 +11721,7 @@ msgstr "맥락 없이 시작하기"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "워크플로를 시작하고 실행을 모니터링합니다."
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} 스레드를 시작했습니다."
@@ -11950,6 +11960,7 @@ msgstr "고속 모드 지원"
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Switch"
 msgstr "전환"
@@ -11999,6 +12010,22 @@ msgstr "이전 탭으로 전환"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 msgid "Switch workspace"
 msgstr "작업 영역 전환"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ProviderHandoffRow.tsx
+msgid "Switched from {fromLabel} to {toLabel}"
+msgstr "{fromLabel}에서 {toLabel}(으)로 전환했습니다"
+
+#: src/renderer/actions/providerSwitchActions.ts
+msgid "Switched to {targetLabel}"
+msgstr "{targetLabel}(으)로 전환했습니다."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+msgstr "채팅은 두 채팅 제공업체 사이에서만 그 자리에서 이어갈 수 있으므로, 전환하면 같은 제목의 새 스레드가 시작됩니다."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#~ msgid "Switching to a terminal provider starts a new thread with the same title."
+#~ msgstr "터미널 제공업체로 전환하면 같은 제목의 새 스레드가 시작됩니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -12100,8 +12127,8 @@ msgid "Target branch"
 msgstr "대상 브랜치"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Target provider"
-msgstr "대상 공급자"
+#~ msgid "Target provider"
+#~ msgstr "대상 공급자"
 
 #: src/renderer/components/providers/qwen/index.tsx
 msgid "Task"
@@ -12569,6 +12596,8 @@ msgstr "이 프로필은 Cursor SDK에서 실행됩니다. Cursor CLI와 ACP는 
 msgid "this project"
 msgstr "이 프로젝트"
 
+#: src/renderer/actions/providerSwitchActions.ts
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -13138,6 +13167,10 @@ msgstr "원격 스레드를 시작할 수 없습니다."
 #: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "스레드를 시작할 수 없습니다."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to switch the provider."
+msgstr "제공업체를 전환할 수 없습니다."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

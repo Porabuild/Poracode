@@ -15,9 +15,11 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v6 pins an out-of-window goal before paged runtime history. Older clients
-// mistake that goal for the page anchor and can preserve a disjoint cursor.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 6;
+// v7 emits provider_handoff runtime items. Older clients drop the live
+// item.started, then hydrate the same row from a snapshot (whose type field is
+// untyped) and misresolve completed-turn anchors onto a divider that records
+// no work of its own.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 7;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

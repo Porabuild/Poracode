@@ -171,6 +171,14 @@ msgstr "{0} ({envName}) updated to v{newVersion}."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) updated."
 
+#. placeholder {0}: ""
+#. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "{0} (fork)"
+msgstr "{0} (fork)"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -1267,8 +1275,7 @@ msgstr "All threads in Done will be archived."
 msgid "All threads in Done will be permanently deleted."
 msgstr "All threads in Done will be permanently deleted."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "All workspaces"
@@ -2094,7 +2101,6 @@ msgstr "Can't reach the remote server. Check that it is online, then reconnect i
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -2550,7 +2556,6 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Click a shortcut to record a new key, or ＋ to add another."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
@@ -3218,8 +3223,8 @@ msgstr "Context compacted: {before} → {after} tokens"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Context extraction ({0})"
-msgstr "Context extraction ({0})"
+#~ msgid "Context extraction ({0})"
+#~ msgstr "Context extraction ({0})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Context manually compacted from {before} tokens"
@@ -3229,6 +3234,7 @@ msgstr "Context manually compacted from {before} tokens"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Context manually compacted: {before} → {after} tokens"
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Context transferred to {targetLabel}"
@@ -3245,12 +3251,13 @@ msgstr "Context windows"
 msgid "Continue"
 msgstr "Continue"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Continue in another provider"
 msgstr "Continue in another provider"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Continue in..."
@@ -3400,7 +3407,6 @@ msgid "Could not create the project folder."
 msgstr "Could not create the project folder."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
 msgstr "Could not extract context."
 
@@ -5001,7 +5007,6 @@ msgstr "Extra High"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
 msgstr "Extracting context from {0}..."
 
@@ -5396,6 +5401,10 @@ msgstr "Fork"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "Fork from <0>{0}</0>"
+
+#: src/mobile/views/threadActionSurfaces.tsx
+msgid "Fork to another provider"
+msgstr "Fork to another provider"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7271,8 +7280,6 @@ msgid "Most used reasoning"
 msgstr "Most used reasoning"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Move"
 
@@ -7297,8 +7304,7 @@ msgstr "Move panel"
 msgid "Move to clean worktree"
 msgstr "Move to clean worktree"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Move to Workspace"
 
@@ -7549,7 +7555,7 @@ msgstr "New tab in group"
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/app.tsx
+#: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -7633,8 +7639,8 @@ msgid "No active browser tab"
 msgstr "No active browser tab"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-msgid "No active session"
-msgstr "No active session"
+#~ msgid "No active session"
+#~ msgstr "No active session"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -8101,6 +8107,10 @@ msgstr "Not a git repository"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "Not a Git repository"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Not available for remote threads"
+#~ msgstr "Not available for remote threads"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Not detected on this machine yet."
@@ -11700,7 +11710,6 @@ msgid "Start with a schedule"
 msgstr "Start with a schedule"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Start Without Context"
 msgstr "Start Without Context"
 
@@ -11712,6 +11721,7 @@ msgstr "Start Without Context"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Start workflows and monitor their runs."
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Started {targetLabel} thread"
@@ -11950,6 +11960,7 @@ msgstr "Supports Fast mode"
 msgid "Swap notes and to-dos"
 msgstr "Swap notes and to-dos"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Switch"
 msgstr "Switch"
@@ -11999,6 +12010,22 @@ msgstr "Switch to the previous tab"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 msgid "Switch workspace"
 msgstr "Switch workspace"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ProviderHandoffRow.tsx
+msgid "Switched from {fromLabel} to {toLabel}"
+msgstr "Switched from {fromLabel} to {toLabel}"
+
+#: src/renderer/actions/providerSwitchActions.ts
+msgid "Switched to {targetLabel}"
+msgstr "Switched to {targetLabel}"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+msgstr "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#~ msgid "Switching to a terminal provider starts a new thread with the same title."
+#~ msgstr "Switching to a terminal provider starts a new thread with the same title."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -12100,8 +12127,8 @@ msgid "Target branch"
 msgstr "Target branch"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Target provider"
-msgstr "Target provider"
+#~ msgid "Target provider"
+#~ msgstr "Target provider"
 
 #: src/renderer/components/providers/qwen/index.tsx
 msgid "Task"
@@ -12569,6 +12596,8 @@ msgstr "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machin
 msgid "this project"
 msgstr "this project"
 
+#: src/renderer/actions/providerSwitchActions.ts
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -13138,6 +13167,10 @@ msgstr "Unable to start the remote thread."
 #: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "Unable to start the thread."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to switch the provider."
+msgstr "Unable to switch the provider."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

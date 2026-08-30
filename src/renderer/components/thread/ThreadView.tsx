@@ -20,7 +20,9 @@ import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarC
 import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import type { SaveClipboardImage } from "../composer/useAttachments";
-import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
+import { ContinueInProviderDialog, type ContinueIntent } from "./ContinueInProviderDialog";
+import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
+import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
@@ -74,6 +76,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.pendingLaunchPrompt === next.pendingLaunchPrompt &&
     prev.pendingLaunchSegments === next.pendingLaunchSegments &&
     prev.pendingLaunchUserMessageItemId === next.pendingLaunchUserMessageItemId &&
+    prev.pendingLaunchProviderSwitch === next.pendingLaunchProviderSwitch &&
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.paneAlign === next.paneAlign &&
@@ -103,6 +106,7 @@ export type ThreadViewProps = {
   pendingLaunchPrompt?: string;
   pendingLaunchSegments?: PromptSegment[];
   pendingLaunchUserMessageItemId?: string;
+  pendingLaunchProviderSwitch?: PendingLaunchProviderSwitch;
   isWsl?: boolean;
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
@@ -137,7 +141,7 @@ export type ThreadViewProps = {
         targetPresentationMode: ThreadPresentationMode,
         prompt: string,
         segments: PromptSegment[] | undefined,
-        closeOriginal: boolean,
+        intent: ContinueIntent,
         extractedContext: import("../../../shared/contracts").ExtractContextResult | null,
       ) => void)
     | undefined;
@@ -160,6 +164,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     pendingLaunchPrompt,
     pendingLaunchSegments,
     pendingLaunchUserMessageItemId,
+    pendingLaunchProviderSwitch,
     isWsl,
     showCloseButton,
     paneAlign = "center",
@@ -211,6 +216,27 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     setIsTitleTooltipOpen(false);
   }, [thread.id]);
 
+  // The sidebar's "Continue in..." entry can only open the thread; the dialog
+  // lives here, so honour the request once this pane is showing that thread.
+  // The request is consumed only when acted on: while agent detection is still
+  // in flight the guard declines, and the request stays pending until this
+  // effect re-runs with the populated list rather than being silently eaten.
+  const continueRequestedThreadId = useContinueInProviderStore((s) => s.requestedThreadId);
+  useEffect(() => {
+    if (continueRequestedThreadId !== thread.id) return;
+    if (!onContinueInProvider || !installedAgents?.some((a) => a.kind !== thread.agentKind)) {
+      return;
+    }
+    useContinueInProviderStore.getState().clear(thread.id);
+    setContinueDialogOpen(true);
+  }, [
+    continueRequestedThreadId,
+    thread.id,
+    thread.agentKind,
+    onContinueInProvider,
+    installedAgents,
+  ]);
+
   useEffect(() => {
     if (pendingLaunchPrompt === undefined) {
       launchRequestRef.current = null;
@@ -224,7 +250,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
 
     const launchKey = [
       thread.id,
-      thread.sessionRef?.providerSessionId ?? "new",
+      // A provider switch reuses the thread id with no session ref, so name it
+      // explicitly rather than letting it look like any other fresh launch.
+      pendingLaunchProviderSwitch
+        ? `switch:${pendingLaunchProviderSwitch.fromAgentKind}`
+        : (thread.sessionRef?.providerSessionId ?? "new"),
       pendingLaunchPrompt,
       launchTerminalSize.cols,
       launchTerminalSize.rows,
@@ -246,6 +276,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         ...(pendingLaunchUserMessageItemId
           ? { userMessageItemId: pendingLaunchUserMessageItemId }
           : {}),
+        ...(pendingLaunchProviderSwitch ? { providerSwitch: pendingLaunchProviderSwitch } : {}),
         initialSize: launchTerminalSize,
       });
     })()
@@ -265,6 +296,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     pendingLaunchPrompt,
     pendingLaunchSegments,
     pendingLaunchUserMessageItemId,
+    pendingLaunchProviderSwitch,
     projectLocation,
     launchTerminalSize,
     thread,
@@ -363,10 +395,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   </span>
                 ) : null}
                 {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 px-1 text-muted/60" /> : null}
+                {/* No `sessionRef` gate — see "continue-in" in ThreadContextMenu:
+                    no session is exactly when the transcript fallback matters. */}
                 {onContinueInProvider &&
                 installedAgents &&
-                installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 &&
-                thread.sessionRef ? (
+                installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
                   <Tooltip delay={0}>
                     <Tooltip.Trigger>
                       <button
@@ -496,6 +529,8 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           thread={thread}
           projectLocation={projectLocation}
           installedAgents={installedAgents}
+          {...(pickFiles ? { pickFiles } : {})}
+          {...(saveClipboardImage ? { saveClipboardImage } : {})}
           {...(() => {
             const cfg = useAppStore
               .getState()
@@ -509,7 +544,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             targetPresentationMode,
             prompt,
             segments,
-            closeOrig,
+            intent,
             ctx,
           ) => {
             setContinueDialogOpen(false);
@@ -519,7 +554,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
               targetPresentationMode,
               prompt,
               segments,
-              closeOrig,
+              intent,
               ctx,
             );
           }}

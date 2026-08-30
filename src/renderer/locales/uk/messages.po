@@ -171,6 +171,14 @@ msgstr "{0} ({envName}) оновлено до v{newVersion}."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) оновлено."
 
+#. placeholder {0}: ""
+#. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "{0} (fork)"
+msgstr "{0} (розгалуження)"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -1267,8 +1275,7 @@ msgstr "Усі потоки в розділі «Завершено» буде з
 msgid "All threads in Done will be permanently deleted."
 msgstr "Усі потоки в розділі «Завершено» буде остаточно видалено."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Усі робочі області"
@@ -2094,7 +2101,6 @@ msgstr "Не вдалося зв’язатися з віддаленим сер
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -2550,7 +2556,6 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Натисніть комбінацію клавіш, щоб записати нову клавішу, або ＋, щоб додати ще одну."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
@@ -3218,8 +3223,8 @@ msgstr "Контекст стиснуто: {before} → {after} токенів"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Context extraction ({0})"
-msgstr "Витягнення контексту ({0})"
+#~ msgid "Context extraction ({0})"
+#~ msgstr "Витягнення контексту ({0})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Context manually compacted from {before} tokens"
@@ -3229,6 +3234,7 @@ msgstr "Контекст вручну стиснуто з {before} токені�
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Контекст вручну стиснуто: {before} → {after} токенів"
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Контекст передано до {targetLabel}"
@@ -3245,12 +3251,13 @@ msgstr "Контекстні вікна"
 msgid "Continue"
 msgstr "Продовжити"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Continue in another provider"
 msgstr "Продовжити в іншому провайдері"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Продовжити в..."
@@ -3400,7 +3407,6 @@ msgid "Could not create the project folder."
 msgstr "Не вдалося створити папку проєкту."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
 msgstr "Не вдалося витягнути контекст."
 
@@ -5001,7 +5007,6 @@ msgstr "Дуже високий"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
 msgstr "Видобування контексту з {0}..."
 
@@ -5396,6 +5401,10 @@ msgstr "Розгалуження"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "Відгалузити від <0>{0}</0>"
+
+#: src/mobile/views/threadActionSurfaces.tsx
+msgid "Fork to another provider"
+msgstr "Створити розгалуження в іншому провайдері"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7271,8 +7280,6 @@ msgid "Most used reasoning"
 msgstr "Найуживаніший рівень міркувань"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Перемістити"
 
@@ -7297,8 +7304,7 @@ msgstr "Перемістити панель"
 msgid "Move to clean worktree"
 msgstr "Перемістити в чистий worktree"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Перемістити до робочої області"
 
@@ -7549,7 +7555,7 @@ msgstr "Нова вкладка в групі"
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/app.tsx
+#: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -7633,8 +7639,8 @@ msgid "No active browser tab"
 msgstr "Немає активної вкладки браузера"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-msgid "No active session"
-msgstr "Немає активної сесії"
+#~ msgid "No active session"
+#~ msgstr "Немає активної сесії"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -8101,6 +8107,10 @@ msgstr "Не репозиторій git"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Not a Git repository"
 msgstr "Не репозиторій Git"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Not available for remote threads"
+#~ msgstr "Недоступно для віддалених тредів"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Not detected on this machine yet."
@@ -11700,7 +11710,6 @@ msgid "Start with a schedule"
 msgstr "Почати з розкладу"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Start Without Context"
 msgstr "Запустити без контексту"
 
@@ -11712,6 +11721,7 @@ msgstr "Запустити без контексту"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Запускайте робочі процеси та відстежуйте їх виконання."
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Тред {targetLabel} запущено"
@@ -11950,6 +11960,7 @@ msgstr "Підтримує швидкий режим"
 msgid "Swap notes and to-dos"
 msgstr "Поміняти місцями нотатки та завдання"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Switch"
 msgstr "Перемкнути"
@@ -11999,6 +12010,22 @@ msgstr "Перейти до попередньої вкладки"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 msgid "Switch workspace"
 msgstr "Змінити робочу область"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ProviderHandoffRow.tsx
+msgid "Switched from {fromLabel} to {toLabel}"
+msgstr "Перемкнено з {fromLabel} на {toLabel}"
+
+#: src/renderer/actions/providerSwitchActions.ts
+msgid "Switched to {targetLabel}"
+msgstr "Перемкнено на {targetLabel}"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+msgstr "Перемикання запускає новий тред із тією самою назвою, оскільки чат можна продовжити на місці лише між двома чат-провайдерами."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#~ msgid "Switching to a terminal provider starts a new thread with the same title."
+#~ msgstr "Перемикання на термінальний провайдер запускає новий тред із тією самою назвою."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -12100,8 +12127,8 @@ msgid "Target branch"
 msgstr "Цільова гілка"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Target provider"
-msgstr "Цільовий провайдер"
+#~ msgid "Target provider"
+#~ msgstr "Цільовий провайдер"
 
 #: src/renderer/components/providers/qwen/index.tsx
 msgid "Task"
@@ -12569,6 +12596,8 @@ msgstr "Цей профіль працює на Cursor SDK. Cursor CLI і ACP м
 msgid "this project"
 msgstr "цей проєкт"
 
+#: src/renderer/actions/providerSwitchActions.ts
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -13138,6 +13167,10 @@ msgstr "Не вдалося запустити віддалений потік."
 #: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "Не удалось запустить поток."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to switch the provider."
+msgstr "Не вдалося переключити провайдера."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
