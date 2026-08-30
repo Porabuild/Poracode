@@ -266,11 +266,15 @@ async function runIosUIJourney() {
     if (!generatedName) throw new Error("native iOS build did not produce an xctestrun file");
     readinessPath = join(products, "NativeE2E-readiness.xctestrun");
     const generated = await readFile(join(products, generatedName), "utf8");
+    const interfaceStyle = process.env.NATIVE_E2E_INTERFACE_STYLE;
     await writeFile(
       readinessPath,
       injectXCTestEnvironment(generated, {
         NATIVE_E2E_CONTROL_URL: controlUrl,
         NATIVE_E2E_CONTROL_CAPABILITY: uiCapability,
+        ...(interfaceStyle === "Dark" || interfaceStyle === "Light"
+          ? { NATIVE_E2E_INTERFACE_STYLE: interfaceStyle }
+          : {}),
       }),
       { mode: 0o600 },
     );

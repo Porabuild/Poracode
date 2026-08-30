@@ -39,6 +39,7 @@ vi.mock("@/main/db", () => ({
       ) ?? null,
   ),
   dbGetProjectNotes: vi.fn<() => string>(() => ""),
+  dbUpdateProject: vi.fn<() => void>(),
   dbUpsertProject: vi.fn<() => void>(),
   dbDeleteProject: vi.fn<() => void>(),
   dbGetPrWatches: vi.fn<() => unknown[]>(() => []),

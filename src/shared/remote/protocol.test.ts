@@ -78,6 +78,29 @@ describe("remote push registrations", () => {
     });
   });
 
+  it("accepts native alert preferences and rejects them on web", () => {
+    const alertPreferences = {
+      sound: false,
+      statuses: { done: true, needsAttention: false, error: true },
+    };
+    expect(
+      remotePushRegistrationSchema.parse({
+        deviceId: "native-1234",
+        platform: "ios",
+        alertPreferences,
+      }).alertPreferences,
+    ).toEqual(alertPreferences);
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "browser-1234",
+        platform: "web",
+        webPushSubscription: subscription,
+        webAppBasePath: "/",
+        alertPreferences,
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects malformed, incomplete, and web push-routing identities", () => {
     expect(
       remotePushRegistrationSchema.safeParse({

@@ -6,6 +6,7 @@ import {
   projectSchema,
   scheduledTaskIdPayloadSchema,
   scheduledTaskInputSchema,
+  scheduledTaskRunSchema,
   scheduledTaskSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
@@ -447,6 +448,12 @@ export const remoteSchedulesResponseSchema = z.object({
 });
 export type RemoteSchedulesResponse = z.infer<typeof remoteSchedulesResponseSchema>;
 
+export const remoteScheduleRunsQuerySchema = scheduledTaskIdPayloadSchema;
+export const remoteScheduleRunsResponseSchema = z.object({
+  runs: z.array(scheduledTaskRunSchema),
+});
+export type RemoteScheduleRunsResponse = z.infer<typeof remoteScheduleRunsResponseSchema>;
+
 /** Broadcast on the WS event stream after a project change so clients refresh
  * the shell snapshot. Rides the same stream as supervisor/git events. */
 export const remoteProjectsChangedEventSchema = z.object({
@@ -618,6 +625,18 @@ export const remotePushPayloadRoutingSchema = remotePushRegistrationRoutingSchem
 });
 export type RemotePushPayloadRouting = z.infer<typeof remotePushPayloadRoutingSchema>;
 
+/** Per-install alert choices supplied by native clients. Missing preferences
+ * preserve the released behavior: every alert category, with sound. */
+export const remotePushAlertPreferencesSchema = z.object({
+  sound: z.boolean(),
+  statuses: z.object({
+    done: z.boolean(),
+    needsAttention: z.boolean(),
+    error: z.boolean(),
+  }),
+});
+export type RemotePushAlertPreferences = z.infer<typeof remotePushAlertPreferencesSchema>;
+
 export const remotePushRegistrationSchema = z
   .object({
     /** Stable per-device identity (survives token rotation); the upsert key. */
@@ -639,6 +658,8 @@ export const remotePushRegistrationSchema = z
     appVersion: z.string().min(1).optional(),
     /** Present only for native clients that negotiated push-routing v1. */
     routing: remotePushRegistrationRoutingSchema.optional(),
+    /** Device-owned alert sound and outcome filters. Native clients only. */
+    alertPreferences: remotePushAlertPreferencesSchema.optional(),
   })
   .superRefine((registration, ctx) => {
     if (registration.platform === "android") {
@@ -679,6 +700,13 @@ export const remotePushRegistrationSchema = z
         code: z.ZodIssueCode.custom,
         path: ["routing"],
         message: "routing is native-only",
+      });
+    }
+    if (registration.alertPreferences !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["alertPreferences"],
+        message: "alertPreferences is native-only",
       });
     }
     if (!registration.webPushSubscription) {
@@ -832,6 +860,7 @@ export const remoteSettingsSchema = sharedSettingsSchema
     hiddenModels: true,
     disabledAgents: true,
     providerOrder: true,
+    usage: true,
     enabledMcpServers: true,
     disabledBuiltInMcpServers: true,
     titleGenProvider: true,
@@ -863,10 +892,21 @@ export const remoteSettingsSchema = sharedSettingsSchema
     worktreeStorageMode: true,
     worktreeBasePath: true,
     wslWorktreeBasePath: true,
+    searchUseIgnoreFiles: true,
+    searchExclude: true,
     prAutomationDefault: true,
     prMergeMethod: true,
   })
-  .extend({ agentSettings: remoteAgentSettingsSchema });
+  .extend({
+    agentSettings: remoteAgentSettingsSchema,
+    // Optional for backward-compatible reads from remote-v3 hosts released
+    // before native clients could edit usage card ordering and collapse state.
+    usage: sharedSettingsSchema.shape.usage.optional(),
+    // Optional on the wire for remote-v3 hosts released before native project
+    // Search could display the inherited desktop defaults.
+    searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
+    searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
+  });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
 export const REMOTE_SETTINGS_KEYS = Object.keys(

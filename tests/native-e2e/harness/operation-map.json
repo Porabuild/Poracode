@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 3,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:2d7a0805de0967cecbe6de7c77bfe4b2af786ed7e86bfde4fd776d691df59db1",
-  "keyCount": 202,
+  "manifestHash": "sha256:98f9b3d0e185ec240ef7d1822ef4a8bb7f2f6c5c73d802c47df94104ac55a1e2",
+  "keyCount": 206,
   "counts": {
-    "route": 56,
+    "route": 60,
     "procedure": 100,
     "ws-client": 8,
     "ws-server": 9,
@@ -518,6 +518,18 @@
       "kind": "route",
       "id": "local-image"
     },
+    "route:mcp-settings-command": {
+      "kind": "route",
+      "id": "mcp-settings-command"
+    },
+    "route:mcp-settings-operation": {
+      "kind": "route",
+      "id": "mcp-settings-operation"
+    },
+    "route:mcp-settings-read": {
+      "kind": "route",
+      "id": "mcp-settings-read"
+    },
     "route:port-enter": {
       "kind": "route",
       "id": "port-enter"
@@ -609,6 +621,10 @@
     "route:runtime-image": {
       "kind": "route",
       "id": "runtime-image"
+    },
+    "route:schedule-runs-read": {
+      "kind": "route",
+      "id": "schedule-runs-read"
     },
     "route:schedules-command": {
       "kind": "route",

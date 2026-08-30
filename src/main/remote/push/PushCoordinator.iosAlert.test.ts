@@ -131,6 +131,34 @@ describe("PushCoordinator iOS localized alert privacy", () => {
     expect(JSON.stringify(payload)).not.toContain(secret);
   });
 
+  it("applies each iOS registration's status and sound preferences", async () => {
+    store.upsert({
+      deviceId: "quiet-device",
+      platform: "ios",
+      deviceToken: "quiet-token",
+      alertPreferences: {
+        sound: false,
+        statuses: { done: true, needsAttention: false, error: true },
+      },
+    });
+    const subject = coordinator();
+    subject.handleSupervisorEvent(threadState("thread-1", "needs_reply", "needs_reply"));
+    await tick();
+    expect(iosAlertCalls()).toHaveLength(0);
+    const attentionActivities = sendPush.mock.calls.filter(
+      ([input]) =>
+        input.pushType === "liveactivity" &&
+        (input.payload as ApsPayload).aps.alert !== undefined &&
+        (input.payload as ApsPayload).aps.event !== "start",
+    );
+    expect(attentionActivities).toHaveLength(0);
+
+    subject.handleSupervisorEvent(threadState("thread-1", "error"));
+    await tick();
+    expect(iosAlertCalls()).toHaveLength(1);
+    expect((iosAlertCalls()[0]![0].payload as ApsPayload).aps).not.toHaveProperty("sound");
+  });
+
   it("keeps every ActivityKit alert dictionary content-free", async () => {
     const secret = "PRIVATE-TOKEN abc123 /var/lib/poracode";
     store.upsert({

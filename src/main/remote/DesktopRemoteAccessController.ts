@@ -1,5 +1,5 @@
 import type { BrowserPanelManager } from "../browser";
-import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads } from "../db";
+import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
@@ -47,6 +47,7 @@ import {
   type RemoteAccessServerOptions,
 } from "./RemoteAccessServer";
 import { RemoteBrowserGateway, type RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
+import { createRemoteMcpSettingsGateway } from "./RemoteMcpSettingsGateway";
 import { ThreadNotificationPublisher } from "./ThreadNotificationPublisher";
 import {
   buildTailscaleHttpsUrl,
@@ -217,6 +218,16 @@ export function createDesktopRemoteAccessController(
 
   const writeRemoteAccessEnabledSetting = (enabled: boolean) =>
     writeSharedSettingsPatch({ remoteAccessEnabled: enabled });
+
+  const mcpSettings = createRemoteMcpSettingsGateway({
+    readSettings: () => readSharedSettingsFile(options.paths.settingsPath),
+    writeGlobalServers: (mcpServers) => {
+      writeSharedSettingsPatch({ mcpServers });
+    },
+    readProject: dbGetProject,
+    writeProject: dbUpdateProject,
+    projectsChanged: () => options.notifyProjectStateChanged(dbGetProjects()),
+  });
 
   /** Defensive read-time normalization; the setter rejects invalid input. */
   const normalizeAdvertisedUrlSetting = (raw: string): string | undefined => {
@@ -424,6 +435,10 @@ export function createDesktopRemoteAccessController(
             options.notifySharedSettingsChanged(next);
             return pickRemoteSettings(next);
           },
+          readMcpServers: () => mcpSettings.read(),
+          commandMcpServers: (command) => mcpSettings.command(command),
+          resolveScope: (scope) => mcpSettings.resolveScope(scope),
+          resolveServer: (scope, serverId) => mcpSettings.resolveServer(scope, serverId),
         },
         updates: options.updates,
         attachments: {

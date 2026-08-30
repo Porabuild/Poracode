@@ -37,9 +37,9 @@ const PATH_SCOPED_BODIES = {
 } as const;
 
 describe("remote HTTP route goldens", () => {
-  it("covers exactly 56 unique routes", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(56);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(56);
+  it("covers exactly 60 unique routes", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(60);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(60);
   });
 
   it("emits explicit query codecs and never infers them from z.coerce", () => {
@@ -107,6 +107,7 @@ describe("remote HTTP route goldens", () => {
     ).not.toHaveProperty("threadId");
 
     expect(threadCommandBodySchema.parse({ kind: "acknowledge" }).kind).toBe("acknowledge");
+    expect(threadCommandBodySchema.parse({ kind: "clear-group" }).kind).toBe("clear-group");
     expect(
       threadCommandBodySchema.parse({ kind: "acknowledge", threadId: "t1" }),
     ).not.toHaveProperty("threadId");

@@ -19,6 +19,7 @@ import type {
   ProjectNotes,
   ScheduledTask,
   ScheduledTaskInput,
+  ScheduledTaskRun,
   Thread,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -3248,7 +3249,19 @@ describe("RemoteAccessServer", () => {
   it("persists simple thread commands and mirrors them to the renderer", async () => {
     vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
     const db = mockThreadDb([
-      createTestThread({ worktreePath: "/repo/wt", worktreeBranch: "feat/x" }),
+      createTestThread({
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feat/x",
+        groupId: "group-1",
+        groupName: "Grouped work",
+      }),
+      createTestThread({
+        id: "thread-2",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feat/x",
+        groupId: "group-1",
+        groupName: "Grouped work",
+      }),
     ]);
     const dispatched: unknown[] = [];
     let rendererAvailable = true;
@@ -3287,13 +3300,30 @@ describe("RemoteAccessServer", () => {
       "content-type": "application/json",
     };
 
+    const clearGroupResponse = await fetch(
+      new URL("/api/threads/thread-1/command", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind: "clear-group" }),
+      },
+    );
+    expect(clearGroupResponse.status).toBe(200);
+    expect(dispatched).toEqual([{ kind: "clear-group", threadId: "thread-1" }]);
+    expect(db.threads()).toHaveLength(2);
+    expect(db.threads().every((thread) => !thread.groupId && !thread.groupName)).toBe(true);
+    await expect(readWs()).resolves.toMatchObject({
+      type: "event",
+      event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
+    });
+
     const renameResponse = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
       method: "POST",
       headers,
       body: JSON.stringify({ kind: "rename", title: "New title" }),
     });
     expect(renameResponse.status).toBe(200);
-    expect(dispatched).toEqual([{ kind: "rename", threadId: "thread-1", title: "New title" }]);
+    expect(dispatched[1]).toEqual({ kind: "rename", threadId: "thread-1", title: "New title" });
     expect(db.threads()[0]).toMatchObject({
       title: "New title",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -3309,7 +3339,7 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ kind: "set-done", done: true }),
     });
     expect(doneResponse.status).toBe(200);
-    expect(dispatched[1]).toEqual({ kind: "set-done", threadId: "thread-1", done: true });
+    expect(dispatched[2]).toEqual({ kind: "set-done", threadId: "thread-1", done: true });
     expect(db.threads()[0]).toMatchObject({ done: true, starred: false });
     expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
     await expect(readWs()).resolves.toMatchObject({
@@ -3345,7 +3375,7 @@ describe("RemoteAccessServer", () => {
       },
     );
     expect(deleteWorktreeResponse.status).toBe(200);
-    expect(dispatched[2]).toEqual({
+    expect(dispatched[3]).toEqual({
       kind: "delete-worktree-group",
       threadId: "thread-1",
       projectId: "project-1",
@@ -4502,7 +4532,16 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
-      settings: { read: () => stored, update },
+      settings: {
+        read: () => stored,
+        update,
+        readMcpServers: () => ({ servers: [] }),
+        commandMcpServers: () => ({ servers: [] }),
+        resolveScope: () => ({ servers: [] }),
+        resolveServer: () => {
+          throw new Error("not used");
+        },
+      },
     });
     servers.push(server);
     const info = await server.start();
@@ -4555,6 +4594,104 @@ describe("RemoteAccessServer", () => {
     });
     expect(stored.titleGenProvider).toBe("claude");
     expect(stored.enabledMcpServers).toEqual({ browser: true, crossagents: true });
+  });
+
+  it("keeps MCP operation credentials on the host and requires project management", async () => {
+    const secretServer = {
+      id: "secret-server",
+      name: "Secret Server",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: {
+        type: "http" as const,
+        url: "https://mcp.example.test/api?token=url-secret",
+        headers: { Authorization: "Bearer header-secret" },
+      },
+    };
+    const callSupervisor = vi.fn<
+      (name: string, payload: unknown) => Promise<Record<string, unknown>>
+    >(async (name) => {
+      if (name === "probeMcpServer") {
+        return {
+          status: "available",
+          latencyMs: 12,
+          environment: { runtime: "host", projectScoped: false },
+          toolCount: 1,
+          tools: ["read"],
+        };
+      }
+      if (name === "getMcpOauthStatus") {
+        return { authenticatedUrls: [secretServer.transport.url] };
+      }
+      throw new Error(`Unexpected supervisor procedure: ${name}`);
+    });
+    const stored = pickRemoteSettings(defaultSharedSettings);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: callSupervisor as unknown as RemoteAccessServerOptions["callSupervisor"],
+      settings: {
+        read: () => stored,
+        update: () => stored,
+        readMcpServers: () => ({ servers: [] }),
+        commandMcpServers: () => ({ servers: [] }),
+        resolveScope: () => ({ servers: [secretServer] }),
+        resolveServer: () => ({ server: secretServer }),
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+    const readOnlyToken = await issueAccessToken(info, ["session:read"]);
+    const manageToken = await issueAccessToken({ ...info, pairingUrl: server.issuePairingUrl() }, [
+      "projects:manage",
+    ]);
+    const endpoint = new URL("/api/settings/mcp-servers/operation", info.httpBaseUrl);
+
+    const forbidden = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${readOnlyToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "probe",
+        scope: { kind: "global" },
+        serverId: "secret-server",
+      }),
+    });
+    expect(forbidden.status).toBe(403);
+    expect(callSupervisor).not.toHaveBeenCalled();
+
+    const probe = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: `Bearer ${manageToken}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "probe",
+        scope: { kind: "global" },
+        serverId: "secret-server",
+      }),
+    });
+    expect(probe.status).toBe(200);
+    const probeBody = JSON.stringify(await probe.json());
+    expect(probeBody).not.toContain("url-secret");
+    expect(probeBody).not.toContain("header-secret");
+
+    const status = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: `Bearer ${manageToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ kind: "oauth-status", scope: { kind: "global" } }),
+    });
+    await expect(status.json()).resolves.toEqual({
+      kind: "oauth-status",
+      authenticatedServerIds: ["secret-server"],
+    });
+    expect(callSupervisor).toHaveBeenNthCalledWith(1, "probeMcpServer", {
+      server: secretServer,
+    });
+    expect(callSupervisor).toHaveBeenNthCalledWith(2, "getMcpOauthStatus", {});
   });
 
   it("serves and updates project notes with read and operate scopes", async () => {
@@ -4651,6 +4788,21 @@ describe("RemoteAccessServer", () => {
       stored = [created];
       return created;
     });
+    const scheduleRuns: ScheduledTaskRun[] = [
+      {
+        id: "995f9ee6-83de-44da-a90a-4f4e3425bbac",
+        scheduleId: "d2ac39e9-14ac-4776-9279-37a1e455a5db",
+        threadId: "085f4c5f-b8cf-407e-ae52-f53dbfb34fcb",
+        startedAt: "2026-07-10T12:00:00.000Z",
+        completedAt: null,
+        status: "running",
+        summary: null,
+        error: null,
+      },
+    ];
+    const runs = vi.fn<(id: string) => ScheduledTaskRun[]>((id) =>
+      scheduleRuns.filter((run) => run.scheduleId === id),
+    );
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
@@ -4659,6 +4811,7 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       schedules: {
         list: () => stored,
+        runs,
         create,
         update: (id, task) => {
           const next = { ...stored[0]!, ...task, id };
@@ -4685,6 +4838,13 @@ describe("RemoteAccessServer", () => {
     });
     expect(emptyResponse.status).toBe(200);
     await expect(emptyResponse.json()).resolves.toEqual({ schedules: [] });
+
+    const runsURL = new URL("/api/schedules/runs", info.httpBaseUrl);
+    runsURL.searchParams.set("id", "d2ac39e9-14ac-4776-9279-37a1e455a5db");
+    const runsResponse = await fetch(runsURL, { headers: readHeaders });
+    expect(runsResponse.status).toBe(200);
+    await expect(runsResponse.json()).resolves.toEqual({ runs: scheduleRuns });
+    expect(runs).toHaveBeenCalledWith("d2ac39e9-14ac-4776-9279-37a1e455a5db");
 
     const denied = await fetch(new URL("/api/schedules/command", info.httpBaseUrl), {
       method: "POST",

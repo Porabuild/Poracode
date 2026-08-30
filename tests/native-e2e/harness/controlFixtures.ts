@@ -36,9 +36,11 @@ export const FAULT_FIXTURE_IDS = [
 export type FaultFixtureId = (typeof FAULT_FIXTURE_IDS)[number];
 
 export const FRAME_FIXTURE_IDS = [
+  "event-agent-status",
   "event-thread-state",
   "runtime-content-delta",
   "runtime-live-turn-started",
+  "runtime-live-user-item-started",
   "runtime-live-item-started",
   "runtime-live-content-delta",
   "terminal-output",
@@ -89,6 +91,11 @@ const FRAME_FIXTURES: Record<
   Exclude<FrameFixtureId, "duplicate-event-thread-state">,
   EmitRequest
 > = {
+  "event-agent-status": {
+    kind: "event",
+    eventType: "agent-status-updated",
+    event: buildReplayableEvent("agent-status-updated"),
+  },
   "event-thread-state": {
     kind: "event",
     eventType: "thread-state",
@@ -105,6 +112,19 @@ const FRAME_FIXTURES: Record<
     runtimeEvent: {
       ...buildRuntimeEvent("turn.started", FIXTURE_THREAD_ID),
       turnId: "turn-native-e2e-live",
+    },
+  },
+  "runtime-live-user-item-started": {
+    kind: "runtime",
+    threadId: FIXTURE_THREAD_ID,
+    runtimeEvent: {
+      ...buildRuntimeEvent("item.started", FIXTURE_THREAD_ID),
+      turnId: "turn-native-e2e-live",
+      itemId: "item-native-e2e-user",
+      itemType: "user_message",
+      payload: {
+        content: [{ kind: "text", text: "Native journey message" }],
+      },
     },
   },
   "runtime-live-item-started": {

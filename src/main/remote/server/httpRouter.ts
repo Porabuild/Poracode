@@ -30,9 +30,11 @@ import {
   profileStatsRequestSchema,
   projectNotesSchema,
   emptyMcpLaunchSnapshot,
+  type McpServer,
   remoteThreadCommandSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
+  scheduledTaskIdPayloadSchema,
   sendThreadInputPayloadSchema,
   setPendingSteerPayloadSchema,
   startShellPayloadSchema,
@@ -42,6 +44,10 @@ import {
 import { msg } from "@/shared/messages";
 import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
 import { projectNotesWriteBodySchema } from "@/shared/remote/contract/routeBodies";
+import {
+  remoteMcpSettingsCommandSchema,
+  remoteMcpSettingsOperationSchema,
+} from "@/shared/remote/contract/routeSchemas";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
@@ -125,6 +131,16 @@ function projectIdFromPath(pathname: string, suffix: string): string | null {
     return projectId.includes("/") ? null : projectId;
   } catch {
     return null;
+  }
+}
+
+function mcpEndpointUrl(server: McpServer): string | null {
+  switch (server.transport.type) {
+    case "http":
+    case "sse":
+      return server.transport.url;
+    case "stdio":
+      return null;
   }
 }
 
@@ -612,9 +628,88 @@ export async function handleHttp(
       writeJson(res, 200, { settings: ctx.requireSettingsGateway().update(patch) });
       return;
     }
+    if (req.method === "GET" && url.pathname === "/api/settings/mcp-servers") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      writeJson(res, 200, ctx.requireSettingsGateway().readMcpServers());
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/settings/mcp-servers/command") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const command = remoteMcpSettingsCommandSchema.parse(await readJsonBody(req));
+      writeJson(res, 200, ctx.requireSettingsGateway().commandMcpServers(command));
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/settings/mcp-servers/operation") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const operation = remoteMcpSettingsOperationSchema.parse(await readJsonBody(req));
+      const gateway = ctx.requireSettingsGateway();
+      switch (operation.kind) {
+        case "probe": {
+          const resolved = gateway.resolveServer(operation.scope, operation.serverId);
+          const result = await ctx.options.callSupervisor("probeMcpServer", resolved);
+          writeJson(res, 200, { kind: "probe", result });
+          return;
+        }
+        case "oauth-status": {
+          const resolved = gateway.resolveScope(operation.scope);
+          const status = await ctx.options.callSupervisor("getMcpOauthStatus", {
+            ...(resolved.projectLocation ? { projectLocation: resolved.projectLocation } : {}),
+          });
+          const authenticated = new Set(status.authenticatedUrls);
+          writeJson(res, 200, {
+            kind: "oauth-status",
+            authenticatedServerIds: resolved.servers
+              .filter((server) => {
+                const endpoint = mcpEndpointUrl(server);
+                return endpoint !== null && authenticated.has(endpoint);
+              })
+              .map((server) => server.id),
+          });
+          return;
+        }
+        case "oauth-begin": {
+          const resolved = gateway.resolveServer(operation.scope, operation.serverId);
+          const result = await ctx.options.callSupervisor("beginMcpServerOauth", resolved);
+          writeJson(res, 200, { kind: "oauth-begin", result });
+          return;
+        }
+        case "oauth-wait": {
+          const resolved = gateway.resolveScope(operation.scope);
+          const result = await ctx.options.callSupervisor("waitMcpServerOauth", {
+            flowId: operation.flowId,
+            ...(resolved.projectLocation ? { projectLocation: resolved.projectLocation } : {}),
+          });
+          writeJson(res, 200, { kind: "oauth-wait", result });
+          return;
+        }
+        case "oauth-clear": {
+          const resolved = gateway.resolveServer(operation.scope, operation.serverId);
+          const endpoint = mcpEndpointUrl(resolved.server);
+          if (!endpoint) {
+            throw new RemoteHttpError(
+              "mcp_oauth_transport_unsupported",
+              "This MCP server does not support OAuth.",
+              400,
+            );
+          }
+          await ctx.options.callSupervisor("clearMcpServerOauth", {
+            url: endpoint,
+            ...(resolved.projectLocation ? { projectLocation: resolved.projectLocation } : {}),
+          });
+          writeJson(res, 200, { kind: "oauth-clear" });
+          return;
+        }
+      }
+    }
     if (req.method === "GET" && url.pathname === "/api/schedules") {
       ctx.security.requireBearer(req, ["session:read"]);
       writeJson(res, 200, { schedules: ctx.requireSchedulesGateway().list() });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/schedules/runs") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const { id } = scheduledTaskIdPayloadSchema.parse({ id: url.searchParams.get("id") });
+      writeJson(res, 200, { runs: ctx.requireSchedulesGateway().runs(id) });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/schedules/command") {

@@ -18441,6 +18441,1238 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "route.mcp-settings-command.request": {
+      "$defs": {
+        "__schema0": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "global",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "project",
+                  "type": "string"
+                },
+                "projectId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "projectId"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        },
+        "__schema1": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema2": {
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "__schema3": {
+          "default": "",
+          "type": "string"
+        },
+        "__schema4": {
+          "default": true,
+          "type": "boolean"
+        },
+        "__schema5": {
+          "default": 30000,
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "__schema6": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "__schema7": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "args": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "command": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "cwd": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "env": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "stdio",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "command"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "x-poracode-semanticValidators": [
+                    "mcp.valid-url"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.valid-url"
+              ],
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "sse",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "x-poracode-semanticValidators": [
+                    "mcp.valid-url"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.valid-url"
+              ],
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "upsert",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "server": {
+              "additionalProperties": true,
+              "properties": {
+                "description": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "disabledTools": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "enabled": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "id": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "timeoutMs": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "transport": {
+                  "$ref": "#/$defs/__schema7"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "transport"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.reserved-name"
+              ],
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "required": [
+            "kind",
+            "scope",
+            "server"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "remove",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "serverId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "scope",
+            "serverId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "destination": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "kind": {
+              "const": "move",
+              "type": "string"
+            },
+            "serverId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "source": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "kind",
+            "source",
+            "destination",
+            "serverId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
+    "route.mcp-settings-command.response": {
+      "$defs": {
+        "__schema0": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema1": {
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "__schema2": {
+          "default": "",
+          "type": "string"
+        },
+        "__schema3": {
+          "default": true,
+          "type": "boolean"
+        },
+        "__schema4": {
+          "default": 30000,
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "__schema5": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "__schema6": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "args": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "command": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "cwd": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "env": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "stdio",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "command",
+                "args",
+                "env"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "x-poracode-semanticValidators": [
+                    "mcp.valid-url"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url",
+                "headers"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.valid-url"
+              ],
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "sse",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "x-poracode-semanticValidators": [
+                    "mcp.valid-url"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url",
+                "headers"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.valid-url"
+              ],
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "servers": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "description": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "disabledTools": {
+                "$ref": "#/$defs/__schema5"
+              },
+              "enabled": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "name": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "timeoutMs": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "transport": {
+                "$ref": "#/$defs/__schema6"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "description",
+              "enabled",
+              "timeoutMs",
+              "transport"
+            ],
+            "type": "object",
+            "x-poracode-semanticValidators": [
+              "mcp.reserved-name"
+            ],
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "servers"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.mcp-settings-operation.request": {
+      "$defs": {
+        "__schema0": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "global",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "project",
+                  "type": "string"
+                },
+                "projectId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "projectId"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "probe",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "serverId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "scope",
+            "serverId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "oauth-status",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "kind",
+            "scope"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "oauth-begin",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "serverId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "scope",
+            "serverId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "flowId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "oauth-wait",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "kind",
+            "scope",
+            "flowId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "oauth-clear",
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "serverId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "scope",
+            "serverId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
+    "route.mcp-settings-operation.response": {
+      "$defs": {
+        "__schema0": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "__schema1": {
+          "additionalProperties": true,
+          "properties": {
+            "projectScoped": {
+              "type": "boolean"
+            },
+            "runtime": {
+              "enum": [
+                "host",
+                "wsl"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "runtime",
+            "projectScoped"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema2": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema3": {
+          "enum": [
+            "oauth",
+            "bearer",
+            "other",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "probe",
+              "type": "string"
+            },
+            "result": {
+              "oneOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "environment": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "latencyMs": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "serverInfo": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "version": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "status": {
+                      "const": "available",
+                      "type": "string"
+                    },
+                    "toolCount": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "tools": {
+                      "items": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "latencyMs",
+                    "environment",
+                    "status",
+                    "toolCount"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "environment": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "error": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "authScheme": {
+                          "$ref": "#/$defs/__schema3"
+                        },
+                        "code": {
+                          "const": "auth-required",
+                          "type": "string"
+                        },
+                        "message": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "latencyMs": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "status": {
+                      "const": "auth-required",
+                      "type": "string"
+                    },
+                    "toolCount": {
+                      "const": 0,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "latencyMs",
+                    "environment",
+                    "status",
+                    "toolCount",
+                    "error"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "environment": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "error": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "authScheme": {
+                          "$ref": "#/$defs/__schema3"
+                        },
+                        "code": {
+                          "enum": [
+                            "auth-required",
+                            "timeout",
+                            "command-not-found",
+                            "connection-failed",
+                            "protocol-error",
+                            "invalid-config",
+                            "probe-unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "latencyMs": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "status": {
+                      "const": "unavailable",
+                      "type": "string"
+                    },
+                    "toolCount": {
+                      "const": 0,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "latencyMs",
+                    "environment",
+                    "status",
+                    "toolCount",
+                    "error"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "result"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "authenticatedServerIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "oauth-status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "authenticatedServerIds"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "oauth-begin",
+              "type": "string"
+            },
+            "result": {
+              "oneOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "status": {
+                      "const": "authorized",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "authorizationUrl": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "flowId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": "redirect",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "flowId",
+                    "authorizationUrl"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "message": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": "error",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "result"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "oauth-wait",
+              "type": "string"
+            },
+            "result": {
+              "oneOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "status": {
+                      "const": "authorized",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "message": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": "error",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "result"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "oauth-clear",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
+    "route.mcp-settings-read.response": {
+      "$defs": {
+        "__schema0": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema1": {
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "__schema2": {
+          "default": "",
+          "type": "string"
+        },
+        "__schema3": {
+          "default": true,
+          "type": "boolean"
+        },
+        "__schema4": {
+          "default": 30000,
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "__schema5": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "__schema6": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "args": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "command": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "cwd": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "env": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "stdio",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "command",
+                "args",
+                "env"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "x-poracode-semanticValidators": [
+                    "mcp.valid-url"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url",
+                "headers"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.valid-url"
+              ],
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "sse",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "x-poracode-semanticValidators": [
+                    "mcp.valid-url"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url",
+                "headers"
+              ],
+              "type": "object",
+              "x-poracode-semanticValidators": [
+                "mcp.valid-url"
+              ],
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "servers": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "description": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "disabledTools": {
+                "$ref": "#/$defs/__schema5"
+              },
+              "enabled": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "name": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "timeoutMs": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "transport": {
+                "$ref": "#/$defs/__schema6"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "description",
+              "enabled",
+              "timeoutMs",
+              "transport"
+            ],
+            "type": "object",
+            "x-poracode-semanticValidators": [
+              "mcp.reserved-name"
+            ],
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "servers"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "route.port-enter.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -21579,6 +22811,41 @@
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
+        },
+        "__schema9": {
+          "additionalProperties": true,
+          "properties": {
+            "sound": {
+              "type": "boolean"
+            },
+            "statuses": {
+              "additionalProperties": true,
+              "properties": {
+                "done": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "boolean"
+                },
+                "needsAttention": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "done",
+                "needsAttention",
+                "error"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "required": [
+            "sound",
+            "statuses"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -21586,6 +22853,9 @@
       "properties": {
         "activityTokens": {
           "$ref": "#/$defs/__schema4"
+        },
+        "alertPreferences": {
+          "$ref": "#/$defs/__schema9"
         },
         "appVersion": {
           "$ref": "#/$defs/__schema7"
@@ -21839,6 +23109,114 @@
       },
       "required": [
         "path"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.schedule-runs-read.query": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.schedule-runs-read.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "runs": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "scheduleId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "startedAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "interrupted"
+                ],
+                "type": "string"
+              },
+              "summary": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "threadId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "scheduleId",
+              "threadId",
+              "startedAt",
+              "completedAt",
+              "status",
+              "summary",
+              "error"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "runs"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -22742,6 +24120,18 @@
               },
               "type": "array"
             },
+            "searchExclude": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "searchUseIgnoreFiles": {
+              "type": "boolean"
+            },
             "titleGenEffort": {
               "type": "string"
             },
@@ -22753,6 +24143,93 @@
             },
             "titleGenProvider": {
               "type": "string"
+            },
+            "usage": {
+              "additionalProperties": true,
+              "properties": {
+                "autoRefresh": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "collapsedProviders": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "disabledProviders": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "providerOrder": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "providerRefreshIntervals": {
+                  "additionalProperties": {
+                    "maximum": 120,
+                    "minimum": 2,
+                    "type": "integer"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "refreshIntervalMinutes": {
+                  "default": 5,
+                  "maximum": 120,
+                  "minimum": 2,
+                  "type": "integer"
+                },
+                "selectedRingGroups": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "showEstimatedCost": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "showInSidebar": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "sidebarHiddenProviders": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "autoRefresh",
+                "refreshIntervalMinutes",
+                "providerRefreshIntervals",
+                "showEstimatedCost",
+                "showInSidebar",
+                "sidebarHiddenProviders",
+                "disabledProviders",
+                "providerOrder",
+                "collapsedProviders",
+                "selectedRingGroups"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "worktreeBasePath": {
               "type": "string"
@@ -22986,6 +24463,18 @@
           },
           "type": "array"
         },
+        "searchExclude": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "searchUseIgnoreFiles": {
+          "type": "boolean"
+        },
         "titleGenEffort": {
           "type": "string"
         },
@@ -22997,6 +24486,81 @@
         },
         "titleGenProvider": {
           "type": "string"
+        },
+        "usage": {
+          "additionalProperties": true,
+          "properties": {
+            "autoRefresh": {
+              "default": true,
+              "type": "boolean"
+            },
+            "collapsedProviders": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "disabledProviders": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "providerOrder": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "providerRefreshIntervals": {
+              "additionalProperties": {
+                "maximum": 120,
+                "minimum": 2,
+                "type": "integer"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "refreshIntervalMinutes": {
+              "default": 5,
+              "maximum": 120,
+              "minimum": 2,
+              "type": "integer"
+            },
+            "selectedRingGroups": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "showEstimatedCost": {
+              "default": false,
+              "type": "boolean"
+            },
+            "showInSidebar": {
+              "default": true,
+              "type": "boolean"
+            },
+            "sidebarHiddenProviders": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         },
         "worktreeBasePath": {
           "type": "string"
@@ -23191,6 +24755,18 @@
               },
               "type": "array"
             },
+            "searchExclude": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "searchUseIgnoreFiles": {
+              "type": "boolean"
+            },
             "titleGenEffort": {
               "type": "string"
             },
@@ -23202,6 +24778,93 @@
             },
             "titleGenProvider": {
               "type": "string"
+            },
+            "usage": {
+              "additionalProperties": true,
+              "properties": {
+                "autoRefresh": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "collapsedProviders": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "disabledProviders": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "providerOrder": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "providerRefreshIntervals": {
+                  "additionalProperties": {
+                    "maximum": 120,
+                    "minimum": 2,
+                    "type": "integer"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "refreshIntervalMinutes": {
+                  "default": 5,
+                  "maximum": 120,
+                  "minimum": 2,
+                  "type": "integer"
+                },
+                "selectedRingGroups": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "showEstimatedCost": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "showInSidebar": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "sidebarHiddenProviders": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "autoRefresh",
+                "refreshIntervalMinutes",
+                "providerRefreshIntervals",
+                "showEstimatedCost",
+                "showInSidebar",
+                "sidebarHiddenProviders",
+                "disabledProviders",
+                "providerOrder",
+                "collapsedProviders",
+                "selectedRingGroups"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "worktreeBasePath": {
               "type": "string"
@@ -25696,6 +27359,20 @@
           "additionalProperties": true,
           "properties": {
             "kind": {
+              "const": "clear-group",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
               "const": "rename",
               "type": "string"
             },
@@ -28036,13 +29713,13 @@
     "jsonProcedureResults": 64,
     "procedures": 100,
     "replayableEventTypes": 15,
-    "routes": 56,
+    "routes": 60,
     "runtimeEventTypes": 14,
     "voidProcedureResults": 36,
     "webSocketClientMessages": 8,
     "webSocketServerMessages": 9
   },
-  "manifestHash": "sha256:d3ccda151ea70b78c25f8b952eb85d6e90b32ed8137d64f1ef0e82c3565d6f6c",
+  "manifestHash": "sha256:c38591361306555a061edef44c76efacd324824a3dfaf7be368c88dca6ed568f",
   "protocolVersion": 3,
-  "sourceHash": "sha256:0b791cbd8af119c9e7f49975c3c625f5f1bb03f1938ca74923567ddffa24947f"
+  "sourceHash": "sha256:6c4faf2d7b708260a9a90527d0d30e332d36ad74a69b3e58526dfa6c5d3c59d3"
 }

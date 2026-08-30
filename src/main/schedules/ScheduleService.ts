@@ -4,6 +4,7 @@ import {
   type ScheduleRecurrence,
   type ScheduledTask,
   type ScheduledTaskInput,
+  type ScheduledTaskRun,
 } from "@/shared/contracts";
 import { nextScheduleRunAt } from "@/shared/schedules";
 
@@ -24,6 +25,7 @@ export interface ScheduleServiceOptions {
    * working unchanged.
    */
   onStartupInterrupted?(scheduleId: string): void;
+  listRuns?(scheduleId: string): ScheduledTaskRun[];
   now?: () => number;
   tickIntervalMs?: number;
 }
@@ -54,6 +56,11 @@ export class ScheduleService {
 
   get(id: string): ScheduledTask | null {
     return this.options.store.get(id);
+  }
+
+  runs(id: string): ScheduledTaskRun[] {
+    this.requireTask(id);
+    return this.options.listRuns?.(id) ?? [];
   }
 
   create(input: ScheduledTaskInput): ScheduledTask {

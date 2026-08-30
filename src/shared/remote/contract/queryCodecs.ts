@@ -126,6 +126,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "local-image": [param("path", "string", false), param("access_token", "string", true)],
   "runtime-image": [param("path", "JSON-string", false), param("access_token", "string", true)],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
+  "schedule-runs-read": [param("id", "string", false)],
   "pr-watch-read": [param("projectId", "string", false), param("prNumber", "int", false)],
   "thread-history": [
     param("runtimePage", "string", true),

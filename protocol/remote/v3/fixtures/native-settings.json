@@ -116,6 +116,18 @@
   },
   "settingsPatch": {
     "titleGenFast": true,
+    "usage": {
+      "autoRefresh": true,
+      "refreshIntervalMinutes": 5,
+      "providerRefreshIntervals": {},
+      "showEstimatedCost": false,
+      "showInSidebar": true,
+      "sidebarHiddenProviders": [],
+      "disabledProviders": [],
+      "providerOrder": ["codex", "claude"],
+      "collapsedProviders": ["claude"],
+      "selectedRingGroups": {}
+    },
     "agentSettings": {
       "cursor": {
         "structuredRuntime": "acp",
@@ -134,6 +146,18 @@
       "hiddenModels": {},
       "disabledAgents": [],
       "providerOrder": [],
+      "usage": {
+        "autoRefresh": true,
+        "refreshIntervalMinutes": 5,
+        "providerRefreshIntervals": {},
+        "showEstimatedCost": false,
+        "showInSidebar": true,
+        "sidebarHiddenProviders": [],
+        "disabledProviders": [],
+        "providerOrder": ["codex", "claude"],
+        "collapsedProviders": ["claude"],
+        "selectedRingGroups": {}
+      },
       "enabledMcpServers": {
         "crossagents": true
       },
@@ -167,6 +191,11 @@
       "worktreeStorageMode": "global",
       "worktreeBasePath": "",
       "wslWorktreeBasePath": "",
+      "searchUseIgnoreFiles": false,
+      "searchExclude": {
+        "**/node_modules": true,
+        "**/generated": true
+      },
       "prAutomationDefault": "off",
       "prMergeMethod": "squash"
     }

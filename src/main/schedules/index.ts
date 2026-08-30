@@ -1,4 +1,10 @@
-import { dbDeleteSchedule, dbGetSchedule, dbGetSchedules, dbUpsertSchedule } from "../db";
+import {
+  dbDeleteSchedule,
+  dbGetSchedule,
+  dbGetSchedules,
+  dbListScheduleRuns,
+  dbUpsertSchedule,
+} from "../db";
 import type { ScheduledTask } from "@/shared/contracts";
 import { ScheduleService } from "./ScheduleService";
 
@@ -20,6 +26,7 @@ export function createDeviceScheduleService(
       delete: dbDeleteSchedule,
     },
     runTask: options.runTask,
+    listRuns: dbListScheduleRuns,
     ...(options.onStartupInterrupted ? { onStartupInterrupted: options.onStartupInterrupted } : {}),
   });
 }

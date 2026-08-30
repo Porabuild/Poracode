@@ -51,6 +51,13 @@ const ALERT_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
   "needs_reply",
 ]);
 
+function alertCategory(status: ThreadStatus): "done" | "needsAttention" | "error" | null {
+  if (status === "finished") return "done";
+  if (status === "needs_approval" || status === "needs_reply") return "needsAttention";
+  if (status === "error") return "error";
+  return null;
+}
+
 const DEBOUNCE_MS = 3_000;
 
 export interface PushScheduler {
@@ -148,12 +155,18 @@ export class PushCoordinator {
       changed && !suppressNotification && ATTENTION_STATUSES.has(status)
         ? iosAlertContent(status)
         : undefined;
-    const urgent = causedStart || causedEnd || attentionAlert !== undefined;
-
     // iOS: aggregate desktop-session Live Activity sync per device.
     for (const reg of this.options.store.list()) {
       if (reg.platform !== "ios") continue;
-      this.scheduleDeviceSync(reg, event.threadId, urgent, attentionAlert);
+      const category = alertCategory(status);
+      const deviceAlert =
+        category && reg.alertPreferences?.statuses[category] === false ? undefined : attentionAlert;
+      this.scheduleDeviceSync(
+        reg,
+        event.threadId,
+        causedStart || causedEnd || deviceAlert !== undefined,
+        deviceAlert,
+      );
     }
 
     // iOS: ordinary alert pushes on attention / terminal transitions.
@@ -181,6 +194,8 @@ export class PushCoordinator {
     }
     for (const reg of this.options.store.list()) {
       if (reg.platform !== "android" || !reg.deviceToken) continue;
+      const category = alertCategory(status);
+      if (category && reg.alertPreferences?.statuses[category] === false) continue;
       const routing = pushPayloadRouting(reg.routing, threadId);
       const payload = buildAndroidStatusPayload({
         title: pushAlertTitle(
@@ -189,7 +204,7 @@ export class PushCoordinator {
         ),
         body: spec.body,
         threadId,
-        ...(spec.silent ? { silent: true } : {}),
+        ...(spec.silent || reg.alertPreferences?.sound === false ? { silent: true } : {}),
         ...(routing ? { routing } : {}),
       });
       if (spec.immediate) {
@@ -431,9 +446,12 @@ export class PushCoordinator {
           return;
         }
         if (!reg.deviceToken) return;
+        const category = alertCategory(status);
+        if (category && reg.alertPreferences?.statuses[category] === false) return;
         const payload = buildAlertPayload(
           iosAlertContent(status),
           pushPayloadRouting(reg.routing, threadId),
+          reg.alertPreferences?.sound ?? true,
         );
         const result = await this.options.sendPush({
           token: reg.deviceToken,

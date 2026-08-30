@@ -4,12 +4,13 @@ import { z } from "zod";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import {
   remotePushRegistrationRoutingSchema,
+  remotePushAlertPreferencesSchema,
   type RemotePushRegistration,
   type RemotePushRegistrationRouting,
 } from "@/shared/remote";
 
 /** First explicit on-disk format. Files without this field are legacy v0. */
-export const PUSH_REGISTRATIONS_FILE_FORMAT_VERSION = 1 as const;
+export const PUSH_REGISTRATIONS_FILE_FORMAT_VERSION = 2 as const;
 
 /** Reference to a single token on a device, for APNs 410 pruning. */
 export type PushTokenRef =
@@ -38,6 +39,7 @@ const legacyStoredPushRegistrationSchema = z.object({
 
 const storedPushRegistrationSchema = legacyStoredPushRegistrationSchema.extend({
   routing: remotePushRegistrationRoutingSchema.optional(),
+  alertPreferences: remotePushAlertPreferencesSchema.optional(),
 });
 
 /**
@@ -55,6 +57,15 @@ const legacyPushRegistrationsFileSchema = z.object({
 const pushRegistrationsFileSchema = z.object({
   formatVersion: z.literal(PUSH_REGISTRATIONS_FILE_FORMAT_VERSION),
   registrations: z.array(storedPushRegistrationSchema),
+});
+
+const pushRegistrationsFileV1Schema = z.object({
+  formatVersion: z.literal(1),
+  registrations: z.array(
+    legacyStoredPushRegistrationSchema.extend({
+      routing: remotePushRegistrationRoutingSchema.optional(),
+    }),
+  ),
 });
 
 function routedStorageKey(clientConnectionId: string): string {
@@ -137,6 +148,7 @@ export class PushRegistrationStore {
     const appVersion = registration.appVersion ?? existing?.appVersion;
     const webPushSubscription = registration.webPushSubscription ?? existing?.webPushSubscription;
     const webAppBasePath = registration.webAppBasePath ?? existing?.webAppBasePath;
+    const alertPreferences = registration.alertPreferences ?? existing?.alertPreferences;
     const next: StoredPushRegistration = {
       deviceId: registration.deviceId,
       platform: registration.platform,
@@ -148,6 +160,7 @@ export class PushRegistrationStore {
       ...(webAppBasePath ? { webAppBasePath } : {}),
       ...(appVersion ? { appVersion } : {}),
       ...(routing ? { routing } : {}),
+      ...(alertPreferences ? { alertPreferences } : {}),
     };
     // The first routed registration supersedes the old single-host entry for
     // the same install, avoiding duplicate notifications after an upgrade.
@@ -249,6 +262,7 @@ export class PushRegistrationStore {
             : undefined;
         if (
           formatVersion !== undefined &&
+          formatVersion !== 1 &&
           formatVersion !== PUSH_REGISTRATIONS_FILE_FORMAT_VERSION
         ) {
           this.writesBlockedByFutureVersion = true;
@@ -256,7 +270,9 @@ export class PushRegistrationStore {
           const registrations =
             formatVersion === PUSH_REGISTRATIONS_FILE_FORMAT_VERSION
               ? pushRegistrationsFileSchema.parse(raw).registrations
-              : legacyPushRegistrationsFileSchema.parse(raw).registrations;
+              : formatVersion === 1
+                ? pushRegistrationsFileV1Schema.parse(raw).registrations
+                : legacyPushRegistrationsFileSchema.parse(raw).registrations;
           for (const entry of registrations) {
             map.set(pushRegistrationIdentity(entry), entry);
           }

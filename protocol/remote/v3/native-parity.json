@@ -78,7 +78,11 @@
         "batch": "foundation",
         "ios": {
           "disposition": "implemented",
-          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+          "evidence": [
+            "ios/App/App/Transport/RemoteAPIClient.swift",
+            "ios/App/App/Models/RemoteModels.swift",
+            "ios/App/App/Features/Home/HomeThreadListPresentation.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -260,7 +264,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatComposerView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatComposerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerAttachments.swift"
           ]
         },
         "android": {
@@ -350,7 +355,9 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
-            "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift"
+            "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift",
+            "ios/App/App/Features/Projects/ProjectSearchSettingsView.swift"
           ]
         },
         "android": {
@@ -368,7 +375,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
-            "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift"
+            "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift",
+            "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift"
           ]
         },
         "android": {
@@ -377,6 +385,58 @@
             "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
             "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsPreferencesPane.kt"
           ]
+        }
+      },
+      {
+        "id": "mcp-settings-read",
+        "batch": "settings-integrations",
+        "note": "The host returns redacted global custom MCP definitions. Credential-bearing environment, header, URL-query, and secret-shaped argument values never leave the host.",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
+      },
+      {
+        "id": "mcp-settings-command",
+        "batch": "settings-integrations",
+        "note": "iOS supports redaction-preserving global CRUD and host-owned global/project scope transfers. Android bindings are generated, but its native management UI and transport remain planned.",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift",
+            "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
+      },
+      {
+        "id": "mcp-settings-operation",
+        "batch": "settings-integrations",
+        "note": "Probe and OAuth operations are resolved by scope and server id on the host, so configured transport credentials never round-trip through a native client. Android bindings are generated; its native UI remains planned.",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+            "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
         }
       },
       {
@@ -417,6 +477,23 @@
             "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
             "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsScreen.kt"
           ]
+        }
+      },
+      {
+        "id": "schedule-runs-read",
+        "batch": "settings-integrations",
+        "note": "iOS exposes native run history and linked thread navigation. Android bindings are generated; its native UI remains planned.",
+        "ios": {
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+            "ios/App/App/Features/RemoteIntegrations/RemoteIntegrationsSchedulesController.swift",
+            "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsScheduleRunsView.swift"
+          ]
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
         }
       },
       {
@@ -507,7 +584,8 @@
           "evidence": [
             "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
             "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteAPI.swift",
-            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorController.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorView.swift"
           ]
         },
         "android": {
@@ -527,7 +605,9 @@
           "evidence": [
             "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
             "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteAPI.swift",
-            "ios/App/App/Features/BrowserMirror/BrowserMirrorSessionView.swift"
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorActions.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorController.swift",
+            "ios/App/App/Features/BrowserMirror/BrowserMirrorChrome.swift"
           ]
         },
         "android": {
@@ -537,7 +617,8 @@
             "android/app/src/main/kotlin/com/poracode/app/session/browsermirror/BrowserMirrorController.kt",
             "android/app/src/main/kotlin/com/poracode/app/ui/browsermirror/BrowserMirrorScreen.kt"
           ]
-        }
+        },
+        "note": "Remote-v3 intentionally exposes the shared tab/navigation/mirroring subset. Desktop-only browser state such as bookmarks, recent history, tab groups, cache/cookie clearing, hard reload, screenshots, DevTools, and element picking is not part of this command boundary; adding it requires an intentional compatibility extension rather than client-only controls."
       },
       {
         "id": "ports-read",
@@ -626,7 +707,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -644,7 +726,11 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
-            "ios/App/App/Features/Projects/ProjectManagementView.swift"
+            "ios/App/App/Features/Projects/ProjectEditView.swift",
+            "ios/App/App/Features/Projects/ProjectWorktreeSettingsView.swift",
+            "ios/App/App/Features/Projects/ProjectActionsSettingsView.swift",
+            "ios/App/App/Features/Projects/ProjectSearchSettingsView.swift",
+            "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift"
           ]
         },
         "android": {
@@ -662,7 +748,10 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
-            "ios/App/App/Features/Projects/ProjectIntegrationsView.swift"
+            "ios/App/App/Features/Projects/ProjectEditView.swift",
+            "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
           ]
         },
         "android": {
@@ -693,7 +782,9 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RemoteAPIClient.swift",
-            "ios/App/App/Features/Notifications/PushRegistrationController.swift"
+            "ios/App/App/Features/Notifications/PushRegistrationController.swift",
+            "ios/App/App/Features/Notifications/PushRemoteModels.swift",
+            "ios/App/App/Features/Notifications/NotificationPermissionController.swift"
           ]
         },
         "android": {
@@ -702,7 +793,8 @@
             "android/app/src/main/kotlin/com/poracode/app/push/PushHostClient.kt",
             "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt"
           ]
-        }
+        },
+        "note": "Both native clients register device tokens. iOS additionally sends optional device-owned alert sound/status preferences; Android currently relies on the backward-compatible all-alerts-with-sound default and still needs field-level preference UI parity."
       },
       {
         "id": "push-unregister",
@@ -727,7 +819,11 @@
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
-          "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+          "evidence": [
+            "ios/App/App/Transport/RemoteAPIClient.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerConfiguration.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -753,7 +849,11 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Threads/ThreadLifecycleRemoteAPI.swift",
-            "ios/App/App/Features/Home/ProjectThreadsView.swift"
+            "ios/App/App/Features/Home/ProjectThreadsView.swift",
+            "ios/App/App/Features/Threads/ArchivedThreadsView.swift",
+            "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift",
+            "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
+            "ios/App/App/Features/Threads/ThreadDetailDestinations.swift"
           ]
         },
         "android": {
@@ -773,7 +873,7 @@
           "evidence": [
             "ios/App/App/Features/Terminal/ProjectShellTerminalSession.swift",
             "ios/App/App/Features/Terminal/ProjectShellTerminalView.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatThreadView.swift"
+            "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift"
           ]
         },
         "android": {
@@ -808,11 +908,19 @@
       {
         "id": "thread-command",
         "batch": "thread-lifecycle",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping.",
         "ios": {
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Threads/ThreadLifecycleRemoteAPI.swift",
-            "ios/App/App/Features/Home/ProjectThreadsView.swift"
+            "ios/App/App/Features/Threads/ThreadLifecycleControls.swift",
+            "ios/App/App/Features/Home/HomeThreadLifecycleCoordinator.swift",
+            "ios/App/App/Features/Home/ProjectThreadsView.swift",
+            "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift",
+            "ios/App/App/Features/Threads/ThreadProviderHandoff.swift",
+            "ios/App/App/Features/Home/HomeComposerActions.swift",
+            "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
+            "ios/App/App/Features/Threads/ThreadDetailDestinations.swift"
           ]
         },
         "android": {
@@ -854,7 +962,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -872,8 +981,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatThreadView.swift",
-            "ios/App/App/Features/Thread/ThreadDetailView.swift"
+            "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift",
+            "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift"
           ]
         },
         "android": {
@@ -891,7 +1000,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -909,7 +1019,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -981,7 +1092,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -1001,7 +1113,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatCheckpointView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -1203,7 +1316,8 @@
           "evidence": [
             "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
             "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
-            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerSkills.swift"
           ]
         },
         "android": {
@@ -1223,7 +1337,8 @@
           "evidence": [
             "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
             "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
-            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsMCPView.swift"
           ]
         },
         "android": {
@@ -1243,7 +1358,8 @@
           "evidence": [
             "ios/App/App/Protocol/SettingsIntegrations/SettingsIntegrationsRemoteV3Contract.swift",
             "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsSessionComposition.swift",
-            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift"
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsIntegrationsScreen.swift",
+            "ios/App/App/Features/SettingsIntegrations/UI/SettingsMCPView.swift"
           ]
         },
         "android": {
@@ -1967,7 +2083,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestsPageView.swift"
           ]
         },
         "android": {
@@ -2009,7 +2125,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2030,7 +2146,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2051,7 +2167,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2072,7 +2188,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2135,7 +2251,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubActionsPageView.swift"
           ]
         },
         "android": {
@@ -2156,7 +2272,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunsView.swift"
           ]
         },
         "android": {
@@ -2177,7 +2293,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunDetailView.swift"
           ]
         },
         "android": {
@@ -2198,7 +2314,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunsView.swift"
           ]
         },
         "android": {
@@ -2621,7 +2737,8 @@
           "evidence": [
             "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Contract.swift",
             "ios/App/App/Features/Projects/GitOperations/GitOperationsController.swift",
-            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift"
+            "ios/App/App/Features/Projects/GitOperations/GitOperationsPanel.swift",
+            "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift"
           ]
         },
         "android": {
@@ -2783,7 +2900,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2804,7 +2921,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2825,7 +2942,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2846,7 +2963,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2867,7 +2984,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2888,7 +3005,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2909,7 +3026,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
           ]
         },
         "android": {
@@ -2930,7 +3047,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunsView.swift"
           ]
         },
         "android": {
@@ -2951,7 +3068,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunsView.swift"
           ]
         },
         "android": {
@@ -2972,7 +3089,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunDetailView.swift"
           ]
         },
         "android": {
@@ -2993,7 +3110,7 @@
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsRemoteV3Contract.swift",
             "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
             "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsControllerSuite.swift",
-            "ios/App/App/Features/Projects/GitHubOperations/GitHubOperationsPanel.swift"
+            "ios/App/App/Features/GitHubActions/GitHubWorkflowRunDetailView.swift"
           ]
         },
         "android": {
@@ -3339,7 +3456,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3359,7 +3476,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3379,7 +3496,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3399,7 +3516,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3418,7 +3535,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Features/RichChat/RichChatSessionComposition.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -3580,7 +3698,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3600,7 +3718,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3615,10 +3733,15 @@
       {
         "id": "remote-user-notification",
         "batch": "push-system",
-        "note": "Host-owned toast/notification replay. Native shells still present local and push notifications; they do not yet apply this sequenced event.",
+        "note": "Host-owned notification classification. iOS strictly validates the sequenced event, suppresses historical replay and the active thread, presents a native foreground material banner, and deduplicates racing routed APNs delivery. Android still relies on push and does not apply this event.",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/Notifications/RemoteUserNotificationPresentation.swift",
+            "ios/App/App/Features/Notifications/NotificationIngress.swift",
+            "ios/App/App/Features/Session/SessionEventRouter.swift",
+            "ios/App/App/Features/Home/HomeView.swift"
+          ]
         },
         "android": {
           "disposition": "planned",
@@ -3635,7 +3758,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3655,7 +3778,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3675,7 +3798,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3695,7 +3818,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3715,7 +3838,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3735,7 +3858,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3755,7 +3878,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3775,7 +3898,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {
@@ -3795,7 +3918,8 @@
           "evidence": [
             "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
             "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatControlPanel.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatControlPanel.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -3835,7 +3959,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -3853,7 +3978,8 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
           ]
         },
         "android": {
@@ -3892,7 +4018,7 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/Thread/TranscriptView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
           ]
         },
         "android": {

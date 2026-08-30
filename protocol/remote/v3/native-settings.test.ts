@@ -75,12 +75,33 @@ describe("native settings fixture", () => {
     requestSchema("settings-write").parse(fixture.settingsPatch);
     const patch = remoteSettingsPatchSchema.parse(fixture.settingsPatch);
     expect(patch).toMatchObject({ agentSettings: { cursor: { structuredRuntime: "acp" } } });
+    expect(patch).toMatchObject({
+      usage: {
+        providerOrder: ["codex", "claude"],
+        collapsedProviders: ["claude"],
+      },
+    });
     expect(JSON.stringify(patch)).not.toContain("sdkApiKey");
 
     const wireResponse = responseSchema("settings-read").parse(fixture.settingsResponse) as {
       settings: unknown;
     };
     const response = remoteSettingsSchema.parse(wireResponse.settings);
+    expect(response.usage).toMatchObject({
+      providerOrder: ["codex", "claude"],
+      collapsedProviders: ["claude"],
+    });
     expect(JSON.stringify(response)).not.toContain("fixture-secret-never-surface");
+  });
+
+  it("keeps settings reads from older remote-v3 hosts valid without additive preferences", () => {
+    const response = structuredClone(fixture.settingsResponse) as {
+      settings: Record<string, unknown>;
+    };
+    delete response.settings.usage;
+    delete response.settings.searchUseIgnoreFiles;
+    delete response.settings.searchExclude;
+
+    expect(responseSchema("settings-read").parse(response)).toBeTruthy();
   });
 });

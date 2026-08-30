@@ -164,7 +164,7 @@ describe("PushRegistrationStore", () => {
     expect(store.get("device-1234", routeB)?.deviceToken).toBe("token-b");
   });
 
-  it("migrates a legacy unversioned file and writes explicit format v1", () => {
+  it("migrates a legacy unversioned file and writes the current format", () => {
     writeFileSync(
       pushRegistrationsFilePath(dir),
       JSON.stringify({
@@ -190,6 +190,46 @@ describe("PushRegistrationStore", () => {
     };
     expect(persisted.formatVersion).toBe(PUSH_REGISTRATIONS_FILE_FORMAT_VERSION);
     expect(persisted.registrations).toHaveLength(2);
+  });
+
+  it("migrates format v1 and persists native alert preferences in format v2", () => {
+    writeFileSync(
+      pushRegistrationsFilePath(dir),
+      JSON.stringify({
+        formatVersion: 1,
+        registrations: [
+          {
+            deviceId: "device-legacy",
+            platform: "ios",
+            deviceToken: "legacy-token",
+            activityTokens: {},
+            routing: routeA,
+            updatedAt: 7,
+          },
+        ],
+      }),
+      { mode: 0o600 },
+    );
+    const store = new PushRegistrationStore(dir, () => 8);
+    expect(store.get("device-legacy", routeA)?.deviceToken).toBe("legacy-token");
+
+    const alertPreferences = {
+      sound: false,
+      statuses: { done: false, needsAttention: true, error: true },
+    };
+    store.upsert({
+      deviceId: "device-legacy",
+      platform: "ios",
+      routing: routeA,
+      alertPreferences,
+    });
+    expect(new PushRegistrationStore(dir).get("device-legacy", routeA)?.alertPreferences).toEqual(
+      alertPreferences,
+    );
+    const persisted = JSON.parse(readFileSync(pushRegistrationsFilePath(dir), "utf8")) as {
+      formatVersion: number;
+    };
+    expect(persisted.formatVersion).toBe(2);
   });
 
   it("does not overwrite a future registration-file format", () => {

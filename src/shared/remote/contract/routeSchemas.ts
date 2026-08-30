@@ -2,6 +2,10 @@ import { z } from "zod";
 import {
   profileIdentitySchema,
   profileStatsRequestSchema,
+  mcpOauthBeginResultSchema,
+  mcpOauthWaitResultSchema,
+  mcpProbeResultSchema,
+  mcpServerSchema,
   projectNotesSchema,
   prWatchInputSchema,
   prWatchKeySchema,
@@ -43,6 +47,8 @@ import {
   remoteRuntimeItemsPageRequestSchema,
   remoteRuntimeItemsPageSchema,
   remoteScheduleCommandSchema,
+  remoteScheduleRunsQuerySchema,
+  remoteScheduleRunsResponseSchema,
   remoteSchedulesResponseSchema,
   remoteSettingsPatchSchema,
   remoteSettingsSchema,
@@ -86,6 +92,76 @@ export const settingsWriteResultSchema = z.object({
   settings: remoteSettingsSchema,
 });
 
+export const remoteMcpSettingsScopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("global") }),
+  z.object({ kind: z.literal("project"), projectId: z.string().min(1) }),
+]);
+
+export const remoteMcpSettingsReadResultSchema = z.object({
+  servers: z.array(mcpServerSchema),
+});
+
+export const remoteMcpSettingsCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("upsert"),
+    scope: remoteMcpSettingsScopeSchema,
+    server: mcpServerSchema,
+  }),
+  z.object({
+    kind: z.literal("remove"),
+    scope: remoteMcpSettingsScopeSchema,
+    serverId: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("move"),
+    source: remoteMcpSettingsScopeSchema,
+    destination: remoteMcpSettingsScopeSchema,
+    serverId: z.string().min(1),
+  }),
+]);
+
+export const remoteMcpSettingsOperationSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("probe"),
+    scope: remoteMcpSettingsScopeSchema,
+    serverId: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("oauth-status"),
+    scope: remoteMcpSettingsScopeSchema,
+  }),
+  z.object({
+    kind: z.literal("oauth-begin"),
+    scope: remoteMcpSettingsScopeSchema,
+    serverId: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("oauth-wait"),
+    scope: remoteMcpSettingsScopeSchema,
+    flowId: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("oauth-clear"),
+    scope: remoteMcpSettingsScopeSchema,
+    serverId: z.string().min(1),
+  }),
+]);
+
+export const remoteMcpSettingsOperationResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("probe"), result: mcpProbeResultSchema }),
+  z.object({
+    kind: z.literal("oauth-status"),
+    authenticatedServerIds: z.array(z.string().min(1)),
+  }),
+  z.object({ kind: z.literal("oauth-begin"), result: mcpOauthBeginResultSchema }),
+  z.object({ kind: z.literal("oauth-wait"), result: mcpOauthWaitResultSchema }),
+  z.object({ kind: z.literal("oauth-clear") }),
+]);
+
+export type RemoteMcpSettingsScope = z.infer<typeof remoteMcpSettingsScopeSchema>;
+export type RemoteMcpSettingsCommand = z.infer<typeof remoteMcpSettingsCommandSchema>;
+export type RemoteMcpSettingsOperation = z.infer<typeof remoteMcpSettingsOperationSchema>;
+
 export const prWatchReadQuerySchema = decodedPrWatchReadQuerySchema;
 
 export const prWatchReadResultSchema = z.object({
@@ -114,6 +190,7 @@ const remoteSettingsKeys = [
   "hiddenModels",
   "disabledAgents",
   "providerOrder",
+  "usage",
   "enabledMcpServers",
   "disabledBuiltInMcpServers",
   "titleGenProvider",
@@ -145,15 +222,25 @@ const remoteSettingsKeys = [
   "worktreeStorageMode",
   "worktreeBasePath",
   "wslWorktreeBasePath",
+  "searchUseIgnoreFiles",
+  "searchExclude",
   "prAutomationDefault",
   "prMergeMethod",
 ] as const;
 
-export const remoteSettingsWireSchema = sharedSettingsSchema.pick(
+const remoteSettingsWireBaseSchema = sharedSettingsSchema.pick(
   Object.fromEntries(remoteSettingsKeys.map((key) => [key, true])) as {
     [K in (typeof remoteSettingsKeys)[number]]: true;
   },
 );
+
+// These preferences were added to remote-v3 after the original settings route.
+// Keep reads from older v3 hosts valid while new hosts include the complete object.
+export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
+  usage: sharedSettingsSchema.shape.usage.optional(),
+  searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
+  searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
+});
 
 export const settingsReadResultWireSchema = z.object({
   settings: remoteSettingsWireSchema,
@@ -208,6 +295,8 @@ export {
   remoteRuntimeItemsPageRequestSchema,
   remoteRuntimeItemsPageSchema,
   remoteScheduleCommandSchema,
+  remoteScheduleRunsQuerySchema,
+  remoteScheduleRunsResponseSchema,
   remoteSchedulesResponseSchema,
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,

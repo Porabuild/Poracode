@@ -214,6 +214,27 @@
       "scopes": ["session:operate"]
     },
     {
+      "id": "mcp-settings-read",
+      "method": "GET",
+      "path": "/api/settings/mcp-servers",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "mcp-settings-command",
+      "method": "POST",
+      "path": "/api/settings/mcp-servers/command",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
+      "id": "mcp-settings-operation",
+      "method": "POST",
+      "path": "/api/settings/mcp-servers/operation",
+      "auth": "bearer",
+      "scopes": ["projects:manage"]
+    },
+    {
       "id": "schedules-read",
       "method": "GET",
       "path": "/api/schedules",
@@ -226,6 +247,14 @@
       "path": "/api/schedules/command",
       "auth": "bearer",
       "scopes": ["session:operate"]
+    },
+    {
+      "id": "schedule-runs-read",
+      "method": "GET",
+      "path": "/api/schedules/runs",
+      "auth": "bearer",
+      "scopes": ["session:read"],
+      "queryParameters": ["id"]
     },
     {
       "id": "pr-watch-read",

@@ -31,7 +31,7 @@ describe("full inventory support ledger", () => {
     expect(snapshot.unsupported.procedureNames).toEqual([]);
     expect(snapshot.missing.httpRouteIds).toEqual([]);
     expect(snapshot.missing.procedureNames).toEqual([]);
-    expect(snapshot.counts.route.positive).toBe(56);
+    expect(snapshot.counts.route.positive).toBe(60);
     expect(snapshot.counts.procedure.positive).toBe(100);
   });
 });

@@ -343,6 +343,31 @@ describe("PushCoordinator", () => {
     expect(calls[0]![0].payload).not.toMatchObject({ silent: true });
   });
 
+  it("android: honors optional native status and sound preferences", async () => {
+    store.upsert({
+      deviceId: "device-0001",
+      platform: "android",
+      deviceToken: "fcm-1",
+      alertPreferences: {
+        sound: false,
+        statuses: { done: true, needsAttention: false, error: true },
+      },
+    });
+    const coordinator = makeCoordinator();
+
+    coordinator.handleSupervisorEvent(threadState("thread-1", "needs_reply", "needs_reply"));
+    await tick();
+    expect(androidCalls()).toHaveLength(0);
+
+    coordinator.handleSupervisorEvent(threadState("thread-1", "error"));
+    await tick();
+    expect(androidCalls()).toHaveLength(1);
+    expect(androidCalls()[0]![0].payload).toMatchObject({
+      body: "Ended with an error",
+      silent: true,
+    });
+  });
+
   it("android: finished is an immediate p10 status", async () => {
     store.upsert({ deviceId: "device-0001", platform: "android", deviceToken: "fcm-1" });
     const coordinator = makeCoordinator();

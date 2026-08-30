@@ -44,6 +44,7 @@ const h = vi.hoisted(() => ({
   readSettings: vi.fn<(path: string) => SharedSettings>(),
   patchSettings: vi.fn<(path: string, patch: Partial<SharedSettings>) => SharedSettings>(),
   getProjects: vi.fn<() => unknown[]>(() => []),
+  updateProject: vi.fn<(project: unknown) => void>(),
   getThreads: vi.fn<() => unknown[]>(() => []),
   refreshGitInterests: vi.fn<() => Promise<void>>(async () => undefined),
   defaultInfo: {
@@ -71,6 +72,7 @@ vi.mock("../db", () => ({
   dbGetProjects: () => h.getProjects(),
   dbGetProject: (projectId: string) =>
     (h.getProjects() as Array<{ id: string }>).find((project) => project.id === projectId) ?? null,
+  dbUpdateProject: (project: unknown) => h.updateProject(project),
   dbGetThreads: () => h.getThreads(),
   dbGetThread: (threadId: string) =>
     (h.getThreads() as Array<{ id: string }>).find((thread) => thread.id === threadId) ?? null,

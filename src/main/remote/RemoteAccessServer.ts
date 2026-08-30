@@ -20,13 +20,20 @@ import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import type {
   McpLaunchSnapshot,
+  McpServer,
   Project,
+  ProjectLocation,
   PrWatch,
   PrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
+  ScheduledTaskRun,
 } from "@/shared/contracts";
+import type {
+  RemoteMcpSettingsCommand,
+  RemoteMcpSettingsScope,
+} from "@/shared/remote/contract/routeSchemas";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -185,6 +192,19 @@ export interface RemoteAccessServerOptions {
   readonly settings?: {
     read(): RemoteSettings;
     update(patch: RemoteSettingsPatch): RemoteSettings;
+    readMcpServers(): { servers: McpServer[] };
+    commandMcpServers(command: RemoteMcpSettingsCommand): { servers: McpServer[] };
+    resolveScope(scope: RemoteMcpSettingsScope): {
+      servers: McpServer[];
+      projectLocation?: ProjectLocation;
+    };
+    resolveServer(
+      scope: RemoteMcpSettingsScope,
+      serverId: string,
+    ): {
+      server: McpServer;
+      projectLocation?: ProjectLocation;
+    };
   };
   /** Desktop app updater exposed to authenticated desktop clients. */
   readonly updates?: {
@@ -203,6 +223,7 @@ export interface RemoteAccessServerOptions {
     update(id: string, task: ScheduledTaskInput): ScheduledTask;
     delete(id: string): void;
     runNow(id: string): ScheduledTask;
+    runs(id: string): ScheduledTaskRun[];
   };
   /** Persistent PR automation owned by the host process. */
   readonly prWatches?: {

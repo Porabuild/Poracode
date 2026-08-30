@@ -5,6 +5,7 @@ import {
   dbGetThread,
   dbGetThreads,
   dbMarkLiveThreadsInactive,
+  dbUpdateProject,
 } from "@/main/db";
 import { BackendHostCore } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
@@ -26,6 +27,7 @@ import {
   PushRegistrationStore,
 } from "@/main/remote/push";
 import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
+import { createRemoteMcpSettingsGateway } from "@/main/remote/RemoteMcpSettingsGateway";
 import { ThreadNotificationPublisher } from "@/main/remote/ThreadNotificationPublisher";
 import {
   remoteAccessAdvertisedHost,
@@ -282,6 +284,15 @@ export async function createHeadlessRemoteHost(
     bindHost: host,
     remoteAccessPort: port,
   });
+  const mcpSettings = createRemoteMcpSettingsGateway({
+    readSettings: () => readSharedSettingsFile(paths.settingsPath),
+    writeGlobalServers: (mcpServers) => {
+      patchSharedSettingsFile(paths.settingsPath, { mcpServers });
+    },
+    readProject: dbGetProject,
+    writeProject: dbUpdateProject,
+    projectsChanged: publishHeadlessProjectsChanged,
+  });
 
   const server = new RemoteAccessServer({
     appVersion: options.appVersion,
@@ -305,6 +316,10 @@ export async function createHeadlessRemoteHost(
     settings: {
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
+      readMcpServers: () => mcpSettings.read(),
+      commandMcpServers: (command) => mcpSettings.command(command),
+      resolveScope: (scope) => mcpSettings.resolveScope(scope),
+      resolveServer: (scope, serverId) => mcpSettings.resolveServer(scope, serverId),
     },
     attachments: {
       save: (input) => saveUploadedAttachmentFile(paths, input),

@@ -213,6 +213,15 @@ export async function applyRemoteThreadCommand(
         groupName: command.groupName,
       }));
       return false;
+    case "clear-group": {
+      const groupId = dbGetThreads().find((thread) => thread.id === command.threadId)?.groupId;
+      updateRemoteThread(command.threadId, withoutThreadGroup);
+      if (groupId) {
+        const remainder = dbGetThreads().filter((thread) => thread.groupId === groupId);
+        if (remainder.length === 1) updateRemoteThread(remainder[0]!.id, withoutThreadGroup);
+      }
+      return false;
+    }
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
       updateRemoteThread(command.threadId, (thread) => ({
@@ -316,6 +325,11 @@ function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
   dbUpsertThread(update(thread), sortOrderForThread(threads, threadId));
+}
+
+function withoutThreadGroup(thread: Thread): Thread {
+  const { groupId: _groupId, groupName: _groupName, ...ungrouped } = thread;
+  return ungrouped;
 }
 
 async function closeThreadBestEffort(ctx: RemoteServerContext, threadId: string): Promise<void> {

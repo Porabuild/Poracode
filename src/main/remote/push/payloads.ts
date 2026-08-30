@@ -184,12 +184,13 @@ export function buildLiveActivityPayload(input: LiveActivityPayloadInput): IOSPu
 export function buildAlertPayload(
   alert: IOSLocalizedAlertContent,
   routing?: RemotePushPayloadRouting,
+  sound = true,
 ): IOSPushPayload {
   assertIOSLocalizedAlert(alert);
   const payload = {
     aps: {
       alert: { ...alert },
-      sound: "default",
+      ...(sound ? { sound: "default" } : {}),
     },
     ...(routing ? { [IOS_PUSH_ROUTING_KEY]: routing } : {}),
   };
