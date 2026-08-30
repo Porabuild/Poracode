@@ -67,6 +67,9 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
   // Detection updates this; `true` until the first probe keeps the CLI lane
   // for anything that reads the adapter before a status refresh lands.
   let cliRuntimeInstalled = true;
+  // Detection updates this too. Starts `false` so a read before the first
+  // probe cannot claim a Chat runtime that may not be installed.
+  let acpRuntimeInstalled = false;
   let defaultModel = ANTIGRAVITY_DEFAULT_MODEL_ID;
   const detectionSpec = createAntigravityDetectionSpec((probe) => {
     supportsSeparateModelEffort = probe.dialect.separateModelEffort;
@@ -128,6 +131,7 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
       terminalCapabilities = status.capabilities;
       cliRuntimeInstalled = status.installed;
       const merged = applyAntigravityAcpStatus(status, acpStatus);
+      acpRuntimeInstalled = merged.runtimeVariants?.acp?.installed === true;
       capabilities = merged.capabilities;
       supportsSeparateModelEffort ||= Boolean(
         status.version && compareVersions(status.version, "1.1.5") >= 0,
@@ -272,11 +276,14 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
       return syncAntigravityConfigFromTerminalState(input, terminalCapabilities);
     },
     detectInvalidSessionRef: detectAntigravityInvalidSessionRef,
-    // The one-shot child lane runs `agy`, so it is only usable while the CLI
-    // runtime is detected. On a machine with just the ACP chat artifact the
-    // structured runtime is the child lane instead (as the pre-adoption
-    // registry provider was).
+    // Chat gives a subagent child what `agy -p` cannot: incremental tool
+    // calls, permission forwarding and live steering. So the structured lane
+    // wins wherever the ACP runtime is detected, and the CLI one-shot is the
+    // fallback for a machine that only has `agy`. Both missing still resolves
+    // to whichever lane the adapter can actually build (see
+    // `resolveSubagentExecution`).
     get subagentExecutionPreference() {
+      if (acpRuntimeInstalled && createAcpSession) return "structured" as const;
       return cliRuntimeInstalled ? ("one-shot" as const) : ("structured" as const);
     },
 
