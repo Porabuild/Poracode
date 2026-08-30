@@ -93,4 +93,77 @@ describe("threadGoalState", () => {
       ),
     ).toBeNull();
   });
+
+  it("drops a goal the previous provider left behind on the other side of a handoff", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["goal-1", "handoff-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "goal-1": {
+            id: "goal-1",
+            type: "goal",
+            state: "completed",
+            payload: { action: "set", objective: "Old provider goal", status: "active" },
+            streams: {},
+          },
+          "handoff-1": {
+            id: "handoff-1",
+            type: "provider_handoff",
+            state: "completed",
+            payload: { fromAgentKind: "claude", toAgentKind: "codex", at: "2026-08-30T00:00:00Z" },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(
+      getThreadGoalDockStateFromThreadItems(
+        state.runtimeItemIdsByThread.t1,
+        state.runtimeItemsByIdByThread.t1,
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps a goal the incoming provider set after the handoff", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["goal-1", "handoff-1", "goal-2"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "goal-1": {
+            id: "goal-1",
+            type: "goal",
+            state: "completed",
+            payload: { action: "set", objective: "Old provider goal", status: "active" },
+            streams: {},
+          },
+          "handoff-1": {
+            id: "handoff-1",
+            type: "provider_handoff",
+            state: "completed",
+            payload: { fromAgentKind: "claude", toAgentKind: "codex", at: "2026-08-30T00:00:00Z" },
+            streams: {},
+          },
+          "goal-2": {
+            id: "goal-2",
+            type: "goal",
+            state: "completed",
+            payload: { action: "set", objective: "New provider goal", status: "active" },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(
+      getThreadGoalDockStateFromThreadItems(
+        state.runtimeItemIdsByThread.t1,
+        state.runtimeItemsByIdByThread.t1,
+      ),
+    ).toMatchObject({ sourceItemId: "goal-2", objective: "New provider goal" });
+  });
 });

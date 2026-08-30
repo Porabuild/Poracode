@@ -1560,8 +1560,8 @@ msgid "Attach"
 msgstr "Прикріпити"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-msgid "Attach files"
-msgstr "Прикріпити файли"
+#~ msgid "Attach files"
+#~ msgstr "Прикріпити файли"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -2213,6 +2213,7 @@ msgstr "Змінити папку проєкту"
 msgid "Change project icon"
 msgstr "Змінити іконку проєкту"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Change servers in provider settings"
 msgstr "Змініть сервери в налаштуваннях постачальника"
@@ -3067,6 +3068,7 @@ msgstr "Керування полем вводу"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -6957,6 +6959,7 @@ msgstr "MCP"
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "MCP server"
@@ -12246,6 +12249,7 @@ msgstr "Укажіть цільовому провайдеру, що робит�
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -12719,6 +12723,10 @@ msgstr "Цей сервер працює на цьому комп'ютері й 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Це загальносистемне сполучення клавіш недоступне. Виберіть інше сполучення."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "Цей тред змінив провайдера без передавання контексту: {agent} запущено без інструмента read_thread із Poracode, тому він не може прочитати попередню розмову. Знову увімкніть інструмент MCP app-controls або стисло опишіть потрібний контекст."
 
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

@@ -1,11 +1,17 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
-import type { ExtractContextResult, PromptSegment, Thread, ThreadConfig } from "@/shared/contracts";
+import type {
+  ProviderHandoffItemPayload,
+  PromptSegment,
+  Thread,
+  ThreadConfig,
+} from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
-import { buildHandoffLaunchInput } from "./providerHandoff";
+import { buildHandoffLaunchInput, type ProviderHandoffContext } from "./providerHandoff";
+import { appendOptimisticInitialUserMessage } from "./threadLaunchActions";
 
 /**
  * Continue the same chat thread under a different provider, keeping its id,
@@ -24,10 +30,10 @@ export async function switchThreadProviderInPlace(input: {
   targetConfig: ThreadConfig;
   prompt: string;
   segments: PromptSegment[] | undefined;
-  extractedContext: ExtractContextResult | null;
+  handoffContext: ProviderHandoffContext;
   targetLabel: string;
 }): Promise<void> {
-  const { thread, targetAgentKind, targetConfig, extractedContext, targetLabel } = input;
+  const { thread, targetAgentKind, targetConfig, handoffContext, targetLabel } = input;
   if (findExperimentByThreadId(thread.id)) return;
   // A mirrored thread's launch goes over the host connection; bail before
   // painting a divider the host cannot confirm.
@@ -42,7 +48,7 @@ export async function switchThreadProviderInPlace(input: {
     threadId: thread.id,
     prompt: input.prompt,
     segments: input.segments,
-    extractedContext,
+    extractedContext: handoffContext.strategy === "context-file" ? handoffContext.extracted : null,
   });
 
   const store = useAppStore.getState();
@@ -52,8 +58,44 @@ export async function switchThreadProviderInPlace(input: {
     config: targetConfig,
     presentationMode: "gui",
   });
-  store.queueThreadLaunch(thread.id, launch.prompt, launch.segments, undefined, {
+
+  // Paint the divider and the user's message now, before the launch reaches the
+  // supervisor. Bringing up the new provider's session takes seconds, and the
+  // switch already flipped the thread to "launching" — without these rows the
+  // pane shows a working indicator with nothing above it. The supervisor emits
+  // both again with these same ids, and the store's per-id dedupe drops the
+  // duplicates.
+  const handoffItemId = `handoff-${crypto.randomUUID()}`;
+  const handoffPayload: ProviderHandoffItemPayload = {
     fromAgentKind,
+    toAgentKind: targetAgentKind,
+    at: new Date().toISOString(),
+  };
+  store.applyRuntimeEvent(thread.id, {
+    type: "item.started",
+    threadId: thread.id,
+    itemId: handoffItemId,
+    itemType: "provider_handoff",
+    payload: handoffPayload,
+  });
+  store.applyRuntimeEvent(thread.id, {
+    type: "item.completed",
+    threadId: thread.id,
+    itemId: handoffItemId,
+  });
+  const switchedThread = useAppStore.getState().threads.find((row) => row.id === thread.id);
+  const userMessageItemId = switchedThread
+    ? appendOptimisticInitialUserMessage(switchedThread, launch.prompt, launch.segments)
+    : undefined;
+
+  // The strategy travels with the launch: only a "thread-transcript" switch
+  // makes the supervisor point the incoming provider at this thread's own
+  // transcript. A context-file switch already carries its context in the
+  // prompt, and would otherwise be handed the same conversation twice.
+  store.queueThreadLaunch(thread.id, launch.prompt, launch.segments, userMessageItemId, {
+    fromAgentKind,
+    handoffItemId,
+    contextStrategy: handoffContext.strategy,
   });
 
   toast.success(i18n._(msg`Switched to ${targetLabel}`));

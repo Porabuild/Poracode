@@ -142,7 +142,7 @@ export type ThreadViewProps = {
         prompt: string,
         segments: PromptSegment[] | undefined,
         intent: ContinueIntent,
-        extractedContext: import("../../../shared/contracts").ExtractContextResult | null,
+        handoffContext: import("@/renderer/actions/providerHandoff").ProviderHandoffContext,
       ) => void)
     | undefined;
   onLaunchConsumed?: (() => void) | undefined;

@@ -1560,8 +1560,8 @@ msgid "Attach"
 msgstr "Attach"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-msgid "Attach files"
-msgstr "Attach files"
+#~ msgid "Attach files"
+#~ msgstr "Attach files"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -2213,6 +2213,7 @@ msgstr "Change project folder"
 msgid "Change project icon"
 msgstr "Change project icon"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Change servers in provider settings"
 msgstr "Change servers in provider settings"
@@ -3067,6 +3068,7 @@ msgstr "Composer controls"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -6957,6 +6959,7 @@ msgstr "MCP"
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "MCP server"
@@ -12246,6 +12249,7 @@ msgstr "Tell the target provider what to do next..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -12719,6 +12723,10 @@ msgstr "This server runs on this computer and is unavailable for WSL projects."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "This system-wide shortcut is unavailable. Choose another key combination."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

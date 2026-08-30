@@ -1559,8 +1559,8 @@ msgid "Attach"
 msgstr "添付する"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-msgid "Attach files"
-msgstr "ファイルを添付する"
+#~ msgid "Attach files"
+#~ msgstr "ファイルを添付する"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -2212,6 +2212,7 @@ msgstr "プロジェクトフォルダーを変更"
 msgid "Change project icon"
 msgstr "プロジェクトアイコンを変更"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Change servers in provider settings"
 msgstr "プロバイダー設定でサーバーを変更"
@@ -3066,6 +3067,7 @@ msgstr "コンポーザーの操作"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -6956,6 +6958,7 @@ msgstr "MCP"
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "MCP server"
@@ -12244,6 +12247,7 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -12717,6 +12721,10 @@ msgstr "このサーバーはこのコンピューターで動作するため、
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "このシステム全体のショートカットは使用できません。別のキーの組み合わせを選択してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "このスレッドはコンテキストを引き継がずにプロバイダーを切り替えました。{agent} は Poracode の read_thread ツールなしで起動したため、これまでの会話を読み取れません。app-controls の MCP ツールを再度有効にするか、必要な内容を要約してください。"
 
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

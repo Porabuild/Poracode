@@ -1560,8 +1560,8 @@ msgid "Attach"
 msgstr "附加"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-msgid "Attach files"
-msgstr "附加文件"
+#~ msgid "Attach files"
+#~ msgstr "附加文件"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -2213,6 +2213,7 @@ msgstr "更改项目文件夹"
 msgid "Change project icon"
 msgstr "更改项目图标"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Change servers in provider settings"
 msgstr "在提供商设置中更改服务器"
@@ -3067,6 +3068,7 @@ msgstr "Composer 控件"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -6957,6 +6959,7 @@ msgstr "MCP"
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "MCP server"
@@ -12245,6 +12248,7 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -12718,6 +12722,10 @@ msgstr "此服务器在本机运行，WSL 项目无法使用。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "此线程在未传递上下文的情况下切换了提供商：{agent} 启动时没有 Poracode 的 read_thread 工具，因此无法读取之前的对话。请重新启用 app-controls MCP 工具，或概述它需要的内容。"
 
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

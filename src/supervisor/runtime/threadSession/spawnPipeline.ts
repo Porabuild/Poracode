@@ -26,6 +26,7 @@ import {
   resolveEnabledMcpServers,
 } from "@/shared/contracts";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import { msg } from "@/shared/messages";
 import type { AgentNativePlugin } from "@/supervisor/agents/base";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
@@ -64,7 +65,10 @@ import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
-import { resolveThreadMentionSegments } from "../threadMentionResolver";
+import {
+  buildProviderHandoffInstruction,
+  resolveThreadMentionSegments,
+} from "../threadMentionResolver";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
@@ -486,6 +490,27 @@ export class SpawnPipeline {
       presentationMode: requestedPresentation,
     });
     const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
+    // A "thread-transcript" switch (chat → chat) keeps the thread id and the
+    // whole transcript, so the incoming provider reads the prior conversation
+    // straight from the app database instead of being handed a summary. Every
+    // other handoff already carries its context in the prompt and must not get
+    // the instruction on top of it.
+    const handsOverTranscript = payload.providerSwitch?.contextStrategy === "thread-transcript";
+    const handoffInstruction =
+      handsOverTranscript && payload.providerSwitch && threadMentionToolsAvailable
+        ? buildProviderHandoffInstruction(payload.threadId, payload.providerSwitch.fromAgentKind)
+        : undefined;
+    // The client skipped extraction because it expected this session to resolve
+    // `read_thread`, and it did not. Nothing here can rebuild the context (the
+    // previous provider's session is already closed), so the thread says so
+    // instead of leaving the user with a provider that silently lost the
+    // conversation. Emitted below, after the handoff divider and the user's
+    // message, so it reads as a note on the new provider's first turn.
+    const transcriptHandoffLost = handsOverTranscript && !threadMentionToolsAvailable;
+    const inlineInstructions =
+      inlineSkillInstructions && handoffInstruction
+        ? `${handoffInstruction}\n\n${inlineSkillInstructions}`
+        : (handoffInstruction ?? inlineSkillInstructions);
     if (
       payload.segments?.some((segment) => segment.kind === "thread") &&
       !threadMentionToolsAvailable
@@ -565,6 +590,13 @@ export class SpawnPipeline {
           );
           this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
         }
+        if (transcriptHandoffLost) {
+          ctx.runtimeEventRouter.append(payload.threadId, {
+            type: "warning",
+            threadId: payload.threadId,
+            message: msg("supervisor.handoffTranscriptUnavailable", { agent: adapter.label }),
+          });
+        }
       }
       const resolvedSessionRef =
         payload.sessionRef ??
@@ -600,7 +632,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
-          ...(inlineSkillInstructions ? { inlineInstructions: inlineSkillInstructions } : {}),
+          ...(inlineInstructions ? { inlineInstructions } : {}),
         };
         void structuredSession
           .startTurn(
@@ -631,7 +663,7 @@ export class SpawnPipeline {
           initialPrompt,
           launchConfig,
           effectiveSegments,
-          inlineSkillInstructions ? { inlineInstructions: inlineSkillInstructions } : undefined,
+          inlineInstructions ? { inlineInstructions } : undefined,
         )
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);

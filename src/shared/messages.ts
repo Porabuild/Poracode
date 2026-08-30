@@ -122,6 +122,8 @@ const messages = {
   "supervisor.exited": "Background process exited unexpectedly",
   "supervisor.notRunning": "Background process is not running",
   "supervisor.proposedPlan": "Proposed plan",
+  "supervisor.handoffTranscriptUnavailable":
+    "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
 
   // ── ACP ───────────────────────────────────────────────────
   "acp.authenticationUnverified":

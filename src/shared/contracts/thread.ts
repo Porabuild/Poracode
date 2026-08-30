@@ -158,9 +158,32 @@ export type PromptSegment = z.infer<typeof promptSegmentSchema>;
  * against it. `sessionRef` must be omitted alongside this — the new provider
  * has no session to resume.
  */
+/**
+ * How a handoff transfers the prior conversation to the incoming provider:
+ *
+ * - "thread-transcript": the new provider is handed this thread's own id and
+ *   reads the transcript itself. Only a chat→chat switch can use it, because
+ *   only that keeps the thread and its persisted rows.
+ * - "context-file": the prior conversation travels with the prompt as a written
+ *   context file (an extracted summary, or the stored transcript).
+ *
+ * Absent means "context-file": a client that predates this field always sends
+ * its context with the prompt, so the supervisor must not assume otherwise.
+ * See {@link resolveProviderHandoffStrategy} for the routing itself.
+ */
+export const providerHandoffContextStrategySchema = z.enum(["thread-transcript", "context-file"]);
+export type ProviderHandoffContextStrategy = z.infer<typeof providerHandoffContextStrategySchema>;
+
 export const providerSwitchSchema = z.object({
   fromAgentKind: agentKindSchema,
   handoffItemId: z.string().min(1).optional(),
+  /**
+   * How the launching client transferred the prior conversation. Only
+   * "thread-transcript" makes the supervisor attach the transcript-reading
+   * instruction; anything else already carries its context in the prompt, and
+   * adding the instruction on top would hand the provider two copies.
+   */
+  contextStrategy: providerHandoffContextStrategySchema.optional(),
   /**
    * Only set on the REVERT command the host sends after a failed switched
    * start: the status the durable row was restored to, which the renderer

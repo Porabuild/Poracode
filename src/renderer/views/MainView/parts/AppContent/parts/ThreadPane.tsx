@@ -1,7 +1,6 @@
 import { startTransition, useRef } from "react";
 import { Trans } from "@lingui/react/macro";
 import type {
-  ExtractContextResult,
   PromptSegment,
   Thread,
   ThreadConfig,
@@ -10,6 +9,7 @@ import type {
 import { resolveProjectLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
+import type { ProviderHandoffContext } from "@/renderer/actions/providerHandoff";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
@@ -44,7 +44,7 @@ export function ThreadPane(props: {
     prompt: string,
     segments: PromptSegment[] | undefined,
     intent: ContinueIntent,
-    extractedContext: ExtractContextResult | null,
+    handoffContext: ProviderHandoffContext,
   ) => void;
 }) {
   const thread = useThread(props.threadId);
