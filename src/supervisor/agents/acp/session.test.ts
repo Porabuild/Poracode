@@ -54,6 +54,7 @@ type TestableAcpSession = {
   resolveServerRequest(requestId: string, response: unknown): Promise<void>;
   handlePermissionRequest(params: RequestPermissionRequest): Promise<unknown>;
   handleSessionUpdate(params: { update: unknown }): void;
+  handleStderrTurnSignalLine(line: string): void;
   ingestExternalSessionUpdate(notification: SessionNotification): void;
   attachExternalSessionUpdateSource(source: {
     onSessionUpdate(notification: SessionNotification): boolean | void;
@@ -90,6 +91,7 @@ function makeConfigSyncSession(
     agentPromptCapabilities?: PromptCapabilities;
     behavior?: AcpSessionBehavior;
     textStreamExtension?: AcpTextStreamExtension;
+    stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
   } = {},
 ) {
   const connection = {
@@ -205,6 +207,9 @@ function makeConfigSyncSession(
   session["initializeMeta"] = overrides.initializeMeta;
   session["behavior"] = overrides.behavior ?? {};
   session["textStreamExtension"] = overrides.textStreamExtension;
+  session["stderrTurnSignalParser"] = overrides.stderrTurnSignalParser;
+  session["promptHeldForBackgroundWork"] = false;
+  session["startTurnChain"] = Promise.resolve();
   session["cwd"] = "C:\\repo";
   session["stableSessionRef"] = undefined;
   session["usageScopeId"] = undefined;
@@ -2778,6 +2783,165 @@ describe("ACP turn config sync", () => {
       .filter((event) => event.type === "turn.completed");
     expect(completed).toEqual([expect.objectContaining({ state: "cancelled" })]);
     expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  // Antigravity's agy_acp_server holds `session/prompt` open in
+  // STATE_WAITING_FOR_TASKS until every background task exits — never, for a
+  // task that doesn't. The provider's stderr parser is the only end-of-reply
+  // boundary; these tests drive the shared session through that signal.
+  describe("prompt held open for background work (stderr turn signal)", () => {
+    const WAITING_LINE =
+      'I0831 14:08:16.659332 51136 local_connection.py:521] RAW WS MSG: {"trajectoryStateUpdate":{"trajectoryId":"session-1", "state":"STATE_WAITING_FOR_TASKS"}, "seqNum":"17", "timestampMicros":"1788210496658811"}';
+
+    function heldPromptSession() {
+      return makeConfigSyncSession({
+        stderrTurnSignalParser: (line) =>
+          line.includes('"STATE_WAITING_FOR_TASKS"') ? "background-wait" : undefined,
+      });
+    }
+
+    function startHeldTurn(harness: ReturnType<typeof makeConfigSyncSession>) {
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      harness.connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+      const turn = harness.session.startTurn("run the dev server in the background", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      return { turn, resolvePrompt: (result: { stopReason: string }) => resolvePrompt(result) };
+    }
+
+    it("completes the turn and goes idle at the background-wait signal", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { turn, resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "bg-cmd",
+          title: "node server.js",
+          kind: "execute",
+          status: "in_progress",
+          rawInput: { CommandLine: "node server.js", Cwd: "C:\\repo", WaitMsBeforeAsync: 500 },
+        },
+      });
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "The task is running in the background." },
+        },
+      });
+      session.handleStderrTurnSignalLine(WAITING_LINE);
+
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+      const events = () =>
+        listener.onRuntimeEvent.mock.calls.map(
+          ([event]) => event as { type?: string; state?: string; itemId?: string },
+        );
+      expect(events().filter((event) => event.type === "turn.completed")).toEqual([
+        expect.objectContaining({ state: "completed" }),
+      ]);
+      // The still-running background command row stays open as a detached
+      // item — the turn close must not seal it with a stale payload.
+      const commandItemId = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; itemType?: string; itemId?: string })
+        .find(
+          (event) => event.type === "item.started" && event.itemType === "command_execution",
+        )?.itemId;
+      expect(commandItemId).toBeDefined();
+      expect(
+        events().some((event) => event.type === "item.completed" && event.itemId === commandItemId),
+      ).toBe(false);
+
+      // The task's real terminal update lands later, out of band, on the
+      // original row — without repainting working.
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "bg-cmd",
+          status: "completed",
+          rawOutput: { commandLine: "node server.js", exitCode: 0, combinedOutput: "listening\n" },
+        },
+      });
+      expect(
+        events().some((event) => event.type === "item.completed" && event.itemId === commandItemId),
+      ).toBe(true);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+
+      // The held prompt finally resolves once the task exits; the turn must
+      // not be closed a second time.
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+      expect(events().filter((event) => event.type === "turn.completed")).toHaveLength(1);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+
+    it("wraps the post-task report in a synthetic turn closed by the late resolution", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { turn, resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "Task started; I will report when it finishes." },
+        },
+      });
+      session.handleStderrTurnSignalLine(WAITING_LINE);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+
+      // The task ends; the agent streams its report inside the still-held
+      // prompt. That activity gets its own synthetic turn.
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "The background task has finished." },
+        },
+      });
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({
+        status: "working",
+        attention: "working",
+      });
+
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+      const completed = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; state?: string })
+        .filter((event) => event.type === "turn.completed");
+      expect(completed).toEqual([
+        expect.objectContaining({ state: "completed" }),
+        expect.objectContaining({ state: "completed" }),
+      ]);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+
+    it("queues a follow-up startTurn behind the held prompt", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+      session.handleStderrTurnSignalLine(WAITING_LINE);
+
+      // ACP takes one prompt per session at a time: the follow-up must wait
+      // for the held prompt to settle instead of racing a second one out.
+      const secondTurn = session.startTurn("follow-up message", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(connection.prompt).toHaveBeenCalledOnce();
+
+      resolvePrompt({ stopReason: "end_turn" });
+      await secondTurn;
+      expect(connection.prompt).toHaveBeenCalledTimes(2);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
   });
 
   it("stays working until all concurrently reporting detached subagents complete", () => {

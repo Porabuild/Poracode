@@ -78,6 +78,12 @@ export interface AcpGenericAdapterOptions {
   sessionBehavior?: AcpSessionBehavior;
   /** Provider parser for agent-text quirks the shared canonical mapper must not own. */
   textStreamExtension?: AcpTextStreamExtension;
+  /**
+   * Provider parser for stderr diagnostics from agents that hold
+   * `session/prompt` open while detached background work runs — see
+   * `AcpStructuredSessionOptions.stderrTurnSignalParser`.
+   */
+  stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
 }
 
 export function createAcpGenericAdapter(
@@ -167,6 +173,9 @@ export function createAcpGenericAdapter(
         ...(options.sessionBehavior ? { behavior: options.sessionBehavior } : {}),
         ...(options.textStreamExtension
           ? { textStreamExtension: options.textStreamExtension }
+          : {}),
+        ...(options.stderrTurnSignalParser
+          ? { stderrTurnSignalParser: options.stderrTurnSignalParser }
           : {}),
       });
     },

@@ -132,6 +132,60 @@ describe("Antigravity official ACP runtime", () => {
     }
   }, 30_000);
 
+  it("goes idle at the background-wait stderr signal while the prompt stays held", async () => {
+    // agy_acp_server keeps session/prompt unresolved while background tasks
+    // run (STATE_WAITING_FOR_TASKS); the fixture reproduces the captured wire:
+    // background command + reply + stderr diagnostic, then a late terminal
+    // tool_call_update and end_turn.
+    const adapter = createAntigravityAcpRuntime(acpInstance({ FAKE_BACKGROUND_HOLD_MS: "1500" }))!;
+    const session = await adapter.createStructuredSession?.({
+      threadId: "antigravity-bg-hold",
+      projectLocation: projectLocation(),
+      config: { model: "gemini-pro" },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+    const sessionListener = listener();
+    session!.setListener(sessionListener);
+
+    try {
+      await session!.activate?.();
+      await session!.openThread?.({ model: "gemini-pro" });
+      const turn = session!.startTurn?.("run the server in the background", {
+        model: "gemini-pro",
+      });
+
+      // The thread must go idle on the stderr signal, well before the held
+      // prompt resolves — and the turn must complete exactly once.
+      await vi.waitFor(
+        () => {
+          expect(sessionListener.onUpdate).toHaveBeenCalledWith({
+            status: "idle",
+            attention: "none",
+          });
+        },
+        { timeout: 5_000 },
+      );
+      const completedTurns = () =>
+        sessionListener.onRuntimeEvent.mock.calls
+          .map(([event]) => event as { type?: string })
+          .filter((event) => event.type === "turn.completed");
+      expect(completedTurns()).toHaveLength(1);
+
+      await turn;
+      expect(completedTurns()).toHaveLength(1);
+      // The background command row received its late terminal update.
+      expect(sessionListener.onRuntimeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({ status: "success" }),
+        }),
+      );
+    } finally {
+      await session!.dispose();
+    }
+  }, 30_000);
+
   it("captures Antigravity diagnostics without flooding the parent console", async () => {
     const stderrMarker = "ANTIGRAVITY_CUMULATIVE_STREAM";
     const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);

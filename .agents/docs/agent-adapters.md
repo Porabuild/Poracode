@@ -91,7 +91,18 @@ reaching the shared session through
 deadline was removed outright — a turn awaiting background reports waits for
 the report or the user's Stop, never for a silence timeout that could complete
 it silently. Shared ACP code no longer knows the provider exists; every other
-ACP agent streams assistant text untouched. (The block-shape primitives in
+ACP agent streams assistant text untouched.
+
+Antigravity's server also holds `session/prompt` unresolved while background
+tasks run (`STATE_WAITING_FOR_TASKS`): the model's reply is finished, but the
+stop reason only arrives when every task exits — never, for a dev server. The
+only boundary the server publishes is a glog diagnostic on stderr, so the
+provider declares `stderrTurnSignalParser` (`antigravity/acpTurnHold.ts`)
+through the same options object. The shared session reads it as a capability —
+"this agent reports end-of-reply out of band while holding the prompt" —
+completes the runtime turn at the signal, keeps the still-running command rows
+open as detached items for their late terminal updates, and adopts the held
+prompt's eventual resolution silently. (The block-shape primitives in
 `src/shared/taskNotificationText.ts` predate this rule and are shared with the
 renderer's transcript rendering; they are a known exception, not a license to
 add vendor formats there.)
@@ -289,9 +300,11 @@ most often forgotten.
 
 - [ ] ACP/structured GUI session → `createStructuredSession` + `buildAcpAuthCommand`/
       `buildAcpLogoutCommand` (see Grok/Copilot/Cursor).
-- [ ] ACP lifecycle quirks → declare a `sessionBehavior` (`AcpSessionBehavior`)
-      or supply an `AcpTextStreamExtension` from the provider folder; never
-      branch in shared ACP code. See
+- [ ] ACP lifecycle quirks → declare a `sessionBehavior` (`AcpSessionBehavior`),
+      supply an `AcpTextStreamExtension`, or (for agents that hold
+      `session/prompt` open during detached background work) a
+      `stderrTurnSignalParser` from the provider folder; never branch in shared
+      ACP code. See
       [Provider Isolation — Hard Rules](#provider-isolation--hard-rules).
 - [ ] L1 hook plugin → `pluginId`/`installPlugin`/`pluginLaunchExtras` + a
       `plugin/` dir containing `plugin.json` and exactly one staged runtime

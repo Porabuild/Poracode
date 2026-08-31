@@ -48,7 +48,7 @@ export function createAcpStructuredSession(
   input: CreateStructuredSessionInput,
   overrides?: Pick<
     AcpStructuredSessionOptions,
-    "assumedMcpCapabilities" | "behavior" | "textStreamExtension"
+    "assumedMcpCapabilities" | "behavior" | "textStreamExtension" | "stderrTurnSignalParser"
   >,
 ): AcpStructuredSession | undefined {
   if (!shouldSpawnAcpSession(input)) {
@@ -93,6 +93,9 @@ export function createAcpStructuredSession(
     ...(overrides?.behavior ? { behavior: overrides.behavior } : {}),
     ...(overrides?.textStreamExtension
       ? { textStreamExtension: overrides.textStreamExtension }
+      : {}),
+    ...(overrides?.stderrTurnSignalParser
+      ? { stderrTurnSignalParser: overrides.stderrTurnSignalParser }
       : {}),
   });
 }
