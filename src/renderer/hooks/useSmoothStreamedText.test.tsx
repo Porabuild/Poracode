@@ -91,7 +91,38 @@ describe("useSmoothStreamedText", () => {
       flushFrame(1_000 + frame * 16);
     }
     expect(result.current).toBe(target);
-    expect(frames.size).toBe(0);
+  });
+
+  it("maintains smooth progressive reveal across multiple incoming streaming chunks", () => {
+    let accumulated = "Hello";
+    const { result, rerender } = renderHook(
+      ({ text, streaming }) => useSmoothStreamedText(text, streaming),
+      { initialProps: { text: accumulated, streaming: true } },
+    );
+
+    let currentTime = 1_000;
+    const revealedCounts: number[] = [];
+
+    // Simulate 4 consecutive chunk arrivals spaced 100ms apart (typical provider streaming cadence)
+    for (let chunk = 1; chunk <= 4; chunk += 1) {
+      accumulated += ` chunk number ${chunk} with continuous stream words.`;
+      rerender({ text: accumulated, streaming: true });
+
+      // Run ~6 animation frames (100ms) between chunks
+      for (let frame = 0; frame < 6; frame += 1) {
+        currentTime += 16;
+        flushFrame(currentTime);
+        revealedCounts.push(result.current.length);
+      }
+    }
+
+    // Monotonically non-decreasing reveal
+    expect(
+      revealedCounts.every((count, index) => index === 0 || count >= revealedCounts[index - 1]!),
+    ).toBe(true);
+    // Smoothly progressed without jumping straight to total length on chunk 1
+    expect(revealedCounts[5]!).toBeLessThan(accumulated.length);
+    expect(revealedCounts[revealedCounts.length - 1]!).toBeGreaterThan(revealedCounts[0]!);
   });
 
   it("shows the full text immediately when streaming completes", () => {

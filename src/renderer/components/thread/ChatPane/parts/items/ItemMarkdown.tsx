@@ -1,6 +1,6 @@
 import { Link } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import { Suspense, useDeferredValue, useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   backgroundTaskUpdateBlockRe,
@@ -28,8 +28,7 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
   const smoothedText = useSmoothStreamedText(text, isStreaming);
-  const deferredText = useDeferredValue(smoothedText);
-  return <ItemMarkdown text={isStreaming ? deferredText : text} />;
+  return <ItemMarkdown text={isStreaming ? smoothedText : text} />;
 }
 
 /**
