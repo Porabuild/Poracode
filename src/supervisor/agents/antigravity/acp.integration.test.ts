@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig, ProjectLocation } from "@/shared/contracts";
 import { createAntigravityAdapter } from ".";
-import { createAntigravityAcpRuntime } from "./acp";
+import { ANTIGRAVITY_ACP_SESSION_BEHAVIOR, createAntigravityAcpRuntime } from "./acp";
 
 const FIXTURE = fileURLToPath(new URL("../acp/fixtures/fake-acp-agent.mjs", import.meta.url));
 const roots: string[] = [];
@@ -110,6 +110,9 @@ describe("Antigravity official ACP runtime", () => {
       baseSpawnEnv: { FAKE_BASE_ENV: "preserved" },
     });
     expect(session).toBeDefined();
+    expect((session as unknown as { behavior: unknown }).behavior).toEqual(
+      ANTIGRAVITY_ACP_SESSION_BEHAVIOR,
+    );
     session!.setListener(listener());
 
     try {
@@ -128,4 +131,32 @@ describe("Antigravity official ACP runtime", () => {
       await session!.dispose();
     }
   }, 30_000);
+
+  it("captures Antigravity diagnostics without flooding the parent console", async () => {
+    const stderrMarker = "ANTIGRAVITY_CUMULATIVE_STREAM";
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const adapter = createAntigravityAcpRuntime(acpInstance({ FAKE_STDERR_TEXT: stderrMarker }))!;
+    const session = await adapter.createStructuredSession?.({
+      threadId: "antigravity-stderr",
+      projectLocation: projectLocation(),
+      config: { model: "gemini-pro" },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+
+    try {
+      await vi.waitFor(() =>
+        expect((session as unknown as { stderrChunks: string[] }).stderrChunks.join("")).toContain(
+          stderrMarker,
+        ),
+      );
+      expect(consoleLog).not.toHaveBeenCalledWith(
+        "[acp stderr]",
+        expect.stringContaining(stderrMarker),
+      );
+    } finally {
+      await session!.dispose();
+      consoleLog.mockRestore();
+    }
+  });
 });

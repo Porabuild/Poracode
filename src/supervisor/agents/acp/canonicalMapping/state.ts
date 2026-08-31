@@ -4,6 +4,8 @@
  */
 
 import type { CanonicalItemType, GoalItemPayload, RuntimeEvent } from "@/shared/contracts";
+import type { AcpTextStreamExtension } from "./textStreamExtension";
+import { resetTextStreamExtension } from "./textStreamExtension";
 
 export interface AcpToolCallItemState {
   itemId: string;
@@ -82,20 +84,16 @@ export interface AcpMapperState {
    */
   suppressedTodoWriteIds: Set<string>;
   /**
-   * Tracked background tasks (e.g. Antigravity task id -> command execution item).
-   * Persisted across turn boundaries so asynchronous task completions can update
-   * the original command execution row.
+   * Provider hook for agent-text quirks the shared mapper must not know about
+   * (see `./textStreamExtension`). Undefined for providers that stream plain
+   * assistant text, which is the norm.
    */
-  backgroundTasks: Map<
-    string,
-    { toolCallId: string; itemId: string; command: string; payload: Record<string, unknown> }
-  >;
+  textStreamExtension?: AcpTextStreamExtension;
   /**
-   * Partial `<task_notification>` text still streaming across
-   * `agent_message_chunk` boundaries, pinned to the parent tool call whose
-   * transcript the notification belongs to.
+   * Private per-extension scratch storage keyed by `AcpTextStreamExtension.id`.
+   * Opaque here on purpose: only the owning extension knows its shape.
    */
-  taskNotificationBuffer?: { parentToolCallId: string | undefined; text: string } | undefined;
+  extensionStore: Map<string, unknown>;
   /**
    * Resolve the live output of a client-hosted ACP terminal by its
    * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
@@ -113,7 +111,10 @@ export interface AcpMapperState {
   resolveTerminalOutputByCommand?: (command: string) => string | undefined;
 }
 
-export function createAcpMapperState(threadId: string): AcpMapperState {
+export function createAcpMapperState(
+  threadId: string,
+  textStreamExtension?: AcpTextStreamExtension,
+): AcpMapperState {
   return {
     threadId,
     toolCallItems: new Map(),
@@ -121,7 +122,8 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     subAgentContentItems: new Map(),
     suppressedToolCallIds: new Set(),
     suppressedTodoWriteIds: new Set(),
-    backgroundTasks: new Map(),
+    extensionStore: new Map(),
+    ...(textStreamExtension ? { textStreamExtension } : {}),
   };
 }
 
@@ -196,6 +198,6 @@ export function resetMapperForTurnEnd(state: AcpMapperState): void {
   state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;
   delete state.openPlanSteps;
-  state.taskNotificationBuffer = undefined;
+  resetTextStreamExtension(state);
   state.inThinkingBlock = false;
 }

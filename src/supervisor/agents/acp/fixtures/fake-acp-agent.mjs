@@ -27,6 +27,7 @@
  *   FAKE_HANG_PROMPT               "1" -> hold session/prompt until session/cancel
  *   FAKE_PROMPT_MARKER             path written when session/prompt arrives
  *   FAKE_CANCEL_MARKER             path written when session/cancel arrives
+ *   FAKE_STDERR_TEXT               diagnostic text written once at startup
  *   FAKE_SELF_DESTRUCT_MS       exit(0) after N ms regardless (test cleanup guard)
  */
 import { writeFileSync } from "node:fs";
@@ -64,6 +65,10 @@ const promptMarker = env.FAKE_PROMPT_MARKER;
 const cancelMarker = env.FAKE_CANCEL_MARKER;
 const selfDestructMs = Number(env.FAKE_SELF_DESTRUCT_MS ?? 0);
 const includeReasoningEffort = env.FAKE_REASONING_EFFORT === "1";
+
+if (env.FAKE_STDERR_TEXT) {
+  process.stderr.write(env.FAKE_STDERR_TEXT);
+}
 
 if (selfDestructMs > 0) {
   const timer = setTimeout(() => process.exit(0), selfDestructMs);

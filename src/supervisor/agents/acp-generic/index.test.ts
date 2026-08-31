@@ -66,6 +66,47 @@ describe("createAcpGenericAdapter", () => {
     expect(typeof adapter.createStructuredSession).toBe("function");
   });
 
+  it("forwards a first-class provider session behavior profile", async () => {
+    const sessionBehavior = {
+      suppressOutputAfterInterrupt: true,
+      suppressStderrLogging: true,
+    } as const;
+    const adapter = createAcpGenericAdapter(baseInstance, { sessionBehavior });
+
+    await adapter.createStructuredSession?.({
+      threadId: "thread-behavior",
+      projectLocation:
+        process.platform === "win32"
+          ? { kind: "windows", path: process.cwd() }
+          : { kind: "posix", path: process.cwd() },
+      config: { model: "test" },
+      presentationMode: "gui",
+    });
+
+    expect(vi.mocked(createAcpStructuredSession).mock.calls.at(-1)?.[2]).toEqual({
+      behavior: sessionBehavior,
+    });
+  });
+
+  it("forwards a provider text-stream extension to the shared ACP session", async () => {
+    const textStreamExtension = { id: "vendor.taskNotifications" };
+    const adapter = createAcpGenericAdapter(baseInstance, { textStreamExtension });
+
+    await adapter.createStructuredSession?.({
+      threadId: "thread-extension",
+      projectLocation:
+        process.platform === "win32"
+          ? { kind: "windows", path: process.cwd() }
+          : { kind: "posix", path: process.cwd() },
+      config: { model: "test" },
+      presentationMode: "gui",
+    });
+
+    expect(vi.mocked(createAcpStructuredSession).mock.calls.at(-1)?.[2]).toEqual({
+      textStreamExtension,
+    });
+  });
+
   it("falls back to the binary as a label when displayName is omitted", () => {
     const adapter = createAcpGenericAdapter({ ...baseInstance, displayName: undefined });
     expect(adapter.label).toBe("my-acp");

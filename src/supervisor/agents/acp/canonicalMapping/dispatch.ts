@@ -57,11 +57,7 @@ import {
   readAcpCanonicalGoalUpdate,
 } from "./goal";
 import { mapAcpCanonicalGoalUpdate } from "./goals";
-import {
-  emitTaskNotificationEvents,
-  handleTaskNotificationText,
-  trackBackgroundCommandFromToolCall,
-} from "./taskNotifications";
+import { applyAgentTextExtension, trackToolCallExtension } from "./textStreamExtension";
 
 function acpContentBlockToCanonical(block: ContentBlock): CanonicalContentBlock | undefined {
   if (block.type === "text") {
@@ -176,6 +172,7 @@ export function parseThinkingSegments(
 export function mapAcpSessionUpdate(
   notification: SessionNotification,
   state: AcpMapperState,
+  options?: { suppressAgentOutput?: boolean },
 ): RuntimeEvent[] {
   const update: SessionUpdate = notification.update;
   const events: RuntimeEvent[] = [];
@@ -199,12 +196,16 @@ export function mapAcpSessionUpdate(
 
       let textToProcess: string | undefined;
       if (content?.type === "text") {
-        const handled = handleTaskNotificationText(content.text, state, parentToolCallId);
-        for (const notif of handled.notifications) {
-          events.push(...emitTaskNotificationEvents(notif, state));
-        }
+        const handled = applyAgentTextExtension({
+          text: content.text,
+          state,
+          parentToolCallId,
+          suppressOutput: options?.suppressAgentOutput === true,
+        });
+        events.push(...handled.events);
         textToProcess = handled.text;
       }
+      if (options?.suppressAgentOutput) break;
 
       // Drop transient waiting heartbeats so they do not open assistant message
       // items, break tool group accordions, or bloat chat length.
@@ -350,6 +351,7 @@ export function mapAcpSessionUpdate(
     }
 
     case "agent_thought_chunk": {
+      if (options?.suppressAgentOutput) break;
       const parentToolCallId = activeSubAgent?.toolCallId;
       const contentState = getContentItemState(state, parentToolCallId);
       const thoughtMeta =
@@ -563,7 +565,7 @@ export function mapAcpSessionUpdate(
         });
         state.toolCallItems.delete(toolCall.toolCallId);
       }
-      trackBackgroundCommandFromToolCall(state, itemType, itemId, payload, toolCall);
+      trackToolCallExtension({ state, itemType, itemId, payload, toolCall });
       if (isSubAgent && toolCall.status !== "completed" && toolCall.status !== "failed") {
         pendingSubAgent = { toolCallId: toolCall.toolCallId, itemId, hasChildActivity: false };
       }
@@ -712,13 +714,13 @@ export function mapAcpSessionUpdate(
         events.push(parentEvent, ...progressEvents);
       }
       if (isTerminal) {
-        trackBackgroundCommandFromToolCall(
+        trackToolCallExtension({
           state,
-          item.itemType,
-          item.itemId,
-          item.payload,
+          itemType: item.itemType,
+          itemId: item.itemId,
+          payload: item.payload,
           toolCall,
-        );
+        });
         state.toolCallItems.delete(toolCall.toolCallId);
         if (item.isSubAgent) {
           removeActiveSubAgent(state, toolCall.toolCallId);

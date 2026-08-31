@@ -41,13 +41,15 @@ export function shouldSpawnAcpSession(input: CreateStructuredSessionInput): bool
  * unconditionally and trust the shared decision.
  *
  * `overrides` carries the few session options an adapter states about its own
- * agent rather than reading off the launch input (currently the MCP transports
- * the agent supports without advertising them).
+ * agent rather than reading off the launch input.
  */
 export function createAcpStructuredSession(
   acpCommand: CommandSpec,
   input: CreateStructuredSessionInput,
-  overrides?: Pick<AcpStructuredSessionOptions, "assumedMcpCapabilities">,
+  overrides?: Pick<
+    AcpStructuredSessionOptions,
+    "assumedMcpCapabilities" | "behavior" | "textStreamExtension"
+  >,
 ): AcpStructuredSession | undefined {
   if (!shouldSpawnAcpSession(input)) {
     return undefined;
@@ -87,6 +89,10 @@ export function createAcpStructuredSession(
       : {}),
     ...(overrides?.assumedMcpCapabilities
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
+      : {}),
+    ...(overrides?.behavior ? { behavior: overrides.behavior } : {}),
+    ...(overrides?.textStreamExtension
+      ? { textStreamExtension: overrides.textStreamExtension }
       : {}),
   });
 }

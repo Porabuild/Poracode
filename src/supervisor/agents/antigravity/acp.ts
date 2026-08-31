@@ -4,8 +4,13 @@ import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestricte
 import { createAcpGenericAdapter } from "../acp-generic";
 import type { AgentAdapter } from "../base";
 import { buildAntigravityAcpModelCapabilities } from "./models";
+import { createAntigravityTaskNotificationExtension } from "./acpTaskNotifications";
 
 const ANTIGRAVITY_ACP_PROBE_TIMEOUT_MS = 60_000;
+export const ANTIGRAVITY_ACP_SESSION_BEHAVIOR = {
+  suppressOutputAfterInterrupt: true,
+  suppressStderrLogging: true,
+} as const;
 
 export function createAntigravityAcpRuntime(
   instance: AgentInstanceConfig | undefined,
@@ -33,6 +38,10 @@ export function createAntigravityAcpRuntime(
     },
     // Only modes actually advertised by Google's server belong in the picker.
     synthesizeApprovalPolicies: false,
+    sessionBehavior: ANTIGRAVITY_ACP_SESSION_BEHAVIOR,
+    // Antigravity multiplexes background-task reports through assistant text;
+    // the parser lives here so the shared mapper stays provider-agnostic.
+    textStreamExtension: createAntigravityTaskNotificationExtension(),
   });
 }
 

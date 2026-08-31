@@ -1,5 +1,101 @@
 # Agent Adapter Rules
 
+## Provider Isolation — Hard Rules
+
+Shared code is code that is not inside a single `src/supervisor/agents/<kind>/` or
+`src/renderer/components/providers/<kind>/` folder. It belongs to every provider
+equally, so a change made there for one agent is a change made to all of them.
+
+### The test for a violation
+
+Ask: _would this line exist if that one provider did not?_ If the answer is no,
+it does not belong in shared code. Concretely, none of these may land in a shared
+file:
+
+- A provider name in an identifier, string literal, or type — `antigravityBuffer`,
+  `if (kind === "codex")`, `isGeminiShell`.
+- A constant tuned for one agent's timing or output — an idle timeout, a retry
+  count, a truncation width that only one CLI needs.
+- A regex or parser for one vendor's payload format.
+- A field on a shared state object that only one provider ever reads or writes.
+- A conditional whose only purpose is to skip a step for one agent.
+
+A provider name in a _comment_ is fine and often required — it documents the
+real-world case that motivated an otherwise unexplainable generic behavior. The
+rule is about control flow and data shape, not about erasing history.
+
+### The three escape hatches — use one, do not invent a fourth
+
+1. **Declared capability.** The provider states a fact about itself in its
+   `DetectionSpec` / `AgentAdapter` (`acpFsTextCapability`, `acpGoalCommands`,
+   `acpOptimisticMcpTransports`, `baseSpawnEnv`). Shared code reads the flag.
+2. **Behavior profile.** Lifecycle differences the transport must honor go in a
+   named options object — for ACP, `AcpSessionBehavior`
+   (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is
+   documented in terms of the _condition_ it addresses, never the provider that
+   hit it, and defaults must be safe for a provider that declares nothing.
+3. **Supplied hook.** Parsing or event synthesis for a vendor format lives in the
+   provider folder and plugs in through an interface: `AcpTextStreamExtension`
+   (agent-text and background-task quirks), `acpSessionUpdateTransform` /
+   `acpExtensionSessionUpdateTransform` (payload normalization),
+   `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
+
+If none of the three fits, the right move is to add a new hook with a
+capability-shaped name and document it here — not to add a branch.
+
+### Extensions own their state
+
+A hook must not add fields to a shared state object. `AcpMapperState` exposes an
+opaque `extensionStore`; the extension reaches its own slot through
+`getExtensionStore(state, id, create)` and keeps the slot's type private to its
+module. Shared code never learns the shape.
+
+### Tests follow the code
+
+A test named after a provider, or one that feeds a vendor-specific payload,
+belongs in that provider's suite. Shared suites assert the generic contract with
+neutral fixtures — a shared test that only passes because one provider's parser
+is attached is a coupling the type system will not catch.
+
+### Enforcement
+
+`acp/providerIsolation.test.ts` fails the build when a provider name appears in
+an identifier, type, or regex anywhere under `acp/` or `acp-generic/`. It
+discovers provider folders the same way the registry parity test does, so a new
+provider is covered the moment its `detection.ts` lands. Comments and string
+literals are exempt — shared code legitimately documents the case it was written
+for and matches vendor wire text.
+
+Two escape valves, both deliberately uncomfortable:
+
+- `AMBIGUOUS_KINDS` — kind names that are also ordinary words (`cursor`), where a
+  segment match proves nothing. Review covers these.
+- `KNOWN_EXCEPTIONS` — provider knowledge that predates the boundary, each entry
+  carrying the reason and the intended fix. The list may only shrink: a stale
+  entry fails the test exactly like a new violation, so paying the debt is what
+  removes it.
+
+The guard covers the shared ACP stack, which is where the pressure is highest.
+The rule applies to all shared code; the rest is on review.
+
+### Worked example
+
+Antigravity streams background-task reports as XML/markdown blocks inside
+assistant prose, and ends turns without terminal `tool_call_update`s. Both were
+once shared: a 607-line parser in `acp/canonicalMapping/`, two Antigravity-shaped
+fields on `AcpMapperState`, plus a hardcoded silence-drain deadline in
+`acp/session.ts`. The parser and behavior profile now live in
+`antigravity/acpTaskNotifications.ts` and `ANTIGRAVITY_ACP_SESSION_BEHAVIOR`,
+reaching the shared session through
+`createAcpGenericAdapter({ sessionBehavior, textStreamExtension })`; the drain
+deadline was removed outright — a turn awaiting background reports waits for
+the report or the user's Stop, never for a silence timeout that could complete
+it silently. Shared ACP code no longer knows the provider exists; every other
+ACP agent streams assistant text untouched. (The block-shape primitives in
+`src/shared/taskNotificationText.ts` predate this rule and are shared with the
+renderer's transcript rendering; they are a known exception, not a license to
+add vendor formats there.)
+
 ## Adapter Contract
 
 Every supported agent implements the `AgentAdapter` interface (`src/supervisor/agents/base.ts`):
@@ -193,6 +289,10 @@ most often forgotten.
 
 - [ ] ACP/structured GUI session → `createStructuredSession` + `buildAcpAuthCommand`/
       `buildAcpLogoutCommand` (see Grok/Copilot/Cursor).
+- [ ] ACP lifecycle quirks → declare a `sessionBehavior` (`AcpSessionBehavior`)
+      or supply an `AcpTextStreamExtension` from the provider folder; never
+      branch in shared ACP code. See
+      [Provider Isolation — Hard Rules](#provider-isolation--hard-rules).
 - [ ] L1 hook plugin → `pluginId`/`installPlugin`/`pluginLaunchExtras` + a
       `plugin/` dir containing `plugin.json` and exactly one staged runtime
       (`forward.mjs` or OpenCode's `poracode-status.mjs`). Packaging discovers
@@ -248,7 +348,7 @@ opaque per-profile `config`).
 
 ## Plugin Architecture
 
-The codebase is provider-agnostic by design (targeting 5-10 providers). Each provider is a fully self-contained plugin:
+The codebase is provider-agnostic by design (targeting 5-10 providers). Each provider is a fully self-contained plugin. What that forbids in practice, and the sanctioned ways to vary behavior, are in [Provider Isolation — Hard Rules](#provider-isolation--hard-rules); the structure it produces is:
 
 - **Supervisor side:** All provider-specific logic (heuristics, commands, detection, parsing) lives in the adapter's own file(s) under `src/supervisor/agents/`. The `SupervisorRuntime` calls adapter methods generically — no provider-specific if/else chains in runtime code.
 - **Renderer side:** Each provider has its own directory under `src/renderer/components/providers/<kind>/` containing a lightweight manifest, icons, status components, and registration calls. `providerManifest.ts` eagerly discovers metadata while `bootstrap.ts` independently loads UI registrations at the desktop/mobile entrypoints. Leaf registries (`ProviderIcon.tsx`, `providerComposer.ts`, `providerSlashCommands.ts`) and feature-owned utility modules (`commitGen.ts`, `titleGen.ts`, `conflictResolver.ts`) stay side-effect-free until a provider module registers with them; the providers barrel does not bootstrap.
