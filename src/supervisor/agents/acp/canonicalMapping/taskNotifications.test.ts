@@ -633,3 +633,322 @@ Finished release [optimized] target(s) in 12.34s
     expect(payload?.result).toBe("compilation error TS1005");
   });
 });
+
+const MARKDOWN_BACKGROUND_UPDATE = `# Background Task Update: \`442d457c-fbe7-4201-8f05-53f7c69bb351/task-32\`
+
+The task exited with the following message:
+\`\`\`text
+RUN  v4.0.18 E:/work/lightcode/.poracode/worktrees/fix-pnpm-global-shims-windows
+
+ ✓ src/supervisor/agents/codex/windowsExecutable.test.ts (1 test) 8ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+\`\`\`
+
+<task_metadata>
+task_id: 442d457c-fbe7-4201-8f05-53f7c69bb351/task-32
+status: exited
+exit_code: 0
+</task_metadata>`;
+
+describe("markdown Background Task Update", () => {
+  it("extracts a complete markdown background task update and strips it from assistant text", () => {
+    const { notifications, cleanText } = extractTaskNotifications(MARKDOWN_BACKGROUND_UPDATE);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]?.taskId).toBe("442d457c-fbe7-4201-8f05-53f7c69bb351/task-32");
+    expect(notifications[0]?.exitCode).toBe(0);
+    expect(notifications[0]?.output).toContain("RUN  v4.0.18");
+    expect(notifications[0]?.output).toContain("Test Files  1 passed (1)");
+    expect(cleanText.trim()).toBe("");
+  });
+
+  it("preserves surrounding assistant text around a markdown background task update", () => {
+    const raw = `I started the tests in the background.\n\n${MARKDOWN_BACKGROUND_UPDATE}\n\nThey finished.`;
+    const { notifications, cleanText } = extractTaskNotifications(raw);
+    expect(notifications).toHaveLength(1);
+    expect(cleanText).toBe("I started the tests in the background.\n\n\n\nThey finished.");
+  });
+
+  it("does not treat ordinary prose as a background task update", () => {
+    const raw = "Just normal assistant message about a background job.";
+    const { notifications, cleanText } = extractTaskNotifications(raw);
+    expect(notifications).toEqual([]);
+    expect(cleanText).toBe(raw);
+  });
+
+  it("converts a standalone markdown update into a command_execution item with no assistant leak", () => {
+    const state = createAcpMapperState("t-bg-md");
+    const events = mapAcpSessionUpdate(agentChunk(MARKDOWN_BACKGROUND_UPDATE), state);
+
+    expect(state.openAssistantItemId).toBeUndefined();
+    expect(
+      events.some(
+        (e) =>
+          e.type === "item.started" &&
+          (e as { itemType?: string }).itemType === "assistant_message",
+      ),
+    ).toBe(false);
+
+    const started = events.find((e) => e.type === "item.started");
+    expect(started).toBeDefined();
+    expect((started as { itemType?: string }).itemType).toBe("command_execution");
+    const completed = events.find((e) => e.type === "item.completed");
+    const payload = (completed as { payload?: Record<string, unknown> }).payload;
+    expect(payload?.status).toBe("success");
+    expect(payload?.exitCode).toBe(0);
+    expect(payload?.result).toContain("RUN  v4.0.18");
+    expect(assistantDeltas(events).join("")).toBe("");
+  });
+
+  it("strips a markdown update mixed into assistant text", () => {
+    const state = createAcpMapperState("t-bg-md-mixed");
+    const events = mapAcpSessionUpdate(
+      agentChunk(`Here is the status:\n${MARKDOWN_BACKGROUND_UPDATE}\nEverything looks great!`),
+      state,
+    );
+    expect(
+      events.some(
+        (e) =>
+          e.type === "item.started" &&
+          (e as { itemType?: string }).itemType === "command_execution",
+      ),
+    ).toBe(true);
+    const text = assistantDeltas(events).join("");
+    expect(text).not.toContain("Background Task Update");
+    expect(text).not.toContain("<task_metadata>");
+    expect(text).toContain("Here is the status:");
+    expect(text).toContain("Everything looks great!");
+  });
+
+  it("buffers a markdown update streamed across chunks", () => {
+    const state = createAcpMapperState("t-bg-md-buffer");
+    const splitAt = MARKDOWN_BACKGROUND_UPDATE.indexOf("```text");
+    const first = MARKDOWN_BACKGROUND_UPDATE.slice(0, splitAt);
+    const second = MARKDOWN_BACKGROUND_UPDATE.slice(splitAt);
+
+    const events1 = mapAcpSessionUpdate(agentChunk(`Notice:\n${first}`), state);
+    expect(assistantDeltas(events1).join("")).toBe("Notice:\n");
+    expect(state.taskNotificationBuffer?.text.startsWith("# Background Task Update:")).toBe(true);
+
+    const events2 = mapAcpSessionUpdate(agentChunk(second), state);
+    expect(state.taskNotificationBuffer).toBeUndefined();
+    for (const delta of assistantDeltas(events2)) {
+      expect(delta).not.toContain("Background Task Update");
+      expect(delta).not.toContain("<task_metadata>");
+    }
+    const completed = events2.find(
+      (e) =>
+        e.type === "item.completed" &&
+        (e as { payload?: Record<string, unknown> }).payload?.exitCode === 0,
+    );
+    expect(completed).toBeDefined();
+    expect((completed as { payload?: Record<string, unknown> }).payload?.result).toContain(
+      "RUN  v4.0.18",
+    );
+  });
+
+  it("holds a split markdown heading without leaking the fragment", () => {
+    const state = createAcpMapperState("t-bg-md-split");
+    const events1 = mapAcpSessionUpdate(agentChunk("See # Back"), state);
+    expect(assistantDeltas(events1).join("")).toBe("See ");
+    expect(state.taskNotificationBuffer?.text).toBe("# Back");
+
+    const rest = MARKDOWN_BACKGROUND_UPDATE.slice("# Back".length);
+    const events2 = mapAcpSessionUpdate(agentChunk(rest), state);
+    expect(state.taskNotificationBuffer).toBeUndefined();
+    const allDeltas = [...assistantDeltas(events1), ...assistantDeltas(events2)].join("");
+    expect(allDeltas).not.toContain("Background Task Update");
+    expect(allDeltas).not.toContain("<task_metadata>");
+    const completed = events2.find(
+      (e) =>
+        e.type === "item.completed" &&
+        (e as { payload?: Record<string, unknown> }).payload?.name !== undefined,
+    );
+    expect((completed as { payload?: Record<string, unknown> }).payload?.exitCode).toBe(0);
+  });
+
+  it("does not hold an ordinary markdown heading that merely starts with a hash", () => {
+    const state = createAcpMapperState("t-bg-md-heading");
+    const events = mapAcpSessionUpdate(agentChunk("# Installation\n\nRun pnpm install."), state);
+    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(assistantDeltas(events).join("")).toBe("# Installation\n\nRun pnpm install.");
+  });
+
+  it("completes a truncated markdown update at the turn boundary", () => {
+    const state = createAcpMapperState("t-bg-md-trunc");
+    mapAcpSessionUpdate(
+      agentChunk(
+        "# Background Task Update: `t-5`\n\nThe task exited with the following message:\npartial out",
+      ),
+      state,
+    );
+    expect(state.taskNotificationBuffer).toBeDefined();
+
+    const events = closeOpenTurnItems(state);
+    const completed = events.find(
+      (e) =>
+        e.type === "item.completed" &&
+        (e as { payload?: Record<string, unknown> }).payload?.result === "partial out",
+    );
+    expect(completed).toBeDefined();
+    expect((completed as { payload?: Record<string, unknown> }).payload?.name as string).toBe(
+      "Task t-5",
+    );
+    for (const delta of assistantDeltas(events)) {
+      expect(delta).not.toContain("Background Task Update");
+    }
+    expect(state.taskNotificationBuffer).toBeUndefined();
+  });
+
+  it("correlates a markdown update with a tracked background command", () => {
+    const state = createAcpMapperState("t-bg-md-link");
+    const toolItemId = (() => {
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate: "tool_call",
+          toolCallId: "tc-bg-md",
+          title: "shell exec",
+          kind: "execute",
+          status: "in_progress",
+          rawInput: { command: "pnpm exec vitest run windowsExecutable.test.ts" },
+          rawOutput:
+            'Tool is running as a background task with task id: "442d457c-fbe7-4201-8f05-53f7c69bb351/task-32"',
+        } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+        state,
+      );
+      const started = events.find((e) => e.type === "item.started");
+      return (started as { itemId: string }).itemId;
+    })();
+
+    const events = mapAcpSessionUpdate(agentChunk(MARKDOWN_BACKGROUND_UPDATE), state);
+    const completed = events.find((e) => e.type === "item.completed");
+    expect((completed as { itemId: string }).itemId).toBe(toolItemId);
+    const payload = (completed as { payload: Record<string, unknown> }).payload;
+    expect(payload.command).toBe("pnpm exec vitest run windowsExecutable.test.ts");
+    expect(payload.result).toContain("Test Files  1 passed (1)");
+    expect(payload.exitCode).toBe(0);
+    expect(payload.status).toBe("success");
+    expect(state.backgroundTasks.has("442d457c-fbe7-4201-8f05-53f7c69bb351/task-32")).toBe(false);
+
+    expect(
+      events.some(
+        (e) =>
+          e.type === "item.started" &&
+          (e as { itemType?: string }).itemType === "assistant_message",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not hold a trailing English 'the' as a SYSTEM_MESSAGE preamble fragment", () => {
+    const state = createAcpMapperState("t-bg-md-the");
+    const events = mapAcpSessionUpdate(agentChunk("I think the"), state);
+    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(assistantDeltas(events).join("")).toBe("I think the");
+  });
+
+  it("leaves a bare task_metadata example in assistant text", () => {
+    const state = createAcpMapperState("t-bg-md-example");
+    const raw = `Here is the format:
+
+<task_metadata>
+task_id: example
+status: exited
+exit_code: 0
+</task_metadata>`;
+    const events = mapAcpSessionUpdate(agentChunk(raw), state);
+    expect(
+      events.some(
+        (e) =>
+          e.type === "item.started" &&
+          (e as { itemType?: string }).itemType === "command_execution",
+      ),
+    ).toBe(false);
+    expect(assistantDeltas(events).join("")).toBe(raw);
+  });
+
+  it("maps a failed markdown update to an error command_execution without assistant leak", () => {
+    const state = createAcpMapperState("t-bg-md-fail");
+    const raw = `# Background Task Update: \`t-fail\`
+
+The task exited with the following message:
+\`\`\`text
+boom
+\`\`\`
+
+<task_metadata>
+task_id: t-fail
+status: failed
+exit_code: 2
+</task_metadata>`;
+    const events = mapAcpSessionUpdate(agentChunk(raw), state);
+    expect(
+      events.some(
+        (e) =>
+          e.type === "item.started" &&
+          (e as { itemType?: string }).itemType === "assistant_message",
+      ),
+    ).toBe(false);
+    const completed = events.find((e) => e.type === "item.completed");
+    const payload = (completed as { payload?: Record<string, unknown> }).payload;
+    expect(payload?.status).toBe("error");
+    expect(payload?.exitCode).toBe(2);
+    expect(payload?.result).toBe("boom");
+  });
+
+  it("completes an empty-output markdown update as a command row", () => {
+    const state = createAcpMapperState("t-bg-md-empty");
+    const raw = `# Background Task Update: \`t-empty\`
+
+<task_metadata>
+task_id: t-empty
+status: exited
+exit_code: 0
+</task_metadata>`;
+    const events = mapAcpSessionUpdate(agentChunk(raw), state);
+    const started = events.find(
+      (e) =>
+        e.type === "item.started" && (e as { itemType?: string }).itemType === "command_execution",
+    );
+    expect(started).toBeDefined();
+    expect(events.some((e) => e.type === "content.delta")).toBe(false);
+    const payload = (
+      events.find((e) => e.type === "item.completed") as { payload?: Record<string, unknown> }
+    ).payload;
+    expect(payload?.status).toBe("success");
+    expect(payload?.result).toBe("");
+    expect(assistantDeltas(events).join("")).toBe("");
+  });
+
+  it("reads exit_code from unterminated metadata when the turn ends", () => {
+    const state = createAcpMapperState("t-bg-md-trunc-code");
+    mapAcpSessionUpdate(
+      agentChunk(`# Background Task Update: \`t-1\`
+
+The task exited with the following message:
+\`\`\`text
+boom
+\`\`\`
+<task_metadata>
+task_id: t-1
+status: failed
+exit_code: 2
+`),
+      state,
+    );
+    const events = closeOpenTurnItems(state);
+    const completed = events.find((e) => e.type === "item.completed");
+    const payload = (completed as { payload?: Record<string, unknown> }).payload;
+    expect(payload?.exitCode).toBe(2);
+    expect(payload?.status).toBe("error");
+    expect(payload?.result).toBe("boom");
+    expect(assistantDeltas(events).join("")).toBe("");
+  });
+
+  it("holds a five-character heading fragment", () => {
+    const state = createAcpMapperState("t-bg-md-bac");
+    const events1 = mapAcpSessionUpdate(agentChunk("See # Bac"), state);
+    expect(assistantDeltas(events1).join("")).toBe("See ");
+    expect(state.taskNotificationBuffer?.text).toBe("# Bac");
+  });
+});

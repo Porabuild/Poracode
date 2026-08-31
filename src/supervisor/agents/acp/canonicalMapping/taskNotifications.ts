@@ -24,6 +24,10 @@
  * </SYSTEM_MESSAGE>
  * ```
  *
+ * Or markdown `# Background Task Update` with `<task_metadata>`: a heading
+ * carrying the task id, optional fenced command output, then a metadata block
+ * with `task_id`, `status`, and `exit_code`.
+ *
  * This module extracts and maps these notifications into canonical
  * `command_execution` events (either updating an already-tracked command
  * or emitting a standalone command accordion) and cleans up XML/system tags so they
@@ -31,7 +35,14 @@
  */
 
 import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
-import { parseTaskNotificationBody } from "@/shared/taskNotificationText";
+import {
+  BACKGROUND_TASK_UPDATE_HEADING,
+  CLOSE_TASK_METADATA_TAG,
+  OPEN_TASK_METADATA_TAG,
+  parseBackgroundTaskUpdateBlock,
+  parseTaskNotificationBody,
+  type ParsedTaskNotificationBody,
+} from "@/shared/taskNotificationText";
 import { msg } from "@/shared/messages";
 import type { AcpMapperState } from "./state";
 import { newItemId, closeAllOpenContentItems, getContentItemState } from "./state";
@@ -51,20 +62,10 @@ const CLOSE_SYSTEM_TAG = "</SYSTEM_MESSAGE>";
 const SYSTEM_MESSAGE_PREAMBLE_PREFIX =
   "The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.";
 
-const TASK_NOTIFICATION_REGEX =
-  /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)?<SYSTEM_MESSAGE>([\s\S]*?)<\/SYSTEM_MESSAGE>|<task_notification>([\s\S]*?)<\/task_notification>/gi;
-
-const OPEN_TASK_METADATA_TAG = "<task_metadata>";
-const CLOSE_TASK_METADATA_TAG = "</task_metadata>";
-const BACKGROUND_TASK_UPDATE_HEADING = "# Background Task Update:";
-
-/**
- * Antigravity ACP (2026-08+) streams background-command completions as a
- * `# Background Task Update: \`<id>\`` heading plus a `<task_metadata>` trailer
- * instead of `<task_notification>` XML.
- */
-const MARKDOWN_TASK_UPDATE_REGEX =
-  /# Background Task Update:\s*`([^`]+)`[\s\S]*?<task_metadata>([\s\S]*?)<\/task_metadata>|<task_metadata>([\s\S]*?)<\/task_metadata>/gi;
+const BACKGROUND_TASK_UPDATE_PREFIX = `# ${BACKGROUND_TASK_UPDATE_HEADING}`;
+/** Hold a trailing heading fragment only once it is unique (`# Bac…`).
+ *  `# ` / `# B` are ordinary markdown and must still stream. */
+const BACKGROUND_TASK_UPDATE_PREFIX_MIN = 5;
 
 /** Command output that merely mentions a "task id" is not a background task;
  *  only register when the producer said the command runs as one. */
@@ -72,7 +73,8 @@ const BACKGROUND_SIGNAL_RE = /background\s+task/i;
 /** Shape a truncated `<task_notification>` or `<SYSTEM_MESSAGE>` body must have to be completed
  *  leniently at a turn boundary instead of streaming as plain text. */
 const TRUNCATED_BODY_SHAPE_RE =
-  /completed with|failed with|Output:|exited with code|finished with result|content=Task id|task_id:|exit_code:/i;
+  /completed with|failed with|Output:|exited with code|finished with result|content=Task id/i;
+const TRUNCATED_BACKGROUND_UPDATE_SHAPE_RE = /The task exited|task_id:|exit_code:|<task_metadata>/i;
 
 interface AcpToolCallSource {
   toolCallId: string;
@@ -82,111 +84,246 @@ interface AcpToolCallSource {
 }
 
 /**
- * Pull complete `<task_notification>...</task_notification>` or
- * `<SYSTEM_MESSAGE>...</SYSTEM_MESSAGE>` blocks out of streamed agent text,
- * mapping each to a parsed notification. `cleanText` is the input with the blocks
- * surgically removed — every other byte (including boundary whitespace) is preserved,
- * because callers concatenate the returned text into streaming assistant deltas.
+ * Pull complete `<task_notification>`, `<SYSTEM_MESSAGE>`, or markdown
+ * `# Background Task Update` + `<task_metadata>` blocks out of streamed agent
+ * text, mapping each to a parsed notification. `cleanText` is the input with
+ * the blocks surgically removed — every other byte (including boundary
+ * whitespace) is preserved, because callers concatenate the returned text into
+ * streaming assistant deltas. An unterminated tail stays in `cleanText`.
  */
 export function extractTaskNotifications(text: string): {
   notifications: ParsedTaskNotification[];
   cleanText: string;
 } {
-  const markdown = extractMarkdownTaskUpdates(text);
-  const xmlSource = markdown.cleanText;
-  const notifications = [...markdown.notifications];
-  if (!xmlSource.includes("<task_notification>") && !xmlSource.includes("<SYSTEM_MESSAGE>")) {
-    return { notifications, cleanText: xmlSource };
-  }
-  let cleanText = "";
-  let cursor = 0;
-  for (const match of xmlSource.matchAll(TASK_NOTIFICATION_REGEX)) {
-    cleanText += xmlSource.slice(cursor, match.index);
-    const body = match[1] ?? match[2] ?? "";
-    const parsed = parseTaskNotificationBody(body);
-    if (parsed.taskId) {
-      notifications.push(buildNotification(match[0], body));
-    }
-    cursor = (match.index ?? 0) + match[0].length;
-  }
-  cleanText += xmlSource.slice(cursor);
-  return { notifications, cleanText };
+  const scanned = scanTaskNotificationBlocks(text);
+  return {
+    notifications: scanned.notifications,
+    cleanText: scanned.cleanText + (scanned.unclosed ?? ""),
+  };
 }
 
-/**
- * Pull complete Antigravity markdown background-task blocks out of streamed
- * agent text. `partial` is an unterminated heading/metadata tag that must be
- * buffered rather than shown as assistant markdown.
- */
-export function extractMarkdownTaskUpdates(text: string): {
-  notifications: ParsedTaskNotification[];
-  cleanText: string;
-  partial?: string;
-} {
-  const notifications: ParsedTaskNotification[] = [];
-  if (!text.includes(BACKGROUND_TASK_UPDATE_HEADING) && !text.includes(OPEN_TASK_METADATA_TAG)) {
-    return { notifications, cleanText: text };
-  }
-  let cleanText = "";
-  let cursor = 0;
-  for (const match of text.matchAll(MARKDOWN_TASK_UPDATE_REGEX)) {
-    cleanText += text.slice(cursor, match.index);
-    const raw = match[0];
-    const body = match[2] ?? match[3] ?? "";
-    const headingId = match[1];
-    const parsed = parseMarkdownTaskMetadata(raw, body, headingId);
-    if (parsed) notifications.push(parsed);
-    cursor = (match.index ?? 0) + raw.length;
-  }
-  const rest = text.slice(cursor);
-  const partialStart = earliestMarkdownTaskStart(rest);
-  if (partialStart !== -1) {
-    return {
-      notifications,
-      cleanText: cleanText + rest.slice(0, partialStart),
-      partial: rest.slice(partialStart),
-    };
-  }
-  return { notifications, cleanText: cleanText + rest };
-}
-
-function earliestMarkdownTaskStart(text: string): number {
-  const headingIdx = text.indexOf(BACKGROUND_TASK_UPDATE_HEADING);
-  const metaIdx = text.indexOf(OPEN_TASK_METADATA_TAG);
-  if (headingIdx === -1) return metaIdx;
-  if (metaIdx === -1) return headingIdx;
-  return Math.min(headingIdx, metaIdx);
-}
-
-function parseMarkdownTaskMetadata(
+function toParsedTaskNotification(
   raw: string,
-  body: string,
-  headingId: string | undefined,
-): ParsedTaskNotification | undefined {
-  const taskIdMatch = body.match(/task_id:\s*(\S+)/i);
-  const taskId = taskIdMatch?.[1] ?? headingId;
-  if (!taskId) return undefined;
-  const exitMatch = body.match(/exit_code:\s*(-?\d+)/i);
-  const status = body.match(/status:\s*(\S+)/i)?.[1]?.toLowerCase();
-  const exitCode =
-    exitMatch?.[1] !== undefined
-      ? parseInt(exitMatch[1], 10)
-      : status && status !== "exited" && status !== "success"
-        ? 1
-        : 0;
-  const fence = raw.match(/```(?:text|txt)?\r?\n([\s\S]*?)```/i);
-  const output = fence?.[1]?.trim() ?? "";
-  return { raw: raw.trim(), taskId, exitCode, output };
-}
-
-function buildNotification(raw: string, body: string): ParsedTaskNotification {
-  const parsed = parseTaskNotificationBody(body);
+  parsed: ParsedTaskNotificationBody,
+): ParsedTaskNotification {
   return {
     raw: raw.trim(),
     taskId: parsed.taskId ?? "unknown",
     exitCode: parsed.exitCode ?? (parsed.failed ? 1 : 0),
     output: parsed.output,
   };
+}
+
+type NotificationBlockKind = "task" | "system" | "backgroundUpdate";
+
+function indexOfIgnoreCase(haystack: string, needle: string, from: number): number {
+  return haystack.toLowerCase().indexOf(needle.toLowerCase(), from);
+}
+
+/** Line-start `# Background Task Update:` heading, or -1. */
+function findBackgroundTaskUpdateHeading(text: string, from: number): number {
+  const needle = BACKGROUND_TASK_UPDATE_HEADING.toLowerCase();
+  const lower = text.toLowerCase();
+  let searchFrom = from;
+  while (searchFrom < text.length) {
+    const idx = lower.indexOf(needle, searchFrom);
+    if (idx === -1) return -1;
+    let lineStart = idx;
+    while (lineStart > from && text[lineStart - 1] !== "\n") {
+      lineStart--;
+    }
+    const prefix = text.slice(lineStart, idx);
+    if (/^#{1,6}\s*$/.test(prefix)) return lineStart;
+    searchFrom = idx + needle.length;
+  }
+  return -1;
+}
+
+function findBackgroundTaskUpdateStart(text: string, from: number): number {
+  const heading = findBackgroundTaskUpdateHeading(text, from);
+  if (heading !== -1) return heading;
+  const meta = indexOfIgnoreCase(text, OPEN_TASK_METADATA_TAG, from);
+  if (meta === -1) return -1;
+  // A lone `<task_metadata>` example in assistant prose is not a notification.
+  // If the heading was lost, recover from the "The task exited…" line that
+  // still sits before metadata in this chunk (the command output is between).
+  const before = text.slice(from, meta);
+  const exitedMatch = before.match(/(?:^|\n)(The task exited with the following message:)/i);
+  if (exitedMatch && exitedMatch.index !== undefined) {
+    const exitedStart =
+      before[exitedMatch.index] === "\n" ? exitedMatch.index + 1 : exitedMatch.index;
+    return from + exitedStart;
+  }
+  return -1;
+}
+
+function isPartialBackgroundTaskUpdateHeading(lastLine: string): boolean {
+  const match = lastLine.match(/^(#{1,6})\s+(.*)$/);
+  if (!match) return false;
+  const rest = match[2] ?? "";
+  if (rest.length < BACKGROUND_TASK_UPDATE_PREFIX_MIN - 2) return false;
+  return BACKGROUND_TASK_UPDATE_HEADING.toLowerCase().startsWith(rest.toLowerCase());
+}
+
+const NOTIFICATION_PREFIXES: Array<{ value: string; min: number; ignoreCase: boolean }> = [
+  { value: OPEN_TASK_TAG, min: 2, ignoreCase: false },
+  { value: OPEN_SYSTEM_TAG, min: 2, ignoreCase: false },
+  { value: SYSTEM_MESSAGE_PREAMBLE_PREFIX, min: 2, ignoreCase: false },
+  { value: OPEN_TASK_METADATA_TAG, min: 2, ignoreCase: true },
+  {
+    value: BACKGROUND_TASK_UPDATE_PREFIX,
+    min: BACKGROUND_TASK_UPDATE_PREFIX_MIN,
+    ignoreCase: true,
+  },
+];
+
+function matchTrailingNotificationPrefix(
+  text: string,
+): { start: number; fragment: string } | undefined {
+  let best: { start: number; fragment: string } | undefined;
+  for (const prefix of NOTIFICATION_PREFIXES) {
+    const maxFragment = Math.min(text.length, prefix.value.length - 1);
+    for (let len = maxFragment; len >= prefix.min; len--) {
+      const fragment = text.slice(text.length - len);
+      const matches = prefix.ignoreCase
+        ? prefix.value.toLowerCase().startsWith(fragment.toLowerCase())
+        : prefix.value.startsWith(fragment);
+      if (matches) {
+        const start = text.length - len;
+        if (!best || start < best.start) best = { start, fragment };
+        break;
+      }
+    }
+  }
+  const lastNl = text.lastIndexOf("\n");
+  const lastLine = lastNl === -1 ? text : text.slice(lastNl + 1);
+  if (isPartialBackgroundTaskUpdateHeading(lastLine)) {
+    const start = lastNl === -1 ? 0 : lastNl + 1;
+    if (!best || start < best.start) best = { start, fragment: lastLine };
+  }
+  return best;
+}
+
+function containsTaskNotificationMarker(text: string): boolean {
+  return (
+    text.includes("<task") ||
+    text.includes("<SYSTEM_MESSAGE") ||
+    text.includes("The following is a <SYSTEM_MESSAGE>") ||
+    /Background Task Update/i.test(text) ||
+    text.includes("<task_metadata") ||
+    matchTrailingNotificationPrefix(text) !== undefined
+  );
+}
+
+function scanTaskNotificationBlocks(text: string): {
+  notifications: ParsedTaskNotification[];
+  cleanText: string;
+  unclosed: string | undefined;
+} {
+  const notifications: ParsedTaskNotification[] = [];
+  if (!containsTaskNotificationMarker(text)) {
+    return { notifications, cleanText: text, unclosed: undefined };
+  }
+
+  let cleanText = "";
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const nextTaskIdx = text.indexOf(OPEN_TASK_TAG, cursor);
+    const nextSysIdx = text.indexOf(OPEN_SYSTEM_TAG, cursor);
+    let preambleStart = -1;
+
+    if (nextSysIdx !== -1) {
+      const textBeforeSys = text.slice(cursor, nextSysIdx);
+      const preambleMatch = textBeforeSys.match(
+        /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)\s*$/,
+      );
+      if (preambleMatch && preambleMatch.index !== undefined) {
+        preambleStart = cursor + preambleMatch.index;
+      }
+    }
+
+    const effectiveSysStart = preambleStart !== -1 ? preambleStart : nextSysIdx;
+    const nextBgIdx = findBackgroundTaskUpdateStart(text, cursor);
+
+    let chosenType: NotificationBlockKind | undefined;
+    let blockStart = -1;
+    let openTagEnd = -1;
+    let closeTag = "";
+
+    const candidates: Array<{
+      kind: NotificationBlockKind;
+      start: number;
+      openTagEnd: number;
+      closeTag: string;
+    }> = [];
+    if (nextTaskIdx !== -1) {
+      candidates.push({
+        kind: "task",
+        start: nextTaskIdx,
+        openTagEnd: nextTaskIdx + OPEN_TASK_TAG.length,
+        closeTag: CLOSE_TASK_TAG,
+      });
+    }
+    if (effectiveSysStart !== -1) {
+      candidates.push({
+        kind: "system",
+        start: effectiveSysStart,
+        openTagEnd: nextSysIdx + OPEN_SYSTEM_TAG.length,
+        closeTag: CLOSE_SYSTEM_TAG,
+      });
+    }
+    if (nextBgIdx !== -1) {
+      candidates.push({
+        kind: "backgroundUpdate",
+        start: nextBgIdx,
+        openTagEnd: nextBgIdx,
+        closeTag: CLOSE_TASK_METADATA_TAG,
+      });
+    }
+    candidates.sort((a, b) => a.start - b.start);
+    const chosen = candidates[0];
+    if (chosen) {
+      chosenType = chosen.kind;
+      blockStart = chosen.start;
+      openTagEnd = chosen.openTagEnd;
+      closeTag = chosen.closeTag;
+    }
+
+    if (!chosenType || blockStart === -1) {
+      break;
+    }
+
+    const closeIdx =
+      chosenType === "backgroundUpdate"
+        ? indexOfIgnoreCase(text, closeTag, Math.max(openTagEnd, blockStart))
+        : text.indexOf(closeTag, openTagEnd);
+    if (closeIdx === -1) {
+      cleanText += text.slice(cursor, blockStart);
+      return { notifications, cleanText, unclosed: text.slice(blockStart) };
+    }
+
+    cleanText += text.slice(cursor, blockStart);
+    const raw = text.slice(blockStart, closeIdx + closeTag.length);
+    if (chosenType === "backgroundUpdate") {
+      const parsed = parseBackgroundTaskUpdateBlock(raw);
+      if (parsed.taskId) {
+        notifications.push(toParsedTaskNotification(raw, parsed));
+      } else {
+        cleanText += raw;
+      }
+    } else {
+      const body = text.slice(openTagEnd, closeIdx);
+      const parsed = parseTaskNotificationBody(body);
+      if (parsed.taskId) {
+        notifications.push(toParsedTaskNotification(raw, parsed));
+      }
+    }
+    cursor = closeIdx + closeTag.length;
+  }
+
+  cleanText += text.slice(cursor);
+  return { notifications, cleanText, unclosed: undefined };
 }
 
 /**
@@ -202,104 +339,27 @@ export function handleTaskNotificationText(
   state: AcpMapperState,
   parentToolCallId: string | undefined,
 ): { notifications: ParsedTaskNotification[]; text: string } {
-  if (
-    state.taskNotificationBuffer === undefined &&
-    !text.includes("<task") &&
-    !text.includes("<SYSTEM_MESSAGE") &&
-    !text.includes("The following is a <SYSTEM_MESSAGE>") &&
-    !text.includes(BACKGROUND_TASK_UPDATE_HEADING) &&
-    !text.includes(OPEN_TASK_METADATA_TAG)
-  ) {
+  if (state.taskNotificationBuffer === undefined && !containsTaskNotificationMarker(text)) {
     return { notifications: [], text };
   }
 
   const buffered = state.taskNotificationBuffer;
   const combined = buffered ? buffered.text + text : text;
-  const markdown = extractMarkdownTaskUpdates(combined);
-  const notifications: ParsedTaskNotification[] = [...markdown.notifications];
-  if (markdown.partial) {
-    state.taskNotificationBuffer = { parentToolCallId, text: markdown.partial };
-    return { notifications, text: markdown.cleanText };
-  }
-  const xmlSource = markdown.cleanText;
-  let clean = "";
-  let cursor = 0;
+  const scanned = scanTaskNotificationBlocks(combined);
+  const notifications = scanned.notifications;
 
-  while (cursor < xmlSource.length) {
-    const nextTaskIdx = xmlSource.indexOf(OPEN_TASK_TAG, cursor);
-    const nextSysIdx = xmlSource.indexOf(OPEN_SYSTEM_TAG, cursor);
-    let preambleStart = -1;
-
-    if (nextSysIdx !== -1) {
-      const textBeforeSys = xmlSource.slice(cursor, nextSysIdx);
-      const preambleMatch = textBeforeSys.match(
-        /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)\s*$/,
-      );
-      if (preambleMatch && preambleMatch.index !== undefined) {
-        preambleStart = cursor + preambleMatch.index;
-      }
-    }
-
-    const effectiveSysStart = preambleStart !== -1 ? preambleStart : nextSysIdx;
-
-    let chosenType: "task" | "system" | undefined;
-    let blockStart = -1;
-    let openTagEnd = -1;
-    let closeTag = "";
-
-    if (nextTaskIdx !== -1 && (effectiveSysStart === -1 || nextTaskIdx < effectiveSysStart)) {
-      chosenType = "task";
-      blockStart = nextTaskIdx;
-      openTagEnd = nextTaskIdx + OPEN_TASK_TAG.length;
-      closeTag = CLOSE_TASK_TAG;
-    } else if (effectiveSysStart !== -1) {
-      chosenType = "system";
-      blockStart = effectiveSysStart;
-      openTagEnd = nextSysIdx + OPEN_SYSTEM_TAG.length;
-      closeTag = CLOSE_SYSTEM_TAG;
-    }
-
-    if (!chosenType || blockStart === -1) {
-      break;
-    }
-
-    const closeIdx = xmlSource.indexOf(closeTag, openTagEnd);
-    if (closeIdx === -1) {
-      clean += xmlSource.slice(cursor, blockStart);
-      state.taskNotificationBuffer = { parentToolCallId, text: xmlSource.slice(blockStart) };
-      return { notifications, text: clean };
-    }
-
-    clean += xmlSource.slice(cursor, blockStart);
-    const raw = xmlSource.slice(blockStart, closeIdx + closeTag.length);
-    const body = xmlSource.slice(openTagEnd, closeIdx);
-    const parsed = parseTaskNotificationBody(body);
-    if (parsed.taskId) {
-      notifications.push(buildNotification(raw, body));
-    }
-    cursor = closeIdx + closeTag.length;
+  if (scanned.unclosed) {
+    state.taskNotificationBuffer = { parentToolCallId, text: scanned.unclosed };
+    return { notifications, text: scanned.cleanText };
   }
 
-  clean += xmlSource.slice(cursor);
+  const clean = scanned.cleanText;
   state.taskNotificationBuffer = undefined;
 
-  // A chunk that ends mid-open-tag must not leak the fragment:
-  const candidatePrefixes = [
-    OPEN_TASK_TAG,
-    OPEN_SYSTEM_TAG,
-    SYSTEM_MESSAGE_PREAMBLE_PREFIX,
-    BACKGROUND_TASK_UPDATE_HEADING,
-    OPEN_TASK_METADATA_TAG,
-  ];
-  for (const prefix of candidatePrefixes) {
-    const maxFragment = Math.min(clean.length, prefix.length - 1);
-    for (let len = maxFragment; len >= 2; len--) {
-      const fragment = clean.slice(clean.length - len);
-      if (prefix.startsWith(fragment)) {
-        state.taskNotificationBuffer = { parentToolCallId, text: fragment };
-        return { notifications, text: clean.slice(0, clean.length - len) };
-      }
-    }
+  const trailing = matchTrailingNotificationPrefix(clean);
+  if (trailing) {
+    state.taskNotificationBuffer = { parentToolCallId, text: trailing.fragment };
+    return { notifications, text: clean.slice(0, trailing.start) };
   }
 
   return { notifications, text: clean };
@@ -479,34 +539,35 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
   const isSysOpen =
     sysOpenIdx !== -1 &&
     (text.startsWith(OPEN_SYSTEM_TAG) || text.startsWith("The following is a <SYSTEM_MESSAGE>"));
+  const bgHeading = findBackgroundTaskUpdateHeading(text, 0);
+  const isBgOpen =
+    bgHeading === 0 ||
+    indexOfIgnoreCase(text.trimStart(), OPEN_TASK_METADATA_TAG, 0) === 0 ||
+    /^The task exited with the following message:/i.test(text.trimStart());
 
-  const isMarkdownTaskOpen =
-    text.startsWith(BACKGROUND_TASK_UPDATE_HEADING) || text.startsWith(OPEN_TASK_METADATA_TAG);
-  if (isMarkdownTaskOpen) {
-    if (TRUNCATED_BODY_SHAPE_RE.test(text)) {
-      const extracted = extractMarkdownTaskUpdates(text + CLOSE_TASK_METADATA_TAG);
-      events.push(
-        ...extracted.notifications.flatMap((notification) =>
-          emitTaskNotificationEvents(notification, state),
-        ),
-      );
-      text = extracted.cleanText;
-    } else {
-      text = "";
-    }
-  } else if (isTaskOpen || isSysOpen) {
+  if (isTaskOpen || isSysOpen) {
     const openTagLen = isTaskOpen ? OPEN_TASK_TAG.length : sysOpenIdx + OPEN_SYSTEM_TAG.length;
     const body = text.slice(openTagLen);
     if (TRUNCATED_BODY_SHAPE_RE.test(body)) {
       const parsed = parseTaskNotificationBody(body);
       if (parsed.taskId) {
-        events.push(...emitTaskNotificationEvents(buildNotification(text, body), state));
+        events.push(...emitTaskNotificationEvents(toParsedTaskNotification(text, parsed), state));
         text = "";
       } else {
         text = "";
       }
     } else {
       text = isTaskOpen ? body : "";
+    }
+  } else if (isBgOpen) {
+    const parsed = parseBackgroundTaskUpdateBlock(text);
+    if (
+      parsed.taskId &&
+      (indexOfIgnoreCase(text, CLOSE_TASK_METADATA_TAG, 0) !== -1 ||
+        TRUNCATED_BACKGROUND_UPDATE_SHAPE_RE.test(text))
+    ) {
+      events.push(...emitTaskNotificationEvents(toParsedTaskNotification(text, parsed), state));
+      text = "";
     }
   } else {
     const extracted = extractTaskNotifications(text);

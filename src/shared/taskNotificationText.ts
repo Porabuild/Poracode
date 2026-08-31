@@ -24,6 +24,11 @@
  * ...
  * Log: file:///...
  * ```
+ *
+ * 3. Markdown `# Background Task Update` with `<task_metadata>`:
+ * a heading `# Background Task Update: <id>`, optional fenced command output
+ * after "The task exited with the following message:", then a
+ * `<task_metadata>` block carrying `task_id`, `status`, and `exit_code`.
  */
 
 export interface ParsedTaskNotificationBody {
@@ -111,6 +116,84 @@ export function parseTaskNotificationBody(body: string): ParsedTaskNotificationB
     exitCode !== undefined
       ? exitCode !== 0
       : /fail|error/i.test(isAntMessage ? trimmed : headerLine);
+
+  return {
+    ...(taskId ? { taskId } : {}),
+    ...(exitCode !== undefined ? { exitCode } : {}),
+    failed,
+    output,
+  };
+}
+
+export const OPEN_TASK_METADATA_TAG = "<task_metadata>";
+export const CLOSE_TASK_METADATA_TAG = "</task_metadata>";
+export const BACKGROUND_TASK_UPDATE_HEADING = "Background Task Update:";
+
+const FAILED_TASK_STATUS_RE = /^(failed|error|cancelled|canceled|killed)$/i;
+const SUCCESS_TASK_STATUS_RE = /^(exited|completed|success|ok|succeeded)$/i;
+
+/** Fresh regex: `/g` lastIndex must not leak across callers. */
+export function backgroundTaskUpdateBlockRe(): RegExp {
+  return /^#{1,6}\s*Background Task Update:[\s\S]*?<task_metadata>[\s\S]*?<\/task_metadata>/gim;
+}
+
+function extractTaskMetadataBody(raw: string): string {
+  const openIdx = raw.search(/<task_metadata>/i);
+  if (openIdx === -1) return "";
+  const afterOpen = raw.slice(openIdx + OPEN_TASK_METADATA_TAG.length);
+  const closeIdx = afterOpen.search(/<\/task_metadata>/i);
+  return closeIdx === -1 ? afterOpen : afterOpen.slice(0, closeIdx);
+}
+
+/**
+ * Command output sits between the "following message" label and `<task_metadata>`.
+ * Strip one wrapping fence if present, but keep inner fences as payload — the
+ * first-closer regex would truncate `cat` of markdown at ```md.
+ */
+function extractBackgroundUpdateOutput(raw: string): string {
+  const messageIdx = raw.search(/The task exited with the following message:/i);
+  if (messageIdx === -1) return "";
+  let rest = raw.slice(messageIdx).replace(/The task exited with the following message:\s*/i, "");
+  const metaIdx = rest.search(/<task_metadata>/i);
+  const hadMeta = metaIdx !== -1;
+  if (hadMeta) rest = rest.slice(0, metaIdx);
+  const opener = rest.match(/^\s*```[^\n`]*\r?\n/);
+  if (opener) {
+    rest = rest.slice(opener[0].length);
+    // Only strip a wrapping closer when the metadata footer is present, so a
+    // truncated body that ends on an inner fence is not mistaken for the wrap.
+    if (hadMeta) {
+      rest = rest.replace(/(?:\r?\n)?```[ \t]*(?:\r?\n)*$/, "");
+    }
+  }
+  return rest.replace(/\r?\n$/, "");
+}
+
+/**
+ * Parse a markdown `# Background Task Update` block (heading, optional fenced
+ * output, and `<task_metadata>`). Missing pieces are tolerated so a truncated
+ * stream can still yield a task id at a turn boundary.
+ */
+export function parseBackgroundTaskUpdateBlock(raw: string): ParsedTaskNotificationBody {
+  const metaBody = extractTaskMetadataBody(raw);
+  const metaTaskId = metaBody.match(/^\s*task_id:\s*(\S+)/im)?.[1];
+  const headingTaskId =
+    raw.match(/Background Task Update:\s*`([^`]+)`/i)?.[1] ??
+    raw.match(/Background Task Update:\s*(\S+)/i)?.[1];
+  const taskId = metaTaskId ?? headingTaskId;
+
+  const status = metaBody.match(/^\s*status:\s*(\S+)/im)?.[1];
+  const exitMatch = metaBody.match(/^\s*exit_code:\s*(-?\d+)/im);
+  let exitCode = exitMatch ? parseInt(exitMatch[1]!, 10) : undefined;
+  // Success statuses without an explicit code mean exit 0. Failed/cancelled
+  // without `exit_code` stay code-less so leftover callouts can show Failed
+  // instead of a synthesized "Exit code 1".
+  if (exitCode === undefined && status && SUCCESS_TASK_STATUS_RE.test(status)) {
+    exitCode = 0;
+  }
+
+  const output = extractBackgroundUpdateOutput(raw);
+  const failed = exitCode !== undefined ? exitCode !== 0 : FAILED_TASK_STATUS_RE.test(status ?? "");
 
   return {
     ...(taskId ? { taskId } : {}),
