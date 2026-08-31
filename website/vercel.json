@@ -3,6 +3,7 @@
   "git": {
     "deploymentEnabled": false
   },
+  "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --filter poracode-website... --config.node-linker=isolated --config.enable-global-virtual-store=false",
   "buildCommand": "pnpm exec tsc --noEmit && pnpm exec cross-env VERCEL_PREVIEW_COMMENTS_ENABLED=0 node node_modules/next/dist/bin/next build --webpack",
   "outputDirectory": ".next"
 }
