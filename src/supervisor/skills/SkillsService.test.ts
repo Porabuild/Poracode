@@ -58,6 +58,7 @@ function fakePluginPackage(name: string, root: string, skills: readonly string[]
       category: "developer-tools",
       featured: false,
       communityMaintained: false,
+      defaultEnabled: true,
       nativePluginNames: [],
       builtInMcpServerIds: [],
       skills: {},
@@ -362,6 +363,8 @@ describe("SkillsService", () => {
 
   it("shows installed plugin skills as immutable owned contributions and honors disablement", async () => {
     const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
+    // browser-tools wraps a built-in MCP server and ships inside the app, so it
+    // counts as installed before the user touches anything.
     let installedPlugins: InstalledPlugins = {};
     const bundledService = new SkillsService({
       adapters,
@@ -370,13 +373,6 @@ describe("SkillsService", () => {
       readPlugins: () => [pkg.plugin],
     });
 
-    expect(
-      (await bundledService.scan({ projectLocation, agentKind: "claude" })).skills.find(
-        (skill) => skill.name === "browser-control",
-      ),
-    ).toBeUndefined();
-
-    installedPlugins = installPlugin(installedPlugins, pkg.plugin);
     const installedScan = await bundledService.scan({ projectLocation, agentKind: "claude" });
     const installedSkill = installedScan.skills.find((skill) => skill.name === "browser-control");
     expect(installedSkill).toMatchObject({
@@ -393,7 +389,7 @@ describe("SkillsService", () => {
 
     installedPlugins = setPluginSkillEnabled(
       installedPlugins,
-      "browser-tools",
+      pkg.plugin,
       "browser-control",
       false,
     );
@@ -432,20 +428,16 @@ describe("SkillsService", () => {
 
     installedPlugins = setPluginSkillEnabled(
       installedPlugins,
-      "browser-tools",
+      pkg.plugin,
       "browser-control",
       false,
     );
     expect(await bundledService.filterPluginSkillSegments(segments)).toEqual([textSegment]);
 
-    installedPlugins = setInstalledPluginEnabled(
-      installPlugin({}, pkg.plugin),
-      "browser-tools",
-      false,
-    );
+    installedPlugins = setInstalledPluginEnabled(installPlugin({}, pkg.plugin), pkg.plugin, false);
     expect(await bundledService.filterPluginSkillSegments([pluginSegment])).toEqual([]);
 
-    installedPlugins = {};
+    installedPlugins = setInstalledPluginEnabled({}, pkg.plugin, false);
     expect(await bundledService.filterPluginSkillSegments([pluginSegment])).toEqual([]);
     expect(
       await bundledService.filterPluginSkillSegments([
@@ -509,7 +501,7 @@ describe("SkillsService", () => {
       const bundledService = new SkillsService({
         adapters,
         homeDirectory: () => home,
-        readInstalledPlugins: () => ({}),
+        readInstalledPlugins: () => setInstalledPluginEnabled({}, pkg.plugin, false),
         readPlugins: () => [pkg.plugin],
         hostPlatform: "win32",
       });
@@ -1114,7 +1106,9 @@ describe("SkillsService", () => {
     const nativeService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      // outlook ships default-disabled, so the user's enable is part of the setup.
+      readInstalledPlugins: () =>
+        setInstalledPluginEnabled(installPlugin({}, pkg.plugin), pkg.plugin, true),
       readPlugins: () => [pkg.plugin],
     });
     const segment = {

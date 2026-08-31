@@ -1,5 +1,5 @@
 import { mkdirSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { LoadedPlugin, PluginSource } from "@/shared/contracts";
 import { formatPluginDiagnostic, type PluginDiagnostic } from "@/shared/plugins/spec";
 import { loadPluginFromDirectory, PLUGIN_MANIFEST_FILE, PLUGIN_MCP_FILE } from "./PluginLoader";
@@ -7,9 +7,17 @@ import { loadPluginFromDirectory, PLUGIN_MANIFEST_FILE, PLUGIN_MCP_FILE } from "
 /**
  * Discovers Agent Plugins packages from the roots Poracode scans.
  *
- * Bundled packages ship with the app; user packages are whatever the user drops
- * into the plugin directory. Bundled wins on a name collision, so a third-party
- * package cannot shadow a first-party one.
+ * Bundled packages ship with the app, user packages are whatever the user drops
+ * into the app plugin directory, and project packages live in the repository at
+ * `<project>/.poracode/plugins`. The specification leaves these locations to the
+ * client — it only fixes what a package looks like once a root is handed to the
+ * loader.
+ *
+ * Scan order is precedence, first match wins: bundled → user → project. A
+ * package that arrives with a clone therefore can never shadow a first-party
+ * package or one the user installed themselves.
+ *
+ * @see https://agent-plugins.org/client-implementers/loading-and-discovery
  */
 
 export interface PluginRegistryOptions {
@@ -18,6 +26,21 @@ export interface PluginRegistryOptions {
   /** Writable directory the user can drop packages into. */
   userPluginsDir: () => string;
   onDiagnostics?: (pluginDirectory: string, lines: readonly string[]) => void;
+}
+
+/** Repository-scoped packages, alongside `.poracode/skills` and friends. */
+export const PROJECT_PLUGINS_DIR = join(".poracode", "plugins");
+
+export function projectPluginsDir(projectFsPath: string): string {
+  return join(projectFsPath, PROJECT_PLUGINS_DIR);
+}
+
+function samePath(left: string, right: string): boolean {
+  const normalize = (path: string) => {
+    const resolved = resolve(path).replace(/[\\/]+$/u, "");
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
+  return normalize(left) === normalize(right);
 }
 
 interface ScanRoot {
@@ -51,7 +74,8 @@ function rootFingerprint(directory: string): string {
 }
 
 export class PluginRegistry {
-  private cache: { fingerprint: string; plugins: LoadedPlugin[] } | undefined;
+  /** Keyed by project scan root ("" for the app-global scopes only). */
+  private readonly cache = new Map<string, { fingerprint: string; plugins: LoadedPlugin[] }>();
 
   constructor(private readonly options: PluginRegistryOptions) {}
 
@@ -68,27 +92,39 @@ export class PluginRegistry {
 
   /** Drops the cache so the next read rescans. */
   refresh(): void {
-    this.cache = undefined;
+    this.cache.clear();
   }
 
-  listPlugins(): LoadedPlugin[] {
-    const roots = this.scanRoots();
+  listPlugins(projectFsPath?: string): LoadedPlugin[] {
+    const roots = this.scanRoots(projectFsPath);
     const fingerprint = roots.map((root) => rootFingerprint(root.directory)).join("\n");
-    if (this.cache?.fingerprint === fingerprint) return this.cache.plugins;
+    const key = projectFsPath ?? "";
+    const cached = this.cache.get(key);
+    if (cached?.fingerprint === fingerprint) return cached.plugins;
     const plugins = this.scan(roots);
-    this.cache = { fingerprint, plugins };
+    this.cache.set(key, { fingerprint, plugins });
     return plugins;
   }
 
-  getPlugin(name: string): LoadedPlugin | undefined {
-    return this.listPlugins().find((plugin) => plugin.name === name);
+  getPlugin(name: string, projectFsPath?: string): LoadedPlugin | undefined {
+    return this.listPlugins(projectFsPath).find((plugin) => plugin.name === name);
   }
 
-  private scanRoots(): ScanRoot[] {
+  private scanRoots(projectFsPath?: string): ScanRoot[] {
     const roots: ScanRoot[] = [];
     const bundled = this.options.bundledPluginsDir();
     if (bundled) roots.push({ directory: bundled, source: "bundled" });
-    roots.push({ directory: this.options.userPluginsDir(), source: "user" });
+    const userDir = this.options.userPluginsDir();
+    roots.push({ directory: userDir, source: "user" });
+    if (projectFsPath) {
+      const projectDir = projectPluginsDir(projectFsPath);
+      // The home-scope project lives at the home directory, whose
+      // `.poracode/plugins` is the user plugin folder itself — scanning it twice
+      // would just re-read the same packages under a different source label.
+      if (!samePath(projectDir, userDir)) {
+        roots.push({ directory: projectDir, source: "project" });
+      }
+    }
     return roots;
   }
 

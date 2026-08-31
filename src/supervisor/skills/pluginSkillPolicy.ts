@@ -8,9 +8,13 @@ import type {
   SkillEntry,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { isPluginSkillEnabled, isPluginSkillSupportedForLaunch } from "@/shared/plugins/catalog";
+import {
+  isPluginSkillEnabled,
+  isPluginSkillSupportedForLaunch,
+  resolveInstalledPluginState,
+} from "@/shared/plugins/catalog";
 import { relativePolicyPath } from "@/supervisor/plugins";
-import { parseWslUncPath } from "@/shared/wsl";
+import { getProjectFsPath, parseWslUncPath } from "@/shared/wsl";
 import { batchWslCommandsAsync, quotePosixShellArg } from "../agents/base";
 
 /**
@@ -41,7 +45,8 @@ export interface PluginSkillPolicyContext {
 }
 
 export interface PluginSkillPolicyOptions {
-  readPluginRoots: () => readonly PluginSkillRoot[];
+  /** Plugin skill roots for a scan; the project path scopes repository packages. */
+  readPluginRoots: (projectFsPath?: string) => readonly PluginSkillRoot[];
   readInstalledPlugins: () => InstalledPlugins;
   hostPlatform: NodeJS.Platform;
   resolveWslRealPaths: (
@@ -152,7 +157,7 @@ export class PluginSkillPolicy {
     entries: readonly SkillEntry[],
     context: PluginSkillPolicyContext,
   ): SkillEntry[] {
-    const roots = this.options.readPluginRoots();
+    const roots = this.options.readPluginRoots(this.projectFsPath(context));
     if (roots.length === 0) return [...entries];
     const byRoot = new Map(roots.map((root) => [normalizeRootKey(root.skillsRoot), root]));
     const installedPlugins = this.options.readInstalledPlugins();
@@ -161,7 +166,7 @@ export class PluginSkillPolicy {
       const root = byRoot.get(normalizeRootKey(skill.rootPath));
       if (!root) return [skill];
       const { plugin } = root;
-      const state = installedPlugins[plugin.name];
+      const state = resolveInstalledPluginState(plugin, installedPlugins);
       if (!state) return [];
       if (!this.isSupported(plugin, context)) return [];
       const label = plugin.poracode.title ?? plugin.name;
@@ -192,7 +197,7 @@ export class PluginSkillPolicy {
     segments: PromptSegment[],
     context: PluginSkillPolicyContext = {},
   ): Promise<PromptSegment[]> {
-    const roots = this.options.readPluginRoots();
+    const roots = this.options.readPluginRoots(this.projectFsPath(context));
     if (roots.length === 0 || !segments.some((segment) => segment.kind === "skill")) {
       return segments;
     }
@@ -289,7 +294,7 @@ export class PluginSkillPolicy {
       const parts = match.relativePath.split(/[\\/]/u);
       const folder = parts[0]!;
       const { plugin } = match.root;
-      const state = installedPlugins[plugin.name];
+      const state = resolveInstalledPluginState(plugin, installedPlugins);
       const allowed = Boolean(
         parts.length === 2 &&
         parts[1] === SKILL_FILE &&
@@ -301,6 +306,11 @@ export class PluginSkillPolicy {
       return allowed;
     });
     return changed ? filtered : segments;
+  }
+
+  /** Scan root for the project's own packages, when the call carries a project. */
+  private projectFsPath(context: PluginSkillPolicyContext): string | undefined {
+    return context.projectLocation ? getProjectFsPath(context.projectLocation) : undefined;
   }
 
   private isSupported(plugin: LoadedPlugin, context: PluginSkillPolicyContext): boolean {

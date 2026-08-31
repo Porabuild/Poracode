@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InstalledPlugins } from "@/shared/contracts";
 import { isValidSkillName } from "@/shared/contracts";
@@ -12,7 +12,7 @@ import {
   isValidPluginName,
 } from "@/shared/plugins/spec";
 import { loadPluginFromDirectory } from "./PluginLoader";
-import { PluginRegistry } from "./PluginRegistry";
+import { PluginRegistry, PROJECT_PLUGINS_DIR } from "./PluginRegistry";
 import { resolvePluginMcpServers } from "./pluginMcpRuntime";
 
 /**
@@ -642,12 +642,81 @@ describe("registry", () => {
 
     expect(registry.listPlugins().map((plugin) => plugin.name)).toEqual(["added"]);
   });
+
+  it("loads a project's own packages only for that project", async () => {
+    const userDir = join(root, "user");
+    const projectDir = join(root, "project");
+    await mkdir(userDir, { recursive: true });
+    await mkdir(join(projectDir, PROJECT_PLUGINS_DIR, "repo-tools"), { recursive: true });
+    await writeFile(
+      join(projectDir, PROJECT_PLUGINS_DIR, "repo-tools", "plugin.json"),
+      JSON.stringify(manifest("repo-tools")),
+      "utf8",
+    );
+
+    const registry = new PluginRegistry({
+      bundledPluginsDir: () => undefined,
+      userPluginsDir: () => userDir,
+    });
+
+    expect(registry.listPlugins()).toEqual([]);
+    expect(registry.listPlugins(projectDir).map((plugin) => plugin.name)).toEqual(["repo-tools"]);
+    expect(registry.listPlugins(projectDir)[0]).toMatchObject({ source: "project" });
+    // A second project must not inherit the first one's packages.
+    expect(registry.listPlugins(join(root, "other-project"))).toEqual([]);
+  });
+
+  it("keeps a repository package from shadowing a bundled or user one", async () => {
+    const bundledDir = join(root, "bundled");
+    const userDir = join(root, "user");
+    const projectDir = join(root, "project");
+    for (const [dir, version] of [
+      [join(bundledDir, "dup"), "1.0.0"],
+      [join(userDir, "mine"), "1.0.0"],
+      [join(projectDir, PROJECT_PLUGINS_DIR, "dup"), "9.0.0"],
+      [join(projectDir, PROJECT_PLUGINS_DIR, "mine"), "9.0.0"],
+    ] as const) {
+      await mkdir(dir, { recursive: true });
+      await writeFile(
+        join(dir, "plugin.json"),
+        JSON.stringify(manifest(basename(dir), { version })),
+        "utf8",
+      );
+    }
+
+    const registry = new PluginRegistry({
+      bundledPluginsDir: () => bundledDir,
+      userPluginsDir: () => userDir,
+    });
+
+    expect(registry.listPlugins(projectDir)).toEqual([
+      expect.objectContaining({ name: "dup", source: "bundled" }),
+      expect.objectContaining({ name: "mine", source: "user" }),
+    ]);
+  });
+
+  it("does not scan the user plugin folder twice for a home-scope project", async () => {
+    const home = join(root, "home");
+    const userDir = join(home, PROJECT_PLUGINS_DIR);
+    await mkdir(join(userDir, "mine"), { recursive: true });
+    await writeFile(join(userDir, "mine", "plugin.json"), JSON.stringify(manifest("mine")), "utf8");
+
+    const registry = new PluginRegistry({
+      bundledPluginsDir: () => undefined,
+      userPluginsDir: () => userDir,
+    });
+
+    expect(registry.listPlugins(home)).toEqual([
+      expect.objectContaining({ name: "mine", source: "user" }),
+    ]);
+  });
 });
 
 describe("shipped packages", () => {
   it("loads every package in resources/plugins", () => {
     const shippedDir = join(process.cwd(), "resources", "plugins");
     const shipped = [
+      "app-controls",
       "browser-tools",
       "chrome-tools",
       "computer-use",
@@ -673,6 +742,73 @@ describe("shipped packages", () => {
           true,
         );
         expect(declared, `${name}/${skill.folder} name must match its folder`).toBe(skill.folder);
+
+        // The Skills list and the plugin detail page read their labels from the
+        // manifest policy, so a skill missing one shows a bare folder name.
+        const policy = result.plugin?.poracode.skills[skill.folder];
+        expect(policy?.name, `${name}/${skill.folder} has no policy name`).toBeTruthy();
+        expect(
+          policy?.description,
+          `${name}/${skill.folder} has no policy description`,
+        ).toBeTruthy();
+      }
+
+      // Every package ships its core skill plus at least one supporting skill,
+      // so an agent has both the "how to work with these tools" entry point and
+      // a skill for the concrete job.
+      const core = result.plugin?.poracode.coreSkill;
+      expect(core, `${name} declares no core skill`).toBeTruthy();
+      expect(
+        result.plugin?.skills.some((skill) => skill.folder === core),
+        `${name} core skill '${core}' is not shipped`,
+      ).toBe(true);
+      expect(
+        result.plugin?.skills.length,
+        `${name} ships no supporting skill beside '${core}'`,
+      ).toBeGreaterThan(1);
+    }
+  });
+
+  it("ships a supporting skill with concrete guidance for every package", () => {
+    const shippedDir = join(process.cwd(), "resources", "plugins");
+    // One supporting skill per package, keyed to the job an agent actually does
+    // with those tools, with the marker that proves it is not filler.
+    const supporting: Record<string, { folder: string; markers: string[] }> = {
+      "app-controls": {
+        folder: "terminal-inspection",
+        markers: ["list_terminals", "read_terminal"],
+      },
+      "browser-tools": {
+        folder: "web-app-verification",
+        markers: ["browser.console", "browser.requests", "browser.disable"],
+      },
+      "chrome-tools": {
+        folder: "signed-in-research",
+        markers: ["chrome.chrome_status", "chrome.chrome_attach", "chrome.disable"],
+      },
+      "computer-use": {
+        folder: "desktop-app-testing",
+        markers: ["computer_use.enable", "get_window_state", "computer_use.disable"],
+      },
+      github: { folder: "ci-debug", markers: ["## Find the real failure", "## Report"] },
+      outlook: { folder: "meeting-prep", markers: ["time zone", "read-only"] },
+      "subagent-delegation": {
+        folder: "parallel-review",
+        markers: ["spawn_agent", "read-only"],
+      },
+    };
+
+    for (const [name, { folder, markers }] of Object.entries(supporting)) {
+      const plugin = loadPluginFromDirectory(join(shippedDir, name), "bundled").plugin!;
+      expect(
+        plugin.poracode.coreSkill,
+        `${name} supporting skill must not be the core one`,
+      ).not.toBe(folder);
+      const skill = plugin.skills.find((candidate) => candidate.folder === folder);
+      expect(skill, `${name} does not ship '${folder}'`).toBeTruthy();
+      const contents = readFileSync(join(skill!.path, "SKILL.md"), "utf8");
+      for (const marker of markers) {
+        expect(contents, `${name}/${folder} lacks '${marker}'`).toContain(marker);
       }
     }
   });
@@ -680,6 +816,13 @@ describe("shipped packages", () => {
   it("ships goal-specific core skill guidance for every package", () => {
     const shippedDir = join(process.cwd(), "resources", "plugins");
     const expectations: Record<string, string[]> = {
+      "app-controls": [
+        "## Workflow",
+        "## Boundaries",
+        "## Output",
+        "list_terminals",
+        "read_terminal",
+      ],
       "browser-tools": [
         "## Workflow",
         "## Boundaries",
@@ -729,12 +872,23 @@ describe("shipped packages", () => {
     const github = loadPluginFromDirectory(join(shippedDir, "github"), "bundled").plugin!;
     const context = { pluginDataRoot: join(root, "plugin-data"), hostPlatform: "win32" as const };
 
+    // browser-tools only wraps a server the app already owns, so it never
+    // forces it on: the per-thread composer toggle stays the enablement truth.
     expect(
       resolvePluginMcpServers([browser], installedPluginState("browser-tools"), context),
     ).toMatchObject({
       servers: [],
-      builtInMcpServerIds: ["browser"],
+      builtInMcpServerIds: [],
     });
+    // A package the user dropped in is not part of the app, so its declared
+    // built-in binding still applies for the launch.
+    expect(
+      resolvePluginMcpServers(
+        [{ ...browser, source: "user" as const }],
+        installedPluginState("browser-tools"),
+        context,
+      ),
+    ).toMatchObject({ servers: [], builtInMcpServerIds: ["browser"] });
     expect(
       resolvePluginMcpServers([browser], installedPluginState("browser-tools"), {
         ...context,
