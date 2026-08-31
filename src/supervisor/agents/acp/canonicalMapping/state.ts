@@ -34,6 +34,8 @@ export interface AcpContentItemState {
   openAssistantItemId?: string;
   openReasoningItemId?: string;
   openUserItemId?: string;
+  /** Whether currently inside an active `<thinking>` / `<think>` block in agent text. */
+  inThinkingBlock?: boolean;
 }
 
 /** Per-session state — tracks open items so deltas land on the right item id. */
@@ -45,6 +47,8 @@ export interface AcpMapperState {
   openReasoningItemId?: string;
   /** Item id of the currently-streaming user message, if any. */
   openUserItemId?: string;
+  /** Whether currently inside an active `<thinking>` / `<think>` block in agent text. */
+  inThinkingBlock?: boolean;
   /** Open streamed content keyed by its owning subagent tool call. */
   subAgentContentItems: Map<string, AcpContentItemState>;
   /** Map ACP `toolCallId` → our internal item id + canonical item type + payload. */
@@ -169,6 +173,7 @@ export function closeOpenContentItems(
       delete contentState[key];
     }
   }
+  contentState.inThinkingBlock = false;
   return events;
 }
 
@@ -191,4 +196,6 @@ export function resetMapperForTurnEnd(state: AcpMapperState): void {
   state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;
   delete state.openPlanSteps;
+  state.taskNotificationBuffer = undefined;
+  state.inThinkingBlock = false;
 }

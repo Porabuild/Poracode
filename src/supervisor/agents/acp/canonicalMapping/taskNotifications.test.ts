@@ -504,4 +504,81 @@ Finished release [optimized] target(s) in 12.34s
     );
     expect(state.backgroundTasks.size).toBe(0);
   });
+  it("correlates Antigravity <SYSTEM_MESSAGE> task notification with tracked command", () => {
+    const state = createAcpMapperState("t-task-sys-msg");
+    const toolItemId = startBackgroundTool(
+      state,
+      "tc-sys-bg",
+      "Tool is running as a background task with task id: 73526519-fd6d-4046-bce4-fbff4810f266/task-442",
+    );
+    expect(state.backgroundTasks.get("73526519-fd6d-4046-bce4-fbff4810f266/task-442")?.itemId).toBe(
+      toolItemId,
+    );
+
+    const rawSysMsg = [
+      "The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.",
+      "",
+      "<SYSTEM_MESSAGE>",
+      '[Message] timestamp=2026-08-31T05:25:34Z sender=73526519-fd6d-4046-bce4-fbff4810f266/task-442 priority=MESSAGE_PRIORITY_HIGH content=Task id "73526519-fd6d-4046-bce4-fbff4810f266/task-442" finished with result:',
+      "",
+      "The command exited with code 0.",
+      "Stdout:",
+      "commit created successfully",
+      "",
+      "Stderr:",
+      "",
+      "Log: file:///C:/Users/sdsle/.gemini/antigravity-acp/brain/73526519-fd6d-4046-bce4-fbff4810f266/.system_generated/tasks/task-442.log",
+      "</SYSTEM_MESSAGE>",
+    ].join("\n");
+
+    const events = mapAcpSessionUpdate(agentChunk(rawSysMsg), state);
+
+    const completed = events.find((e) => e.type === "item.completed");
+    expect(completed).toBeDefined();
+    expect((completed as { itemId: string }).itemId).toBe(toolItemId);
+    const payload = (completed as { payload: Record<string, unknown> }).payload;
+    expect(payload.result).toBe("commit created successfully");
+    expect(payload.exitCode).toBe(0);
+    expect(payload.status).toBe("success");
+
+    const asstStarted = events.find(
+      (e) =>
+        e.type === "item.started" && (e as { itemType?: string }).itemType === "assistant_message",
+    );
+    expect(asstStarted).toBeUndefined();
+    for (const delta of assistantDeltas(events)) {
+      expect(delta).not.toContain("<SYSTEM_MESSAGE>");
+      expect(delta).not.toContain("not actually sent by the user");
+    }
+  });
+
+  it("handles standalone Antigravity <SYSTEM_MESSAGE> task notification when untracked", () => {
+    const state = createAcpMapperState("t-task-sys-untracked");
+    const rawSysMsg = [
+      "<SYSTEM_MESSAGE>",
+      '[Message] timestamp=2026-08-31T05:25:34Z sender=some-uuid/task-999 priority=MESSAGE_PRIORITY_HIGH content=Task id "some-uuid/task-999" finished with result:',
+      "",
+      "The command exited with code 1.",
+      "Stdout:",
+      "",
+      "Stderr:",
+      "compilation error TS1005",
+      "",
+      "Log: file:///path/to/log",
+      "</SYSTEM_MESSAGE>",
+    ].join("\n");
+
+    const events = mapAcpSessionUpdate(agentChunk(rawSysMsg), state);
+    const started = events.find(
+      (e) =>
+        e.type === "item.started" && (e as { itemType?: string }).itemType === "command_execution",
+    );
+    expect(started).toBeDefined();
+    const completed = events.find((e) => e.type === "item.completed");
+    expect(completed).toBeDefined();
+    const payload = (completed as { payload?: Record<string, unknown> }).payload;
+    expect(payload?.exitCode).toBe(1);
+    expect(payload?.status).toBe("error");
+    expect(payload?.result).toBe("compilation error TS1005");
+  });
 });

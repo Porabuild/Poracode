@@ -126,5 +126,30 @@ Docs:
     expect(formatted).toContain("````console\nDocs:\n```md\n# Title\n```\n````");
     expect(formatted).not.toContain("<task_notification>");
   });
+
+  it("formats Antigravity <SYSTEM_MESSAGE> task notification into styled callout", () => {
+    const text = `The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.
+
+<SYSTEM_MESSAGE>
+[Message] timestamp=2026-08-31T05:25:34Z sender=73526519-fd6d-4046-bce4-fbff4810f266/task-442 priority=MESSAGE_PRIORITY_HIGH content=Task id "73526519-fd6d-4046-bce4-fbff4810f266/task-442" finished with result:
+
+The command exited with code 0.
+Stdout:
+Build succeeded.
+
+Stderr:
+
+Log: file:///C:/Users/sdsle/.gemini/antigravity-acp/brain/73526519-fd6d-4046-bce4-fbff4810f266/.system_generated/tasks/task-442.log
+</SYSTEM_MESSAGE>`;
+
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toContain(
+      "> **Task Notification** — `73526519-fd6d-4046-bce4-fbff4810f266/task-442` (Exit code 0)",
+    );
+    expect(formatted).toContain("```console\nBuild succeeded.\n```");
+    expect(formatted).not.toContain("<SYSTEM_MESSAGE>");
+    expect(formatted).not.toContain("not actually sent by the user");
+    expect(formatted).not.toContain("Log: file:///");
+  });
 });
 // @vitest-environment node
