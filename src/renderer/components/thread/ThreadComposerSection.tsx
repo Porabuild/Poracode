@@ -337,7 +337,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (s) => s.threadMentionToolsAvailableByThreadId[thread.id],
   );
   const threadMentions = useThreadMentionItems(
-    { kind: "project", projectId: thread.projectId },
+    {
+      kind: "project",
+      projectId: thread.projectId,
+      currentWorktreePath: thread.worktreePath,
+    },
     thread.id,
     threadMentionToolsAvailable,
   );

@@ -78,6 +78,21 @@ export interface AcpMapperState {
    */
   suppressedTodoWriteIds: Set<string>;
   /**
+   * Tracked background tasks (e.g. Antigravity task id -> command execution item).
+   * Persisted across turn boundaries so asynchronous task completions can update
+   * the original command execution row.
+   */
+  backgroundTasks: Map<
+    string,
+    { toolCallId: string; itemId: string; command: string; payload: Record<string, unknown> }
+  >;
+  /**
+   * Partial `<task_notification>` text still streaming across
+   * `agent_message_chunk` boundaries, pinned to the parent tool call whose
+   * transcript the notification belongs to.
+   */
+  taskNotificationBuffer?: { parentToolCallId: string | undefined; text: string } | undefined;
+  /**
    * Resolve the live output of a client-hosted ACP terminal by its
    * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
    * (separate JSON-RPC channel) and references the terminal from
@@ -102,6 +117,7 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     subAgentContentItems: new Map(),
     suppressedToolCallIds: new Set(),
     suppressedTodoWriteIds: new Set(),
+    backgroundTasks: new Map(),
   };
 }
 

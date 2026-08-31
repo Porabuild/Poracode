@@ -34,7 +34,11 @@ import { ImageCard } from "./ImageCard";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
-import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
+import {
+  formatTaskNotifications,
+  normalizeGfmTableSeparators,
+  normalizeShortCodeFenceClosers,
+} from "./ItemMarkdown";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
@@ -178,7 +182,7 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const extraRoots = actions?.markdownImageRoots;
   const markdownText = rewriteMarkdownLocalImageUrls(
     normalizeIncompleteProjectLinkTail(
-      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
+      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTaskNotifications(text))),
     ),
     {
       ...(projectRoot ? { projectRoot } : {}),

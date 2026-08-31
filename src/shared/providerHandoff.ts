@@ -14,6 +14,8 @@ export interface ProviderHandoffStrategyInput {
   readThreadToolEnabled: boolean;
   /** The thread's last session actually resolved `read_thread` at launch. */
   threadResolvedReadThreadTool: boolean;
+  /** The target runtime guarantees its effective MCP set remains available. */
+  targetReadThreadToolGuaranteed: boolean;
 }
 
 /**
@@ -45,7 +47,8 @@ export function resolveProviderHandoffStrategy(
   return handsOverTheSameThread &&
     !input.isMirroredThread &&
     input.readThreadToolEnabled &&
-    input.threadResolvedReadThreadTool
+    input.threadResolvedReadThreadTool &&
+    input.targetReadThreadToolGuaranteed
     ? "thread-transcript"
     : "context-file";
 }

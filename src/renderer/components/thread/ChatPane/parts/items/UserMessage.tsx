@@ -518,7 +518,7 @@ function UserMessageSlashChip({
   return (
     <span
       className="poracode-slash-chip mr-1.5"
-      title={title}
+      title={title ?? label}
       {...(resolvedAriaLabel ? { "aria-label": resolvedAriaLabel } : {})}
       {...(skillName ? { "data-skill-name": skillName } : {})}
       {...(mcpName ? { "data-mcp-name": mcpName } : {})}
@@ -559,18 +559,27 @@ function UserMessageThreadChip({
   };
 
   return (
-    <button
-      type="button"
-      className="poracode-slash-chip poracode-thread-mention-chip mr-1.5"
-      title={label}
-      aria-label={t`Open ${label}`}
-      data-thread-mention-id={threadId}
-      {...(threadTitle ? { "data-thread-mention-title": threadTitle } : {})}
-      onClick={handleClick}
-    >
-      <span className="poracode-slash-chip__slash">{icon}</span>
-      <span className="poracode-slash-chip__name">{label}</span>
-    </button>
+    <Tooltip delay={200}>
+      {/* tabIndex={-1} role="none" neutralize the trigger's own button semantics —
+          the inner button is the single tab stop. Inline layout comes from the
+          global .tooltip__trigger rule; don't let the wrapper become block. */}
+      <Tooltip.Trigger className="max-w-full align-middle" tabIndex={-1} role="none">
+        <button
+          type="button"
+          className="poracode-slash-chip poracode-thread-mention-chip mr-1.5"
+          aria-label={t`Open ${label}`}
+          data-thread-mention-id={threadId}
+          {...(threadTitle ? { "data-thread-mention-title": threadTitle } : {})}
+          onClick={handleClick}
+        >
+          <span className="poracode-slash-chip__slash">{icon}</span>
+          <span className="poracode-slash-chip__name">{label}</span>
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="top" className="pointer-events-none max-w-sm break-words">
+        {threadTitle || label}
+      </Tooltip.Content>
+    </Tooltip>
   );
 }
 

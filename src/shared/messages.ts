@@ -128,6 +128,7 @@ const messages = {
   // ── ACP ───────────────────────────────────────────────────
   "acp.authenticationUnverified":
     "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
+  "acp.taskNotification.task": "Task {id}",
 
   // ── Kimi Code ─────────────────────────────────────────────
   "kimi.credentialsLocked":

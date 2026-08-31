@@ -1451,6 +1451,7 @@ describe("ChatPane", () => {
     expect(badge).toHaveAttribute("data-thread-mention-id", "source-thread");
     expect(badge).toHaveAttribute("type", "button");
     expect(badge).toHaveAttribute("aria-label", "Open Source discussion");
+    expect(badge).toHaveClass("poracode-thread-mention-chip");
     expect(badge?.querySelector("svg")).toBeInTheDocument();
     expect(screen.queryByText("@Source discussion")).not.toBeInTheDocument();
   });

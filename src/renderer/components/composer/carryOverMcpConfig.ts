@@ -58,16 +58,16 @@ export function carryOverComposerMcpConfig(
 }
 
 /**
- * Just the composer MCP toggles that are on, so a config can be reseeded from
- * another one without dragging its model or approval choices along. A flag the
- * user turned off is simply absent — {@link carryOverComposerMcpConfig} only
- * carries the ones that are on.
+ * Just the composer MCP toggles, so a config can be reseeded from another one
+ * without dragging its model or approval choices along. Explicit false values
+ * keep a saved provider draft from turning a server back on after the user
+ * disabled it in the handoff dialog.
  */
-export function enabledComposerMcpConfig(config: ThreadConfig): Partial<ThreadConfig> {
+export function composerMcpConfig(config: ThreadConfig): Partial<ThreadConfig> {
   return {
-    ...(config.browserMcp === true ? { browserMcp: true } : {}),
-    ...(config.chromeMcp === true ? { chromeMcp: true } : {}),
-    ...(config.crossagentMcp === true ? { crossagentMcp: true } : {}),
-    ...(config.computerUse === true ? { computerUse: true } : {}),
+    browserMcp: config.browserMcp === true,
+    chromeMcp: config.chromeMcp === true,
+    crossagentMcp: config.crossagentMcp === true,
+    computerUse: config.computerUse === true,
   };
 }

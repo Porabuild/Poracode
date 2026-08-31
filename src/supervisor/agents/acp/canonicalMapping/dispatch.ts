@@ -57,6 +57,11 @@ import {
   readAcpCanonicalGoalUpdate,
 } from "./goal";
 import { mapAcpCanonicalGoalUpdate } from "./goals";
+import {
+  emitTaskNotificationEvents,
+  handleTaskNotificationText,
+  trackBackgroundCommandFromToolCall,
+} from "./taskNotifications";
 
 function acpContentBlockToCanonical(block: ContentBlock): CanonicalContentBlock | undefined {
   if (block.type === "text") {
@@ -102,14 +107,24 @@ export function mapAcpSessionUpdate(
         events.push(...closeAllOpenContentItems(state));
       }
       const content = (update as { content?: ContentBlock }).content;
+
+      let textToProcess: string | undefined;
+      if (content?.type === "text") {
+        const handled = handleTaskNotificationText(content.text, state, parentToolCallId);
+        for (const notif of handled.notifications) {
+          events.push(...emitTaskNotificationEvents(notif, state));
+        }
+        textToProcess = handled.text;
+      }
+
       // Some ACP agents emit a blank text chunk after every tool call — empty
       // for most, newline-only for Factory Droid on DeepSeek models. It is only
       // a stream boundary, not an assistant message; opening an item for it
       // leaves a completed blank row between the tool and the next thought.
-      if (content?.type === "text" && content.text.trim().length === 0) {
+      if (textToProcess !== undefined && textToProcess.trim().length === 0) {
         // A zero-length chunk is always a no-op. Whitespace is real spacing
         // only once an assistant message is already streaming.
-        if (content.text.length === 0 || !contentState.openAssistantItemId) break;
+        if (textToProcess.length === 0 || !contentState.openAssistantItemId) break;
       }
       // Gemini echoes `[MODE_UPDATE] <mode>` as an agent text chunk whenever the
       // session is launched (or switched) into a specific approval mode. The
@@ -118,13 +133,13 @@ export function mapAcpSessionUpdate(
       // assistant item so the chat stays clean.
       if (
         !contentState.openAssistantItemId &&
-        content?.type === "text" &&
-        /^\[MODE_UPDATE\]/.test(content.text)
+        textToProcess !== undefined &&
+        /^\[MODE_UPDATE\]/.test(textToProcess)
       ) {
         break;
       }
-      if (content?.type === "text") {
-        const apiError = parseAcpAgentMessageApiError(content.text);
+      if (textToProcess !== undefined) {
+        const apiError = parseAcpAgentMessageApiError(textToProcess);
         if (apiError) {
           events.push(...closeOpenContentItems(state, parentToolCallId));
           events.push({ type: "error", threadId, message: apiError });
@@ -144,13 +159,13 @@ export function mapAcpSessionUpdate(
         });
       }
       if (content) {
-        if (content.type === "text") {
+        if (textToProcess !== undefined) {
           events.push({
             type: "content.delta",
             threadId,
             itemId: contentState.openAssistantItemId,
             stream: "assistant_text",
-            delta: content.text,
+            delta: textToProcess,
           });
         } else {
           const block = acpContentBlockToCanonical(content);
@@ -231,6 +246,7 @@ export function mapAcpSessionUpdate(
         name?: string | null;
         status?: "pending" | "in_progress" | "completed" | "failed";
         rawInput?: unknown;
+        rawOutput?: unknown;
         _meta?: unknown;
         content?: unknown;
         locations?: Array<{ path?: string | null; line?: number | null }> | null;
@@ -361,6 +377,7 @@ export function mapAcpSessionUpdate(
         });
         state.toolCallItems.delete(toolCall.toolCallId);
       }
+      trackBackgroundCommandFromToolCall(state, itemType, itemId, payload, toolCall);
       if (isSubAgent && toolCall.status !== "completed" && toolCall.status !== "failed") {
         pendingSubAgent = { toolCallId: toolCall.toolCallId, itemId, hasChildActivity: false };
       }
@@ -504,6 +521,13 @@ export function mapAcpSessionUpdate(
         events.push(parentEvent, ...progressEvents);
       }
       if (isTerminal) {
+        trackBackgroundCommandFromToolCall(
+          state,
+          item.itemType,
+          item.itemId,
+          item.payload,
+          toolCall,
+        );
         state.toolCallItems.delete(toolCall.toolCallId);
         if (item.isSubAgent) {
           removeActiveSubAgent(state, toolCall.toolCallId);

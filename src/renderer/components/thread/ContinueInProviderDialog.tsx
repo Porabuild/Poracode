@@ -12,6 +12,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { resolveComposerMcpScope } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
@@ -60,10 +61,7 @@ import {
   resolveLocalSlashCommandAction,
   slashCommandDisplayId,
 } from "./threadSlashCommands";
-import {
-  carryOverComposerMcpConfig,
-  enabledComposerMcpConfig,
-} from "../composer/carryOverMcpConfig";
+import { carryOverComposerMcpConfig, composerMcpConfig } from "../composer/carryOverMcpConfig";
 import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
@@ -292,7 +290,7 @@ export function ContinueInProviderDialog(props: {
   // The MCP servers this task is already running with. They seed every target
   // config below, so switching providers does not silently drop the tools the
   // work depends on; the ones the target cannot honor are filtered out.
-  const sourceMcpConfig = enabledComposerMcpConfig(thread.config);
+  const sourceMcpConfig = composerMcpConfig(thread.config);
   const [targetConfig, setTargetConfig] = useState<ThreadConfig>(() =>
     proposedAgent
       ? resolveDefaultConfig(
@@ -331,7 +329,7 @@ export function ContinueInProviderDialog(props: {
             ...preferred,
             // Whatever is enabled right now — seeded from the source thread and
             // possibly since toggled in this dialog — not the saved draft's.
-            ...enabledComposerMcpConfig(targetConfig),
+            ...composerMcpConfig(targetConfig),
           },
           props.projectLocation,
         ),
@@ -353,7 +351,7 @@ export function ContinueInProviderDialog(props: {
       resolveDefaultConfig(
         nextAgent,
         next,
-        nextAgent.kind === selectedKind ? targetConfig : enabledComposerMcpConfig(targetConfig),
+        nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig),
         props.projectLocation,
       ),
     );
@@ -388,7 +386,14 @@ export function ContinueInProviderDialog(props: {
     selectedKind,
     targetPresentationMode,
   );
-  const threadMentions = useThreadMentionItems({ kind: "project", projectId: thread.projectId });
+  const threadMentions = useThreadMentionItems(
+    {
+      kind: "project",
+      projectId: thread.projectId,
+      currentWorktreePath: thread.worktreePath,
+    },
+    thread.id,
+  );
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
   const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
@@ -465,113 +470,145 @@ export function ContinueInProviderDialog(props: {
   // servers that are off can be turned on from the mention list (it patches the
   // target config); custom servers come from settings and are informational.
   const providerOwnsMcp = targetCapabilities ? providerOwnsMcpConfig(targetCapabilities) : false;
-  const customMcpServers = mergeMcpServers(
+  // Mirrored desktop threads launch from their host's settings. This renderer
+  // does not own that MCP snapshot, so showing or mutating its local controls
+  // would promise servers the host may not launch.
+  const mcpControlsAvailable = targetCapabilities !== undefined && !thread.remoteServerId;
+  const mergedCustomMcpServers = mergeMcpServers(
     userCustomMcpServers,
     projectCustomMcpServers ?? [],
-  ).filter((server) => server.enabled);
+  );
+  const customMcpServers = mcpControlsAvailable
+    ? mergedCustomMcpServers.filter((server) => server.enabled)
+    : [];
   // Offer a mention when the provider's composer gates this server per thread,
   // and also whenever the flag is already on — a server carried over from the
   // source thread launches either way, so hiding it would misreport the run.
-  const computerUseScope = targetCapabilities
-    ? getComputerUseScope(
-        targetCapabilities,
-        targetPresentationMode,
-        props.projectLocation,
-        readBridge()?.platform,
-      )
-    : "none";
+  const computerUseScope =
+    mcpControlsAvailable &&
+    disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
+    targetCapabilities
+      ? getComputerUseScope(
+          targetCapabilities,
+          targetPresentationMode,
+          props.projectLocation,
+          readBridge()?.platform,
+        )
+      : "none";
+  const providerComputerUseEnabled =
+    mcpControlsAvailable &&
+    providerOwnsMcp &&
+    targetCapabilities !== undefined &&
+    disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
+    providerMcpSettingEnabled(targetCapabilities, providerMcpSettings, "computerUse");
   const showComputerUseMention =
-    (computerUseScope !== "none" || targetConfig.computerUse === true) &&
+    mcpControlsAvailable &&
+    (providerOwnsMcp
+      ? providerComputerUseEnabled
+      : computerUseScope !== "none" || targetConfig.computerUse === true) &&
     props.projectLocation.kind !== "wsl" &&
     readBridge()?.platform !== "linux";
-  const mcpMentions: McpMentionItem[] = targetCapabilities
-    ? [
-        ...(disabledBuiltInMcpServers["app-controls"] !== true && !providerOwnsMcp
-          ? [
-              {
-                id: "app-controls",
-                name: t`Terminal`,
-                searchAliases: ["Terminal"],
-                icon: TerminalSquare,
-                detail: t`Terminal`,
-                enabled: true,
-              },
-            ]
-          : []),
-        ...composerMcpServers
-          .filter(
-            (descriptor) =>
-              disabledBuiltInMcpServers[descriptor.id] !== true &&
-              descriptor.isAvailable(props.projectLocation) &&
-              (descriptor.getScope(
-                targetCapabilities,
-                targetPresentationMode,
-                props.projectLocation,
-              ) !== "none" ||
-                targetConfig[descriptor.configKey] === true),
-          )
-          .map((descriptor) => ({
-            id: descriptor.id,
-            name: t(descriptor.label),
-            icon: descriptor.icon,
+  const mcpMentions: McpMentionItem[] =
+    mcpControlsAvailable && targetCapabilities
+      ? [
+          ...(disabledBuiltInMcpServers["app-controls"] !== true && !providerOwnsMcp
+            ? [
+                {
+                  id: "app-controls",
+                  name: t`Terminal`,
+                  searchAliases: ["Terminal"],
+                  icon: TerminalSquare,
+                  detail: t`Terminal`,
+                  enabled: true,
+                },
+              ]
+            : []),
+          ...composerMcpServers
+            .filter(
+              (descriptor) =>
+                disabledBuiltInMcpServers[descriptor.id] !== true &&
+                descriptor.isAvailable(props.projectLocation) &&
+                (providerOwnsMcp
+                  ? providerMcpSettingEnabled(
+                      targetCapabilities,
+                      providerMcpSettings,
+                      descriptor.configKey,
+                    )
+                  : descriptor.getScope(
+                      targetCapabilities,
+                      targetPresentationMode,
+                      props.projectLocation,
+                    ) !== "none" || targetConfig[descriptor.configKey] === true),
+            )
+            .map((descriptor) => ({
+              id: descriptor.id,
+              name: t(descriptor.label),
+              icon: descriptor.icon,
+              detail: t`MCP server`,
+              enabled: providerOwnsMcp ? true : targetConfig[descriptor.configKey] === true,
+            })),
+          ...customMcpServers.map((server) => ({
+            id: server.id,
+            name: server.name,
+            icon: Webhook,
             detail: t`MCP server`,
-            enabled: providerOwnsMcp ? true : targetConfig[descriptor.configKey] === true,
+            enabled: true,
           })),
-        ...customMcpServers.map((server) => ({
-          id: server.id,
-          name: server.name,
-          icon: Webhook,
-          detail: t`MCP server`,
-          enabled: true,
-        })),
-        ...(showComputerUseMention
-          ? [
-              {
-                id: COMPUTER_USE_MCP_ID,
-                name: t`Computer Use`,
-                icon: Monitor,
-                detail: t`Computer Use`,
-                enabled: providerOwnsMcp ? true : targetConfig.computerUse === true,
-              },
-            ]
-          : []),
-      ]
-    : [];
+          ...(showComputerUseMention
+            ? [
+                {
+                  id: COMPUTER_USE_MCP_ID,
+                  name: t`Computer Use`,
+                  icon: Monitor,
+                  detail: t`Computer Use`,
+                  enabled: providerOwnsMcp ? true : targetConfig.computerUse === true,
+                },
+              ]
+            : []),
+        ]
+      : [];
 
   // "+" menu rows for this switch. Unlike the draft composer's menu — which
   // edits the standing default for *future* threads — these edit the config of
   // the one launch being set up here, preselected from the servers the thread
   // already runs with. Toggling off leaves the user's standing defaults alone.
-  const mcpMenuServers: ComposerMcpMenuItem[] = composerMcpServers.map((descriptor) => ({
-    descriptor,
-    enabled: providerOwnsMcp
-      ? providerMcpSettingEnabled(
-          targetCapabilities ?? ({} as AgentCapability),
-          providerMcpSettings,
-          descriptor.configKey,
-        )
-      : targetConfig[descriptor.configKey] === true,
-    visible:
-      disabledBuiltInMcpServers[descriptor.id] !== true &&
-      descriptor.isAvailable(props.projectLocation) &&
-      (providerOwnsMcp
-        ? providerMcpSettingEnabled(
-            targetCapabilities ?? ({} as AgentCapability),
-            providerMcpSettings,
-            descriptor.configKey,
-          )
-        : true),
-    onToggle: (next: boolean) => {
-      if (!providerOwnsMcp) handleTargetConfigPatch(mcpTogglePatch(descriptor.configKey, next));
-    },
-  }));
+  const mcpMenuServers: ComposerMcpMenuItem[] =
+    mcpControlsAvailable && targetCapabilities
+      ? composerMcpServers.map((descriptor) => {
+          const providerSettingEnabled =
+            providerOwnsMcp &&
+            providerMcpSettingEnabled(
+              targetCapabilities,
+              providerMcpSettings,
+              descriptor.configKey,
+            );
+          return {
+            descriptor,
+            enabled: providerOwnsMcp
+              ? providerSettingEnabled
+              : targetConfig[descriptor.configKey] === true,
+            visible:
+              disabledBuiltInMcpServers[descriptor.id] !== true &&
+              descriptor.isAvailable(props.projectLocation) &&
+              (!providerOwnsMcp || providerSettingEnabled),
+            onToggle: (next: boolean) => {
+              if (!providerOwnsMcp) {
+                handleTargetConfigPatch(mcpTogglePatch(descriptor.configKey, next));
+              }
+            },
+          };
+        })
+      : [];
   // Custom servers bind at launch from settings, not per-thread config, so
   // these rows flip the same persistent switch the MCP Servers page does — the
   // draft composer's menu behaves identically.
   const projectCustomMcpIds = new Set((projectCustomMcpServers ?? []).map((server) => server.id));
-  const mcpMenuCustomServers: ComposerCustomMcpItem[] = mergeMcpServers(
-    userCustomMcpServers,
-    projectCustomMcpServers ?? [],
+  const mcpMenuCustomServers: ComposerCustomMcpItem[] = (
+    mcpControlsAvailable
+      ? providerOwnsMcp
+        ? mergedCustomMcpServers.filter((server) => server.enabled)
+        : mergedCustomMcpServers
+      : []
   ).map((server) => {
     const isProject = projectCustomMcpIds.has(server.id);
     const scopedServers = isProject ? (projectCustomMcpServers ?? []) : userCustomMcpServers;
@@ -639,6 +676,9 @@ export function ContinueInProviderDialog(props: {
       isMirroredThread: thread.remoteServerId !== undefined,
       readThreadToolEnabled: readThreadToolsEnabled,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
+      targetReadThreadToolGuaranteed:
+        targetCapabilities !== undefined &&
+        resolveComposerMcpScope(targetCapabilities.mcpScope, targetPresentationMode) === "always",
     });
   }
 
@@ -899,7 +939,7 @@ export function ContinueInProviderDialog(props: {
                         <ComposerAddMenu
                           mcpServers={mcpMenuServers}
                           customMcpServers={mcpMenuCustomServers}
-                          {...(providerOwnsMcp
+                          {...(providerOwnsMcp && mcpControlsAvailable
                             ? {
                                 readOnly: true,
                                 readOnlyCaption: <Trans>Change servers in provider settings</Trans>,
@@ -915,7 +955,7 @@ export function ContinueInProviderDialog(props: {
                           }}
                           computerUse={{
                             enabled: providerOwnsMcp
-                              ? providerMcpSettings?.computerUse === true
+                              ? providerComputerUseEnabled
                               : targetConfig.computerUse === true,
                             visible: showComputerUseMention,
                             onToggle: (next) => {

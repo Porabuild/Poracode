@@ -4872,6 +4872,11 @@ msgstr "Von Synchronisierung ausschließen"
 msgid "Exclude patterns"
 msgstr "Muster ausschließen"
 
+#. placeholder {0}: parsed.exitCode
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Exit code {0}"
+msgstr "Exit-Code {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "Verlassen Sie den Planmodus"
@@ -5054,6 +5059,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "fehlgeschlagen"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -12219,9 +12225,17 @@ msgstr "Zielzweig"
 msgid "Task"
 msgstr "Aufgabe"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Task {id}"
+msgstr "Aufgabe {id}"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "Aufgabenübereinstimmung"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Task Notification"
+msgstr "Aufgabenbenachrichtigung"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"

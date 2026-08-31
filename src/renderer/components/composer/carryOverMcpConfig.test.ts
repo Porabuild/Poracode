@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { AgentCapability } from "@/shared/contracts";
-import { carryOverComposerMcpConfig, enabledComposerMcpConfig } from "./carryOverMcpConfig";
+import { carryOverComposerMcpConfig, composerMcpConfig } from "./carryOverMcpConfig";
 
 function capabilities(overrides: Partial<AgentCapability> = {}): AgentCapability {
   return {
@@ -98,15 +98,20 @@ describe("carryOverComposerMcpConfig", () => {
   });
 });
 
-describe("enabledComposerMcpConfig", () => {
-  it("keeps only the toggles that are on", () => {
+describe("composerMcpConfig", () => {
+  it("keeps explicit off values so saved provider defaults cannot restore them", () => {
     expect(
-      enabledComposerMcpConfig({
+      composerMcpConfig({
         model: "gpt-5",
         effort: "high",
         browserMcp: true,
         chromeMcp: false,
       }),
-    ).toEqual({ browserMcp: true });
+    ).toEqual({
+      browserMcp: true,
+      chromeMcp: false,
+      crossagentMcp: false,
+      computerUse: false,
+    });
   });
 });

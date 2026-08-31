@@ -427,7 +427,13 @@ export function ThreadDraftComposerArea(props: {
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
   const threadMentions = useThreadMentionItems(
-    isHomeScope ? { kind: "workspace" } : { kind: "project", projectId: props.project.id },
+    isHomeScope
+      ? { kind: "workspace", currentWorktreePath: branchSelection?.worktreePath }
+      : {
+          kind: "project",
+          projectId: props.project.id,
+          currentWorktreePath: branchSelection?.worktreePath,
+        },
   );
   // Registry-driven MCP toggles. The "+" add menu now flips the *persistent*
   // enablement (a standing default applied to every new thread), keyed by MCP

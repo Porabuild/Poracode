@@ -6,6 +6,7 @@ const reachable = {
   isMirroredThread: false,
   readThreadToolEnabled: true,
   threadResolvedReadThreadTool: true,
+  targetReadThreadToolGuaranteed: true,
 };
 
 describe("resolveProviderHandoffStrategy", () => {
@@ -71,6 +72,17 @@ describe("resolveProviderHandoffStrategy", () => {
       resolveProviderHandoffStrategy({
         ...reachable,
         threadResolvedReadThreadTool: false,
+        sourcePresentationMode: "gui",
+        targetPresentationMode: "gui",
+      }),
+    ).toBe("context-file");
+  });
+
+  it("writes a context file when the target cannot guarantee its MCP set", () => {
+    expect(
+      resolveProviderHandoffStrategy({
+        ...reachable,
+        targetReadThreadToolGuaranteed: false,
         sourcePresentationMode: "gui",
         targetPresentationMode: "gui",
       }),

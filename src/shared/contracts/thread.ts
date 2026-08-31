@@ -152,13 +152,6 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
 /**
- * Set when a launch continues an existing thread under a different provider.
- * The supervisor records the switch as a `provider_handoff` divider ahead of
- * the prompt, reusing `handoffItemId` so a renderer's optimistic row dedupes
- * against it. `sessionRef` must be omitted alongside this — the new provider
- * has no session to resume.
- */
-/**
  * How a handoff transfers the prior conversation to the incoming provider:
  *
  * - "thread-transcript": the new provider is handed this thread's own id and
@@ -174,6 +167,13 @@ export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 export const providerHandoffContextStrategySchema = z.enum(["thread-transcript", "context-file"]);
 export type ProviderHandoffContextStrategy = z.infer<typeof providerHandoffContextStrategySchema>;
 
+/**
+ * Set when a launch continues an existing thread under a different provider.
+ * The supervisor records the switch as a `provider_handoff` divider ahead of
+ * the prompt, reusing `handoffItemId` so a renderer's optimistic row dedupes
+ * against it. `sessionRef` must be omitted alongside this — the new provider
+ * has no session to resume.
+ */
 export const providerSwitchSchema = z.object({
   fromAgentKind: agentKindSchema,
   handoffItemId: z.string().min(1).optional(),
