@@ -25,6 +25,7 @@
   "peerDependencies": {
     "@capacitor/core": "^8.0.0"
   },
+  "packageManager": "pnpm@12.1.0",
   "capacitor": {
     "android": {
       "src": "android"
