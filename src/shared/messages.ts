@@ -125,6 +125,10 @@ const messages = {
   "supervisor.handoffTranscriptUnavailable":
     "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
 
+  // ── Claude ────────────────────────────────────────────────
+  "claude.goal.noVerdict":
+    "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run",
+
   // ── ACP ───────────────────────────────────────────────────
   "acp.authenticationUnverified":
     "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",

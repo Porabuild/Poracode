@@ -61,6 +61,7 @@ import {
   parseClaudeQuestions,
   readParentToolUseId,
   startClaudeTurn,
+  supportsNativeGoalFrames,
   type ClaudeMapperState,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
@@ -436,6 +437,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.stopGoalTracking();
     this.mapperState.activeSubAgentTaskToTool?.clear();
     this.mapperState.activeSubAgentToolToTask?.clear();
+    this.mapperState.liveBackgroundTaskIds?.clear();
     const events = closeClaudeOpenItems(this.mapperState, { closePlan: true });
     if (this.mapperState.currentTurnId) {
       events.push({
@@ -635,6 +637,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private startQuery(resumeSessionId: string | undefined, resumeSessionAt?: string): void {
     if (this.streamStarted) return;
     this.streamStarted = true;
+    // The `background_tasks_changed` level is per CLI process: it is not
+    // emitted at startup, so a restarted query (rollback re-spawns the CLI)
+    // must reset to the empty set and let the next membership change
+    // repopulate it — stale ids would hold goal completion forever.
+    delete this.mapperState.liveBackgroundTaskIds;
 
     this.queryReady = (async () => {
       const wslPrime =
@@ -932,6 +939,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // Bundled skills are reported both here and in the slash-command list;
       // this set is what splits them out as model-invoked (streaming) skills.
       this.captureSkillNames(message.skills);
+      // Whether this CLI streams `active_goal` goal-evaluation frames decides
+      // how the mapper may resolve an armed goal (frames own the lifecycle;
+      // older builds fall back to turn-end completion). No init yet leaves it
+      // undefined and the mapper on legacy behavior.
+      this.mapperState.cliReportsNativeGoalFrames = supportsNativeGoalFrames(
+        message.claude_code_version,
+      );
     }
 
     if (message.type === "system" && message.subtype === "session_state_changed") {
@@ -1046,7 +1060,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * flushes when the grace expires.
    */
   private flushDeferredCompletionIfDrained(): void {
-    if (!this.deferredCompletion.hasPending || this.hasLiveSubAgentTasks()) return;
+    if (this.hasLiveSubAgentTasks()) return;
+    // A goal held open across a clean turn end also drains here. Its "still
+    // busy" signal is wider than the subagent registry — a plain backgrounded
+    // Bash reported only via `background_tasks_changed` defers the goal without
+    // ever deferring the turn completion — so the pending goal alone is enough
+    // to arm the flush, or the dock would sit active until the session ends.
+    if (!this.deferredCompletion.hasPending && !this.mapperState.pendingGoalCompletionOnTaskDrain) {
+      return;
+    }
     this.scheduleDeferredFlush();
   }
 
