@@ -99,6 +99,13 @@ export function MentionPopover(props: {
   mentionRange: Range;
   onSelect: (entry: MentionEntry) => void;
   onActiveIndexChange: (index: number) => void;
+  /**
+   * Portal target; defaults to document.body. Hosts rendered inside a React
+   * Aria modal must pass a node inside the modal's DOM — anything portaled to
+   * body gets `inert` from ariaHideOutside, which blocks scrolling and lets
+   * clicks fall through to the backdrop, dismissing the modal.
+   */
+  portalContainer?: Element | null;
 }) {
   const { results, activeIndex, editorEl, mentionRange, onSelect, onActiveIndexChange } = props;
   const listRef = useRef<HTMLDivElement>(null);
@@ -113,7 +120,7 @@ export function MentionPopover(props: {
     return null;
   }
 
-  // Position in viewport coordinates (portal renders into body)
+  // Position in viewport coordinates (portal target is viewport-agnostic)
   const rangeRect = mentionRange.getBoundingClientRect();
   const popoverWidth = 480;
   const left = Math.max(8, Math.min(rangeRect.left, window.innerWidth - popoverWidth - 8));
@@ -206,6 +213,6 @@ export function MentionPopover(props: {
         })}
       </div>
     </div>,
-    document.body,
+    props.portalContainer ?? document.body,
   );
 }

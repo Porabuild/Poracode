@@ -280,6 +280,10 @@ export function ContinueInProviderDialog(props: {
   const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
+  // Portal root inside the modal DOM. The mention popover portaled to body
+  // would get `inert` from the modal's ariaHideOutside: no scrolling, and
+  // clicks fall through to the backdrop and dismiss the dialog.
+  const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
@@ -826,6 +830,7 @@ export function ContinueInProviderDialog(props: {
       <Modal.Backdrop isOpen={props.isOpen} onOpenChange={(open) => !open && handleCancel()}>
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[760px]">
+            <div ref={setMentionPortalRoot} className="contents" />
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading>
@@ -906,6 +911,7 @@ export function ContinueInProviderDialog(props: {
                           pluginMentions={composerPluginMentions}
                           threadMentions={threadMentions}
                           onMcpMentionSelect={handleMcpMentionSelect}
+                          popoverPortalContainer={mentionPortalRoot}
                           {...(showCommandPanel
                             ? {
                                 commandListId,
