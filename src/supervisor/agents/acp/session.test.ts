@@ -3127,6 +3127,81 @@ describe("ACP orphan turns — agent-initiated work after prompt() settled", () 
     });
   });
 
+  it("does not pin the orphan turn on a stuck read tool_call", () => {
+    vi.useFakeTimers();
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "in_progress",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+      },
+    });
+    expect(statusUpdates(listener)).toEqual(["working"]);
+
+    vi.advanceTimersByTime(ORPHAN_TURN_IDLE_MS + 1);
+
+    expect(statusUpdates(listener).at(-1)).toBe("idle");
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+  });
+
+  it("fails the in-flight turn when Antigravity reports a quota error", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt: ((value: { stopReason: string }) => void) | undefined;
+    connection.prompt.mockReturnValueOnce(
+      new Promise<{ stopReason: string }>((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("continue", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running view_file",
+        kind: "read",
+        status: "in_progress",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-view",
+        status: "failed",
+        rawOutput:
+          'Encountered retryable error from model provider: Agent execution terminated due to error. ("request failed (code 429): Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 1h33m48s.")',
+      },
+    });
+
+    expect(listener.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error", attention: "error" }),
+    );
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "failed",
+    });
+
+    resolvePrompt?.({ stopReason: "end_turn" });
+    await turn;
+    expect(statusUpdates(listener).at(-1)).toBe("error");
+  });
+
   it("stays working past the idle window while a tool call is still open", () => {
     vi.useFakeTimers();
     const { listener, session } = makeConfigSyncSession();

@@ -90,6 +90,17 @@ export function isBackgroundTaskWaitText(text: string): boolean {
   return BACKGROUND_TASK_WAIT_RE.test(text);
 }
 
+function readToolResultErrorText(result: unknown): string | undefined {
+  if (typeof result === "string" && result.trim().length > 0) return result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return undefined;
+  const record = result as Record<string, unknown>;
+  for (const key of ["message", "error", "text", "content"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return undefined;
+}
+
 interface TextSegment {
   type: "reasoning" | "assistant";
   text: string;
@@ -414,6 +425,22 @@ export function mapAcpSessionUpdate(
         state.suppressedToolCallIds.add(toolCall.toolCallId);
         break;
       }
+      // Some ACP agents (Antigravity) resend `tool_call` snapshots for an
+      // in-flight id instead of `tool_call_update`. Minting a second item
+      // leaves the original row `started` forever after the turn ends.
+      const existingToolCall = state.toolCallItems.get(toolCall.toolCallId);
+      if (existingToolCall) {
+        events.push(
+          ...mapAcpSessionUpdate(
+            {
+              ...notification,
+              update: { ...update, sessionUpdate: "tool_call_update" },
+            } as SessionNotification,
+            state,
+          ),
+        );
+        break;
+      }
       // Gemini's `update_topic` is a meta-tool that re-titles the current
       // conversation topic — emitted on nearly every user turn as the model's
       // first action. It's noise in the chat stream (a "thinking" tool that
@@ -661,6 +688,11 @@ export function mapAcpSessionUpdate(
         itemId: item.itemId,
         payload: emittedPayload,
       };
+      if (isTerminal) {
+        const resultText = readToolResultErrorText(emittedPayload.result ?? item.payload.result);
+        const apiError = resultText ? parseAcpAgentMessageApiError(resultText) : undefined;
+        if (apiError) events.push({ type: "error", threadId, message: apiError });
+      }
       const progressEvents = subAgentProgress?.text
         ? buildSubAgentProgressEvents(state, item, subAgentProgress.text, isTerminal)
         : isTerminal && item.subAgentProgressItemId

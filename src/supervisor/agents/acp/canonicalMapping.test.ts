@@ -909,6 +909,41 @@ describe("mapAcpSessionUpdate", () => {
     expect(started.payload.command).toBe("");
   });
 
+  it("reuses the live item when an in-flight tool_call id is resent", () => {
+    const state = createAcpMapperState("t-reuse-tool");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "in_progress",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const itemId = (started[0] as { itemId: string }).itemId;
+
+    const resent = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "failed",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+        rawOutput: "Tool execution failed",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(resent.some((event) => event.type === "item.started")).toBe(false);
+    expect(resent).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "item.completed", itemId })]),
+    );
+    expect(state.toolCallItems.size).toBe(0);
+  });
+
   it("seals orphaned tool calls at turn end", () => {
     const state = createAcpMapperState("t-stop-tool");
     const started = mapAcpSessionUpdate(
