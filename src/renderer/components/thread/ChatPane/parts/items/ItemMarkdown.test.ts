@@ -66,6 +66,11 @@ describe("formatTaskNotifications", () => {
     expect(formatTaskNotifications(text)).toBe(text);
   });
 
+  it("leaves prose that mentions Background Task Update without metadata untouched", () => {
+    const text = "Let's discuss the Background Task Update process.";
+    expect(formatTaskNotifications(text)).toBe(text);
+  });
+
   it("formats completed Antigravity task notification into styled callout and console block", () => {
     const text = `<task_notification>
 Task 1bc6d974-9b4c-41ad-b800-88aa46277fee/task-304 completed with exit code 0.
@@ -150,6 +155,116 @@ Log: file:///C:/Users/sdsle/.gemini/antigravity-acp/brain/73526519-fd6d-4046-bce
     expect(formatted).not.toContain("<SYSTEM_MESSAGE>");
     expect(formatted).not.toContain("not actually sent by the user");
     expect(formatted).not.toContain("Log: file:///");
+  });
+
+  it("formats a markdown Background Task Update into a styled callout", () => {
+    const text = `# Background Task Update: \`442d457c-fbe7-4201-8f05-53f7c69bb351/task-32\`
+
+The task exited with the following message:
+\`\`\`text
+RUN  v4.0.18 E:/work/lightcode/...
+ ✓ 1 test
+\`\`\`
+
+<task_metadata>
+task_id: 442d457c-fbe7-4201-8f05-53f7c69bb351/task-32
+status: exited
+exit_code: 0
+</task_metadata>`;
+
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toContain(
+      "> **Task Notification** — `442d457c-fbe7-4201-8f05-53f7c69bb351/task-32` (Exit code 0)",
+    );
+    expect(formatted).toContain("```console\nRUN  v4.0.18 E:/work/lightcode/...\n ✓ 1 test\n```");
+    expect(formatted).not.toContain("Background Task Update");
+    expect(formatted).not.toContain("<task_metadata>");
+  });
+
+  it("formats a cancelled leftover as Failed rather than a synthesized exit code", () => {
+    const text = `# Background Task Update: \`t-cancel\`
+
+<task_metadata>
+task_id: t-cancel
+status: cancelled
+</task_metadata>`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toContain("> **Task Notification** — `t-cancel` (Failed)");
+    expect(formatted).not.toContain("Exit code");
+    expect(formatted).not.toContain("The task exited");
+    expect(formatted).not.toContain("<task_metadata>");
+  });
+
+  it("formats an empty leftover as a header-only callout", () => {
+    const text = `# Background Task Update: \`t-empty\`
+
+<task_metadata>
+task_id: t-empty
+status: exited
+exit_code: 0
+</task_metadata>`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toBe("> **Task Notification** — `t-empty` (Exit code 0)");
+  });
+
+  it("preserves surrounding markdown around a Background Task Update", () => {
+    const text = `Before.\n\n# Background Task Update: \`t-1\`
+
+The task exited with the following message:
+\`\`\`text
+ok
+\`\`\`
+
+<task_metadata>
+task_id: t-1
+status: exited
+exit_code: 0
+</task_metadata>\n\nAfter.`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted.startsWith("Before.")).toBe(true);
+    expect(formatted.endsWith("After.")).toBe(true);
+    expect(formatted).toContain("> **Task Notification** — `t-1` (Exit code 0)");
+    expect(formatted).toContain("```console\nok\n```");
+  });
+
+  it("keeps inner fences in leftover Background Task Update output", () => {
+    const text = `# Background Task Update: \`t-1\`
+
+The task exited with the following message:
+\`\`\`text
+Docs:
+\`\`\`md
+# Title
+\`\`\`
+\`\`\`
+
+<task_metadata>
+task_id: t-1
+status: exited
+exit_code: 0
+</task_metadata>`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toContain("````console\nDocs:\n```md\n# Title\n```\n````");
+    expect(formatted).not.toContain("Background Task Update");
+  });
+
+  it("leaves a Background Task Update inside an outer fenced code block untouched", () => {
+    const text = `\`\`\`
+# Background Task Update: \`t-1\`
+
+The task exited with the following message:
+\`\`\`text
+ok
+\`\`\`
+
+<task_metadata>
+task_id: t-1
+status: exited
+exit_code: 0
+</task_metadata>
+\`\`\`
+After the block.`;
+    expect(formatTaskNotifications(text)).toBe(text);
   });
 });
 // @vitest-environment node
