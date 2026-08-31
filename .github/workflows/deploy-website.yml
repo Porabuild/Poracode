@@ -52,7 +52,7 @@ jobs:
             exit 1
           fi
       - name: Install Vercel CLI
-        run: npm install --global vercel@54.21.1
+        run: npm install --global vercel@59.10.0
       - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
