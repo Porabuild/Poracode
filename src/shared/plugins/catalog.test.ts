@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { LoadedPlugin } from "../contracts";
+import type { BuiltInMcpServerId, LoadedPlugin, PluginSource } from "../contracts";
 import { installedPluginsSchema } from "../contracts/plugin";
 import { normalizeSharedSettings } from "../settings";
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL, type PluginSkillPolicyEntry } from "./spec";
 import {
+  canUninstallPlugin,
   getPluginCoreSkill,
   installPlugin,
+  isBuiltInToolPlugin,
+  resolveInstalledPluginState,
   isPluginMcpServerEnabled,
   isPluginProvidedNatively,
   isPluginSkillEnabled,
@@ -24,19 +27,23 @@ function makePlugin(
     mcpServers?: string[];
     platforms?: ("win32" | "darwin" | "linux")[];
     projectKinds?: ("windows" | "posix" | "wsl")[];
+    builtInMcpServerIds?: BuiltInMcpServerId[];
+    source?: PluginSource;
+    defaultEnabled?: boolean;
   } = {},
 ): LoadedPlugin {
   return {
     name,
-    source: "bundled",
+    source: options.source ?? "bundled",
     root: `/plugins/${name}`,
     manifest: { $schema: AGENT_PLUGINS_MANIFEST_SCHEMA_URL, name, version: "1.0.0" },
     poracode: {
       category: "developer-tools",
       featured: false,
       communityMaintained: false,
+      defaultEnabled: options.defaultEnabled ?? true,
       nativePluginNames: [],
-      builtInMcpServerIds: [],
+      builtInMcpServerIds: options.builtInMcpServerIds ?? [],
       skills: options.skills ?? {},
       ...(options.platforms ? { platforms: options.platforms } : {}),
       ...(options.projectKinds ? { projectKinds: options.projectKinds } : {}),
@@ -64,6 +71,11 @@ const COMPUTER_USE = makePlugin("computer-use", {
   projectKinds: ["windows", "posix"],
 });
 const GITHUB = makePlugin("github", { skills: { github: {} }, mcpServers: ["github"] });
+/** Bundled wrapper over a server the app already owns — installed from day one. */
+const BUILT_IN_BROWSER_TOOLS = makePlugin("browser-tools", {
+  skills: { "browser-control": {} },
+  builtInMcpServerIds: ["browser"],
+});
 
 const WSL_PROJECT = {
   kind: "wsl",
@@ -137,8 +149,8 @@ describe("plugin catalog", () => {
 
   it("toggles the plugin and its contributions independently", () => {
     const installed = installPlugin({}, GITHUB);
-    const disabledSkill = setPluginSkillEnabled(installed, "github", "github", false);
-    const disabledServer = setPluginMcpServerEnabled(disabledSkill, "github", "github", false);
+    const disabledSkill = setPluginSkillEnabled(installed, GITHUB, "github", false);
+    const disabledServer = setPluginMcpServerEnabled(disabledSkill, GITHUB, "github", false);
 
     expect(disabledServer.github).toEqual({
       version: "1.0.0",
@@ -150,8 +162,8 @@ describe("plugin catalog", () => {
     expect(isPluginMcpServerEnabled(GITHUB, disabledServer.github!, "github")).toBe(false);
 
     const reenabled = setPluginMcpServerEnabled(
-      setPluginSkillEnabled(disabledServer, "github", "github", true),
-      "github",
+      setPluginSkillEnabled(disabledServer, GITHUB, "github", true),
+      GITHUB,
       "github",
       true,
     );
@@ -160,7 +172,7 @@ describe("plugin catalog", () => {
   });
 
   it("treats a disabled plugin as disabling every contribution", () => {
-    const installed = setInstalledPluginEnabled(installPlugin({}, GITHUB), "github", false);
+    const installed = setInstalledPluginEnabled(installPlugin({}, GITHUB), GITHUB, false);
 
     expect(isPluginSkillEnabled(GITHUB, installed.github!, "github")).toBe(false);
     expect(isPluginMcpServerEnabled(GITHUB, installed.github!, "github")).toBe(false);
@@ -225,5 +237,78 @@ describe("plugin catalog", () => {
       true,
     );
     expect(isPluginProvidedNatively(plugin, new Set(["outlook"]))).toBe(true);
+  });
+});
+
+describe("built-in tool plugins", () => {
+  it("counts a bundled built-in wrapper as installed before the user touches it", () => {
+    expect(isBuiltInToolPlugin(BUILT_IN_BROWSER_TOOLS)).toBe(true);
+    expect(resolveInstalledPluginState(BUILT_IN_BROWSER_TOOLS, {})).toEqual({
+      version: "1.0.0",
+      enabled: true,
+      disabledSkillIds: [],
+      disabledMcpServerNames: [],
+    });
+    expect(canUninstallPlugin(BUILT_IN_BROWSER_TOOLS)).toBe(false);
+  });
+
+  it("leaves packages that start their own server, or came from disk, opt-in", () => {
+    expect(isBuiltInToolPlugin(GITHUB)).toBe(false);
+    expect(resolveInstalledPluginState(GITHUB, {})).toBeUndefined();
+    expect(canUninstallPlugin(GITHUB)).toBe(true);
+
+    const userCopy = makePlugin("browser-tools", {
+      skills: { "browser-control": {} },
+      builtInMcpServerIds: ["browser"],
+      source: "user",
+    });
+    expect(isBuiltInToolPlugin(userCopy)).toBe(false);
+    expect(resolveInstalledPluginState(userCopy, {})).toBeUndefined();
+  });
+
+  it("materializes a record the first time the user disables one", () => {
+    const disabled = setInstalledPluginEnabled({}, BUILT_IN_BROWSER_TOOLS, false);
+
+    expect(disabled["browser-tools"]).toMatchObject({ enabled: false });
+    expect(resolveInstalledPluginState(BUILT_IN_BROWSER_TOOLS, disabled)).toMatchObject({
+      enabled: false,
+    });
+  });
+
+  it("materializes a record the first time the user disables one of its skills", () => {
+    const disabled = setPluginSkillEnabled({}, BUILT_IN_BROWSER_TOOLS, "browser-control", false);
+
+    expect(disabled["browser-tools"]).toMatchObject({
+      enabled: true,
+      disabledSkillIds: ["browser-control"],
+    });
+    expect(
+      isPluginSkillEnabled(BUILT_IN_BROWSER_TOOLS, disabled["browser-tools"]!, "browser-control"),
+    ).toBe(false);
+  });
+});
+
+describe("default enablement", () => {
+  // A package that starts a third-party server, or needs the user to sign in
+  // first, ships off: installing it must not launch anything on its own.
+  const OPT_IN = makePlugin("outlook", {
+    skills: { "outlook-email": {} },
+    mcpServers: ["outlook"],
+    defaultEnabled: false,
+  });
+
+  it("installs a default-disabled package without switching it on", () => {
+    const installed = installPlugin({}, OPT_IN);
+
+    expect(installed.outlook).toMatchObject({ enabled: false });
+    expect(isPluginSkillEnabled(OPT_IN, installed.outlook!, "outlook-email")).toBe(false);
+    expect(isPluginMcpServerEnabled(OPT_IN, installed.outlook!, "outlook")).toBe(false);
+  });
+
+  it("still lets the user enable it, and leaves other packages on by default", () => {
+    const enabled = setInstalledPluginEnabled(installPlugin({}, OPT_IN), OPT_IN, true);
+
+    expect(enabled.outlook).toMatchObject({ enabled: true });
+    expect(installPlugin({}, GITHUB).github).toMatchObject({ enabled: true });
   });
 });
