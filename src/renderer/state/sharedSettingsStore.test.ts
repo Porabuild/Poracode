@@ -231,7 +231,7 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     expect(persistedPlugins()).toEqual({
       "browser-tools": {
-        version: "1.1.0",
+        version: "1.2.0",
         enabled: true,
         disabledSkillIds: [],
         disabledMcpServerNames: [],
@@ -239,9 +239,11 @@ describe("sharedSettingsStore", () => {
     });
 
     useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false);
-    useSharedSettings.getState().setPluginSkillEnabled("browser-tools", "browser-control", false);
+    useSharedSettings
+      .getState()
+      .setPluginSkillEnabled(pluginFixture("browser-tools"), "browser-control", false);
     expect(persistedPlugins()["browser-tools"]).toEqual({
-      version: "1.1.0",
+      version: "1.2.0",
       enabled: false,
       disabledSkillIds: ["browser-control"],
       disabledMcpServerNames: [],

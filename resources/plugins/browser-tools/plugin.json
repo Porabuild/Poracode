@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "browser-tools",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Browse, inspect, and test websites in Poracode's isolated in-app browser.",
   "author": {
     "name": "Poracode",
@@ -26,6 +26,10 @@
           "description": "Navigate, inspect, and test pages with the in-app Browser MCP.",
           "nativePluginName": "browser",
           "nativeSkill": "control-in-app-browser"
+        },
+        "web-app-verification": {
+          "name": "Web App Verification",
+          "description": "Exercise a web flow in the in-app browser and collect visual, console, and network evidence."
         }
       }
     }

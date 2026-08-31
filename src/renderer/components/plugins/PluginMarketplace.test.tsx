@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -25,42 +25,46 @@ describe("PluginMarketplace", () => {
     expect(screen.getByRole("heading", { name: "Featured" })).toBeInTheDocument();
     expect(screen.getByText("Browser Tools")).toBeInTheDocument();
     expect(screen.getByText("Chrome Tools")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Browser Tools Install" })).toBeInTheDocument();
+    // Packages that only wrap a built-in server ship with the app, so they are
+    // managed rather than installed.
+    expect(screen.getByRole("button", { name: "Browser Tools Manage" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Browser Tools" }));
     expect(onOpen).toHaveBeenCalledWith("browser-tools");
     onOpen.mockClear();
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search plugins" }), {
-      target: { value: "chrome" },
+      target: { value: "github" },
     });
 
-    expect(screen.getByText("Chrome Tools")).toBeInTheDocument();
+    expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(screen.queryByText("Browser Tools")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Chrome Tools Install" }));
+    fireEvent.click(screen.getByRole("button", { name: "GitHub Install" }));
 
-    expect(useSharedSettings.getState().installedPlugins["chrome-tools"]).toMatchObject({
+    expect(useSharedSettings.getState().installedPlugins.github).toMatchObject({
       version: "1.1.0",
       enabled: true,
     });
-    expect(onOpen).toHaveBeenLastCalledWith("chrome-tools");
+    expect(onOpen).toHaveBeenLastCalledWith("github");
 
-    fireEvent.click(screen.getByRole("button", { name: "Chrome Tools Manage" }));
+    fireEvent.click(screen.getByRole("button", { name: "GitHub Manage" }));
     expect(onOpen).toHaveBeenCalledTimes(2);
-    expect(onOpen).toHaveBeenLastCalledWith("chrome-tools");
+    expect(onOpen).toHaveBeenLastCalledWith("github");
   });
 
   it("surfaces installed plugins in the installed strip", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("chrome-tools"));
     const onOpen = vi.fn<(pluginId: string) => void>();
     render(<Marketplace onOpen={onOpen} />);
 
     // The shortcut is named distinctly from the card title so a screen reader
     // does not read two identically-named controls for the same plugin.
     const strip = screen.getByRole("heading", { name: "Installed" }).closest("section")!;
+    // Built-in tool plugins are there from the start; an opt-in package only
+    // joins them once the user installs it.
     expect(within(strip).getByRole("button", { name: "Open Chrome Tools" })).toBeInTheDocument();
-    expect(
-      within(strip).queryByRole("button", { name: "Open Browser Tools" }),
-    ).not.toBeInTheDocument();
+    expect(within(strip).queryByRole("button", { name: "Open GitHub" })).not.toBeInTheDocument();
+
+    act(() => useSharedSettings.getState().installPlugin(pluginFixture("github")));
+    expect(within(strip).getByRole("button", { name: "Open GitHub" })).toBeInTheDocument();
 
     fireEvent.click(within(strip).getByRole("button", { name: "Open Chrome Tools" }));
     expect(onOpen).toHaveBeenCalledWith("chrome-tools");

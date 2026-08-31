@@ -1,5 +1,6 @@
 import type { SDKActiveGoalMessage, SDKAssistantMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, TurnState } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import {
   goalPayloadFromProviderState,
   startGoalItemEvents,
@@ -9,6 +10,32 @@ import {
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
 import { newItemId } from "./helpers";
 import { readClaudeAssistantSpendTokens, readClaudeAssistantUsageSampleId } from "./usageSpent";
+
+/**
+ * Oldest CLI build whose /goal loop reports every evaluation as an
+ * `active_goal` frame. v2.1.234 is the earliest build the official /goal docs
+ * still describe version-conditioned behavior for (goal check-ins), so CLIs
+ * from here on arm the Stop-hook evaluator and stream its verdicts; older
+ * builds may lack the feature entirely and stay on the legacy fallback.
+ */
+const NATIVE_GOAL_FRAMES_MIN_VERSION = [2, 1, 234] as const;
+
+/**
+ * Whether this CLI build streams `active_goal` goal-evaluation frames. The
+ * init message's `claude_code_version` is the only signal — the `capabilities`
+ * set has no goal entry yet. Unknown/unparseable versions conservatively
+ * report false so they keep the legacy turn-end fallback.
+ */
+export function supportsNativeGoalFrames(version: unknown): boolean {
+  if (typeof version !== "string") return false;
+  const match = /^(\d+)\.(\d+)\.(\d+)/u.exec(version.trim());
+  if (!match) return false;
+  const [major, minor, patch] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const [minMajor, minMinor, minPatch] = NATIVE_GOAL_FRAMES_MIN_VERSION;
+  if (major !== minMajor) return major > minMajor;
+  if (minor !== minMinor) return minor > minMinor;
+  return patch >= minPatch;
+}
 
 type ActiveGoalState = ClaudeMapperState & {
   activeGoalItemId: string;
@@ -36,6 +63,10 @@ export function clearActiveGoal(state: ClaudeMapperState): void {
   delete state.activeGoalIterations;
   delete state.activeGoalLastReason;
   delete state.pendingGoalCompletionOnTaskDrain;
+  // Frame observation is per goal, not per session: leaving it set would make
+  // every later goal look confirmed, so a `/goal` the CLI silently refused
+  // would stick in the dock instead of being refuted.
+  delete state.sawActiveGoalMessage;
   resetActiveGoalTokenAccounting(state);
 }
 
@@ -134,17 +165,31 @@ export function completeActiveGoalEvents(
   //
   // While the native Stop-hook evaluator is live, a turn `result` is not a
   // goal outcome — the evaluator keeps starting turns until the condition is
-  // met and reports that via `active_goal: null`. Without native goal frames
-  // (older CLI), fall back to treating a clean turn end as completion so the
-  // dock never sticks.
+  // met and reports that via `active_goal: null`.
   if (turnState === "interrupted" || state.sawActiveGoalMessage) {
     return [activeGoalUpdatedEvent(state)];
   }
 
-  // Legacy fallback with background subagents still running: the turn end is
-  // not the end of the goal's work. Hold the goal active and complete it when
-  // the last live task drains (completeActiveGoalOnTaskDrainEvents).
-  if (hasLiveSubAgentTaskEntries(state)) {
+  // A frame-capable CLI owns the goal lifecycle end to end: an armed goal
+  // always reports its FIRST evaluation at the end of the turn that set it.
+  // With live background work the evaluation is merely deferred (the CLI
+  // evaluates at the next turn end with no background work), so hold the goal;
+  // with a clean turn end and zero frames ever, the CLI never actually armed
+  // the goal — never infer a success from that silence.
+  if (state.cliReportsNativeGoalFrames) {
+    return hasLiveBackgroundWork(state)
+      ? [activeGoalUpdatedEvent(state)]
+      : refuteUnconfirmedGoalEvents(state);
+  }
+
+  // Legacy fallback (CLI without native goal frames). With background work
+  // still running (subagent tasks, and plain backgrounded Bash via the
+  // `background_tasks_changed` level signal), the turn end is not the end of
+  // the goal's work — the CLI wakes the model when a background task finishes
+  // and the goal's work continues. Hold the goal active and complete it when
+  // the last live task drains (completeActiveGoalOnTaskDrainEvents); with a
+  // clean turn end, treat it as completion so the dock never sticks.
+  if (hasLiveBackgroundWork(state)) {
     state.pendingGoalCompletionOnTaskDrain = true;
     return [activeGoalUpdatedEvent(state)];
   }
@@ -154,15 +199,40 @@ export function completeActiveGoalEvents(
 
 /**
  * Legacy fallback continuation: a clean turn end deferred goal completion
- * because background subagent tasks were still live. The session calls this
- * after its post-drain resume grace expires.
+ * because background work was still live. The session calls this after its
+ * post-drain resume grace expires. Only legacy CLIs get here — the pending
+ * flag is never set on a frame-capable CLI, whose goal resolves via frames.
  */
 export function completeActiveGoalOnTaskDrainEvents(state: ClaudeMapperState): RuntimeEvent[] {
   if (!state.pendingGoalCompletionOnTaskDrain) return [];
-  if (hasLiveSubAgentTaskEntries(state)) return [];
+  if (hasLiveBackgroundWork(state)) return [];
   delete state.pendingGoalCompletionOnTaskDrain;
   if (!hasActiveGoal(state)) return [];
   return completeActiveGoalNow(state);
+}
+
+/**
+ * A frame-capable CLI finished a clean turn after a locally-armed `/goal`
+ * without ever emitting a single `active_goal` frame. An armed goal reports
+ * its first evaluation at that turn's end, so silence means the CLI never
+ * actually armed the goal — most often `/goal` was refused by the
+ * workspace-trust or hooks gate (the CLI prints a reason instead of setting
+ * it) — or the evaluator could not run. Mark the dock item failed with that
+ * explanation instead of dressing the silence up as success.
+ */
+function refuteUnconfirmedGoalEvents(state: ActiveGoalState): RuntimeEvent[] {
+  const { threadId } = state;
+  const itemId = state.activeGoalItemId;
+  const payload = goalPayloadFromProviderState(
+    {
+      ...activeGoalProviderState(state),
+      status: "failed",
+      lastReason: msg("claude.goal.noVerdict"),
+    },
+    "updated",
+  );
+  clearActiveGoal(state);
+  return updateGoalItemEvents(threadId, itemId, payload);
 }
 
 function completeActiveGoalNow(state: ActiveGoalState): RuntimeEvent[] {
@@ -178,6 +248,17 @@ function completeActiveGoalNow(state: ActiveGoalState): RuntimeEvent[] {
 
 function hasLiveSubAgentTaskEntries(state: ClaudeMapperState): boolean {
   return (state.activeSubAgentTaskToTool?.size ?? 0) > 0;
+}
+
+/**
+ * Whether background work of any kind is still live: tracked subagent tasks
+ * (edge bookends, present on older CLIs too) or any entry of the
+ * `background_tasks_changed` level set — plain backgrounded Bash included.
+ * While this is true, a clean turn end is not the end of the goal's work: the
+ * CLI wakes the model when a background task finishes and the work continues.
+ */
+function hasLiveBackgroundWork(state: ClaudeMapperState): boolean {
+  return hasLiveSubAgentTaskEntries(state) || (state.liveBackgroundTaskIds?.size ?? 0) > 0;
 }
 
 /**

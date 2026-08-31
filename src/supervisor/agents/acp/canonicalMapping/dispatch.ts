@@ -51,7 +51,7 @@ import {
   hasOpenContentItems,
   newItemId,
 } from "./state";
-import type { ActiveAcpSubAgent, AcpMapperState } from "./state";
+import type { ActiveAcpSubAgent, AcpMapperState, AcpContentItemState } from "./state";
 import {
   mapAcpCanonicalGoalUpdate as mapAcpCommandGoalUpdate,
   readAcpCanonicalGoalUpdate,
@@ -78,6 +78,84 @@ function acpContentBlockToCanonical(block: ContentBlock): CanonicalContentBlock 
     return { kind: "file", path: block.uri.replace(/^file:\/\//, ""), name: block.name };
   }
   return undefined;
+}
+
+const THINKING_OPEN_TAGS = ["<thinking>", "<think>", "<antThinking>"] as const;
+const THINKING_CLOSE_TAGS = ["</thinking>", "</think>", "</antThinking>"] as const;
+
+export const BACKGROUND_TASK_WAIT_RE =
+  /^\s*(?:<\/?(?:thinking|think|antThinking)>\s*)*waiting for (?:the\s+)?.*?(?:background task|task)\s+to\s+(?:finish|complete)\.?\s*(?:<\/?(?:thinking|think|antThinking)>\s*)*$/i;
+
+export function isBackgroundTaskWaitText(text: string): boolean {
+  return BACKGROUND_TASK_WAIT_RE.test(text);
+}
+
+interface TextSegment {
+  type: "reasoning" | "assistant";
+  text: string;
+  closedReasoning?: boolean;
+}
+
+export function parseThinkingSegments(
+  text: string,
+  contentState: AcpContentItemState,
+): TextSegment[] {
+  const segments: TextSegment[] = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    if (contentState.inThinkingBlock) {
+      let earliestCloseIdx = -1;
+      let matchingCloseTag = "";
+      for (const closeTag of THINKING_CLOSE_TAGS) {
+        const idx = text.indexOf(closeTag, cursor);
+        if (idx !== -1 && (earliestCloseIdx === -1 || idx < earliestCloseIdx)) {
+          earliestCloseIdx = idx;
+          matchingCloseTag = closeTag;
+        }
+      }
+
+      if (earliestCloseIdx === -1) {
+        const chunk = text.slice(cursor);
+        if (chunk.length > 0) {
+          segments.push({ type: "reasoning", text: chunk });
+        }
+        break;
+      } else {
+        const chunk = text.slice(cursor, earliestCloseIdx);
+        segments.push({ type: "reasoning", text: chunk, closedReasoning: true });
+        contentState.inThinkingBlock = false;
+        cursor = earliestCloseIdx + matchingCloseTag.length;
+      }
+    } else {
+      let earliestOpenIdx = -1;
+      let matchingOpenTag = "";
+      for (const openTag of THINKING_OPEN_TAGS) {
+        const idx = text.indexOf(openTag, cursor);
+        if (idx !== -1 && (earliestOpenIdx === -1 || idx < earliestOpenIdx)) {
+          earliestOpenIdx = idx;
+          matchingOpenTag = openTag;
+        }
+      }
+
+      if (earliestOpenIdx === -1) {
+        const chunk = text.slice(cursor);
+        if (chunk.length > 0) {
+          segments.push({ type: "assistant", text: chunk });
+        }
+        break;
+      } else {
+        const chunk = text.slice(cursor, earliestOpenIdx);
+        if (chunk.length > 0) {
+          segments.push({ type: "assistant", text: chunk });
+        }
+        contentState.inThinkingBlock = true;
+        cursor = earliestOpenIdx + matchingOpenTag.length;
+      }
+    }
+  }
+
+  return segments;
 }
 
 /**
@@ -117,14 +195,27 @@ export function mapAcpSessionUpdate(
         textToProcess = handled.text;
       }
 
+      // Drop transient waiting heartbeats so they do not open assistant message
+      // items, break tool group accordions, or bloat chat length.
+      if (
+        textToProcess !== undefined &&
+        isBackgroundTaskWaitText(textToProcess) &&
+        !contentState.openAssistantItemId
+      ) {
+        break;
+      }
+
       // Some ACP agents emit a blank text chunk after every tool call — empty
       // for most, newline-only for Factory Droid on DeepSeek models. It is only
       // a stream boundary, not an assistant message; opening an item for it
       // leaves a completed blank row between the tool and the next thought.
       if (textToProcess !== undefined && textToProcess.trim().length === 0) {
-        // A zero-length chunk is always a no-op. Whitespace is real spacing
-        // only once an assistant message is already streaming.
-        if (textToProcess.length === 0 || !contentState.openAssistantItemId) break;
+        if (
+          textToProcess.length === 0 ||
+          (!contentState.openAssistantItemId && !contentState.inThinkingBlock)
+        ) {
+          break;
+        }
       }
       // Gemini echoes `[MODE_UPDATE] <mode>` as an agent text chunk whenever the
       // session is launched (or switched) into a specific approval mode. The
@@ -133,6 +224,7 @@ export function mapAcpSessionUpdate(
       // assistant item so the chat stays clean.
       if (
         !contentState.openAssistantItemId &&
+        !contentState.inThinkingBlock &&
         textToProcess !== undefined &&
         /^\[MODE_UPDATE\]/.test(textToProcess)
       ) {
@@ -146,37 +238,101 @@ export function mapAcpSessionUpdate(
           break;
         }
       }
-      // Open an assistant item on first chunk; emit deltas thereafter.
-      if (!contentState.openAssistantItemId) {
-        // Close any prior reasoning/user items — assistant is starting fresh.
-        events.push(...closeOpenContentItems(state, parentToolCallId));
-        contentState.openAssistantItemId = newItemId("asst");
-        events.push({
-          type: "item.started",
-          threadId,
-          itemId: contentState.openAssistantItemId,
-          itemType: "assistant_message",
-        });
-      }
-      if (content) {
-        if (textToProcess !== undefined) {
-          events.push({
-            type: "content.delta",
-            threadId,
-            itemId: contentState.openAssistantItemId,
-            stream: "assistant_text",
-            delta: textToProcess,
-          });
-        } else {
-          const block = acpContentBlockToCanonical(content);
-          if (block) {
+
+      if (textToProcess !== undefined) {
+        const segments = parseThinkingSegments(textToProcess, contentState);
+        for (const segment of segments) {
+          if (segment.type === "reasoning") {
+            if (isBackgroundTaskWaitText(segment.text)) {
+              if (segment.closedReasoning && contentState.openReasoningItemId) {
+                events.push({
+                  type: "item.completed",
+                  threadId,
+                  itemId: contentState.openReasoningItemId,
+                });
+                delete contentState.openReasoningItemId;
+              }
+              continue;
+            }
+            if (segment.text.length > 0) {
+              if (!contentState.openReasoningItemId) {
+                if (contentState.openAssistantItemId) {
+                  events.push({
+                    type: "item.completed",
+                    threadId,
+                    itemId: contentState.openAssistantItemId,
+                  });
+                  delete contentState.openAssistantItemId;
+                }
+                contentState.openReasoningItemId = newItemId("reason");
+                events.push({
+                  type: "item.started",
+                  threadId,
+                  itemId: contentState.openReasoningItemId,
+                  itemType: "reasoning",
+                });
+              }
+              events.push({
+                type: "content.delta",
+                threadId,
+                itemId: contentState.openReasoningItemId,
+                stream: "reasoning_text",
+                delta: segment.text,
+              });
+            }
+            if (segment.closedReasoning && contentState.openReasoningItemId) {
+              events.push({
+                type: "item.completed",
+                threadId,
+                itemId: contentState.openReasoningItemId,
+              });
+              delete contentState.openReasoningItemId;
+            }
+          } else {
+            if (isBackgroundTaskWaitText(segment.text) && !contentState.openAssistantItemId) {
+              continue;
+            }
+            if (segment.text.trim().length === 0 && !contentState.openAssistantItemId) {
+              continue;
+            }
+            if (!contentState.openAssistantItemId) {
+              events.push(...closeOpenContentItems(state, parentToolCallId));
+              contentState.openAssistantItemId = newItemId("asst");
+              events.push({
+                type: "item.started",
+                threadId,
+                itemId: contentState.openAssistantItemId,
+                itemType: "assistant_message",
+              });
+            }
             events.push({
-              type: "item.updated",
+              type: "content.delta",
               threadId,
               itemId: contentState.openAssistantItemId,
-              payload: { content: [block] },
+              stream: "assistant_text",
+              delta: segment.text,
             });
           }
+        }
+      } else if (content) {
+        if (!contentState.openAssistantItemId) {
+          events.push(...closeOpenContentItems(state, parentToolCallId));
+          contentState.openAssistantItemId = newItemId("asst");
+          events.push({
+            type: "item.started",
+            threadId,
+            itemId: contentState.openAssistantItemId,
+            itemType: "assistant_message",
+          });
+        }
+        const block = acpContentBlockToCanonical(content);
+        if (block) {
+          events.push({
+            type: "item.updated",
+            threadId,
+            itemId: contentState.openAssistantItemId,
+            payload: { content: [block] },
+          });
         }
       }
       break;
@@ -212,6 +368,9 @@ export function mapAcpSessionUpdate(
       }
       const content = (update as { content?: ContentBlock }).content;
       if (content && content.type === "text") {
+        if (isBackgroundTaskWaitText(content.text)) {
+          break;
+        }
         events.push({
           type: "content.delta",
           threadId,

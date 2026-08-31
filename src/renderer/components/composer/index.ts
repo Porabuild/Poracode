@@ -8,6 +8,7 @@ export {
 export { AttachmentBar, ComputerUseChip, McpChip } from "./AttachmentBar";
 export { ComposerAddMenu, type ComposerMcpMenuItem } from "./ComposerAddMenu";
 export { getComputerUseScope } from "./computerUseScope";
+export { pluginMentionsForAvailableMcp, withoutPluginBackedMcpMentions } from "./pluginBackedMcp";
 export {
   browserMcpServer,
   chromeMcpServer,

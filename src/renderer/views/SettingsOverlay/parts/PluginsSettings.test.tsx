@@ -55,17 +55,19 @@ describe("PluginsSettings", () => {
   });
 
   it("keeps focus on the card after uninstalling from the detail page", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
+    // github brings its own server, so it is the opt-in kind that can be
+    // uninstalled — built-in tool plugins only offer an enable switch.
+    useSharedSettings.getState().installPlugin(pluginFixture("github"));
     render(<PluginsSettings />);
 
-    const card = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    fireEvent.click(within(card).getByRole("button", { name: "Browser Tools" }));
+    const card = screen.getByText("GitHub").closest<HTMLElement>("[class*='min-h-40']")!;
+    fireEvent.click(within(card).getByRole("button", { name: "GitHub" }));
     fireEvent.click(screen.getByRole("button", { name: "Uninstall" }));
     fireEvent.click(screen.getByRole("button", { name: "Back to plugins" }));
 
     // The card stays in the marketplace after uninstalling; only its action flips.
-    const restored = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    expect(within(restored).getByRole("button", { name: "Browser Tools" })).toHaveFocus();
-    expect(within(restored).getByRole("button", { name: "Browser Tools Install" })).toBeVisible();
+    const restored = screen.getByText("GitHub").closest<HTMLElement>("[class*='min-h-40']")!;
+    expect(within(restored).getByRole("button", { name: "GitHub" })).toHaveFocus();
+    expect(within(restored).getByRole("button", { name: "GitHub Install" })).toBeVisible();
   });
 });

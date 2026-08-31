@@ -19,10 +19,11 @@ import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
+import { COMPUTER_USE_MCP_ID } from "./composerMcpServers";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
 
 /** Selection id for the Computer Use row inside the MCP submenu. */
-const COMPUTER_USE_KEY = "computer-use";
+const COMPUTER_USE_KEY = COMPUTER_USE_MCP_ID;
 
 export type ComposerMcpMenuItem = {
   descriptor: ComposerMcpServerDescriptor;
@@ -43,6 +44,9 @@ export type ComposerCustomMcpItem = {
   /** Omitted in read-only mode (an active thread's bindings can't change). */
   onToggle?: (next: boolean) => void;
 };
+
+/** Stable empty map so an omitted `pluginLabels` prop doesn't churn renders. */
+const EMPTY_PLUGIN_LABELS: Readonly<Record<string, string>> = {};
 
 /** Menu-selection key prefix so custom ids can never collide with registry ids. */
 const CUSTOM_KEY_PREFIX = "custom:";
@@ -132,10 +136,17 @@ export function ComposerAddMenu(props: {
    */
   readOnly?: boolean;
   readOnlyCaption?: ReactNode;
+  /**
+   * Display name per built-in MCP server id for the servers a first-party
+   * plugin packages, from `pluginLabelsForMcpServers`. The row then reads the
+   * same as the plugin's `@`-mention instead of naming the raw server.
+   */
+  pluginLabels?: Readonly<Record<string, string>>;
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
   const readOnly = props.readOnly === true;
+  const pluginLabels = props.pluginLabels ?? EMPTY_PLUGIN_LABELS;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
@@ -147,6 +158,7 @@ export function ComposerAddMenu(props: {
   // Read-only mode keeps the MCP entry visible even with nothing enabled so
   // the user gets an explicit "none for this run" answer instead of a missing row.
   const hasMcpMenu = hasMcpRows || readOnly;
+  const computerUseLabel = pluginLabels[COMPUTER_USE_MCP_ID] ?? t`Computer Use`;
   const computerUseHint = isRemoteSession()
     ? t`Controls the paired desktop while the agent clicks or types`
     : t`Takes over the desktop while the agent clicks or types`;
@@ -282,7 +294,7 @@ export function ComposerAddMenu(props: {
       </button>
       {visibleMcpServers.map((server) => {
         const Icon = server.descriptor.icon;
-        const label = t(server.descriptor.label);
+        const label = pluginLabels[server.descriptor.id] ?? t(server.descriptor.label);
         return readOnly ? (
           <div
             key={server.descriptor.id}
@@ -340,9 +352,7 @@ export function ComposerAddMenu(props: {
       {showComputerUse && readOnly ? (
         <div className="m-sheet-action" data-static="true" aria-disabled="true">
           <Monitor className="size-4 shrink-0 text-muted" />
-          <span className="flex-1 truncate">
-            <Trans>Computer Use</Trans>
-          </span>
+          <span className="flex-1 truncate">{computerUseLabel}</span>
           <InfoHint text={computerUseHint} />
           <MenuSwitch checked={computerUse.enabled} readOnly />
         </div>
@@ -355,9 +365,7 @@ export function ComposerAddMenu(props: {
           onClick={() => computerUse.onToggle(!computerUse.enabled)}
         >
           <Monitor className="size-4 shrink-0 text-muted" />
-          <span className="flex-1 truncate">
-            <Trans>Computer Use</Trans>
-          </span>
+          <span className="flex-1 truncate">{computerUseLabel}</span>
           <InfoHint text={computerUseHint} />
           <MenuSwitch checked={computerUse.enabled} />
         </button>
@@ -448,7 +456,8 @@ export function ComposerAddMenu(props: {
                     >
                       {visibleMcpServers.map((server) => {
                         const Icon = server.descriptor.icon;
-                        const label = t(server.descriptor.label);
+                        const label =
+                          pluginLabels[server.descriptor.id] ?? t(server.descriptor.label);
                         return (
                           <div
                             key={server.descriptor.id}
@@ -475,9 +484,7 @@ export function ComposerAddMenu(props: {
                       {showComputerUse ? (
                         <div role="listitem" className={readOnlyRowClassName}>
                           <Monitor className="size-4 shrink-0 text-muted" />
-                          <span className="min-w-0 flex-1 truncate">
-                            <Trans>Computer Use</Trans>
-                          </span>
+                          <span className="min-w-0 flex-1 truncate">{computerUseLabel}</span>
                           <InfoHint text={computerUseHint} />
                           <MenuSwitch checked={computerUse.enabled} readOnly />
                         </div>
@@ -496,7 +503,8 @@ export function ComposerAddMenu(props: {
                     >
                       {visibleMcpServers.map((server) => {
                         const Icon = server.descriptor.icon;
-                        const label = t(server.descriptor.label);
+                        const label =
+                          pluginLabels[server.descriptor.id] ?? t(server.descriptor.label);
                         return (
                           <Dropdown.Item
                             key={server.descriptor.id}
@@ -521,11 +529,9 @@ export function ComposerAddMenu(props: {
                         </Dropdown.Item>
                       ))}
                       {showComputerUse ? (
-                        <Dropdown.Item id={COMPUTER_USE_KEY} textValue={t`Computer Use`}>
+                        <Dropdown.Item id={COMPUTER_USE_KEY} textValue={computerUseLabel}>
                           <Monitor className="size-4 shrink-0 text-muted" />
-                          <Label className="flex-1 truncate">
-                            <Trans>Computer Use</Trans>
-                          </Label>
+                          <Label className="flex-1 truncate">{computerUseLabel}</Label>
                           <InfoHint text={computerUseHint} />
                           <MenuSwitch checked={computerUse.enabled} />
                         </Dropdown.Item>

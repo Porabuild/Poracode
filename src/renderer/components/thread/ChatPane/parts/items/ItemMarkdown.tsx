@@ -268,18 +268,20 @@ export function normalizeShortCodeFenceClosers(text: string): string {
 
 /**
  * Antigravity ACP background tasks and historical transcript logs can embed
- * `<task_notification>` XML tags into markdown text. Render these cleanly as
- * formatted task notification callouts with monospace output blocks rather than
- * raw XML tags. Matches inside fenced code blocks are left untouched — they are
- * literal code content, and rewriting them would corrupt the fence structure.
+ * `<task_notification>` or `<SYSTEM_MESSAGE>` blocks into markdown text.
+ * Render these cleanly as formatted task notification callouts with monospace output
+ * blocks rather than raw XML tags or system prompt noise. Matches inside fenced
+ * code blocks are left untouched — they are literal code content, and rewriting them
+ * would corrupt the fence structure.
  */
 export function formatTaskNotifications(text: string): string {
-  if (!text.includes("<task_notification>")) return text;
+  if (!text.includes("<task_notification>") && !text.includes("<SYSTEM_MESSAGE>")) return text;
   const fenceLines = scanFenceLines(text);
   return text.replace(
-    /<task_notification>([\s\S]*?)<\/task_notification>/gi,
-    (match: string, body: string, offset: number) => {
+    /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)?<SYSTEM_MESSAGE>([\s\S]*?)<\/SYSTEM_MESSAGE>|<task_notification>([\s\S]*?)<\/task_notification>/gi,
+    (match: string, sysBody: string | undefined, taskBody: string | undefined, offset: number) => {
       if (isInsideFence(fenceLines, offset)) return match;
+      const body = sysBody ?? taskBody ?? "";
       const parsed = parseTaskNotificationBody(body);
       const headerParts = [`**${i18n._(msg`Task Notification`)}**`];
       if (parsed.taskId) {

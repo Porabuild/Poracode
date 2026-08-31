@@ -1413,6 +1413,7 @@ msgid "App Browser"
 msgstr "Przeglądarka aplikacji"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 msgid "App Controls"
 msgstr "Sterowanie aplikacją"
 
@@ -2042,6 +2043,7 @@ msgid "Building diff…"
 msgstr "Budowanie różnic…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Wbudowany"
@@ -5194,6 +5196,7 @@ msgstr "Plik używa nieobsługiwanego kodowania."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -6141,6 +6144,10 @@ msgstr "Wewnątrz tego projektu"
 msgid "Inspect canonical runtime items"
 msgstr "Sprawdź kanoniczne elementy środowiska wykonawczego"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "Sprawdzaj wątki i panele terminala oraz steruj gitem, pull requestami i harmonogramami."
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "zainstaluj"
@@ -6968,8 +6975,8 @@ msgstr "MCP"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "MCP server"
-msgstr "Serwer MCP"
+#~ msgid "MCP server"
+#~ msgstr "Serwer MCP"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
@@ -7020,6 +7027,7 @@ msgid "MCP server URL"
 msgstr "Adres URL serwera MCP"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -8154,6 +8162,10 @@ msgstr "Nie ma jeszcze wątków"
 msgid "No threads yet."
 msgstr "Brak wątków."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "nie otrzymano werdyktu — CLI mogło zablokować /goal (zaufanie przestrzeni roboczej lub ustawienia hooków) albo ewaluator nie mógł się uruchomić"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "Nie zgłoszono żadnych okien"
@@ -9031,7 +9043,6 @@ msgid "Play notification sound"
 msgstr "Odtwórz dźwięk powiadomienia"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Wtyczka"
 
@@ -9055,6 +9066,7 @@ msgstr "plugin.json nie jest zgodny ze specyfikacją Agent Plugins."
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json wskazuje wersję Agent Plugins nieobsługiwaną przez tę kompilację."
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9352,6 +9364,8 @@ msgstr "Profile"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9717,6 +9731,10 @@ msgstr "Uruchom ponownie wszystkie zadania"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "Uruchom ponownie nieudane zadania"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "Odczytuj i steruj samym Poracode: wątki, panele terminala, git, pull requesty i harmonogramy."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -12844,6 +12862,7 @@ msgstr "Nie znaleziono wątku"
 msgid "Thread todo dock"
 msgstr "Dok zadań wątku"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx

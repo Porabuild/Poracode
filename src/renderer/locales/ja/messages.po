@@ -1412,6 +1412,7 @@ msgid "App Browser"
 msgstr "アプリブラウザ"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 msgid "App Controls"
 msgstr "アプリコントロール"
 
@@ -2041,6 +2042,7 @@ msgid "Building diff…"
 msgstr "差分を作成中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "組み込み"
@@ -5193,6 +5195,7 @@ msgstr "ファイルはサポートされていないエンコーディングを
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -6140,6 +6143,10 @@ msgstr "このプロジェクト内"
 msgid "Inspect canonical runtime items"
 msgstr "正規のランタイム項目を検査する"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "スレッドとターミナルパネルを確認し、git、プルリクエスト、スケジュールを操作します。"
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "インストールする"
@@ -6967,8 +6974,8 @@ msgstr "MCP"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "MCP server"
-msgstr "MCPサーバー"
+#~ msgid "MCP server"
+#~ msgstr "MCPサーバー"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
@@ -7019,6 +7026,7 @@ msgid "MCP server URL"
 msgstr "MCPサーバーのURL"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -8152,6 +8160,10 @@ msgstr "まだスレッドはありません"
 msgid "No threads yet."
 msgstr "まだスレッドがありません。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "判定が届きませんでした — CLIが/goalをブロックしたか（ワークスペースの信頼またはフック設定）、評価器を実行できませんでした"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "ウィンドウは報告されませんでした"
@@ -9029,7 +9041,6 @@ msgid "Play notification sound"
 msgstr "通知音を鳴らす"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "プラグイン"
 
@@ -9053,6 +9064,7 @@ msgstr "plugin.json は Agent Plugins 仕様として正しくありません。
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json はこのビルドが対応していない Agent Plugins バージョンを指定しています。"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9350,6 +9362,8 @@ msgstr "プロファイル"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9715,6 +9729,10 @@ msgstr "すべてのジョブを再実行"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "失敗したジョブを再実行"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "Poracode 自体の読み取りと操作：スレッド、ターミナルパネル、git、プルリクエスト、スケジュール。"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -12842,6 +12860,7 @@ msgstr "スレッドが見つかりません"
 msgid "Thread todo dock"
 msgstr "スレッドのやることドック"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx

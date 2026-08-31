@@ -534,6 +534,43 @@ describe("plugin mention selection", () => {
       { kind: "text", content: " " },
     ]);
   });
+
+  it("turns on the built-in servers whose mention rows the plugin replaces", () => {
+    const onMcpMentionSelect = vi.fn<(id: string) => void>();
+    render(
+      createElement(MentionInput, {
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        onMcpMentionSelect,
+        pluginMentions: [
+          {
+            id: "browser-tools",
+            name: "Browser Tools",
+            enablesMcpServerIds: ["browser"],
+            command: {
+              id: "browser-control",
+              label: "Browser Control",
+              skillName: "browser-control",
+              skillPath: String.raw`C:\plugins\browser-tools\skills\browser-control\SKILL.md`,
+              skillInvocation: "$browser-control",
+              skillProvider: "Browser Tools",
+              skillScope: "global",
+              pluginId: "browser-tools",
+              pluginName: "Browser Tools",
+            },
+          },
+        ],
+      }),
+    );
+
+    const editor = typeMention("bro");
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.querySelector('[data-plugin-id="browser-tools"]')).not.toBeNull();
+    expect(onMcpMentionSelect).toHaveBeenCalledWith("browser");
+  });
 });
 
 describe("Enter handling", () => {

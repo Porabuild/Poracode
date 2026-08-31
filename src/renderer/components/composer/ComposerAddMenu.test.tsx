@@ -278,6 +278,62 @@ describe("ComposerAddMenu", () => {
     ).toBeInTheDocument();
   });
 
+  it("names a server after the plugin that packages it", () => {
+    const browserToggle = vi.fn<(next: boolean) => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[
+          { descriptor: browserMcpServer, enabled: true, visible: true, onToggle: browserToggle },
+          {
+            descriptor: crossagentMcpServer,
+            enabled: false,
+            visible: true,
+            onToggle: vi.fn<(next: boolean) => void>(),
+          },
+        ]}
+        pluginLabels={{ browser: "Browser Tools" }}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+      />,
+    );
+
+    openMenu();
+    openMcpSubmenu();
+
+    // The wrapped server reads as its plugin, matching the `@`-mention list;
+    // a server no plugin covers keeps its registry label.
+    expect(screen.getByText("Browser Tools")).toBeInTheDocument();
+    expect(screen.queryByText("Browser")).not.toBeInTheDocument();
+    expect(screen.getByText("Crossagents")).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(screen.getByText("Browser Tools"));
+    });
+    expect(browserToggle).toHaveBeenCalledWith(false);
+  });
+
+  it("names Computer Use after its plugin when one packages it", () => {
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        pluginLabels={{ "computer-use": "Desktop Control" }}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+        computerUse={{
+          enabled: false,
+          visible: true,
+          onToggle: vi.fn<(next: boolean) => void>(),
+        }}
+      />,
+    );
+
+    openMenu();
+    openMcpSubmenu();
+
+    expect(screen.getByText("Desktop Control")).toBeInTheDocument();
+    expect(screen.queryByText("Computer Use")).not.toBeInTheDocument();
+  });
+
   it("toggles Computer Use from inside the submenu", () => {
     const computerUseToggle = vi.fn<(next: boolean) => void>();
     render(

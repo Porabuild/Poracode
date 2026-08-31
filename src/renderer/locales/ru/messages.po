@@ -1413,6 +1413,7 @@ msgid "App Browser"
 msgstr "Встроенный браузер"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 msgid "App Controls"
 msgstr "Управление приложением"
 
@@ -2042,6 +2043,7 @@ msgid "Building diff…"
 msgstr "Построение diff…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Встроенный"
@@ -5194,6 +5196,7 @@ msgstr "Файл использует неподдерживаемую коди�
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -6141,6 +6144,10 @@ msgstr "Внутри этого проекта"
 msgid "Inspect canonical runtime items"
 msgstr "Проверить канонические элементы среды выполнения"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "Просмотр тредов и панелей терминала, управление git, пул-реквестами и расписаниями."
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "установки"
@@ -6968,8 +6975,8 @@ msgstr "MCP"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "MCP server"
-msgstr "Сервер MCP"
+#~ msgid "MCP server"
+#~ msgstr "Сервер MCP"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
@@ -7020,6 +7027,7 @@ msgid "MCP server URL"
 msgstr "URL сервера MCP"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -8154,6 +8162,10 @@ msgstr "Пока нет потоков"
 msgid "No threads yet."
 msgstr "Тредов пока нет."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "вердикт не получен — CLI мог заблокировать /goal (доверие к рабочему пространству или настройки хуков), либо оценщик не смог запуститься"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "Окна не сообщены"
@@ -9031,7 +9043,6 @@ msgid "Play notification sound"
 msgstr "Звук уведомления"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Плагин"
 
@@ -9055,6 +9066,7 @@ msgstr "plugin.json не соответствует спецификации Age
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json указывает версию Agent Plugins, которую эта сборка не поддерживает."
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9352,6 +9364,8 @@ msgstr "Профили"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9717,6 +9731,10 @@ msgstr "Перезапустить все задания"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "Перезапустить неудачные задания"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "Чтение и управление самим Poracode: треды, панели терминала, git, пул-реквесты и расписания."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -12844,6 +12862,7 @@ msgstr "Тред не найден"
 msgid "Thread todo dock"
 msgstr "Панель задач треда"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
