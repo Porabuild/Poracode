@@ -57,6 +57,8 @@ export interface ProviderUpdateAllProgress {
   agentLabel: string;
   targetVersion: string;
   phase: ActiveProviderUpdatePhase;
+  current: number;
+  total: number;
 }
 
 interface PendingProviderUpdateState {
@@ -378,6 +380,7 @@ export function useProviderUpdates(
       (agent) => outdatedKinds.includes(agent.kind) && !pendingUpdates.has(agent.kind),
     );
     if (targets.length === 0) return;
+    const total = targets.length;
     setIsUpdatingAll(true);
     setPendingUpdates((current) => {
       const next = new Map(current);
@@ -389,15 +392,19 @@ export function useProviderUpdates(
     });
     void (async () => {
       try {
+        let current = 0;
         // Sequential: concurrent installs contend for the same package
         // manager prefix (and the same WSL distro) and fail unpredictably.
         for (const agent of targets) {
           const targetVersion = entryFor(agent.kind).targetVersion;
           if (!targetVersion) continue;
+          current += 1;
           setUpdateAllProgress({
             agentLabel: agent.label,
             targetVersion,
             phase: "updating",
+            current,
+            total,
           });
           await withPending({ kind: agent.kind, targetVersion, phase: "updating" }, (setPhase) =>
             runUpdate(agent, (phase) => {
@@ -406,6 +413,8 @@ export function useProviderUpdates(
                 agentLabel: agent.label,
                 targetVersion,
                 phase,
+                current,
+                total,
               });
             }),
           );
