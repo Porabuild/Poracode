@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-controls",
+  "version": "1.1.0",
+  "description": "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules.",
+  "author": {
+    "name": "Poracode",
+    "url": "https://poracode.com"
+  },
+  "homepage": "https://poracode.com",
+  "license": "Apache-2.0",
+  "keywords": ["terminal", "threads", "git", "pull requests", "schedules"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "App Controls",
+      "category": "developer-tools",
+      "featured": true,
+      "examplePrompt": "Check the Terminal panel for this worktree and tell me what the running command is doing",
+      "coreSkill": "app-controls",
+      "builtInMcpServerIds": ["app-controls"],
+      "skills": {
+        "app-controls": {
+          "name": "App Controls",
+          "description": "Inspect threads and terminal panes, and drive git, pull requests, and schedules from inside Poracode."
+        },
+        "terminal-inspection": {
+          "name": "Terminal Inspection",
+          "description": "Read the Terminal panel attached to this worktree and report the evidence."
+        }
+      }
+    }
+  }
+}
