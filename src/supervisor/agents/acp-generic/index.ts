@@ -6,23 +6,25 @@
  * is purely configuration glue between an `AgentInstanceConfig` and the
  * existing ACP plumbing used by Copilot today.
  *
- * v1 entry point: `createAcpGenericAdapter(instance)` returns an `AgentAdapter`
- * the supervisor's registry can register exactly like a built-in adapter. The
- * settings UI for adding instances ships in a follow-up; the runtime can read
- * instances from `settings.json` today.
+ * `createAcpGenericAdapter(instance)` returns an `AgentAdapter` the supervisor
+ * can register directly or compose behind a first-class provider alias. ACP
+ * Registry installs supply these instances through the shared installer.
  */
 
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import type {
-  AgentInstanceConfig,
-  AcpGenericInstanceConfig,
-  AgentCapability,
-  AgentStatus,
-  AuthState,
-  ProjectLocation,
+import {
+  acpGenericCommandForEnvironment,
+  acpGenericKind,
+  parseAcpGenericInstanceConfig,
+  type AcpGenericCommandConfig,
+  type AgentInstanceConfig,
+  type AcpGenericInstanceConfig,
+  type AgentCapability,
+  type AgentStatus,
+  type AuthState,
+  type ProjectLocation,
 } from "@/shared/contracts";
-import { acpGenericKind, parseAcpGenericInstanceConfig } from "@/shared/contracts";
 import {
   authenticateAcpAgent,
   createAcpStructuredSession,
@@ -36,6 +38,8 @@ import {
 } from "../acp";
 import {
   buildAgentCommand,
+  batchWslCommandsAsync,
+  quotePosixShellArg,
   type AgentAdapter,
   type AgentEnvContext,
   type CommandSpec,
@@ -63,10 +67,21 @@ const GENERIC_ACP_DEFAULT_CAPABILITIES: AgentCapability = {
   settingDefs: [],
 };
 
-export function createAcpGenericAdapter(instance: AgentInstanceConfig): AgentAdapter {
+export interface AcpGenericAdapterOptions {
+  kind?: string;
+  label?: string;
+  probeTimeoutMs?: number;
+  normalizeProbeResult?: (result: AcpProbeResult) => AcpProbeResult;
+  synthesizeApprovalPolicies?: boolean;
+}
+
+export function createAcpGenericAdapter(
+  instance: AgentInstanceConfig,
+  options: AcpGenericAdapterOptions = {},
+): AgentAdapter {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
-  const kind = acpGenericKind(instance.id);
-  const label = instance.displayName ?? cfg.binary;
+  const kind = options.kind ?? acpGenericKind(instance.id);
+  const label = options.label ?? instance.displayName ?? cfg.binary;
 
   const capabilities: AgentCapability = {
     ...GENERIC_ACP_DEFAULT_CAPABILITIES,
@@ -84,34 +99,49 @@ export function createAcpGenericAdapter(instance: AgentInstanceConfig): AgentAda
     binary: cfg.binary,
     capabilities,
     async detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus> {
-      const installed = isProbablyInstalled(cfg.binary);
+      const commandConfig = commandConfigForContext(cfg, ctx);
+      const installed = commandConfig
+        ? cfg.environmentCommands
+          ? await isGenericCommandInstalled(commandConfig.binary, ctx)
+          : isProbablyInstalled(commandConfig.binary)
+        : false;
       const rawProbe = installed
-        ? await probeGenericCapabilities(ctx, cfg, instance, label)
+        ? await probeGenericCapabilities(ctx, cfg, instance, label, options.probeTimeoutMs)
         : undefined;
-      const probeResult = rawProbe
+      const normalizedProbe =
+        rawProbe && options.normalizeProbeResult
+          ? options.normalizeProbeResult(rawProbe)
+          : rawProbe;
+      const probeResult = normalizedProbe
         ? {
-            ...rawProbe,
-            ...(rawProbe.authMethods
-              ? { authMethods: dedupeAcpAuthMethods(rawProbe.authMethods) }
+            ...normalizedProbe,
+            ...(normalizedProbe.authMethods
+              ? { authMethods: dedupeAcpAuthMethods(normalizedProbe.authMethods) }
               : {}),
           }
         : undefined;
       const authState: AuthState = resolveGenericAuthState(cfg, instance, probeResult, ctx);
-      const loginCommand = resolveGenericLoginCommand(cfg, probeResult);
+      const loginCommand = commandConfig
+        ? resolveGenericLoginCommand(commandConfig, probeResult)
+        : undefined;
       const providerMetadata = resolveGenericProviderMetadata(probeResult);
       return {
         kind,
         label,
         installed,
         ...(instance.icon ? { icon: instance.icon } : {}),
-        ...(instance.version ? { version: instance.version } : {}),
+        ...((commandConfig?.version ?? instance.version)
+          ? { version: commandConfig?.version ?? instance.version }
+          : {}),
         authState,
         ...(probeResult?.sessionEstablished ? { acpSessionEstablished: true } : {}),
         ...(loginCommand ? { loginCommand } : {}),
         ...(providerMetadata ? { providerMetadata } : {}),
         ...(probeResult?.authMethods ? { authMethods: probeResult.authMethods } : {}),
         ...(probeResult?.authLogoutSupported ? { authLogoutSupported: true } : {}),
-        capabilities: mergeAcpProbeCapabilities(capabilities, probeResult, instance),
+        capabilities: mergeAcpProbeCapabilities(capabilities, probeResult, instance, {
+          synthesizeApprovalPolicies: options.synthesizeApprovalPolicies !== false,
+        }),
       };
     },
     buildLaunchArgv() {
@@ -245,6 +275,7 @@ function mergeAcpProbeCapabilities(
   capabilities: AgentCapability,
   probeResult: AcpProbeResult | undefined,
   instance: AgentInstanceConfig,
+  options: { synthesizeApprovalPolicies: boolean },
 ): AgentCapability {
   if (!probeResult) return capabilities;
   const merged: AgentCapability = {
@@ -262,6 +293,9 @@ function mergeAcpProbeCapabilities(
     ...(probeResult.modes ? { modes: probeResult.modes } : {}),
     ...(probeResult.approvalPolicies ? { approvalPolicies: probeResult.approvalPolicies } : {}),
     ...(probeResult.slashCommands ? { slashCommands: probeResult.slashCommands } : {}),
+    ...(probeResult.supportsResume !== undefined
+      ? { supportsResume: probeResult.supportsResume }
+      : {}),
   };
   const hasBypassApprovalPolicy = merged.approvalPolicies.some((policy) => policy.id === "never");
   const hasOnlyDefaultApprovalPolicy =
@@ -272,6 +306,7 @@ function mergeAcpProbeCapabilities(
   // single provider-named "default" policy; normalize it to Poracode's
   // two-state UI instead of showing a one-item dropdown.
   if (
+    options.synthesizeApprovalPolicies &&
     !hasBypassApprovalPolicy &&
     (merged.approvalPolicies.length === 0 || hasOnlyDefaultApprovalPolicy) &&
     merged.modes.includes("agent")
@@ -301,11 +336,18 @@ function buildGenericCommand(
   instance: AgentInstanceConfig,
   extraEnv?: Record<string, string>,
 ): CommandSpec {
+  const commandConfig = commandConfigForLocation(cfg, location);
+  if (!commandConfig) {
+    const environment = location.kind === "wsl" ? `WSL distro ${location.distro}` : "native host";
+    throw new Error(
+      `${instance.displayName ?? instance.id} is not installed for the ${environment}`,
+    );
+  }
   const args =
-    cfg.binary === "npx"
-      ? applyAcpRegistryNpxArgsOverride(instance.id, cfg.args ?? [])
-      : (cfg.args ?? []);
-  const env: Record<string, string> = { ...(extraEnv ?? {}) };
+    commandConfig.binary === "npx"
+      ? applyAcpRegistryNpxArgsOverride(instance.id, commandConfig.args ?? [])
+      : (commandConfig.args ?? []);
+  const env: Record<string, string> = { ...(commandConfig.env ?? {}), ...(extraEnv ?? {}) };
   if (instance.environment) {
     for (const [name, value] of Object.entries(instance.environment)) {
       env[name] = value.value;
@@ -316,18 +358,54 @@ function buildGenericCommand(
   // hatch is rare.
   if (cfg.cwd === "fixed" && cfg.fixedCwd) {
     return {
-      command: cfg.binary,
+      command: commandConfig.binary,
       args,
       cwd: cfg.fixedCwd,
       ...(Object.keys(env).length > 0 ? { env } : {}),
     };
   }
-  return buildAgentCommand(location, cfg.binary, args, undefined, env);
+  return buildAgentCommand(location, commandConfig.binary, args, undefined, env);
 }
 
 function authBrowserEnv(location: ProjectLocation): Record<string, string> | undefined {
   if (location.kind !== "wsl") return undefined;
   return { BROWSER: 'cmd.exe /c start ""' };
+}
+
+function commandConfigForLocation(
+  cfg: AcpGenericInstanceConfig,
+  location: ProjectLocation,
+): AcpGenericCommandConfig | undefined {
+  return acpGenericCommandForEnvironment(
+    cfg,
+    location.kind === "wsl" ? { kind: "wsl", distro: location.distro } : { kind: "native" },
+  );
+}
+
+function commandConfigForContext(
+  cfg: AcpGenericInstanceConfig,
+  ctx: AgentEnvContext | undefined,
+): AcpGenericCommandConfig | undefined {
+  return acpGenericCommandForEnvironment(
+    cfg,
+    ctx?.envKind === "wsl" && ctx.wslDistro
+      ? { kind: "wsl", distro: ctx.wslDistro }
+      : { kind: "native" },
+  );
+}
+
+async function isGenericCommandInstalled(
+  binary: string,
+  ctx: AgentEnvContext | undefined,
+): Promise<boolean> {
+  if (ctx?.envKind === "wsl" && ctx.wslDistro) {
+    const script = binary.startsWith("/")
+      ? `test -x ${quotePosixShellArg(binary)}`
+      : `command -v ${quotePosixShellArg(binary)} >/dev/null 2>&1`;
+    const [result] = await batchWslCommandsAsync(ctx.wslDistro, [script], ctx.signal);
+    return result?.ok === true;
+  }
+  return isProbablyInstalled(binary);
 }
 
 function isProbablyInstalled(binary: string): boolean {
@@ -413,12 +491,12 @@ function isInteractiveAuthAcknowledged(
 }
 
 function resolveGenericLoginCommand(
-  cfg: AcpGenericInstanceConfig,
+  command: AcpGenericCommandConfig,
   probeResult: AcpProbeResult | undefined,
 ): string | undefined {
   const terminalMethod = probeResult?.authMethods?.find(isAcpTerminalAuthMethod);
   if (!terminalMethod) return undefined;
-  return [cfg.binary, ...(cfg.args ?? []), ...(terminalMethod.args ?? [])].join(" ");
+  return [command.binary, ...(command.args ?? []), ...(terminalMethod.args ?? [])].join(" ");
 }
 
 function resolveGenericProviderMetadata(

@@ -44,7 +44,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
         type="button"
         onClick={() => {
           setIsOpen((v) => !v);
-          actions?.onContentHeightChange();
+          actions?.onContentHeightChange?.();
         }}
         aria-expanded={isOpen}
         className="group inline-flex min-w-0 max-w-full items-center gap-1.5 self-start leading-none italic opacity-80 hover:text-foreground hover:opacity-100"

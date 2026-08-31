@@ -110,6 +110,12 @@ describe("antigravityQuotaSummaryWindows", () => {
     expect(antigravityQuotaSummaryWindows({ response: {} })).toEqual([]);
     expect(antigravityQuotaSummaryWindows({ anything: [1, 2] })).toEqual([]);
   });
+
+  it("parses the bare Cloud Code summary identically to the language-server envelope", () => {
+    expect(antigravityQuotaSummaryWindows(QUOTA_SUMMARY.response)).toEqual(
+      antigravityQuotaSummaryWindows(QUOTA_SUMMARY),
+    );
+  });
 });
 
 describe("antigravityPool", () => {

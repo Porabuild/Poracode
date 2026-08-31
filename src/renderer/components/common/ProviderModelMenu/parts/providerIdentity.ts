@@ -8,7 +8,10 @@ type ProviderIdentityInput = {
   modelPickerKey?: string;
   hiddenModelsKey?: string;
   /** Adapter-declared runtime badge for the surface (`AgentCapability.runtimeLabel`). */
-  capabilities?: { runtimeLabel?: string | undefined };
+  capabilities?: {
+    runtimeLabel?: string | undefined;
+    showRuntimeLabelInPicker?: boolean | undefined;
+  };
 };
 
 /**
@@ -72,6 +75,7 @@ export function modelVisibilityKey(
 
 export function providerLabelForPresentation(provider: ProviderIdentityInput): string {
   const label = provider.label ?? provider.kind;
+  if (provider.capabilities?.showRuntimeLabelInPicker === false) return label;
   const runtimeLabel =
     provider.presentationMode === "terminal"
       ? legacySurfaceIdentity[baseAgentKind(provider.kind)]?.terminalRuntimeLabel

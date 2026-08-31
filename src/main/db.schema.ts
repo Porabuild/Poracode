@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -26,6 +26,8 @@ export const threads = sqliteTable("threads", {
   projectId: text("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
+  /** Workspace a Home thread was created in; NULL = visible in every workspace. */
+  workspaceId: text("workspace_id"),
   title: text("title").notNull(),
   agentKind: text("agent_kind").notNull(), // provider kind
   /** Optional id of a user-registered ACP instance backing this thread. */
@@ -140,6 +142,7 @@ export const threadRuntimeItems = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.threadId, table.itemId] }),
+    parentIndex: index("idx_runtime_items_thread_parent").on(table.threadId, table.parentItemId),
   }),
 );
 

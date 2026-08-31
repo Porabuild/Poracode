@@ -124,7 +124,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     if (onHeightChange) {
       onHeightChange();
     } else {
-      actions?.onContentHeightChange();
+      actions?.onContentHeightChange?.();
     }
   }, [actions, isExpanded, onHeightChange, showAll]);
 
@@ -307,7 +307,7 @@ function SameFileEditRunInline({
       isExpanded={isExpanded}
       onExpandedChange={(next) => {
         setIsExpanded(next);
-        actions?.onContentHeightChange();
+        actions?.onContentHeightChange?.();
       }}
     >
       <Disclosure.Heading>
@@ -460,7 +460,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       isExpanded={isExpanded}
       onExpandedChange={(next) => {
         setIsExpanded(next);
-        actions?.onContentHeightChange();
+        actions?.onContentHeightChange?.();
       }}
     >
       <Disclosure.Heading>

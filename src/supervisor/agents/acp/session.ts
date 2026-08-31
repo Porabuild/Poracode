@@ -124,6 +124,7 @@ import {
   rewriteLoadSessionError,
   shouldEmitAcpPromptRpcErrorItem,
 } from "./sessionErrors";
+import { isFatalAcpQuotaError } from "./acpUserVisibleErrors";
 import { AcpSessionRequests } from "./sessionRequests";
 import {
   buildAcpMcpServers,
@@ -143,6 +144,16 @@ export { normalizeAcpStopReason, rewriteLoadSessionError };
  * still open, which is what covers the multi-minute cases.
  */
 const ORPHAN_TURN_IDLE_MS = 20_000;
+
+/**
+ * Silence deadline for background subagent reports after the foreground
+ * prompt returned `end_turn`. Every `session/update` received while waiting
+ * re-arms the deadline, so actively reporting subagents keep the turn open;
+ * only an agent that will never report (Antigravity ends turns without
+ * terminal `tool_call_update`s) closes it. Reports that land after the close
+ * still surface through the detached-subagent turn machinery.
+ */
+const FOREGROUND_SUBAGENT_DRAIN_MS = 60_000;
 
 /**
  * Old Droid builds reject `session/new` with JSON-RPC invalid-params or
@@ -325,6 +336,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   private orphanTurnId: string | undefined;
   private orphanTurnIdleTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Drain deadline while `foregroundTurnAwaitingSubagents` is armed. */
+  private foregroundSubagentDrainTimer: ReturnType<typeof setTimeout> | undefined;
   private stableSessionRef: SessionRef | undefined;
   /**
    * usage.spent ledger scope: the ACP session id plus an epoch that bumps if
@@ -838,7 +851,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.sessionConfigSync.rememberOptions([], []);
 
     if (sessionRef) {
-      if (this.agentSessionCapabilities?.resume !== undefined) {
+      if (this.agentSessionCapabilities?.resume != null) {
         console.log("[acp] resuming session:", sessionRef.providerSessionId);
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
@@ -957,6 +970,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // its items close under that turn instead of leaking into this one. Silent:
     // the `working` paint below covers the handover with no idle flicker.
     this.completeOrphanTurn({ silent: true });
+    // Same for a foreground turn still awaiting detached subagent reports:
+    // the wait has no prompt left to anchor it, and its drain timer must not
+    // outlive the turn it was armed for. Detached tool calls stay in the
+    // mapper and can still report as detached turns.
+    if (this.foregroundTurnAwaitingSubagents) {
+      this.clearForegroundSubagentDrainTimer();
+      this.foregroundTurnAwaitingSubagents = false;
+      this.completeTurn(this.ensureMapperState(), "completed");
+    }
     // Claim turn ownership before the first `await` below. `promptInFlight` only
     // goes true once the prompt is actually issued, and an inbound notification
     // landing in that gap would otherwise open a competing orphan turn.
@@ -1064,13 +1086,28 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         // Close the foreground response now, while deliberately preserving
         // detached subagent tool calls in the mapper until their reports land.
         this.emitRuntimeEvents(closeOpenTurnItems(mapperState));
+        if (mapperState.activeSubAgents.length === 0) {
+          // `closeOpenTurnItems` purges subagent tool calls that never
+          // received a terminal update (Antigravity ends turns this way), so
+          // no report can ever drain the wait — finish now instead of
+          // pinning `working` until the user force-stops the thread.
+          this.foregroundTurnAwaitingSubagents = false;
+          this.emitTurnStatusAfterPrompt(normalizedStopReason);
+          this.completeTurn(mapperState, turnState);
+        } else {
+          this.armForegroundSubagentDrainTimer();
+        }
       } else {
         this.emitTurnStatusAfterPrompt(normalizedStopReason);
         this.completeTurn(mapperState, turnState);
       }
     } catch (error) {
       if (this.isDisposed) return;
-      if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
+      if (this.agentSurfacedErrorMessage) {
+        // Quota/provider failures already sealed the turn; a later transport
+        // abort from session/cancel must not overwrite that error with idle.
+        if (this.currentTurnId) this.completeTurn(this.ensureMapperState(), "failed");
+      } else if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
         this.emitListenerUpdate({ status: "idle", attention: "none" });
         this.completeTurn(this.ensureMapperState(), "cancelled");
       } else {
@@ -1123,9 +1160,20 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.pendingPromptInterrupt = true;
       return;
     }
+    const closeAwaitingForegroundTurn =
+      this.foregroundTurnAwaitingSubagents && !this.promptInFlight;
+    if (closeAwaitingForegroundTurn) this.clearForegroundSubagentDrainTimer();
     try {
-      await this.connection.cancel({ sessionId: this.sessionId });
+      const cancelRequest = this.connection.cancel({ sessionId: this.sessionId });
+      if (closeAwaitingForegroundTurn) {
+        this.completeForegroundTurnAfterSubagents(this.ensureMapperState(), "cancelled");
+      }
+      await cancelRequest;
     } catch (error) {
+      if (closeAwaitingForegroundTurn) {
+        this.completeForegroundTurnAfterSubagents(this.ensureMapperState(), "cancelled");
+        return;
+      }
       // A close callback owns the root failure. A cancel racing that callback
       // is derivative noise, but unrelated provider rejections still surface.
       if (this.isDisposed || this.transportClosed) return;
@@ -1138,6 +1186,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   forceCompleteTurn(): void {
     this.completeOrphanTurn({ silent: true });
+    this.clearForegroundSubagentDrainTimer();
     if (!this.currentTurnId) return;
     this.foregroundTurnAwaitingSubagents = false;
     this.completeTurn(this.ensureMapperState(), "cancelled");
@@ -1155,6 +1204,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       clearTimeout(this.orphanTurnIdleTimer);
       this.orphanTurnIdleTimer = undefined;
     }
+    this.clearForegroundSubagentDrainTimer();
     this.sessionRequests.cancelPending();
     this._terminalManager?.releaseAllAcpTerminals();
 
@@ -1177,6 +1227,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private reportTransportOutcome(errorMessage: string | undefined): void {
     if (this.transportOutcomeReported) return;
     this.transportOutcomeReported = true;
+    this.sessionRequests.cancelPending();
     if (errorMessage) {
       this.listener?.onError(errorMessage);
     }
@@ -1491,8 +1542,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       const events = mapAcpSessionUpdate(params, mapperState);
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
-        this.recordAgentSurfacedError(events);
         this.emitRuntimeEvents(events);
+        this.recordAgentSurfacedError(events);
       }
       for (const toolCallId of this.detachedTurnParentToolCallIds) {
         if (!mapperState.activeSubAgents.some((active) => active.toolCallId === toolCallId)) {
@@ -1501,6 +1552,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
       if (this.foregroundTurnAwaitingSubagents && mapperState.activeSubAgents.length === 0) {
         this.completeForegroundTurnAfterSubagents(mapperState);
+      } else if (this.foregroundTurnAwaitingSubagents) {
+        // Subagent reports are still landing — push the silence deadline out.
+        this.armForegroundSubagentDrainTimer();
       } else if (this.detachedTurnId && this.detachedTurnParentToolCallIds.size === 0) {
         this.completeDetachedTurn();
       } else if (
@@ -1658,6 +1712,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         attention: "error",
         errorMessage: event.message,
       });
+      if (isFatalAcpQuotaError(event.message) && this.promptInFlight && this.sessionId) {
+        // Antigravity retries 429s without resolving session/prompt. Fail the
+        // turn now and cancel so the in-flight prompt cannot pin `working`.
+        this.completeTurn(this.ensureMapperState(), "failed");
+        void this.connection.cancel({ sessionId: this.sessionId }).catch((error: unknown) => {
+          console.warn(
+            "[acp] cancel after quota error failed:",
+            error instanceof Error ? error.message : String(error),
+          );
+        });
+      }
       return;
     }
   }
@@ -1726,13 +1791,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.orphanTurnIdleTimer = setTimeout(() => {
       this.orphanTurnIdleTimer = undefined;
       if (this.isDisposed || !this.orphanTurnId) return;
-      // Sitting inside a long tool call is not idleness — a test run or build
+      // Sitting inside a long *command* is not idleness — a test run or build
       // can go minutes without emitting anything. Detached subagent calls are
-      // held open on purpose, so they never count as "still running here".
-      const insideToolCall = [...this.ensureMapperState().toolCallItems.values()].some(
-        (item) => !item.detached,
+      // held open on purpose. Read/search tool_calls that never receive a
+      // terminal update (Antigravity `client_view_file` / `view_file`) must
+      // not pin the orphan turn forever.
+      const insideLiveCommand = [...this.ensureMapperState().toolCallItems.values()].some(
+        (item) => !item.detached && item.itemType === "command_execution",
       );
-      if (insideToolCall) {
+      if (insideLiveCommand) {
         this.armOrphanTurnIdleTimer();
         return;
       }
@@ -1770,12 +1837,34 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
-  private completeForegroundTurnAfterSubagents(mapperState: AcpMapperState): void {
+  private completeForegroundTurnAfterSubagents(
+    mapperState: AcpMapperState,
+    state: "completed" | "cancelled" = "completed",
+  ): void {
     if (!this.foregroundTurnAwaitingSubagents) return;
+    this.clearForegroundSubagentDrainTimer();
     this.foregroundTurnAwaitingSubagents = false;
-    this.completeTurn(mapperState, "completed");
+    this.completeTurn(mapperState, state);
     this.emitListenerUpdate({ status: "idle", attention: "none" });
     this.clearCompletedTurnCaches();
+  }
+
+  private armForegroundSubagentDrainTimer(): void {
+    if (this.foregroundSubagentDrainTimer) clearTimeout(this.foregroundSubagentDrainTimer);
+    this.foregroundSubagentDrainTimer = setTimeout(() => {
+      this.foregroundSubagentDrainTimer = undefined;
+      if (this.isDisposed || !this.foregroundTurnAwaitingSubagents) return;
+      console.log(
+        "[acp] background subagent reports went silent after end_turn — completing the foreground turn",
+      );
+      this.completeForegroundTurnAfterSubagents(this.ensureMapperState());
+    }, FOREGROUND_SUBAGENT_DRAIN_MS);
+  }
+
+  private clearForegroundSubagentDrainTimer(): void {
+    if (!this.foregroundSubagentDrainTimer) return;
+    clearTimeout(this.foregroundSubagentDrainTimer);
+    this.foregroundSubagentDrainTimer = undefined;
   }
 
   private clearCompletedTurnCaches(): void {
@@ -1788,12 +1877,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     turnState: "completed" | "cancelled" | "failed",
   ): void {
     if (!this.currentTurnId) return;
+    const turnId = this.currentTurnId;
+    this.currentTurnId = undefined;
     this.emitRuntimeEvents([
       ...closeOpenTurnItems(mapperState),
       {
         type: "turn.completed",
         threadId: this.threadId,
-        turnId: this.currentTurnId,
+        turnId,
         state: turnState,
       },
     ]);
@@ -1813,10 +1904,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       events.push({ type: "error", threadId: this.threadId, message: rpcMessage });
     }
     if (this.currentTurnId) {
+      const turnId = this.currentTurnId;
+      this.currentTurnId = undefined;
       events.push({
         type: "turn.completed",
         threadId: this.threadId,
-        turnId: this.currentTurnId,
+        turnId,
         state: "failed",
       });
     }

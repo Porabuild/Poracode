@@ -26,6 +26,7 @@ import {
   resolveEnabledMcpServers,
 } from "@/shared/contracts";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import { msg } from "@/shared/messages";
 import type { AgentNativePlugin } from "@/supervisor/agents/base";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
@@ -64,6 +65,10 @@ import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
+import {
+  buildProviderHandoffInstruction,
+  resolveThreadMentionSegments,
+} from "../threadMentionResolver";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
@@ -104,6 +109,7 @@ export interface SpawnThreadInput {
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
   nativePlugins?: readonly AgentNativePlugin[];
 }
@@ -241,6 +247,11 @@ export function composeResolvedMcpServers(
   ].filter((server): server is ResolvedMcpServer => server !== undefined);
 }
 
+function hasThreadMentionTools(servers: readonly ResolvedMcpServer[]): boolean {
+  const appControls = servers.find((server) => server.id === "app-controls");
+  return appControls !== undefined && !appControls.disabledTools?.includes("read_thread");
+}
+
 /**
  * Everything the spawn pipeline borrows from the manager. The pipeline owns
  * process creation (structured-session bring-up, argv assembly, PTY spawn,
@@ -270,6 +281,12 @@ export interface SpawnPipelineContext {
     segments?: PromptSegment[],
     requestedItemId?: string,
   ): string;
+  emitProviderHandoff(
+    threadId: string,
+    fromAgentKind: string,
+    toAgentKind: string,
+    requestedItemId?: string,
+  ): string;
 }
 
 /**
@@ -285,6 +302,15 @@ export class SpawnPipeline {
     payload: StartThreadPayload & { threadId: string },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
+    // A provider switch abandons whatever turn the old session still has open.
+    // Complete it locally — the same close-out the Stop watchdog applies when a
+    // provider never acknowledges — BEFORE teardown: teardown itself never
+    // completes items, so without this the half-streamed rows strand as
+    // forever-running output above the handoff divider, live and in SQLite.
+    if (payload.providerSwitch) {
+      ctx.sessions.get(payload.threadId)?.structuredSession?.forceCompleteTurn?.();
+      ctx.runtimeEventRouter.flush();
+    }
     await ctx.closeThread({ threadId: payload.threadId });
     if (ctx.pendingStartAborts.delete(payload.threadId)) {
       ctx.pendingStartInterrupts.delete(payload.threadId);
@@ -292,6 +318,7 @@ export class SpawnPipeline {
     }
 
     const adapter = this.requireAdapter(payload.agentKind);
+
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
     // Per-thread mode wins over the adapter default. Chat-mode threads route
     // input/output through the structured session even for adapters whose
@@ -304,8 +331,11 @@ export class SpawnPipeline {
       payload.agentKind,
     )) ?? { mcpServers: [], builtInMcpServerIds: [], nativePlugins: [] };
     const nativePlugins = pluginContributions.nativePlugins;
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
           preservePdfAttachments:
             useStructuredFlow && adapter.capabilities.readsPdfAttachmentsFromHost === true,
@@ -361,12 +391,15 @@ export class SpawnPipeline {
     // newSession/loadSession) runs. When the renderer has already painted an
     // optimistic message and shipped its id with the payload, we reuse that
     // id end-to-end so the chat pane never sees a duplicate.
-    const optimisticUserMessageItemId =
-      !usesTerminalPresentation && initialPrompt.length > 0 && !payload.sessionRef
+    let optimisticUserMessageItemId =
+      !payload.providerSwitch &&
+      !usesTerminalPresentation &&
+      initialPrompt.length > 0 &&
+      !payload.sessionRef
         ? ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
-            effectiveSegments,
+            payload.segments,
             payload.userMessageItemId,
           )
         : undefined;
@@ -456,6 +489,36 @@ export class SpawnPipeline {
       adapter,
       presentationMode: requestedPresentation,
     });
+    const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
+    // A "thread-transcript" switch (chat → chat) keeps the thread id and the
+    // whole transcript, so the incoming provider reads the prior conversation
+    // straight from the app database instead of being handed a summary. Every
+    // other handoff already carries its context in the prompt and must not get
+    // the instruction on top of it.
+    const handsOverTranscript = payload.providerSwitch?.contextStrategy === "thread-transcript";
+    const handoffInstruction =
+      handsOverTranscript && payload.providerSwitch && threadMentionToolsAvailable
+        ? buildProviderHandoffInstruction(payload.threadId, payload.providerSwitch.fromAgentKind)
+        : undefined;
+    // The client skipped extraction because it expected this session to resolve
+    // `read_thread`, and it did not. Nothing here can rebuild the context (the
+    // previous provider's session is already closed), so the thread says so
+    // instead of leaving the user with a provider that silently lost the
+    // conversation. Emitted below, after the handoff divider and the user's
+    // message, so it reads as a note on the new provider's first turn.
+    const transcriptHandoffLost = handsOverTranscript && !threadMentionToolsAvailable;
+    const inlineInstructions =
+      inlineSkillInstructions && handoffInstruction
+        ? `${handoffInstruction}\n\n${inlineSkillInstructions}`
+        : (handoffInstruction ?? inlineSkillInstructions);
+    if (
+      payload.segments?.some((segment) => segment.kind === "thread") &&
+      !threadMentionToolsAvailable
+    ) {
+      throw new Error(
+        "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
+      );
+    }
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -511,6 +574,30 @@ export class SpawnPipeline {
           `Agent ${payload.agentKind} does not support ${requestedPresentation} presentation.`,
         );
       }
+      if (payload.providerSwitch) {
+        ctx.emitProviderHandoff(
+          payload.threadId,
+          payload.providerSwitch.fromAgentKind,
+          payload.agentKind,
+          payload.providerSwitch.handoffItemId,
+        );
+        if (initialPrompt.length > 0) {
+          optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
+            payload.threadId,
+            initialPrompt,
+            payload.segments,
+            payload.userMessageItemId,
+          );
+          this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
+        }
+        if (transcriptHandoffLost) {
+          ctx.runtimeEventRouter.append(payload.threadId, {
+            type: "warning",
+            threadId: payload.threadId,
+            message: msg("supervisor.handoffTranscriptUnavailable", { agent: adapter.label }),
+          });
+        }
+      }
       const resolvedSessionRef =
         payload.sessionRef ??
         (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
@@ -531,6 +618,7 @@ export class SpawnPipeline {
         suppressInitialStructuredIdle:
           optimisticUserMessageItemId !== undefined && !startInterrupted,
         mcpLaunchSnapshot,
+        threadMentionToolsAvailable,
         launchConfig,
         nativePlugins,
       });
@@ -544,7 +632,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
-          ...(inlineSkillInstructions ? { inlineInstructions: inlineSkillInstructions } : {}),
+          ...(inlineInstructions ? { inlineInstructions } : {}),
         };
         void structuredSession
           .startTurn(
@@ -575,7 +663,7 @@ export class SpawnPipeline {
           initialPrompt,
           launchConfig,
           effectiveSegments,
-          inlineSkillInstructions ? { inlineInstructions: inlineSkillInstructions } : undefined,
+          inlineInstructions ? { inlineInstructions } : undefined,
         )
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);
@@ -678,6 +766,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       mcpLaunchSnapshot,
+      threadMentionToolsAvailable,
       launchConfig,
       nativePlugins,
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
@@ -816,6 +905,7 @@ export class SpawnPipeline {
         structuredSession,
         sessionRef: session.sessionRef,
         mcpLaunchSnapshot,
+        threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
         launchConfig,
         ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
@@ -827,7 +917,11 @@ export class SpawnPipeline {
         // path owns the first canonical paint and must emit it now.
         const optimisticItemId =
           turn.userMessageItemId ??
-          ctx.emitOptimisticUserMessage(session.threadId, prompt, turn.segments);
+          ctx.emitOptimisticUserMessage(
+            session.threadId,
+            prompt,
+            turn.displaySegments ?? turn.segments,
+          );
         const startOptions = {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
@@ -917,6 +1011,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: session.sessionRef,
       mcpLaunchSnapshot,
+      threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
       launchConfig,
       ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
@@ -1016,6 +1111,9 @@ export class SpawnPipeline {
       projectLocation: input.projectLocation,
       config: input.config,
       mcpLaunchSnapshot,
+      ...(input.threadMentionToolsAvailable !== undefined
+        ? { threadMentionToolsAvailable: input.threadMentionToolsAvailable }
+        : {}),
       ...(input.nativePlugins ? { nativePlugins: input.nativePlugins } : {}),
       launchConfig:
         input.launchConfig ??

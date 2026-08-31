@@ -95,6 +95,11 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   showNotification: "device-owned-notification",
   detectProjectIcon: "remote-mirrors-skip-file-icons",
   listProjectIconFiles: "remote-mirrors-skip-file-icons",
+  // Plugin packages are read from the host filesystem the supervisor runs on.
+  // A remote project's own `.poracode/plugins` therefore stays with its server;
+  // the local scan just falls back to the app-global roots.
+  listPlugins: "remote-projects-scan-locally",
+  refreshPlugins: "remote-projects-scan-locally",
 } as const satisfies Partial<Record<IpcProcedureName, string>>;
 
 export type RemoteRoutableProcedureName = keyof typeof REMOTE_PROCEDURE_ROUTES;

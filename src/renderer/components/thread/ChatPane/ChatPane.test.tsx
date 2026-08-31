@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { toast } from "@heroui/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
@@ -1434,6 +1435,82 @@ describe("ChatPane", () => {
     expect(badge?.querySelector("svg")).toBeInTheDocument();
     // The raw `@Browser` directive text is replaced by the badge.
     expect(screen.queryByText("@Browser")).not.toBeInTheDocument();
+  });
+
+  it("renders thread mentions in user messages as clean badges", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: "source-thread", title: "Source discussion" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-thread-mention-title="Source discussion"]');
+    expect(badge).toHaveTextContent("Source discussion");
+    expect(badge).toHaveAttribute("data-thread-mention-id", "source-thread");
+    expect(badge).toHaveAttribute("type", "button");
+    expect(badge).toHaveAttribute("aria-label", "Open Source discussion");
+    expect(badge).toHaveClass("poracode-thread-mention-chip");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("@Source discussion")).not.toBeInTheDocument();
+  });
+
+  it("opens an existing thread mention when its chip is clicked", async () => {
+    const thread = makeThread();
+    const sourceThread = { ...makeThread(), id: "source-thread", title: "Source discussion" };
+    const onOpenThread = vi.fn<(threadId: string) => void>();
+    useAppStore.setState({ projects: [project], threads: [thread, sourceThread] });
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: sourceThread.id, title: sourceThread.title },
+    ]);
+
+    renderChatPane(thread, { onOpenThread });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Source discussion" }));
+
+    expect(onOpenThread).toHaveBeenCalledWith(sourceThread.id);
+  });
+
+  it("routes a Home-scope thread mention chip through onOpenThread", async () => {
+    const thread = { ...makeThread(), projectId: HOME_PROJECT_ID };
+    const sourceThread = { ...makeThread(), id: "source-thread", title: "Source discussion" };
+    const onOpenThread = vi.fn<(threadId: string) => void>();
+    useAppStore.setState({ projects: [project], threads: [thread, sourceThread] });
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: sourceThread.id, title: sourceThread.title },
+    ]);
+
+    const { rerender } = renderChatPane(thread, { onOpenThread });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Source discussion" }));
+    expect(onOpenThread).toHaveBeenCalledWith(sourceThread.id);
+
+    // The handler is routed through a ref: a fresh caller arrow must be the
+    // one invoked next, without the paneActions memo re-running.
+    const nextOnOpenThread = vi.fn<(threadId: string) => void>();
+    rerender(
+      <AppProvider>
+        <ChatPane {...chatPaneProps(thread)} onOpenThread={nextOnOpenThread} />
+      </AppProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open Source discussion" }));
+    expect(onOpenThread).toHaveBeenCalledTimes(1);
+    expect(nextOnOpenThread).toHaveBeenCalledWith(sourceThread.id);
+  });
+
+  it("shows a toast when a thread mention no longer exists", async () => {
+    const thread = makeThread();
+    useAppStore.setState({ projects: [project], threads: [thread] });
+    seedUserMessageContent(thread.id, [
+      { kind: "thread", threadId: "missing-thread", title: "Missing discussion" },
+    ]);
+
+    renderChatPane(thread);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Missing discussion" }));
+
+    expect(toastDangerSpy).toHaveBeenCalledWith("Thread not found");
   });
 
   it("copies user message text from the inline action", async () => {

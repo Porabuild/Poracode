@@ -34,6 +34,8 @@ export interface AcpContentItemState {
   openAssistantItemId?: string;
   openReasoningItemId?: string;
   openUserItemId?: string;
+  /** Whether currently inside an active `<thinking>` / `<think>` block in agent text. */
+  inThinkingBlock?: boolean;
 }
 
 /** Per-session state — tracks open items so deltas land on the right item id. */
@@ -45,6 +47,8 @@ export interface AcpMapperState {
   openReasoningItemId?: string;
   /** Item id of the currently-streaming user message, if any. */
   openUserItemId?: string;
+  /** Whether currently inside an active `<thinking>` / `<think>` block in agent text. */
+  inThinkingBlock?: boolean;
   /** Open streamed content keyed by its owning subagent tool call. */
   subAgentContentItems: Map<string, AcpContentItemState>;
   /** Map ACP `toolCallId` → our internal item id + canonical item type + payload. */
@@ -78,6 +82,21 @@ export interface AcpMapperState {
    */
   suppressedTodoWriteIds: Set<string>;
   /**
+   * Tracked background tasks (e.g. Antigravity task id -> command execution item).
+   * Persisted across turn boundaries so asynchronous task completions can update
+   * the original command execution row.
+   */
+  backgroundTasks: Map<
+    string,
+    { toolCallId: string; itemId: string; command: string; payload: Record<string, unknown> }
+  >;
+  /**
+   * Partial `<task_notification>` text still streaming across
+   * `agent_message_chunk` boundaries, pinned to the parent tool call whose
+   * transcript the notification belongs to.
+   */
+  taskNotificationBuffer?: { parentToolCallId: string | undefined; text: string } | undefined;
+  /**
    * Resolve the live output of a client-hosted ACP terminal by its
    * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
    * (separate JSON-RPC channel) and references the terminal from
@@ -102,6 +121,7 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     subAgentContentItems: new Map(),
     suppressedToolCallIds: new Set(),
     suppressedTodoWriteIds: new Set(),
+    backgroundTasks: new Map(),
   };
 }
 
@@ -153,6 +173,7 @@ export function closeOpenContentItems(
       delete contentState[key];
     }
   }
+  contentState.inThinkingBlock = false;
   return events;
 }
 
@@ -175,4 +196,6 @@ export function resetMapperForTurnEnd(state: AcpMapperState): void {
   state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;
   delete state.openPlanSteps;
+  state.taskNotificationBuffer = undefined;
+  state.inThinkingBlock = false;
 }

@@ -29,7 +29,7 @@ import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { msg } from "@/shared/messages";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
-import { joinProjectPosixPath } from "@/shared/wsl";
+import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
   setSessionFsBridgeClient,
@@ -238,7 +238,7 @@ export class SupervisorRuntime {
       resolveAgentVersion: (kind, wslDistro) =>
         this.agentStatusService.getCachedVersion(kind, wslDistro),
       readInstalledPlugins: () => this.sharedSettingsCache.readFresh().installedPlugins,
-      readPlugins: () => this.pluginRegistry.listPlugins(),
+      readPlugins: (projectFsPath) => this.pluginRegistry.listPlugins(projectFsPath),
     });
 
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
@@ -463,7 +463,7 @@ export class SupervisorRuntime {
           console.warn(`[plugins] failed to inspect native ${agentKind} plugins:`, error);
         }
         const result = resolvePluginMcpServers(
-          this.pluginRegistry.listPlugins(),
+          this.pluginRegistry.listPlugins(getProjectFsPath(projectLocation)),
           this.sharedSettingsCache.readFresh().installedPlugins,
           {
             pluginDataRoot: this.pluginDataDir,

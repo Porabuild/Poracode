@@ -1,6 +1,15 @@
 import { useLingui } from "@lingui/react/macro";
-import type { LoadedPlugin, PluginDiagnostic, SkillEntry } from "@/shared/contracts";
-import { usePlugins } from "@/renderer/state/pluginsStore";
+import type {
+  LoadedPlugin,
+  PluginDiagnostic,
+  ProjectLocation,
+  SkillEntry,
+} from "@/shared/contracts";
+import {
+  selectPluginsForScope,
+  usePlugins,
+  useProjectPluginScope,
+} from "@/renderer/state/pluginsStore";
 
 /**
  * Display copy for loaded Agent Plugins packages.
@@ -32,21 +41,32 @@ export interface LocalizedPlugin {
   mcpServers: LocalizedPluginContribution[];
 }
 
-export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
+export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): LocalizedPlugin[] {
   const { t } = useLingui();
-  const plugins = usePlugins((state) => state.plugins);
+  // Project packages are only visible to their own project, so the catalog is
+  // read for that scope; without a project only the app-global roots show.
+  const plugins = usePlugins((state) => selectPluginsForScope(state, projectLocation));
+  useProjectPluginScope(projectLocation);
 
   return plugins.map((plugin): LocalizedPlugin => {
     const fallbackName = plugin.poracode.title ?? plugin.name;
     let name: string;
     let description: string;
     switch (plugin.name) {
+      case "app-controls":
+        name = t`Poracode`;
+        description = t`Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules.`;
+        break;
+      case "terminal":
+        name = t`Terminal`;
+        description = t`Read the Terminal panel attached to this worktree and report what it is printing.`;
+        break;
       case "browser-tools":
-        name = t`Browser Tools`;
+        name = t`Browser`;
         description = t`Browse, inspect, and test websites in Poracode's isolated in-app browser.`;
         break;
       case "chrome-tools":
-        name = t`Chrome Tools`;
+        name = t`Chrome`;
         description = t`Work with the pages and signed-in sessions already open in Chrome.`;
         break;
       case "computer-use":
@@ -54,7 +74,7 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
         description = t`Control desktop apps and complete visual workflows.`;
         break;
       case "subagent-delegation":
-        name = t`Subagent Delegation`;
+        name = t`Crossagents`;
         description = t`Delegate focused work to other installed agents and coordinate the results.`;
         break;
       case "github":
@@ -73,6 +93,18 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
     const skills = plugin.skills.map((skill): LocalizedPluginContribution => {
       const policy = plugin.poracode.skills[skill.folder];
       switch (`${plugin.name}:${skill.folder}`) {
+        case "app-controls:app-controls":
+          return {
+            id: skill.folder,
+            name: t`Poracode`,
+            description: t`Inspect threads and terminal panes, and drive git, pull requests, and schedules.`,
+          };
+        case "terminal:terminal-inspection":
+          return {
+            id: skill.folder,
+            name: t`Terminal`,
+            description: t`Read the Terminal panel attached to this worktree and report the evidence.`,
+          };
         case "browser-tools:browser-control":
           return {
             id: skill.folder,
@@ -94,7 +126,7 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
         case "subagent-delegation:subagent-delegation":
           return {
             id: skill.folder,
-            name: t`Subagent Delegation`,
+            name: t`Crossagents`,
             description: t`Choose, brief, and coordinate subagents for parallel work.`,
           };
         default:
@@ -112,15 +144,19 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
       (id): LocalizedPluginContribution => ({
         id,
         name:
-          id === "browser"
-            ? t`Browser`
-            : id === "chrome"
-              ? t`Chrome`
-              : id === "crossagents"
-                ? t`Crossagents`
-                : id === "computer-use"
-                  ? t`Computer Use`
-                  : id,
+          id === "app-controls"
+            ? plugin.name === "terminal"
+              ? t`Terminal`
+              : t`Poracode`
+            : id === "browser"
+              ? t`Browser`
+              : id === "chrome"
+                ? t`Chrome`
+                : id === "crossagents"
+                  ? t`Crossagents`
+                  : id === "computer-use"
+                    ? t`Computer Use`
+                    : id,
       }),
     );
     const declaredMcpServers = plugin.mcpServers.map((server): LocalizedPluginContribution => {

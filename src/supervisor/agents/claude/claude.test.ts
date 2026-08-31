@@ -201,9 +201,12 @@ describe("createClaudeAdapter buildAcpLogoutCommand", () => {
     const command = await adapter.buildAcpLogoutCommand?.();
     expect(command).toBeDefined();
     const args = command?.args ?? [];
+    // The binary can live in `command` (a direct exe spawn) or inside `args`
+    // (a shell wrapper), depending on how the host resolves `claude` — render
+    // both so the assertion does not depend on this machine's install.
     const rendered = args.includes("-EncodedCommand")
       ? Buffer.from(args.at(-1) ?? "", "base64").toString("utf16le")
-      : args.join(" ");
+      : [command?.command ?? "", ...args].join(" ");
     expect(rendered).toMatch(/claude/i);
     expect(rendered).toContain("auth");
     expect(rendered).toContain("logout");

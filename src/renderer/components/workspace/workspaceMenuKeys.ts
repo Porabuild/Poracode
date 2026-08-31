@@ -24,3 +24,13 @@ export function parseWorkspaceMenuKey(key: string): WorkspaceMenuSelection | nul
   if (!key.startsWith(WORKSPACE_KEY_PREFIX)) return null;
   return { kind: "workspace", workspaceId: key.slice(WORKSPACE_KEY_PREFIX.length) };
 }
+
+/** Route a fired menu key to `setWorkspace`; non-workspace keys are ignored. */
+export function applyWorkspaceMenuChoice(
+  key: string,
+  setWorkspace: (workspaceId: string | undefined) => void,
+): void {
+  const choice = parseWorkspaceMenuKey(key);
+  if (choice?.kind === "unfiled") setWorkspace(undefined);
+  else if (choice?.kind === "workspace") setWorkspace(choice.workspaceId);
+}

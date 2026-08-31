@@ -75,6 +75,16 @@ export function ThreadDetail(props: {
           runThreadAction(remote, thread, action, () => void navigate({ to: "/threads" }))
         }
         onSubmitInput={(prompt, segments) => remote.sendPrompt(prompt, segments)}
+        onOpenThread={(mentionedThreadId) => {
+          // The store keeps archived threads that activeThreads drops; the chip
+          // gate already confirmed the thread exists, so look it up there.
+          const target = useAppStore
+            .getState()
+            .threads.find((entry) => entry.id === mentionedThreadId);
+          if (!target) return;
+          void remote.openThread(target);
+          void navigate({ to: "/thread/$threadId", params: { threadId: mentionedThreadId } });
+        }}
         onOpenSubAgent={(parentItemId) => {
           if (useRightPanel) {
             useDesktopPanelStore.getState().showSubAgent(thread.id, parentItemId);

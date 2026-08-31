@@ -117,18 +117,30 @@ export interface ClaudeMapperState {
   activeGoalIterations?: number;
   activeGoalLastReason?: string;
   /**
-   * True once the SDK has emitted any `active_goal` message this session —
-   * i.e. the CLI's native /goal Stop-hook evaluator is live. While true, goal
-   * completion is driven exclusively by `active_goal` with `value: null` (the
-   * evaluator's "met" verdict); a turn `result` no longer completes the goal.
+   * True once the SDK has emitted an `active_goal` message for the CURRENTLY
+   * armed goal — i.e. the CLI's native /goal Stop-hook evaluator is live for
+   * it. While true, goal completion is driven exclusively by `active_goal`
+   * with `value: null` (the evaluator's "met" verdict); a turn `result` no
+   * longer completes the goal. Cleared with the goal (see clearActiveGoal), so
+   * one confirmed goal never vouches for the next one.
    */
   sawActiveGoalMessage?: boolean;
   /**
+   * True when the session's CLI is new enough to report every goal evaluation
+   * as an `active_goal` frame (captured from the `init` message's
+   * `claude_code_version`; undefined when no init arrived). On such a CLI the
+   * legacy complete-on-turn-end fallback is wrong in BOTH directions: a clean
+   * turn end with no frame means the CLI never actually armed the goal (the
+   * workspace-trust or hooks gate refuses `/goal` with a printed reason) — not
+   * that the goal was achieved. Only truly frame-less CLIs fall back.
+   */
+  cliReportsNativeGoalFrames?: boolean;
+  /**
    * Legacy (no native `active_goal` frames) only: a clean turn `result`
-   * arrived while background subagent tasks were still live, so the goal was
-   * held active instead of completed. The goal completes after the last live
-   * task drains and the session's resume grace expires — unless a new turn
-   * starts first.
+   * arrived while background work was still live (subagent tasks, and plain
+   * backgrounded Bash via the level signal), so the goal was held active
+   * instead of completed. The goal completes after the last live task drains
+   * and the session's resume grace expires — unless a new turn starts first.
    */
   pendingGoalCompletionOnTaskDrain?: boolean;
   /**
@@ -155,6 +167,23 @@ export interface ClaudeMapperState {
   activeSubAgentTaskToTool?: Map<string, string>;
   /** Reverse of {@link activeSubAgentTaskToTool}: tool_use id → task_id. */
   activeSubAgentToolToTask?: Map<string, string>;
+  /**
+   * Task ids of EVERY live background task — plain backgrounded Bash included —
+   * from the CLI's `background_tasks_changed` level signal. The payload is the
+   * full live set with REPLACE semantics, so a missed `task_started` /
+   * `task_notification` bookend cannot wedge a stale "running" entry, and it
+   * carries ids only: it says nothing about how tool rows render (a background
+   * Bash row still completes at its launch tool_result). Ambient housekeeping
+   * tasks are filtered out. Per CLI process: reset to empty whenever the
+   * session's CLI process (re)starts and let the next level repopulate it.
+   *
+   * This is the "is background work still running" signal that holds a legacy
+   * goal open across a clean turn end — subagent tasks are also tracked here
+   * when the CLI emits the level, but the {@link activeSubAgentTaskToTool}
+   * edge maps remain the source of truth for those (older CLIs emit the edges
+   * without the level signal).
+   */
+  liveBackgroundTaskIds?: Set<string>;
   /**
    * tool_use ids of tools launched INSIDE a running subagent (forwarded child
    * messages). Tracked so the main turn's `result` close doesn't evict them

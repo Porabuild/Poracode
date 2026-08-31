@@ -1,8 +1,22 @@
-import { AppWindow, GitPullRequest, Globe, Mail, Monitor, Network, Puzzle } from "lucide-react";
+import {
+  AppWindow,
+  GitPullRequest,
+  Globe,
+  Mail,
+  Monitor,
+  Network,
+  Puzzle,
+  Settings2,
+  TerminalSquare,
+} from "lucide-react";
 
 export function PluginIcon(props: { pluginId: string; className?: string }) {
   const className = props.className ?? "size-5";
   switch (props.pluginId) {
+    case "app-controls":
+      return <Settings2 className={className} />;
+    case "terminal":
+      return <TerminalSquare className={className} />;
     case "browser-tools":
       return <Globe className={className} />;
     case "chrome-tools":

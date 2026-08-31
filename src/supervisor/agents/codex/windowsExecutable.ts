@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 
@@ -17,7 +17,7 @@ const WINDOWS_TARGETS = {
 function candidateShimPaths(commandPath: string | undefined): string[] {
   if (!commandPath) return [];
   if (/\.(?:cmd|ps1)$/i.test(commandPath)) return [commandPath];
-  return [commandPath, `${commandPath}.cmd`, `${commandPath}.ps1`];
+  return [`${commandPath}.cmd`, `${commandPath}.ps1`];
 }
 
 function resolvePackageRootFromShim(shimPath: string): string | undefined {
@@ -30,10 +30,23 @@ function resolvePackageRootFromShim(shimPath: string): string | undefined {
   } catch {
     return undefined;
   }
-  if (!/node_modules[/\\]@openai[/\\]codex[/\\]bin[/\\]codex\.js/i.test(body)) {
-    return undefined;
+
+  // The optional prefix strips the `%~dp0\` / `%dp0%\` (cmd) or `$basedir\` /
+  // `$basedir/` (ps1) token so the capture can be joined onto the shim's dir;
+  // without it the capture is an absolute path (some shims embed those).
+  const scriptMatch =
+    /(?:%(?:~dp0|dp0%)[\\/]|\$basedir[\\/])?([^"'\r\n]*?node_modules[/\\]@openai[/\\]codex[/\\]bin[/\\]codex\.js)/i.exec(
+      body,
+    )?.[1];
+  if (!scriptMatch) return undefined;
+
+  const scriptPath = isAbsolute(scriptMatch) ? scriptMatch : join(dirname(shimPath), scriptMatch);
+  const packageRoot = dirname(dirname(scriptPath));
+  try {
+    return realpathSync(packageRoot);
+  } catch {
+    return packageRoot;
   }
-  return join(dirname(shimPath), "node_modules", "@openai", "codex");
 }
 
 export function resolveCodexNativeExecutableForWindows(
@@ -47,12 +60,13 @@ export function resolveCodexNativeExecutableForWindows(
   const target = WINDOWS_TARGETS[process.arch as keyof typeof WINDOWS_TARGETS];
   if (!target) return undefined;
 
+  const shortName = target.packageName.replace(/^@[^/\\]+[/\\]/, "");
   for (const shimPath of candidateShimPaths(commandPath)) {
-    const packageRoot = resolvePackageRootFromShim(shimPath);
-    if (!packageRoot) continue;
+    const canonicalRoot = resolvePackageRootFromShim(shimPath);
+    if (!canonicalRoot) continue;
     const candidates = [
       join(
-        packageRoot,
+        canonicalRoot,
         "node_modules",
         target.packageName,
         "vendor",
@@ -60,7 +74,8 @@ export function resolveCodexNativeExecutableForWindows(
         "bin",
         "codex.exe",
       ),
-      join(packageRoot, "vendor", target.targetTriple, "bin", "codex.exe"),
+      join(canonicalRoot, "vendor", target.targetTriple, "bin", "codex.exe"),
+      join(dirname(canonicalRoot), shortName, "vendor", target.targetTriple, "bin", "codex.exe"),
     ];
     const executable = candidates.find((candidate) => existsSync(candidate));
     if (executable) return executable;

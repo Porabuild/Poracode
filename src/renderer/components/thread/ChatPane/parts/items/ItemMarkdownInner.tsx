@@ -1,6 +1,7 @@
 import { Link } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ExternalLink } from "lucide-react";
+import type { ProjectLocation } from "@/shared/contracts";
 import {
   Children,
   cloneElement,
@@ -33,7 +34,11 @@ import { ImageCard } from "./ImageCard";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
-import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
+import {
+  formatTaskNotifications,
+  normalizeGfmTableSeparators,
+  normalizeShortCodeFenceClosers,
+} from "./ItemMarkdown";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
@@ -161,8 +166,9 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
           }),
           parsePathRef: (token: string) => {
             const ref = parseProjectPathRef(token, { rootNames });
-            if (ref || !actions) return ref;
-            const normalized = normalizeChatProjectPath(token, actions.projectLocation);
+            const projectLocation = actions?.projectLocation;
+            if (ref || !projectLocation) return ref;
+            const normalized = normalizeChatProjectPath(token, projectLocation);
             return normalized === token ? null : parseProjectPathRef(normalized, { rootNames });
           },
         },
@@ -176,7 +182,7 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const extraRoots = actions?.markdownImageRoots;
   const markdownText = rewriteMarkdownLocalImageUrls(
     normalizeIncompleteProjectLinkTail(
-      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
+      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTaskNotifications(text))),
     ),
     {
       ...(projectRoot ? { projectRoot } : {}),
@@ -385,10 +391,10 @@ function MdCode(props: { className: string; isBlock?: boolean; children?: ReactN
   if (isBlock) {
     return <code className={props.className || undefined}>{props.children}</code>;
   }
-  if (actions) {
+  if (actions?.projectLocation) {
     const ref = parseProjectPathRef(text, { rootNames: actions.projectRootNames });
     if (ref) {
-      return renderPathChip(ref, actions);
+      return renderPathChip(ref, actions.projectLocation, actions);
     }
   }
   return <code className={inlineCodeChipClass}>{props.children}</code>;
@@ -434,7 +440,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
   if (!href) return <span>{props.children}</span>;
 
   if (
-    actions &&
+    actions?.projectLocation &&
     (href.startsWith(AUTO_PATH_FILE_PREFIX) || href.startsWith(AUTO_PATH_FILE_HREF_PREFIX))
   ) {
     const rest = decodeAutoPathHref(
@@ -452,10 +458,10 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
           ...(lineMatch[3] ? { endLine: Number.parseInt(lineMatch[3], 10) } : {}),
         }
       : { kind: "file", path };
-    return renderPathChip(ref, actions);
+    return renderPathChip(ref, actions.projectLocation, actions);
   }
   if (
-    actions &&
+    actions?.projectLocation &&
     (href.startsWith(AUTO_PATH_FOLDER_PREFIX) || href.startsWith(AUTO_PATH_FOLDER_HREF_PREFIX))
   ) {
     const path = decodeAutoPathHref(
@@ -463,7 +469,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
         ? href.slice(AUTO_PATH_FOLDER_HREF_PREFIX.length)
         : href.slice(AUTO_PATH_FOLDER_PREFIX.length),
     );
-    return renderPathChip({ kind: "folder", path }, actions);
+    return renderPathChip({ kind: "folder", path }, actions.projectLocation, actions);
   }
 
   if (/^(https?|mailto):/i.test(href)) {
@@ -485,15 +491,16 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
       </Link>
     );
   }
-  if (actions) {
-    const ref = parseHrefProjectPathRef(href, actions);
+  if (actions?.projectLocation) {
+    const projectLocation = actions.projectLocation;
+    const ref = parseHrefProjectPathRef(href, projectLocation, actions.projectRootNames);
     if (ref?.kind === "folder") {
-      const folderPath = normalizeChatProjectPath(ref.path, actions.projectLocation);
+      const folderPath = normalizeChatProjectPath(ref.path, projectLocation);
       return (
         <button
           type="button"
           className="inline cursor-pointer rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-accent underline-offset-2 [overflow-wrap:anywhere] hover:bg-foreground/15 hover:underline"
-          onClick={() => actions.revealProjectFolderInTree(folderPath)}
+          onClick={() => actions.revealProjectFolderInTree?.(folderPath)}
         >
           {props.children}
         </button>
@@ -506,11 +513,11 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
           className="inline cursor-pointer rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-accent underline-offset-2 [overflow-wrap:anywhere] hover:bg-foreground/15 hover:underline"
           onClick={() => {
             void actions
-              .openProjectRelativePath(
-                normalizeChatProjectPath(ref.path, actions.projectLocation),
+              .openProjectRelativePath?.(
+                normalizeChatProjectPath(ref.path, projectLocation),
                 ref.line,
               )
-              .catch(() => {});
+              ?.catch(() => {});
           }}
         >
           {props.children}
@@ -542,22 +549,23 @@ function normalizeIncompleteProjectLinkTail(text: string): string {
 
 function parseHrefProjectPathRef(
   href: string,
-  actions: NonNullable<ReturnType<typeof useChatPaneActions>>,
+  projectLocation: ProjectLocation,
+  rootNames: ReadonlySet<string> | undefined,
 ): ProjectPathRef | null {
-  const rootNames = actions.projectRootNames;
   const direct = parseProjectPathRef(href, { rootNames });
   if (direct) return direct;
 
-  const normalized = normalizeChatProjectPath(href, actions.projectLocation);
+  const normalized = normalizeChatProjectPath(href, projectLocation);
   if (normalized === href) return null;
   return parseProjectPathRef(normalized, { rootNames });
 }
 
 function renderPathChip(
   ref: ProjectPathRef,
+  projectLocation: ProjectLocation,
   actions: NonNullable<ReturnType<typeof useChatPaneActions>>,
 ) {
-  const normalized = normalizeChatProjectPath(ref.path, actions.projectLocation);
+  const normalized = normalizeChatProjectPath(ref.path, projectLocation);
   if (ref.kind === "file") {
     return (
       <InlineFilePathChip

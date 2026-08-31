@@ -21,6 +21,8 @@ export interface SelectOption {
   label: string;
   icon?: ReactNode;
   detail?: string;
+  /** Listed but not selectable (e.g. an offline remote machine). */
+  isDisabled?: boolean;
 }
 
 export interface SelectProps extends Omit<
@@ -85,6 +87,7 @@ export function Select(props: SelectProps) {
                 type="button"
                 className="m-sheet-action"
                 aria-pressed={selected || undefined}
+                disabled={option.isDisabled}
                 onClick={() => {
                   setIsOpen(false);
                   onChange(option.id);
@@ -107,8 +110,12 @@ export function Select(props: SelectProps) {
       </ResponsiveMenuSurface>
     );
   }
+  const disabledKeys = options.filter((option) => option.isDisabled).map((option) => option.id);
   const listBox = (
-    <ListBox {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}>
+    <ListBox
+      {...(disabledKeys.length > 0 ? { disabledKeys } : {})}
+      {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}
+    >
       {options.map((option) => (
         // HeroUI's select popover sets `px-2.5` on items with the same
         // specificity as the base `:has(.list-box-item__indicator) { pe-7 }`

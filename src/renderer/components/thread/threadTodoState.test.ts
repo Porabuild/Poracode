@@ -312,4 +312,71 @@ describe("threadTodoState", () => {
       ],
     });
   });
+
+  it("drops a plan left by the provider before a handoff", () => {
+    const state = {
+      runtimeItemIdsByThread: { t1: ["plan-1", "handoff-1"] },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "plan-1": {
+            id: "plan-1",
+            type: "plan",
+            state: "updated",
+            payload: { steps: [{ step: "Old provider step", status: "pending" }] },
+            streams: {},
+          },
+          "handoff-1": {
+            id: "handoff-1",
+            type: "provider_handoff",
+            state: "completed",
+            payload: {
+              fromAgentKind: "claude",
+              toAgentKind: "codex",
+              at: "2026-08-30T00:00:00Z",
+            },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectThreadTodoDockState(state, "t1")).toBeNull();
+  });
+
+  it("keeps a plan written by the provider after a handoff", () => {
+    const state = {
+      runtimeItemIdsByThread: { t1: ["plan-1", "handoff-1", "plan-2"] },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "plan-1": {
+            id: "plan-1",
+            type: "plan",
+            state: "updated",
+            payload: { steps: [{ step: "Old provider step", status: "pending" }] },
+            streams: {},
+          },
+          "handoff-1": {
+            id: "handoff-1",
+            type: "provider_handoff",
+            state: "completed",
+            payload: {
+              fromAgentKind: "claude",
+              toAgentKind: "codex",
+              at: "2026-08-30T00:00:00Z",
+            },
+            streams: {},
+          },
+          "plan-2": {
+            id: "plan-2",
+            type: "plan",
+            state: "updated",
+            payload: { steps: [{ step: "New provider step", status: "pending" }] },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectThreadTodoDockState(state, "t1")).toMatchObject({ sourceItemId: "plan-2" });
+  });
 });

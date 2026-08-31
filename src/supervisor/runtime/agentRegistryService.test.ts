@@ -20,6 +20,11 @@ const runUpdateCommandWithFallbackMock = vi.hoisted(() =>
   vi.fn<typeof import("../agents/updateAgent").runUpdateCommandWithFallback>(),
 );
 const acpRegistryMocks = vi.hoisted(() => ({
+  fetchAcpRegistry: vi.fn<typeof import("../agents/acpRegistry").fetchAcpRegistry>(),
+  backfillAcpRegistryAgentIcons:
+    vi.fn<typeof import("../agents/acpRegistry").backfillAcpRegistryAgentIcons>(),
+  autoUpdateAcpRegistryAgents:
+    vi.fn<typeof import("../agents/acpRegistry").autoUpdateAcpRegistryAgents>(),
   cacheLocalAcpRegistryIcons:
     vi.fn<typeof import("../agents/acpRegistry").cacheLocalAcpRegistryIcons>(),
   installAcpRegistryAgent: vi.fn<typeof import("../agents/acpRegistry").installAcpRegistryAgent>(),
@@ -57,6 +62,9 @@ vi.mock("../agents/acpRegistry", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../agents/acpRegistry")>();
   return {
     ...actual,
+    fetchAcpRegistry: acpRegistryMocks.fetchAcpRegistry,
+    backfillAcpRegistryAgentIcons: acpRegistryMocks.backfillAcpRegistryAgentIcons,
+    autoUpdateAcpRegistryAgents: acpRegistryMocks.autoUpdateAcpRegistryAgents,
     cacheLocalAcpRegistryIcons: acpRegistryMocks.cacheLocalAcpRegistryIcons,
     installAcpRegistryAgent: acpRegistryMocks.installAcpRegistryAgent,
     readAcpRegistrySettings: acpRegistryMocks.readAcpRegistrySettings,
@@ -407,7 +415,10 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
     acpRegistryInstalledAgents: {},
   } satisfies ReturnType<typeof import("../agents/acpRegistry").readAcpRegistrySettings>;
 
-  function createService(activeWslDistros: string[]) {
+  function createService(
+    activeWslDistros: string[],
+    initialAdapters: Map<AgentKind, AgentAdapter> = new Map(),
+  ) {
     const closeThreadsForAgentKind = vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {});
     const refreshAgentStatuses = vi
       .fn<AgentStatusService["refreshAgentStatuses"]>()
@@ -420,7 +431,7 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
       listWslDistros,
     } as unknown as AgentStatusService;
     const service = new AgentRegistryService({
-      adapters: new Map(),
+      adapters: initialAdapters,
       settingsPath: "/data/settings.json",
       baseDir: "/data",
       acpIconsDir: "/data/icons",
@@ -433,6 +444,26 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
     });
     return { closeThreadsForAgentKind, listWslDistros, refreshAgentStatuses, service };
   }
+
+  it("propagates a partial multi-environment registry update that changed settings", async () => {
+    const registry = { version: "1.0.0", agents: [] };
+    acpRegistryMocks.fetchAcpRegistry.mockReset().mockResolvedValue(registry);
+    acpRegistryMocks.backfillAcpRegistryAgentIcons.mockReset().mockResolvedValue(false);
+    acpRegistryMocks.autoUpdateAcpRegistryAgents.mockReset().mockResolvedValue({
+      updated: [],
+      changed: ["demo"],
+      failed: [{ id: "demo", error: "WSL update failed" }],
+    });
+    acpRegistryMocks.readAcpRegistrySettings.mockReset().mockReturnValue(settings);
+    const { refreshAgentStatuses, service } = createService(["Ubuntu"]);
+
+    await expect(service.listAcpRegistry()).resolves.toBe(registry);
+
+    expect(refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith({
+      wslDistros: ["Ubuntu"],
+      scope: { agentKinds: ["acp-generic:demo"] },
+    });
+  });
 
   it("does not enumerate WSL during launch icon propagation without a WSL project", async () => {
     acpRegistryMocks.cacheLocalAcpRegistryIcons.mockReset().mockResolvedValue(true);
@@ -478,5 +509,295 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
       scope: { agentKinds: ["acp-generic:demo"] },
     });
     expect(listWslDistros).not.toHaveBeenCalled();
+  });
+
+  it("routes first-class Antigravity ACP installs through the built-in kind and target", async () => {
+    const antigravity = {
+      kind: "antigravity",
+      label: "Antigravity",
+      binary: "agy",
+      capabilities,
+      firstClassAcpRegistryId: "antigravity-acp",
+      detectInstall: vi.fn<AgentAdapter["detectInstall"]>(),
+      buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+      buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+      createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(() => undefined),
+    } as AgentAdapter;
+    acpRegistryMocks.installAcpRegistryAgent.mockReset().mockResolvedValue([]);
+    acpRegistryMocks.readAcpRegistrySettings.mockReset().mockReturnValue(settings);
+    const { refreshAgentStatuses, service } = createService(
+      ["Ubuntu"],
+      new Map([["antigravity", antigravity]]),
+    );
+
+    await service.installAcpRegistryAgent({
+      agentId: "antigravity-acp",
+      target: { kind: "wsl", distro: "Ubuntu" },
+    });
+
+    expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "antigravity-acp",
+        target: { kind: "wsl", distro: "Ubuntu" },
+        adapterKind: "antigravity",
+        installKind: "first-class",
+      }),
+    );
+    expect(refreshAgentStatuses).toHaveBeenCalledWith({
+      wslDistros: ["Ubuntu"],
+      scope: { agentKinds: ["antigravity"] },
+    });
+  });
+});
+
+describe("AgentRegistryService first-class ACP auto-install", () => {
+  const registryCapabilities = capabilities;
+
+  function antigravityStatus(installedRuntimes: { cli: boolean; acp: boolean }): AgentStatus {
+    return {
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: installedRuntimes.cli || installedRuntimes.acp,
+      authState: "authenticated",
+      capabilities: registryCapabilities,
+      envKind: "windows",
+      runtimeVariants: {
+        cli: {
+          presentationMode: "terminal",
+          installed: installedRuntimes.cli,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: registryCapabilities,
+        },
+        acp: {
+          presentationMode: "gui",
+          installed: installedRuntimes.acp,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: registryCapabilities,
+        },
+      },
+    };
+  }
+
+  function createService(optOuts: string[] = []) {
+    const antigravity = {
+      kind: "antigravity",
+      label: "Antigravity",
+      binary: "agy",
+      capabilities: registryCapabilities,
+      firstClassAcpRegistryId: "antigravity-acp",
+      detectInstall: vi.fn<AgentAdapter["detectInstall"]>(),
+      buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+      buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+      createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(() => undefined),
+    } as AgentAdapter;
+    const getAgentStatuses = vi.fn<AgentStatusService["getAgentStatuses"]>();
+    const refreshAgentStatuses = vi
+      .fn<AgentStatusService["refreshAgentStatuses"]>()
+      .mockResolvedValue({ windows: [], wsl: [], fromCache: false });
+    const agentStatusService = {
+      getAgentStatuses,
+      refreshAgentStatuses,
+      listWslDistros: vi.fn<AgentStatusService["listWslDistros"]>().mockResolvedValue([]),
+    } as unknown as AgentStatusService;
+    acpRegistryMocks.readAcpRegistrySettings.mockReset().mockReturnValue({
+      ...defaultSharedSettings,
+      acpRegistryAutoInstallOptOuts: optOuts,
+    });
+    acpRegistryMocks.installAcpRegistryAgent.mockReset().mockResolvedValue([]);
+    const service = new AgentRegistryService({
+      adapters: new Map([["antigravity", antigravity]]),
+      settingsPath: "/data/settings.json",
+      baseDir: "/data",
+      acpIconsDir: "/data/icons",
+      sharedSettingsCache: {
+        invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+      } as unknown as SupervisorSharedSettingsCache,
+      getAgentStatusService: () => agentStatusService,
+      getActiveWslProjectDistros: () => [],
+      closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
+    });
+    return { getAgentStatuses, refreshAgentStatuses, service };
+  }
+
+  it("installs the chat runtime once when only the CLI is detected", async () => {
+    const { getAgentStatuses, refreshAgentStatuses, service } = createService();
+    getAgentStatuses.mockResolvedValue({
+      windows: [antigravityStatus({ cli: true, acp: false })],
+      wsl: [],
+      fromCache: false,
+    });
+
+    await service.getAgentStatuses({ wslDistros: [] });
+    await service.getAgentStatuses({ wslDistros: [] });
+    await vi.waitFor(() =>
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1),
+    );
+
+    expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "antigravity-acp",
+        adapterKind: "antigravity",
+        installKind: "first-class",
+        target: { kind: "native" },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(refreshAgentStatuses).toHaveBeenCalledWith({
+        wslDistros: [],
+        scope: { agentKinds: ["antigravity"] },
+      }),
+    );
+  });
+
+  it("installs the chat runtime into the distro that detected the CLI", async () => {
+    const { getAgentStatuses, service } = createService();
+    getAgentStatuses.mockResolvedValue({
+      windows: [],
+      wsl: [
+        {
+          ...antigravityStatus({ cli: true, acp: false }),
+          envKind: "wsl",
+          envDistro: "Ubuntu",
+        },
+      ],
+      fromCache: false,
+    });
+
+    await service.getAgentStatuses({ wslDistros: ["Ubuntu"] });
+    await vi.waitFor(() =>
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: "antigravity-acp",
+          installKind: "first-class",
+          target: { kind: "wsl", distro: "Ubuntu" },
+        }),
+      ),
+    );
+  });
+
+  it("waits before retrying a transient first-class install failure", async () => {
+    vi.useFakeTimers();
+    try {
+      const { getAgentStatuses, refreshAgentStatuses, service } = createService();
+      getAgentStatuses.mockResolvedValue({
+        windows: [antigravityStatus({ cli: true, acp: false })],
+        wsl: [],
+        fromCache: false,
+      });
+      acpRegistryMocks.installAcpRegistryAgent
+        .mockRejectedValueOnce(new Error("ACP server did not complete initialization"))
+        .mockResolvedValueOnce([]);
+
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+      await vi.waitFor(() =>
+        expect(refreshAgentStatuses).toHaveBeenCalledWith({
+          wslDistros: [],
+          scope: { agentKinds: ["antigravity"] },
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries a sweep that exhausted its attempts once the cooldown elapses", async () => {
+    vi.useFakeTimers();
+    try {
+      const { getAgentStatuses, service } = createService();
+      getAgentStatuses.mockResolvedValue({
+        windows: [antigravityStatus({ cli: true, acp: false })],
+        wsl: [],
+        fromCache: false,
+      });
+      acpRegistryMocks.installAcpRegistryAgent
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue([]);
+
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.runAllTimersAsync();
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+
+      // Both attempts spent: a further status query inside the cooldown must
+      // not re-download, but the machine coming back online later must not stay
+      // without chat until the app restarts.
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.runAllTimersAsync();
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.waitFor(() =>
+        expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(3),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry after the user opts out during a failed auto-install", async () => {
+    vi.useFakeTimers();
+    try {
+      const { getAgentStatuses, service } = createService();
+      getAgentStatuses.mockResolvedValue({
+        windows: [antigravityStatus({ cli: true, acp: false })],
+        wsl: [],
+        fromCache: false,
+      });
+      acpRegistryMocks.installAcpRegistryAgent.mockRejectedValueOnce(
+        new Error("ACP server did not complete initialization"),
+      );
+      acpRegistryMocks.readAcpRegistrySettings.mockImplementation(() =>
+        acpRegistryMocks.installAcpRegistryAgent.mock.calls.length === 0
+          ? defaultSharedSettings
+          : {
+              ...defaultSharedSettings,
+              acpRegistryAutoInstallOptOuts: ["antigravity-acp"],
+            },
+      );
+
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.waitFor(() =>
+        expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1),
+      );
+      await vi.runAllTimersAsync();
+
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves a fully installed provider alone", async () => {
+    const { getAgentStatuses, service } = createService();
+    getAgentStatuses.mockResolvedValue({
+      windows: [antigravityStatus({ cli: true, acp: true })],
+      wsl: [],
+      fromCache: false,
+    });
+
+    await service.getAgentStatuses({ wslDistros: [] });
+
+    expect(acpRegistryMocks.installAcpRegistryAgent).not.toHaveBeenCalled();
+  });
+
+  it("does not resurrect a chat runtime the user removed", async () => {
+    const { getAgentStatuses, service } = createService(["antigravity-acp"]);
+    getAgentStatuses.mockResolvedValue({
+      windows: [antigravityStatus({ cli: true, acp: false })],
+      wsl: [],
+      fromCache: false,
+    });
+
+    await service.getAgentStatuses({ wslDistros: [] });
+
+    expect(acpRegistryMocks.installAcpRegistryAgent).not.toHaveBeenCalled();
   });
 });

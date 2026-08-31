@@ -67,7 +67,13 @@ function stripProviderLogin(status: AgentStatus): AgentStatus {
   return withoutProviderLogin;
 }
 
-function restoreProviderLogin(source: AgentStatus, status: AgentStatus): AgentStatus {
+function restoreProviderLogin(
+  source: Pick<
+    AgentStatus,
+    "loginCommand" | "authMethods" | "authLogoutSupported" | "preferTerminalLogin"
+  >,
+  status: AgentStatus,
+): AgentStatus {
   return {
     ...status,
     ...(source.loginCommand !== undefined ? { loginCommand: source.loginCommand } : {}),
@@ -142,8 +148,10 @@ export function agentStatusForPresentation(
     return presentationStatus;
   }
 
+  const { providerMetadata: _providerMetadata, ...presentationWithoutMetadata } =
+    presentationStatus;
   const runtimeStatus: AgentStatus = {
-    ...presentationStatus,
+    ...presentationWithoutMetadata,
     installed: runtimeVariant.installed,
     authState: runtimeVariant.authState,
     presentationAuthStates: {
@@ -155,9 +163,20 @@ export function agentStatusForPresentation(
       [presentationMode]: runtimeVariant.authUsesProviderLogin,
     },
     capabilities: runtimeVariant.capabilities,
+    ...(runtimeVariant.providerMetadata
+      ? { providerMetadata: runtimeVariant.providerMetadata }
+      : {}),
   };
+  const hasRuntimeLogin =
+    runtimeVariant.loginCommand !== undefined ||
+    runtimeVariant.authMethods !== undefined ||
+    runtimeVariant.authLogoutSupported !== undefined ||
+    runtimeVariant.preferTerminalLogin !== undefined;
   return runtimeVariant.authUsesProviderLogin
-    ? restoreProviderLogin(status, runtimeStatus)
+    ? restoreProviderLogin(
+        hasRuntimeLogin ? runtimeVariant : status,
+        stripProviderLogin(runtimeStatus),
+      )
     : stripProviderLogin(runtimeStatus);
 }
 
@@ -169,8 +188,14 @@ function runtimeVariantForSession(
   const providerSessionId = sessionRef?.providerSessionId;
   const variants = status.runtimeVariants;
   const routing = status.sessionRuntimeRouting;
-  if (!providerSessionId || !variants || !routing) {
+  if (!variants) {
     return undefined;
+  }
+  if (!providerSessionId || !routing) {
+    const candidates = Object.values(variants).filter(
+      (variant) => variant.presentationMode === presentationMode,
+    );
+    return candidates.length === 1 ? candidates[0] : undefined;
   }
 
   let matchedRuntime: string | undefined;

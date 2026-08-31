@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { MessageDescriptor } from "@lingui/core";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -124,7 +125,13 @@ vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
   ProviderIcon: (props: { fallbackLabel?: string }) => <span>{props.fallbackLabel}</span>,
 }));
 
+import { registerCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { ModelOrderSection } from "./ModelOrderSection";
+
+/** Lingui descriptors without the macro, so extraction never sees test-only ids. */
+function runtimeLabel(id: string): MessageDescriptor {
+  return { id };
+}
 
 function makeStatus(overrides: Partial<AgentStatus> & { kind: string }): AgentStatus {
   return {
@@ -215,6 +222,39 @@ describe("ModelOrderSection provider updates", () => {
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith("Claude Code updated to v1.3.0."),
     );
+  });
+
+  it("leaves a provider with independently versioned runtimes off the binary update lane", async () => {
+    // Antigravity's root version is whichever runtime is installed — comparing
+    // it against the agy binary's upstream would offer a bogus update.
+    registerCombinedRuntimeUpdates("antigravity", () => [
+      {
+        id: "cli",
+        label: runtimeLabel("agy CLI"),
+        installed: false,
+        channel: { kind: "agent-binary" },
+      },
+      {
+        id: "acp",
+        label: runtimeLabel("Antigravity ACP"),
+        installed: true,
+        installedVersion: "0.3.0",
+        channel: { kind: "acp-registry", agentId: "antigravity-acp" },
+      },
+    ]);
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.3.0" }),
+      makeStatus({ kind: "antigravity", label: "Antigravity", version: "0.3.0" }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
+
+    render(<ModelOrderSection />);
+
+    await waitFor(() =>
+      expect(bridge.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "claude" }),
+    );
+    expect(bridge.getLatestAgentVersion).not.toHaveBeenCalledWith({ agentKind: "antigravity" });
+    expect(screen.queryByRole("button", { name: /^Update/u })).toBeNull();
   });
 
   it("hides the update control while the provider is current", async () => {

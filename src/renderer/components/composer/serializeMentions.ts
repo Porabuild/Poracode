@@ -117,6 +117,16 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
       return;
     }
 
+    if (el.dataset.threadMentionId) {
+      flushText();
+      segments.push({
+        kind: "thread",
+        threadId: el.dataset.threadMentionId,
+        title: el.dataset.threadMentionTitle ?? "",
+      });
+      return;
+    }
+
     if (el.dataset.slashCommand) {
       if (
         el.dataset.skillName &&
@@ -184,7 +194,9 @@ export function rebuildEditedPromptSegments(
 ): PromptSegment[] {
   const attachments = originalSegments.filter((segment) => segment.kind === "attachment");
   const structured = originalSegments
-    .filter((segment) => segment.kind === "file" || segment.kind === "skill")
+    .filter(
+      (segment) => segment.kind === "file" || segment.kind === "skill" || segment.kind === "thread",
+    )
     .map((segment) => ({ segment, token: inlinePromptSegmentText(segment) }))
     .sort((a, b) => b.token.length - a.token.length);
   const rebuilt: PromptSegment[] = [];

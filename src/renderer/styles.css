@@ -2760,10 +2760,34 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   vertical-align: middle;
   user-select: none;
   cursor: default;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Cursor + hover/active + transition only on the clickable message chip; the
+   composer chip is an inert contentEditable decoration and must not advertise
+   a click. */
+button.poracode-thread-mention-chip {
+  cursor: var(--interactive-cursor, pointer);
+  transition: background 120ms ease;
+}
+
+button.poracode-thread-mention-chip:hover {
+  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+}
+
+button.poracode-thread-mention-chip:active {
+  background: color-mix(in oklab, var(--accent) 28%, var(--surface));
+}
+
+.poracode-thread-mention-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .poracode-slash-chip[data-skill-name],
-.poracode-slash-chip[data-mcp-name] {
+.poracode-slash-chip[data-mcp-name],
+.poracode-thread-mention-chip {
   gap: 0.25em;
 }
 
@@ -2784,10 +2808,13 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-slash-chip__name {
-  display: inline-flex;
-  align-items: center;
-  font-weight: 400;
+  display: inline-block;
+  min-width: 0;
+  max-width: min(20rem, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 400;
 }
 
 .poracode-diff-comment-chip {
@@ -3237,6 +3264,26 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   width: 1.125rem;
   height: 1.125rem;
   flex-shrink: 0;
+}
+
+.poracode-mention-popover__section + .poracode-mention-popover__section {
+  margin-top: 0.25rem;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  padding-top: 0.25rem;
+}
+
+.poracode-mention-popover__section-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--overlay);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .poracode-mention-popover__item {

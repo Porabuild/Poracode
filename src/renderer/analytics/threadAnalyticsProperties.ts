@@ -173,7 +173,7 @@ export function agentConfigProductProperties(input: {
 export function segmentProperties(
   segments: readonly PromptSegment[] | undefined,
 ): ProductAnalyticsProperties {
-  const counts = { text: 0, file: 0, attachment: 0, skill: 0, mcp: 0, diff_comment: 0 };
+  const counts = { text: 0, file: 0, attachment: 0, skill: 0, mcp: 0, diff_comment: 0, thread: 0 };
   for (const segment of segments ?? []) {
     counts[segment.kind] += 1;
   }
@@ -184,6 +184,7 @@ export function segmentProperties(
     segment_count: (segments ?? []).length,
     skill_segment_count: counts.skill,
     text_segment_count: counts.text,
+    thread_segment_count: counts.thread,
   };
 }
 

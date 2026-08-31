@@ -62,6 +62,7 @@ export interface AcpProbeResult {
   authMethods?: AuthMethod[];
   authLogoutSupported?: boolean;
   sessionEstablished?: boolean;
+  supportsResume?: boolean;
   /**
    * Operational auth signal derived from the ACP handshake — `"authenticated"`
    * when `newSession` succeeded, `"missing"` when the agent returned the
@@ -599,6 +600,8 @@ export async function probeAcpCapabilities(
       probeResult.authLogoutSupported = true;
     }
     const sessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
+    probeResult.supportsResume =
+      initResult.agentCapabilities?.loadSession === true || sessionCapabilities?.resume != null;
     probeSessionCleanup =
       sessionCapabilities?.delete != null
         ? "delete"

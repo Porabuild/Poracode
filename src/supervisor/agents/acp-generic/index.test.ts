@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig } from "@/shared/contracts";
-import { authenticateAcpAgent, logoutAcpAgent, probeAcpCapabilities } from "../acp";
+import {
+  authenticateAcpAgent,
+  createAcpStructuredSession,
+  logoutAcpAgent,
+  probeAcpCapabilities,
+} from "../acp";
 import {
   authenticateAcpGenericInstance,
   createAcpGenericAdapter,
@@ -77,6 +82,64 @@ describe("createAcpGenericAdapter", () => {
     expect(status.version).toBe("1.2.3");
   });
 
+  it("uses environment-specific registry commands and versions", async () => {
+    const adapter = createAcpGenericAdapter({
+      ...baseInstance,
+      version: "2.0.0",
+      config: {
+        ...(baseInstance.config as Record<string, unknown>),
+        binary: process.execPath,
+        environmentCommands: {
+          native: {
+            binary: process.execPath,
+            args: ["native.mjs"],
+            env: { TARGET_ENV: "native" },
+            version: "1.0.0",
+          },
+          wsl: {
+            Ubuntu: {
+              binary: "/home/demo/.poracode/acp-registry/demo/server.par",
+              args: ["--uid="],
+              env: { TARGET_ENV: "wsl" },
+              version: "2.0.0",
+            },
+          },
+        },
+      },
+    });
+
+    expect((await adapter.detectInstall()).version).toBe("1.0.0");
+    await adapter.createStructuredSession?.({
+      threadId: "thread-native",
+      projectLocation:
+        process.platform === "win32"
+          ? { kind: "windows", path: process.cwd() }
+          : { kind: "posix", path: process.cwd() },
+      config: { model: "test" },
+      presentationMode: "gui",
+    });
+    expect(vi.mocked(createAcpStructuredSession).mock.calls.at(-1)?.[0].env).toMatchObject({
+      TARGET_ENV: "native",
+    });
+    await adapter.createStructuredSession?.({
+      threadId: "thread-1",
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      },
+      config: { model: "test" },
+      presentationMode: "gui",
+    });
+    const command = vi.mocked(createAcpStructuredSession).mock.calls.at(-1)?.[0];
+    expect(command?.command).toMatch(/wsl\.exe$/iu);
+    expect(command?.args).toContain("Ubuntu");
+    expect(command?.args.at(-1)).toContain("/home/demo/.poracode/acp-registry/demo/server.par");
+    expect(command?.args.at(-1)).toContain("--uid=");
+    expect(command?.args.at(-1)).toContain("TARGET_ENV='wsl'");
+  });
+
   it("injects synthetic supervised and auto-approve policies when the probe declares none", async () => {
     // Some agents don't advertise yolo/autopilot. We expose a synthetic
     // "never" policy so users can still pick "Auto Approve", while "default"
@@ -129,6 +192,28 @@ describe("createAcpGenericAdapter", () => {
       { id: "default", label: "Supervised" },
       { id: "never", label: "Auto Approve" },
     ]);
+  });
+
+  it("applies provider probe normalization with its configured timeout", async () => {
+    vi.mocked(probeAcpCapabilities).mockResolvedValue({
+      models: [{ id: "wire-model-high", label: "Model (High)" }],
+    });
+    const adapter = createAcpGenericAdapter(baseInstance, {
+      probeTimeoutMs: 30_000,
+      normalizeProbeResult: (result) => ({
+        ...result,
+        models: [{ id: "model", label: "Model" }],
+        modelEfforts: { model: ["High"] },
+      }),
+    });
+
+    const status = await adapter.detectInstall();
+
+    expect(vi.mocked(probeAcpCapabilities).mock.calls[0]?.[3]).toMatchObject({
+      timeoutMs: 30_000,
+    });
+    expect(status.capabilities.models).toEqual([{ id: "model", label: "Model" }]);
+    expect(status.capabilities.modelEfforts).toEqual({ model: ["High"] });
   });
 
   it("normalizes Factory Droid model rates at the provider boundary", async () => {

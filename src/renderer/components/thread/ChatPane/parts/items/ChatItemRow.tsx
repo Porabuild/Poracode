@@ -12,6 +12,7 @@ import { CommandExecution } from "./CommandExecution";
 import { FileChange } from "./FileChange";
 import { ImageView } from "./ImageView";
 import { PlanItem } from "./PlanItem";
+import { ProviderHandoffRow } from "./ProviderHandoffRow";
 import { QuestionAnswer } from "./QuestionAnswer";
 import { Reasoning } from "./Reasoning";
 import { SubAgentToolCall } from "./SubAgentToolCall";
@@ -131,6 +132,8 @@ function renderItem(
       return <ImageView item={item} />;
     case "web_search":
       return <WebSearchItem item={item} />;
+    case "provider_handoff":
+      return <ProviderHandoffRow threadId={threadId} item={item} />;
     case "error":
       return null;
     default:

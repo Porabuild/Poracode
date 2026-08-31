@@ -10,10 +10,12 @@ import type {
 } from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS, isValidMcpServerName } from "@/shared/contracts";
 import {
+  isBuiltInToolPlugin,
   isPluginSupportedForProject,
   isPluginProvidedNatively,
   pluginMcpServerId,
   pluginMcpServerName,
+  resolveInstalledPluginState,
 } from "@/shared/plugins/catalog";
 import {
   pluginDiagnostic,
@@ -186,7 +188,7 @@ export function resolvePluginMcpServers(
   const diagnostics: PluginDiagnostic[] = [];
 
   for (const plugin of plugins) {
-    const state = installedPlugins[plugin.name];
+    const state = resolveInstalledPluginState(plugin, installedPlugins);
     if (
       !state?.enabled ||
       isPluginProvidedNatively(plugin, context.nativePluginNames) ||
@@ -199,7 +201,12 @@ export function resolvePluginMcpServers(
       continue;
     }
 
-    plugin.poracode.builtInMcpServerIds.forEach((id) => builtInMcpServerIds.add(id));
+    // Built-in tool plugins are the packaging of servers the app already owns:
+    // the per-thread composer toggle stays the enablement truth for those, so
+    // being installed by default never forces Browser/Chrome/Computer Use on.
+    if (!isBuiltInToolPlugin(plugin)) {
+      plugin.poracode.builtInMcpServerIds.forEach((id) => builtInMcpServerIds.add(id));
+    }
 
     const data = pluginDataDirectory(context.pluginDataRoot, plugin.name);
     let dataReady: boolean | undefined;

@@ -3,12 +3,19 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { RemoteImageRefValue } from "@/shared/remote";
 
 export type ChatPaneActions = {
-  openProjectRelativePath: (path: string, lineNumber?: number) => Promise<void>;
+  /**
+   * File-editor actions are project-scope only: Home-scope threads get a
+   * partial object (today just `openThread`), so every project-dependent
+   * field is optional and consumers must treat absence as "feature off".
+   */
+  openProjectRelativePath?: ((path: string, lineNumber?: number) => Promise<void>) | undefined;
+  /** Open a referenced thread; mobile supplies a route-aware implementation. */
+  openThread?: (threadId: string) => void;
   /** Open the in-app file editor overlay and expand the project tree to the folder. */
-  revealProjectFolderInTree: (path: string) => void;
+  revealProjectFolderInTree?: ((path: string) => void) | undefined;
   /** Reveal a file or folder in the OS file explorer (Finder/Explorer/Nautilus). */
   showProjectEntryInExplorer?: ((path: string) => void) | undefined;
-  onContentHeightChange: () => void;
+  onContentHeightChange?: () => void;
   isStickToBottom?: () => boolean;
   /** True while the user is mid wheel / scrollbar / pointer scroll-away. */
   hasRecentUserScrollIntent?: () => boolean;
@@ -21,7 +28,7 @@ export type ChatPaneActions = {
    */
   isThreadOpenSettling?: () => boolean;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
-  projectLocation: ProjectLocation;
+  projectLocation?: ProjectLocation | undefined;
   /**
    * Top-level entry names for the chat's project, used to validate path-like
    * tokens before chipping them. Empty until the project tree responds.

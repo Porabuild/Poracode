@@ -9,6 +9,7 @@ import {
   accumulateActiveGoalAssistantSpend,
   buildClaudeQuestionAnswerEvents,
   ClaudeUsageScopeTracker,
+  completeActiveGoalOnTaskDrainEvents,
   createClaudeMapperState,
   emitActiveGoalTick,
   mapClaudeContextUsageResponse,
@@ -17,6 +18,7 @@ import {
   mapClaudeSdkMessage,
   parseClaudeQuestions,
   startClaudeTurn,
+  supportsNativeGoalFrames,
 } from "./sdkCanonicalMapping";
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
@@ -422,6 +424,21 @@ describe("sdkCanonicalMapping — prompt content", () => {
     expect(state.activeGoalItemId).toBeUndefined();
   });
 
+  it("keeps an active goal docked when the user checks status with a bare /goal", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-goal", "/goal fix the bug", undefined, "user-goal");
+
+    const statusEvents = startClaudeTurn(state, "turn-status", "/goal", undefined, "user-status");
+
+    // `/goal` with no argument is a status query — the goal stays active, so
+    // no goal item may be emitted (an objective-less item would blank the
+    // dock) and the tracking must survive.
+    expect(statusEvents).not.toContainEqual(expect.objectContaining({ itemType: "goal" }));
+    expect(state.activeGoalItemId).toBe("goal-turn-goal");
+    expect(state.activeGoalObjective).toBe("fix the bug");
+    expect(state.activeGoalStartedAtMs).toBeDefined();
+  });
+
   it("ignores session-cumulative result usage for goal token totals", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
@@ -524,6 +541,216 @@ describe("sdkCanonicalMapping — prompt content", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("holds a legacy goal open across a clean turn end while a background Bash task is live", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal ship it", undefined, "user-goal");
+      // Plain background Bash: `task_started` without a subagent_type never
+      // registers as a subagent; the level signal is what reports it live.
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "background_tasks_changed",
+          session_id: "claude-session",
+          tasks: [
+            { task_id: "bash-1", task_type: "local_bash", description: "cargo test" },
+            {
+              task_id: "housekeeper",
+              task_type: "local_bash",
+              description: "chore",
+              ambient: true,
+            },
+          ],
+        } as unknown as SDKMessage,
+        state,
+      );
+      expect(state.liveBackgroundTaskIds).toEqual(new Set(["bash-1"]));
+
+      vi.setSystemTime(new Date("2026-05-12T10:37:44Z"));
+      const resultEvents = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      // The turn ended mid-work (the CLI wakes the model when the task
+      // finishes) — the goal must not complete with the command still running.
+      const resultGoalUpdate = resultEvents.find(
+        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(resultGoalUpdate).toMatchObject({
+        payload: { status: "active", timeUsedSeconds: 2264 },
+      });
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+      expect(state.pendingGoalCompletionOnTaskDrain).toBe(true);
+
+      // REPLACE semantics: the next level is the whole live set, so finishing
+      // one task while another starts must not strand the first entry.
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "background_tasks_changed",
+          session_id: "claude-session",
+          tasks: [{ task_id: "bash-2", task_type: "local_bash", description: "next check" }],
+        } as unknown as SDKMessage,
+        state,
+      );
+      expect(state.liveBackgroundTaskIds).toEqual(new Set(["bash-2"]));
+
+      // Last task drains and the model never resumes: the held goal completes.
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "background_tasks_changed",
+          session_id: "claude-session",
+          tasks: [],
+        } as unknown as SDKMessage,
+        state,
+      );
+      const drainEvents = completeActiveGoalOnTaskDrainEvents(state);
+      expect(drainEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
+      expect(state.activeGoalItemId).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replaces the live background task set wholesale and drops malformed entries", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [
+          { task_id: "task-1", task_type: "local_agent", description: "explore" },
+          { task_id: "task-2", task_type: "local_bash", description: "serve" },
+          null,
+          "not-an-object",
+          { description: "no id" },
+          { task_id: "", task_type: "local_bash", description: "empty id" },
+        ],
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(state.liveBackgroundTaskIds).toEqual(new Set(["task-1", "task-2"]));
+
+    // REPLACE, not merge: task-1 finished, task-2 still live.
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [{ task_id: "task-2", task_type: "local_bash", description: "serve" }],
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(state.liveBackgroundTaskIds).toEqual(new Set(["task-2"]));
+  });
+
+  it("detects frame-capable CLIs from the init version", () => {
+    expect(supportsNativeGoalFrames("2.1.251")).toBe(true);
+    // Boundary: the floor itself streams frames.
+    expect(supportsNativeGoalFrames("2.1.234")).toBe(true);
+    expect(supportsNativeGoalFrames("2.1.233")).toBe(false);
+    expect(supportsNativeGoalFrames("2.2.0")).toBe(true);
+    expect(supportsNativeGoalFrames("3.0.1")).toBe(true);
+    expect(supportsNativeGoalFrames("1.9.9")).toBe(false);
+    // Prerelease suffixes and decorations keep the numeric triple.
+    expect(supportsNativeGoalFrames("2.1.251-beta.1")).toBe(true);
+    expect(supportsNativeGoalFrames("2.1.251 (Claude Code)")).toBe(true);
+    // Unknown versions keep the legacy fallback.
+    expect(supportsNativeGoalFrames(undefined)).toBe(false);
+    expect(supportsNativeGoalFrames("")).toBe(false);
+    expect(supportsNativeGoalFrames("not-a-version")).toBe(false);
+    expect(supportsNativeGoalFrames(42)).toBe(false);
+  });
+
+  it("marks a /goal failed on a frame-capable CLI that never confirmed it", () => {
+    const state = createClaudeMapperState("thread-1");
+    // A frame-capable CLI emits the first `active_goal` verdict at the end of
+    // the turn that set the goal. Zero frames by a clean turn end means the
+    // CLI refused to arm it (trust/hooks gate) or the evaluator never ran.
+    state.cliReportsNativeGoalFrames = true;
+    startClaudeTurn(state, "turn-goal", "/goal ship it", undefined, "user-goal");
+
+    const resultEvents = mapClaudeSdkMessage(
+      { type: "result", subtype: "success", session_id: "claude-session" } as unknown as SDKMessage,
+      state,
+    );
+
+    const goalUpdate = resultEvents.find(
+      (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+    );
+    expect(goalUpdate).toMatchObject({
+      type: "item.updated",
+      itemId: "goal-turn-goal",
+      payload: {
+        action: "updated",
+        status: "failed",
+        objective: "ship it",
+        lastReason: expect.stringContaining("verdict"),
+      },
+    });
+    // The goal is resolved: no zombie tracking, no pending legacy drain.
+    expect(state.activeGoalItemId).toBeUndefined();
+    expect(state.pendingGoalCompletionOnTaskDrain).toBeUndefined();
+  });
+
+  it("keeps a frame-capable CLI's goal open across background work and never refutes at drain", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.cliReportsNativeGoalFrames = true;
+    startClaudeTurn(state, "turn-goal", "/goal ship it", undefined, "user-goal");
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [{ task_id: "bash-1", task_type: "local_bash", description: "cargo test" }],
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    const resultEvents = mapClaudeSdkMessage(
+      { type: "result", subtype: "success", session_id: "claude-session" } as unknown as SDKMessage,
+      state,
+    );
+
+    // Evaluation is deferred while background work is live — the goal is held,
+    // not failed: the CLI evaluates at the next turn end with no work running.
+    const resultGoalUpdate = resultEvents.find(
+      (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+    );
+    expect(resultGoalUpdate).toMatchObject({ payload: { status: "active" } });
+    expect(state.activeGoalItemId).toBe("goal-turn-goal");
+    // The frame-capable CLI has no drain fallback: only frames resolve the goal.
+    expect(state.pendingGoalCompletionOnTaskDrain).toBeUndefined();
+
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [],
+      } as unknown as SDKMessage,
+      state,
+    );
+    const drainEvents = completeActiveGoalOnTaskDrainEvents(state);
+    expect(drainEvents).toEqual([]);
+    expect(state.activeGoalItemId).toBe("goal-turn-goal");
   });
 
   it("updates the active goal from a native active_goal verdict with iterations and reason", () => {

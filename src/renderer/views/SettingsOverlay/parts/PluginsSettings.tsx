@@ -4,13 +4,26 @@ import { Button, PixelLoader } from "@/renderer/components/common";
 import { PluginDetail } from "@/renderer/components/plugins/PluginDetail";
 import { PluginMarketplace } from "@/renderer/components/plugins/PluginMarketplace";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
-import { usePlugins } from "@/renderer/state/pluginsStore";
+import { pluginScopeKey, usePlugins } from "@/renderer/state/pluginsStore";
+import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
+import { useAppStore } from "@/renderer/state/appStore";
+import { isHomeProject } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
 
 export function PluginsSettings() {
-  const plugins = useLocalizedPluginCatalog();
+  // The open workspace decides which project packages are in scope; the home
+  // scope has no repository of its own, so it sees the app-global roots only.
+  const workspaceProject = useAppStore((state) => {
+    const projectId = resolveProjectIdForView(state.view, state.threads, state.focusedPaneId);
+    const project = state.projects.find((item) => item.id === projectId);
+    return isHomeProject(project) ? undefined : project;
+  });
+  const projectLocation = workspaceProject?.location;
+  const plugins = useLocalizedPluginCatalog(projectLocation);
   const loadPlugins = usePlugins((state) => state.load);
-  const loaded = usePlugins((state) => state.loaded);
+  const loaded = usePlugins(
+    (state) => state.loadedScopes[pluginScopeKey(projectLocation)] === true,
+  );
   const error = usePlugins((state) => state.error);
   const [selectedPluginId, setSelectedPluginId] = useState<string>();
   const returnFocusPluginId = useRef<string | undefined>(undefined);
@@ -20,8 +33,9 @@ export function PluginsSettings() {
   // Packages live on disk and can be added while the app runs, so rescan every
   // time the marketplace opens rather than trusting the first load.
   useEffect(() => {
-    void loadPlugins(true);
-  }, [loadPlugins]);
+    void loadPlugins({ rescan: true, ...(projectLocation ? { projectLocation } : {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rescan per project scope, not per location object identity.
+  }, [loadPlugins, pluginScopeKey(projectLocation)]);
 
   useEffect(() => {
     const pluginId = returnFocusPluginId.current;
@@ -68,7 +82,9 @@ export function PluginsSettings() {
               className="mt-2"
               size="sm"
               variant="tertiary"
-              onPress={() => void loadPlugins(true)}
+              onPress={() =>
+                void loadPlugins({ rescan: true, ...(projectLocation ? { projectLocation } : {}) })
+              }
             >
               <Trans>Retry</Trans>
             </Button>

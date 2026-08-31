@@ -27,6 +27,15 @@ export const threadSchema = z.object({
   remoteServerId: z.string().min(1).optional(),
   remoteId: z.string().min(1).optional(),
   projectId: z.string().min(1),
+  /**
+   * Workspace the thread was created in. Only meaningful while `projectId` is
+   * the Home project — threads in real projects scope through
+   * `project.workspaceId` instead, so a stale tag here is inert. Absent
+   * (legacy, headless, scheduled, remote-created) or dangling ⇒ the thread
+   * stays visible in every workspace, mirroring `isProjectInWorkspace`'s
+   * unfiled rule.
+   */
+  workspaceId: z.string().min(1).optional(),
   title: z.string().min(1),
   agentKind: agentKindSchema,
   /** Optional reference to a user-registered ACP instance (Phase 7). */
@@ -77,6 +86,8 @@ export interface ThreadRuntimeSnapshot {
   config?: z.infer<typeof threadConfigSchema>;
   /** Effective launch-time config after plugin and global MCP policy is applied. */
   launchConfig?: z.infer<typeof threadConfigSchema>;
+  /** Whether this live session launched with Poracode's read_thread tool available. */
+  threadMentionToolsAvailable?: boolean;
   sessionRef?: z.infer<typeof sessionRefSchema>;
   canResumeWithConfig: boolean;
   errorMessage?: string;
@@ -132,35 +143,106 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     pluginName: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
+  z.object({
+    kind: z.literal("thread"),
+    threadId: z.string().min(1),
+    title: z.string(),
+  }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
-export const startThreadPayloadSchema = z.object({
-  threadId: z.string().min(1).optional(),
-  projectLocation: projectLocationSchema,
-  agentKind: agentKindSchema,
-  agentInstanceId: agentInstanceIdSchema.optional(),
-  config: threadConfigSchema,
-  prompt: z.string().default(""),
-  segments: z.array(promptSegmentSchema).optional(),
-  initialSize: terminalSizeSchema,
-  sessionRef: sessionRefSchema.optional(),
-  presentationMode: threadPresentationModeSchema.optional(),
-  /** Enabled custom MCP servers resolved by the renderer at launch time. */
-  mcpServers: mcpServerListSchema.optional(),
-  /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
-  disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
-  /** Supervisor-owned restrictions that must survive every restart of this thread. */
-  invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
-  disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+/**
+ * How a handoff transfers the prior conversation to the incoming provider:
+ *
+ * - "thread-transcript": the new provider is handed this thread's own id and
+ *   reads the transcript itself. Only a chat→chat switch can use it, because
+ *   only that keeps the thread and its persisted rows.
+ * - "context-file": the prior conversation travels with the prompt as a written
+ *   context file (an extracted summary, or the stored transcript).
+ *
+ * Absent means "context-file": a client that predates this field always sends
+ * its context with the prompt, so the supervisor must not assume otherwise.
+ * See {@link resolveProviderHandoffStrategy} for the routing itself.
+ */
+export const providerHandoffContextStrategySchema = z.enum(["thread-transcript", "context-file"]);
+export type ProviderHandoffContextStrategy = z.infer<typeof providerHandoffContextStrategySchema>;
+
+/**
+ * Set when a launch continues an existing thread under a different provider.
+ * The supervisor records the switch as a `provider_handoff` divider ahead of
+ * the prompt, reusing `handoffItemId` so a renderer's optimistic row dedupes
+ * against it. `sessionRef` must be omitted alongside this — the new provider
+ * has no session to resume.
+ */
+export const providerSwitchSchema = z.object({
+  fromAgentKind: agentKindSchema,
+  handoffItemId: z.string().min(1).optional(),
   /**
-   * Renderer-allocated id for the user_message item the chat pane has already
-   * painted optimistically. The supervisor reuses this id when emitting its
-   * own canonical user_message events, so the renderer's per-id dedupe drops
-   * the duplicate. Only set for GUI threads with a fresh prompt.
+   * How the launching client transferred the prior conversation. Only
+   * "thread-transcript" makes the supervisor attach the transcript-reading
+   * instruction; anything else already carries its context in the prompt, and
+   * adding the instruction on top would hand the provider two copies.
    */
-  userMessageItemId: z.string().min(1).optional(),
+  contextStrategy: providerHandoffContextStrategySchema.optional(),
+  /**
+   * Only set on the REVERT command the host sends after a failed switched
+   * start: the status the durable row was restored to, which the renderer
+   * mirror must apply after `applyProviderSwitch` (whose own status is always
+   * "launching" — right for a live switch, wrong for a reverted one).
+   */
+  previousStatus: threadStatusSchema.optional(),
 });
+export type ProviderSwitch = z.infer<typeof providerSwitchSchema>;
+
+export const startThreadPayloadSchema = z
+  .object({
+    threadId: z.string().min(1).optional(),
+    projectLocation: projectLocationSchema,
+    agentKind: agentKindSchema,
+    agentInstanceId: agentInstanceIdSchema.optional(),
+    config: threadConfigSchema,
+    prompt: z.string().default(""),
+    segments: z.array(promptSegmentSchema).optional(),
+    initialSize: terminalSizeSchema,
+    sessionRef: sessionRefSchema.optional(),
+    presentationMode: threadPresentationModeSchema.optional(),
+    /** Enabled custom MCP servers resolved by the renderer at launch time. */
+    mcpServers: mcpServerListSchema.optional(),
+    /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
+    disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+    /** Supervisor-owned restrictions that must survive every restart of this thread. */
+    invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+    disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+    /**
+     * Renderer-allocated id for the user_message item the chat pane has already
+     * painted optimistically. The supervisor reuses this id when emitting its
+     * own canonical user_message events, so the renderer's per-id dedupe drops
+     * the duplicate. Only set for GUI threads with a fresh prompt.
+     */
+    userMessageItemId: z.string().min(1).optional(),
+    /**
+     * Set when this launch continues an existing thread under a different
+     * provider. See {@link providerSwitchSchema}.
+     */
+    providerSwitch: providerSwitchSchema.optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (!payload.providerSwitch) return;
+    if (payload.sessionRef) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sessionRef"],
+        message: "A provider switch cannot resume the previous provider's session.",
+      });
+    }
+    if (payload.presentationMode !== "gui") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["presentationMode"],
+        message: "An in-place provider switch requires GUI presentation.",
+      });
+    }
+  });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
 
 export interface StartThreadResult {
@@ -300,6 +382,13 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      */
     groupId: z.string().min(1).optional(),
     groupName: z.string().min(1).optional(),
+    /**
+     * Set when this start continues an existing thread under a different
+     * provider (a remote "Continue in..." switch). The server retargets the
+     * durable row and forwards the command so the desktop renderer's store
+     * follows; see {@link providerSwitchSchema}.
+     */
+    providerSwitch: providerSwitchSchema.optional(),
   }),
   // Assigns an existing thread to a sidebar group. Used to pull an
   // orchestrator parent into the group its children are created in; the

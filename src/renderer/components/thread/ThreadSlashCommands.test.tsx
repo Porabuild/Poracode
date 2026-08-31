@@ -696,10 +696,10 @@ describe("ThreadSlashCommands", () => {
       skillName: "browser-control",
       skillPath: "/plugins/browser-tools/skills/browser-control/SKILL.md",
       skillInvocation: "Use the browser-control skill.",
-      skillProvider: "Browser Tools",
+      skillProvider: "Browser",
       skillScope: "global" as const,
       pluginId: "browser-tools",
-      pluginName: "Browser Tools",
+      pluginName: "Browser",
     };
 
     const commands = resolveAvailableSlashCommands(
@@ -1029,7 +1029,7 @@ describe("ThreadSlashCommands", () => {
     expect(editor.textContent).toBe("/review ");
   });
 
-  it("hides @Terminal in drafts when the provider owns MCP configuration", async () => {
+  it("does not offer plugin-backed MCPs as @ mentions in drafts", async () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     await renderDraftComposer(
       makeAgentStatus({

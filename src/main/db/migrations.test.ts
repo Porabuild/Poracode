@@ -41,8 +41,13 @@ describe("database migration registry", () => {
       [34, "projects.icon"],
       [35, "threads.archived_at"],
       [36, "runtime item stream chunks"],
+      [37, "threads.workspace_id"],
+      [38, "runtime item parent index"],
+      [39, "adopt Antigravity ACP provider"],
+      [40, "normalize Antigravity ACP model variants"],
+      [41, "repair Antigravity persisted model variants"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(36);
+    expect(LATEST_SCHEMA_VERSION).toBe(41);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

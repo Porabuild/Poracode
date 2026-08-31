@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
-import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
+import { DEFAULT_TERMINAL_SIZE, type Project, type Thread } from "@/shared/contracts";
 import type { RemoteShellSnapshot } from "@/shared/remote";
 import { RemoteClientError } from "@/shared/remote/client";
 import { useGitSummariesStore } from "./gitSummaries";
@@ -1798,6 +1798,52 @@ describe("useRemoteDesktop", () => {
 
     await waitFor(() => expect(order).toContain("history"));
     expect(order[0]).toBe("interests");
+  });
+
+  it("returns and titles a mobile provider fork with the same marker as desktop", async () => {
+    const desktop = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([desktop], "d1");
+    const project: Project = {
+      id: "p",
+      name: "Project",
+      location: { kind: "posix", path: "/repo" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const thread: Thread = {
+      id: "source-thread",
+      projectId: project.id,
+      title: "Incident triage",
+      agentKind: "claude",
+      config: { model: "opus" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [project], threads: [thread] });
+
+    let createdThreadId: string | null = null;
+    await act(async () => {
+      createdThreadId = await view.result.current.continueThreadProvider(thread, {
+        targetAgentKind: "codex",
+        targetConfig: { model: "gpt-5" },
+        targetPresentationMode: "gui",
+        fork: true,
+      });
+    });
+
+    const input = client.startNewThread.mock.calls[0]?.[0] as {
+      threadId: string;
+      title: string;
+    };
+    expect(input.title).toBe("Incident triage (fork)");
+    expect(createdThreadId).toBe(input.threadId);
   });
 
   it("[#8] does not claim offline while cached data renders during the first boot refresh", async () => {

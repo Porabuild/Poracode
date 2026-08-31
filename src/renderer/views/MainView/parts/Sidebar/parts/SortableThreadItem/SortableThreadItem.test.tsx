@@ -94,6 +94,8 @@ vi.mock("@/renderer/components/providers/statusTone", () => ({
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useCurrentThreadIdsCount: () => 1,
   useProjectAgentStatuses: () => [],
+  useInstalledAgents: () => [],
+  useThreadAgentStatuses: () => [],
   useIsCurrentThread: () => false,
   useThreadHasBackgroundActivity: (threadId: string) =>
     useThreadHasBackgroundActivityMock(threadId),

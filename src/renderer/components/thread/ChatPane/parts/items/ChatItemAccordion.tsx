@@ -187,7 +187,7 @@ export function ChatItemAccordion({
         isExpanded={isExpanded ?? false}
         onExpandedChange={(next) => {
           onExpandedChange?.(next);
-          actions?.onContentHeightChange();
+          actions?.onContentHeightChange?.();
         }}
       >
         <Disclosure.Heading>

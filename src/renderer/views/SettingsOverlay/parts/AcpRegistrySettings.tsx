@@ -16,6 +16,7 @@ import {
 import {
   acpGenericKind,
   type AcpRegistryAgent,
+  type AcpRegistryInstallTarget,
   type AgentStatus,
   type AgentStatusesResponse,
   type Project,
@@ -33,12 +34,19 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   agentAuthTarget,
   findAgentAuthMethodForStatus,
+  findStatusForTarget,
   findTerminalAuthMethodForStatus,
   scopeEnvForStatus,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
 import { PixelLoader } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { CombinedRuntimeVersionList } from "@/renderer/components/providers/CombinedRuntimeVersionList";
+import {
+  loadAcpRegistryListing,
+  resetAcpRegistryListingCache,
+  useCombinedProviderRuntimeUpdates,
+} from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { getProviderManifest } from "@/renderer/components/providers/providerManifest";
 import {
   APP_SUPPORTED_ACP_AGENT_IDS,
@@ -106,15 +114,25 @@ interface InstallTarget {
   id: string;
   label: string;
   project?: Project;
+  registryTarget: AcpRegistryInstallTarget;
 }
 
 interface NativeInstallAction extends InstallTarget {
-  command: string | ((project: Project) => string);
+  command?: string | ((project: Project) => string);
+  registryAgentId?: string;
+  verifyRuntimeId?: string;
+}
+
+interface CombinedRuntimeUpdateAction {
+  id: string;
+  label: string;
+  status: AgentStatus;
 }
 
 interface NativeRuntimeUpdateAction extends NativeInstallAction {
   status: AgentStatus;
   slot: NativeAgentRuntimeSlot;
+  expectedRegistryVersion?: string;
 }
 
 function findStatusInResponse(
@@ -159,26 +177,34 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
   const syncInstalledAgents = useSharedSettings((s) => s.syncAcpRegistryInstalledAgents);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const combinedRuntimeUpdates = useCombinedProviderRuntimeUpdates(
+    [...agentStatuses, ...wslAgentStatuses],
+    Object.fromEntries(agents.map((agent) => [agent.id, agent.version])),
+  );
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const isWindowsPlatform = isWindows();
 
-  const refreshStatuses = (options?: { reset?: boolean; scope?: RefreshAgentScope }) => {
+  const requestStatusRefresh = (options?: { reset?: boolean; scope?: RefreshAgentScope }) => {
     if (options?.reset !== false) {
       useAgentStatusesStore.getState().resetDiscoveredAgents();
     }
-    return readBridge()
-      .refreshAgentStatuses(wslDistros, options?.scope)
-      .catch(() => undefined);
+    return readBridge().refreshAgentStatuses(wslDistros, options?.scope);
+  };
+
+  const refreshStatuses = (options?: { reset?: boolean; scope?: RefreshAgentScope }) => {
+    return requestStatusRefresh(options).catch(() => undefined);
   };
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError(undefined);
-    readBridge()
-      .listAcpRegistry()
+    // Through the shared listing loader: a direct call would race the
+    // combined-runtime probe's own listing and run two supervisor
+    // auto-update sweeps against the same install dirs.
+    loadAcpRegistryListing()
       .then((result) => {
         if (cancelled) return;
         setAgents(result.agents);
@@ -279,7 +305,17 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
 
   for (const agent of agents) {
     if (normalizedQuery && !registrySearchText(agent).includes(normalizedQuery)) continue;
-    const registryInstalled = installedById.has(agent.id);
+    const installedRecord = installedById.get(agent.id);
+    const registryInstalled = installedRecord !== undefined;
+    // A registry artifact a built-in provider adopted as one of its runtimes is
+    // owned by that provider card. Generic installs of the same id predate the
+    // adoption and must stay listed so they remain updatable and removable.
+    if (
+      APP_SUPPORTED_ACP_AGENT_IDS.has(agent.id) &&
+      (!registryInstalled || installedRecord?.installKind === "first-class")
+    ) {
+      continue;
+    }
     const familyKind = REGISTRY_AGENT_FAMILY_KIND[agent.id];
     const localInstalled = familyKind ? hasDetectedInstalledKind(familyKind) : false;
     if (KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS.has(agent.id) && !registryInstalled) {
@@ -520,6 +556,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           id: "windows",
           label: t`Windows`,
           project: firstWindowsProject,
+          registryTarget: { kind: "native" },
         });
       }
       for (const [distro, project] of wslProjectsByDistro) {
@@ -528,10 +565,15 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           id: `wsl:${distro}`,
           label: t`WSL: ${distro}`,
           project,
+          registryTarget: { kind: "wsl", distro },
         });
       }
     } else if (offersPerRuntimeInstalls || !nativeStatus) {
-      installTargets.push({ id: "default", label: t`local` });
+      installTargets.push({
+        id: "default",
+        label: t`local`,
+        registryTarget: { kind: "native" },
+      });
     }
 
     const installActions: NativeInstallAction[] = runtimeSlots
@@ -543,12 +585,18 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   (status) => `wsl:${status.envDistro ?? ""}` === target.id,
                 );
           const environment = installTargets.length > 1 ? target.label : undefined;
-          return availableRuntimeInstallOptions(runtimeSlots, targetStatus).map((option) => ({
-            ...target,
-            id: `${target.id}:${option.id}`,
-            label: t(option.installLabel(environment)),
-            command: option.installCommand,
-          }));
+          return availableRuntimeInstallOptions(runtimeSlots, targetStatus).map((option) => {
+            return {
+              ...target,
+              id: `${target.id}:${option.id}`,
+              label: t(option.installLabel(environment)),
+              ...(option.installCommand ? { command: option.installCommand } : {}),
+              ...(option.installCommand && runtimeSlots.unifiedAgent
+                ? { verifyRuntimeId: option.commandRuntimeId ?? option.id }
+                : {}),
+              ...(option.registryAgentId ? { registryAgentId: option.registryAgentId } : {}),
+            };
+          });
         })
       : installTargets.map((target) => ({
           ...target,
@@ -564,8 +612,17 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
     const runtimeUpdateGroups = (runtimeSlots?.runtimes ?? []).flatMap((slot) => {
       const update = slot.update;
       if (!update) return [];
+      const registryAgent = update.registryAgentId
+        ? agents.find((candidate) => candidate.id === update.registryAgentId)
+        : undefined;
       const actions: NativeRuntimeUpdateAction[] = authStatuses.flatMap((status) => {
-        if (!update.canUpdate(status)) return [];
+        if (
+          runtimeSlots?.unifiedAgent &&
+          runtimeSlots.runtimes.some((runtime) => !detectAgentRuntime(runtime, status).installed)
+        ) {
+          return [];
+        }
+        if (!update.canUpdate(status, registryAgent)) return [];
         const project = projectForStatus(status);
         const environment = detectionScopeLabel(status);
         return [
@@ -575,17 +632,115 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             status,
             slot,
             ...(project ? { project } : {}),
-            command: (targetProject: Project) => update.command(status, targetProject) ?? "",
+            registryTarget:
+              status.envKind === "wsl" && status.envDistro
+                ? { kind: "wsl", distro: status.envDistro }
+                : { kind: "native" },
+            ...(update.command
+              ? {
+                  command: (targetProject: Project) =>
+                    update.command?.(status, targetProject) ?? "",
+                }
+              : {}),
+            ...(update.registryAgentId ? { registryAgentId: update.registryAgentId } : {}),
+            ...(registryAgent ? { expectedRegistryVersion: registryAgent.version } : {}),
           },
         ];
       });
       return actions.length > 0 ? [{ slot, update, actions }] : [];
     });
+    const combinedEntries = authStatuses.map((status) => ({
+      status,
+      entry: combinedRuntimeUpdates.entryFor(status),
+    }));
+    const combinedUpdateActions: CombinedRuntimeUpdateAction[] = combinedEntries.flatMap(
+      ({ status, entry }) =>
+        entry.updateAvailable &&
+        (!runtimeSlots || availableRuntimeInstallOptions(runtimeSlots, status).length === 0)
+          ? [
+              {
+                id: `combined-update:${status.envKind ?? "native"}:${status.envDistro ?? ""}`,
+                label: detectionScopeLabel(status),
+                status,
+              },
+            ]
+          : [],
+    );
+    const combinedUpdatePending = combinedEntries.some(({ entry }) => entry.pending);
 
     const runInstallTarget = (target: NativeInstallAction | undefined) => {
       if (!target) return;
       setError(undefined);
       setPendingAgentId(agent.id);
+      const clearPending = () =>
+        setPendingAgentId((current) => (current === agent.id ? undefined : current));
+      const finishInstall = () => {
+        void (async () => {
+          let installError: Error | undefined;
+          let response: AgentStatusesResponse | undefined;
+          let statusBeforeRegistry: AgentStatus | undefined;
+          const registryTarget = target.registryTarget;
+          if (target.verifyRuntimeId) {
+            const detected = await requestStatusRefresh({
+              reset: false,
+              scope: { agentKinds: [agent.id] },
+            });
+            const status = findStatusForTarget(detected, agent.id, registryTarget);
+            if (!status?.runtimeVariants?.[target.verifyRuntimeId]?.installed) {
+              throw new Error(t`Unable to refresh ${agentLabel} status.`);
+            }
+            statusBeforeRegistry = status;
+          }
+          try {
+            const registrySlot = runtimeSlots?.runtimes.find(
+              (slot) => slot.registryAgentId === target.registryAgentId,
+            );
+            const registryAgentId = target.registryAgentId;
+            if (registryAgentId) {
+              const payload = {
+                agentId: registryAgentId,
+                target: registryTarget,
+              };
+              const registryInstalled = registrySlot
+                ? detectAgentRuntime(registrySlot, statusBeforeRegistry).installed
+                : false;
+              const result = registryInstalled
+                ? await readBridge().updateAcpRegistryAgent(payload)
+                : await readBridge().installAcpRegistryAgent(payload);
+              syncInstalledAgents(result.installed);
+            }
+          } catch (installFailure) {
+            installError =
+              installFailure instanceof Error ? installFailure : new Error(String(installFailure));
+          }
+          try {
+            response = await requestStatusRefresh({
+              reset: false,
+              scope: { agentKinds: [agent.id] },
+            });
+          } catch (refreshFailure) {
+            if (installError === undefined) throw refreshFailure;
+          }
+          if (installError !== undefined) throw installError;
+          const refreshed = response
+            ? findStatusForTarget(response, agent.id, registryTarget)
+            : undefined;
+          // One unified action reconciles the whole agent: with the missing
+          // runtime installed, the combined updater brings any stale runtime
+          // current (toast stays silent — this is an install action).
+          if (refreshed && combinedRuntimeUpdates.entryFor(refreshed).supported) {
+            await combinedRuntimeUpdates.updateStatus(refreshed, { toast: false });
+          } else if (runtimeSlots?.unifiedAgent && !refreshed) {
+            throw new Error(t`Unable to refresh ${agentLabel} status.`);
+          }
+        })()
+          .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+          .finally(clearPending);
+      };
+      if (!target.command) {
+        finishInstall();
+        return;
+      }
       const opened = runAgentInstallCommand({
         label: agentLabel,
         command: target.command,
@@ -595,12 +750,8 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         // Keep the loader on through the probe so it doesn't flicker back to
         // "Install" before detection confirms the binary.
         onCommandComplete: (exitCode) => {
-          const clearPending = () =>
-            setPendingAgentId((current) => (current === agent.id ? undefined : current));
           if (exitCode === 0) {
-            void refreshStatuses({ reset: false, scope: { agentKinds: [agent.id] } }).finally(
-              clearPending,
-            );
+            finishInstall();
           } else {
             clearPending();
           }
@@ -620,6 +771,58 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       setPendingAgentId(agent.id);
       const clearPending = () =>
         setPendingAgentId((current) => (current === agent.id ? undefined : current));
+      const finishUpdate = () => {
+        void (async () => {
+          let updateError: Error | undefined;
+          try {
+            if (action.registryAgentId) {
+              const result = await readBridge().updateAcpRegistryAgent({
+                agentId: action.registryAgentId,
+                target: action.registryTarget,
+              });
+              syncInstalledAgents(result.installed);
+            }
+          } catch (updateFailure) {
+            updateError =
+              updateFailure instanceof Error ? updateFailure : new Error(String(updateFailure));
+          }
+          let response: AgentStatusesResponse | undefined;
+          try {
+            response = await requestStatusRefresh({
+              reset: false,
+              scope: {
+                agentKinds: [agent.id],
+                envs: [scopeEnvForStatus(action.status)],
+              },
+            });
+          } catch (refreshFailure) {
+            if (updateError === undefined) throw refreshFailure;
+          }
+          if (updateError !== undefined) throw updateError;
+          const refreshed = response
+            ? findStatusForTarget(response, agent.id, action.registryTarget)
+            : undefined;
+          const refreshedRuntime = detectAgentRuntime(action.slot, refreshed);
+          const nextVersion = refreshedRuntime.version;
+          if (
+            action.expectedRegistryVersion &&
+            (!refreshedRuntime.installed || nextVersion !== action.expectedRegistryVersion)
+          ) {
+            throw new Error(t`Unable to refresh ${agentLabel} status.`);
+          }
+          if (nextVersion && nextVersion !== previousVersion) {
+            toast.success(t(update.updatedToast(nextVersion)));
+          } else {
+            toast.success(t(update.upToDateToast));
+          }
+        })()
+          .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+          .finally(clearPending);
+      };
+      if (!action.command) {
+        finishUpdate();
+        return;
+      }
       const opened = runAgentInstallCommand({
         label: t(update.actionLabel(undefined)),
         command: action.command,
@@ -630,29 +833,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             clearPending();
             return;
           }
-          void refreshStatuses({
-            reset: false,
-            scope: {
-              agentKinds: [agent.id],
-              envs: [scopeEnvForStatus(action.status)],
-            },
-          })
-            .then((response) => {
-              const refreshed =
-                action.status.envKind === "wsl"
-                  ? response?.wsl.find(
-                      (status) =>
-                        status.kind === agent.id && status.envDistro === action.status.envDistro,
-                    )
-                  : response?.windows.find((status) => status.kind === agent.id);
-              const nextVersion = detectAgentRuntime(action.slot, refreshed).version;
-              if (nextVersion && nextVersion !== previousVersion) {
-                toast.success(t(update.updatedToast(nextVersion)));
-              } else {
-                toast.success(t(update.upToDateToast));
-              }
-            })
-            .finally(clearPending);
+          finishUpdate();
         },
       });
       if (!opened) clearPending();
@@ -676,12 +857,17 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                 <div className="flex items-center gap-2">
                   <Card.Title className="truncate text-base font-semibold">{agentLabel}</Card.Title>
                   {renderTag(t`Native`)}
-                  {runtimeSlots?.runtimes.map((slot) =>
-                    renderTag(
-                      t(installedRuntimes?.has(slot.id) ? slot.installedTag : slot.notInstalledTag),
-                      `${agent.id}-runtime-tag-${slot.id}`,
-                    ),
-                  )}
+                  {!runtimeSlots?.unifiedAgent &&
+                    runtimeSlots?.runtimes.map((slot) =>
+                      renderTag(
+                        t(
+                          installedRuntimes?.has(slot.id)
+                            ? slot.installedTag
+                            : slot.notInstalledTag,
+                        ),
+                        `${agent.id}-runtime-tag-${slot.id}`,
+                      ),
+                    )}
                 </div>
                 <Card.Description className="line-clamp-2 text-sm text-foreground/85">
                   {t(agent.description)}
@@ -738,6 +924,26 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                     onRun={runRuntimeUpdate}
                   />
                 ))}
+                <NativeAgentActionControl
+                  actions={combinedUpdateActions}
+                  icon={ArrowUpCircle}
+                  label={t`Update`}
+                  soloLabel={t`Update`}
+                  pendingLabel={t`Updating`}
+                  menuLabel={t`Update`}
+                  isPending={combinedUpdatePending}
+                  onRun={(action) => {
+                    if (!action) return;
+                    setError(undefined);
+                    void combinedRuntimeUpdates
+                      .updateStatus(action.status, { toast: false })
+                      .catch((updateError: unknown) => {
+                        setError(
+                          updateError instanceof Error ? updateError.message : String(updateError),
+                        );
+                      });
+                  }}
+                />
                 {isInstalled && missingAuthStatus ? (
                   <div className="flex items-center gap-2 text-xs text-warning">
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -764,19 +970,35 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
               </div>
             </div>
 
-            <Card.Footer className="flex flex-wrap items-center gap-x-4 gap-y-2 p-0 text-xs text-muted">
+            <Card.Footer className="flex flex-wrap items-start gap-x-4 gap-y-2 p-0 text-xs text-muted">
               <span className="font-medium">
                 <Trans>ID: {agent.id}</Trans>
               </span>
               {runtimeSlots ? (
-                authStatuses.map((status) => (
-                  <span
-                    key={`${agent.id}-runtime-${status.envKind ?? "native"}-${status.envDistro ?? ""}`}
-                  >
-                    {authStatuses.length > 1 ? `${detectionScopeLabel(status)}: ` : null}
-                    {runtimeSummaryText(runtimeSlots, status, (descriptor) => t(descriptor))}
-                  </span>
-                ))
+                authStatuses.map((status) => {
+                  const combinedEntry = combinedRuntimeUpdates.entryFor(status);
+                  return (
+                    <div
+                      key={`${agent.id}-runtime-${status.envKind ?? "native"}-${status.envDistro ?? ""}`}
+                      className="min-w-0"
+                    >
+                      {authStatuses.length > 1 ? (
+                        <span className="mb-0.5 block">{detectionScopeLabel(status)}:</span>
+                      ) : null}
+                      {combinedEntry.supported ? (
+                        <CombinedRuntimeVersionList
+                          entry={combinedEntry}
+                          className="text-xs"
+                          showInstallTarget
+                        />
+                      ) : (
+                        <span>
+                          {runtimeSummaryText(runtimeSlots, status, (descriptor) => t(descriptor))}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <NativeAgentVersionLabel
                   installedVersion={nativeStatus?.version ?? installedWslStatuses[0]?.version}
@@ -977,7 +1199,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
               </div>
             </div>
 
-            <Card.Footer className="flex flex-wrap items-center gap-x-4 gap-y-2 p-0 text-xs text-muted">
+            <Card.Footer className="flex flex-wrap items-start gap-x-4 gap-y-2 p-0 text-xs text-muted">
               <span className="font-medium">
                 <Trans>ID: {agent.id}</Trans>
               </span>
@@ -1084,12 +1306,15 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                     isIconOnly
                     size="sm"
                     variant="tertiary"
+                    aria-label={t`Refresh registry`}
                     isPending={isLoading}
                     onPress={() => {
                       setIsLoading(true);
                       setError(undefined);
-                      readBridge()
-                        .listAcpRegistry()
+                      // An explicit refresh must bypass the shared listing's
+                      // TTL, then leave the fresh result in the shared cache.
+                      resetAcpRegistryListingCache();
+                      loadAcpRegistryListing()
                         .then((result) => {
                           setAgents(result.agents);
                           void refreshStatuses({ reset: false });

@@ -56,6 +56,7 @@ import {
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import { requireSessionPty, shouldPrimeNativeProjectShellEnv } from "./threadSession/helpers";
+import { resolveThreadMentionSegments } from "./threadMentionResolver";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
 import { SessionRuntimeLifecycle } from "./threadSession/sessionRuntimeLifecycle";
 import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
@@ -79,6 +80,20 @@ export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmit
 export type { ThreadSessionManagerOptions };
 
 const RECENTLY_REMOVED_THREAD_LIMIT = 256;
+
+function requireThreadMentionTools(
+  session: SessionRuntime,
+  segments: readonly PromptSegment[] | undefined,
+): void {
+  if (
+    segments?.some((segment) => segment.kind === "thread") &&
+    session.threadMentionToolsAvailable !== true
+  ) {
+    throw new Error(
+      "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
+    );
+  }
+}
 
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
@@ -138,6 +153,14 @@ export class ThreadSessionManager {
         this.structuredInterruptWatchdog.interruptStructuredTurn(session),
       startStructuredTurn: (session, turn) => this.structuredTurnQueue.start(session, turn),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
+      emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId, emitOptions) =>
+        this.structuredTurnQueue.emitOptimisticUserMessage(
+          threadId,
+          prompt,
+          segments,
+          requestedItemId,
+          emitOptions,
+        ),
       resolveSkillTurnInjection: (session, segments) =>
         this.resolveSkillTurnInjection(session, segments),
     });
@@ -181,6 +204,13 @@ export class ThreadSessionManager {
           threadId,
           prompt,
           segments,
+          requestedItemId,
+        ),
+      emitProviderHandoff: (threadId, fromAgentKind, toAgentKind, requestedItemId) =>
+        this.structuredTurnQueue.emitProviderHandoff(
+          threadId,
+          fromAgentKind,
+          toAgentKind,
           requestedItemId,
         ),
     });
@@ -228,6 +258,7 @@ export class ThreadSessionManager {
       attention: session.attention,
       config: session.config,
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
+      threadMentionToolsAvailable: session.threadMentionToolsAvailable === true,
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
@@ -282,7 +313,7 @@ export class ThreadSessionManager {
     const userMessageItemId = this.structuredTurnQueue.emitOptimisticUserMessage(
       session.threadId,
       pending.prompt,
-      pending.segments,
+      pending.displaySegments ?? pending.segments,
       pending.userMessageItemId,
     );
     const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
@@ -500,7 +531,21 @@ export class ThreadSessionManager {
     const threadId = payload.threadId ?? randomUUID();
     const pending = this.startLocks.get(threadId);
     if (pending) {
+      if (payload.providerSwitch) {
+        await pending;
+        return this.startThread(payload);
+      }
       return { threadId };
+    }
+    const currentSession = this.sessions.get(threadId);
+    if (
+      payload.providerSwitch &&
+      currentSession &&
+      currentSession.agentKind !== payload.providerSwitch.fromAgentKind
+    ) {
+      throw new Error(
+        `Provider switch is stale: thread ${threadId} now belongs to ${currentSession.agentKind}.`,
+      );
     }
     this.recentlyRemovedThreadIds.delete(threadId);
 
@@ -535,8 +580,12 @@ export class ThreadSessionManager {
     }
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
           preservePdfAttachments:
             usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
@@ -565,6 +614,7 @@ export class ThreadSessionManager {
       prompt,
       config: effectiveConfig,
       ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+      ...(payload.segments ? { displaySegments: payload.segments } : {}),
       ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
       ...(inlineInstructions ? { inlineInstructions } : {}),
     };
@@ -758,8 +808,12 @@ export class ThreadSessionManager {
     if (usesStructuredFlow) {
       throw new Error("stageThreadInput is only supported for terminal-native threads.");
     }
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const wslSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
           preserveImageAttachments: false,
         })
       : undefined;
@@ -907,8 +961,16 @@ export class ThreadSessionManager {
       await this.steerCoordinator.setPendingSteer(session, payload);
       return;
     }
-    const segments = await this.filterPluginSkillSegments(session, payload.segments);
-    await this.steerCoordinator.setPendingSteer(session, { ...payload, segments });
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const segments = await this.filterPluginSkillSegments(session, mentionSegments);
+    await this.steerCoordinator.setPendingSteer(session, {
+      ...payload,
+      ...(segments ? { segments } : {}),
+      ...(payload.segments ? { displaySegments: payload.segments } : {}),
+    });
   }
 
   /**

@@ -4,7 +4,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 
 ## Quick Reference
 
-- **Package manager:** `pnpm` (11.2.2, pinned in `package.json#packageManager`)
+- **Package manager:** `pnpm` (12.1.0, pinned in `package.json#packageManager`)
 - **Node:** >= 24.10.0
 - **Typecheck:** `pnpm run typecheck` (tsc, TypeScript 7 native)
 - **Lint:** `pnpm run lint` (oxlint)

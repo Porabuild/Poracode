@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(20);
+    expect(STATUS_CACHE_VERSION).toBe(21);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(20);
+    expect(STATUS_CACHE_VERSION).toBe(21);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -310,6 +310,45 @@ describe("agent status cache", () => {
 
     // Detection now resolves per-machine agent-setting overrides
     // (machineSettings), so pre-v20 statuses must be re-probed.
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v20 terminal-only Antigravity caches", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 20,
+        windows: [
+          {
+            kind: "antigravity",
+            label: "Antigravity",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [{ id: "auto", label: "Auto" }],
+              presentationModes: ["terminal"],
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(21);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

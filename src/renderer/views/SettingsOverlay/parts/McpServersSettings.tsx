@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
-import type { McpServer } from "@/shared/contracts";
+import type { BuiltInMcpServerId, McpServer } from "@/shared/contracts";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
+import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
 import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -33,6 +34,16 @@ export function McpServersSettings() {
       servers: project.mcpServers ?? [],
       onChange: (next: McpServer[]) => updateProjectMcpServers(project.id, next),
     }));
+  const plugins = useLocalizedPluginCatalog(workspaceProject?.location);
+  const managedBuiltIns = plugins.reduce<Partial<Record<BuiltInMcpServerId, string>>>(
+    (acc, entry) => {
+      for (const id of entry.plugin.poracode.builtInMcpServerIds) {
+        acc[id] = entry.name;
+      }
+      return acc;
+    },
+    {},
+  );
 
   return (
     <SettingsPage
@@ -65,6 +76,7 @@ export function McpServersSettings() {
           disabledBuiltInTools={disabledBuiltInTools}
           onBuiltInDisabledChange={setBuiltInDisabled}
           onBuiltInToolEnabledChange={setBuiltInToolEnabled}
+          managedBuiltIns={managedBuiltIns}
           builtInSettings={{
             crossagents: {
               title: t`Crossagents`,

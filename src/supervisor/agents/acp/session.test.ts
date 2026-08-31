@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, truncateSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   RequestError,
+  type PromptCapabilities,
   type RequestPermissionRequest,
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
@@ -20,6 +21,7 @@ import {
   toAcpResourceUri,
 } from "./session";
 import { shouldSpawnAcpSession } from "./sessionFactory";
+import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
 import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
 
 function makeInput(
@@ -83,6 +85,7 @@ function makeConfigSyncSession(
     }>;
     fsTextCapability?: boolean;
     initializeMeta?: Record<string, unknown>;
+    agentPromptCapabilities?: PromptCapabilities;
   } = {},
 ) {
   const connection = {
@@ -192,7 +195,7 @@ function makeConfigSyncSession(
   session["acpTerminalSeq"] = 0;
   session["releasedAcpTerminalOutput"] = new Map();
   session["acpTerminalCommandById"] = new Map();
-  session["agentPromptCapabilities"] = undefined;
+  session["agentPromptCapabilities"] = overrides.agentPromptCapabilities;
   session["agentSessionCapabilities"] = undefined;
   session["initializeMeta"] = overrides.initializeMeta;
   session["cwd"] = "C:\\repo";
@@ -435,6 +438,29 @@ describe("ACP transport close lifecycle", () => {
 
     expect(listener.onError).toHaveBeenCalledExactlyOnceWith("ACP connection closed unexpectedly.");
     expect(listener.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels pending requests when the transport closes", async () => {
+    const { listener, session } = makeConfigSyncSession();
+    const pending = session.handlePermissionRequest({
+      sessionId: "session-1",
+      toolCall: { toolCallId: "tool-1", title: "Run tests", kind: "execute" },
+      options: [{ optionId: "once", name: "Allow once", kind: "allow_once" }],
+    });
+    listener.onRuntimeEvent.mockClear();
+    const internal = session as unknown as {
+      reportTransportOutcome(message: string | undefined): void;
+    };
+
+    internal.reportTransportOutcome("ACP connection closed unexpectedly.");
+
+    await expect(pending).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledExactlyOnceWith({
+      type: "request.resolved",
+      threadId: "thread-1",
+      requestId: "acp-perm-0",
+      outcome: "cancelled",
+    });
   });
 
   it("treats a clean transport close as expected", () => {
@@ -1031,10 +1057,12 @@ describe("ACP client protocol helpers", () => {
     expect(readFileSync(join(projectRoot, "out.txt"), "utf8")).toBe("ok");
   });
 
-  it("sends image content blocks for image attachments regardless of advertised prompt capabilities", async () => {
+  it("sends image content blocks when the ACP agent advertises image prompts", async () => {
     const projectRoot = makePosixProject();
     writeFileSync(join(projectRoot, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { connection, session } = makeConfigSyncSession();
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { image: true },
+    });
     (session as unknown as Record<string, unknown>)["projectLocation"] = {
       kind: HOST_KIND,
       path: projectRoot,
@@ -1057,6 +1085,33 @@ describe("ACP client protocol helpers", () => {
         {
           type: "image",
           data: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64"),
+          mimeType: "image/png",
+        },
+        { type: "text", text: "inspect" },
+      ],
+    });
+  });
+
+  it("keeps images as resource links when the ACP agent does not advertise image prompts", async () => {
+    const projectRoot = makePosixProject();
+    writeFileSync(join(projectRoot, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const { connection, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("inspect", { model: "model-a" }, [
+      { kind: "attachment", path: "diagram.png", mimeType: "image/png" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource_link",
+          uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "diagram.png"),
+          name: "diagram.png",
           mimeType: "image/png",
         },
         { type: "text", text: "inspect" },
@@ -1097,6 +1152,253 @@ describe("ACP client protocol helpers", () => {
       ],
     });
   });
+
+  it("sends audio content blocks when the ACP agent advertises audio prompts", async () => {
+    const projectRoot = makePosixProject();
+    const audio = Buffer.from([0x49, 0x44, 0x33]);
+    writeFileSync(join(projectRoot, "sample.mp3"), audio);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { audio: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("listen", { model: "model-a" }, [
+      { kind: "attachment", path: "sample.mp3" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        { type: "audio", data: audio.toString("base64"), mimeType: "audio/mpeg" },
+        { type: "text", text: "listen" },
+      ],
+    });
+  });
+
+  it("normalizes a generic declared MIME before sending an audio content block", async () => {
+    const projectRoot = makePosixProject();
+    const audio = Buffer.from([0x49, 0x44, 0x33]);
+    writeFileSync(join(projectRoot, "sample.mp3"), audio);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { audio: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("listen", { model: "model-a" }, [
+      { kind: "attachment", path: "sample.mp3", mimeType: "application/octet-stream" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        { type: "audio", data: audio.toString("base64"), mimeType: "audio/mpeg" },
+        { type: "text", text: "listen" },
+      ],
+    });
+  });
+
+  it("keeps audio as a resource link when the ACP agent does not advertise audio", async () => {
+    const projectRoot = makePosixProject();
+    writeFileSync(join(projectRoot, "sample.mp3"), Buffer.from([0x49, 0x44, 0x33]));
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("listen", { model: "model-a" }, [
+      { kind: "attachment", path: "sample.mp3" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource_link",
+          uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "sample.mp3"),
+          name: "sample.mp3",
+          mimeType: "audio/mpeg",
+        },
+        { type: "text", text: "listen" },
+      ],
+    });
+  });
+
+  it("embeds text and binary resources when the ACP agent advertises embedded context", async () => {
+    const projectRoot = makePosixProject();
+    const pdf = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+    writeFileSync(join(projectRoot, "notes.md"), "shared context");
+    writeFileSync(join(projectRoot, "brief.pdf"), pdf);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [
+      { kind: "file", path: "notes.md" },
+      { kind: "attachment", path: "brief.pdf", mimeType: "application/pdf" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource",
+          resource: {
+            uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "notes.md"),
+            mimeType: "text/markdown",
+            text: "shared context",
+          },
+        },
+        {
+          type: "resource",
+          resource: {
+            uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "brief.pdf"),
+            mimeType: "application/pdf",
+            blob: pdf.toString("base64"),
+          },
+        },
+        { type: "text", text: "review" },
+      ],
+    });
+  });
+
+  it("does not read an outside-project file mention as embedded context", async () => {
+    const projectRoot = makePosixProject();
+    const outsideRoot = makePosixProject();
+    const outside = join(outsideRoot, "secret.txt");
+    writeFileSync(outside, "not for the agent");
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [{ kind: "file", path: outside }]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource_link",
+          uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, outside),
+          name: "secret.txt",
+          mimeType: "text/plain",
+        },
+        { type: "text", text: "review" },
+      ],
+    });
+  });
+
+  it("falls back to resource links when inline ACP content exceeds the byte limit", async () => {
+    const projectRoot = makePosixProject();
+    const largeAudio = join(projectRoot, "large.mp3");
+    const largeContext = join(projectRoot, "large.bin");
+    writeFileSync(largeAudio, "");
+    writeFileSync(largeContext, "");
+    truncateSync(largeAudio, ACP_INLINE_CONTENT_MAX_BYTES + 1);
+    truncateSync(largeContext, ACP_INLINE_CONTENT_MAX_BYTES + 1);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { audio: true, embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [
+      { kind: "attachment", path: "large.mp3" },
+      { kind: "attachment", path: "large.bin" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        expect.objectContaining({ type: "resource_link", name: "large.mp3" }),
+        expect.objectContaining({ type: "resource_link", name: "large.bin" }),
+        { type: "text", text: "review" },
+      ],
+    });
+  });
+
+  it("enforces the inline ACP byte limit across the whole prompt", async () => {
+    const projectRoot = makePosixProject();
+    const first = join(projectRoot, "first.bin");
+    const second = join(projectRoot, "second.bin");
+    writeFileSync(first, "");
+    writeFileSync(second, "");
+    const partSize = Math.floor(ACP_INLINE_CONTENT_MAX_BYTES / 2) + 1;
+    truncateSync(first, partSize);
+    truncateSync(second, partSize);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [
+      { kind: "attachment", path: "first.bin" },
+      { kind: "attachment", path: "second.bin" },
+    ]);
+
+    const prompt = connection.prompt.mock.calls[0]?.[0].prompt as Array<{
+      type: string;
+      name?: string;
+    }>;
+    expect(prompt[0]?.type).toBe("resource");
+    expect(prompt[1]).toMatchObject({ type: "resource_link", name: "second.bin" });
+    expect(prompt[2]).toEqual({ type: "text", text: "review" });
+  });
+
+  it.runIf(process.platform === "win32")(
+    "reads WSL project files through the host UNC root for embedded context",
+    async () => {
+      const projectRoot = makePosixProject();
+      writeFileSync(join(projectRoot, "notes.ts"), "export const marker = true;");
+      const location = {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/workspace",
+        uncPath: projectRoot,
+      };
+      const { connection, session } = makeConfigSyncSession({
+        agentPromptCapabilities: { embeddedContext: true },
+      });
+      (session as unknown as Record<string, unknown>)["projectLocation"] = location;
+
+      await session.startTurn("review", { model: "model-a" }, [{ kind: "file", path: "notes.ts" }]);
+
+      expect(connection.prompt).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        prompt: [
+          {
+            type: "resource",
+            resource: {
+              uri: toAcpResourceUri(location, "notes.ts"),
+              mimeType: "text/plain",
+              text: "export const marker = true;",
+            },
+          },
+          { type: "text", text: "review" },
+        ],
+      });
+    },
+  );
 
   it("implements ACP terminal create/output/wait/release over a real PTY", async () => {
     const projectRoot = makePosixProject();
@@ -2295,6 +2597,225 @@ describe("ACP turn config sync", () => {
     expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
   });
 
+  it("completes the turn when end_turn arrives with a never-completed foreground subagent tool call", async () => {
+    // Antigravity ends turns without terminal tool_call_updates for its task
+    // tool. The zombie subagent is purged by the turn close, so nothing can
+    // drain an "awaiting subagents" wait — the turn must finish immediately.
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("delegate work", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "zombie-task",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", description: "Inspect" },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    const events = listener.onRuntimeEvent.mock.calls.map(([event]) => event as { type?: string });
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("completes the awaiting foreground turn when background subagent reports go silent", async () => {
+    vi.useFakeTimers();
+    try {
+      const FOREGROUND_SUBAGENT_DRAIN_MS = 60_000;
+      const { connection, listener, session } = makeConfigSyncSession();
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+
+      const turn = session.startTurn("launch silent background agent", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "silent-bg",
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+
+      expect(
+        listener.onRuntimeEvent.mock.calls
+          .map(([event]) => event as { type?: string })
+          .filter((event) => event.type === "turn.completed"),
+      ).toHaveLength(0);
+
+      vi.advanceTimersByTime(FOREGROUND_SUBAGENT_DRAIN_MS + 1);
+
+      expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+        type: "turn.completed",
+        state: "completed",
+      });
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Stop closes an awaiting foreground turn as cancelled without waiting for reports", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background agent", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "stuck-bg",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    await session.interruptTurn();
+
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "cancelled",
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("Stop closes an awaiting foreground turn when the provider rejects cancel", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background agent", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "stuck-bg-rejected-cancel",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+    connection.cancel.mockRejectedValueOnce(new Error("no active prompt"));
+
+    await expect(session.interruptTurn()).resolves.toBeUndefined();
+
+    const completed = listener.onRuntimeEvent.mock.calls
+      .map(([event]) => event as { type?: string; state?: string })
+      .filter((event) => event.type === "turn.completed");
+    expect(completed).toEqual([expect.objectContaining({ state: "cancelled" })]);
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("disarms the drain deadline while an awaiting-turn cancel is pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const FOREGROUND_SUBAGENT_DRAIN_MS = 60_000;
+      const { connection, listener, session } = makeConfigSyncSession();
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      let resolveCancel!: () => void;
+      connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+      connection.cancel.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+
+      const turn = session.startTurn("launch background agent", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "stuck-bg-pending-cancel",
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+
+      const interrupt = session.interruptTurn();
+      vi.advanceTimersByTime(FOREGROUND_SUBAGENT_DRAIN_MS + 1);
+
+      const completed = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; state?: string })
+        .filter((event) => event.type === "turn.completed");
+      expect(completed).toEqual([expect.objectContaining({ state: "cancelled" })]);
+      resolveCancel();
+      await interrupt;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stays working until all concurrently reporting detached subagents complete", () => {
     const { listener, session } = makeConfigSyncSession();
     for (const toolCallId of ["detached-a", "detached-b"]) {
@@ -2823,6 +3344,81 @@ describe("ACP orphan turns — agent-initiated work after prompt() settled", () 
       type: "turn.completed",
       state: "completed",
     });
+  });
+
+  it("does not pin the orphan turn on a stuck read tool_call", () => {
+    vi.useFakeTimers();
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "in_progress",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+      },
+    });
+    expect(statusUpdates(listener)).toEqual(["working"]);
+
+    vi.advanceTimersByTime(ORPHAN_TURN_IDLE_MS + 1);
+
+    expect(statusUpdates(listener).at(-1)).toBe("idle");
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+  });
+
+  it("fails the in-flight turn when Antigravity reports a quota error", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt: ((value: { stopReason: string }) => void) | undefined;
+    connection.prompt.mockReturnValueOnce(
+      new Promise<{ stopReason: string }>((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("continue", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running view_file",
+        kind: "read",
+        status: "in_progress",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-view",
+        status: "failed",
+        rawOutput:
+          'Encountered retryable error from model provider: Agent execution terminated due to error. ("request failed (code 429): Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 1h33m48s.")',
+      },
+    });
+
+    expect(listener.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error", attention: "error" }),
+    );
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "failed",
+    });
+
+    resolvePrompt?.({ stopReason: "end_turn" });
+    await turn;
+    expect(statusUpdates(listener).at(-1)).toBe("error");
   });
 
   it("stays working past the idle window while a tool call is still open", () => {

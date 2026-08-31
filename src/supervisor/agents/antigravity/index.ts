@@ -1,4 +1,10 @@
-import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentInstanceConfig,
+  PromptSegment,
+  ProjectLocation,
+} from "@/shared/contracts";
+import { ANTIGRAVITY_ACP_REGISTRY_ID } from "@/shared/agents/antigravity";
 import { compareVersions } from "@/shared/changelog";
 import { isHomeScopeLocation } from "@/shared/homeScope";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -32,6 +38,7 @@ import {
   detectAntigravityTerminalStatus,
   syncAntigravityConfigFromTerminalState,
 } from "./terminal";
+import { applyAntigravityAcpStatus, createAntigravityAcpRuntime } from "./acp";
 
 export { detectAntigravityInvalidSessionRef } from "./session";
 
@@ -39,13 +46,30 @@ export function shouldUseAntigravityPrintPty(version: string | undefined): boole
   return !version || compareVersions(version, "1.1.1") < 0;
 }
 
-export function createAntigravityAdapter(): AgentAdapter {
-  let capabilities: AgentCapability = defaultAntigravityCapabilities;
+export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): AgentAdapter {
+  const acpRuntime = createAntigravityAcpRuntime(acpInstance);
+  const createAcpSession = acpRuntime?.createStructuredSession;
+  const buildAcpAuthCommand = acpRuntime?.buildAcpAuthCommand;
+  let terminalCapabilities: AgentCapability = defaultAntigravityCapabilities;
+  let capabilities: AgentCapability = acpRuntime
+    ? {
+        ...defaultAntigravityCapabilities,
+        presentationModes: ["terminal", "gui"],
+        mcpScope: { terminal: "none", gui: "launch" },
+        presentationCapabilities: { gui: acpRuntime.capabilities },
+      }
+    : defaultAntigravityCapabilities;
   let preSpawnConversationIds = new Set<string>();
   let preSpawnLastConversationForCwd: string | undefined;
   let preSpawnStartedAt = 0;
   let supportsSeparateModelEffort = false;
   let usePtyForPrint = true;
+  // Detection updates this; `true` until the first probe keeps the CLI lane
+  // for anything that reads the adapter before a status refresh lands.
+  let cliRuntimeInstalled = true;
+  // Detection updates this too. Starts `false` so a read before the first
+  // probe cannot claim a Chat runtime that may not be installed.
+  let acpRuntimeInstalled = false;
   let defaultModel = ANTIGRAVITY_DEFAULT_MODEL_ID;
   const detectionSpec = createAntigravityDetectionSpec((probe) => {
     supportsSeparateModelEffort = probe.dialect.separateModelEffort;
@@ -56,6 +80,7 @@ export function createAntigravityAdapter(): AgentAdapter {
     kind: detectionSpec.kind,
     label: detectionSpec.label,
     binary: detectionSpec.binary,
+    firstClassAcpRegistryId: ANTIGRAVITY_ACP_REGISTRY_ID,
     skillSupport: {
       roots: [
         {
@@ -99,13 +124,20 @@ export function createAntigravityAdapter(): AgentAdapter {
     ...inheritBaseSpawnEnv(detectionSpec),
 
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, detectionSpec);
-      capabilities = status.capabilities;
+      const [status, acpStatus] = await Promise.all([
+        detectAgentInstall(ctx, detectionSpec),
+        acpRuntime?.detectInstall(ctx),
+      ]);
+      terminalCapabilities = status.capabilities;
+      cliRuntimeInstalled = status.installed;
+      const merged = applyAntigravityAcpStatus(status, acpStatus);
+      acpRuntimeInstalled = merged.runtimeVariants?.acp?.installed === true;
+      capabilities = merged.capabilities;
       supportsSeparateModelEffort ||= Boolean(
         status.version && compareVersions(status.version, "1.1.5") >= 0,
       );
       usePtyForPrint = shouldUseAntigravityPrintPty(status.version);
-      return status;
+      return merged;
     },
 
     async resolveAccount({ status, wslDistros }) {
@@ -238,12 +270,22 @@ export function createAntigravityAdapter(): AgentAdapter {
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     detectTerminalStatus(text) {
-      return detectAntigravityTerminalStatus(text, capabilities);
+      return detectAntigravityTerminalStatus(text, terminalCapabilities);
     },
     syncConfigFromTerminalState(input) {
-      return syncAntigravityConfigFromTerminalState(input, capabilities);
+      return syncAntigravityConfigFromTerminalState(input, terminalCapabilities);
     },
     detectInvalidSessionRef: detectAntigravityInvalidSessionRef,
+    // Chat gives a subagent child what `agy -p` cannot: incremental tool
+    // calls, permission forwarding and live steering. So the structured lane
+    // wins wherever the ACP runtime is detected, and the CLI one-shot is the
+    // fallback for a machine that only has `agy`. Both missing still resolves
+    // to whichever lane the adapter can actually build (see
+    // `resolveSubagentExecution`).
+    get subagentExecutionPreference() {
+      if (acpRuntimeInstalled && createAcpSession) return "structured" as const;
+      return cliRuntimeInstalled ? ("one-shot" as const) : ("structured" as const);
+    },
 
     get defaultOneShotModel() {
       return defaultModel;
@@ -285,12 +327,9 @@ export function createAntigravityAdapter(): AgentAdapter {
       };
     },
 
-    // Antigravity has no structured (GUI) runtime, so it joins the subagent
-    // roster via the one-shot child lane. Unlike title/commit generation this
-    // does NOT isolate the cwd — a child runs in the parent's project directory
-    // so it can actually read/edit the repo. Since agy 1.1.3, headless mode
-    // soft-denies tools requiring confirmation, so subagents need the explicit
-    // bypass to perform their assigned project work.
+    // Subagents stay on the agy one-shot lane so the terminal CLI remains the
+    // execution source for child work. Unlike title/commit generation this does
+    // NOT isolate the cwd — a child runs in the parent's project directory.
     buildSubagentOneShotCommand({ model, effort, prompt, location }) {
       return {
         command: "agy",
@@ -305,5 +344,19 @@ export function createAntigravityAdapter(): AgentAdapter {
         ...(usePtyForPrint ? { pty: true } : {}),
       };
     },
+
+    ...(createAcpSession
+      ? {
+          createStructuredSession: async (input) => {
+            if (input.presentationMode !== "gui") return undefined;
+            return createAcpSession(input);
+          },
+        }
+      : {}),
+    ...(buildAcpAuthCommand
+      ? {
+          buildAcpAuthCommand: (ctx) => buildAcpAuthCommand(ctx),
+        }
+      : {}),
   };
 }

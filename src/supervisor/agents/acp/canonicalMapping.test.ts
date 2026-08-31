@@ -909,6 +909,41 @@ describe("mapAcpSessionUpdate", () => {
     expect(started.payload.command).toBe("");
   });
 
+  it("reuses the live item when an in-flight tool_call id is resent", () => {
+    const state = createAcpMapperState("t-reuse-tool");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "in_progress",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const itemId = (started[0] as { itemId: string }).itemId;
+
+    const resent = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "failed",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+        rawOutput: "Tool execution failed",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(resent.some((event) => event.type === "item.started")).toBe(false);
+    expect(resent).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "item.completed", itemId })]),
+    );
+    expect(state.toolCallItems.size).toBe(0);
+  });
+
   it("seals orphaned tool calls at turn end", () => {
     const state = createAcpMapperState("t-stop-tool");
     const started = mapAcpSessionUpdate(
@@ -2757,5 +2792,100 @@ describe("mapAcpPermissionRequest", () => {
     );
 
     expect(event).toMatchObject({ requestType: "apply_patch_approval" });
+  });
+  it("drops background task wait text chunks without opening an assistant message", () => {
+    const state = createAcpMapperState("t-wait-task");
+
+    const events1 = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Waiting for commit background task to complete." },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(events1).toHaveLength(0);
+    expect(state.openAssistantItemId).toBeUndefined();
+
+    const events2 = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Waiting for the git commit background task to finish." },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(events2).toHaveLength(0);
+    expect(state.openAssistantItemId).toBeUndefined();
+  });
+
+  it("converts <thinking> blocks inside agent_message_chunk into reasoning items", () => {
+    const state = createAcpMapperState("t-thinking-msg");
+
+    // Chunk 1: starts thinking
+    const events1 = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "<thinking>I need to check the status." },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(state.inThinkingBlock).toBe(true);
+    expect(state.openAssistantItemId).toBeUndefined();
+    expect(state.openReasoningItemId).toBeDefined();
+    expect(events1).toEqual([
+      {
+        type: "item.started",
+        threadId: "t-thinking-msg",
+        itemId: state.openReasoningItemId,
+        itemType: "reasoning",
+      },
+      {
+        type: "content.delta",
+        threadId: "t-thinking-msg",
+        itemId: state.openReasoningItemId,
+        stream: "reasoning_text",
+        delta: "I need to check the status.",
+      },
+    ]);
+
+    // Chunk 2: finishes thinking and begins assistant message
+    const events2 = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "</thinking>Here is the result." },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(state.inThinkingBlock).toBe(false);
+    expect(state.openReasoningItemId).toBeUndefined();
+    expect(state.openAssistantItemId).toBeDefined();
+
+    expect(events2.some((e) => e.type === "item.completed")).toBe(true);
+    const asstStarted = events2.find(
+      (e) =>
+        e.type === "item.started" && (e as { itemType?: string }).itemType === "assistant_message",
+    );
+    expect(asstStarted).toBeDefined();
+    const asstDelta = events2.find(
+      (e) => e.type === "content.delta" && (e as { stream?: string }).stream === "assistant_text",
+    );
+    expect(asstDelta).toMatchObject({ delta: "Here is the result." });
+  });
+
+  it("swallows background task wait text inside <thinking> blocks without emitting reasoning or assistant items", () => {
+    const state = createAcpMapperState("t-thinking-wait");
+
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: {
+          type: "text",
+          text: "<thinking>\nWaiting for commit background task to complete.\n</thinking>",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(events).toHaveLength(0);
+    expect(state.openAssistantItemId).toBeUndefined();
+    expect(state.openReasoningItemId).toBeUndefined();
   });
 });

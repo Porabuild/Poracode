@@ -57,7 +57,14 @@ export interface SpawnableAgentModel {
 export function resolveSubagentExecution(adapter: {
   createStructuredSession?: unknown;
   buildSubagentOneShotCommand?: unknown;
+  subagentExecutionPreference?: CrossagentExecution;
 }): CrossagentExecution | undefined {
+  if (adapter.subagentExecutionPreference === "one-shot" && adapter.buildSubagentOneShotCommand) {
+    return "one-shot";
+  }
+  if (adapter.subagentExecutionPreference === "structured" && adapter.createStructuredSession) {
+    return "structured";
+  }
   if (adapter.createStructuredSession) return "structured";
   if (adapter.buildSubagentOneShotCommand) return "one-shot";
   return undefined;

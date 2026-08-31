@@ -34,11 +34,11 @@ import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServersStore";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { applyRemoteThreadStartCommand } from "@/renderer/actions/remoteStartCommandActions";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
-import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/agentStatusesStore";
+import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
@@ -46,8 +46,6 @@ import { evictOversizedInactiveThreadRuntimeItems } from "./state/chatRuntimePer
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
-import { generateTitleAsync } from "@/renderer/utils/titleGen";
-import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
@@ -377,56 +375,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           return;
         }
         if (command.kind === "start") {
-          const store = useAppStore.getState();
-          if (store.threads.some((t) => t.id === command.threadId)) return;
-          const project = store.projects.find((p) => p.id === command.projectId);
-          if (!project) return;
-          const titlePrompt =
-            titlePromptFromSegments(command.prompt, command.segments).trim() ||
-            i18n._(linguiMsg`New thread`);
-          const thread = store.createThread({
-            threadId: command.threadId,
-            projectId: project.id,
-            agentKind: command.agentKind,
-            ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
-            config: command.config,
-            prompt: titlePrompt,
-            ...(command.title ? { title: command.title } : {}),
-            ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
-            ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
-            ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
-            ...(command.prNumber !== undefined ? { prNumber: command.prNumber } : {}),
-            ...(command.focus === false ? { focus: false } : {}),
-            ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
-            ...(command.groupId ? { groupId: command.groupId } : {}),
-            ...(command.groupName ? { groupName: command.groupName } : {}),
-          });
-          if (command.launchRuntime !== false) {
-            if (command.userMessageItemId) {
-              store.queueThreadLaunch(
-                thread.id,
-                command.prompt,
-                command.segments,
-                command.userMessageItemId,
-              );
-            } else {
-              store.queueThreadLaunch(thread.id, command.prompt, command.segments);
-            }
-          }
-          const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-          const projectAgentStatuses = getProjectAgentStatuses(
-            project.location,
-            agentStatuses,
-            wslAgentStatuses,
-          );
-          // An explicit title (e.g. an orchestrator-provided ticket key) is
-          // authoritative — don't let AI title generation overwrite it.
-          if (!command.title) {
-            generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
-          }
-          if (command.worktreePath) {
-            void primeWorktreeGitState(project, command.worktreePath);
-          }
+          applyRemoteThreadStartCommand(command);
           return;
         }
         const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);

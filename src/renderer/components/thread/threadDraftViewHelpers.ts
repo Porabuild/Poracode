@@ -149,10 +149,18 @@ export function formatEffortLabel(id: string): string {
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+/**
+ * A saved policy only wins while the surface still advertises it. Carrying an
+ * unsupported id through as "" left the draft with no permission selected —
+ * and dual-runtime providers hit that on every draft, because one id space
+ * (Antigravity's `agy` says `yolo`) is not the other's (Chat says `never`).
+ * Falling back to the provider's declared default keeps a valid posture
+ * selected instead.
+ */
 export function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
-  if (preferred !== undefined) {
-    return policies.some((p) => p.id === preferred) ? preferred : "";
+  if (preferred !== undefined && policies.some((p) => p.id === preferred)) {
+    return preferred;
   }
   const explicit = agent.capabilities.defaultApprovalPolicy;
   if (explicit && policies.some((p) => p.id === explicit)) {
