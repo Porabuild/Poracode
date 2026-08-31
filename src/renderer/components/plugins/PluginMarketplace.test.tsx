@@ -23,12 +23,13 @@ describe("PluginMarketplace", () => {
     render(<Marketplace onOpen={onOpen} />);
 
     expect(screen.getByRole("heading", { name: "Featured" })).toBeInTheDocument();
-    expect(screen.getByText("Browser Tools")).toBeInTheDocument();
-    expect(screen.getByText("Chrome Tools")).toBeInTheDocument();
+    expect(screen.getByText("Browser")).toBeInTheDocument();
+    expect(screen.getByText("Chrome")).toBeInTheDocument();
+    expect(screen.getByText("Terminal")).toBeInTheDocument();
     // Packages that only wrap a built-in server ship with the app, so they are
     // managed rather than installed.
-    expect(screen.getByRole("button", { name: "Browser Tools Manage" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Browser Tools" }));
+    expect(screen.getByRole("button", { name: "Browser Manage" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Browser" }));
     expect(onOpen).toHaveBeenCalledWith("browser-tools");
     onOpen.mockClear();
 
@@ -37,7 +38,7 @@ describe("PluginMarketplace", () => {
     });
 
     expect(screen.getByText("GitHub")).toBeInTheDocument();
-    expect(screen.queryByText("Browser Tools")).not.toBeInTheDocument();
+    expect(screen.queryByText("Browser")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "GitHub Install" }));
 
     expect(useSharedSettings.getState().installedPlugins.github).toMatchObject({
@@ -60,13 +61,13 @@ describe("PluginMarketplace", () => {
     const strip = screen.getByRole("heading", { name: "Installed" }).closest("section")!;
     // Built-in tool plugins are there from the start; an opt-in package only
     // joins them once the user installs it.
-    expect(within(strip).getByRole("button", { name: "Open Chrome Tools" })).toBeInTheDocument();
+    expect(within(strip).getByRole("button", { name: "Open Chrome" })).toBeInTheDocument();
     expect(within(strip).queryByRole("button", { name: "Open GitHub" })).not.toBeInTheDocument();
 
     act(() => useSharedSettings.getState().installPlugin(pluginFixture("github")));
     expect(within(strip).getByRole("button", { name: "Open GitHub" })).toBeInTheDocument();
 
-    fireEvent.click(within(strip).getByRole("button", { name: "Open Chrome Tools" }));
+    fireEvent.click(within(strip).getByRole("button", { name: "Open Chrome" }));
     expect(onOpen).toHaveBeenCalledWith("chrome-tools");
   });
 

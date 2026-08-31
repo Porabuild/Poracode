@@ -7,6 +7,7 @@ import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
+  canDisablePlugin,
   canUninstallPlugin,
   isPluginMcpServerEnabled,
   isPluginSkillEnabled,
@@ -200,7 +201,7 @@ export function PluginDetail(props: {
         </p>
       ) : null}
 
-      {state ? (
+      {state && canDisablePlugin(plugin) ? (
         <section className="flex items-center justify-between gap-4 border-b border-[var(--hairline)] py-5">
           <div>
             <h2 id={pluginToggleLabelId} className="text-sm font-semibold text-foreground">
@@ -296,7 +297,7 @@ export function PluginDetail(props: {
                 badge={t`Skill`}
                 last={index === props.plugin.skills.length - 1}
                 control={
-                  state ? (
+                  state && canDisablePlugin(plugin) ? (
                     <ToggleSwitch
                       aria-labelledby={`${labelId} ${badgeId}`}
                       isSelected={enabled}

@@ -59,6 +59,7 @@ function fakePluginPackage(name: string, root: string, skills: readonly string[]
       featured: false,
       communityMaintained: false,
       defaultEnabled: true,
+      alwaysEnabled: false,
       nativePluginNames: [],
       builtInMcpServerIds: [],
       skills: {},
@@ -378,10 +379,10 @@ describe("SkillsService", () => {
     expect(installedSkill).toMatchObject({
       id: expect.stringContaining(":plugin:browser-tools:browser-control"),
       providerId: "plugin:browser-tools",
-      providerLabel: "Browser Tools",
+      providerLabel: "Browser",
       origin: "plugin",
       pluginId: "browser-tools",
-      pluginName: "Browser Tools",
+      pluginName: "Browser",
       enabled: true,
       mutable: false,
     });
@@ -419,7 +420,7 @@ describe("SkillsService", () => {
       name: "browser-control",
       path: join(pkg.skillsDir, "browser-control", "SKILL.md"),
       invocation: "/browser-control",
-      provider: "Browser Tools",
+      provider: "Browser",
       scope: "global" as const,
     };
     const segments = [textSegment, pluginSegment];
@@ -485,7 +486,7 @@ describe("SkillsService", () => {
       name: "browser-control",
       path: join(linkedSkillDir, "SKILL.md"),
       invocation: "/browser-control",
-      provider: "Browser Tools",
+      provider: "Browser",
       scope: "global" as const,
     };
 
@@ -520,7 +521,7 @@ describe("SkillsService", () => {
               name: "browser-control",
               path,
               invocation: "/browser-control",
-              provider: "Browser Tools",
+              provider: "Browser",
               scope: "global",
             },
           ]),
@@ -586,7 +587,7 @@ describe("SkillsService", () => {
             name: "chrome-control",
             path: join(chrome.skillsDir, "chrome-control", "SKILL.md"),
             invocation: "/chrome-control",
-            provider: "Chrome Tools",
+            provider: "Chrome",
             scope: "global",
           },
           {
@@ -692,7 +693,7 @@ describe("SkillsService", () => {
       name: "browser-control",
       path: "/tmp/plugin-alias/SKILL.md",
       invocation: "/browser-control",
-      provider: "Browser Tools",
+      provider: "Browser",
       scope: "global" as const,
     };
 
@@ -1025,10 +1026,10 @@ describe("SkillsService", () => {
       name: "browser-control",
       path: join(pkg.skillsDir, "browser-control", "SKILL.md"),
       invocation: "/browser-control",
-      provider: "Browser Tools",
+      provider: "Browser",
       scope: "global" as const,
       pluginId: "browser-tools",
-      pluginName: "Browser Tools",
+      pluginName: "Browser",
     };
     const nativePlugins = [{ name: "browser", root: join(root, "native-browser") }];
 

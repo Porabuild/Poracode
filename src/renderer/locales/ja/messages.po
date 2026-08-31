@@ -1413,8 +1413,8 @@ msgstr "アプリブラウザ"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "App Controls"
-msgstr "アプリコントロール"
+#~ msgid "App Controls"
+#~ msgstr "アプリコントロール"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -2029,8 +2029,8 @@ msgid "Browser tabs"
 msgstr "ブラウザタブ"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Browser Tools"
-msgstr "ブラウザツール"
+#~ msgid "Browser Tools"
+#~ msgstr "ブラウザツール"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -2496,8 +2496,8 @@ msgid "Chrome MCP enabled for this thread"
 msgstr "このスレッドに対して Chrome MCP が有効になっています"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Chrome Tools"
-msgstr "Chrome ツール"
+#~ msgid "Chrome Tools"
+#~ msgstr "Chrome ツール"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -4705,8 +4705,12 @@ msgid "Enabled agents, model visibility and order"
 msgstr "有効なエージェント、モデルの表示と順序"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Enabled servers stay on for new threads"
-msgstr "有効なサーバーは新しいスレッドでも有効なままです"
+msgid "Enabled plugins stay on for new threads"
+msgstr "有効なプラグインは新しいスレッドでも有効なままです"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Enabled servers stay on for new threads"
+#~ msgstr "有効なサーバーは新しいスレッドでも有効なままです"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -6972,10 +6976,8 @@ msgstr "MCP"
 #~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#~ msgid "MCP server"
-#~ msgstr "MCPサーバー"
+msgid "MCP server"
+msgstr "MCPサーバー"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
@@ -7025,7 +7027,6 @@ msgstr "MCPサーバーのタイムアウト（ミリ秒）"
 msgid "MCP server URL"
 msgstr "MCPサーバーのURL"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -7975,8 +7976,8 @@ msgid "No matching threads"
 msgstr "一致するスレッドがありません"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "No MCP servers are enabled for this run"
-msgstr "この実行で有効な MCP サーバーはありません"
+#~ msgid "No MCP servers are enabled for this run"
+#~ msgstr "この実行で有効な MCP サーバーはありません"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -8019,6 +8020,10 @@ msgstr "パターンはありません。"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "まだフェーズはありません。"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No plugins are enabled for this run"
+msgstr "この実行で有効なプラグインはありません"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -9048,6 +9053,10 @@ msgstr "プラグイン"
 msgid "Plugin folder"
 msgstr "プラグインフォルダ"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Plugin servers"
+msgstr "プラグインサーバー"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
 msgstr "plugin.json を JSON として読み取れませんでした。"
@@ -9064,6 +9073,7 @@ msgstr "plugin.json は Agent Plugins 仕様として正しくありません。
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json はこのビルドが対応していない Agent Plugins バージョンを指定しています。"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9083,6 +9093,14 @@ msgstr "このプロファイルを、カスタムの環境変数・モデル名
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "人気のエディター テーマを Poracode に適合させました。それぞれは上記のライト モードまたはダーク モードに従います。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Poracode"
+msgstr "Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
@@ -9733,6 +9751,14 @@ msgstr "失敗したジョブを再実行"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
 msgstr "Poracode 自体の読み取りと操作：スレッド、ターミナルパネル、git、プルリクエスト、スケジュール。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report the evidence."
+msgstr "このワークツリーのターミナルパネルを読み、根拠を報告します。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report what it is printing."
+msgstr "このワークツリーのターミナルパネルを読み、表示内容を報告します。"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -11175,8 +11201,12 @@ msgid "Set shortcut"
 msgstr "ショートカットを設定"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Set when this session started — start a new thread to change servers"
-msgstr "このセッションの開始時に確定されます — サーバーを変更するには新しいスレッドを開始してください"
+msgid "Set when this session started — start a new thread to change plugins"
+msgstr "このセッションの開始時に確定されます — プラグインを変更するには新しいスレッドを開始してください"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Set when this session started — start a new thread to change servers"
+#~ msgstr "このセッションの開始時に確定されます — サーバーを変更するには新しいスレッドを開始してください"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -11969,8 +11999,8 @@ msgid "Subagent"
 msgstr "サブエージェント"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Subagent Delegation"
-msgstr "サブエージェントへの委任"
+#~ msgid "Subagent Delegation"
+#~ msgstr "サブエージェントへの委任"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
@@ -12279,9 +12309,7 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12574,6 +12602,10 @@ msgstr "テーマとチャットのフォントサイズ"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "これらの組み込みMCPサーバーはOpenCodeスレッド間で共有されます。保存すると実行中のGUIプロジェクトが更新されますが、サーバーを削除すると進行中のターンが中断される場合があります。ターミナルスレッドには次回起動時に変更が反映されます。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
+msgstr "これらのサーバーはプラグインが提供します。プラグインから有効または無効にしてください。ここでは編集できません。"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx

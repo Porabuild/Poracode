@@ -63,6 +63,11 @@ export const poracodePluginExtensionSchema = z
      * anything useful, ship `false` so nothing runs until the user enables them.
      */
     defaultEnabled: z.boolean().default(true),
+    /**
+     * Bundled capability that cannot be switched off (Terminal). Still shows in
+     * Plugins so the user can read what it does; the enable switch is hidden.
+     */
+    alwaysEnabled: z.boolean().default(false),
     platforms: z.array(pluginPlatformSchema).optional(),
     projectKinds: z.array(pluginProjectKindSchema).optional(),
     /** Skill invoked when the package itself is mentioned in chat. */
@@ -84,6 +89,7 @@ export const EMPTY_PORACODE_EXTENSION: PoracodePluginExtension = {
   featured: false,
   communityMaintained: false,
   defaultEnabled: true,
+  alwaysEnabled: false,
   nativePluginNames: [],
   builtInMcpServerIds: [],
   skills: {},

@@ -16,6 +16,7 @@ function plugin(name: string, source: LoadedPlugin["source"]): LoadedPlugin {
       featured: false,
       communityMaintained: false,
       defaultEnabled: true,
+      alwaysEnabled: false,
       nativePluginNames: [],
       builtInMcpServerIds: [],
       skills: {},

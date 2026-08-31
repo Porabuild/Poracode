@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { toast } from "@heroui/react";
-import { Download, Monitor, TerminalSquare, Webhook, X } from "lucide-react";
+import { Download, Monitor, Settings2, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
@@ -656,13 +656,8 @@ export function ThreadDraftComposerArea(props: {
       ? [
           {
             id: "app-controls",
-            // Shortcut for one narrow use of the app-controls server: read the
-            // Terminal panel. It sits next to the App Controls plugin rather
-            // than being replaced by it — the plugin loads the full app skill.
-            name: t`Terminal`,
-            searchAliases: ["Terminal"],
-            icon: TerminalSquare,
-            keepAlongsidePlugin: true,
+            name: t`Poracode`,
+            icon: Settings2,
             enabled: true,
           },
         ]

@@ -214,12 +214,12 @@ export function ComposerAddMenu(props: {
 
   const persistenceCaption = readOnly ? (
     (props.readOnlyCaption ?? (
-      <Trans>Set when this session started — start a new thread to change servers</Trans>
+      <Trans>Set when this session started — start a new thread to change plugins</Trans>
     ))
   ) : (
-    <Trans>Enabled servers stay on for new threads</Trans>
+    <Trans>Enabled plugins stay on for new threads</Trans>
   );
-  const emptyReadOnlyNote = <Trans>No MCP servers are enabled for this run</Trans>;
+  const emptyReadOnlyNote = <Trans>No plugins are enabled for this run</Trans>;
 
   const button = (
     <Button
@@ -268,7 +268,7 @@ export function ComposerAddMenu(props: {
         <button type="button" className="m-sheet-action" onClick={() => setMobileView("mcp")}>
           <Server className="size-4 text-muted" />
           <span className="flex-1 truncate">
-            <Trans>MCP servers</Trans>
+            <Trans>Plugins</Trans>
           </span>
           {enabledMcpCount > 0 ? (
             <span className="shrink-0 text-xs tabular-nums text-muted">{enabledMcpCount}</span>
@@ -289,7 +289,7 @@ export function ComposerAddMenu(props: {
       >
         <ChevronLeft className="size-4 text-muted" />
         <span className="flex-1 truncate font-medium">
-          <Trans>MCP servers</Trans>
+          <Trans>Plugins</Trans>
         </span>
       </button>
       {visibleMcpServers.map((server) => {
@@ -434,10 +434,10 @@ export function ComposerAddMenu(props: {
           {(showFileOption || experiment) && hasMcpMenu ? <Separator /> : null}
           {hasMcpMenu ? (
             <Dropdown.SubmenuTrigger>
-              <Dropdown.Item id="mcp-servers" textValue={t`MCP servers`}>
+              <Dropdown.Item id="mcp-servers" textValue={t`Plugins`}>
                 <Server className="size-4 text-muted" />
                 <Label className="flex-1 truncate">
-                  <Trans>MCP servers</Trans>
+                  <Trans>Plugins</Trans>
                 </Label>
                 {enabledMcpCount > 0 ? (
                   <span className="text-xs tabular-nums text-muted">{enabledMcpCount}</span>
@@ -451,7 +451,7 @@ export function ComposerAddMenu(props: {
                     // (not menu items) so rows do not look or act clickable.
                     <div
                       role="list"
-                      aria-label={t`MCP servers`}
+                      aria-label={t`Plugins`}
                       className="poracode-menu max-h-72 min-w-56 overflow-y-auto p-1"
                     >
                       {visibleMcpServers.map((server) => {
@@ -495,7 +495,7 @@ export function ComposerAddMenu(props: {
                     </div>
                   ) : (
                     <Dropdown.Menu
-                      aria-label={t`MCP servers`}
+                      aria-label={t`Plugins`}
                       selectionMode="multiple"
                       selectedKeys={submenuSelectedKeys}
                       onSelectionChange={handleSubmenuSelection}

@@ -3,7 +3,7 @@ name: terminal-inspection
 description: "Read what the user's Terminal panel is actually printing and report the evidence."
 ---
 
-# Terminal Inspection
+# Terminal
 
 The user is pointing at the integrated Terminal panel they opened for this worktree — a dev server, a test run, a build. Not your own TUI, not an agent thread, not a chat transcript, not a file with that name.
 

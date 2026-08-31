@@ -9,10 +9,10 @@
   },
   "homepage": "https://poracode.com",
   "license": "Apache-2.0",
-  "keywords": ["subagents", "delegation", "orchestration"],
+  "keywords": ["subagents", "delegation", "orchestration", "crossagents"],
   "extensions": {
     "com.poracode.client": {
-      "title": "Subagent Delegation",
+      "title": "Crossagents",
       "category": "productivity",
       "featured": true,
       "examplePrompt": "Delegate independent parts of this task to the best available agents, then validate and consolidate their results",
@@ -20,7 +20,7 @@
       "builtInMcpServerIds": ["crossagents"],
       "skills": {
         "subagent-delegation": {
-          "name": "Subagent Delegation",
+          "name": "Crossagents",
           "description": "Choose, brief, and coordinate subagents for parallel work."
         },
         "parallel-review": {

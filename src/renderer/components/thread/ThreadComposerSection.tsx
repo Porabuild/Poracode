@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { toast } from "@heroui/react";
-import { ChevronDown, Monitor, TerminalSquare, Webhook } from "lucide-react";
+import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -256,7 +256,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
   const usesTerminalPresentation = presentationMode === "terminal";
-  const appControlsEnabled =
+  const appControlsAvailable =
     useSharedSettings((s) => s.disabledBuiltInMcpServers["app-controls"]) !== true;
   // Composer MCP servers are bound at session-create time for the active
   // thread, so the "+" menu shows this run's bindings read-only: the enabled
@@ -290,17 +290,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     enabled: true,
   }));
   const mcpMentions: McpMentionItem[] = [
-    ...(appControlsEnabled && !providerOwnsMcp
+    ...(appControlsAvailable && !providerOwnsMcp
       ? [
           {
             id: "app-controls",
-            // Shortcut for one narrow use of the app-controls server: read the
-            // Terminal panel. It sits next to the App Controls plugin rather
-            // than being replaced by it — the plugin loads the full app skill.
-            name: t`Terminal`,
-            searchAliases: ["Terminal"],
-            icon: TerminalSquare,
-            keepAlongsidePlugin: true,
+            name: t`Poracode`,
+            icon: Settings2,
             enabled: true,
           },
         ]

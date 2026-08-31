@@ -54,15 +54,19 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
     let description: string;
     switch (plugin.name) {
       case "app-controls":
-        name = t`App Controls`;
+        name = t`Poracode`;
         description = t`Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules.`;
         break;
+      case "terminal":
+        name = t`Terminal`;
+        description = t`Read the Terminal panel attached to this worktree and report what it is printing.`;
+        break;
       case "browser-tools":
-        name = t`Browser Tools`;
+        name = t`Browser`;
         description = t`Browse, inspect, and test websites in Poracode's isolated in-app browser.`;
         break;
       case "chrome-tools":
-        name = t`Chrome Tools`;
+        name = t`Chrome`;
         description = t`Work with the pages and signed-in sessions already open in Chrome.`;
         break;
       case "computer-use":
@@ -70,7 +74,7 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         description = t`Control desktop apps and complete visual workflows.`;
         break;
       case "subagent-delegation":
-        name = t`Subagent Delegation`;
+        name = t`Crossagents`;
         description = t`Delegate focused work to other installed agents and coordinate the results.`;
         break;
       case "github":
@@ -92,8 +96,14 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         case "app-controls:app-controls":
           return {
             id: skill.folder,
-            name: t`App Controls`,
+            name: t`Poracode`,
             description: t`Inspect threads and terminal panes, and drive git, pull requests, and schedules.`,
+          };
+        case "terminal:terminal-inspection":
+          return {
+            id: skill.folder,
+            name: t`Terminal`,
+            description: t`Read the Terminal panel attached to this worktree and report the evidence.`,
           };
         case "browser-tools:browser-control":
           return {
@@ -116,7 +126,7 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         case "subagent-delegation:subagent-delegation":
           return {
             id: skill.folder,
-            name: t`Subagent Delegation`,
+            name: t`Crossagents`,
             description: t`Choose, brief, and coordinate subagents for parallel work.`,
           };
         default:
@@ -135,7 +145,9 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         id,
         name:
           id === "app-controls"
-            ? t`App Controls`
+            ? plugin.name === "terminal"
+              ? t`Terminal`
+              : t`Poracode`
             : id === "browser"
               ? t`Browser`
               : id === "chrome"

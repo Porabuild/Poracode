@@ -4,9 +4,11 @@ import { installedPluginsSchema } from "../contracts/plugin";
 import { normalizeSharedSettings } from "../settings";
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL, type PluginSkillPolicyEntry } from "./spec";
 import {
+  canDisablePlugin,
   canUninstallPlugin,
   getPluginCoreSkill,
   installPlugin,
+  isAlwaysEnabledPlugin,
   isBuiltInToolPlugin,
   resolveInstalledPluginState,
   isPluginMcpServerEnabled,
@@ -42,6 +44,7 @@ function makePlugin(
       featured: false,
       communityMaintained: false,
       defaultEnabled: options.defaultEnabled ?? true,
+      alwaysEnabled: false,
       nativePluginNames: [],
       builtInMcpServerIds: options.builtInMcpServerIds ?? [],
       skills: options.skills ?? {},
@@ -250,6 +253,31 @@ describe("built-in tool plugins", () => {
       disabledMcpServerNames: [],
     });
     expect(canUninstallPlugin(BUILT_IN_BROWSER_TOOLS)).toBe(false);
+    expect(canDisablePlugin(BUILT_IN_BROWSER_TOOLS)).toBe(true);
+  });
+
+  it("keeps an always-on bundled plugin enabled and refuses disablement", () => {
+    const terminal = makePlugin("terminal", {
+      skills: { "terminal-inspection": {} },
+      builtInMcpServerIds: ["app-controls"],
+    });
+    terminal.poracode = { ...terminal.poracode, alwaysEnabled: true };
+
+    expect(isAlwaysEnabledPlugin(terminal)).toBe(true);
+    expect(canDisablePlugin(terminal)).toBe(false);
+    expect(canUninstallPlugin(terminal)).toBe(false);
+    expect(resolveInstalledPluginState(terminal, {})).toMatchObject({ enabled: true });
+    expect(setInstalledPluginEnabled({}, terminal, false)).toEqual({});
+    expect(
+      resolveInstalledPluginState(terminal, {
+        terminal: {
+          version: "1.0.0",
+          enabled: false,
+          disabledSkillIds: [],
+          disabledMcpServerNames: [],
+        },
+      }),
+    ).toMatchObject({ enabled: true });
   });
 
   it("leaves packages that start their own server, or came from disk, opt-in", () => {

@@ -723,6 +723,7 @@ describe("shipped packages", () => {
       "github",
       "outlook",
       "subagent-delegation",
+      "terminal",
     ];
     for (const name of shipped) {
       const result = loadPluginFromDirectory(join(shippedDir, name), "bundled");
@@ -762,10 +763,6 @@ describe("shipped packages", () => {
         result.plugin?.skills.some((skill) => skill.folder === core),
         `${name} core skill '${core}' is not shipped`,
       ).toBe(true);
-      expect(
-        result.plugin?.skills.length,
-        `${name} ships no supporting skill beside '${core}'`,
-      ).toBeGreaterThan(1);
     }
   });
 
@@ -774,10 +771,6 @@ describe("shipped packages", () => {
     // One supporting skill per package, keyed to the job an agent actually does
     // with those tools, with the marker that proves it is not filler.
     const supporting: Record<string, { folder: string; markers: string[] }> = {
-      "app-controls": {
-        folder: "terminal-inspection",
-        markers: ["list_terminals", "read_terminal"],
-      },
       "browser-tools": {
         folder: "web-app-verification",
         markers: ["browser.console", "browser.requests", "browser.disable"],
@@ -852,6 +845,7 @@ describe("shipped packages", () => {
         "## Safety and retries",
         "## Output",
       ],
+      terminal: ["## Find the pane", "## Read it", "## Report", "list_terminals", "read_terminal"],
     };
 
     for (const [name, markers] of Object.entries(expectations)) {
