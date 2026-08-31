@@ -5,6 +5,12 @@
  * Observed wire format (Factory Droid `exec --output-format acp-daemon`):
  *   Error: 402 {"detail":"…","status":402,"title":"Payment Required","displayToUser":true,…}
  *   Error: 403 status code (no body)
+ *
+ * Antigravity ACP instead lands quota/provider failures on tool results (and
+ * sometimes assistant text) as:
+ *   Encountered retryable error from model provider: Agent execution terminated
+ *   due to error. ("request failed (code 429): Individual quota reached. …")
+ * and then retries `session/prompt` indefinitely, leaving the thread `working`.
  */
 export function parseAcpAgentMessageApiError(text: string): string | undefined {
   const trimmed = text.trim();
@@ -32,6 +38,29 @@ export function parseAcpAgentMessageApiError(text: string): string | undefined {
     return httpStatusUserMessage(plainStatus);
   }
 
+  return parseAcpProviderFailureText(trimmed);
+}
+
+/**
+ * True when the surfaced provider failure cannot be recovered by waiting on
+ * the in-flight `session/prompt` (quota, hard terminate). Callers should fail
+ * the turn instead of staying `working` through a retry loop.
+ */
+export function isFatalAcpQuotaError(message: string): boolean {
+  return /quota reached|rate limit exceeded \(http 429\)|http 429/i.test(message);
+}
+
+/** Pull a user-facing message out of Antigravity/provider failure blobs. */
+export function parseAcpProviderFailureText(text: string): string | undefined {
+  const quotaDetail = text.match(/request failed \(code 429\):\s*(.+?)(?:[".]\s*\)\s*)?$/is);
+  if (quotaDetail?.[1]) {
+    return quotaDetail[1].replace(/[".\s]+$/u, "").trim();
+  }
+  const quotaSentence = text.match(/Individual quota reached\.[^"]*/i);
+  if (quotaSentence) return quotaSentence[0].trim();
+  if (/Agent execution terminated due to error/i.test(text) && /\b429\b|quota/i.test(text)) {
+    return httpStatusUserMessage("429");
+  }
   return undefined;
 }
 

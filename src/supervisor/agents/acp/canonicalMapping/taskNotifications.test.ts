@@ -22,7 +22,58 @@ function assistantDeltas(events: ReturnType<typeof mapAcpSessionUpdate>): string
     .map((e) => (e as { delta: string }).delta);
 }
 
+const ANTIGRAVITY_MARKDOWN_TASK = `# Background Task Update: \`442d457c-fbe7-4201-8f05-53f7c69bb351/task-32\`
+
+The task exited with the following message:
+\`\`\`text
+RUN  v4.0.18
+ ✓ src/supervisor/agents/codex/windowsExecutable.test.ts (1 test)
+\`\`\`
+
+<task_metadata>
+task_id: 442d457c-fbe7-4201-8f05-53f7c69bb351/task-32
+status: exited
+exit_code: 0
+</task_metadata>`;
+
 describe("taskNotifications extractor", () => {
+  it("extracts Antigravity markdown background task updates", () => {
+    const { notifications, cleanText } = extractTaskNotifications(ANTIGRAVITY_MARKDOWN_TASK);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      taskId: "442d457c-fbe7-4201-8f05-53f7c69bb351/task-32",
+      exitCode: 0,
+    });
+    expect(notifications[0]?.output).toContain("windowsExecutable.test.ts");
+    expect(cleanText.trim()).toBe("");
+  });
+
+  it("maps a markdown background task update onto the tracked command row", () => {
+    const state = createAcpMapperState("t-md-task");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-bg",
+        title: "node -e setTimeout",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: { command: "node -e 'setTimeout(() => console.log(\"waiting\"), 3000)'" },
+        rawOutput:
+          "Tool is running as a background task with task id: 442d457c-fbe7-4201-8f05-53f7c69bb351/task-32",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const itemId = state.toolCallItems.get("tc-bg")?.itemId;
+    expect(itemId).toBeDefined();
+
+    const events = mapAcpSessionUpdate(agentChunk(ANTIGRAVITY_MARKDOWN_TASK), state);
+    expect(state.toolCallItems.size).toBe(0);
+    expect(events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "item.completed", itemId })]),
+    );
+    expect(assistantDeltas(events).join("").trim()).toBe("");
+  });
+
   it("extracts a successful task notification with exit code 0", () => {
     const raw = `<task_notification>
 Task 1bc6d974-9b4c-41ad-b800-88aa46277fee/task-304 completed with exit code 0.
