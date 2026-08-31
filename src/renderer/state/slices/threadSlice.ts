@@ -349,6 +349,17 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       // A steer staged against the abandoned session has nothing left to
       // consume it; no `thread-reset` is emitted on this path to clear it.
       const { [threadId]: _droppedSteer, ...pendingSteerByThreadId } = state.pendingSteerByThreadId;
+      // The sub-agent overlay points at a `tool_call` of the session being
+      // abandoned; nothing will ever stream into it again.
+      const { [threadId]: _droppedOverlay, ...openSubAgentByThread } = state.openSubAgentByThread;
+      // The old provider's turn never closes — its session is gone — so an open
+      // turn left `true` here would keep the pane "working" under the new one.
+      const { [threadId]: _droppedOpenTurn, ...runtimeOpenTurnByThread } =
+        state.runtimeOpenTurnByThread;
+      // Custom MCP servers are named per launch; the new provider's launch
+      // records its own set.
+      const { [threadId]: _droppedMcpNames, ...mcpLaunchCustomServerNamesByThreadId } =
+        state.mcpLaunchCustomServerNamesByThreadId;
       return {
         threads,
         runtimeLaunchConfigByThreadId,
@@ -356,6 +367,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),
         ...(state.runtimeContextByThread[threadId] ? { runtimeContextByThread } : {}),
         ...(state.pendingSteerByThreadId[threadId] ? { pendingSteerByThreadId } : {}),
+        ...(threadId in state.openSubAgentByThread ? { openSubAgentByThread } : {}),
+        ...(threadId in state.runtimeOpenTurnByThread ? { runtimeOpenTurnByThread } : {}),
+        ...(threadId in state.mcpLaunchCustomServerNamesByThreadId
+          ? { mcpLaunchCustomServerNamesByThreadId }
+          : {}),
         lastRuntimeConfigByThreadId: {
           ...state.lastRuntimeConfigByThreadId,
           [threadId]: input.config,

@@ -1206,7 +1206,13 @@ export function useRemoteDesktop() {
           config: input.targetConfig,
           prompt: handoffPrompt,
           presentationMode: input.targetPresentationMode,
-          providerSwitch: { fromAgentKind: thread.agentKind, handoffItemId },
+          // The phone carries its context in the prompt above, so the host must
+          // not also point the incoming provider at the thread transcript.
+          providerSwitch: {
+            fromAgentKind: thread.agentKind,
+            handoffItemId,
+            contextStrategy: "context-file",
+          },
         });
       } catch (error) {
         setOperationMessage(describeError(error, i18n._(msg`Unable to switch the provider.`)));

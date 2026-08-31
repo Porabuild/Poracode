@@ -539,7 +539,13 @@ function markThreadLaunchFailed(threadId: string, error: unknown): void {
   });
 }
 
-function appendOptimisticInitialUserMessage(
+/**
+ * Paint the user's first message for a launch that has not reached the
+ * supervisor yet, so the chat shows what was sent instead of a bare working
+ * row. The supervisor reuses the returned id for its own canonical
+ * `user_message`, and the store's per-id dedupe drops the duplicate.
+ */
+export function appendOptimisticInitialUserMessage(
   thread: Thread,
   prompt: string,
   segments?: PromptSegment[],

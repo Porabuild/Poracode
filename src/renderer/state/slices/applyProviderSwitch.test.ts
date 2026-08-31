@@ -209,6 +209,51 @@ describe("applyProviderSwitch", () => {
     expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toBeUndefined();
   });
 
+  it("closes the sub-agent overlay, which pointed into the abandoned session", () => {
+    const thread = switchedThread();
+    useAppStore.getState().openSubAgent(thread.id, "tool-1");
+    expect(useAppStore.getState().openSubAgentByThread[thread.id]).toBe("tool-1");
+
+    useAppStore.getState().applyProviderSwitch(thread.id, {
+      agentKind: "copilot",
+      config: { model: "gpt-5" },
+      presentationMode: "gui",
+    });
+
+    expect(useAppStore.getState().openSubAgentByThread[thread.id]).toBeUndefined();
+  });
+
+  it("closes the old provider's open turn, which nothing will ever settle", () => {
+    const thread = switchedThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "turn.started",
+      threadId: thread.id,
+      turnId: "turn-1",
+    });
+    expect(useAppStore.getState().runtimeOpenTurnByThread[thread.id]).toBe(true);
+
+    useAppStore.getState().applyProviderSwitch(thread.id, {
+      agentKind: "copilot",
+      config: { model: "gpt-5" },
+      presentationMode: "gui",
+    });
+
+    expect(useAppStore.getState().runtimeOpenTurnByThread[thread.id]).toBeUndefined();
+  });
+
+  it("drops the custom MCP server names recorded for the abandoned launch", () => {
+    const thread = switchedThread();
+    useAppStore.getState().setThreadMcpLaunchCustomServerNames(thread.id, ["docs-mcp"]);
+
+    useAppStore.getState().applyProviderSwitch(thread.id, {
+      agentKind: "copilot",
+      config: { model: "gpt-5" },
+      presentationMode: "gui",
+    });
+
+    expect(useAppStore.getState().mcpLaunchCustomServerNamesByThreadId[thread.id]).toBeUndefined();
+  });
+
   it("keeps the transcript the new provider is continuing from", () => {
     const thread = switchedThread();
     useAppStore.getState().applyRuntimeEvent(thread.id, {

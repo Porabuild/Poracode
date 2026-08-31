@@ -1,4 +1,9 @@
-import type { Project, Thread } from "@/shared/contracts";
+import type {
+  BuiltInMcpDisabledTools,
+  BuiltInMcpServerDisabled,
+  Project,
+  Thread,
+} from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -13,6 +18,21 @@ import type { ThreadMentionItem } from "./MentionInput";
 export type ThreadMentionScope =
   | { kind: "project"; projectId: string; currentWorktreePath?: string | undefined }
   | { kind: "workspace"; currentWorktreePath?: string | undefined };
+
+/**
+ * Whether current settings leave the built-in `read_thread` tool callable — the
+ * launch-time half of the answer, from the same settings the launch snapshot is
+ * resolved from. A live session's own snapshot is the other half.
+ */
+export function readThreadToolEnabled(settings: {
+  disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+  disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
+}): boolean {
+  return (
+    settings.disabledBuiltInMcpServers["app-controls"] !== true &&
+    !(settings.disabledBuiltInMcpTools["app-controls"] ?? []).includes("read_thread")
+  );
+}
 
 function recencyValue(updatedAt: string): number {
   const value = Date.parse(updatedAt);
@@ -59,11 +79,7 @@ export function useThreadMentionItems(
 ): ThreadMentionItem[] {
   const isProjectVisible = useWorkspaceProjectFilter();
   const isThreadVisible = useWorkspaceThreadFilter();
-  const mentionToolsAvailable = useSharedSettings(
-    (state) =>
-      state.disabledBuiltInMcpServers["app-controls"] !== true &&
-      !(state.disabledBuiltInMcpTools["app-controls"] ?? []).includes("read_thread"),
-  );
+  const mentionToolsAvailable = useSharedSettings(readThreadToolEnabled);
   const projects = useAppStore((state) =>
     scope.kind === "workspace" ? state.projects : EMPTY_PROJECTS,
   );

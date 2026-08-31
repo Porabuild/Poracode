@@ -4,6 +4,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { currentProviderItemStart } from "./threadProviderEra";
 
 export type ThreadTodoStepStatus = PlanItemPayload["steps"][number]["status"];
 
@@ -96,7 +97,8 @@ function selectLatestThreadPlanItem(
   itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
 ): RuntimeChatItem | undefined {
   if (!itemIds?.length) return undefined;
-  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
+  const start = currentProviderItemStart(itemIds, itemsById);
+  for (let index = itemIds.length - 1; index >= start; index -= 1) {
     const item = itemsById?.[itemIds[index]!];
     if (item?.type === "plan") return item;
   }
@@ -151,7 +153,9 @@ function collectThreadPlanCandidates(
   itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
 ): ThreadPlanCandidate[] {
   const planCandidates: ThreadPlanCandidate[] = [];
-  for (const itemId of itemIds) {
+  // Only the current provider's plans; anything above the last handoff divider
+  // belongs to the provider that was left behind.
+  for (const itemId of itemIds.slice(currentProviderItemStart(itemIds, itemsById))) {
     const item = itemsById?.[itemId];
     if (!item || item.type !== "plan") continue;
     const dockState = getThreadTodoDockStateForItem(item);

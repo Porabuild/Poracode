@@ -2,7 +2,6 @@ import { X } from "lucide-react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type {
-  ExtractContextResult,
   Project,
   PromptSegment,
   Thread,
@@ -23,7 +22,10 @@ import {
 } from "@/renderer/state/useThread";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { markThreadDone } from "@/renderer/actions/threadActions";
-import { buildHandoffLaunchInput } from "@/renderer/actions/providerHandoff";
+import {
+  buildHandoffLaunchInput,
+  type ProviderHandoffContext,
+} from "@/renderer/actions/providerHandoff";
 import { switchThreadProviderInPlace } from "@/renderer/actions/providerSwitchActions";
 import { continueRemoteThreadInNewThread } from "@/renderer/actions/providerSwitchRemoteActions";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -74,7 +76,7 @@ export function AppContent() {
     prompt: string,
     segments: PromptSegment[] | undefined,
     intent: ContinueIntent,
-    extractedContext: ExtractContextResult | null,
+    handoffContext: ProviderHandoffContext,
   ) {
     if (findExperimentByThreadId(sourceThread.id)) return;
     const storeProjects = useAppStore.getState().projects;
@@ -114,12 +116,17 @@ export function AppContent() {
         targetConfig,
         prompt,
         segments,
-        extractedContext,
+        handoffContext,
         targetLabel,
       });
       return;
     }
 
+    // A replacement thread cannot inherit the transcript route: it has a new id
+    // and no rows of its own. The dialog only picks that route for an in-place
+    // switch, so anything arriving here carries a context file (possibly none).
+    const extractedContext =
+      handoffContext.strategy === "context-file" ? handoffContext.extracted : null;
     const isFork = intent === "fork";
 
     // The title is the user's own label for the task, and the task is what

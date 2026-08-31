@@ -4,6 +4,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { currentProviderItemStart } from "./threadProviderEra";
 
 export interface ThreadGoalDockState {
   sourceItemId: string;
@@ -95,7 +96,9 @@ function selectLatestThreadGoalCandidate(
   itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
 ): ThreadGoalCandidate | null {
   if (!itemIds?.length) return null;
-  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
+  // A goal above the last handoff divider belongs to the previous provider.
+  const start = currentProviderItemStart(itemIds, itemsById);
+  for (let index = itemIds.length - 1; index >= start; index -= 1) {
     const item = itemsById?.[itemIds[index]!];
     if (!item || item.type !== "goal") continue;
     const payload = getRuntimeItemPayload<GoalItemPayload>(item, "goal");
@@ -110,7 +113,8 @@ function selectLatestThreadGoalItem(
   itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
 ): RuntimeChatItem | undefined {
   if (!itemIds?.length) return undefined;
-  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
+  const start = currentProviderItemStart(itemIds, itemsById);
+  for (let index = itemIds.length - 1; index >= start; index -= 1) {
     const item = itemsById?.[itemIds[index]!];
     if (item?.type === "goal") return item;
   }
