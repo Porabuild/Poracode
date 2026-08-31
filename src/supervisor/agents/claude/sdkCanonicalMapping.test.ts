@@ -765,38 +765,136 @@ describe("sdkCanonicalMapping — text streaming", () => {
     expect(stop[0]).toMatchObject({ type: "item.completed" });
   });
 
-  it("does not duplicate the final assistant snapshot after streamed text completes", () => {
+  it.each([
+    ["replace", "before", "Hello", "Bonjour", false],
+    ["append", "before", "Bonjour\n\nHello", "Bonjour", false],
+    ["replace", "after", "Hello", "Bonjour", true],
+    ["append", "after", "Bonjour\n\nHello", "Bonjour", true],
+    ["empty", "after", "", "Bonjour", true],
+  ])(
+    "updates the streamed item with a MessageDisplay %s snapshot %s completion even when its block index changes",
+    (_mode, _order, displayText, streamedText, stopBeforeSnapshot) => {
+      const state = createClaudeMapperState("thread-1");
+      mapClaudeSdkMessage(
+        streamEvent({
+          type: "message_start",
+          message: { id: "msg_display", role: "assistant", content: [] },
+        }),
+        state,
+      );
+      const streamed = mapClaudeSdkMessage(
+        streamEvent({
+          type: "content_block_delta",
+          index: 1,
+          delta: { type: "text_delta", text: streamedText },
+        }),
+        state,
+      );
+      const itemId = "itemId" in streamed[0]! ? streamed[0].itemId : undefined;
+      const completionBeforeSnapshot = stopBeforeSnapshot
+        ? mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 1 }), state)
+        : [];
+      expect(completionBeforeSnapshot).toEqual(
+        stopBeforeSnapshot ? [{ type: "item.completed", threadId: "thread-1", itemId }] : [],
+      );
+
+      const snapshot = mapClaudeSdkMessage(
+        {
+          type: "assistant",
+          session_id: "claude-session",
+          message: {
+            id: "msg_display",
+            role: "assistant",
+            // MessageDisplay snapshots can omit the preceding thinking block,
+            // shifting text from stream index 1 to snapshot index 0.
+            content: [{ type: "text", text: displayText }],
+          },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      expect(snapshot).toEqual([
+        {
+          type: "item.updated",
+          threadId: "thread-1",
+          itemId,
+          payload: { content: [{ kind: "text", text: displayText }] },
+        },
+      ]);
+      expect(snapshot.some((event) => event.type === "item.started")).toBe(false);
+
+      const completionAfterSnapshot = stopBeforeSnapshot
+        ? []
+        : mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 1 }), state);
+      expect(completionAfterSnapshot).toEqual(
+        stopBeforeSnapshot ? [] : [{ type: "item.completed", threadId: "thread-1", itemId }],
+      );
+    },
+  );
+
+  it("maps multiple snapshot text blocks to streamed items by text order", () => {
     const state = createClaudeMapperState("thread-1");
     mapClaudeSdkMessage(
       streamEvent({
         type: "message_start",
-        message: { id: "msg_1", role: "assistant", content: [] },
+        message: { id: "msg_display", role: "assistant", content: [] },
       }),
       state,
     );
-    mapClaudeSdkMessage(
+    const firstStreamed = mapClaudeSdkMessage(
       streamEvent({
         type: "content_block_delta",
-        index: 0,
-        delta: { type: "text_delta", text: "Hello" },
+        index: 1,
+        delta: { type: "text_delta", text: "First raw block" },
       }),
       state,
     );
-    mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 0 }), state);
+    mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 1 }), state);
+    const secondStreamed = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_delta",
+        index: 3,
+        delta: { type: "text_delta", text: "Second raw block" },
+      }),
+      state,
+    );
+    const firstItemId = "itemId" in firstStreamed[0]! ? firstStreamed[0].itemId : undefined;
+    const secondItemId = "itemId" in secondStreamed[0]! ? secondStreamed[0].itemId : undefined;
 
     const snapshot = mapClaudeSdkMessage(
       {
         type: "assistant",
         session_id: "claude-session",
-        message: { id: "msg_1", role: "assistant", content: [{ type: "text", text: "Hello" }] },
+        message: {
+          id: "msg_display",
+          role: "assistant",
+          content: [
+            { type: "text", text: "First display block" },
+            { type: "text", text: "" },
+          ],
+        },
       } as unknown as SDKMessage,
       state,
     );
 
-    expect(snapshot).toEqual([]);
+    expect(snapshot).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: firstItemId,
+        payload: { content: [{ kind: "text", text: "First display block" }] },
+      },
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: secondItemId,
+        payload: { content: [{ kind: "text", text: "" }] },
+      },
+    ]);
+    expect(snapshot.some((event) => event.type === "item.started")).toBe(false);
   });
 
-  it("does not duplicate a final assistant snapshot when a replayed message_start reset the index map", () => {
+  it("keeps a streamed item available when message_start replays the same message id", () => {
     const state = createClaudeMapperState("thread-1");
     mapClaudeSdkMessage(
       streamEvent({
@@ -805,7 +903,7 @@ describe("sdkCanonicalMapping — text streaming", () => {
       }),
       state,
     );
-    mapClaudeSdkMessage(
+    const streamed = mapClaudeSdkMessage(
       streamEvent({
         type: "content_block_delta",
         index: 0,
@@ -813,6 +911,7 @@ describe("sdkCanonicalMapping — text streaming", () => {
       }),
       state,
     );
+    const itemId = "itemId" in streamed[0]! ? streamed[0].itemId : undefined;
     mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 0 }), state);
     mapClaudeSdkMessage(
       streamEvent({
@@ -826,12 +925,23 @@ describe("sdkCanonicalMapping — text streaming", () => {
       {
         type: "assistant",
         session_id: "claude-session",
-        message: { id: "msg_1", role: "assistant", content: [{ type: "text", text: "Done" }] },
+        message: {
+          id: "msg_1",
+          role: "assistant",
+          content: [{ type: "text", text: "Displayed result" }],
+        },
       } as unknown as SDKMessage,
       state,
     );
 
-    expect(snapshot).toEqual([]);
+    expect(snapshot).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId,
+        payload: { content: [{ kind: "text", text: "Displayed result" }] },
+      },
+    ]);
   });
 
   it("ignores a repeat content_block_start at the same index after the block already completed", () => {

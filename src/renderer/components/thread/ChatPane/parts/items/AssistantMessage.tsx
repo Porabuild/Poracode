@@ -53,14 +53,18 @@ export const AssistantMessage = memo(function AssistantMessage({
   });
   const stream = item.streams.assistant_text ?? "";
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-  const rawText =
-    stream.length > 0
-      ? stream
-      : (payload?.content
-          ?.map((b) => (b.kind === "text" ? b.text : ""))
+  const payloadTextBlocks = payload?.content?.filter((block) => block.kind === "text");
+  const payloadText =
+    payloadTextBlocks && payloadTextBlocks.length > 0
+      ? payloadTextBlocks
+          .map((block) => block.text)
           .filter(Boolean)
-          .join("\n") ?? "");
+          .join("\n")
+      : undefined;
   const isStreaming = item.state !== "completed";
+  // Keep live output responsive, then use the final payload as the display
+  // source of truth. An explicit empty text block intentionally hides the stream.
+  const rawText = isStreaming && stream.length > 0 ? stream : (payloadText ?? stream);
   // Agents (e.g. ACP providers) can embed images directly in a message as image
   // content blocks; render them inline beneath any text.
   const imageSources = useMemo(

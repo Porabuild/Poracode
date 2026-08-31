@@ -451,13 +451,20 @@ export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // provider stream-boundary chunk — empty, or whitespace-only (Factory Droid
   // emits "\n\n" after tool calls). They have no renderable content, so
   // allocating a virtualized row for them only produces a blank gap. Keep an
-  // empty in-flight item visible for its loader and preserve text/image payloads.
+  // empty in-flight item visible for its loader and preserve stream-only/image
+  // payloads. When a completed payload contains text, it is authoritative even
+  // when intentionally empty (for example, a display hook suppressing output).
   if (item.type === "assistant_message" && item.state === "completed") {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-    const hasPayloadContent = payload?.content.some(
-      (block) => (block.kind === "text" && hasVisibleText(block.text)) || block.kind === "image",
-    );
-    if (!(hasVisibleText(item.streams.assistant_text ?? "") || hasPayloadContent)) return false;
+    const hasPayloadText = payload?.content.some((block) => block.kind === "text") ?? false;
+    const hasPayloadContent =
+      payload?.content.some(
+        (block) => (block.kind === "text" && hasVisibleText(block.text)) || block.kind === "image",
+      ) ?? false;
+    const hasVisibleContent = hasPayloadText
+      ? hasPayloadContent
+      : hasVisibleText(item.streams.assistant_text ?? "") || hasPayloadContent;
+    if (!hasVisibleContent) return false;
   }
   if (isToolLikeItem(item)) {
     const payload = getToolLikePayload(item);

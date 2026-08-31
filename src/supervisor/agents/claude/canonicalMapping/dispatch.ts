@@ -250,17 +250,18 @@ function mapClaudeSdkMessageInner(
     const index = typeof event.index === "number" ? event.index : 0;
 
     if (type === "message_start") {
-      // Each new assistant message gets its own per-block-index frame. The
-      // SDK reuses index 0 for the first text/thinking block of every
-      // message; without this reset, a second message (or an SDK retry that
-      // re-emits earlier blocks) would see the prior message's completed
-      // item at the same slot and produce a second item with duplicate
-      // content. Items already emitted to the renderer stay there — only
-      // our local index map is cleared.
-      state.assistantTextItems.clear();
-      state.reasoningItems.clear();
-      state.toolItemsByIndex.clear();
       const nextMessageId = readClaudeAssistantMessageId(event.message);
+      // Each new assistant message gets its own per-block-index frame because
+      // the SDK reuses indexes from zero. A same-id message_start is a replay,
+      // though: preserve that frame so replayed blocks remain deduplicated and
+      // the final snapshot can still update the original streamed items.
+      const isReplay =
+        nextMessageId !== undefined && nextMessageId === state.currentAssistantMessageId;
+      if (!isReplay) {
+        state.assistantTextItems.clear();
+        state.reasoningItems.clear();
+        state.toolItemsByIndex.clear();
+      }
       if (nextMessageId) state.currentAssistantMessageId = nextMessageId;
       else delete state.currentAssistantMessageId;
       return events;
@@ -415,14 +416,36 @@ function mapClaudeSdkMessageInner(
     if (goalSpendEvent) events.push(goalSpendEvent);
     const messageId = readClaudeAssistantMessageId(message.message);
     const skipTextSnapshot = messageId ? state.streamedAssistantMessageIds.has(messageId) : false;
+    // Snapshot indexes can shift when non-text blocks are omitted, so correlate
+    // text lanes by their order within Claude's stable assistant message id.
+    const streamedTextItems = skipTextSnapshot
+      ? [...state.assistantTextItems.entries()]
+          .filter(([, item]) => item.messageId === messageId)
+          .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+          .map(([, item]) => item)
+      : [];
+    let streamedTextItemIndex = 0;
     const content = (message.message as { content?: unknown }).content;
     if (Array.isArray(content)) {
       for (let blockIndex = 0; blockIndex < content.length; blockIndex += 1) {
         const block = content[blockIndex];
         if (!block || typeof block !== "object") continue;
         const obj = block as Record<string, unknown>;
-        if (obj.type === "text" && typeof obj.text === "string" && obj.text.length > 0) {
-          if (skipTextSnapshot) continue;
+        if (obj.type === "text" && typeof obj.text === "string") {
+          if (skipTextSnapshot) {
+            const streamedItem = streamedTextItems[streamedTextItemIndex];
+            streamedTextItemIndex += 1;
+            if (streamedItem) {
+              events.push({
+                type: "item.updated",
+                threadId: state.threadId,
+                itemId: streamedItem.itemId,
+                payload: { content: [{ kind: "text", text: obj.text }] },
+              });
+            }
+            continue;
+          }
+          if (obj.text.length === 0) continue;
           const existing = state.assistantTextItems.get(blockIndex);
           if (existing?.completed) continue;
           const item = ensureTextItem(

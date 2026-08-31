@@ -202,6 +202,7 @@ describe("chatPaneSelectors", () => {
           "empty",
           "whitespace",
           "payload-whitespace",
+          "payload-empty-with-stream",
           "streaming",
           "stream-text",
           "payload-text",
@@ -229,6 +230,13 @@ describe("chatPaneSelectors", () => {
             state: "completed",
             payload: { content: [{ kind: "text", text: "\n" }] },
             streams: {},
+          },
+          "payload-empty-with-stream": {
+            id: "payload-empty-with-stream",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "" }] },
+            streams: { assistant_text: "suppressed original" },
           },
           streaming: {
             id: "streaming",
