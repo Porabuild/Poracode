@@ -38,6 +38,11 @@ import {
   providerOwnsMcpConfig,
 } from "@/renderer/components/composer/composerMcpServers";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import {
+  pluginLabelsForMcpServers,
+  pluginMentionsForAvailableMcp,
+  withoutPluginBackedMcpMentions,
+} from "@/renderer/components/composer/pluginBackedMcp";
 import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
 import {
   MentionInput,
@@ -232,6 +237,7 @@ function HookInstallProposal(props: {
 function DraftComposerAfterControls(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
   customMcpServers: readonly ComposerCustomMcpItem[];
+  pluginLabels: Readonly<Record<string, string>>;
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
   isDisabled: boolean;
@@ -254,6 +260,7 @@ function DraftComposerAfterControls(props: {
       <ComposerAddMenu
         mcpServers={props.mcpServers}
         customMcpServers={props.customMcpServers}
+        pluginLabels={props.pluginLabels}
         {...(props.readOnlyMcp
           ? {
               readOnly: true,
@@ -649,10 +656,13 @@ export function ThreadDraftComposerArea(props: {
       ? [
           {
             id: "app-controls",
+            // Shortcut for one narrow use of the app-controls server: read the
+            // Terminal panel. It sits next to the App Controls plugin rather
+            // than being replaced by it — the plugin loads the full app skill.
             name: t`Terminal`,
             searchAliases: ["Terminal"],
             icon: TerminalSquare,
-            detail: t`Terminal`,
+            keepAlongsidePlugin: true,
             enabled: true,
           },
         ]
@@ -677,7 +687,6 @@ export function ThreadDraftComposerArea(props: {
         id: descriptor.id,
         name: t(descriptor.label),
         icon: descriptor.icon,
-        detail: t`MCP server`,
         enabled: providerOwnsMcp ? true : props.config[descriptor.configKey] === true,
       })),
     ...visibleCustomMcpServers
@@ -686,7 +695,6 @@ export function ThreadDraftComposerArea(props: {
         id: server.id,
         name: server.name,
         icon: Webhook,
-        detail: t`MCP server`,
         enabled: true,
       })),
     ...((
@@ -699,12 +707,19 @@ export function ThreadDraftComposerArea(props: {
             id: COMPUTER_USE_MCP_ID,
             name: t`Computer Use`,
             icon: Monitor,
-            detail: t`Computer Use`,
             enabled: providerOwnsMcpForComposer ? true : computerUseEnabled,
           },
         ]
       : []),
   ];
+  // One row per tool: a plugin that wraps a built-in server replaces that
+  // server's own mention instead of sitting next to an identical row, and only
+  // while this draft can offer that server at all.
+  const composerPluginMentions = pluginMentionsForAvailableMcp(pluginMentions, mcpMentions);
+  const composerMcpMentions = withoutPluginBackedMcpMentions(mcpMentions, composerPluginMentions);
+  // The "+" menu and the enabled chips name the same capability as the mention
+  // list: a server a plugin packages reads as that plugin everywhere.
+  const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
   const onMcpMentionSelect = (id: string) => {
     if (id === COMPUTER_USE_MCP_ID) {
       onConfigChange({ computerUse: true });
@@ -1158,6 +1173,9 @@ export function ThreadDraftComposerArea(props: {
                     <McpChip
                       key={descriptor.id}
                       descriptor={descriptor}
+                      {...(composerPluginLabels[descriptor.id]
+                        ? { label: composerPluginLabels[descriptor.id] }
+                        : {})}
                       onRemove={() =>
                         props.onConfigChange(mcpTogglePatch(descriptor.configKey, false))
                       }
@@ -1197,8 +1215,8 @@ export function ThreadDraftComposerArea(props: {
               const segments = mentionRef.current?.serializeSegments() ?? [];
               latestSegmentsRef.current = segments;
             }}
-            mcpMentions={mcpMentions}
-            pluginMentions={pluginMentions}
+            mcpMentions={composerMcpMentions}
+            pluginMentions={composerPluginMentions}
             threadMentions={threadMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
@@ -1262,6 +1280,7 @@ export function ThreadDraftComposerArea(props: {
         afterControls={
           <DraftComposerAfterControls
             mcpServers={mcpServers}
+            pluginLabels={composerPluginLabels}
             onPickFiles={() => {
               void (
                 props.pickFiles

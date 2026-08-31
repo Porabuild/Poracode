@@ -27,6 +27,11 @@ import {
   providerOwnsMcpConfig,
 } from "../composer/composerMcpServers";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import {
+  pluginLabelsForMcpServers,
+  pluginMentionsForAvailableMcp,
+  withoutPluginBackedMcpMentions,
+} from "../composer/pluginBackedMcp";
 import { openPdfPreview } from "../pdf/openPdfPreview";
 import {
   MentionInput,
@@ -289,10 +294,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       ? [
           {
             id: "app-controls",
+            // Shortcut for one narrow use of the app-controls server: read the
+            // Terminal panel. It sits next to the App Controls plugin rather
+            // than being replaced by it — the plugin loads the full app skill.
             name: t`Terminal`,
             searchAliases: ["Terminal"],
             icon: TerminalSquare,
-            detail: t`Terminal`,
+            keepAlongsidePlugin: true,
             enabled: true,
           },
         ]
@@ -307,14 +315,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         id: descriptor.id,
         name: t(descriptor.label),
         icon: descriptor.icon,
-        detail: t`MCP server`,
         enabled: true,
       })),
     ...customMcpServers.map((server) => ({
       id: server.id,
       name: server.name,
       icon: Webhook,
-      detail: t`MCP server`,
       enabled: true,
     })),
     ...(effectiveMcpConfig?.computerUse === true &&
@@ -325,7 +331,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             id: COMPUTER_USE_MCP_ID,
             name: t`Computer Use`,
             icon: Monitor,
-            detail: t`Computer Use`,
             enabled: true,
           },
         ]
@@ -333,6 +338,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   ];
   const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
   const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  // One row per tool: a plugin that wraps a built-in server replaces that
+  // server's own mention instead of sitting next to an identical row, and only
+  // while this thread actually carries that server.
+  const composerPluginMentions = pluginMentionsForAvailableMcp(pluginMentions, mcpMentions);
+  const composerMcpMentions = withoutPluginBackedMcpMentions(mcpMentions, composerPluginMentions);
+  // The "+" menu names the same capability as the mention list: a server a
+  // plugin packages reads as that plugin everywhere in the composer.
+  const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
   const threadMentionToolsAvailable = useAppStore(
     (s) => s.threadMentionToolsAvailableByThreadId[thread.id],
   );
@@ -851,8 +864,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           }
                         : {})}
                       projectId={thread.projectId}
-                      mcpMentions={mcpMentions}
-                      pluginMentions={pluginMentions}
+                      mcpMentions={composerMcpMentions}
+                      pluginMentions={composerPluginMentions}
                       threadMentions={threadMentions}
                       onTextChange={(hasText) => {
                         setHasContent(hasText);
@@ -944,6 +957,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
+                          pluginLabels={composerPluginLabels}
                           readOnly
                           computerUse={{
                             enabled: effectiveMcpConfig?.computerUse === true,

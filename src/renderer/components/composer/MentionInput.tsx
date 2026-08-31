@@ -33,16 +33,32 @@ export interface McpMentionItem {
   /** Stable non-visible names that should also match the typed query. */
   searchAliases?: readonly string[];
   icon: LucideIcon;
-  detail: string;
+  /** Optional extra context; the popover section header already names the kind. */
+  detail?: string;
   enabled: boolean;
+  /**
+   * Keeps this row even when a plugin packages the same server. Set it when the
+   * row expresses a narrower intent than the plugin's skill — `@Terminal` asks
+   * to read the Terminal panel, while `@App Controls` loads the whole app
+   * skill — so the two are not duplicates of each other.
+   */
+  keepAlongsidePlugin?: boolean;
 }
 
 /** An installed Agent Plugin surfaced as one `@`-mention. */
 export interface PluginMentionItem {
   id: string;
   name: string;
-  detail: string;
+  /** Extra terms that match the typed query, from the manifest keywords. */
+  searchAliases?: readonly string[];
+  detail?: string;
   command: AgentSlashCommand;
+  /**
+   * MCP mention ids this plugin stands in for. The plugin row replaces those
+   * rows in the popover, so selecting it must enable them the way the MCP row
+   * would have.
+   */
+  enablesMcpServerIds?: readonly string[];
 }
 
 export interface ThreadMentionItem {
@@ -76,17 +92,22 @@ export function buildMentionResults(
       path: item.id,
       name: item.name,
       icon: item.icon,
-      detail: item.detail,
+      ...(item.detail ? { detail: item.detail } : {}),
       enabled: item.enabled,
     }));
   const pluginResults: MentionEntry[] = pluginMentions
-    .filter((item) => item.name.toLowerCase().startsWith(q))
+    .filter((item) =>
+      [item.name, ...(item.searchAliases ?? [])].some((name) => name.toLowerCase().startsWith(q)),
+    )
     .map((item) => ({
       type: "plugin",
       path: item.id,
       name: item.name,
-      detail: item.detail,
+      ...(item.detail ? { detail: item.detail } : {}),
       command: item.command,
+      ...(item.enablesMcpServerIds?.length
+        ? { enablesMcpServerIds: item.enablesMcpServerIds }
+        : {}),
     }));
   // Recency order comes from the producer (useThreadMentionItems); only the
   // query filter and result cap apply here.
@@ -707,6 +728,10 @@ export const MentionInput = forwardRef<
         nextRange.collapse(true);
         sel.removeAllRanges();
         sel.addRange(nextRange);
+        // The plugin row supersedes the MCP rows for the servers it wraps, so
+        // it has to turn them on as well — otherwise the skill lands without
+        // the tools it describes.
+        entry.enablesMcpServerIds?.forEach((id) => onMcpMentionSelect?.(id));
       } else if (entry.enabled) {
         const chip = createMcpMentionChipElement({ id: entry.path, name: entry.name });
         range.insertNode(chip);

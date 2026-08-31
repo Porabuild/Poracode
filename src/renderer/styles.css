@@ -3266,6 +3266,26 @@ button.poracode-thread-mention-chip:active {
   flex-shrink: 0;
 }
 
+.poracode-mention-popover__section + .poracode-mention-popover__section {
+  margin-top: 0.25rem;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  padding-top: 0.25rem;
+}
+
+.poracode-mention-popover__section-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--overlay);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .poracode-mention-popover__item {
   display: flex;
   align-items: center;

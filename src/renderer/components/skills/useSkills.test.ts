@@ -157,7 +157,6 @@ describe("useSkills", () => {
     expect(hook.result.current[0]).toMatchObject({
       id: "browser-tools",
       name: "Browser Tools",
-      detail: "Plugin",
       command: {
         skillName: "browser-control",
         skillInvocation: "$browser-control",

@@ -1413,6 +1413,7 @@ msgid "App Browser"
 msgstr "Trình duyệt ứng dụng"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 msgid "App Controls"
 msgstr "Điều khiển ứng dụng"
 
@@ -2042,6 +2043,7 @@ msgid "Building diff…"
 msgstr "Đang dựng diff…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Tích hợp sẵn"
@@ -5194,6 +5196,7 @@ msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -6141,6 +6144,10 @@ msgstr "Bên trong dự án này"
 msgid "Inspect canonical runtime items"
 msgstr "Kiểm tra các mục thời gian chạy chuẩn"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "Kiểm tra luồng và bảng terminal, điều khiển git, pull request và lịch chạy."
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "cài đặt"
@@ -6968,8 +6975,8 @@ msgstr "MCP"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "MCP server"
-msgstr "Máy chủ MCP"
+#~ msgid "MCP server"
+#~ msgstr "Máy chủ MCP"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
@@ -7020,6 +7027,7 @@ msgid "MCP server URL"
 msgstr "URL của máy chủ MCP"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -8154,6 +8162,10 @@ msgstr "Chưa có luồng nào"
 msgid "No threads yet."
 msgstr "Chưa có luồng nào."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "không nhận được phán quyết — CLI có thể đã chặn /goal (độ tin cậy không gian làm việc hoặc cài đặt hook) hoặc trình đánh giá không chạy được"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "Không có cửa sổ nào được báo cáo"
@@ -9031,7 +9043,6 @@ msgid "Play notification sound"
 msgstr "Phát âm thanh thông báo"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -9055,6 +9066,7 @@ msgstr "plugin.json không hợp lệ theo đặc tả Agent Plugins."
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json nhắm tới phiên bản Agent Plugins mà bản dựng này không hỗ trợ."
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9352,6 +9364,8 @@ msgstr "Hồ sơ"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9717,6 +9731,10 @@ msgstr "Chạy lại tất cả công việc"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "Chạy lại các công việc thất bại"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "Đọc và điều khiển chính Poracode: luồng, bảng terminal, git, pull request và lịch chạy."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -12844,6 +12862,7 @@ msgstr "Không tìm thấy luồng"
 msgid "Thread todo dock"
 msgstr "Dock việc cần làm của luồng"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
