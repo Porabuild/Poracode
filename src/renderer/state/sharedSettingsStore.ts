@@ -150,8 +150,8 @@ interface SharedSettingsState extends SharedSettings {
   installPlugin: (plugin: LoadedPlugin) => void;
   uninstallPlugin: (plugin: LoadedPlugin) => void;
   setPluginEnabled: (plugin: LoadedPlugin, enabled: boolean) => void;
-  setPluginSkillEnabled: (pluginName: string, folder: string, enabled: boolean) => void;
-  setPluginMcpServerEnabled: (pluginName: string, serverName: string, enabled: boolean) => void;
+  setPluginSkillEnabled: (plugin: LoadedPlugin, folder: string, enabled: boolean) => void;
+  setPluginMcpServerEnabled: (plugin: LoadedPlugin, serverName: string, enabled: boolean) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -744,19 +744,15 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
   },
   setPluginEnabled: (plugin, enabled) => {
-    const installedPlugins = updateInstalledPluginEnabled(
-      get().installedPlugins,
-      plugin.name,
-      enabled,
-    );
+    const installedPlugins = updateInstalledPluginEnabled(get().installedPlugins, plugin, enabled);
     if (installedPlugins === get().installedPlugins) return;
     set({ installedPlugins });
     persistSettings(selectSharedSettings(get()));
   },
-  setPluginSkillEnabled: (pluginName, folder, enabled) => {
+  setPluginSkillEnabled: (plugin, folder, enabled) => {
     const installedPlugins = updatePluginSkillEnabled(
       get().installedPlugins,
-      pluginName,
+      plugin,
       folder,
       enabled,
     );
@@ -764,10 +760,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ installedPlugins });
     persistSettings(selectSharedSettings(get()));
   },
-  setPluginMcpServerEnabled: (pluginName, serverName, enabled) => {
+  setPluginMcpServerEnabled: (plugin, serverName, enabled) => {
     const installedPlugins = updatePluginMcpServerEnabled(
       get().installedPlugins,
-      pluginName,
+      plugin,
       serverName,
       enabled,
     );
