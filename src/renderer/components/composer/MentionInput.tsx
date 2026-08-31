@@ -331,6 +331,8 @@ export const MentionInput = forwardRef<
     pluginMentions?: readonly PluginMentionItem[];
     threadMentions?: readonly ThreadMentionItem[];
     onMcpMentionSelect?: (id: string) => void;
+    /** Portal target for the mention popover; see MentionPopover.portalContainer. */
+    popoverPortalContainer?: Element | null;
     onSlashCommandChange?: (query: string | null) => void;
     commandListId?: string;
     commandActiveDescendant?: string;
@@ -929,6 +931,7 @@ export const MentionInput = forwardRef<
           mentionRange={liveRange}
           onSelect={insertMention}
           onActiveIndexChange={setActiveIndex}
+          portalContainer={props.popoverPortalContainer ?? null}
         />
       )}
     </div>
