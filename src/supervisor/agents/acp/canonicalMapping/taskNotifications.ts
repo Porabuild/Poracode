@@ -524,8 +524,8 @@ export function emitTaskNotificationEvents(
 /**
  * Flush any buffered partial task notification at a turn boundary. A buffer
  * that still holds an unterminated notification is completed leniently when
- * its body has the notification shape; anything else (including fragments of
- * a split open tag) streams as plain text under the buffer's original parent.
+ * its body has the notification shape; anything else streams as plain text
+ * under the buffer's original parent, apart from standalone opener fragments.
  */
 export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent[] {
   const buffer = state.taskNotificationBuffer;
@@ -578,6 +578,13 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
   }
 
   if (text.trim().length === 0) return events;
+  const trailingOpener = matchTrailingNotificationPrefix(text);
+  const isProtocolOpener = text.startsWith("<") || isPartialBackgroundTaskUpdateHeading(text);
+  const isDistinctPreamble =
+    text.startsWith("The following is a ") && SYSTEM_MESSAGE_PREAMBLE_PREFIX.startsWith(text);
+  if (trailingOpener?.start === 0 && (isProtocolOpener || isDistinctPreamble)) {
+    return events;
+  }
   const parentToolCallId = buffer.parentToolCallId;
   const contentState = getContentItemState(state, parentToolCallId);
   if (!contentState.openAssistantItemId) {

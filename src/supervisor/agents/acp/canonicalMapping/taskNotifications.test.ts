@@ -447,6 +447,40 @@ Task t-2 completed with exit`,
     expect(delta).toBeDefined();
     expect((delta as { delta: string }).delta).toBe("incomplete task notification text");
   });
+
+  it("drops a buffered partial notification opener instead of leaking it as a message", () => {
+    // Antigravity's <SYSTEM_MESSAGE> preamble split mid-stream: only the
+    // leading "The following is a " fragment is buffered when the turn ends.
+    const state = createAcpMapperState("t-flush-preamble");
+    mapAcpSessionUpdate(agentChunk("The following is a "), state);
+    expect(state.taskNotificationBuffer?.text).toBe("The following is a ");
+
+    const events = closeOpenTurnItems(state);
+    expect(state.taskNotificationBuffer).toBeUndefined();
+    for (const delta of assistantDeltas(events)) {
+      expect(delta).not.toContain("The following is a");
+    }
+  });
+
+  it("emits short prose that could begin the system-message preamble", () => {
+    const state = createAcpMapperState("t-flush-short-prose");
+    mapAcpSessionUpdate(agentChunk("The"), state);
+    expect(state.taskNotificationBuffer?.text).toBe("The");
+
+    const events = closeOpenTurnItems(state);
+    expect(assistantDeltas(events).join("")).toBe("The");
+  });
+
+  it("preserves streamed prose before a partial notification opener", () => {
+    const state = createAcpMapperState("t-flush-prose");
+    const streamed = mapAcpSessionUpdate(agentChunk("summary text <task_no"), state);
+    expect(assistantDeltas(streamed).join("")).toBe("summary text ");
+    expect(state.taskNotificationBuffer?.text).toBe("<task_no");
+
+    const events = closeOpenTurnItems(state);
+    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(assistantDeltas(events).join("")).toBe("");
+  });
 });
 
 describe("background task correlation", () => {

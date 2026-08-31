@@ -2597,6 +2597,225 @@ describe("ACP turn config sync", () => {
     expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
   });
 
+  it("completes the turn when end_turn arrives with a never-completed foreground subagent tool call", async () => {
+    // Antigravity ends turns without terminal tool_call_updates for its task
+    // tool. The zombie subagent is purged by the turn close, so nothing can
+    // drain an "awaiting subagents" wait — the turn must finish immediately.
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("delegate work", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "zombie-task",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", description: "Inspect" },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    const events = listener.onRuntimeEvent.mock.calls.map(([event]) => event as { type?: string });
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("completes the awaiting foreground turn when background subagent reports go silent", async () => {
+    vi.useFakeTimers();
+    try {
+      const FOREGROUND_SUBAGENT_DRAIN_MS = 60_000;
+      const { connection, listener, session } = makeConfigSyncSession();
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+
+      const turn = session.startTurn("launch silent background agent", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "silent-bg",
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+
+      expect(
+        listener.onRuntimeEvent.mock.calls
+          .map(([event]) => event as { type?: string })
+          .filter((event) => event.type === "turn.completed"),
+      ).toHaveLength(0);
+
+      vi.advanceTimersByTime(FOREGROUND_SUBAGENT_DRAIN_MS + 1);
+
+      expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+        type: "turn.completed",
+        state: "completed",
+      });
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Stop closes an awaiting foreground turn as cancelled without waiting for reports", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background agent", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "stuck-bg",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    await session.interruptTurn();
+
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "cancelled",
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("Stop closes an awaiting foreground turn when the provider rejects cancel", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background agent", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "stuck-bg-rejected-cancel",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+    connection.cancel.mockRejectedValueOnce(new Error("no active prompt"));
+
+    await expect(session.interruptTurn()).resolves.toBeUndefined();
+
+    const completed = listener.onRuntimeEvent.mock.calls
+      .map(([event]) => event as { type?: string; state?: string })
+      .filter((event) => event.type === "turn.completed");
+    expect(completed).toEqual([expect.objectContaining({ state: "cancelled" })]);
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("disarms the drain deadline while an awaiting-turn cancel is pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const FOREGROUND_SUBAGENT_DRAIN_MS = 60_000;
+      const { connection, listener, session } = makeConfigSyncSession();
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      let resolveCancel!: () => void;
+      connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+      connection.cancel.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+
+      const turn = session.startTurn("launch background agent", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "stuck-bg-pending-cancel",
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+
+      const interrupt = session.interruptTurn();
+      vi.advanceTimersByTime(FOREGROUND_SUBAGENT_DRAIN_MS + 1);
+
+      const completed = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; state?: string })
+        .filter((event) => event.type === "turn.completed");
+      expect(completed).toEqual([expect.objectContaining({ state: "cancelled" })]);
+      resolveCancel();
+      await interrupt;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stays working until all concurrently reporting detached subagents complete", () => {
     const { listener, session } = makeConfigSyncSession();
     for (const toolCallId of ["detached-a", "detached-b"]) {
