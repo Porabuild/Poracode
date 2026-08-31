@@ -158,6 +158,36 @@ describe("resolveSharedUpdateCommand", () => {
     });
   });
 
+  it("uses pnpm-global when the executable lives under a custom Windows pnpm bin directory", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: geminiUpdate,
+        executablePath: "E:\\dev\\pnpm\\bin\\gemini.cmd",
+        envKind: "windows",
+      }),
+    ).toEqual({
+      binary: "pnpm",
+      args: ["add", "-g", "@google/gemini-cli@latest"],
+      strategy: "pnpm-global",
+    });
+  });
+
+  it("uses pnpm-global when the executable lives in a pnpm virtual store", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: codexUpdate,
+        executablePath:
+          "E:\\dev\\pnpm\\global\\v11\\node_modules\\.pnpm\\@openai+codex@0.151.0\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe",
+        envKind: "windows",
+        skipBuiltIn: true,
+      }),
+    ).toEqual({
+      binary: "pnpm",
+      args: ["add", "-g", "@openai/codex@latest"],
+      strategy: "pnpm-global",
+    });
+  });
+
   it("uses bun-global when the executable lives under ~/.bun/bin", () => {
     expect(
       resolveSharedUpdateCommand({

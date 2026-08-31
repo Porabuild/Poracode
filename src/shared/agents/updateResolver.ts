@@ -46,17 +46,14 @@ function looksLikeNpmInstallPath(executablePath: string | undefined): boolean {
   if (!executablePath) return false;
   const normalized = normalizeCommandPath(executablePath);
   return (
-    normalized.includes("/node_modules/.bin/") ||
-    normalized.includes("/lib/node_modules/") ||
-    normalized.includes("/npm/node_modules/") ||
     normalized.includes("/node_modules/") ||
     normalized.includes("/.npm-global/") ||
     normalized.includes("/appdata/roaming/npm/") ||
-    /\/n\/versions\//.test(normalized) ||
-    /\/\.nvm\/versions\/node\//.test(normalized) ||
-    /\/\.volta\//.test(normalized) ||
-    /\/\.fnm\//.test(normalized) ||
-    /\/asdf\/installs\/nodejs\//.test(normalized)
+    normalized.includes("/n/versions/") ||
+    normalized.includes("/.nvm/versions/node/") ||
+    normalized.includes("/.volta/") ||
+    normalized.includes("/.fnm/") ||
+    normalized.includes("/asdf/installs/nodejs/")
   );
 }
 
@@ -84,12 +81,9 @@ function looksLikeWingetPath(executablePath: string | undefined): boolean {
 function looksLikePnpmGlobalPath(executablePath: string | undefined): boolean {
   if (!executablePath) return false;
   const normalized = normalizeCommandPath(executablePath);
-  return (
-    normalized.includes("/.local/share/pnpm/") ||
-    normalized.includes("/library/pnpm/") ||
-    normalized.includes("/appdata/local/pnpm/") ||
-    normalized.includes("/pnpm/global/")
-  );
+  // A full `pnpm` path segment covers every PNPM_HOME layout (custom bin dirs,
+  // ~/.local/share/pnpm, /pnpm/global, …); `/.pnpm/` is the virtual store.
+  return normalized.includes("/.pnpm/") || /(?:^|[/])pnpm(?:[/]|$)/.test(normalized);
 }
 
 function looksLikeBunGlobalPath(executablePath: string | undefined): boolean {
