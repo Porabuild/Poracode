@@ -124,6 +124,7 @@ import {
   rewriteLoadSessionError,
   shouldEmitAcpPromptRpcErrorItem,
 } from "./sessionErrors";
+import { isFatalAcpQuotaError } from "./acpUserVisibleErrors";
 import { AcpSessionRequests } from "./sessionRequests";
 import {
   buildAcpMcpServers,
@@ -1070,7 +1071,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     } catch (error) {
       if (this.isDisposed) return;
-      if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
+      if (this.agentSurfacedErrorMessage) {
+        // Quota/provider failures already sealed the turn; a later transport
+        // abort from session/cancel must not overwrite that error with idle.
+        if (this.currentTurnId) this.completeTurn(this.ensureMapperState(), "failed");
+      } else if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
         this.emitListenerUpdate({ status: "idle", attention: "none" });
         this.completeTurn(this.ensureMapperState(), "cancelled");
       } else {
@@ -1492,8 +1497,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       const events = mapAcpSessionUpdate(params, mapperState);
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
-        this.recordAgentSurfacedError(events);
         this.emitRuntimeEvents(events);
+        this.recordAgentSurfacedError(events);
       }
       for (const toolCallId of this.detachedTurnParentToolCallIds) {
         if (!mapperState.activeSubAgents.some((active) => active.toolCallId === toolCallId)) {
@@ -1659,6 +1664,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         attention: "error",
         errorMessage: event.message,
       });
+      if (isFatalAcpQuotaError(event.message) && this.promptInFlight && this.sessionId) {
+        // Antigravity retries 429s without resolving session/prompt. Fail the
+        // turn now and cancel so the in-flight prompt cannot pin `working`.
+        this.completeTurn(this.ensureMapperState(), "failed");
+        void this.connection.cancel({ sessionId: this.sessionId }).catch((error: unknown) => {
+          console.warn(
+            "[acp] cancel after quota error failed:",
+            error instanceof Error ? error.message : String(error),
+          );
+        });
+      }
       return;
     }
   }
@@ -1727,13 +1743,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.orphanTurnIdleTimer = setTimeout(() => {
       this.orphanTurnIdleTimer = undefined;
       if (this.isDisposed || !this.orphanTurnId) return;
-      // Sitting inside a long tool call is not idleness — a test run or build
+      // Sitting inside a long *command* is not idleness — a test run or build
       // can go minutes without emitting anything. Detached subagent calls are
-      // held open on purpose, so they never count as "still running here".
-      const insideToolCall = [...this.ensureMapperState().toolCallItems.values()].some(
-        (item) => !item.detached,
+      // held open on purpose. Read/search tool_calls that never receive a
+      // terminal update (Antigravity `client_view_file` / `view_file`) must
+      // not pin the orphan turn forever.
+      const insideLiveCommand = [...this.ensureMapperState().toolCallItems.values()].some(
+        (item) => !item.detached && item.itemType === "command_execution",
       );
-      if (insideToolCall) {
+      if (insideLiveCommand) {
         this.armOrphanTurnIdleTimer();
         return;
       }
@@ -1789,12 +1807,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     turnState: "completed" | "cancelled" | "failed",
   ): void {
     if (!this.currentTurnId) return;
+    const turnId = this.currentTurnId;
+    this.currentTurnId = undefined;
     this.emitRuntimeEvents([
       ...closeOpenTurnItems(mapperState),
       {
         type: "turn.completed",
         threadId: this.threadId,
-        turnId: this.currentTurnId,
+        turnId,
         state: turnState,
       },
     ]);
@@ -1814,10 +1834,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       events.push({ type: "error", threadId: this.threadId, message: rpcMessage });
     }
     if (this.currentTurnId) {
+      const turnId = this.currentTurnId;
+      this.currentTurnId = undefined;
       events.push({
         type: "turn.completed",
         threadId: this.threadId,
-        turnId: this.currentTurnId,
+        turnId,
         state: "failed",
       });
     }
