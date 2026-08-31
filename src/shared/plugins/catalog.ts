@@ -91,15 +91,26 @@ export function resolveInstalledPluginState(
   plugin: LoadedPlugin,
   installedPlugins: InstalledPlugins,
 ): InstalledPluginState | undefined {
-  return (
-    installedPlugins[plugin.name] ??
-    (isBuiltInToolPlugin(plugin) ? defaultInstalledPluginState(plugin) : undefined)
-  );
+  const stored = installedPlugins[plugin.name];
+  if (isAlwaysEnabledPlugin(plugin)) {
+    return { ...(stored ?? defaultInstalledPluginState(plugin)), enabled: true };
+  }
+  return stored ?? (isBuiltInToolPlugin(plugin) ? defaultInstalledPluginState(plugin) : undefined);
+}
+
+/** Bundled plugins the user cannot switch off. */
+export function isAlwaysEnabledPlugin(plugin: LoadedPlugin): boolean {
+  return plugin.source === "bundled" && plugin.poracode.alwaysEnabled;
 }
 
 /** Built-in tool plugins are part of the app; they can be disabled, not removed. */
 export function canUninstallPlugin(plugin: LoadedPlugin): boolean {
-  return !isBuiltInToolPlugin(plugin);
+  return !isBuiltInToolPlugin(plugin) && !isAlwaysEnabledPlugin(plugin);
+}
+
+/** Always-on bundled plugins have no enable switch. */
+export function canDisablePlugin(plugin: LoadedPlugin): boolean {
+  return !isAlwaysEnabledPlugin(plugin);
 }
 
 export function pluginNativeNames(plugin: LoadedPlugin): readonly string[] {
@@ -181,6 +192,7 @@ export function setInstalledPluginEnabled(
   plugin: LoadedPlugin,
   enabled: boolean,
 ): InstalledPlugins {
+  if (isAlwaysEnabledPlugin(plugin)) return installedPlugins;
   // A built-in tool plugin has no stored record until the user changes
   // something, so materialize its default state before flipping the flag.
   const current = resolveInstalledPluginState(plugin, installedPlugins);
@@ -197,6 +209,7 @@ function setContributionEnabled(
   enabled: boolean,
   field: ContributionField,
 ): InstalledPlugins {
+  if (isAlwaysEnabledPlugin(plugin) && !enabled) return installedPlugins;
   const current = resolveInstalledPluginState(plugin, installedPlugins);
   if (!current) return installedPlugins;
   const wasDisabled = current[field].includes(contributionId);

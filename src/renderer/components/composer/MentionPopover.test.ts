@@ -4,7 +4,7 @@ import { groupMentionResults, type MentionEntry } from "./MentionPopover";
 
 describe("groupMentionResults", () => {
   const entries: MentionEntry[] = [
-    { type: "plugin", path: "browser-tools", name: "Browser Tools", command: {} as never },
+    { type: "plugin", path: "browser-tools", name: "Browser", command: {} as never },
     { type: "mcp", path: "browser", name: "Browser", icon: Globe, enabled: true },
     { type: "mcp", path: "app-controls", name: "Terminal", icon: Globe, enabled: true },
     { type: "thread", path: "t1", name: "Fix launch", detail: "603efb25" },

@@ -38,6 +38,13 @@ function GithubPluginDetail() {
   return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
 }
 
+function TerminalPluginDetail() {
+  const plugin = useLocalizedPluginCatalog().find(
+    (candidate) => candidate.plugin.name === "terminal",
+  )!;
+  return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
+}
+
 function ComputerUsePluginDetail() {
   const plugin = useLocalizedPluginCatalog().find(
     (candidate) => candidate.plugin.name === "computer-use",
@@ -73,7 +80,7 @@ describe("PluginDetail", () => {
     render(<BrowserPluginDetail />);
 
     expect(screen.getByRole("heading", { name: "MCP servers" })).toBeInTheDocument();
-    expect(screen.getByText("Browser")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Browser" })).toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Browser MCP" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("switch", { name: "Browser Control Skill" }));
@@ -82,13 +89,25 @@ describe("PluginDetail", () => {
     ).toEqual(["browser-control"]);
     expect(screen.getByRole("switch", { name: "Browser Control Skill" })).not.toBeChecked();
 
-    fireEvent.click(screen.getByRole("switch", { name: "Browser Tools Enable plugin" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Browser Enable plugin" }));
     expect(useSharedSettings.getState().installedPlugins["browser-tools"]?.enabled).toBe(false);
     expect(screen.getByRole("switch", { name: "Browser Control Skill" })).toBeDisabled();
 
     expect(screen.queryByRole("button", { name: "Uninstall" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
     expect(screen.getByText("Built-in")).toBeInTheDocument();
+  });
+
+  it("keeps the Terminal plugin always on", () => {
+    render(<TerminalPluginDetail />);
+
+    expect(screen.getByRole("heading", { name: "Terminal" })).toBeInTheDocument();
+    expect(screen.getByText("Built-in")).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /Enable plugin/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /Skill/iu })).not.toBeInTheDocument();
+
+    act(() => useSharedSettings.getState().setPluginEnabled(pluginFixture("terminal"), false));
+    expect(useSharedSettings.getState().installedPlugins.terminal).toBeUndefined();
   });
 
   it("installs and uninstalls a plugin that starts its own server", () => {

@@ -36,13 +36,6 @@ export interface McpMentionItem {
   /** Optional extra context; the popover section header already names the kind. */
   detail?: string;
   enabled: boolean;
-  /**
-   * Keeps this row even when a plugin packages the same server. Set it when the
-   * row expresses a narrower intent than the plugin's skill — `@Terminal` asks
-   * to read the Terminal panel, while `@App Controls` loads the whole app
-   * skill — so the two are not duplicates of each other.
-   */
-  keepAlongsidePlugin?: boolean;
 }
 
 /** An installed Agent Plugin surfaced as one `@`-mention. */

@@ -1414,8 +1414,8 @@ msgstr "Navigateur d'applications"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "App Controls"
-msgstr "Contrôles de l’application"
+#~ msgid "App Controls"
+#~ msgstr "Contrôles de l’application"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -2030,8 +2030,8 @@ msgid "Browser tabs"
 msgstr "Onglets du navigateur"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Browser Tools"
-msgstr "Outils du navigateur"
+#~ msgid "Browser Tools"
+#~ msgstr "Outils du navigateur"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -2497,8 +2497,8 @@ msgid "Chrome MCP enabled for this thread"
 msgstr "MCP Chrome activé pour ce fil de discussion"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Chrome Tools"
-msgstr "Outils Chrome"
+#~ msgid "Chrome Tools"
+#~ msgstr "Outils Chrome"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -4706,8 +4706,12 @@ msgid "Enabled agents, model visibility and order"
 msgstr "Agents activés, visibilité et ordre des modèles"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Enabled servers stay on for new threads"
-msgstr "Les serveurs activés restent actifs pour les nouveaux fils de discussion"
+msgid "Enabled plugins stay on for new threads"
+msgstr "Les plugins activés restent actifs pour les nouveaux fils de discussion"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Enabled servers stay on for new threads"
+#~ msgstr "Les serveurs activés restent actifs pour les nouveaux fils de discussion"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -6973,10 +6977,8 @@ msgstr "MCP"
 #~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#~ msgid "MCP server"
-#~ msgstr "Serveur MCP"
+msgid "MCP server"
+msgstr "Serveur MCP"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
@@ -7026,7 +7028,6 @@ msgstr "Délai d’expiration du serveur MCP en millisecondes"
 msgid "MCP server URL"
 msgstr "URL du serveur MCP"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -7976,8 +7977,8 @@ msgid "No matching threads"
 msgstr "Aucun fil correspondant"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "No MCP servers are enabled for this run"
-msgstr "Aucun serveur MCP n'est activé pour cette exécution"
+#~ msgid "No MCP servers are enabled for this run"
+#~ msgstr "Aucun serveur MCP n'est activé pour cette exécution"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -8020,6 +8021,10 @@ msgstr "Aucun motif."
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "Aucune phase pour l'instant."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No plugins are enabled for this run"
+msgstr "Aucun plugin n'est activé pour cette exécution"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -9049,6 +9054,10 @@ msgstr "Plugin"
 msgid "Plugin folder"
 msgstr "Dossier des plugins"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Plugin servers"
+msgstr "Serveurs de plugins"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
 msgstr "plugin.json n'a pas pu être lu en tant que JSON."
@@ -9065,6 +9074,7 @@ msgstr "plugin.json n'est pas valide pour la spécification Agent Plugins."
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json vise une version d'Agent Plugins que cette build ne prend pas en charge."
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9084,6 +9094,14 @@ msgstr "Dirigez ce profil vers un fournisseur non-Anthropic (z.ai, …) avec des
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Thèmes d'éditeur populaires adaptés à Poracode. Chacun suit le mode clair ou sombre ci-dessus."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Poracode"
+msgstr "Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
@@ -9734,6 +9752,14 @@ msgstr "Réexécuter les tâches en échec"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
 msgstr "Lire et piloter Poracode lui-même : fils, panneaux de terminal, git, pull requests et planifications."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report the evidence."
+msgstr "Lisez le panneau Terminal de cet arbre de travail et rapportez les preuves."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report what it is printing."
+msgstr "Lisez le panneau Terminal de cet arbre de travail et rapportez ce qu'il affiche."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -11176,8 +11202,12 @@ msgid "Set shortcut"
 msgstr "Définir un raccourci"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Set when this session started — start a new thread to change servers"
-msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les serveurs"
+msgid "Set when this session started — start a new thread to change plugins"
+msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les plugins"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Set when this session started — start a new thread to change servers"
+#~ msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les serveurs"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -11970,8 +12000,8 @@ msgid "Subagent"
 msgstr "Sous-agent"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Subagent Delegation"
-msgstr "Délégation de sous-agents"
+#~ msgid "Subagent Delegation"
+#~ msgstr "Délégation de sous-agents"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
@@ -12280,9 +12310,7 @@ msgstr "Dites au fournisseur cible quoi faire ensuite..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12575,6 +12603,10 @@ msgstr "Thème et taille de police du chat"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Ces serveurs MCP intégrés sont partagés entre les fils OpenCode. L'enregistrement met à jour les projets GUI en cours ; la suppression d'un serveur peut interrompre un tour actif. Les fils de terminal récupèrent les modifications à leur prochain lancement."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
+msgstr "Ces serveurs proviennent de plugins. Activez-les ou désactivez-les dans Plugins ; ils ne peuvent pas être modifiés ici."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx

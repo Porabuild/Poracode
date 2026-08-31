@@ -12,7 +12,7 @@
   "keywords": ["browser", "testing", "automation"],
   "extensions": {
     "com.poracode.client": {
-      "title": "Browser Tools",
+      "title": "Browser",
       "category": "developer-tools",
       "featured": true,
       "examplePrompt": "Open my local app in Poracode's browser, test the requested flow, and report visual, console, and network evidence",

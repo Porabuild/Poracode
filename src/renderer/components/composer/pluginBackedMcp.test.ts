@@ -8,15 +8,12 @@ import {
 } from "./pluginBackedMcp";
 
 const mcpMentions: McpMentionItem[] = [
-  {
-    id: "app-controls",
-    name: "Terminal",
-    icon: TerminalSquare,
-    enabled: true,
-    keepAlongsidePlugin: true,
-  },
+  { id: "app-controls", name: "Terminal", icon: TerminalSquare, enabled: true },
   { id: "browser", name: "Browser", icon: Globe, enabled: true },
   { id: "computer-use", name: "Computer Use", icon: Monitor, enabled: true },
+  { id: "figma-id", name: "Figma", icon: Globe, enabled: true },
+  { id: "plugin:github:github", name: "github.github", icon: Globe, enabled: true },
+  { id: "custom-github", name: "github.github", icon: Globe, enabled: true },
 ];
 
 function pluginMention(id: string, enablesMcpServerIds?: string[]): PluginMentionItem {
@@ -29,37 +26,25 @@ function pluginMention(id: string, enablesMcpServerIds?: string[]): PluginMentio
 }
 
 describe("withoutPluginBackedMcpMentions", () => {
-  it("keeps a row that means something narrower than the plugin's skill", () => {
-    // `@Terminal` reads the Terminal panel; `@App Controls` loads the whole app
-    // skill. Same server, different intent, so the shortcut survives.
+  it("never lists a built-in server or Terminal shortcut as an MCP mention", () => {
+    // Those capabilities are plugins. Mentions only keep standalone servers.
     const result = withoutPluginBackedMcpMentions(mcpMentions, [
       pluginMention("app-controls", ["app-controls"]),
     ]);
 
-    expect(result.map((item) => item.id)).toEqual(["app-controls", "browser", "computer-use"]);
+    expect(result.map((item) => item.id)).toEqual(["figma-id", "custom-github"]);
   });
 
-  it("drops the MCP row a plugin already stands in for", () => {
-    const result = withoutPluginBackedMcpMentions(mcpMentions, [
-      pluginMention("browser-tools", ["browser"]),
-      pluginMention("computer-use", ["computer-use"]),
-    ]);
+  it("drops plugin-declared servers even when no plugin row is currently offered", () => {
+    const result = withoutPluginBackedMcpMentions(mcpMentions, []);
 
-    expect(result.map((item) => item.id)).toEqual(["app-controls"]);
+    expect(result.map((item) => item.id)).toEqual(["figma-id", "custom-github"]);
   });
 
-  it("keeps every row when no plugin covers a built-in server", () => {
+  it("drops a namespaced plugin server when that plugin is in the mention list", () => {
     const result = withoutPluginBackedMcpMentions(mcpMentions, [pluginMention("github")]);
 
-    expect(result.map((item) => item.id)).toEqual(["app-controls", "browser", "computer-use"]);
-  });
-
-  it("restores a row once its plugin is no longer offered", () => {
-    expect(withoutPluginBackedMcpMentions(mcpMentions, []).map((item) => item.id)).toEqual([
-      "app-controls",
-      "browser",
-      "computer-use",
-    ]);
+    expect(result.map((item) => item.id)).toEqual(["figma-id"]);
   });
 });
 

@@ -9,23 +9,19 @@
   },
   "homepage": "https://poracode.com",
   "license": "Apache-2.0",
-  "keywords": ["terminal", "threads", "git", "pull requests", "schedules"],
+  "keywords": ["threads", "git", "pull requests", "schedules"],
   "extensions": {
     "com.poracode.client": {
-      "title": "App Controls",
+      "title": "Poracode",
       "category": "developer-tools",
       "featured": true,
-      "examplePrompt": "Check the Terminal panel for this worktree and tell me what the running command is doing",
+      "examplePrompt": "List this project's running threads and summarize what each one is doing",
       "coreSkill": "app-controls",
       "builtInMcpServerIds": ["app-controls"],
       "skills": {
         "app-controls": {
-          "name": "App Controls",
+          "name": "Poracode",
           "description": "Inspect threads and terminal panes, and drive git, pull requests, and schedules from inside Poracode."
-        },
-        "terminal-inspection": {
-          "name": "Terminal Inspection",
-          "description": "Read the Terminal panel attached to this worktree and report the evidence."
         }
       }
     }

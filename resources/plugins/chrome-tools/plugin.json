@@ -12,7 +12,7 @@
   "keywords": ["chrome", "browser", "automation"],
   "extensions": {
     "com.poracode.client": {
-      "title": "Chrome Tools",
+      "title": "Chrome",
       "category": "automation",
       "featured": true,
       "examplePrompt": "Use my existing Chrome session to complete this browser task and verify the final visible state",

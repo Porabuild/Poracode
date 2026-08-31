@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { Monitor, TerminalSquare, Webhook } from "lucide-react";
+import { Monitor, Settings2, Webhook } from "lucide-react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
@@ -44,6 +44,11 @@ import {
   providerMcpSettingEnabled,
   providerOwnsMcpConfig,
 } from "../composer/composerMcpServers";
+import {
+  pluginLabelsForMcpServers,
+  pluginMentionsForAvailableMcp,
+  withoutPluginBackedMcpMentions,
+} from "../composer/pluginBackedMcp";
 import {
   ComposerAddMenu,
   type ComposerCustomMcpItem,
@@ -515,10 +520,8 @@ export function ContinueInProviderDialog(props: {
             ? [
                 {
                   id: "app-controls",
-                  name: t`Terminal`,
-                  searchAliases: ["Terminal"],
-                  icon: TerminalSquare,
-                  detail: t`Terminal`,
+                  name: t`Poracode`,
+                  icon: Settings2,
                   enabled: true,
                 },
               ]
@@ -567,6 +570,9 @@ export function ContinueInProviderDialog(props: {
             : []),
         ]
       : [];
+  const composerPluginMentions = pluginMentionsForAvailableMcp(pluginMentions, mcpMentions);
+  const composerMcpMentions = withoutPluginBackedMcpMentions(mcpMentions, composerPluginMentions);
+  const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
 
   // "+" menu rows for this switch. Unlike the draft composer's menu — which
   // edits the standing default for *future* threads — these edit the config of
@@ -896,8 +902,8 @@ export function ContinueInProviderDialog(props: {
                           placeholder={t`Tell ${selectedAgent?.label ?? targetProviderFallback} what to do next...`}
                           projectLocation={props.projectLocation}
                           projectId={thread.projectId}
-                          mcpMentions={mcpMentions}
-                          pluginMentions={pluginMentions}
+                          mcpMentions={composerMcpMentions}
+                          pluginMentions={composerPluginMentions}
                           threadMentions={threadMentions}
                           onMcpMentionSelect={handleMcpMentionSelect}
                           {...(showCommandPanel
@@ -939,6 +945,7 @@ export function ContinueInProviderDialog(props: {
                         <ComposerAddMenu
                           mcpServers={mcpMenuServers}
                           customMcpServers={mcpMenuCustomServers}
+                          pluginLabels={composerPluginLabels}
                           {...(providerOwnsMcp && mcpControlsAvailable
                             ? {
                                 readOnly: true,

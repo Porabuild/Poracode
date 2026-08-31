@@ -231,7 +231,7 @@ export function usePluginMentionItems(
         id: plugin.name,
         name: localized.name,
         // Manifest keywords double as mention aliases so a package still
-        // answers to what it does ("@terminal" → App Controls), not only to
+        // answers to what it does ("@pane" → Terminal), not only to
         // its display name.
         ...(plugin.manifest.keywords?.length ? { searchAliases: plugin.manifest.keywords } : {}),
         command: { ...command, pluginId: plugin.name, pluginName: localized.name },

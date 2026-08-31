@@ -1,31 +1,39 @@
+import { BUILT_IN_MCP_SERVER_IDS } from "@/shared/contracts";
 import type { McpMentionItem, PluginMentionItem } from "./MentionInput";
 
 /**
  * Bridges Poracode's built-in MCP servers and the first-party plugins that
- * package them. Browser, Chrome, Crossagents, and Computer Use each exist twice
- * — once as a server the app owns, once as the plugin that wraps it — so every
- * composer surface resolves the pair through this module instead of guessing.
+ * package them. Browser, Chrome, Crossagents, Computer Use, and Poracode each
+ * exist twice — once as a server the app owns, once as the plugin that wraps
+ * it — so every composer surface resolves the pair through this module instead
+ * of guessing.
  */
 
+const BUILT_IN_MCP_MENTION_IDS = new Set<string>(BUILT_IN_MCP_SERVER_IDS);
+
 /**
- * Drops the `@`-mentions for built-in MCP servers an offered plugin already
- * covers.
+ * Keeps only standalone MCP `@`-mentions.
  *
- * Browser, Chrome, Crossagents, and Computer Use are each packaged as a
- * first-party plugin that binds the same server, so both lists would otherwise
- * offer the same tool twice under near-identical names. The plugin row wins: it
- * carries the skill and enables the server on select. A row stays when no
- * plugin covers its server (custom servers, or a plugin the user disabled) or
- * when it declares `keepAlongsidePlugin` because it means something narrower
- * than the plugin's skill.
+ * Built-in servers are offered as plugins, so the mention list never shows
+ * Browser, Chrome, Crossagents, Computer Use, or Poracode as MCP rows — even
+ * when their plugin is off. Plugin-declared `mcp.json` servers (namespaced
+ * `plugin:…` or `pluginName.server`) are the same: pick the plugin. Custom
+ * user and project servers stay, because they have no plugin row.
  */
 export function withoutPluginBackedMcpMentions(
   mcpMentions: readonly McpMentionItem[],
   pluginMentions: readonly PluginMentionItem[],
 ): McpMentionItem[] {
   const covered = new Set(pluginMentions.flatMap((item) => item.enablesMcpServerIds ?? []));
-  if (covered.size === 0) return [...mcpMentions];
-  return mcpMentions.filter((item) => item.keepAlongsidePlugin === true || !covered.has(item.id));
+  const pluginServerPrefixes = pluginMentions.map((item) => `${item.id}.`);
+  return mcpMentions.filter((item) => {
+    if (BUILT_IN_MCP_MENTION_IDS.has(item.id)) return false;
+    if (covered.has(item.id)) return false;
+    if (item.id.startsWith("plugin:")) return false;
+    return !pluginServerPrefixes.some(
+      (prefix) => item.id.startsWith(prefix) || item.name.startsWith(prefix),
+    );
+  });
 }
 
 /**
@@ -50,8 +58,8 @@ export function pluginMentionsForAvailableMcp(
 /**
  * Display name per built-in MCP server id, for the servers an offered plugin
  * wraps. The composer menu and chips use it so a capability reads the same in
- * every surface: `@Browser Tools` in the mention list and "Browser Tools" in
- * the "+" menu. Servers no plugin covers keep their own registry label.
+ * every surface: `@Browser` in the mention list and "Browser" in the "+" menu.
+ * Servers no plugin covers keep their own registry label.
  */
 export function pluginLabelsForMcpServers(
   pluginMentions: readonly PluginMentionItem[],

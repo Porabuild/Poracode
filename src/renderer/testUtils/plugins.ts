@@ -7,6 +7,7 @@ import chromeTools from "../../../resources/plugins/chrome-tools/plugin.json";
 import computerUse from "../../../resources/plugins/computer-use/plugin.json";
 import github from "../../../resources/plugins/github/plugin.json";
 import subagentDelegation from "../../../resources/plugins/subagent-delegation/plugin.json";
+import terminal from "../../../resources/plugins/terminal/plugin.json";
 
 /**
  * Seeds the renderer plugin store from the real shipped manifests.
@@ -25,6 +26,7 @@ const SHIPPED_MANIFESTS = [
   chromeTools,
   computerUse,
   subagentDelegation,
+  terminal,
   github,
 ];
 

@@ -22,10 +22,10 @@ function openMenu() {
   fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
 }
 
-/** Open the MCP servers flyout submenu (desktop) by activating the parent row. */
+/** Open the plugins flyout submenu (desktop) by activating the parent row. */
 function openMcpSubmenu() {
   act(() => {
-    fireEvent.click(screen.getByText("MCP servers"));
+    fireEvent.click(screen.getByText("Plugins"));
   });
 }
 
@@ -73,8 +73,8 @@ describe("ComposerAddMenu", () => {
     openMenu();
 
     expect(screen.queryByText("File")).not.toBeInTheDocument();
-    // MCP servers now live behind a parent submenu row, not a flat list.
-    expect(screen.getByText("MCP servers")).toBeInTheDocument();
+    // Plugins now live behind a parent submenu row, not a flat list.
+    expect(screen.getByText("Plugins")).toBeInTheDocument();
     expect(screen.queryByText("Browser")).not.toBeInTheDocument();
 
     openMcpSubmenu();
@@ -133,7 +133,7 @@ describe("ComposerAddMenu", () => {
     openMenu();
 
     // Count is visible on the parent row without opening the submenu.
-    expect(screen.getByText("MCP servers")).toBeInTheDocument();
+    expect(screen.getByText("Plugins")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.queryByText("Browser")).not.toBeInTheDocument();
   });
@@ -249,7 +249,7 @@ describe("ComposerAddMenu", () => {
     openMenu();
     openMcpSubmenu();
 
-    expect(screen.getByText("Enabled servers stay on for new threads")).toBeInTheDocument();
+    expect(screen.getByText("Enabled plugins stay on for new threads")).toBeInTheDocument();
   });
 
   it("shows a foreground-takeover hint for Computer Use inside the submenu", () => {
@@ -291,7 +291,7 @@ describe("ComposerAddMenu", () => {
             onToggle: vi.fn<(next: boolean) => void>(),
           },
         ]}
-        pluginLabels={{ browser: "Browser Tools" }}
+        pluginLabels={{ browser: "In-app Browser" }}
         showFileOption={false}
         onPickFiles={vi.fn<() => void>()}
       />,
@@ -302,12 +302,12 @@ describe("ComposerAddMenu", () => {
 
     // The wrapped server reads as its plugin, matching the `@`-mention list;
     // a server no plugin covers keeps its registry label.
-    expect(screen.getByText("Browser Tools")).toBeInTheDocument();
+    expect(screen.getByText("In-app Browser")).toBeInTheDocument();
     expect(screen.queryByText("Browser")).not.toBeInTheDocument();
     expect(screen.getByText("Crossagents")).toBeInTheDocument();
 
     act(() => {
-      fireEvent.click(screen.getByText("Browser Tools"));
+      fireEvent.click(screen.getByText("In-app Browser"));
     });
     expect(browserToggle).toHaveBeenCalledWith(false);
   });
@@ -378,11 +378,11 @@ describe("ComposerAddMenu", () => {
     expect(screen.getByText("Browser")).toBeInTheDocument();
     expect(screen.getByText("context7")).toBeInTheDocument();
     expect(
-      screen.getByText("Set when this session started — start a new thread to change servers"),
+      screen.getByText("Set when this session started — start a new thread to change plugins"),
     ).toBeInTheDocument();
 
     // Read-only bindings render as a static list, not interactive menu items.
-    expect(screen.getByRole("list", { name: "MCP servers" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Plugins" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /Browser/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitemcheckbox", { name: /Browser/i })).not.toBeInTheDocument();
 
@@ -415,7 +415,7 @@ describe("ComposerAddMenu", () => {
 
     expect(screen.getByText("Change servers in provider settings")).toBeInTheDocument();
     expect(
-      screen.queryByText("Set when this session started — start a new thread to change servers"),
+      screen.queryByText("Set when this session started — start a new thread to change plugins"),
     ).not.toBeInTheDocument();
   });
 
@@ -433,7 +433,7 @@ describe("ComposerAddMenu", () => {
     openMenu();
     openMcpSubmenu();
 
-    expect(screen.getByText("No MCP servers are enabled for this run")).toBeInTheDocument();
+    expect(screen.getByText("No plugins are enabled for this run")).toBeInTheDocument();
   });
 
   it("shows a paired-desktop hint for Computer Use in a remote session", () => {
@@ -454,7 +454,7 @@ describe("ComposerAddMenu", () => {
     // Remote session renders the mobile bottom-sheet; open it and drill in.
     fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
     act(() => {
-      fireEvent.click(screen.getByText("MCP servers"));
+      fireEvent.click(screen.getByText("Plugins"));
     });
 
     expect(

@@ -397,7 +397,7 @@ describe("ThreadComposerSection", () => {
     expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
   });
 
-  it("inserts @Terminal as a Poracode MCP directive", async () => {
+  it("does not offer plugin-backed MCPs as @ mentions", () => {
     const rangeRectDescriptor = Object.getOwnPropertyDescriptor(
       Range.prototype,
       "getBoundingClientRect",
@@ -415,21 +415,12 @@ describe("ThreadComposerSection", () => {
       value: () => undefined,
     });
     try {
-      const { onSubmitInput } = renderComposer();
+      renderComposer();
       const input = screen.getByRole("textbox");
       typeComposerText(input, "@ter");
-
-      fireEvent.keyDown(input, { key: "Enter" });
-      expect(input.querySelector('[data-mcp-id="app-controls"]')).not.toBeNull();
-
-      fireEvent.click(screen.getByRole("button", { name: "send" }));
-
-      await waitFor(() =>
-        expect(onSubmitInput).toHaveBeenCalledWith("@Terminal", [
-          { kind: "mcp", id: "app-controls", name: "Terminal" },
-          { kind: "text", content: " " },
-        ]),
-      );
+      expect(screen.queryByRole("option")).not.toBeInTheDocument();
+      typeComposerText(input, "@bro");
+      expect(screen.queryByRole("option")).not.toBeInTheDocument();
     } finally {
       if (rangeRectDescriptor) {
         Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
@@ -514,7 +505,7 @@ describe("ThreadComposerSection", () => {
 
       const input = screen.getByRole("textbox");
       typeComposerText(input, "@cro");
-      expect(screen.getByRole("option")).toHaveTextContent("Crossagents");
+      expect(screen.queryByRole("option")).not.toBeInTheDocument();
 
       typeComposerText(input, "@vis");
       expect(screen.getByRole("option")).toHaveTextContent("Vision-MCP");

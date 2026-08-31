@@ -161,22 +161,22 @@ describe("buildMentionResults", () => {
   });
 
   it("matches a stable alias while preserving the localized display name", () => {
-    const localizedTerminal: McpMentionItem = {
-      id: "app-controls",
-      name: "Терминал",
-      searchAliases: ["Terminal"],
+    const localizedServer: McpMentionItem = {
+      id: "figma-id",
+      name: "Фигма",
+      searchAliases: ["Figma"],
       icon: Monitor,
-      detail: "Терминал",
+      detail: "Фигма",
       enabled: true,
     };
 
-    expect(buildMentionResults([], "ter", [localizedTerminal])).toEqual([
+    expect(buildMentionResults([], "fig", [localizedServer])).toEqual([
       {
         type: "mcp",
-        path: "app-controls",
-        name: "Терминал",
+        path: "figma-id",
+        name: "Фигма",
         icon: Monitor,
-        detail: "Терминал",
+        detail: "Фигма",
         enabled: true,
       },
     ]);
@@ -547,7 +547,7 @@ describe("plugin mention selection", () => {
         pluginMentions: [
           {
             id: "browser-tools",
-            name: "Browser Tools",
+            name: "Browser",
             enablesMcpServerIds: ["browser"],
             command: {
               id: "browser-control",
@@ -555,10 +555,10 @@ describe("plugin mention selection", () => {
               skillName: "browser-control",
               skillPath: String.raw`C:\plugins\browser-tools\skills\browser-control\SKILL.md`,
               skillInvocation: "$browser-control",
-              skillProvider: "Browser Tools",
+              skillProvider: "Browser",
               skillScope: "global",
               pluginId: "browser-tools",
-              pluginName: "Browser Tools",
+              pluginName: "Browser",
             },
           },
         ],
