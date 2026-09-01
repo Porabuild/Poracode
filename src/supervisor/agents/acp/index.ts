@@ -1,4 +1,5 @@
-export { AcpStructuredSession } from "./session";
+export { AcpStructuredSession, type AcpSessionBehavior } from "./session";
+export type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
 export { createAcpStructuredSession, shouldSpawnAcpSession } from "./sessionFactory";
 export {
   authenticateAcpAgent,

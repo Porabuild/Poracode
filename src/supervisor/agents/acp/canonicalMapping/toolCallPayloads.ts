@@ -21,7 +21,7 @@ import {
 } from "./contentExtraction";
 import { closeOpenContentItems, resetMapperForTurnEnd } from "./state";
 import type { AcpMapperState, AcpToolCallItemState } from "./state";
-import { flushTaskNotificationBuffer } from "./taskNotifications";
+import { flushTextStreamExtension } from "./textStreamExtension";
 
 /**
  * Build the canonical chat-item payload for an ACP `tool_call`.
@@ -289,9 +289,7 @@ export function applyTerminalToolCallName(
 /** Close any open assistant/user/reasoning/tool-call/plan items as a turn boundary. */
 export function closeOpenTurnItems(state: AcpMapperState): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
-  if (state.taskNotificationBuffer) {
-    events.push(...flushTaskNotificationBuffer(state));
-  }
+  events.push(...flushTextStreamExtension(state));
   events.push(...closeOpenContentItems(state));
   for (const [toolCallId, item] of state.toolCallItems) {
     if (item.detached) continue;

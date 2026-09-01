@@ -759,6 +759,46 @@ describe("ToolCallGroup", () => {
     expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
   });
 
+  it("shimmers the collapsed header section that still has a running item", () => {
+    // A detached background command outlives its turn; once the group stops
+    // being the live tail it collapses, and the header is the only surface
+    // left to signal the still-running work.
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [
+      makeToolItem("tool-1", "Read file"),
+      { ...makeCommandItem("command-1", "node server.js"), state: "started" },
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      false,
+    );
+
+    const animated = Array.from(view.container.querySelectorAll(".poracode-thinking-text"));
+    expect(animated.map((el) => el.getAttribute("data-poracode-shimmer-text"))).toEqual([
+      "1 command",
+    ]);
+  });
+
+  it("keeps the collapsed header static when every item completed", () => {
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [
+      makeToolItem("tool-1", "Read file"),
+      makeCommandItem("command-1", "node server.js"),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      false,
+    );
+
+    expect(view.container.querySelector(".poracode-thinking-text")).toBeNull();
+  });
+
   it("renders reasoning rows inside the group and counts them in the summary", () => {
     const threadId = "thread-1";
     const items = [

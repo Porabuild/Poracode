@@ -1,5 +1,9 @@
 /**
- * Antigravity ACP task notification handler.
+ * Antigravity ACP task notification extension.
+ *
+ * Plugged into the shared ACP mapper as an `AcpTextStreamExtension`
+ * (`createAntigravityTaskNotificationExtension`) so none of this format
+ * knowledge lives in provider-agnostic code.
  *
  * Antigravity (and Google's localharness) executes commands asynchronously
  * when they run in the background. When completed, the harness emits:
@@ -44,8 +48,94 @@ import {
   type ParsedTaskNotificationBody,
 } from "@/shared/taskNotificationText";
 import { msg } from "@/shared/messages";
-import type { AcpMapperState } from "./state";
-import { newItemId, closeAllOpenContentItems, getContentItemState } from "./state";
+import type { AcpMapperState } from "../acp/canonicalMapping/state";
+import {
+  newItemId,
+  closeAllOpenContentItems,
+  getContentItemState,
+} from "../acp/canonicalMapping/state";
+import {
+  getExtensionStore,
+  type AcpAgentTextInput,
+  type AcpAgentTextResult,
+  type AcpExtensionToolCallInput,
+  type AcpExtensionToolCallSource,
+  type AcpTextStreamExtension,
+} from "../acp/canonicalMapping/textStreamExtension";
+
+const EXTENSION_ID = "antigravity.taskNotifications";
+
+interface AntigravityTaskNotificationStore {
+  /**
+   * Tracked background tasks (Antigravity task id -> command execution item).
+   * Persisted across turn boundaries so asynchronous task completions can
+   * update the original command execution row.
+   */
+  backgroundTasks: Map<
+    string,
+    { toolCallId: string; itemId: string; command: string; payload: Record<string, unknown> }
+  >;
+  /**
+   * Partial `<task_notification>` text still streaming across
+   * `agent_message_chunk` boundaries, pinned to the parent tool call whose
+   * transcript the notification belongs to.
+   */
+  buffer?: { parentToolCallId: string | undefined; text: string; suppressOutput?: boolean };
+}
+
+/**
+ * This extension's private slot on the mapper state. Exported for tests that
+ * assert buffering and background-task correlation; the shared mapper never
+ * reads it.
+ */
+export function readAntigravityTaskNotificationState(
+  state: AcpMapperState,
+): AntigravityTaskNotificationStore {
+  return store(state);
+}
+
+function store(state: AcpMapperState): AntigravityTaskNotificationStore {
+  return getExtensionStore<AntigravityTaskNotificationStore>(state, EXTENSION_ID, () => ({
+    backgroundTasks: new Map(),
+  }));
+}
+
+/**
+ * Wire Antigravity's background-task reporting into the shared ACP mapper.
+ * Every other ACP provider streams assistant text untouched.
+ */
+export function createAntigravityTaskNotificationExtension(): AcpTextStreamExtension {
+  return {
+    id: EXTENSION_ID,
+    handleAgentText(input: AcpAgentTextInput): AcpAgentTextResult {
+      const handled = handleTaskNotificationText(
+        input.text,
+        input.state,
+        input.parentToolCallId,
+        input.suppressOutput,
+      );
+      const events = handled.notifications.flatMap((notification) =>
+        emitTaskNotificationEvents(notification, input.state),
+      );
+      return { events, text: handled.text };
+    },
+    trackToolCall(input: AcpExtensionToolCallInput): void {
+      trackBackgroundCommandFromToolCall(
+        input.state,
+        input.itemType,
+        input.itemId,
+        input.payload,
+        input.toolCall,
+      );
+    },
+    flushTurnBoundary(state: AcpMapperState) {
+      return flushTaskNotificationBuffer(state);
+    },
+    resetForTurnEnd(state: AcpMapperState) {
+      delete store(state).buffer;
+    },
+  };
+}
 
 export interface ParsedTaskNotification {
   raw: string;
@@ -75,13 +165,6 @@ const BACKGROUND_SIGNAL_RE = /background\s+task/i;
 const TRUNCATED_BODY_SHAPE_RE =
   /completed with|failed with|Output:|exited with code|finished with result|content=Task id/i;
 const TRUNCATED_BACKGROUND_UPDATE_SHAPE_RE = /The task exited|task_id:|exit_code:|<task_metadata>/i;
-
-interface AcpToolCallSource {
-  toolCallId: string;
-  rawInput?: unknown;
-  rawOutput?: unknown;
-  content?: unknown;
-}
 
 /**
  * Pull complete `<task_notification>`, `<SYSTEM_MESSAGE>`, or markdown
@@ -338,27 +421,36 @@ export function handleTaskNotificationText(
   text: string,
   state: AcpMapperState,
   parentToolCallId: string | undefined,
+  suppressOutput = false,
 ): { notifications: ParsedTaskNotification[]; text: string } {
-  if (state.taskNotificationBuffer === undefined && !containsTaskNotificationMarker(text)) {
+  if (store(state).buffer === undefined && !containsTaskNotificationMarker(text)) {
     return { notifications: [], text };
   }
 
-  const buffered = state.taskNotificationBuffer;
+  const buffered = store(state).buffer;
   const combined = buffered ? buffered.text + text : text;
   const scanned = scanTaskNotificationBlocks(combined);
   const notifications = scanned.notifications;
 
   if (scanned.unclosed) {
-    state.taskNotificationBuffer = { parentToolCallId, text: scanned.unclosed };
+    store(state).buffer = {
+      parentToolCallId,
+      text: scanned.unclosed,
+      ...(suppressOutput || buffered?.suppressOutput ? { suppressOutput: true } : {}),
+    };
     return { notifications, text: scanned.cleanText };
   }
 
   const clean = scanned.cleanText;
-  state.taskNotificationBuffer = undefined;
+  delete store(state).buffer;
 
   const trailing = matchTrailingNotificationPrefix(clean);
   if (trailing) {
-    state.taskNotificationBuffer = { parentToolCallId, text: trailing.fragment };
+    store(state).buffer = {
+      parentToolCallId,
+      text: trailing.fragment,
+      ...(suppressOutput || buffered?.suppressOutput ? { suppressOutput: true } : {}),
+    };
     return { notifications, text: clean.slice(0, trailing.start) };
   }
 
@@ -397,16 +489,16 @@ export function trackBackgroundCommandFromToolCall(
   itemType: CanonicalItemType,
   itemId: string,
   payload: Record<string, unknown>,
-  toolCall: AcpToolCallSource,
+  toolCall: AcpExtensionToolCallSource,
 ): void {
   if (itemType !== "command_execution") return;
   for (const source of [payload.result, toolCall.rawOutput, toolCall.content] as const) {
     if (typeof source === "string" && !BACKGROUND_SIGNAL_RE.test(source)) continue;
     const taskId = extractBackgroundTaskId(source);
     if (!taskId) continue;
-    const existing = state.backgroundTasks.get(taskId);
+    const existing = store(state).backgroundTasks.get(taskId);
     if (existing && existing.toolCallId !== toolCall.toolCallId) return;
-    state.backgroundTasks.set(taskId, {
+    store(state).backgroundTasks.set(taskId, {
       toolCallId: toolCall.toolCallId,
       itemId,
       command: resolveCommand(payload, toolCall),
@@ -416,7 +508,10 @@ export function trackBackgroundCommandFromToolCall(
   }
 }
 
-function resolveCommand(payload: Record<string, unknown>, toolCall: AcpToolCallSource): string {
+function resolveCommand(
+  payload: Record<string, unknown>,
+  toolCall: AcpExtensionToolCallSource,
+): string {
   if (typeof payload.command === "string") return payload.command;
   return toolCall.rawInput &&
     typeof toolCall.rawInput === "object" &&
@@ -439,9 +534,9 @@ export function emitTaskNotificationEvents(
   const threadId = state.threadId;
   const status = notification.exitCode === 0 ? "success" : "error";
 
-  const tracked = state.backgroundTasks.get(notification.taskId);
+  const tracked = store(state).backgroundTasks.get(notification.taskId);
   if (tracked) {
-    state.backgroundTasks.delete(notification.taskId);
+    store(state).backgroundTasks.delete(notification.taskId);
     // Seal the live tool-call entry so no later turn-boundary close can
     // re-complete the row with the stale pre-notification payload.
     const live = state.toolCallItems.get(tracked.toolCallId);
@@ -528,9 +623,9 @@ export function emitTaskNotificationEvents(
  * under the buffer's original parent, apart from standalone opener fragments.
  */
 export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent[] {
-  const buffer = state.taskNotificationBuffer;
+  const buffer = store(state).buffer;
   if (!buffer) return [];
-  state.taskNotificationBuffer = undefined;
+  delete store(state).buffer;
 
   const events: RuntimeEvent[] = [];
   let text = buffer.text;
@@ -577,7 +672,7 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
     text = extracted.cleanText;
   }
 
-  if (text.trim().length === 0) return events;
+  if (text.trim().length === 0 || buffer.suppressOutput) return events;
   const trailingOpener = matchTrailingNotificationPrefix(text);
   const isProtocolOpener = text.startsWith("<") || isPartialBackgroundTaskUpdateHeading(text);
   const isDistinctPreamble =

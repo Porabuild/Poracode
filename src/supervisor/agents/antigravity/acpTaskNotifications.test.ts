@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { SessionNotification } from "@agentclientprotocol/sdk";
-import { createAcpMapperState, mapAcpSessionUpdate, closeOpenTurnItems } from "../canonicalMapping";
-import { extractTaskNotifications, extractBackgroundTaskId } from "./taskNotifications";
+import {
+  createAcpMapperState,
+  mapAcpSessionUpdate,
+  closeOpenTurnItems,
+} from "../acp/canonicalMapping";
+import {
+  createAntigravityTaskNotificationExtension,
+  extractTaskNotifications,
+  extractBackgroundTaskId,
+  readAntigravityTaskNotificationState,
+} from "./acpTaskNotifications";
+
+/** Every case below runs the shared mapper with Antigravity's extension attached. */
+function mapperState(threadId: string) {
+  return createAcpMapperState(threadId, createAntigravityTaskNotificationExtension());
+}
 
 function note(update: SessionNotification["update"]): SessionNotification {
   return { sessionId: "s1", update };
@@ -49,7 +63,7 @@ describe("taskNotifications extractor", () => {
   });
 
   it("maps a markdown background task update onto the tracked command row", () => {
-    const state = createAcpMapperState("t-md-task");
+    const state = mapperState("t-md-task");
     mapAcpSessionUpdate(
       note({
         sessionUpdate: "tool_call",
@@ -192,7 +206,7 @@ describe("extractBackgroundTaskId", () => {
 
 describe("mapAcpSessionUpdate with task_notification", () => {
   it("converts standalone <task_notification> in agent_message_chunk into a command_execution item", () => {
-    const state = createAcpMapperState("t-task-notif");
+    const state = mapperState("t-task-notif");
     const chunk = `<task_notification>
 Task 1bc6d974-9b4c-41ad-b800-88aa46277fee/task-304 completed with exit code 0.
 Output:
@@ -225,7 +239,7 @@ Done building package.
   });
 
   it("cleans raw <task_notification> XML out of assistant text deltas", () => {
-    const state = createAcpMapperState("t-task-notif-mixed");
+    const state = mapperState("t-task-notif-mixed");
     const chunk = `Here is the status:
 <task_notification>
 Task task-55 completed with exit code 0.
@@ -258,7 +272,7 @@ Everything looks great!`;
   });
 
   it("preserves whitespace seams around removed blocks across chunks", () => {
-    const state = createAcpMapperState("t-task-seam");
+    const state = mapperState("t-task-seam");
     const events1 = mapAcpSessionUpdate(
       agentChunk(
         "Here is the status:\n<task_notification>\nTask t-6 completed with exit code 0.\nOutput:\nok\n</task_notification>\n\n",
@@ -272,7 +286,7 @@ Everything looks great!`;
   });
 
   it("buffers partial <task_notification> across streaming chunks", () => {
-    const state = createAcpMapperState("t-task-buffer");
+    const state = mapperState("t-task-buffer");
 
     // Chunk 1: Starts the notification tag but doesn't finish it
     const events1 = mapAcpSessionUpdate(
@@ -284,7 +298,7 @@ Everything looks great!`;
     expect(assistantDeltas(events1).join("")).toBe("Notice: ");
 
     // The partial tag is buffered in state
-    expect(state.taskNotificationBuffer).toEqual({
+    expect(readAntigravityTaskNotificationState(state).buffer).toEqual({
       parentToolCallId: undefined,
       text: "<task_notification>\nTask task-chunked-1 completed with exit",
     });
@@ -295,7 +309,7 @@ Everything looks great!`;
       state,
     );
 
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     const completed = events2.find(
       (e) =>
         e.type === "item.completed" &&
@@ -308,7 +322,7 @@ Everything looks great!`;
   });
 
   it("buffers a partial second notification following a complete one", () => {
-    const state = createAcpMapperState("t-task-two");
+    const state = mapperState("t-task-two");
     const events1 = mapAcpSessionUpdate(
       agentChunk(
         `<task_notification>
@@ -332,7 +346,9 @@ Task t-2 completed with exit`,
     for (const delta of assistantDeltas(events1)) {
       expect(delta).not.toContain("<task_notification>");
     }
-    expect(state.taskNotificationBuffer?.text.startsWith("<task_notification>")).toBe(true);
+    expect(
+      readAntigravityTaskNotificationState(state).buffer?.text.startsWith("<task_notification>"),
+    ).toBe(true);
 
     const events2 = mapAcpSessionUpdate(
       agentChunk(" code 0.\nOutput:\nok2\n</task_notification>"),
@@ -353,9 +369,9 @@ Task t-2 completed with exit`,
   });
 
   it("holds a split open tag across chunks without leaking the fragment", () => {
-    const state = createAcpMapperState("t-task-split");
+    const state = mapperState("t-task-split");
     const events1 = mapAcpSessionUpdate(agentChunk("See <task_no"), state);
-    expect(state.taskNotificationBuffer?.text).toBe("<task_no");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toBe("<task_no");
     expect(assistantDeltas(events1).join("")).toBe("See ");
 
     const events2 = mapAcpSessionUpdate(
@@ -364,7 +380,7 @@ Task t-2 completed with exit`,
       ),
       state,
     );
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     const allDeltas = [...assistantDeltas(events1), ...assistantDeltas(events2)].join("");
     expect(allDeltas).not.toContain("<task");
     const completed = events2.find(
@@ -379,7 +395,7 @@ Task t-2 completed with exit`,
   });
 
   it("holds the buffer across agent_thought_chunk and resolves on the next chunk", () => {
-    const state = createAcpMapperState("t-task-hold");
+    const state = mapperState("t-task-hold");
     mapAcpSessionUpdate(agentChunk("<task_notification>\nTask t-4 completed with exit"), state);
     mapAcpSessionUpdate(
       note({
@@ -388,7 +404,9 @@ Task t-2 completed with exit`,
       } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
       state,
     );
-    expect(state.taskNotificationBuffer?.text).toContain("<task_notification>");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toContain(
+      "<task_notification>",
+    );
 
     const events = mapAcpSessionUpdate(
       agentChunk(" code 0.\nOutput:\nok4\n</task_notification>"),
@@ -403,18 +421,18 @@ Task t-2 completed with exit`,
         (e as { payload?: Record<string, unknown> }).payload?.result === "ok4",
     );
     expect(completed).toBeDefined();
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
   });
 
   it("completes a truncated notification at the turn boundary", () => {
-    const state = createAcpMapperState("t-task-trunc");
+    const state = mapperState("t-task-trunc");
     mapAcpSessionUpdate(
       agentChunk(
         "prefix <task_notification>\nTask t-5 completed with exit code 0.\nOutput:\npartial out",
       ),
       state,
     );
-    expect(state.taskNotificationBuffer).toBeDefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeDefined();
 
     const events = closeOpenTurnItems(state);
     const completed = events.find(
@@ -429,18 +447,18 @@ Task t-2 completed with exit`,
     for (const delta of assistantDeltas(events)) {
       expect(delta).not.toContain("<task_notification>");
     }
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
   });
 
   it("flushes incomplete taskNotificationBuffer on turn end", () => {
-    const state = createAcpMapperState("t-turn-end");
-    state.taskNotificationBuffer = {
+    const state = mapperState("t-turn-end");
+    readAntigravityTaskNotificationState(state).buffer = {
       parentToolCallId: undefined,
       text: "incomplete task notification text",
     };
 
     const events = closeOpenTurnItems(state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
 
     // Should have emitted assistant item with the remaining text
     const delta = events.find((e) => e.type === "content.delta");
@@ -451,41 +469,41 @@ Task t-2 completed with exit`,
   it("drops a buffered partial notification opener instead of leaking it as a message", () => {
     // Antigravity's <SYSTEM_MESSAGE> preamble split mid-stream: only the
     // leading "The following is a " fragment is buffered when the turn ends.
-    const state = createAcpMapperState("t-flush-preamble");
+    const state = mapperState("t-flush-preamble");
     mapAcpSessionUpdate(agentChunk("The following is a "), state);
-    expect(state.taskNotificationBuffer?.text).toBe("The following is a ");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toBe("The following is a ");
 
     const events = closeOpenTurnItems(state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     for (const delta of assistantDeltas(events)) {
       expect(delta).not.toContain("The following is a");
     }
   });
 
   it("emits short prose that could begin the system-message preamble", () => {
-    const state = createAcpMapperState("t-flush-short-prose");
+    const state = mapperState("t-flush-short-prose");
     mapAcpSessionUpdate(agentChunk("The"), state);
-    expect(state.taskNotificationBuffer?.text).toBe("The");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toBe("The");
 
     const events = closeOpenTurnItems(state);
     expect(assistantDeltas(events).join("")).toBe("The");
   });
 
   it("preserves streamed prose before a partial notification opener", () => {
-    const state = createAcpMapperState("t-flush-prose");
+    const state = mapperState("t-flush-prose");
     const streamed = mapAcpSessionUpdate(agentChunk("summary text <task_no"), state);
     expect(assistantDeltas(streamed).join("")).toBe("summary text ");
-    expect(state.taskNotificationBuffer?.text).toBe("<task_no");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toBe("<task_no");
 
     const events = closeOpenTurnItems(state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     expect(assistantDeltas(events).join("")).toBe("");
   });
 });
 
 describe("background task correlation", () => {
   function startBackgroundTool(
-    state: ReturnType<typeof createAcpMapperState>,
+    state: ReturnType<typeof mapperState>,
     toolCallId: string,
     rawOutput: string,
   ): string {
@@ -506,14 +524,18 @@ describe("background task correlation", () => {
   }
 
   it("registers a background task from a real tool_call and seals the live item", () => {
-    const state = createAcpMapperState("t-task-link-flow");
+    const state = mapperState("t-task-link-flow");
     const toolItemId = startBackgroundTool(
       state,
       "tc-bg",
       'Tool is running as a background task with task id: "bg-task-999"',
     );
-    expect(state.backgroundTasks.get("bg-task-999")?.toolCallId).toBe("tc-bg");
-    expect(state.backgroundTasks.get("bg-task-999")?.itemId).toBe(toolItemId);
+    expect(
+      readAntigravityTaskNotificationState(state).backgroundTasks.get("bg-task-999")?.toolCallId,
+    ).toBe("tc-bg");
+    expect(
+      readAntigravityTaskNotificationState(state).backgroundTasks.get("bg-task-999")?.itemId,
+    ).toBe(toolItemId);
     expect(state.toolCallItems.has("tc-bg")).toBe(true);
 
     const events = mapAcpSessionUpdate(
@@ -537,7 +559,9 @@ Finished release [optimized] target(s) in 12.34s
     // The notification consumed the tracking entry and sealed the live
     // tool-call item, so the turn-boundary close cannot re-complete the row
     // with the stale pre-notification payload.
-    expect(state.backgroundTasks.has("bg-task-999")).toBe(false);
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.has("bg-task-999")).toBe(
+      false,
+    );
     expect(state.toolCallItems.has("tc-bg")).toBe(false);
     const closeEvents = closeOpenTurnItems(state);
     expect(
@@ -548,7 +572,7 @@ Finished release [optimized] target(s) in 12.34s
   });
 
   it("does not let a foreground command mentioning a task id steal the correlation", () => {
-    const state = createAcpMapperState("t-task-theft");
+    const state = mapperState("t-task-theft");
     const bgItemId = startBackgroundTool(
       state,
       "tc-bg",
@@ -568,13 +592,13 @@ Finished release [optimized] target(s) in 12.34s
       state,
     );
 
-    const tracked = state.backgroundTasks.get("TID-9");
+    const tracked = readAntigravityTaskNotificationState(state).backgroundTasks.get("TID-9");
     expect(tracked?.toolCallId).toBe("tc-bg");
     expect(tracked?.itemId).toBe(bgItemId);
   });
 
   it("ignores command output that mentions a task id without a background signal", () => {
-    const state = createAcpMapperState("t-task-signal");
+    const state = mapperState("t-task-signal");
     mapAcpSessionUpdate(
       note({
         sessionUpdate: "tool_call",
@@ -587,18 +611,20 @@ Finished release [optimized] target(s) in 12.34s
       } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
       state,
     );
-    expect(state.backgroundTasks.size).toBe(0);
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.size).toBe(0);
   });
   it("correlates Antigravity <SYSTEM_MESSAGE> task notification with tracked command", () => {
-    const state = createAcpMapperState("t-task-sys-msg");
+    const state = mapperState("t-task-sys-msg");
     const toolItemId = startBackgroundTool(
       state,
       "tc-sys-bg",
       "Tool is running as a background task with task id: 73526519-fd6d-4046-bce4-fbff4810f266/task-442",
     );
-    expect(state.backgroundTasks.get("73526519-fd6d-4046-bce4-fbff4810f266/task-442")?.itemId).toBe(
-      toolItemId,
-    );
+    expect(
+      readAntigravityTaskNotificationState(state).backgroundTasks.get(
+        "73526519-fd6d-4046-bce4-fbff4810f266/task-442",
+      )?.itemId,
+    ).toBe(toolItemId);
 
     const rawSysMsg = [
       "The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.",
@@ -638,7 +664,7 @@ Finished release [optimized] target(s) in 12.34s
   });
 
   it("handles standalone Antigravity <SYSTEM_MESSAGE> task notification when untracked", () => {
-    const state = createAcpMapperState("t-task-sys-untracked");
+    const state = mapperState("t-task-sys-untracked");
     const rawSysMsg = [
       "<SYSTEM_MESSAGE>",
       '[Message] timestamp=2026-08-31T05:25:34Z sender=some-uuid/task-999 priority=MESSAGE_PRIORITY_HIGH content=Task id "some-uuid/task-999" finished with result:',
@@ -712,7 +738,7 @@ describe("markdown Background Task Update", () => {
   });
 
   it("converts a standalone markdown update into a command_execution item with no assistant leak", () => {
-    const state = createAcpMapperState("t-bg-md");
+    const state = mapperState("t-bg-md");
     const events = mapAcpSessionUpdate(agentChunk(MARKDOWN_BACKGROUND_UPDATE), state);
 
     expect(state.openAssistantItemId).toBeUndefined();
@@ -736,7 +762,7 @@ describe("markdown Background Task Update", () => {
   });
 
   it("strips a markdown update mixed into assistant text", () => {
-    const state = createAcpMapperState("t-bg-md-mixed");
+    const state = mapperState("t-bg-md-mixed");
     const events = mapAcpSessionUpdate(
       agentChunk(`Here is the status:\n${MARKDOWN_BACKGROUND_UPDATE}\nEverything looks great!`),
       state,
@@ -756,17 +782,21 @@ describe("markdown Background Task Update", () => {
   });
 
   it("buffers a markdown update streamed across chunks", () => {
-    const state = createAcpMapperState("t-bg-md-buffer");
+    const state = mapperState("t-bg-md-buffer");
     const splitAt = MARKDOWN_BACKGROUND_UPDATE.indexOf("```text");
     const first = MARKDOWN_BACKGROUND_UPDATE.slice(0, splitAt);
     const second = MARKDOWN_BACKGROUND_UPDATE.slice(splitAt);
 
     const events1 = mapAcpSessionUpdate(agentChunk(`Notice:\n${first}`), state);
     expect(assistantDeltas(events1).join("")).toBe("Notice:\n");
-    expect(state.taskNotificationBuffer?.text.startsWith("# Background Task Update:")).toBe(true);
+    expect(
+      readAntigravityTaskNotificationState(state).buffer?.text.startsWith(
+        "# Background Task Update:",
+      ),
+    ).toBe(true);
 
     const events2 = mapAcpSessionUpdate(agentChunk(second), state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     for (const delta of assistantDeltas(events2)) {
       expect(delta).not.toContain("Background Task Update");
       expect(delta).not.toContain("<task_metadata>");
@@ -783,14 +813,14 @@ describe("markdown Background Task Update", () => {
   });
 
   it("holds a split markdown heading without leaking the fragment", () => {
-    const state = createAcpMapperState("t-bg-md-split");
+    const state = mapperState("t-bg-md-split");
     const events1 = mapAcpSessionUpdate(agentChunk("See # Back"), state);
     expect(assistantDeltas(events1).join("")).toBe("See ");
-    expect(state.taskNotificationBuffer?.text).toBe("# Back");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toBe("# Back");
 
     const rest = MARKDOWN_BACKGROUND_UPDATE.slice("# Back".length);
     const events2 = mapAcpSessionUpdate(agentChunk(rest), state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     const allDeltas = [...assistantDeltas(events1), ...assistantDeltas(events2)].join("");
     expect(allDeltas).not.toContain("Background Task Update");
     expect(allDeltas).not.toContain("<task_metadata>");
@@ -803,21 +833,21 @@ describe("markdown Background Task Update", () => {
   });
 
   it("does not hold an ordinary markdown heading that merely starts with a hash", () => {
-    const state = createAcpMapperState("t-bg-md-heading");
+    const state = mapperState("t-bg-md-heading");
     const events = mapAcpSessionUpdate(agentChunk("# Installation\n\nRun pnpm install."), state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     expect(assistantDeltas(events).join("")).toBe("# Installation\n\nRun pnpm install.");
   });
 
   it("completes a truncated markdown update at the turn boundary", () => {
-    const state = createAcpMapperState("t-bg-md-trunc");
+    const state = mapperState("t-bg-md-trunc");
     mapAcpSessionUpdate(
       agentChunk(
         "# Background Task Update: `t-5`\n\nThe task exited with the following message:\npartial out",
       ),
       state,
     );
-    expect(state.taskNotificationBuffer).toBeDefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeDefined();
 
     const events = closeOpenTurnItems(state);
     const completed = events.find(
@@ -832,11 +862,11 @@ describe("markdown Background Task Update", () => {
     for (const delta of assistantDeltas(events)) {
       expect(delta).not.toContain("Background Task Update");
     }
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
   });
 
   it("correlates a markdown update with a tracked background command", () => {
-    const state = createAcpMapperState("t-bg-md-link");
+    const state = mapperState("t-bg-md-link");
     const toolItemId = (() => {
       const events = mapAcpSessionUpdate(
         note({
@@ -863,7 +893,11 @@ describe("markdown Background Task Update", () => {
     expect(payload.result).toContain("Test Files  1 passed (1)");
     expect(payload.exitCode).toBe(0);
     expect(payload.status).toBe("success");
-    expect(state.backgroundTasks.has("442d457c-fbe7-4201-8f05-53f7c69bb351/task-32")).toBe(false);
+    expect(
+      readAntigravityTaskNotificationState(state).backgroundTasks.has(
+        "442d457c-fbe7-4201-8f05-53f7c69bb351/task-32",
+      ),
+    ).toBe(false);
 
     expect(
       events.some(
@@ -875,14 +909,14 @@ describe("markdown Background Task Update", () => {
   });
 
   it("does not hold a trailing English 'the' as a SYSTEM_MESSAGE preamble fragment", () => {
-    const state = createAcpMapperState("t-bg-md-the");
+    const state = mapperState("t-bg-md-the");
     const events = mapAcpSessionUpdate(agentChunk("I think the"), state);
-    expect(state.taskNotificationBuffer).toBeUndefined();
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
     expect(assistantDeltas(events).join("")).toBe("I think the");
   });
 
   it("leaves a bare task_metadata example in assistant text", () => {
-    const state = createAcpMapperState("t-bg-md-example");
+    const state = mapperState("t-bg-md-example");
     const raw = `Here is the format:
 
 <task_metadata>
@@ -902,7 +936,7 @@ exit_code: 0
   });
 
   it("maps a failed markdown update to an error command_execution without assistant leak", () => {
-    const state = createAcpMapperState("t-bg-md-fail");
+    const state = mapperState("t-bg-md-fail");
     const raw = `# Background Task Update: \`t-fail\`
 
 The task exited with the following message:
@@ -931,7 +965,7 @@ exit_code: 2
   });
 
   it("completes an empty-output markdown update as a command row", () => {
-    const state = createAcpMapperState("t-bg-md-empty");
+    const state = mapperState("t-bg-md-empty");
     const raw = `# Background Task Update: \`t-empty\`
 
 <task_metadata>
@@ -955,7 +989,7 @@ exit_code: 0
   });
 
   it("reads exit_code from unterminated metadata when the turn ends", () => {
-    const state = createAcpMapperState("t-bg-md-trunc-code");
+    const state = mapperState("t-bg-md-trunc-code");
     mapAcpSessionUpdate(
       agentChunk(`# Background Task Update: \`t-1\`
 
@@ -980,9 +1014,52 @@ exit_code: 2
   });
 
   it("holds a five-character heading fragment", () => {
-    const state = createAcpMapperState("t-bg-md-bac");
+    const state = mapperState("t-bg-md-bac");
     const events1 = mapAcpSessionUpdate(agentChunk("See # Bac"), state);
     expect(assistantDeltas(events1).join("")).toBe("See ");
-    expect(state.taskNotificationBuffer?.text).toBe("# Bac");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toBe("# Bac");
+  });
+  it("still completes a tracked background row while interrupted output is suppressed", () => {
+    const state = mapperState("t-task-suppressed");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "background-command",
+        title: "run tests",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: { command: "pnpm test" },
+        rawOutput: "Tool is running as a background task with task id: task-1",
+      }),
+      state,
+    );
+
+    const events = mapAcpSessionUpdate(
+      agentChunk(
+        `Info: Operation cancelled by user
+<task_notification>
+Task task-1 completed with exit code 0.
+Output:
+Tests passed
+</task_notification>`,
+      ),
+      state,
+      { suppressAgentOutput: true },
+    );
+
+    // The cancel banner is dropped, but the async task report still seals its row.
+    expect(assistantDeltas(events).join("")).toBe("");
+    const completed = events.find((e) => e.type === "item.completed");
+    expect((completed as { payload?: Record<string, unknown> }).payload).toMatchObject({
+      exitCode: 0,
+      status: "success",
+      result: "Tests passed",
+    });
+
+    // A truncated notification buffered under suppression must never flush as prose.
+    mapAcpSessionUpdate(agentChunk("<task_notification>\nTask truncated"), state, {
+      suppressAgentOutput: true,
+    });
+    expect(assistantDeltas(closeOpenTurnItems(state)).join("")).toBe("");
   });
 });

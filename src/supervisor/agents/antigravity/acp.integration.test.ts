@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig, ProjectLocation } from "@/shared/contracts";
 import { createAntigravityAdapter } from ".";
-import { createAntigravityAcpRuntime } from "./acp";
+import { ANTIGRAVITY_ACP_SESSION_BEHAVIOR, createAntigravityAcpRuntime } from "./acp";
 
 const FIXTURE = fileURLToPath(new URL("../acp/fixtures/fake-acp-agent.mjs", import.meta.url));
 const roots: string[] = [];
@@ -110,6 +110,9 @@ describe("Antigravity official ACP runtime", () => {
       baseSpawnEnv: { FAKE_BASE_ENV: "preserved" },
     });
     expect(session).toBeDefined();
+    expect((session as unknown as { behavior: unknown }).behavior).toEqual(
+      ANTIGRAVITY_ACP_SESSION_BEHAVIOR,
+    );
     session!.setListener(listener());
 
     try {
@@ -128,4 +131,86 @@ describe("Antigravity official ACP runtime", () => {
       await session!.dispose();
     }
   }, 30_000);
+
+  it("goes idle at the background-wait stderr signal while the prompt stays held", async () => {
+    // agy_acp_server keeps session/prompt unresolved while background tasks
+    // run (STATE_WAITING_FOR_TASKS); the fixture reproduces the captured wire:
+    // background command + reply + stderr diagnostic, then a late terminal
+    // tool_call_update and end_turn.
+    const adapter = createAntigravityAcpRuntime(acpInstance({ FAKE_BACKGROUND_HOLD_MS: "1500" }))!;
+    const session = await adapter.createStructuredSession?.({
+      threadId: "antigravity-bg-hold",
+      projectLocation: projectLocation(),
+      config: { model: "gemini-pro" },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+    const sessionListener = listener();
+    session!.setListener(sessionListener);
+
+    try {
+      await session!.activate?.();
+      await session!.openThread?.({ model: "gemini-pro" });
+      const turn = session!.startTurn?.("run the server in the background", {
+        model: "gemini-pro",
+      });
+
+      // The thread must go idle on the stderr signal, well before the held
+      // prompt resolves — and the turn must complete exactly once.
+      await vi.waitFor(
+        () => {
+          expect(sessionListener.onUpdate).toHaveBeenCalledWith({
+            status: "idle",
+            attention: "none",
+          });
+        },
+        { timeout: 5_000 },
+      );
+      const completedTurns = () =>
+        sessionListener.onRuntimeEvent.mock.calls
+          .map(([event]) => event as { type?: string })
+          .filter((event) => event.type === "turn.completed");
+      expect(completedTurns()).toHaveLength(1);
+
+      await turn;
+      expect(completedTurns()).toHaveLength(1);
+      // The background command row received its late terminal update.
+      expect(sessionListener.onRuntimeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({ status: "success" }),
+        }),
+      );
+    } finally {
+      await session!.dispose();
+    }
+  }, 30_000);
+
+  it("captures Antigravity diagnostics without flooding the parent console", async () => {
+    const stderrMarker = "ANTIGRAVITY_CUMULATIVE_STREAM";
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const adapter = createAntigravityAcpRuntime(acpInstance({ FAKE_STDERR_TEXT: stderrMarker }))!;
+    const session = await adapter.createStructuredSession?.({
+      threadId: "antigravity-stderr",
+      projectLocation: projectLocation(),
+      config: { model: "gemini-pro" },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+
+    try {
+      await vi.waitFor(() =>
+        expect((session as unknown as { stderrChunks: string[] }).stderrChunks.join("")).toContain(
+          stderrMarker,
+        ),
+      );
+      expect(consoleLog).not.toHaveBeenCalledWith(
+        "[acp stderr]",
+        expect.stringContaining(stderrMarker),
+      );
+    } finally {
+      await session!.dispose();
+      consoleLog.mockRestore();
+    }
+  });
 });
