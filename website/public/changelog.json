@@ -8,6 +8,11 @@
       "changes": [
         {
           "kind": "added",
+          "label": "Claude",
+          "text": "You can now run Claude Fable 5.1 from the model picker."
+        },
+        {
+          "kind": "added",
           "label": "Antigravity",
           "text": "You can now run Google DeepMind's Antigravity agent via first-class ACP runtime support with live usage discovery and machine-scoped settings."
         },
