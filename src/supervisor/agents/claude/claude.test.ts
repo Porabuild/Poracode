@@ -162,6 +162,23 @@ describe("claudeCapabilities", () => {
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 
+  it("surfaces Fable 5.1 with frontier effort tiers", () => {
+    expect(claudeCapabilities.models).toContainEqual({
+      id: "claude-fable-5-1",
+      label: "Fable 5.1",
+    });
+    expect(claudeCapabilities.modelEfforts["claude-fable-5-1"]).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xHigh",
+      "max",
+      "ultracode",
+    ]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5-1"]).toEqual(["1m"]);
+    expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5-1");
+  });
+
   it("lists Opus 5 first at high effort so it is the default for new threads", () => {
     expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-5", label: "Opus 5" });
     expect(claudeCapabilities.defaultEffort).toBe("high");
