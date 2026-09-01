@@ -153,6 +153,43 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     expect(resolveExecutablePath("claude")).toBe(exePath);
   });
 
+  it("resolves pnpm .cmd shims wrapping a native .exe (e.g. claude.cmd -> claude.exe)", () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-pnpm-claude-shim-"));
+    tempDirs.push(root);
+    const binDir = join(root, "bin");
+    const cmdPath = join(binDir, "claude.cmd");
+    const exePath = join(
+      root,
+      "global",
+      "v11",
+      "a629ed560f8a9823615acc093e3df41c7eada60ae1154f0ad09c3368e4ae3d0e",
+      "node_modules",
+      "@anthropic-ai",
+      "claude-code",
+      "bin",
+      "claude.exe",
+    );
+    mkdirSync(join(exePath, ".."), { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(
+      cmdPath,
+      [
+        "@SETLOCAL",
+        '@"%~dp0\\..\\global\\v11\\a629ed560f8a9823615acc093e3df41c7eada60ae1154f0ad09c3368e4ae3d0e\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe"  %*',
+        "",
+      ].join("\r\n"),
+    );
+    writeFileSync(exePath, "");
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(binDir, "claude"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("claude")).toBe(exePath);
+  });
+
   it("resolves Scoop .exe shims to their executable target", () => {
     const root = mkdtempSync(join(tmpdir(), "poracode-scoop-shim-"));
     tempDirs.push(root);
@@ -255,6 +292,91 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
       error: undefined,
       status: 0,
       stdout: [join(root, "grok"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("grok")).toBe(cmdPath);
+  });
+
+  it("keeps the .cmd path for pnpm node-shim wrappers (e.g. command-code.cmd -> node index.mjs)", () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-pnpm-command-code-shim-"));
+    tempDirs.push(root);
+    const binDir = join(root, "bin");
+    const cmdPath = join(binDir, "command-code.cmd");
+    const nodeExePath = join(binDir, "node.exe");
+    const jsPath = join(
+      root,
+      "global",
+      "v11",
+      "hash",
+      "node_modules",
+      "command-code",
+      "dist",
+      "index.mjs",
+    );
+    mkdirSync(join(jsPath, ".."), { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(nodeExePath, "");
+    writeFileSync(jsPath, "");
+    writeFileSync(
+      cmdPath,
+      [
+        "@SETLOCAL",
+        '@IF EXIST "%~dp0\\node.exe" (',
+        '  "%~dp0\\node.exe"  "%~dp0\\..\\global\\v11\\hash\\node_modules\\command-code\\dist\\index.mjs" %*',
+        ") ELSE (",
+        '  node  "%~dp0\\..\\global\\v11\\hash\\node_modules\\command-code\\dist\\index.mjs" %*',
+        ")",
+        "",
+      ].join("\r\n"),
+    );
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(binDir, "command-code"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("command-code")).toBe(cmdPath);
+  });
+
+  it("keeps the .cmd path for pnpm shims with an extensionless bin script (e.g. grok.cmd)", () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-pnpm-grok-shim-"));
+    tempDirs.push(root);
+    const binDir = join(root, "bin");
+    const cmdPath = join(binDir, "grok.cmd");
+    const nodeExePath = join(binDir, "node.exe");
+    const scriptPath = join(
+      root,
+      "global",
+      "v11",
+      "hash",
+      "node_modules",
+      "@xai-official",
+      "grok",
+      "bin",
+      "grok",
+    );
+    mkdirSync(join(scriptPath, ".."), { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(nodeExePath, "");
+    writeFileSync(scriptPath, "");
+    writeFileSync(
+      cmdPath,
+      [
+        "@SETLOCAL",
+        '@IF EXIST "%~dp0\\node.exe" (',
+        '  "%~dp0\\node.exe"  "%~dp0\\..\\global\\v11\\hash\\node_modules\\@xai-official\\grok\\bin\\grok" %*',
+        ") ELSE (",
+        '  node  "%~dp0\\..\\global\\v11\\hash\\node_modules\\@xai-official\\grok\\bin\\grok" %*',
+        ")",
+        "",
+      ].join("\r\n"),
+    );
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(binDir, "grok"), cmdPath].join("\r\n"),
       stderr: "",
     });
 
@@ -364,6 +486,28 @@ describe("extractWindowsCmdShimScript", () => {
 
   it("returns undefined for exe-wrapping shims", () => {
     const body = '"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe" %*';
+    expect(extractWindowsCmdShimScript(body)).toBeUndefined();
+  });
+
+  it("extracts pnpm .js/.mjs script entries with %~dp0 and node.exe", () => {
+    const body =
+      '@IF EXIST "%~dp0\\node.exe" (\r\n  "%~dp0\\node.exe"  "%~dp0\\..\\global\\v11\\hash\\node_modules\\@openai\\codex\\bin\\codex.js" %*\r\n)';
+    expect(extractWindowsCmdShimScript(body)).toBe(
+      "..\\global\\v11\\hash\\node_modules\\@openai\\codex\\bin\\codex.js",
+    );
+  });
+
+  it("extracts pnpm extensionless bin scripts with direct node invocation", () => {
+    const body =
+      '@SETLOCAL\r\nnode  "%~dp0\\..\\global\\v11\\hash\\node_modules\\@xai-official\\grok\\bin\\grok" %*';
+    expect(extractWindowsCmdShimScript(body)).toBe(
+      "..\\global\\v11\\hash\\node_modules\\@xai-official\\grok\\bin\\grok",
+    );
+  });
+
+  it('returns undefined for pnpm exe-wrapping shims with @"%~dp0\\..."', () => {
+    const body =
+      '@SETLOCAL\r\n@"%~dp0\\..\\global\\v11\\hash\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe"  %*';
     expect(extractWindowsCmdShimScript(body)).toBeUndefined();
   });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { projectLocationSchema } from "./common";
 import {
   agentPluginManifestSchema,
   pluginMcpEntrySchema,
@@ -13,7 +14,13 @@ import {
  * the loader resolved out of it, and the per-plugin state the user controls.
  */
 
-export const pluginSourceSchema = z.enum(["bundled", "user"]);
+/**
+ * Where a package was found. `bundled` ships with the app, `user` lives in the
+ * writable app plugin folder, and `project` comes from the repository itself
+ * (`<project>/.poracode/plugins`) — the last of which arrives with a clone and
+ * therefore always stays opt-in.
+ */
+export const pluginSourceSchema = z.enum(["bundled", "user", "project"]);
 export type PluginSource = z.infer<typeof pluginSourceSchema>;
 
 export const pluginDiagnosticSchema = z
@@ -61,6 +68,18 @@ export const loadedPluginSchema = z
   })
   .strict();
 export type LoadedPlugin = z.infer<typeof loadedPluginSchema>;
+
+export const listPluginsPayloadSchema = z
+  .object({
+    /**
+     * Scopes the scan. With a project, its `.poracode/plugins` packages are
+     * loaded alongside the bundled and user ones; without, only the two
+     * app-global roots are read.
+     */
+    projectLocation: projectLocationSchema.optional(),
+  })
+  .strict();
+export type ListPluginsPayload = z.infer<typeof listPluginsPayloadSchema>;
 
 export const listPluginsResultSchema = z
   .object({

@@ -67,6 +67,7 @@ import {
   readCommandPayloadCommand,
   segmentToolGroupRows,
   summarizeToolCalls,
+  type GroupSection,
   type SameFileEditGroupSummary,
   type ToolGroupRowSegment,
 } from "./toolCallCategorization";
@@ -184,34 +185,16 @@ export const ToolCallGroup = memo(function ToolCallGroup({
               {sameFileEditSummary ? (
                 <SameFileEditGroupTitle summary={sameFileEditSummary} />
               ) : (
-                sections.map((section, idx) => {
-                  const diffLabel = formatDiffSummaryLabel(section.diffSummary, {
-                    animated: true,
-                  });
-                  return (
-                    <Fragment key={section.category}>
-                      {idx > 0 ? (
-                        <span aria-hidden="true" className="select-none opacity-40">
-                          ·
-                        </span>
-                      ) : null}
-                      <span className="flex shrink-0 items-center gap-1">
-                        <section.Icon className="size-3" />
-                        <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
-                          <AnimatedNumber value={section.count} />{" "}
-                          {section.category === "mcp" ? (
-                            <Plural value={section.count} one="MCP" other="MCPs" />
-                          ) : (
-                            section.label
-                          )}
-                        </code>
-                        {diffLabel ? (
-                          <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span>
-                        ) : null}
+                sections.map((section, idx) => (
+                  <Fragment key={section.category}>
+                    {idx > 0 ? (
+                      <span aria-hidden="true" className="select-none opacity-40">
+                        ·
                       </span>
-                    </Fragment>
-                  );
-                })
+                    ) : null}
+                    <GroupSummarySection section={section} showRunning={!isExpanded} />
+                  </Fragment>
+                ))
               )}
             </div>
             <Disclosure.Indicator className={chatRowIndicatorClass} />
@@ -536,6 +519,48 @@ type InlineRow = {
    */
   fetchPath?: string | undefined;
 };
+
+/**
+ * One category summary in the group header ("3 commands"). When the group is
+ * collapsed and the category still has a running item — a detached background
+ * command outliving its turn is the main case — the label carries the same
+ * shimmer treatment as running rows, so collapsed groups don't hide active
+ * work. While expanded, the rows themselves shimmer and the header stays
+ * static.
+ */
+function GroupSummarySection({
+  section,
+  showRunning,
+}: {
+  section: GroupSection;
+  showRunning: boolean;
+}) {
+  const isRunning = showRunning && section.hasRunning === true;
+  const shimmerRef = useShimmer<HTMLElement>(isRunning);
+  const diffLabel = formatDiffSummaryLabel(section.diffSummary, { animated: true });
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      <section.Icon className="size-3" />
+      <code
+        ref={shimmerRef}
+        className={`font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)] ${
+          isRunning ? "poracode-thinking-text" : ""
+        }`}
+        {...(isRunning
+          ? { "data-poracode-shimmer-text": `${section.count} ${section.label}` }
+          : {})}
+      >
+        <AnimatedNumber value={section.count} />{" "}
+        {section.category === "mcp" ? (
+          <Plural value={section.count} one="MCP" other="MCPs" />
+        ) : (
+          section.label
+        )}
+      </code>
+      {diffLabel ? <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span> : null}
+    </span>
+  );
+}
 
 function InlineRowTitle({
   isRunning,

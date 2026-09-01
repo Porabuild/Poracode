@@ -21,20 +21,21 @@ describe("PluginsSettings", () => {
     render(<PluginsSettings />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search plugins" }), {
-      target: { value: "browser tools" },
+      target: { value: "browser" },
     });
-    const card = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    fireEvent.click(within(card).getByRole("button", { name: "Browser Tools" }));
+    const card = screen.getByText("Browser").closest<HTMLElement>("[class*='min-h-40']")!;
+    fireEvent.click(within(card).getByRole("button", { name: "Browser" }));
 
     expect(screen.getByRole("button", { name: "Back to plugins" })).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "Back to plugins" }));
 
     expect(
-      within(
-        screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!,
-      ).getByRole("button", { name: "Browser Tools" }),
+      within(screen.getByText("Browser").closest<HTMLElement>("[class*='min-h-40']")!).getByRole(
+        "button",
+        { name: "Browser" },
+      ),
     ).toHaveFocus();
-    expect(screen.getByRole("textbox", { name: "Search plugins" })).toHaveValue("browser tools");
+    expect(screen.getByRole("textbox", { name: "Search plugins" })).toHaveValue("browser");
   });
 
   it("restores focus to the card, not the installed shortcut, with no search query", () => {
@@ -45,27 +46,29 @@ describe("PluginsSettings", () => {
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     render(<PluginsSettings />);
 
-    const card = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    fireEvent.click(within(card).getByRole("button", { name: "Browser Tools" }));
+    const card = screen.getByText("Browser").closest<HTMLElement>("[class*='min-h-40']")!;
+    fireEvent.click(within(card).getByRole("button", { name: "Browser" }));
     fireEvent.click(screen.getByRole("button", { name: "Back to plugins" }));
 
-    const restored = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    expect(within(restored).getByRole("button", { name: "Browser Tools" })).toHaveFocus();
-    expect(screen.getByRole("button", { name: "Open Browser Tools" })).not.toHaveFocus();
+    const restored = screen.getByText("Browser").closest<HTMLElement>("[class*='min-h-40']")!;
+    expect(within(restored).getByRole("button", { name: "Browser" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Open Browser" })).not.toHaveFocus();
   });
 
   it("keeps focus on the card after uninstalling from the detail page", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
+    // github brings its own server, so it is the opt-in kind that can be
+    // uninstalled — built-in tool plugins only offer an enable switch.
+    useSharedSettings.getState().installPlugin(pluginFixture("github"));
     render(<PluginsSettings />);
 
-    const card = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    fireEvent.click(within(card).getByRole("button", { name: "Browser Tools" }));
+    const card = screen.getByText("GitHub").closest<HTMLElement>("[class*='min-h-40']")!;
+    fireEvent.click(within(card).getByRole("button", { name: "GitHub" }));
     fireEvent.click(screen.getByRole("button", { name: "Uninstall" }));
     fireEvent.click(screen.getByRole("button", { name: "Back to plugins" }));
 
     // The card stays in the marketplace after uninstalling; only its action flips.
-    const restored = screen.getByText("Browser Tools").closest<HTMLElement>("[class*='min-h-40']")!;
-    expect(within(restored).getByRole("button", { name: "Browser Tools" })).toHaveFocus();
-    expect(within(restored).getByRole("button", { name: "Browser Tools Install" })).toBeVisible();
+    const restored = screen.getByText("GitHub").closest<HTMLElement>("[class*='min-h-40']")!;
+    expect(within(restored).getByRole("button", { name: "GitHub" })).toHaveFocus();
+    expect(within(restored).getByRole("button", { name: "GitHub Install" })).toBeVisible();
   });
 });

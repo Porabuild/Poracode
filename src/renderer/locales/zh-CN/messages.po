@@ -1413,8 +1413,9 @@ msgid "App Browser"
 msgstr "应用程序浏览器"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-msgid "App Controls"
-msgstr "应用控制"
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "App Controls"
+#~ msgstr "应用控制"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -2029,8 +2030,8 @@ msgid "Browser tabs"
 msgstr "浏览器标签页"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Browser Tools"
-msgstr "浏览器工具"
+#~ msgid "Browser Tools"
+#~ msgstr "浏览器工具"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -2042,6 +2043,7 @@ msgid "Building diff…"
 msgstr "正在生成差异…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "内置"
@@ -2495,8 +2497,8 @@ msgid "Chrome MCP enabled for this thread"
 msgstr "为此线程启用 Chrome MCP"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Chrome Tools"
-msgstr "Chrome 工具"
+#~ msgid "Chrome Tools"
+#~ msgstr "Chrome 工具"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -4704,8 +4706,12 @@ msgid "Enabled agents, model visibility and order"
 msgstr "已启用的代理、模型可见性和顺序"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Enabled servers stay on for new threads"
-msgstr "已启用的服务器会在新线程中保持开启"
+msgid "Enabled plugins stay on for new threads"
+msgstr "已启用的插件会在新线程中保持开启"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Enabled servers stay on for new threads"
+#~ msgstr "已启用的服务器会在新线程中保持开启"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -5194,6 +5200,7 @@ msgstr "文件使用不受支持的编码。"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -6141,6 +6148,10 @@ msgstr "在此项目内"
 msgid "Inspect canonical runtime items"
 msgstr "检查规范运行时项目"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "查看线程和终端面板，并操作 git、拉取请求和计划任务。"
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "安装"
@@ -6966,8 +6977,6 @@ msgstr "MCP"
 #~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "MCP server"
 msgstr "MCP服务器"
 
@@ -7019,7 +7028,7 @@ msgstr "MCP 服务器超时时间（毫秒）"
 msgid "MCP server URL"
 msgstr "MCP 服务器 URL"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -7968,8 +7977,8 @@ msgid "No matching threads"
 msgstr "没有匹配的线程"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "No MCP servers are enabled for this run"
-msgstr "本次运行未启用任何 MCP 服务器"
+#~ msgid "No MCP servers are enabled for this run"
+#~ msgstr "本次运行未启用任何 MCP 服务器"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -8012,6 +8021,10 @@ msgstr "没有模式。"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "还没有阶段。"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No plugins are enabled for this run"
+msgstr "本次运行未启用任何插件"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -8152,6 +8165,10 @@ msgstr "还没有线程"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "暂无对话。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "未收到判定结果 — CLI 可能阻止了 /goal（工作区信任或挂钩设置），或评估器无法运行"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -9030,13 +9047,16 @@ msgid "Play notification sound"
 msgstr "播放通知声音"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "插件"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "插件文件夹"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Plugin servers"
+msgstr "插件服务器"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -9054,6 +9074,8 @@ msgstr "plugin.json 不符合 Agent Plugins 规范。"
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json 指向此版本不支持的 Agent Plugins 版本。"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9072,6 +9094,14 @@ msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "流行的编辑器主题适应 Poracode。每个都遵循上面的浅色或深色模式。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Poracode"
+msgstr "Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
@@ -9351,6 +9381,8 @@ msgstr "配置文件"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9716,6 +9748,18 @@ msgstr "重新运行所有作业"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "重新运行失败的作业"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "读取并操作 Poracode 本身：线程、终端面板、git、拉取请求和计划任务。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report the evidence."
+msgstr "读取此工作树的 Terminal 面板并报告依据。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report what it is printing."
+msgstr "读取此工作树的 Terminal 面板并报告正在输出的内容。"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -11158,8 +11202,12 @@ msgid "Set shortcut"
 msgstr "设置快捷键"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Set when this session started — start a new thread to change servers"
-msgstr "在本会话启动时已固定 — 如需更改服务器，请开始新线程"
+msgid "Set when this session started — start a new thread to change plugins"
+msgstr "在本会话启动时已固定 — 如需更改插件，请开始新线程"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Set when this session started — start a new thread to change servers"
+#~ msgstr "在本会话启动时已固定 — 如需更改服务器，请开始新线程"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -11952,8 +12000,8 @@ msgid "Subagent"
 msgstr "子代理"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Subagent Delegation"
-msgstr "子代理委派"
+#~ msgid "Subagent Delegation"
+#~ msgstr "子代理委派"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
@@ -12262,9 +12310,7 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12558,6 +12604,10 @@ msgstr "主题和聊天字号"
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "这些内置 MCP 服务器由 OpenCode 线程共享。保存后会更新正在运行的 GUI 项目；移除服务器可能会中断进行中的轮次。终端线程将在下次启动时获取更改。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
+msgstr "这些服务器来自插件。请在「插件」中启用或禁用，此处无法编辑。"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
@@ -12843,6 +12893,7 @@ msgstr "未找到线程"
 msgid "Thread todo dock"
 msgstr "线程待办事项停靠栏"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx

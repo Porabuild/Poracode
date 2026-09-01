@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { Monitor, TerminalSquare, Webhook } from "lucide-react";
+import { Monitor, Settings2, Webhook } from "lucide-react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
@@ -44,6 +44,11 @@ import {
   providerMcpSettingEnabled,
   providerOwnsMcpConfig,
 } from "../composer/composerMcpServers";
+import {
+  pluginLabelsForMcpServers,
+  pluginMentionsForAvailableMcp,
+  withoutPluginBackedMcpMentions,
+} from "../composer/pluginBackedMcp";
 import {
   ComposerAddMenu,
   type ComposerCustomMcpItem,
@@ -275,6 +280,10 @@ export function ContinueInProviderDialog(props: {
   const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
+  // Portal root inside the modal DOM. The mention popover portaled to body
+  // would get `inert` from the modal's ariaHideOutside: no scrolling, and
+  // clicks fall through to the backdrop and dismiss the dialog.
+  const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
@@ -515,10 +524,8 @@ export function ContinueInProviderDialog(props: {
             ? [
                 {
                   id: "app-controls",
-                  name: t`Terminal`,
-                  searchAliases: ["Terminal"],
-                  icon: TerminalSquare,
-                  detail: t`Terminal`,
+                  name: t`Poracode`,
+                  icon: Settings2,
                   enabled: true,
                 },
               ]
@@ -567,6 +574,9 @@ export function ContinueInProviderDialog(props: {
             : []),
         ]
       : [];
+  const composerPluginMentions = pluginMentionsForAvailableMcp(pluginMentions, mcpMentions);
+  const composerMcpMentions = withoutPluginBackedMcpMentions(mcpMentions, composerPluginMentions);
+  const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
 
   // "+" menu rows for this switch. Unlike the draft composer's menu — which
   // edits the standing default for *future* threads — these edit the config of
@@ -820,6 +830,7 @@ export function ContinueInProviderDialog(props: {
       <Modal.Backdrop isOpen={props.isOpen} onOpenChange={(open) => !open && handleCancel()}>
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[760px]">
+            <div ref={setMentionPortalRoot} className="contents" />
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading>
@@ -896,10 +907,11 @@ export function ContinueInProviderDialog(props: {
                           placeholder={t`Tell ${selectedAgent?.label ?? targetProviderFallback} what to do next...`}
                           projectLocation={props.projectLocation}
                           projectId={thread.projectId}
-                          mcpMentions={mcpMentions}
-                          pluginMentions={pluginMentions}
+                          mcpMentions={composerMcpMentions}
+                          pluginMentions={composerPluginMentions}
                           threadMentions={threadMentions}
                           onMcpMentionSelect={handleMcpMentionSelect}
+                          popoverPortalContainer={mentionPortalRoot}
                           {...(showCommandPanel
                             ? {
                                 commandListId,
@@ -939,6 +951,7 @@ export function ContinueInProviderDialog(props: {
                         <ComposerAddMenu
                           mcpServers={mcpMenuServers}
                           customMcpServers={mcpMenuCustomServers}
+                          pluginLabels={composerPluginLabels}
                           {...(providerOwnsMcp && mcpControlsAvailable
                             ? {
                                 readOnly: true,

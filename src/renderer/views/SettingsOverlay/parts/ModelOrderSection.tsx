@@ -1,7 +1,7 @@
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { Button } from "@heroui/react";
-import { ArrowUpCircle, GripVertical, RotateCcw } from "lucide-react";
+import { ArrowUpCircle, Clock, GripVertical, RotateCcw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -95,11 +95,14 @@ function SortableProviderRow(props: {
       </span>
       {update.updatePhase ? (
         <div
-          className="flex h-5 min-w-[6.5rem] max-w-[45%] shrink-0 items-center gap-1 text-[10px] text-muted"
+          className="flex h-5 min-w-[6.5rem] max-w-[45%] shrink-0 items-center gap-1.5 text-[10px] text-muted"
           {...(isBulkUpdating && update.updatePhase !== "queued"
             ? { "aria-hidden": true }
             : isBulkUpdating
-              ? {}
+              ? {
+                  role: "status",
+                  "aria-label": t`${agent.label} queued for update to v${update.targetVersion}`,
+                }
               : {
                   role: "status",
                   "aria-label":
@@ -108,9 +111,11 @@ function SortableProviderRow(props: {
                       : t`Updating ${agent.label} to v${update.targetVersion}`,
                 })}
         >
-          {update.updatePhase === "queued" ? null : (
-            <span aria-hidden="true">
-              <PixelLoader size="xs" />
+          {update.updatePhase === "queued" ? (
+            <Clock className="size-3 shrink-0 text-muted/70" aria-hidden="true" />
+          ) : (
+            <span aria-hidden="true" className="inline-flex shrink-0 items-center">
+              <PixelLoader size="xxs" />
             </span>
           )}
           {update.targetVersion ? (
@@ -129,12 +134,12 @@ function SortableProviderRow(props: {
         <Button
           size="sm"
           variant="ghost"
-          className="h-5 min-h-5 shrink-0 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
+          className="h-5 min-h-5 shrink-0 gap-1.5 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
           aria-label={t`Update ${agent.label} to ${updateLabel}`}
           isDisabled={isBulkUpdating}
           onPress={() => onUpdate(agent.kind)}
         >
-          <ArrowUpCircle className="size-3" />
+          <ArrowUpCircle className="size-3 shrink-0" />
           <Trans>Update to v{update.targetVersion}</Trans>
         </Button>
       ) : null}
@@ -198,10 +203,10 @@ export function ModelOrderSection() {
   // Update actions run on the local supervisor only.
   const updates = useProviderUpdates(isRemoteMachine ? [] : orderedAgents, selectedMachine.id);
   const updateAllProgress = updates.updateAllProgress;
-  const updateAllProgressLabel = updateAllProgress
+  const updateAllProgressAriaLabel = updateAllProgress
     ? updateAllProgress.phase === "probing"
-      ? t`Probing ${updateAllProgress.agentLabel} v${updateAllProgress.targetVersion}`
-      : t`Updating ${updateAllProgress.agentLabel} to v${updateAllProgress.targetVersion}`
+      ? t`Probing ${updateAllProgress.agentLabel} (${updateAllProgress.current} of ${updateAllProgress.total})`
+      : t`Updating ${updateAllProgress.agentLabel} (${updateAllProgress.current} of ${updateAllProgress.total})`
     : "";
 
   function handleDragEnd(event: DragEndEvent) {
@@ -247,30 +252,38 @@ export function ModelOrderSection() {
               ? {
                   role: "status",
                   "aria-live": "polite" as const,
-                  "aria-label": updateAllProgressLabel,
+                  "aria-label": updateAllProgressAriaLabel,
                 }
               : {})}
           >
             <Button
               size="sm"
               variant="ghost"
-              className="h-6 min-h-6 max-w-full gap-1 px-2 text-[11px]"
-              aria-label={updateAllProgress ? updateAllProgressLabel : t`Update all`}
+              className="h-6 min-h-6 max-w-full gap-1.5 px-2 text-[11px]"
+              aria-label={
+                updateAllProgress
+                  ? updateAllProgressAriaLabel
+                  : t`Update all (${updates.outdatedKinds.length})`
+              }
               {...(updates.isUpdatingAll
                 ? { "aria-disabled": true }
                 : { onPress: updates.updateAll })}
             >
               {updateAllProgress ? (
                 <>
-                  <span aria-hidden="true">
-                    <PixelLoader size="xs" />
+                  <span aria-hidden="true" className="inline-flex shrink-0 items-center">
+                    <PixelLoader size="xxs" />
                   </span>
-                  <span className="truncate">{updateAllProgressLabel}</span>
+                  <span className="truncate">
+                    <Trans>
+                      Updating ({updateAllProgress.current}/{updateAllProgress.total})
+                    </Trans>
+                  </span>
                 </>
               ) : (
                 <>
-                  <ArrowUpCircle className="size-3" />
-                  <Trans>Update all</Trans>
+                  <ArrowUpCircle className="size-3 shrink-0" />
+                  <Trans>Update all ({updates.outdatedKinds.length})</Trans>
                 </>
               )}
             </Button>

@@ -30,6 +30,8 @@ export function McpChip(props: {
   onRemove?: (() => void) | undefined;
   title?: string;
   variant?: "chip" | "header";
+  /** Overrides the registry label when a plugin packages this server. */
+  label?: string;
 }) {
   const { t } = useLingui();
   const { descriptor, onRemove, variant = "chip" } = props;
@@ -60,7 +62,7 @@ export function McpChip(props: {
       role={onRemove ? "group" : "img"}
     >
       <Icon className="size-3 text-muted" aria-hidden="true" />
-      <span className="poracode-attachment-chip__name">{t(descriptor.label)}</span>
+      <span className="poracode-attachment-chip__name">{props.label ?? t(descriptor.label)}</span>
       {onRemove ? (
         <button
           type="button"

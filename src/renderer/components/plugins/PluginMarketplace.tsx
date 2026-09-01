@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/renderer/components/common";
 import { readBridge } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { isPluginSupportedOnHost } from "@/shared/plugins/catalog";
+import { isPluginSupportedOnHost, resolveInstalledPluginState } from "@/shared/plugins/catalog";
 import type { PluginCategory } from "@/shared/contracts";
 import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
@@ -43,7 +43,9 @@ export function PluginMarketplace(props: {
       .includes(normalizedQuery),
   );
 
-  const installed = props.plugins.filter((entry) => installedPlugins[entry.plugin.name]);
+  const installed = props.plugins.filter(
+    (entry) => resolveInstalledPluginState(entry.plugin, installedPlugins) !== undefined,
+  );
   const featured = matches.filter((entry) => entry.plugin.poracode.featured);
   const sections = CATEGORY_ORDER.flatMap((category) => {
     const entries = matches.filter(
@@ -162,7 +164,7 @@ function PluginCard(props: {
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const installPlugin = useSharedSettings((state) => state.installPlugin);
   const plugin = props.entry.plugin;
-  const installed = installedPlugins[plugin.name] !== undefined;
+  const installed = resolveInstalledPluginState(plugin, installedPlugins) !== undefined;
   const supported = isPluginSupportedOnHost(plugin, props.hostPlatform);
   const titleId = `plugin-${plugin.name}-title`;
   const actionLabelId = `plugin-${plugin.name}-action`;
@@ -190,6 +192,12 @@ function PluginCard(props: {
               <PluginTag>
                 <Trans>External</Trans>
               </PluginTag>
+            ) : plugin.source === "project" ? (
+              // Came with the repository, so say so: it is neither shipped by
+              // Poracode nor something the user put in the app plugin folder.
+              <PluginTag>
+                <Trans>Project</Trans>
+              </PluginTag>
             ) : null}
             {plugin.poracode.communityMaintained ? (
               <PluginTag>
@@ -208,7 +216,20 @@ function PluginCard(props: {
           {" · "}
           <Plural value={serverCount} one="# server" other="# servers" />
         </span>
-        {installed ? (
+        {!supported ? (
+          // Host support is independent of install state: a built-in tool
+          // plugin still ships installed on a host that cannot run it.
+          <Button
+            size="sm"
+            variant="tertiary"
+            isDisabled
+            aria-labelledby={`${titleId} ${actionLabelId}`}
+          >
+            <span id={actionLabelId}>
+              <Trans>Unavailable on this device</Trans>
+            </span>
+          </Button>
+        ) : installed ? (
           <Button
             size="sm"
             variant="tertiary"
@@ -224,21 +245,14 @@ function PluginCard(props: {
             size="sm"
             variant="tertiary"
             aria-labelledby={`${titleId} ${actionLabelId}`}
-            isDisabled={!supported}
             onPress={() => {
               installPlugin(plugin);
               props.onOpen(plugin.name);
             }}
           >
-            {supported ? (
-              <span id={actionLabelId}>
-                <Trans>Install</Trans>
-              </span>
-            ) : (
-              <span id={actionLabelId}>
-                <Trans>Unavailable on this device</Trans>
-              </span>
-            )}
+            <span id={actionLabelId}>
+              <Trans>Install</Trans>
+            </span>
           </Button>
         )}
       </Card.Footer>

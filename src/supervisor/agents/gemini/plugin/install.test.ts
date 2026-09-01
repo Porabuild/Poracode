@@ -140,7 +140,10 @@ describe("installGeminiPlugin", () => {
     expect(command).toMatch(/agent-plugins[\\/]+gemini[\\/]+poracode-hook\.(?:sh|cmd|ps1)/);
     expect(command).toMatch(
       process.platform === "win32"
-        ? /^(?:pwsh(?:\.exe)?|powershell(?:\.exe)?|cmd\.exe \/d \/s \/c call ")/
+        ? // The PowerShell head is the resolved executable path, quoted when it
+          // contains spaces (`"C:\Program Files\PowerShell\pwsh.exe"`), with
+          // `cmd.exe` as the fallback when no PowerShell is detected.
+          /^(?:"?(?:[A-Za-z]:[\\/][^"]*[\\/])?(?:pwsh|powershell)(?:\.exe)?"? -NoProfile -ExecutionPolicy Bypass -File |cmd\.exe \/d \/s \/c call ")/
         : /^(?!cmd\.exe)/,
     );
   });

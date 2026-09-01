@@ -119,4 +119,33 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
       initializeMeta: { "qwen.daemon.activeWorkHeartbeat": { v: 1 } },
     });
   });
+
+  it("forwards provider-specific session behavior", () => {
+    const createSpy = spyOnCreate();
+
+    createAcpStructuredSession({ command: "vendor-acp", args: [] }, makeInput(), {
+      behavior: {
+        suppressOutputAfterInterrupt: true,
+        suppressStderrLogging: true,
+      },
+    });
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      behavior: {
+        suppressOutputAfterInterrupt: true,
+        suppressStderrLogging: true,
+      },
+    });
+  });
+
+  it("forwards a provider text-stream extension", () => {
+    const createSpy = spyOnCreate();
+    const textStreamExtension = { id: "vendor.taskNotifications" };
+
+    createAcpStructuredSession({ command: "vendor-acp", args: [] }, makeInput(), {
+      textStreamExtension,
+    });
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({ textStreamExtension });
+  });
 });

@@ -26,6 +26,7 @@ import {
   mapResultState,
 } from "./result";
 import {
+  applyBackgroundTasksChanged,
   applyTaskLifecycle,
   applyTaskNotification,
   applyTaskUpdated,
@@ -620,6 +621,10 @@ function mapClaudeSdkMessageInner(
   if (message.type === "system" && message.subtype === "task_notification") {
     events.push(...applyTaskNotification(message, state));
     return events;
+  }
+
+  if (message.type === "system" && message.subtype === "background_tasks_changed") {
+    return applyBackgroundTasksChanged(message, state);
   }
 
   if (message.type === "system" && message.subtype === "permission_denied") {

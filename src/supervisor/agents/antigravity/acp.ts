@@ -4,8 +4,14 @@ import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestricte
 import { createAcpGenericAdapter } from "../acp-generic";
 import type { AgentAdapter } from "../base";
 import { buildAntigravityAcpModelCapabilities } from "./models";
+import { createAntigravityTaskNotificationExtension } from "./acpTaskNotifications";
+import { parseAntigravityAcpTurnSignal } from "./acpTurnHold";
 
 const ANTIGRAVITY_ACP_PROBE_TIMEOUT_MS = 60_000;
+export const ANTIGRAVITY_ACP_SESSION_BEHAVIOR = {
+  suppressOutputAfterInterrupt: true,
+  suppressStderrLogging: true,
+} as const;
 
 export function createAntigravityAcpRuntime(
   instance: AgentInstanceConfig | undefined,
@@ -33,6 +39,14 @@ export function createAntigravityAcpRuntime(
     },
     // Only modes actually advertised by Google's server belong in the picker.
     synthesizeApprovalPolicies: false,
+    sessionBehavior: ANTIGRAVITY_ACP_SESSION_BEHAVIOR,
+    // Antigravity multiplexes background-task reports through assistant text;
+    // the parser lives here so the shared mapper stays provider-agnostic.
+    textStreamExtension: createAntigravityTaskNotificationExtension(),
+    // agy_acp_server holds session/prompt open until every background task
+    // exits; the only end-of-reply boundary it publishes is a stderr
+    // diagnostic. See ./acpTurnHold.ts.
+    stderrTurnSignalParser: parseAntigravityAcpTurnSignal,
   });
 }
 

@@ -7,10 +7,13 @@ import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
+  canDisablePlugin,
+  canUninstallPlugin,
   isPluginMcpServerEnabled,
   isPluginSkillEnabled,
   isPluginSupportedOnHost,
   getPluginCoreSkill,
+  resolveInstalledPluginState,
 } from "@/shared/plugins/catalog";
 import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
@@ -24,7 +27,8 @@ export function PluginDetail(props: {
 }) {
   const { t } = useLingui();
   const plugin = props.plugin.plugin;
-  const state = useSharedSettings((settings) => settings.installedPlugins[plugin.name]);
+  const installedPlugins = useSharedSettings((settings) => settings.installedPlugins);
+  const state = resolveInstalledPluginState(plugin, installedPlugins);
   const installPlugin = useSharedSettings((settings) => settings.installPlugin);
   const uninstallPlugin = useSharedSettings((settings) => settings.uninstallPlugin);
   const setPluginEnabled = useSharedSettings((settings) => settings.setPluginEnabled);
@@ -62,11 +66,15 @@ export function PluginDetail(props: {
 
   return (
     <div className="mx-auto min-h-full max-w-[720px]">
+      {/* Focused on mount, so it keeps its own padding: with `px-0` the hover
+          and focus surface hugged the glyph and the row read as a stray box. The
+          negative inline-start margin keeps the label optically aligned with the
+          heading below. */}
       <Button
         ref={backButtonRef}
         size="sm"
         variant="ghost"
-        className="mb-4 !px-0"
+        className="-ms-2 mb-4 gap-2 px-2"
         onPress={props.onBack}
       >
         <ArrowLeft className="size-4" />
@@ -86,7 +94,9 @@ export function PluginDetail(props: {
               <p className="mt-1 text-sm text-muted">{props.plugin.description}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {examplePrompt && coreSkill ? (
+              {/* "Try now" opens a home-scope thread, which cannot see a
+                  package that belongs to one project's repository. */}
+              {examplePrompt && coreSkill && plugin.source !== "project" ? (
                 <Button
                   size="sm"
                   variant="tertiary"
@@ -97,14 +107,26 @@ export function PluginDetail(props: {
                   <Trans>Try now</Trans>
                 </Button>
               ) : null}
-              {state ? (
+              {!supported ? (
+                // Host support is independent of install state: a built-in
+                // tool plugin still ships installed where it cannot run.
+                <Button size="sm" isDisabled>
+                  <Trans>Unavailable on this device</Trans>
+                </Button>
+              ) : !state ? (
+                <Button size="sm" onPress={() => installPlugin(plugin)}>
+                  <Trans>Install</Trans>
+                </Button>
+              ) : canUninstallPlugin(plugin) ? (
                 <Button size="sm" variant="danger" onPress={() => uninstallPlugin(plugin)}>
                   <Trans>Uninstall</Trans>
                 </Button>
               ) : (
-                <Button size="sm" isDisabled={!supported} onPress={() => installPlugin(plugin)}>
-                  {supported ? <Trans>Install</Trans> : <Trans>Unavailable on this device</Trans>}
-                </Button>
+                // Built-in tool plugins ship inside the app: they can be
+                // switched off, but there is nothing to remove from disk.
+                <PluginTag>
+                  <Trans>Built-in</Trans>
+                </PluginTag>
               )}
             </div>
           </div>
@@ -113,6 +135,11 @@ export function PluginDetail(props: {
             {plugin.poracode.communityMaintained ? (
               <PluginTag>
                 <Trans>Community</Trans>
+              </PluginTag>
+            ) : null}
+            {plugin.source === "project" ? (
+              <PluginTag>
+                <Trans>Project</Trans>
               </PluginTag>
             ) : null}
             <span aria-hidden="true">·</span>
@@ -174,7 +201,7 @@ export function PluginDetail(props: {
         </p>
       ) : null}
 
-      {state ? (
+      {state && canDisablePlugin(plugin) ? (
         <section className="flex items-center justify-between gap-4 border-b border-[var(--hairline)] py-5">
           <div>
             <h2 id={pluginToggleLabelId} className="text-sm font-semibold text-foreground">
@@ -233,7 +260,7 @@ export function PluginDetail(props: {
                         aria-labelledby={`${labelId} ${badgeId}`}
                         isSelected={enabled}
                         isDisabled={!supported || !state.enabled}
-                        onChange={(next) => setPluginMcpServerEnabled(plugin.name, server.id, next)}
+                        onChange={(next) => setPluginMcpServerEnabled(plugin, server.id, next)}
                       />
                     </div>
                   ) : undefined
@@ -270,12 +297,12 @@ export function PluginDetail(props: {
                 badge={t`Skill`}
                 last={index === props.plugin.skills.length - 1}
                 control={
-                  state ? (
+                  state && canDisablePlugin(plugin) ? (
                     <ToggleSwitch
                       aria-labelledby={`${labelId} ${badgeId}`}
                       isSelected={enabled}
                       isDisabled={!supported || !state.enabled}
-                      onChange={(next) => setPluginSkillEnabled(plugin.name, skill.id, next)}
+                      onChange={(next) => setPluginSkillEnabled(plugin, skill.id, next)}
                     />
                   ) : undefined
                 }

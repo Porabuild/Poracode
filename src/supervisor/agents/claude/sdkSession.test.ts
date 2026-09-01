@@ -1331,6 +1331,71 @@ describe("ClaudeSdkSession", () => {
     }
   });
 
+  it("marks a refused /goal failed on a frame-capable CLI instead of completing it", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-goal-refused",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+
+    // A frame-capable CLI: init carries the version, but the CLI never arms
+    // the goal (workspace-trust or hooks gate refuses /goal with a printed
+    // reason) — no active_goal frame ever arrives.
+    fake.emitMessage({
+      type: "system",
+      subtype: "init",
+      session_id: openedSessionId,
+      claude_code_version: "2.1.251",
+    } as unknown as SDKMessage);
+    await flushAsyncWork();
+
+    await session.startTurn("/goal fix the bug", config);
+    fake.emitMessage({
+      type: "result",
+      subtype: "success",
+      session_id: openedSessionId,
+    } as unknown as SDKMessage);
+    await flushAsyncWork();
+
+    const goalItemId = runtimeEvents.find(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "goal",
+    )?.itemId;
+    expect(goalItemId).toBeDefined();
+    const lastGoalUpdate = runtimeEvents
+      .filter((event) => event.type === "item.updated" && event.itemId === goalItemId)
+      .at(-1);
+    expect(lastGoalUpdate).toMatchObject({
+      payload: {
+        status: "failed",
+        objective: "fix the bug",
+        lastReason: expect.stringContaining("verdict"),
+      },
+    });
+    expect(runtimeEvents).not.toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: goalItemId,
+        payload: expect.objectContaining({ status: "complete" }),
+      }),
+    );
+
+    await session.dispose();
+  });
+
   it("keeps the thread working when the main result arrives while a background task is live", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);

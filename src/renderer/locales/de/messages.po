@@ -1413,8 +1413,9 @@ msgid "App Browser"
 msgstr "App-Browser"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-msgid "App Controls"
-msgstr "App-Steuerung"
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "App Controls"
+#~ msgstr "App-Steuerung"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -2029,8 +2030,8 @@ msgid "Browser tabs"
 msgstr "Browser-Tabs"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Browser Tools"
-msgstr "Browser-Tools"
+#~ msgid "Browser Tools"
+#~ msgstr "Browser-Tools"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -2042,6 +2043,7 @@ msgid "Building diff…"
 msgstr "Diff wird erstellt…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Integriert"
@@ -2495,8 +2497,8 @@ msgid "Chrome MCP enabled for this thread"
 msgstr "Chrome-MCP für diesen Thread aktiviert"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Chrome Tools"
-msgstr "Chrome-Tools"
+#~ msgid "Chrome Tools"
+#~ msgstr "Chrome-Tools"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -4704,8 +4706,12 @@ msgid "Enabled agents, model visibility and order"
 msgstr "Aktivierte Agenten, Modellsichtbarkeit und Reihenfolge"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Enabled servers stay on for new threads"
-msgstr "Aktivierte Server bleiben für neue Threads aktiv"
+msgid "Enabled plugins stay on for new threads"
+msgstr "Aktivierte Plugins bleiben für neue Threads aktiv"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Enabled servers stay on for new threads"
+#~ msgstr "Aktivierte Server bleiben für neue Threads aktiv"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -5194,6 +5200,7 @@ msgstr "Die Datei verwendet eine nicht unterstützte Codierung."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -6141,6 +6148,10 @@ msgstr "In diesem Projekt"
 msgid "Inspect canonical runtime items"
 msgstr "Überprüfen Sie kanonische Laufzeitelemente"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "Threads und Terminal-Bereiche prüfen sowie Git, Pull Requests und Zeitpläne steuern."
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "installieren"
@@ -6966,8 +6977,6 @@ msgstr "MCP"
 #~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "MCP server"
 msgstr "MCP-Server"
 
@@ -7019,7 +7028,7 @@ msgstr "MCP-Server-Zeitüberschreitung in Millisekunden"
 msgid "MCP server URL"
 msgstr "MCP-Server-URL"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -7969,8 +7978,8 @@ msgid "No matching threads"
 msgstr "Keine passenden Threads"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "No MCP servers are enabled for this run"
-msgstr "Für diesen Lauf sind keine MCP-Server aktiviert"
+#~ msgid "No MCP servers are enabled for this run"
+#~ msgstr "Für diesen Lauf sind keine MCP-Server aktiviert"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -8013,6 +8022,10 @@ msgstr "Keine Muster."
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "Noch keine Phasen."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No plugins are enabled for this run"
+msgstr "Für diesen Lauf sind keine Plugins aktiviert"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -8153,6 +8166,10 @@ msgstr "Noch keine Threads"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "Noch keine Threads."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "kein Ergebnis eingetroffen — die CLI hat /goal möglicherweise blockiert (Workspace-Vertrauen oder Hooks-Einstellungen) oder der Evaluator konnte nicht ausgeführt werden"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -9031,13 +9048,16 @@ msgid "Play notification sound"
 msgstr "Benachrichtigungston abspielen"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Plugin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "Plugin-Ordner"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Plugin servers"
+msgstr "Plugin-Server"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -9055,6 +9075,8 @@ msgstr "plugin.json entspricht nicht der Agent-Plugins-Spezifikation."
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json zielt auf eine Agent-Plugins-Version, die dieser Build nicht unterstützt."
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9073,6 +9095,14 @@ msgstr "Dieses Profil auf einen Anbieter außerhalb von Anthropic (z.ai, …) au
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Beliebte Editor-Themes, an Poracode angepasst. Jedes folgt dem oben gewählten Hell- oder Dunkelmodus."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Poracode"
+msgstr "Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
@@ -9352,6 +9382,8 @@ msgstr "Profile"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9717,6 +9749,18 @@ msgstr "Alle Jobs erneut ausführen"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "Fehlgeschlagene Jobs erneut ausführen"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "Poracode selbst lesen und steuern: Threads, Terminal-Bereiche, Git, Pull Requests und Zeitpläne."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report the evidence."
+msgstr "Lies das Terminal-Panel dieses Worktrees und berichte die Belege."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report what it is printing."
+msgstr "Lies das Terminal-Panel dieses Worktrees und berichte, was es ausgibt."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -11159,8 +11203,12 @@ msgid "Set shortcut"
 msgstr "Tastenkürzel festlegen"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Set when this session started — start a new thread to change servers"
-msgstr "Beim Start dieser Sitzung festgelegt — starte einen neuen Thread, um Server zu ändern"
+msgid "Set when this session started — start a new thread to change plugins"
+msgstr "Beim Start dieser Sitzung festgelegt — starte einen neuen Thread, um Plugins zu ändern"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Set when this session started — start a new thread to change servers"
+#~ msgstr "Beim Start dieser Sitzung festgelegt — starte einen neuen Thread, um Server zu ändern"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -11953,8 +12001,8 @@ msgid "Subagent"
 msgstr "Subagent"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Subagent Delegation"
-msgstr "Subagenten-Delegation"
+#~ msgid "Subagent Delegation"
+#~ msgstr "Subagenten-Delegation"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
@@ -12263,9 +12311,7 @@ msgstr "Sagen Sie dem Zielanbieter, was als nächstes zu tun ist ..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12559,6 +12605,10 @@ msgstr "Theme und Chat-Schriftgröße"
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Diese integrierten MCP-Server werden von OpenCode-Threads gemeinsam genutzt. Beim Speichern werden laufende GUI-Projekte aktualisiert; das Entfernen eines Servers kann einen aktiven Durchlauf unterbrechen. Terminal-Threads übernehmen Änderungen beim nächsten Start."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
+msgstr "Diese Server stammen von Plugins. Aktiviere oder deaktiviere sie unter Plugins; sie können hier nicht bearbeitet werden."
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
@@ -12844,6 +12894,7 @@ msgstr "Thread nicht gefunden"
 msgid "Thread todo dock"
 msgstr "Thread-Aufgaben-Dock"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx

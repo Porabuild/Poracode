@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { Trans } from "@lingui/react/macro";
 import { MessagesSquare, type LucideIcon } from "lucide-react";
 import type { AgentSlashCommand, FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
@@ -9,14 +10,15 @@ import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
  * A composer MCP server (Browser, Crossagents, Computer Use, …) surfaced as an
  * `@`-mention. `path` doubles as the MCP id passed back on select; `icon` and
  * `detail` are supplied already-resolved by the composer so the popover stays
- * registry-agnostic.
+ * registry-agnostic. `detail` is optional: the section header already names the
+ * entry kind, so callers only pass it when it adds information.
  */
 export type McpMentionEntry = {
   type: "mcp";
   path: string;
   name: string;
   icon: LucideIcon;
-  detail: string;
+  detail?: string;
   enabled: boolean;
 };
 
@@ -24,8 +26,10 @@ export type PluginMentionEntry = {
   type: "plugin";
   path: string;
   name: string;
-  detail: string;
+  detail?: string;
   command: AgentSlashCommand;
+  /** MCP mention ids the plugin replaces in this list; enabled on select. */
+  enablesMcpServerIds?: readonly string[];
 };
 
 export type ThreadMentionEntry = {
@@ -36,6 +40,52 @@ export type ThreadMentionEntry = {
 };
 
 export type MentionEntry = FileEntry | McpMentionEntry | PluginMentionEntry | ThreadMentionEntry;
+
+/** Section a mention entry belongs to; files and directories share one section. */
+type MentionSectionKey = "plugin" | "mcp" | "thread" | "file";
+
+interface MentionSection {
+  key: MentionSectionKey;
+  /** Entries paired with their index in the flat result list (keyboard nav truth). */
+  items: { entry: MentionEntry; index: number }[];
+}
+
+function getSectionKey(entry: MentionEntry): MentionSectionKey {
+  return entry.type === "plugin" || entry.type === "mcp" || entry.type === "thread"
+    ? entry.type
+    : "file";
+}
+
+/**
+ * Split the flat result list into contiguous sections while preserving each
+ * entry's flat index, so arrow-key selection stays index-based.
+ */
+export function groupMentionResults(results: MentionEntry[]): MentionSection[] {
+  const sections: MentionSection[] = [];
+  results.forEach((entry, index) => {
+    const key = getSectionKey(entry);
+    const last = sections.at(-1);
+    if (last?.key === key) {
+      last.items.push({ entry, index });
+    } else {
+      sections.push({ key, items: [{ entry, index }] });
+    }
+  });
+  return sections;
+}
+
+function SectionLabel(props: { sectionKey: MentionSectionKey }) {
+  switch (props.sectionKey) {
+    case "plugin":
+      return <Trans>Plugins</Trans>;
+    case "mcp":
+      return <Trans>MCP servers</Trans>;
+    case "thread":
+      return <Trans>Threads</Trans>;
+    default:
+      return <Trans>Files</Trans>;
+  }
+}
 
 function getParentDir(path: string): string {
   const lastSlash = path.lastIndexOf("/");
@@ -49,15 +99,20 @@ export function MentionPopover(props: {
   mentionRange: Range;
   onSelect: (entry: MentionEntry) => void;
   onActiveIndexChange: (index: number) => void;
+  /**
+   * Portal target; defaults to document.body. Hosts rendered inside a React
+   * Aria modal must pass a node inside the modal's DOM — anything portaled to
+   * body gets `inert` from ariaHideOutside, which blocks scrolling and lets
+   * clicks fall through to the backdrop, dismissing the modal.
+   */
+  portalContainer?: Element | null;
 }) {
   const { results, activeIndex, editorEl, mentionRange, onSelect, onActiveIndexChange } = props;
   const listRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll active item into view
   useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const active = list.children[activeIndex] as HTMLElement | undefined;
+    const active = listRef.current?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`);
     active?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
 
@@ -65,11 +120,12 @@ export function MentionPopover(props: {
     return null;
   }
 
-  // Position in viewport coordinates (portal renders into body)
+  // Position in viewport coordinates (portal target is viewport-agnostic)
   const rangeRect = mentionRange.getBoundingClientRect();
   const popoverWidth = 480;
   const left = Math.max(8, Math.min(rangeRect.left, window.innerWidth - popoverWidth - 8));
   const top = rangeRect.top - 6;
+  const sections = groupMentionResults(results);
 
   return createPortal(
     <div
@@ -83,68 +139,80 @@ export function MentionPopover(props: {
       }}
     >
       <div ref={listRef} className="poracode-mention-popover__list" role="listbox">
-        {results.map((entry, index) => {
-          const isActive = index === activeIndex;
-          const isMcp = entry.type === "mcp";
-          const isPlugin = entry.type === "plugin";
-          const isThread = entry.type === "thread";
-          const McpIcon = isMcp ? entry.icon : null;
-          const dir = isMcp || isPlugin || isThread ? "" : getParentDir(entry.path);
+        {sections.map((section) => {
+          const labelId = `mention-section-${section.key}-${section.items[0]?.index ?? 0}`;
           return (
             <div
-              key={`${entry.type}:${entry.path}`}
-              role="option"
-              aria-selected={isActive}
-              // Virtual-focus combobox pattern: the contentEditable textbox in
-              // MentionInput keeps real DOM focus and drives selection via
-              // arrow keys, so options never enter the tab order themselves.
-              tabIndex={-1}
-              className={`poracode-mention-popover__item ${isActive ? "poracode-mention-popover__item--active" : ""}`}
-              onMouseEnter={() => onActiveIndexChange(index)}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onSelect(entry);
-              }}
+              key={labelId}
+              role="group"
+              aria-labelledby={labelId}
+              className="poracode-mention-popover__section"
             >
-              {isPlugin ? (
-                <PluginIcon pluginId={entry.path} className="poracode-mention-popover__icon" />
-              ) : isThread ? (
-                <MessagesSquare
-                  className="poracode-mention-popover__icon text-muted"
-                  aria-hidden="true"
-                />
-              ) : McpIcon ? (
-                <McpIcon className="poracode-mention-popover__icon text-muted" aria-hidden="true" />
-              ) : (
-                <img
-                  className="poracode-mention-popover__icon"
-                  src={getEntryIconUrl(entry.name, entry.type === "directory")}
-                  alt=""
-                  draggable={false}
-                />
-              )}
-              <span className="poracode-mention-popover__label truncate">{entry.name}</span>
-              {isMcp || isPlugin || (isThread && entry.detail) ? (
-                <span
-                  className="poracode-mention-popover__detail ml-auto shrink-0 max-w-[14rem] text-xs text-[var(--muted)]"
-                  title={entry.detail}
-                >
-                  {/* text-overflow needs a block container; the detail span is a flex box */}
-                  <span className="block truncate">{entry.detail}</span>
-                </span>
-              ) : dir ? (
-                <span
-                  className="poracode-mention-popover__detail ml-auto shrink-0 max-w-[14rem] text-xs text-[var(--muted)]"
-                  title={dir}
-                >
-                  <span className="block truncate">{dir}</span>
-                </span>
-              ) : null}
+              <div id={labelId} className="poracode-mention-popover__section-label">
+                <SectionLabel sectionKey={section.key} />
+              </div>
+              {section.items.map(({ entry, index }) => {
+                const isActive = index === activeIndex;
+                const isMcp = entry.type === "mcp";
+                const isPlugin = entry.type === "plugin";
+                const isThread = entry.type === "thread";
+                const McpIcon = isMcp ? entry.icon : null;
+                const detail =
+                  isMcp || isPlugin || isThread ? entry.detail : getParentDir(entry.path);
+                return (
+                  <div
+                    key={`${entry.type}:${entry.path}`}
+                    role="option"
+                    aria-selected={isActive}
+                    data-index={index}
+                    // Virtual-focus combobox pattern: the contentEditable textbox in
+                    // MentionInput keeps real DOM focus and drives selection via
+                    // arrow keys, so options never enter the tab order themselves.
+                    tabIndex={-1}
+                    className={`poracode-mention-popover__item ${isActive ? "poracode-mention-popover__item--active" : ""}`}
+                    onMouseEnter={() => onActiveIndexChange(index)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onSelect(entry);
+                    }}
+                  >
+                    {isPlugin ? (
+                      <PluginIcon
+                        pluginId={entry.path}
+                        className="poracode-mention-popover__icon"
+                      />
+                    ) : isThread ? (
+                      <MessagesSquare
+                        className="poracode-mention-popover__icon text-muted"
+                        aria-hidden="true"
+                      />
+                    ) : McpIcon ? (
+                      <McpIcon
+                        className="poracode-mention-popover__icon text-muted"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <img
+                        className="poracode-mention-popover__icon"
+                        src={getEntryIconUrl(entry.name, entry.type === "directory")}
+                        alt=""
+                        draggable={false}
+                      />
+                    )}
+                    <span className="poracode-mention-popover__label truncate">{entry.name}</span>
+                    {detail ? (
+                      <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
+                        {detail}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
       </div>
     </div>,
-    document.body,
+    props.portalContainer ?? document.body,
   );
 }

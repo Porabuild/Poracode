@@ -161,22 +161,22 @@ describe("buildMentionResults", () => {
   });
 
   it("matches a stable alias while preserving the localized display name", () => {
-    const localizedTerminal: McpMentionItem = {
-      id: "app-controls",
-      name: "Терминал",
-      searchAliases: ["Terminal"],
+    const localizedServer: McpMentionItem = {
+      id: "figma-id",
+      name: "Фигма",
+      searchAliases: ["Figma"],
       icon: Monitor,
-      detail: "Терминал",
+      detail: "Фигма",
       enabled: true,
     };
 
-    expect(buildMentionResults([], "ter", [localizedTerminal])).toEqual([
+    expect(buildMentionResults([], "fig", [localizedServer])).toEqual([
       {
         type: "mcp",
-        path: "app-controls",
-        name: "Терминал",
+        path: "figma-id",
+        name: "Фигма",
         icon: Monitor,
-        detail: "Терминал",
+        detail: "Фигма",
         enabled: true,
       },
     ]);
@@ -533,6 +533,43 @@ describe("plugin mention selection", () => {
       },
       { kind: "text", content: " " },
     ]);
+  });
+
+  it("turns on the built-in servers whose mention rows the plugin replaces", () => {
+    const onMcpMentionSelect = vi.fn<(id: string) => void>();
+    render(
+      createElement(MentionInput, {
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        onMcpMentionSelect,
+        pluginMentions: [
+          {
+            id: "browser-tools",
+            name: "Browser",
+            enablesMcpServerIds: ["browser"],
+            command: {
+              id: "browser-control",
+              label: "Browser Control",
+              skillName: "browser-control",
+              skillPath: String.raw`C:\plugins\browser-tools\skills\browser-control\SKILL.md`,
+              skillInvocation: "$browser-control",
+              skillProvider: "Browser",
+              skillScope: "global",
+              pluginId: "browser-tools",
+              pluginName: "Browser",
+            },
+          },
+        ],
+      }),
+    );
+
+    const editor = typeMention("bro");
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.querySelector('[data-plugin-id="browser-tools"]')).not.toBeNull();
+    expect(onMcpMentionSelect).toHaveBeenCalledWith("browser");
   });
 });
 

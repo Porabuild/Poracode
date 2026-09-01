@@ -1,6 +1,6 @@
 {
   "name": "poracode",
-  "version": "1.6.6",
+  "version": "1.7.0",
   "private": true,
   "description": "The universal desktop orchestrator for AI agents. Run terminal-native and structured chat agents side-by-side.",
   "homepage": "https://poracode.com/",
@@ -204,7 +204,7 @@
   "engines": {
     "node": ">=24.10.0"
   },
-  "packageManager": "pnpm@11.19.0+sha512.7881f3ed590d472c4a955e2b88b2121791116066dcc88cbca3849ec9b60f1bbaa6d2ccb221fa91da4e1c65bef2bcbe379365aea7ac539c7bf86dedc3a1b22dce",
+  "packageManager": "pnpm@12.1.0",
   "electronmon": {
     "patterns": [
       "!src/**",

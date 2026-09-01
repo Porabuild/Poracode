@@ -1,8 +1,13 @@
 import { Link } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import { Suspense, useDeferredValue, useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
-import { parseTaskNotificationBody } from "@/shared/taskNotificationText";
+import {
+  backgroundTaskUpdateBlockRe,
+  parseBackgroundTaskUpdateBlock,
+  parseTaskNotificationBody,
+  type ParsedTaskNotificationBody,
+} from "@/shared/taskNotificationText";
 import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
 import { i18n } from "@/renderer/i18n/i18n";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -23,8 +28,7 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
   const smoothedText = useSmoothStreamedText(text, isStreaming);
-  const deferredText = useDeferredValue(smoothedText);
-  return <ItemMarkdown text={isStreaming ? deferredText : text} />;
+  return <ItemMarkdown text={isStreaming ? smoothedText : text} />;
 }
 
 /**
@@ -268,36 +272,58 @@ export function normalizeShortCodeFenceClosers(text: string): string {
 
 /**
  * Antigravity ACP background tasks and historical transcript logs can embed
- * `<task_notification>` XML tags into markdown text. Render these cleanly as
- * formatted task notification callouts with monospace output blocks rather than
- * raw XML tags. Matches inside fenced code blocks are left untouched — they are
- * literal code content, and rewriting them would corrupt the fence structure.
+ * `<task_notification>`, `<SYSTEM_MESSAGE>`, or markdown `# Background Task Update`
+ * / `<task_metadata>` blocks into markdown text.
+ * Render these cleanly as formatted task notification callouts with monospace output
+ * blocks rather than raw XML tags or system prompt noise. Matches inside fenced
+ * code blocks are left untouched — they are literal code content, and rewriting them
+ * would corrupt the fence structure.
  */
 export function formatTaskNotifications(text: string): string {
-  if (!text.includes("<task_notification>")) return text;
+  if (
+    !text.includes("<task_notification>") &&
+    !text.includes("<SYSTEM_MESSAGE>") &&
+    !text.includes("<task_metadata>") &&
+    !/Background Task Update/i.test(text)
+  ) {
+    return text;
+  }
   const fenceLines = scanFenceLines(text);
-  return text.replace(
-    /<task_notification>([\s\S]*?)<\/task_notification>/gi,
-    (match: string, body: string, offset: number) => {
+  const withBackgroundUpdates = text.replace(
+    backgroundTaskUpdateBlockRe(),
+    (match: string, offset: number) => {
       if (isInsideFence(fenceLines, offset)) return match;
-      const parsed = parseTaskNotificationBody(body);
-      const headerParts = [`**${i18n._(msg`Task Notification`)}**`];
-      if (parsed.taskId) {
-        headerParts.push(`— \`${parsed.taskId}\``);
-      }
-      if (parsed.exitCode !== undefined) {
-        headerParts.push(`(${i18n._(msg`Exit code ${parsed.exitCode}`)})`);
-      } else if (parsed.failed) {
-        headerParts.push(`(${i18n._(msg`Failed`)})`);
-      }
-      const header = `> ${headerParts.join(" ")}`;
-      if (!parsed.output) {
-        return header;
-      }
-      const fence = "`".repeat(fenceLengthForOutput(parsed.output));
-      return `${header}\n\n${fence}console\n${parsed.output}\n${fence}`;
+      return formatParsedTaskNotification(parseBackgroundTaskUpdateBlock(match));
     },
   );
+  const fenceLinesAfterBg =
+    withBackgroundUpdates === text ? fenceLines : scanFenceLines(withBackgroundUpdates);
+  return withBackgroundUpdates.replace(
+    /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)?<SYSTEM_MESSAGE>([\s\S]*?)<\/SYSTEM_MESSAGE>|<task_notification>([\s\S]*?)<\/task_notification>/gi,
+    (match: string, sysBody: string | undefined, taskBody: string | undefined, offset: number) => {
+      if (isInsideFence(fenceLinesAfterBg, offset)) return match;
+      const body = sysBody ?? taskBody ?? "";
+      return formatParsedTaskNotification(parseTaskNotificationBody(body));
+    },
+  );
+}
+
+function formatParsedTaskNotification(parsed: ParsedTaskNotificationBody): string {
+  const headerParts = [`**${i18n._(msg`Task Notification`)}**`];
+  if (parsed.taskId) {
+    headerParts.push(`— \`${parsed.taskId}\``);
+  }
+  if (parsed.exitCode !== undefined) {
+    headerParts.push(`(${i18n._(msg`Exit code ${parsed.exitCode}`)})`);
+  } else if (parsed.failed) {
+    headerParts.push(`(${i18n._(msg`Failed`)})`);
+  }
+  const header = `> ${headerParts.join(" ")}`;
+  if (!parsed.output) {
+    return header;
+  }
+  const fence = "`".repeat(fenceLengthForOutput(parsed.output));
+  return `${header}\n\n${fence}console\n${parsed.output}\n${fence}`;
 }
 
 /** One entry per line of `text`: fence state at the line start, and whether

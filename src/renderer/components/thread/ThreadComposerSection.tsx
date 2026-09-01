@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { toast } from "@heroui/react";
-import { ChevronDown, Monitor, TerminalSquare, Webhook } from "lucide-react";
+import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -27,6 +27,11 @@ import {
   providerOwnsMcpConfig,
 } from "../composer/composerMcpServers";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import {
+  pluginLabelsForMcpServers,
+  pluginMentionsForAvailableMcp,
+  withoutPluginBackedMcpMentions,
+} from "../composer/pluginBackedMcp";
 import { openPdfPreview } from "../pdf/openPdfPreview";
 import {
   MentionInput,
@@ -251,7 +256,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
   const usesTerminalPresentation = presentationMode === "terminal";
-  const appControlsEnabled =
+  const appControlsAvailable =
     useSharedSettings((s) => s.disabledBuiltInMcpServers["app-controls"]) !== true;
   // Composer MCP servers are bound at session-create time for the active
   // thread, so the "+" menu shows this run's bindings read-only: the enabled
@@ -285,14 +290,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     enabled: true,
   }));
   const mcpMentions: McpMentionItem[] = [
-    ...(appControlsEnabled && !providerOwnsMcp
+    ...(appControlsAvailable && !providerOwnsMcp
       ? [
           {
             id: "app-controls",
-            name: t`Terminal`,
-            searchAliases: ["Terminal"],
-            icon: TerminalSquare,
-            detail: t`Terminal`,
+            name: t`Poracode`,
+            icon: Settings2,
             enabled: true,
           },
         ]
@@ -307,14 +310,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         id: descriptor.id,
         name: t(descriptor.label),
         icon: descriptor.icon,
-        detail: t`MCP server`,
         enabled: true,
       })),
     ...customMcpServers.map((server) => ({
       id: server.id,
       name: server.name,
       icon: Webhook,
-      detail: t`MCP server`,
       enabled: true,
     })),
     ...(effectiveMcpConfig?.computerUse === true &&
@@ -325,7 +326,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             id: COMPUTER_USE_MCP_ID,
             name: t`Computer Use`,
             icon: Monitor,
-            detail: t`Computer Use`,
             enabled: true,
           },
         ]
@@ -333,6 +333,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   ];
   const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
   const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  // One row per tool: a plugin that wraps a built-in server replaces that
+  // server's own mention instead of sitting next to an identical row, and only
+  // while this thread actually carries that server.
+  const composerPluginMentions = pluginMentionsForAvailableMcp(pluginMentions, mcpMentions);
+  const composerMcpMentions = withoutPluginBackedMcpMentions(mcpMentions, composerPluginMentions);
+  // The "+" menu names the same capability as the mention list: a server a
+  // plugin packages reads as that plugin everywhere in the composer.
+  const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
   const threadMentionToolsAvailable = useAppStore(
     (s) => s.threadMentionToolsAvailableByThreadId[thread.id],
   );
@@ -851,8 +859,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           }
                         : {})}
                       projectId={thread.projectId}
-                      mcpMentions={mcpMentions}
-                      pluginMentions={pluginMentions}
+                      mcpMentions={composerMcpMentions}
+                      pluginMentions={composerPluginMentions}
                       threadMentions={threadMentions}
                       onTextChange={(hasText) => {
                         setHasContent(hasText);
@@ -944,6 +952,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
+                          pluginLabels={composerPluginLabels}
                           readOnly
                           computerUse={{
                             enabled: effectiveMcpConfig?.computerUse === true,
