@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -51,20 +52,11 @@ export const AssistantMessage = memo(function AssistantMessage({
     }
     return isTurnActive ? "candidate" : "confirmed";
   });
-  const stream = item.streams.assistant_text ?? "";
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-  const payloadTextBlocks = payload?.content?.filter((block) => block.kind === "text");
-  const payloadText =
-    payloadTextBlocks && payloadTextBlocks.length > 0
-      ? payloadTextBlocks
-          .map((block) => block.text)
-          .filter(Boolean)
-          .join("\n")
-      : undefined;
   const isStreaming = item.state !== "completed";
-  // Keep live output responsive, then use the final payload as the display
-  // source of truth. An explicit empty text block intentionally hides the stream.
-  const rawText = isStreaming && stream.length > 0 ? stream : (payloadText ?? stream);
+  // Stream/payload arbitration lives in the shared helper so find-in-chat and
+  // transcript exports always agree with what this component renders.
+  const rawText = assistantDisplayText(item);
   // Agents (e.g. ACP providers) can embed images directly in a message as image
   // content blocks; render them inline beneath any text.
   const imageSources = useMemo(

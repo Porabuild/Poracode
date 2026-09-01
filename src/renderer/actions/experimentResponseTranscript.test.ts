@@ -39,4 +39,45 @@ describe("buildExperimentResponseTranscript", () => {
       "User:\nResearch this\n\nAssistant:\nFinal answer",
     );
   });
+
+  it("exports display text, not streamed text a display hook replaced or suppressed", () => {
+    const items: PersistedRuntimeItem[] = [
+      {
+        id: "rewritten",
+        type: "assistant_message",
+        state: "completed",
+        payload: {
+          content: [{ kind: "text", text: "Rewritten for display" }],
+          displayAuthoritative: true,
+        },
+        streams: { assistant_text: "Original streamed text" },
+      },
+      {
+        id: "suppressed",
+        type: "assistant_message",
+        state: "completed",
+        payload: { content: [{ kind: "text", text: "" }], displayAuthoritative: true },
+        streams: { assistant_text: "Suppressed secret" },
+      },
+      {
+        id: "suppressed-whitespace",
+        type: "assistant_message",
+        state: "completed",
+        payload: { content: [{ kind: "text", text: "\n" }], displayAuthoritative: true },
+        streams: { assistant_text: "Also suppressed" },
+      },
+      {
+        id: "interrupted",
+        type: "assistant_message",
+        state: "completed",
+        // No authoritative flag: the stream stays the source of truth.
+        payload: { content: [{ kind: "text", text: "Partial" }] },
+        streams: { assistant_text: "Partial but complete stream" },
+      },
+    ];
+
+    expect(buildExperimentResponseTranscript(items)).toBe(
+      "Assistant:\nRewritten for display\n\nAssistant:\nPartial but complete stream",
+    );
+  });
 });

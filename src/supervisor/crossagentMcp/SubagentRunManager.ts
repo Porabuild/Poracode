@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { authoritativeAssistantText } from "@/shared/assistantMessageText";
 import type {
   AgentCapability,
   AgentKind,
@@ -85,6 +86,15 @@ interface RunRecord extends AttemptExecutionState {
   output: string;
   /** Assistant text accumulated across every fallback attempt. */
   cursorOutput: string;
+  /**
+   * Per-item spans of `output`, in arrival order, so an authoritative
+   * item.updated payload (a Claude display hook rewriting or suppressing
+   * already-streamed text) can replace exactly its item's contribution.
+   * `cursorOutput` is deliberately not rebuilt: callers hold character
+   * offsets into it, so it stays an append-only live tail — the same rule
+   * the chat applies (stream while live, authoritative payload once final).
+   */
+  outputSegments: Array<{ itemId: string; text: string; override?: string }>;
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
   /**
@@ -213,6 +223,7 @@ export class SubagentRunManager {
       status: "running",
       output: "",
       cursorOutput: "",
+      outputSegments: [],
       stepCount: 0,
       handle: undefined,
       oneShot: undefined,
@@ -454,6 +465,7 @@ export class SubagentRunManager {
     record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
     record.label = attempt.label;
     record.output = "";
+    record.outputSegments = [];
     record.error = undefined;
     record.turnStarted = false;
     record.turnDispatched = false;
@@ -483,6 +495,24 @@ export class SubagentRunManager {
   }
 
   /**
+   * A Claude display hook delivers its rewrite as an authoritative
+   * item.updated payload after the text already streamed into `output`.
+   * Replace that item's span so waitResult/settle report the final text (or
+   * drop suppressed text) instead of the superseded stream.
+   */
+  private applyAuthoritativeOutput(
+    record: RunRecord,
+    event: Extract<RuntimeEvent, { type: "item.updated" }>,
+  ): void {
+    const authoritative = authoritativeAssistantText(event.payload);
+    if (authoritative === null) return;
+    const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
+    if (segment) segment.override = authoritative;
+    else record.outputSegments.push({ itemId: event.itemId, text: "", override: authoritative });
+    record.output = record.outputSegments.map((s) => s.override ?? s.text).join("");
+  }
+
+  /**
    * Consume a child event: accumulate assistant output, drive lifecycle from
    * turn completion, and forward item-level + server-request events onto the
    * parent stream. Server requests are re-tagged (threadId → parent, requestId
@@ -501,6 +531,9 @@ export class SubagentRunManager {
         if (event.stream === "assistant_text") {
           record.output += event.delta;
           record.cursorOutput += event.delta;
+          const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
+          if (segment) segment.text += event.delta;
+          else record.outputSegments.push({ itemId: event.itemId, text: event.delta });
         }
         this.deps.host.appendRuntimeEvent(
           record.parentThreadId,
@@ -527,6 +560,7 @@ export class SubagentRunManager {
         }
         return;
       case "item.updated": {
+        this.applyAuthoritativeOutput(record, event);
         const forwarded = this.retag(record, attemptIndex, event) as Extract<
           RuntimeEvent,
           { type: "item.updated" }

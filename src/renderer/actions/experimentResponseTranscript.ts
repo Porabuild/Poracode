@@ -1,4 +1,5 @@
 import type { PersistedRuntimeItem } from "@/shared/ipc";
+import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { MAX_EXPERIMENT_RESPONSE_LENGTH } from "@/shared/contracts";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -54,7 +55,9 @@ function formatChatMessage(item: PersistedRuntimeItem): string | null {
     return text ? `User:\n${text}` : null;
   }
   if (item.type === "assistant_message") {
-    const text = textFromRuntimeContentBlocks(item.payload) || item.streams.assistant_text;
+    // Display truth only: exports carry what the user saw, so text a display
+    // hook suppressed or replaced never leaks into the experiment response.
+    const text = assistantDisplayText(item);
     return text ? `Assistant:\n${text}` : null;
   }
   return null;

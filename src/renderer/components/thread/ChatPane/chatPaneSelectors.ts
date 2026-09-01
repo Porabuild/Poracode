@@ -8,6 +8,7 @@ import {
   clearRuntimeStructuralChangeHint,
   readRuntimeStructuralChangeHint,
 } from "@/renderer/state/runtimeStructuralChanges";
+import { hasVisibleAssistantText } from "@/shared/assistantMessageText";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
@@ -420,16 +421,6 @@ export function growingStreamLength(item: RuntimeChatItem): number {
 }
 
 /**
- * Whether text has at least one non-whitespace character. Used instead of
- * `trim()` because the visibility filter re-runs over every item on each
- * structural bump — trimming would copy each message's full text per pass.
- */
-const NON_WHITESPACE = /\S/;
-function hasVisibleText(text: string): boolean {
-  return NON_WHITESPACE.test(text);
-}
-
-/**
  * Whether an item gets its own row in the chat timeline. Anything that answers
  * `false` here can never host an inline indicator, so callers that pick an
  * anchor row (see `appendCompletedTurnIfClosed`) must consult this too.
@@ -451,20 +442,14 @@ export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // provider stream-boundary chunk — empty, or whitespace-only (Factory Droid
   // emits "\n\n" after tool calls). They have no renderable content, so
   // allocating a virtualized row for them only produces a blank gap. Keep an
-  // empty in-flight item visible for its loader and preserve stream-only/image
-  // payloads. When a completed payload contains text, it is authoritative even
-  // when intentionally empty (for example, a display hook suppressing output).
+  // empty in-flight item visible for its loader. Display-text arbitration is
+  // the shared helper's: the stream wins unless a completed payload is marked
+  // `displayAuthoritative` (a display hook may suppress output with empty
+  // text, hiding the row). Inline image payloads keep the row regardless.
   if (item.type === "assistant_message" && item.state === "completed") {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-    const hasPayloadText = payload?.content.some((block) => block.kind === "text") ?? false;
-    const hasPayloadContent =
-      payload?.content.some(
-        (block) => (block.kind === "text" && hasVisibleText(block.text)) || block.kind === "image",
-      ) ?? false;
-    const hasVisibleContent = hasPayloadText
-      ? hasPayloadContent
-      : hasVisibleText(item.streams.assistant_text ?? "") || hasPayloadContent;
-    if (!hasVisibleContent) return false;
+    const hasImage = payload?.content.some((block) => block.kind === "image") ?? false;
+    if (!hasImage && !hasVisibleAssistantText(item)) return false;
   }
   if (isToolLikeItem(item)) {
     const payload = getToolLikePayload(item);

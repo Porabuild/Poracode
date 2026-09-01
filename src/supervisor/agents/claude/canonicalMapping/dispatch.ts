@@ -319,6 +319,7 @@ function mapClaudeSdkMessageInner(
         );
         if (!item) return events;
         item.emittedText = true;
+        item.streamedText += text;
         if (item.messageId) state.streamedAssistantMessageIds.add(item.messageId);
         events.push({
           type: "content.delta",
@@ -436,14 +437,28 @@ function mapClaudeSdkMessageInner(
           if (skipTextSnapshot) {
             const streamedItem = streamedTextItems[streamedTextItemIndex];
             streamedTextItemIndex += 1;
-            if (streamedItem) {
-              events.push({
-                type: "item.updated",
-                threadId: state.threadId,
-                itemId: streamedItem.itemId,
-                payload: { content: [{ kind: "text", text: obj.text }] },
-              });
-            }
+            // A snapshot block without a streamed counterpart cannot occur —
+            // the CLI's completed-message rewrite preserves text block count —
+            // and a late snapshot re-delivered after a newer message reset the
+            // frame keeps deduplicating to nothing.
+            if (!streamedItem) continue;
+            // An untransformed snapshot (no MessageDisplay hook) carries the
+            // exact text that already streamed. Emitting it would persist
+            // every ordinary Claude turn's full text twice (payload alongside
+            // streams) and mark payloads authoritative that nothing rewrote.
+            if (streamedItem.streamedText === obj.text) continue;
+            // `displayAuthoritative` tells renderer-side readers this payload
+            // (possibly rewritten by a MessageDisplay hook, possibly empty)
+            // replaces the streamed text once the item completes.
+            events.push({
+              type: "item.updated",
+              threadId: state.threadId,
+              itemId: streamedItem.itemId,
+              payload: {
+                content: [{ kind: "text", text: obj.text }],
+                displayAuthoritative: true,
+              },
+            });
             continue;
           }
           if (obj.text.length === 0) continue;

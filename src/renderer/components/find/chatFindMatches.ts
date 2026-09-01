@@ -1,5 +1,6 @@
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
+import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { countOccurrences } from "./findText";
 
 /** One match within the chat transcript: which timeline row, and which
@@ -64,7 +65,9 @@ function blocksToText(payload: unknown): string {
 export function getChatItemSearchText(item: RuntimeChatItem): string {
   switch (item.type) {
     case "assistant_message":
-      return item.streams.assistant_text ?? blocksToText(item.payload);
+      // Shared display-truth helper: find must hit exactly the text on screen,
+      // not a stream a display hook replaced or suppressed.
+      return assistantDisplayText(item);
     case "reasoning":
       return item.streams.reasoning_text ?? "";
     case "user_message":

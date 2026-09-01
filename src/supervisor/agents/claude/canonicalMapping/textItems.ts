@@ -17,14 +17,16 @@ export function ensureTextItem(
     // Same-index slot already filled. If still streaming, reuse it. If
     // already completed, this is a duplicate event for the same logical
     // block within the current message frame — skip silently rather than
-    // creating a second item with the same content. New messages clear
-    // the map on `message_start`, so a fresh frame will see no `existing`.
+    // creating a second item with the same content. A new-id `message_start`
+    // clears the map so a fresh message sees no `existing`; a same-id replay
+    // keeps the frame, so its re-emitted blocks land here and dedupe.
     return existing.completed ? undefined : existing;
   }
   const item: TextItemState = {
     itemId: newItemId(itemType === "assistant_message" ? "asst" : "reason"),
     emittedText: false,
     fallbackText: "",
+    streamedText: "",
     completed: false,
     ...(itemType === "assistant_message" && state.currentAssistantMessageId
       ? { messageId: state.currentAssistantMessageId }
@@ -46,6 +48,9 @@ export function completeTextItem(
     state.streamedAssistantMessageIds.add(item.messageId);
   }
   if (!item.emittedText && item.fallbackText.length > 0) {
+    // The fallback delta is part of this item's stream too — count it so the
+    // final snapshot comparison sees the same text the renderer does.
+    item.streamedText += item.fallbackText;
     events.push({
       type: "content.delta",
       threadId: state.threadId,

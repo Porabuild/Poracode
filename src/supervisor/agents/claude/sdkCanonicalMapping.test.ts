@@ -992,70 +992,97 @@ describe("sdkCanonicalMapping — text streaming", () => {
     expect(stop[0]).toMatchObject({ type: "item.completed" });
   });
 
+  /** message_start for msg_display plus one streamed text delta ("Bonjour"). */
+  function startDisplayStream() {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "message_start",
+        message: { id: "msg_display", role: "assistant", content: [] },
+      }),
+      state,
+    );
+    const streamed = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_delta",
+        index: 1,
+        delta: { type: "text_delta", text: "Bonjour" },
+      }),
+      state,
+    );
+    const itemId = "itemId" in streamed[0]! ? streamed[0].itemId : undefined;
+    return { state, itemId };
+  }
+
+  function displaySnapshot(displayText: string): SDKMessage {
+    return {
+      type: "assistant",
+      session_id: "claude-session",
+      message: {
+        id: "msg_display",
+        role: "assistant",
+        // MessageDisplay snapshots can omit the preceding thinking block,
+        // shifting text from stream index 1 to snapshot index 0.
+        content: [{ type: "text", text: displayText }],
+      },
+    } as unknown as SDKMessage;
+  }
+
   it.each([
-    ["replace", "before", "Hello", "Bonjour", false],
-    ["append", "before", "Bonjour\n\nHello", "Bonjour", false],
-    ["replace", "after", "Hello", "Bonjour", true],
-    ["append", "after", "Bonjour\n\nHello", "Bonjour", true],
-    ["empty", "after", "", "Bonjour", true],
+    ["replace", "Hello"],
+    ["append", "Bonjour\n\nHello"],
   ])(
-    "updates the streamed item with a MessageDisplay %s snapshot %s completion even when its block index changes",
-    (_mode, _order, displayText, streamedText, stopBeforeSnapshot) => {
-      const state = createClaudeMapperState("thread-1");
-      mapClaudeSdkMessage(
-        streamEvent({
-          type: "message_start",
-          message: { id: "msg_display", role: "assistant", content: [] },
-        }),
-        state,
-      );
-      const streamed = mapClaudeSdkMessage(
-        streamEvent({
-          type: "content_block_delta",
-          index: 1,
-          delta: { type: "text_delta", text: streamedText },
-        }),
-        state,
-      );
-      const itemId = "itemId" in streamed[0]! ? streamed[0].itemId : undefined;
-      const completionBeforeSnapshot = stopBeforeSnapshot
-        ? mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 1 }), state)
-        : [];
-      expect(completionBeforeSnapshot).toEqual(
-        stopBeforeSnapshot ? [{ type: "item.completed", threadId: "thread-1", itemId }] : [],
-      );
+    "updates the streamed item with a MessageDisplay %s snapshot that arrives before block completion",
+    (_mode, displayText) => {
+      const { state, itemId } = startDisplayStream();
 
-      const snapshot = mapClaudeSdkMessage(
-        {
-          type: "assistant",
-          session_id: "claude-session",
-          message: {
-            id: "msg_display",
-            role: "assistant",
-            // MessageDisplay snapshots can omit the preceding thinking block,
-            // shifting text from stream index 1 to snapshot index 0.
-            content: [{ type: "text", text: displayText }],
-          },
-        } as unknown as SDKMessage,
-        state,
-      );
-
+      const snapshot = mapClaudeSdkMessage(displaySnapshot(displayText), state);
       expect(snapshot).toEqual([
         {
           type: "item.updated",
           threadId: "thread-1",
           itemId,
-          payload: { content: [{ kind: "text", text: displayText }] },
+          payload: {
+            content: [{ kind: "text", text: displayText }],
+            displayAuthoritative: true,
+          },
         },
       ]);
-      expect(snapshot.some((event) => event.type === "item.started")).toBe(false);
 
-      const completionAfterSnapshot = stopBeforeSnapshot
-        ? []
-        : mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 1 }), state);
-      expect(completionAfterSnapshot).toEqual(
-        stopBeforeSnapshot ? [] : [{ type: "item.completed", threadId: "thread-1", itemId }],
+      const completion = mapClaudeSdkMessage(
+        streamEvent({ type: "content_block_stop", index: 1 }),
+        state,
       );
+      expect(completion).toEqual([{ type: "item.completed", threadId: "thread-1", itemId }]);
+    },
+  );
+
+  it.each([
+    ["replace", "Hello"],
+    ["append", "Bonjour\n\nHello"],
+    ["empty", ""],
+  ])(
+    "updates the already-completed streamed item with a MessageDisplay %s snapshot",
+    (_mode, displayText) => {
+      const { state, itemId } = startDisplayStream();
+      const completion = mapClaudeSdkMessage(
+        streamEvent({ type: "content_block_stop", index: 1 }),
+        state,
+      );
+      expect(completion).toEqual([{ type: "item.completed", threadId: "thread-1", itemId }]);
+
+      const snapshot = mapClaudeSdkMessage(displaySnapshot(displayText), state);
+      expect(snapshot).toEqual([
+        {
+          type: "item.updated",
+          threadId: "thread-1",
+          itemId,
+          payload: {
+            content: [{ kind: "text", text: displayText }],
+            displayAuthoritative: true,
+          },
+        },
+      ]);
     },
   );
 
@@ -1109,16 +1136,75 @@ describe("sdkCanonicalMapping — text streaming", () => {
         type: "item.updated",
         threadId: "thread-1",
         itemId: firstItemId,
-        payload: { content: [{ kind: "text", text: "First display block" }] },
+        payload: {
+          content: [{ kind: "text", text: "First display block" }],
+          displayAuthoritative: true,
+        },
       },
       {
         type: "item.updated",
         threadId: "thread-1",
         itemId: secondItemId,
-        payload: { content: [{ kind: "text", text: "" }] },
+        payload: { content: [{ kind: "text", text: "" }], displayAuthoritative: true },
       },
     ]);
     expect(snapshot.some((event) => event.type === "item.started")).toBe(false);
+  });
+
+  it("skips the snapshot update when the text matches what already streamed", () => {
+    // No MessageDisplay hook: the final snapshot repeats the streamed text
+    // byte-for-byte. Emitting it would persist every ordinary Claude turn's
+    // text twice and flag an untouched payload as display-authoritative.
+    const { state } = startDisplayStream();
+    mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 1 }), state);
+
+    const snapshot = mapClaudeSdkMessage(displaySnapshot("Bonjour"), state);
+    expect(snapshot).toEqual([]);
+  });
+
+  it("still drops a late snapshot whose frame was reset by a newer message", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "message_start",
+        message: { id: "msg_1", role: "assistant", content: [] },
+      }),
+      state,
+    );
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "text_delta", text: "Answer one" },
+      }),
+      state,
+    );
+    mapClaudeSdkMessage(streamEvent({ type: "content_block_stop", index: 0 }), state);
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "message_start",
+        message: { id: "msg_2", role: "assistant", content: [] },
+      }),
+      state,
+    );
+
+    const lateSnapshot = mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        message: {
+          id: "msg_1",
+          role: "assistant",
+          // A text that differs from what streamed proves the drop comes from
+          // the reset frame (no streamed lane remains), not the
+          // identical-snapshot skip.
+          content: [{ type: "text", text: "Rewritten answer one" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    expect(lateSnapshot).toEqual([]);
   });
 
   it("keeps a streamed item available when message_start replays the same message id", () => {
@@ -1166,7 +1252,10 @@ describe("sdkCanonicalMapping — text streaming", () => {
         type: "item.updated",
         threadId: "thread-1",
         itemId,
-        payload: { content: [{ kind: "text", text: "Displayed result" }] },
+        payload: {
+          content: [{ kind: "text", text: "Displayed result" }],
+          displayAuthoritative: true,
+        },
       },
     ]);
   });

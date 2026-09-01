@@ -63,7 +63,10 @@ describe("AssistantMessage", () => {
       id: "asst_display",
       type: "assistant_message",
       state: "updated",
-      payload: { content: [{ kind: "text", text: "Hello" }] },
+      payload: {
+        content: [{ kind: "text", text: "Hello" }],
+        displayAuthoritative: true,
+      },
       streams: { assistant_text: "Bonjour" },
     };
 
@@ -112,7 +115,10 @@ describe("AssistantMessage", () => {
       id: "asst_empty_display",
       type: "assistant_message",
       state: "completed",
-      payload: { content: [{ kind: "text", text: "" }] },
+      payload: {
+        content: [{ kind: "text", text: "" }],
+        displayAuthoritative: true,
+      },
       streams: { assistant_text: "Suppressed original" },
     };
 
@@ -123,6 +129,28 @@ describe("AssistantMessage", () => {
     );
 
     expect(screen.queryByText("Suppressed original")).toBeNull();
+  });
+
+  it("keeps the full stream when a completed payload is not marked authoritative", () => {
+    // Stream-first providers (e.g. Codex after an interrupted turn) can
+    // complete with a payload holding less text than what already streamed;
+    // without the authoritative flag the stream must win.
+    const item: RuntimeChatItem = {
+      id: "asst_interrupted",
+      type: "assistant_message",
+      state: "completed",
+      payload: { content: [{ kind: "text", text: "Partial" }] },
+      streams: { assistant_text: "Partial plus the rest the user watched stream in" },
+    };
+
+    render(
+      <AppProvider>
+        <AssistantMessage threadId="thread-1" item={item} isTurnActive={false} />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("Partial plus the rest the user watched stream in")).toBeTruthy();
+    expect(screen.queryByText("Partial")).toBeNull();
   });
 
   describe("copy action gating", () => {
