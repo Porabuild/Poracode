@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createClaudeAdapter, createClaudeProfileAdapter } from "./index";
-import { claudeCapabilities, parseClaudeAuthStatusJson } from "./detection";
+import { claudeCapabilities } from "./detection";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 
@@ -179,9 +179,19 @@ describe("claudeCapabilities", () => {
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5-1");
   });
 
-  it("lists Opus 5 first at high effort so it is the default for new threads", () => {
-    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-5", label: "Opus 5" });
-    expect(claudeCapabilities.defaultEffort).toBe("high");
+  it("lists Fable 5.1 first at medium effort so it is the default for new threads", () => {
+    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-fable-5-1", label: "Fable 5.1" });
+    expect(claudeCapabilities.defaultEffort).toBe("medium");
+    expect(claudeCapabilities.defaultHiddenModels).toEqual([
+      "claude-fable-5",
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-opus-4-6",
+    ]);
+  });
+
+  it("surfaces Opus 5 with frontier effort tiers and Fast mode", () => {
+    expect(claudeCapabilities.models).toContainEqual({ id: "claude-opus-5", label: "Opus 5" });
     expect(claudeCapabilities.modelEfforts["claude-opus-5"]).toEqual([
       "low",
       "medium",
@@ -407,31 +417,5 @@ describe("createClaudeProfileAdapter", () => {
 
     expect(adapter.capabilities.efforts).toEqual(claudeCapabilities.efforts);
     expect(adapter.capabilities.defaultEffort).toBe(claudeCapabilities.defaultEffort);
-  });
-});
-
-describe("parseClaudeAuthStatusJson", () => {
-  it("extracts account metadata from Claude's auth-status JSON", () => {
-    expect(
-      parseClaudeAuthStatusJson(`{
-        "loggedIn": true,
-        "authMethod": "claude.ai",
-        "email": "user@example.com",
-        "orgName": "Yieldmo",
-        "subscriptionType": "team"
-      }`),
-    ).toEqual({
-      authState: "authenticated",
-      providerMetadata: {
-        authenticatedAs: "user@example.com",
-        organization: "Yieldmo",
-        plan: "Team Subscription",
-        authMethod: "Claude.ai",
-      },
-    });
-  });
-
-  it("returns undefined for non-JSON output", () => {
-    expect(parseClaudeAuthStatusJson("not json")).toBeUndefined();
   });
 });

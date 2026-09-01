@@ -3245,7 +3245,7 @@ button.poracode-thread-mention-chip:active {
 /* ── Mention Popover (file search dropdown) ──────────────── */
 
 .poracode-mention-popover {
-  width: 30rem;
+  width: min(30rem, calc(100vw - 1rem));
   max-height: 20rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;

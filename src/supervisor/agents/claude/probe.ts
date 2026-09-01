@@ -49,7 +49,7 @@ export function claudeSkillInvocation(name: string): string {
  */
 export function mapClaudeSlashCommands(
   commands: readonly SlashCommand[],
-  skillNames?: ReadonlySet<string>,
+  skillNames?: ReadonlySet<string> | Set<string>,
 ): NonNullable<AgentCapability["slashCommands"]> {
   return commands.map((c) => {
     const base = {
@@ -227,7 +227,10 @@ async function probeClaudeSdkPartialWsl(
   try {
     const parsed = JSON.parse(result.stdout) as {
       slashCommands?: AgentCapability["slashCommands"];
+      models?: AgentCapability["models"];
+      defaultHiddenModels?: AgentCapability["defaultHiddenModels"];
       modelEfforts?: AgentCapability["modelEfforts"];
+      modelContextSizes?: AgentCapability["modelContextSizes"];
       fastModels?: AgentCapability["fastModels"];
       fastAvailable?: boolean;
       error?: string;
@@ -239,12 +242,19 @@ async function probeClaudeSdkPartialWsl(
     const fastDisabledReason =
       parsed.fastAvailable === false ? CLAUDE_FAST_MODE_DISABLED_MESSAGE : undefined;
     const hasModelCapabilities =
-      parsed.modelEfforts !== undefined || parsed.fastModels !== undefined;
+      parsed.models !== undefined ||
+      parsed.defaultHiddenModels !== undefined ||
+      parsed.modelEfforts !== undefined ||
+      parsed.modelContextSizes !== undefined ||
+      parsed.fastModels !== undefined;
     if (!parsed.slashCommands?.length && !fastDisabledReason && !hasModelCapabilities) {
       return undefined;
     }
     return {
+      ...(parsed.models ? { models: parsed.models } : {}),
+      ...(parsed.defaultHiddenModels ? { defaultHiddenModels: parsed.defaultHiddenModels } : {}),
       ...(parsed.modelEfforts ? { modelEfforts: parsed.modelEfforts } : {}),
+      ...(parsed.modelContextSizes ? { modelContextSizes: parsed.modelContextSizes } : {}),
       ...(parsed.fastModels ? { fastModels: parsed.fastModels } : {}),
       ...(parsed.slashCommands?.length ? { slashCommands: parsed.slashCommands } : {}),
       ...(fastDisabledReason ? { fastDisabledReason } : {}),

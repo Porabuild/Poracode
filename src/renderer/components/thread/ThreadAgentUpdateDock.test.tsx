@@ -280,6 +280,19 @@ describe("ThreadAgentUpdateDock", () => {
     });
   });
 
+  it("shows only the Antigravity runtime that needs an update", async () => {
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "1.3.0", source: "npm" });
+
+    render(
+      <ThreadAgentUpdateDock agentStatus={antigravityStatus("1.3.0", "1.0.0")} project={project} />,
+    );
+
+    const runtimeRows = await screen.findAllByRole("listitem");
+    expect(runtimeRows).toHaveLength(1);
+    expect(runtimeRows[0]).toHaveTextContent("Antigravity ACPv1.0.0 → v1.1.0");
+    expect(screen.queryByText("agy CLI")).toBeNull();
+  });
+
   it("reuses one registry listing across dock remounts", async () => {
     // listAcpRegistry runs the supervisor's registry auto-update sweep, so it
     // must not fire again every time the composer dock mounts.

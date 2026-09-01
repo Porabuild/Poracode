@@ -1,6 +1,39 @@
+import {
+  claudeDefaultHiddenModels,
+  formatClaudeModelLabel,
+  isClaudeAutoCapable,
+  isLegacyClaudeModel,
+  parseClaudeModel,
+  sortClaudeModels,
+  CLAUDE_FABLE_51_MODEL_ID,
+  CLAUDE_FABLE_5_MODEL_ID,
+  CLAUDE_OPUS_5_MODEL_ID,
+  CLAUDE_OPUS_48_MODEL_ID,
+  CLAUDE_OPUS_47_MODEL_ID,
+  CLAUDE_OPUS_46_MODEL_ID,
+  CLAUDE_SONNET_5_MODEL_ID,
+  CLAUDE_HAIKU_MODEL_ID,
+} from "@/shared/agents/claudeModels";
 import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import type { AgentCapability } from "@/shared/contracts";
 import type { ModelInfo } from "@anthropic-ai/claude-agent-sdk";
+
+export {
+  claudeDefaultHiddenModels,
+  formatClaudeModelLabel,
+  isClaudeAutoCapable,
+  isLegacyClaudeModel,
+  parseClaudeModel,
+  sortClaudeModels,
+  CLAUDE_FABLE_51_MODEL_ID,
+  CLAUDE_FABLE_5_MODEL_ID,
+  CLAUDE_OPUS_5_MODEL_ID,
+  CLAUDE_OPUS_48_MODEL_ID,
+  CLAUDE_OPUS_47_MODEL_ID,
+  CLAUDE_OPUS_46_MODEL_ID,
+  CLAUDE_SONNET_5_MODEL_ID,
+  CLAUDE_HAIKU_MODEL_ID,
+};
 
 const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
 const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
@@ -8,13 +41,6 @@ const MIN_CLAUDE_FABLE_5_CLI = [2, 1, 170] as const;
 const MIN_CLAUDE_SONNET_5_CLI = [2, 1, 197] as const;
 const MIN_CLAUDE_OPUS_5_CLI = [2, 1, 219] as const;
 const MIN_CLAUDE_FABLE_51_CLI = [2, 1, 250] as const;
-
-export const CLAUDE_OPUS_5_MODEL_ID = "claude-opus-5";
-export const CLAUDE_FABLE_5_MODEL_ID = "claude-fable-5";
-export const CLAUDE_FABLE_51_MODEL_ID = "claude-fable-5-1";
-export const CLAUDE_OPUS_48_MODEL_ID = "claude-opus-4-8";
-export const CLAUDE_OPUS_47_MODEL_ID = "claude-opus-4-7";
-export const CLAUDE_SONNET_5_MODEL_ID = "claude-sonnet-5";
 
 const CLAUDE_SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
 
@@ -28,35 +54,35 @@ export const CLAUDE_PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
  * threads and delegated runs.
  */
 export const CLAUDE_BUILTIN_MODELS: AgentCapability["models"] = [
-  { id: CLAUDE_OPUS_5_MODEL_ID, label: "Opus 5" },
-  { id: CLAUDE_FABLE_5_MODEL_ID, label: "Fable 5" },
   { id: CLAUDE_FABLE_51_MODEL_ID, label: "Fable 5.1" },
+  { id: CLAUDE_FABLE_5_MODEL_ID, label: "Fable 5" },
+  { id: CLAUDE_OPUS_5_MODEL_ID, label: "Opus 5" },
   { id: CLAUDE_OPUS_48_MODEL_ID, label: "Opus 4.8" },
   { id: CLAUDE_OPUS_47_MODEL_ID, label: "Opus 4.7" },
-  { id: "claude-opus-4-6", label: "Opus 4.6" },
+  { id: CLAUDE_OPUS_46_MODEL_ID, label: "Opus 4.6" },
   { id: CLAUDE_SONNET_5_MODEL_ID, label: "Sonnet 5" },
-  { id: "haiku", label: "Haiku" },
+  { id: CLAUDE_HAIKU_MODEL_ID, label: "Haiku" },
 ];
 
 export const CLAUDE_BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
-  [CLAUDE_OPUS_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
-  [CLAUDE_FABLE_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   [CLAUDE_FABLE_51_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
+  [CLAUDE_FABLE_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
+  [CLAUDE_OPUS_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   [CLAUDE_OPUS_48_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   [CLAUDE_OPUS_47_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
-  "claude-opus-4-6": ["low", "medium", "high", "max"],
+  [CLAUDE_OPUS_46_MODEL_ID]: ["low", "medium", "high", "max"],
   [CLAUDE_SONNET_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   haiku: [],
 };
 
 export const CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSizes"]> =
   {
-    [CLAUDE_OPUS_5_MODEL_ID]: ["1m"],
-    [CLAUDE_FABLE_5_MODEL_ID]: ["1m"],
     [CLAUDE_FABLE_51_MODEL_ID]: ["1m"],
+    [CLAUDE_FABLE_5_MODEL_ID]: ["1m"],
+    [CLAUDE_OPUS_5_MODEL_ID]: ["1m"],
     [CLAUDE_OPUS_48_MODEL_ID]: ["1m", "200k"],
     [CLAUDE_OPUS_47_MODEL_ID]: ["1m", "200k"],
-    "claude-opus-4-6": ["1m", "200k"],
+    [CLAUDE_OPUS_46_MODEL_ID]: ["1m", "200k"],
     [CLAUDE_SONNET_5_MODEL_ID]: ["1m"],
     // Legacy `sonnet` alias retained for backward compatibility.
     sonnet: ["200k", "1m"],
@@ -66,7 +92,7 @@ export const CLAUDE_BUILTIN_FAST_MODELS: NonNullable<AgentCapability["fastModels
   CLAUDE_OPUS_5_MODEL_ID,
   CLAUDE_OPUS_48_MODEL_ID,
   CLAUDE_OPUS_47_MODEL_ID,
-  "claude-opus-4-6",
+  CLAUDE_OPUS_46_MODEL_ID,
 ];
 
 function parseSemverTriplet(version: string): [number, number, number] | null {
@@ -114,6 +140,7 @@ export function claudeCapabilitiesFromCliVersion(
   if (hiddenModelIds.size === 0) return undefined;
 
   const models = CLAUDE_BUILTIN_MODELS.filter((model) => !hiddenModelIds.has(model.id));
+  const defaultHiddenModels = claudeDefaultHiddenModels(models);
   const modelEfforts = { ...CLAUDE_BUILTIN_MODEL_EFFORTS };
   const modelContextSizes = { ...CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES };
   for (const modelId of hiddenModelIds) {
@@ -121,7 +148,7 @@ export function claudeCapabilitiesFromCliVersion(
     delete modelContextSizes[modelId];
   }
   const fastModels = CLAUDE_BUILTIN_FAST_MODELS.filter((modelId) => !hiddenModelIds.has(modelId));
-  return { models, modelEfforts, modelContextSizes, fastModels };
+  return { models, defaultHiddenModels, modelEfforts, modelContextSizes, fastModels };
 }
 
 function poracodeEffortId(effort: string): string {
@@ -129,37 +156,59 @@ function poracodeEffortId(effort: string): string {
 }
 
 /**
- * Overlay model-specific effort and Fast metadata reported by Claude Code.
+ * Dynamic model discovery and capability overlay reported by Claude Code SDK.
  *
- * The CLI catalog intentionally shows only current aliases, while Poracode also
- * keeps explicit prior model versions selectable. Start from the built-in map
- * and update only entries the SDK actually reports so probing never erases the
- * historical catalog.
+ * Preserves built-in prior model versions while dynamically discovering new
+ * model releases (e.g. Fable 5.2, Opus 5.1), assigning clean labels, placing them
+ * in the proper family/version order, and updating effort and fast metadata.
  */
 export function claudeCapabilitiesFromSdkModels(
   sdkModels: readonly ModelInfo[] | undefined,
-): Pick<AgentCapability, "modelEfforts" | "fastModels"> | undefined {
+):
+  | Pick<
+      AgentCapability,
+      "models" | "defaultHiddenModels" | "modelEfforts" | "modelContextSizes" | "fastModels"
+    >
+  | undefined {
   if (!sdkModels?.length) return undefined;
-  const knownModelIds = new Set(CLAUDE_BUILTIN_MODELS.map((model) => model.id));
-  const modelEfforts = { ...CLAUDE_BUILTIN_MODEL_EFFORTS };
+
+  const modelsMap = new Map<string, { id: string; label: string }>();
+  for (const model of CLAUDE_BUILTIN_MODELS) {
+    modelsMap.set(model.id, { ...model });
+  }
+
+  const modelEfforts: Record<string, string[]> = { ...CLAUDE_BUILTIN_MODEL_EFFORTS };
+  const modelContextSizes: Record<string, string[]> = { ...CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES };
   const fastModels = new Set(CLAUDE_BUILTIN_FAST_MODELS);
   let matched = false;
 
   for (const sdkModel of sdkModels) {
-    const modelId = [sdkModel.resolvedModel, sdkModel.value]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => value.replace(/\[[0-9]+[mk]\]$/i, ""))
-      .find((value) => knownModelIds.has(value));
+    const rawId = sdkModel.resolvedModel || sdkModel.value;
+    if (!rawId) continue;
+    const modelId = rawId.replace(/\[[0-9]+[mk]\]$/i, "").trim();
     if (!modelId) continue;
     matched = true;
+
+    if (!modelsMap.has(modelId)) {
+      const label = formatClaudeModelLabel(modelId, sdkModel.displayName);
+      modelsMap.set(modelId, { id: modelId, label });
+    }
 
     if (sdkModel.supportsEffort === false) {
       modelEfforts[modelId] = [];
     } else if (sdkModel.supportedEffortLevels?.length) {
       const efforts = sdkModel.supportedEffortLevels.map(poracodeEffortId);
       // Ultracode is Claude Code's xhigh + dynamic-workflow session preset.
-      if (efforts.includes("xHigh")) efforts.push("ultracode");
+      if (efforts.includes("xHigh") && !efforts.includes("ultracode")) {
+        efforts.push("ultracode");
+      }
       modelEfforts[modelId] = efforts;
+    } else if (!modelEfforts[modelId]) {
+      modelEfforts[modelId] = [...CLAUDE_PREMIUM_EFFORT_TIERS];
+    }
+
+    if (!modelContextSizes[modelId]) {
+      modelContextSizes[modelId] = ["1m"];
     }
 
     if (sdkModel.supportsFastMode === true) {
@@ -169,5 +218,16 @@ export function claudeCapabilitiesFromSdkModels(
     }
   }
 
-  return matched ? { modelEfforts, fastModels: [...fastModels] } : undefined;
+  if (!matched) return undefined;
+
+  const sortedModels = sortClaudeModels([...modelsMap.values()]);
+  const defaultHiddenModels = claudeDefaultHiddenModels(sortedModels);
+
+  return {
+    models: sortedModels,
+    defaultHiddenModels,
+    modelEfforts,
+    modelContextSizes,
+    fastModels: [...fastModels],
+  };
 }

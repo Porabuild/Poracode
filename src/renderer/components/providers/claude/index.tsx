@@ -8,6 +8,7 @@ import { registerComposerControls } from "../providerComposer";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
+import { isClaudeAutoCapable } from "@/shared/agents/claudeModels";
 
 const PROVIDER_KIND = providerManifest.kind;
 
@@ -38,21 +39,10 @@ registerConflictResolverDefaults(PROVIDER_KIND, {
   effort: "high",
 });
 
-// Auto mode is only supported for Sonnet 4.6+ and Opus 4.6+.
-// Filter it out for Haiku and other models that don't support it.
-const AUTO_CAPABLE_MODELS = new Set([
-  "sonnet",
-  "claude-opus-5",
-  "claude-fable-5",
-  "claude-opus-4-6",
-  "claude-opus-4-7",
-  "claude-opus-4-8",
-]);
-
 registerComposerControls(PROVIDER_KIND, ({ capabilities, config, isDisabled, onConfigChange }) => {
   const isPlanMode = (config.mode ?? "agent") !== "agent";
 
-  const modelSupportsAuto = !config.model || AUTO_CAPABLE_MODELS.has(config.model);
+  const modelSupportsAuto = isClaudeAutoCapable(config.model);
   const filteredPolicies = modelSupportsAuto
     ? capabilities.approvalPolicies
     : capabilities.approvalPolicies.filter((p) => p.id !== "auto");

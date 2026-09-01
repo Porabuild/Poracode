@@ -1,4 +1,5 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Monitor, Settings2, Webhook } from "lucide-react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -98,6 +99,13 @@ import { resolveProviderHandoffStrategy } from "@/shared/providerHandoff";
 
 type Phase = "select" | "extracting" | "error";
 type PendingSubmission = { prompt: string; segments?: PromptSegment[] };
+type CommandPanelPosition = {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
+  placement: "above" | "below";
+};
 /**
  * `fork` opens a second thread beside the original; `switch` continues the same
  * task in the target provider — in place for a chat target, as a replacement
@@ -280,9 +288,10 @@ export function ContinueInProviderDialog(props: {
   const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
-  // Portal root inside the modal DOM. The mention popover portaled to body
-  // would get `inert` from the modal's ariaHideOutside: no scrolling, and
-  // clicks fall through to the backdrop and dismiss the dialog.
+  const composerContainerRef = useRef<HTMLDivElement>(null);
+  // Portal root inside the modal overlay but outside the clipped dialog. A
+  // body portal gets `inert` from ariaHideOutside, while a dialog descendant
+  // clips and offsets the fixed-position composer menus.
   const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
@@ -385,6 +394,9 @@ export function ContinueInProviderDialog(props: {
   const commandListId = useId();
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
+  const [commandPanelPosition, setCommandPanelPosition] = useState<CommandPanelPosition | null>(
+    null,
+  );
   const { commands: skillCommands } = useSkillSlashCommandState(
     props.projectLocation,
     selectedKind,
@@ -474,6 +486,54 @@ export function ContinueInProviderDialog(props: {
     : [];
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
+
+  useLayoutEffect(() => {
+    const anchor = composerContainerRef.current;
+    if (!showCommandPanel || !anchor) {
+      setCommandPanelPosition(null);
+      return;
+    }
+    const update = () => {
+      const rect = anchor.getBoundingClientRect();
+      const spaceAbove = rect.top - 8;
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const above = spaceAbove >= 160 || spaceAbove >= spaceBelow;
+      const width = Math.min(480, rect.width, window.innerWidth - 16);
+      const next: CommandPanelPosition = {
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        top: above ? rect.top - 6 : rect.bottom + 6,
+        width,
+        maxHeight: Math.max(48, Math.min(320, above ? spaceAbove : spaceBelow)),
+        placement: above ? "above" : "below",
+      };
+      setCommandPanelPosition((previous) =>
+        previous?.left === next.left &&
+        previous.top === next.top &&
+        previous.width === next.width &&
+        previous.maxHeight === next.maxHeight &&
+        previous.placement === next.placement
+          ? previous
+          : next,
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(anchor);
+    const animatedContainer = anchor.closest(".modal__container");
+    animatedContainer?.addEventListener("animationend", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      observer.disconnect();
+      animatedContainer?.removeEventListener("animationend", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [filteredCommands.length, selectedKind, showCommandPanel, targetPresentationMode]);
+
+  useEffect(() => {
+    setSlashActiveIndex(0);
+  }, [slashQuery, filteredCommands.length]);
 
   // `@`-mentions for the servers the target thread will launch with. Registry
   // servers that are off can be turned on from the mention list (it patches the
@@ -829,8 +889,8 @@ export function ContinueInProviderDialog(props: {
     <>
       <Modal.Backdrop isOpen={props.isOpen} onOpenChange={(open) => !open && handleCancel()}>
         <Modal.Container>
+          <div ref={setMentionPortalRoot} className="pointer-events-none fixed inset-0 z-50" />
           <Modal.Dialog className="sm:max-w-[760px]">
-            <div ref={setMentionPortalRoot} className="contents" />
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading>
@@ -857,19 +917,38 @@ export function ContinueInProviderDialog(props: {
                       </p>
                     )}
                   </div>
-                  {showCommandPanel ? (
-                    <ThreadCommandPanel
-                      commands={filteredCommands}
-                      activeIndex={slashActiveIndex}
-                      listId={commandListId}
-                      onActiveIndexChange={setSlashActiveIndex}
-                      onSelect={(command) => {
-                        mentionRef.current?.insertSlashCommand(command);
-                        setSlashQuery(null);
-                      }}
-                    />
-                  ) : null}
-                  <div className="flex flex-col gap-1.5">
+                  <div ref={composerContainerRef} className="relative flex flex-col gap-1.5">
+                    {commandPanelPosition && mentionPortalRoot
+                      ? createPortal(
+                          <div
+                            className="pointer-events-auto fixed"
+                            style={{
+                              left: commandPanelPosition.left,
+                              width: commandPanelPosition.width,
+                              top: commandPanelPosition.top,
+                              maxHeight: commandPanelPosition.maxHeight,
+                              transform:
+                                commandPanelPosition.placement === "above"
+                                  ? "translateY(-100%)"
+                                  : undefined,
+                            }}
+                          >
+                            <ThreadCommandPanel
+                              appearance="popover"
+                              commands={filteredCommands}
+                              activeIndex={slashActiveIndex}
+                              listId={commandListId}
+                              maxHeight={commandPanelPosition.maxHeight}
+                              onActiveIndexChange={setSlashActiveIndex}
+                              onSelect={(command) => {
+                                mentionRef.current?.insertSlashCommand(command);
+                                setSlashQuery(null);
+                              }}
+                            />
+                          </div>,
+                          mentionPortalRoot,
+                        )
+                      : null}
                     <ThreadComposer
                       autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                       compact
@@ -934,6 +1013,7 @@ export function ContinueInProviderDialog(props: {
                             });
                           }}
                           onSlashCommandChange={setSlashQuery}
+                          submitOnEnter={!showCommandPanel}
                           onSubmit={(segments) => {
                             void handleAction("fork", segments);
                           }}

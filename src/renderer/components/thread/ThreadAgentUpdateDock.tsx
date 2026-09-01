@@ -164,7 +164,11 @@ export function ThreadAgentUpdateDock(props: {
             </Button>
           }
         />
-        <CombinedRuntimeVersionList entry={combinedEntry} className="px-7 pb-1.5 text-[11px]" />
+        <CombinedRuntimeVersionList
+          entry={combinedEntry}
+          className="px-7 pb-1.5 text-[11px]"
+          updatesOnly
+        />
       </ThreadDockSection>
     );
   }

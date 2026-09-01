@@ -2,6 +2,7 @@ import { compactAgentProviderMetadata, type AgentCapability } from "@/shared/con
 import { readAgentCommandOutput, type DetectionSpec, type StatusProbeResult } from "../base";
 import { getAgentProbeCwd } from "../probeCwd";
 import {
+  claudeDefaultHiddenModels,
   CLAUDE_BUILTIN_FAST_MODELS,
   CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   CLAUDE_BUILTIN_MODEL_EFFORTS,
@@ -29,8 +30,9 @@ const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
 
 export const claudeCapabilities: AgentCapability = {
   models: CLAUDE_BUILTIN_MODELS,
+  defaultHiddenModels: claudeDefaultHiddenModels(CLAUDE_BUILTIN_MODELS),
   efforts: CLAUDE_PREMIUM_EFFORT_TIERS,
-  defaultEffort: "high",
+  defaultEffort: "medium",
   modelEfforts: CLAUDE_BUILTIN_MODEL_EFFORTS,
   contextSizes: [
     { id: "200k", label: "200k" },

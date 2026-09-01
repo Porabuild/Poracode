@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trans } from "@lingui/react/macro";
 import { MessagesSquare, type LucideIcon } from "lucide-react";
@@ -109,6 +109,35 @@ export function MentionPopover(props: {
 }) {
   const { results, activeIndex, editorEl, mentionRange, onSelect, onActiveIndexChange } = props;
   const listRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState(() => resolvePopoverPosition(mentionRange));
+
+  useLayoutEffect(() => {
+    if (!editorEl) return;
+    const update = () => {
+      const next = resolvePopoverPosition(mentionRange);
+      setPosition((previous) =>
+        previous.left === next.left &&
+        previous.top === next.top &&
+        previous.placement === next.placement &&
+        previous.maxHeight === next.maxHeight
+          ? previous
+          : next,
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(editorEl);
+    const animatedContainer = editorEl.closest(".modal__container");
+    animatedContainer?.addEventListener("animationend", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      observer.disconnect();
+      animatedContainer?.removeEventListener("animationend", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [editorEl, mentionRange]);
 
   // Auto-scroll active item into view
   useEffect(() => {
@@ -120,25 +149,28 @@ export function MentionPopover(props: {
     return null;
   }
 
-  // Position in viewport coordinates (portal target is viewport-agnostic)
-  const rangeRect = mentionRange.getBoundingClientRect();
-  const popoverWidth = 480;
-  const left = Math.max(8, Math.min(rangeRect.left, window.innerWidth - popoverWidth - 8));
-  const top = rangeRect.top - 6;
+  // Position in viewport coordinates. The modal portal root sits outside the
+  // clipped dialog, so it can use the same fixed coordinate space as body.
   const sections = groupMentionResults(results);
 
   return createPortal(
     <div
-      className="poracode-mention-popover"
+      className="poracode-mention-popover pointer-events-auto"
       style={{
         position: "fixed",
-        left,
-        top,
-        transform: "translateY(-100%)",
+        left: position.left,
+        top: position.top,
+        transform: position.placement === "above" ? "translateY(-100%)" : undefined,
+        maxHeight: position.maxHeight,
         zIndex: 9999,
       }}
     >
-      <div ref={listRef} className="poracode-mention-popover__list" role="listbox">
+      <div
+        ref={listRef}
+        className="poracode-mention-popover__list"
+        role="listbox"
+        style={{ maxHeight: position.maxHeight }}
+      >
         {sections.map((section) => {
           const labelId = `mention-section-${section.key}-${section.items[0]?.index ?? 0}`;
           return (
@@ -215,4 +247,19 @@ export function MentionPopover(props: {
     </div>,
     props.portalContainer ?? document.body,
   );
+}
+
+function resolvePopoverPosition(range: Range) {
+  const rangeRect = range.getBoundingClientRect();
+  const popoverWidth = Math.min(480, window.innerWidth - 16);
+  const left = Math.max(8, Math.min(rangeRect.left, window.innerWidth - popoverWidth - 8));
+  const spaceAbove = rangeRect.top - 8;
+  const spaceBelow = window.innerHeight - rangeRect.bottom - 8;
+  const placement = spaceAbove >= 160 || spaceAbove >= spaceBelow ? "above" : "below";
+  return {
+    left,
+    placement,
+    top: placement === "above" ? rangeRect.top - 6 : rangeRect.bottom + 6,
+    maxHeight: Math.max(48, Math.min(320, placement === "above" ? spaceAbove : spaceBelow)),
+  } as const;
 }

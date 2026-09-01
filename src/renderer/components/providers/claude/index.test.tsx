@@ -8,13 +8,15 @@ import "./index";
 
 const capabilities = {
   models: [
+    { id: "claude-fable-5-1", label: "Fable 5.1" },
     { id: "claude-opus-5", label: "Opus 5" },
     { id: "claude-fable-5", label: "Fable 5" },
     { id: "haiku", label: "Haiku" },
   ],
   efforts: ["low", "medium", "high", "xHigh", "max", "ultracode"],
-  defaultEffort: "high",
+  defaultEffort: "medium",
   modelEfforts: {
+    "claude-fable-5-1": ["low", "medium", "high", "xHigh", "max", "ultracode"],
     "claude-opus-5": ["low", "medium", "high", "xHigh", "max", "ultracode"],
     "claude-fable-5": ["low", "medium", "high", "xHigh", "max", "ultracode"],
     haiku: [],
@@ -55,6 +57,23 @@ describe("Claude composer controls", () => {
     });
   });
 
+  it("allows auto permissions for Fable 5.1 and future Fable 5.2", () => {
+    for (const model of ["claude-fable-5-1", "claude-fable-5-2", "claude-opus-5-1"]) {
+      const controls = getComposerControls("claude")?.({
+        capabilities,
+        config: { model },
+        isDisabled: false,
+        onConfigChange: () => undefined,
+      });
+
+      const permission = controls?.find(isPermissionControl);
+      expect(permission && "options" in permission ? permission.options : []).toContainEqual({
+        id: "auto",
+        label: "Auto mode",
+      });
+    }
+  });
+
   it("allows auto permissions for Fable 5", () => {
     const controls = getComposerControls("claude")?.({
       capabilities,
@@ -91,7 +110,7 @@ describe("Claude composer controls", () => {
   it("uses the Claude composer controls for profile-backed Claude providers", () => {
     const controls = getComposerControls("claude:work")?.({
       capabilities,
-      config: { model: "claude-fable-5" },
+      config: { model: "claude-fable-5-1" },
       isDisabled: false,
       onConfigChange: () => undefined,
     });

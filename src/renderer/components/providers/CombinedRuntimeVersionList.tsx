@@ -4,6 +4,7 @@ import type { CombinedProviderRuntimeUpdateEntry } from "./useCombinedProviderRu
 export function CombinedRuntimeVersionList(props: {
   entry: CombinedProviderRuntimeUpdateEntry;
   className?: string;
+  updatesOnly?: boolean;
   /**
    * Show `→ v<latest>` for an uninstalled runtime, advertising the version an
    * install would land. Off on surfaces whose action only updates (never
@@ -12,6 +13,9 @@ export function CombinedRuntimeVersionList(props: {
   showInstallTarget?: boolean;
 }) {
   const { t } = useLingui();
+  const runtimes = props.updatesOnly
+    ? props.entry.runtimes.filter((runtime) => runtime.updateAvailable)
+    : props.entry.runtimes;
   return (
     // Two columns so every runtime label shares one left edge and every
     // version starts at the same x — ragged pairs read as unrelated lines.
@@ -22,7 +26,7 @@ export function CombinedRuntimeVersionList(props: {
         props.className ?? "text-xs"
       }`}
     >
-      {props.entry.runtimes.map((runtime) => (
+      {runtimes.map((runtime) => (
         <div
           key={runtime.id}
           role="listitem"
