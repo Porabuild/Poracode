@@ -142,6 +142,27 @@ git log --pretty='%h %s' --name-only <previousTag>..<target> -- \
   'src/renderer/**' 'src/mobile/**' 'website/src/**'
 ```
 
+### Step 1c — Prior Art & History Cross-Check (Mandatory Anti-Hallucination Gate)
+
+**Never assume a feature is brand new.** Before writing bullets, cross-check previous releases in `website/public/changelog.json`:
+
+```bash
+# Search existing changelog for mentions of the area or feature
+grep -in "<feature-keyword>" website/public/changelog.json
+```
+
+1. **Verify Lineage**:
+   - If GitHub Actions, Plugins, Workspaces, Archived Threads, or Provider Switching are in the commit range, check what already existed in prior versions.
+   - If the capability already existed, do **NOT** write `"You can now <basic action>"` as an `added` bullet. That is a hallucination of novelty.
+   - Accurately describe the **delta / upgrade** as `improved` (e.g. _"GitHub Actions now supports multiple signed-in accounts"_, _"Switching providers now continues inside the same thread (Handoff 2.0)"_, _"Archived thread management is redesigned for multi-workspace and remote filtering"_).
+
+2. **Differentiate Plumbing from User Benefits**:
+   - Do **NOT** list internal architecture or IPC/notification mechanics as user bullets (e.g. avoid _"task notifications and background task updates"_ or _"added database sync migrations and Zod schemas"_).
+   - Distill the user outcome: what can the user now do or see? (e.g. _"Run Antigravity via first-class ACP runtime support with live usage discovery and machine-scoped settings"_).
+
+3. **Check Environment & Scope Support**:
+   - Check if changes expanded platforms (e.g. WSL, remote SSH, Windows shell resolution, multi-machine settings). Mention platform support explicitly when added.
+
 ## Step 2 — Distill into ONE curated entry (house style)
 
 This is the consistency contract. Match the voice of the existing entries (read a couple from `website/public/changelog.json` first).
@@ -149,22 +170,22 @@ This is the consistency contract. Match the voice of the existing entries (read 
 **title**
 
 - Short, punchy, **no version number**, sentence case. ~3–8 words.
-- Name the 2–3 headline features, joined with commas / `&`. E.g. `"Multiple Claude profiles, a usage dashboard & glass sidebar"`.
+- Name the 2–3 headline features, joined with commas / `&`. E.g. `\"Antigravity ACP, Handoff 2.0 & thread mentions\"`.
 
 **summary**
 
 - 1–2 sentences, benefit-first, the release's "elevator pitch".
-- Big releases may open with `"A big feature release: …"`. Patches stay factual and short.
+- Big releases may open with `\"A big feature release: …\"`. Patches stay factual and short.
 
 **changes**
 
-- Each is **one complete, user-facing sentence**. Prefer second person and present tense: _"You can now…"_, _"Sessions are saved automatically…"_.
+- Each is **one complete, user-facing sentence**. Prefer second person and present tense: _\"You can now…\"_, _\"Sessions are saved automatically…\"_.
 - `kind`: `added` (new capability) · `improved` (better/faster/refined existing) · `fixed` (bug fix). Order them added → improved → fixed.
 - `label`: optional short feature/product prefix. Add it only when the whole sentence belongs
-  to one obvious surface such as `Remote`, `Claude`, or `Security`. Omit it for mixed-scope
+  to one obvious surface such as `Remote`, `Claude`, `Plugins`, or `Security`. Omit it for mixed-scope
   sentences or whenever the right label is uncertain; never force every change to have one.
 - **Distill, don't dump.** Merge related work into one bullet when it serves the same
-  user outcome. A 70-PR major may land ~6–12 bullets; a busy patch may land ~6–14.
+  user outcome. A 70-PR major may land ~6–14 bullets; a busy patch may land ~6–14.
   Tiny hotfixes stay short (~2–5). Distillation means folding related commits, **not**
   dropping discoverability improvements or new user-visible labels/icons because a
   larger headline feature is already listed.
@@ -176,17 +197,21 @@ This is the consistency contract. Match the voice of the existing entries (read 
 
 - ❌ No PR numbers, no `by @handle`, no `dependabot`/CI/chore/`build(deps)` items, no raw PR-title phrasing.
 - ❌ No version number inside `title`.
+- ❌ Do not claim existing features are newly added — verify with `grep` against `website/public/changelog.json` and mark upgrades as `improved`.
+- ❌ Do not list internal protocol/plumbing mechanisms (heartbeats, task notifications, IPC schemas) in place of user outcomes.
 - ❌ Do not drop mode icons, selection labels, badges, or status presentation just because the capability already existed — those are user-facing `improved` items.
 - ✅ Vary sentence openings — don't write "Added X. Added Y. Added Z." Describe the _benefit_, not the implementation or the commit.
 - ✅ Mix labeled and unlabeled changes when that best represents the release.
 - ✅ Keep product nouns literal: `Poracode, Claude, Codex, Gemini, Grok, Command Code, WSL, ACP, Opus 4.8, Ultracode, Fable 5, Git, GitHub, macOS, Windows, Linux`.
-- ✅ Each feature appears in the release that introduced it — don't repeat it in a later patch. **Refinements** of an earlier feature (clearer labels, icons, defaults) still belong in the release that shipped the refinement.
+- ✅ Each feature appears in the release that introduced it — don't repeat it in a later patch. **Refinements** of an earlier feature (clearer labels, icons, defaults, multi-account support, in-thread handoff) belong in the release that shipped the refinement.
 
 ### Good vs bad
 
 ```
 ✅ { kind: "added", text: "Start a new project by cloning any GitHub repository directly from Poracode." }
-✅ { kind: "improved", label: "Pull requests", text: "The PR automation control now shows a distinct icon and label for Auto Fix and Auto Merge so the selected mode is clear at a glance." }
+✅ { kind: "improved", label: "Provider switch", text: "Switching providers or models now continues seamlessly inside the same thread while preserving your full conversation history and active MCP configuration (Handoff 2.0)." }
+✅ { kind: "improved", label: "GitHub", text: "GitHub Actions now supports multiple signed-in GitHub accounts, letting you switch accounts when browsing workflows, dispatching runs, or inspecting CI statuses." }
+❌ { kind: "added", label: "GitHub Actions", text: "You can now view workflow runs, inspect step logs, and monitor action statuses directly inside Poracode." } // Hallucination: GitHub Actions was added in 1.6.0; multi-account support was the 1.7.0 delta
 ❌ { kind: "added", text: "Add GitHub repository clone flow by @SDSLeon in #167" }   // raw PR title + noise
 ❌ { kind: "added", text: "Added clone." }                                            // too thin, no benefit
 ❌ omit "PR automation mode icons" as "too small / polish"                            // discoverability is user-facing
@@ -235,6 +260,8 @@ new notes on its own (no app release needed for a notes-only change).
 ## Final checklist
 
 - [ ] `title` has no version number; `summary` is 1–2 sentences.
+- [ ] **History & prior art verified:** Grepped `website/public/changelog.json` to verify feature lineage and ensure existing capabilities are not falsely claimed as `added`.
+- [ ] **User outcome focus:** Filtered out internal protocol/plumbing mechanisms (e.g. IPC schemas, background task notifications) in favor of direct user-facing capabilities and benefits.
 - [ ] Changes are distilled (not one-per-PR), grouped added→improved→fixed, each a full benefit sentence.
 - [ ] **Disposition ledger complete:** every non-merge commit is `include`, `fold into …`, or `omit` with a reason.
 - [ ] Every `feat`/`fix` that touches renderer/mobile UI, settings, messages, or locale catalogs is `include` or `fold` — none silently omitted.
