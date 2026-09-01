@@ -15,6 +15,7 @@ import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDraftComposerArea } from "./ThreadDraftComposerArea";
 import type { ComposerControl } from "./ThreadComposer";
+import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { ThreadView } from "./ThreadView";
 import {
   bindLeadingSkillInvocation,
@@ -212,6 +213,54 @@ describe("ThreadSlashCommands", () => {
       configurable: true,
       value: scrollIntoView,
     });
+  });
+
+  it("renders slash commands with mention popover styling without changing the dock styling", () => {
+    const command = {
+      id: "review",
+      label: "review — Review the diff",
+      description: "Review the diff",
+      argumentHint: "[focus]",
+    };
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <AppProvider>
+        <ThreadCommandPanel
+          commands={[command]}
+          activeIndex={0}
+          onSelect={onSelect}
+          onActiveIndexChange={() => {}}
+          listId="slash-popover"
+          appearance="popover"
+          maxHeight={240}
+        />
+      </AppProvider>,
+    );
+
+    const popoverOption = screen.getByRole("option");
+    expect(popoverOption).toHaveClass(
+      "poracode-mention-popover__item",
+      "poracode-mention-popover__item--active",
+    );
+    expect(screen.getByRole("listbox")).toHaveClass("poracode-mention-popover__list");
+    expect(screen.getByRole("listbox")).toHaveStyle({ maxHeight: "240px" });
+    expect(screen.getByText("[focus]")).toHaveClass("poracode-mention-popover__detail");
+    fireEvent.mouseDown(popoverOption);
+    expect(onSelect).toHaveBeenCalledWith(command);
+
+    rerender(
+      <AppProvider>
+        <ThreadCommandPanel
+          commands={[command]}
+          activeIndex={0}
+          onSelect={onSelect}
+          onActiveIndexChange={() => {}}
+          listId="slash-dock"
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("[focus]")).not.toHaveClass("poracode-mention-popover__detail");
   });
 
   it("renders thread-scoped ACP slash commands in the composer panel", async () => {
