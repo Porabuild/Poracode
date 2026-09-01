@@ -101,7 +101,7 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                     <span
                       className={
                         isPopover
-                          ? "poracode-mention-popover__label shrink-0 gap-1 font-bold"
+                          ? "poracode-mention-popover__label min-w-0 gap-1 truncate font-bold"
                           : "flex shrink-0 items-center gap-1 font-bold text-foreground"
                       }
                     >
@@ -113,17 +113,35 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                       {displayId}
                     </span>
                     {cmd.description && (
-                      <span className="poracode-mention-popover__detail min-w-0 flex-1 truncate font-normal text-[color:var(--muted)]">
+                      <span
+                        className={
+                          isPopover
+                            ? "poracode-mention-popover__detail min-w-0 flex-1 truncate font-normal text-[color:var(--muted)]"
+                            : "min-w-0 flex-1 truncate font-normal text-[color:var(--muted)]"
+                        }
+                      >
                         {cmd.description}
                       </span>
                     )}
                     {cmd.section === "skills" && cmd.skillProvider ? (
-                      <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-muted/60">
+                      <span
+                        className={
+                          isPopover
+                            ? "poracode-mention-popover__detail ml-auto shrink-0 text-xs text-muted/60"
+                            : "shrink-0 text-xs text-muted/60"
+                        }
+                      >
                         {cmd.skillProvider} ·{" "}
                         {cmd.skillScope === "project" ? t`Project` : t`Global`}
                       </span>
                     ) : cmd.argumentHint ? (
-                      <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-muted/60">
+                      <span
+                        className={
+                          isPopover
+                            ? "poracode-mention-popover__detail ml-auto shrink-0 text-xs text-muted/60"
+                            : "shrink-0 text-muted/60"
+                        }
+                      >
                         {cmd.argumentHint}
                       </span>
                     ) : null}

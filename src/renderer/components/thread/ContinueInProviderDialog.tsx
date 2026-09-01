@@ -498,7 +498,7 @@ export function ContinueInProviderDialog(props: {
       const spaceAbove = rect.top - 8;
       const spaceBelow = window.innerHeight - rect.bottom - 8;
       const above = spaceAbove >= 160 || spaceAbove >= spaceBelow;
-      const width = Math.min(480, rect.width, window.innerWidth - 16);
+      const width = Math.min(480, window.innerWidth - 16);
       const next: CommandPanelPosition = {
         left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
         top: above ? rect.top - 6 : rect.bottom + 6,
