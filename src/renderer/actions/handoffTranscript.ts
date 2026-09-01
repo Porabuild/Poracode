@@ -1,8 +1,10 @@
-import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type { ExtractContextResult, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import { textFromRuntimeContentBlocks } from "./experimentResponseTranscript";
+import {
+  assistantTranscriptContent,
+  textFromRuntimeContentBlocks,
+} from "./experimentResponseTranscript";
 
 const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
 
@@ -40,7 +42,7 @@ function formatRuntimeItemForHandoff(item: RuntimeChatItem, maxChars: number): s
       const prefix = "Assistant:\n";
       // Display truth only: a hook-suppressed or rewritten message hands off
       // exactly what the user saw, never the replaced stream.
-      const text = assistantDisplayText(item);
+      const text = assistantTranscriptContent(item, Math.max(0, maxChars - prefix.length));
       return text ? joinTailWithinBudget([prefix, text], maxChars) : null;
     }
     case "plan": {

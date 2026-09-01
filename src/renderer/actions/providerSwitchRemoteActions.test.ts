@@ -286,4 +286,38 @@ describe("continueRemoteThreadInNewThread", () => {
     expect(result?.summary).toContain("[earlier transcript truncated]");
     expect(result?.summary).toContain("x".repeat(1_000));
   });
+
+  it("keeps visible assistant attachments while omitting suppressed display text", () => {
+    const source = seedSource();
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [source.id]: ["assistant"] },
+      runtimeItemsByIdByThread: {
+        [source.id]: {
+          assistant: {
+            id: "assistant",
+            type: "assistant_message",
+            state: "completed",
+            payload: {
+              content: [
+                { kind: "text", text: "" },
+                {
+                  kind: "image",
+                  mimeType: "image/png",
+                  dataUrl: "data:image/png;base64,eA==",
+                  name: "kept.png",
+                },
+              ],
+              displayAuthoritative: true,
+            },
+            streams: { assistant_text: "Suppressed secret" },
+          },
+        },
+      },
+    } as never);
+
+    const result = buildTranscriptContext(source, "Claude");
+
+    expect(result?.summary).toContain("Assistant:\n[image: kept.png]");
+    expect(result?.summary).not.toContain("Suppressed secret");
+  });
 });

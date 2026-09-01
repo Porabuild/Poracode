@@ -70,6 +70,20 @@ export interface SubagentRunManagerDeps {
   getStatusCapabilities?: (kind: AgentKind) => AgentCapability | null | undefined;
 }
 
+interface OutputSegment {
+  itemId: string;
+  text: string;
+  override?: string;
+  cursorRanges: Array<{ start: number; end: number }>;
+}
+
+interface CursorOutputEdit {
+  key: string;
+  start: number;
+  end: number;
+  replacement: string;
+}
+
 interface RunRecord extends AttemptExecutionState {
   runId: string;
   createdAt: number;
@@ -88,13 +102,15 @@ interface RunRecord extends AttemptExecutionState {
   cursorOutput: string;
   /**
    * Per-item spans of `output`, in arrival order, so an authoritative
-   * item.updated payload (a Claude display hook rewriting or suppressing
-   * already-streamed text) can replace exactly its item's contribution.
+   * item.updated payload rewriting or suppressing already-streamed text can
+   * replace exactly its item's contribution.
    * `cursorOutput` is deliberately not rebuilt: callers hold character
    * offsets into it, so it stays an append-only live tail — the same rule
    * the chat applies (stream while live, authoritative payload once final).
    */
-  outputSegments: Array<{ itemId: string; text: string; override?: string }>;
+  outputSegments: OutputSegment[];
+  /** Authoritative replacements indexed against append-only `cursorOutput`. */
+  cursorOutputEdits: CursorOutputEdit[];
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
   /**
@@ -224,6 +240,7 @@ export class SubagentRunManager {
       output: "",
       cursorOutput: "",
       outputSegments: [],
+      cursorOutputEdits: [],
       stepCount: 0,
       handle: undefined,
       oneShot: undefined,
@@ -402,17 +419,32 @@ export class SubagentRunManager {
   private waitResult(record: RunRecord, options?: SubagentWaitOptions): SubagentWaitResult {
     const fullOutput = options?.fullOutput === true;
     const incremental = !fullOutput && options?.afterOutputChars !== undefined;
-    const source =
-      incremental || (fullOutput && options?.currentAttemptOnly !== true)
-        ? record.cursorOutput
-        : record.output;
+    const cursorOffset = options?.afterOutputChars ?? 0;
+    const displayOutput = [
+      ...record.attemptResults
+        .filter((attempt) => attempt.attempt !== record.attemptIndex + 1)
+        .map((attempt) => attempt.output),
+      record.output,
+    ].join("");
+    // Non-zero cursors index the append-only live stream a caller has already
+    // observed. Reads from the beginning and full reads use the final display
+    // projection so replaced or suppressed text is not exposed again.
+    const useCursorOutput = incremental && cursorOffset !== 0;
+    const source = fullOutput
+      ? options?.currentAttemptOnly === true
+        ? record.output
+        : displayOutput
+      : useCursorOutput
+        ? this.cursorOutputAfter(record, cursorOffset)
+        : incremental
+          ? displayOutput
+          : record.output;
     const total = record.cursorOutput.length;
-    const offset = incremental ? Math.min(Math.max(0, options.afterOutputChars!), total) : 0;
-    const delta = source.slice(offset);
+    const delta = source;
     const tailCap =
       record.status === "running" ? MAX_RUNNING_OUTPUT_TAIL_CHARS : MAX_SETTLED_OUTPUT_TAIL_CHARS;
     const output = fullOutput ? delta : clipOutputTail(delta, tailCap);
-    const isCompleteTranscript = fullOutput || (offset === 0 && delta.length <= tailCap);
+    const isCompleteTranscript = fullOutput || (!useCursorOutput && delta.length <= tailCap);
     return {
       status: record.status,
       output,
@@ -429,6 +461,26 @@ export class SubagentRunManager {
           }
         : {}),
     };
+  }
+
+  private cursorOutputAfter(record: RunRecord, requestedOffset: number): string {
+    const offset = Math.min(Math.max(0, requestedOffset), record.cursorOutput.length);
+    const parts: string[] = [];
+    const emitted = new Set<string>();
+    let position = offset;
+    for (const edit of [...record.cursorOutputEdits].sort(
+      (left, right) => left.start - right.start,
+    )) {
+      if (edit.end <= position) continue;
+      if (edit.start > position) parts.push(record.cursorOutput.slice(position, edit.start));
+      if (!emitted.has(edit.key)) {
+        parts.push(edit.replacement);
+        emitted.add(edit.key);
+      }
+      position = Math.max(position, edit.end);
+    }
+    parts.push(record.cursorOutput.slice(position));
+    return parts.join("");
   }
 
   private requireParent(parentThreadId: string): {
@@ -495,20 +547,38 @@ export class SubagentRunManager {
   }
 
   /**
-   * A Claude display hook delivers its rewrite as an authoritative
-   * item.updated payload after the text already streamed into `output`.
+   * A final-display hook delivers its rewrite as an authoritative item.updated
+   * payload after the text already streamed into `output`.
    * Replace that item's span so waitResult/settle report the final text (or
    * drop suppressed text) instead of the superseded stream.
    */
   private applyAuthoritativeOutput(
     record: RunRecord,
+    attemptIndex: number,
     event: Extract<RuntimeEvent, { type: "item.updated" }>,
   ): void {
     const authoritative = authoritativeAssistantText(event.payload);
     if (authoritative === null) return;
     const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-    if (segment) segment.override = authoritative;
-    else record.outputSegments.push({ itemId: event.itemId, text: "", override: authoritative });
+    if (segment) {
+      segment.override = authoritative;
+      const key = `${attemptIndex}:${event.itemId}`;
+      record.cursorOutputEdits = record.cursorOutputEdits.filter((edit) => edit.key !== key);
+      record.cursorOutputEdits.push(
+        ...segment.cursorRanges.map((range) => ({
+          key,
+          ...range,
+          replacement: authoritative,
+        })),
+      );
+    } else {
+      record.outputSegments.push({
+        itemId: event.itemId,
+        text: "",
+        override: authoritative,
+        cursorRanges: [],
+      });
+    }
     record.output = record.outputSegments.map((s) => s.override ?? s.text).join("");
   }
 
@@ -529,11 +599,27 @@ export class SubagentRunManager {
     switch (event.type) {
       case "content.delta":
         if (event.stream === "assistant_text") {
+          const cursorStart = record.cursorOutput.length;
           record.output += event.delta;
           record.cursorOutput += event.delta;
           const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-          if (segment) segment.text += event.delta;
-          else record.outputSegments.push({ itemId: event.itemId, text: event.delta });
+          if (segment) {
+            segment.text += event.delta;
+            const lastRange = segment.cursorRanges.at(-1);
+            if (lastRange?.end === cursorStart) lastRange.end += event.delta.length;
+            else {
+              segment.cursorRanges.push({
+                start: cursorStart,
+                end: cursorStart + event.delta.length,
+              });
+            }
+          } else {
+            record.outputSegments.push({
+              itemId: event.itemId,
+              text: event.delta,
+              cursorRanges: [{ start: cursorStart, end: cursorStart + event.delta.length }],
+            });
+          }
         }
         this.deps.host.appendRuntimeEvent(
           record.parentThreadId,
@@ -560,7 +646,7 @@ export class SubagentRunManager {
         }
         return;
       case "item.updated": {
-        this.applyAuthoritativeOutput(record, event);
+        this.applyAuthoritativeOutput(record, attemptIndex, event);
         const forwarded = this.retag(record, attemptIndex, event) as Extract<
           RuntimeEvent,
           { type: "item.updated" }

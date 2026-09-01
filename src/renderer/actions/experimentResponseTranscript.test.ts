@@ -80,4 +80,49 @@ describe("buildExperimentResponseTranscript", () => {
       "Assistant:\nRewritten for display\n\nAssistant:\nPartial but complete stream",
     );
   });
+
+  it("preserves visible assistant attachments alongside authoritative text", () => {
+    const items: PersistedRuntimeItem[] = [
+      {
+        id: "mixed",
+        type: "assistant_message",
+        state: "completed",
+        payload: {
+          content: [
+            { kind: "text", text: "Rewritten for display" },
+            {
+              kind: "image",
+              mimeType: "image/png",
+              dataUrl: "data:image/png;base64,eA==",
+              name: "result.png",
+            },
+          ],
+          displayAuthoritative: true,
+        },
+        streams: { assistant_text: "Original streamed text" },
+      },
+      {
+        id: "image-only",
+        type: "assistant_message",
+        state: "completed",
+        payload: {
+          content: [
+            { kind: "text", text: "" },
+            {
+              kind: "image",
+              mimeType: "image/png",
+              dataUrl: "data:image/png;base64,eA==",
+              name: "kept.png",
+            },
+          ],
+          displayAuthoritative: true,
+        },
+        streams: { assistant_text: "Suppressed secret" },
+      },
+    ];
+
+    expect(buildExperimentResponseTranscript(items)).toBe(
+      "Assistant:\nRewritten for display\n[image: result.png]\n\nAssistant:\n[image: kept.png]",
+    );
+  });
 });

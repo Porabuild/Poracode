@@ -31,8 +31,8 @@ interface AssistantTextPayload {
 /**
  * Loose read of a message payload's text blocks; null when it has none. A
  * payload without text blocks can never be authoritative — a producer
- * signalling suppression must emit an explicit empty text block (the Claude
- * mapper always does); otherwise readers fall back to the stream.
+ * signalling suppression must emit an explicit empty text block; otherwise
+ * readers fall back to the stream.
  */
 function readAssistantTextPayload(payload: unknown): AssistantTextPayload | null {
   if (!payload || typeof payload !== "object") return null;

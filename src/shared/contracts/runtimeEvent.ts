@@ -108,8 +108,8 @@ export const messageItemPayloadSchema = z.object({
   // Marks `content` as the display source of truth for a completed message,
   // overriding any accumulated `assistant_text` stream — set only by provider
   // mappers whose final payload can legitimately differ from what streamed
-  // (Claude MessageDisplay hooks rewrite the final snapshot, including to
-  // empty text that suppresses output). Versioning: optional on purpose —
+  // (a final-display hook may rewrite the snapshot, including to empty text
+  // that suppresses output). Versioning: optional on purpose —
   // items persisted before this field existed and stream-first providers have
   // no flag, and every reader falls back to the stream for them, which is the
   // pre-flag behaviour. Old data stays valid, so no version bump or migration.

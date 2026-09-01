@@ -18,6 +18,7 @@ import {
   SubagentRunManager,
   SubagentSpawnError,
 } from "./SubagentRunManager";
+import { parseWaitOptions } from "./toolResult";
 import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
 
 const PARENT = "parent";
@@ -396,14 +397,16 @@ describe("SubagentRunManager", () => {
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
     await flush();
     const handle = h.handles[0]!;
+    const original = "Draft: the wrong way";
     handle.emit({
       type: "content.delta",
       threadId: "child",
       itemId: "m1",
       stream: "assistant_text",
-      delta: "Draft: the wrong way",
+      delta: original,
     });
     // A Claude display hook rewrites the completed message after it streamed.
+    const second = " Second message.";
     handle.emit({
       type: "item.updated",
       threadId: "child",
@@ -418,14 +421,24 @@ describe("SubagentRunManager", () => {
       threadId: "child",
       itemId: "m2",
       stream: "assistant_text",
-      delta: " Second message.",
+      delta: second,
     });
     handle.completeTurn("completed");
 
-    const result = await h.manager.waitFor(runId, 1000);
+    const result = await h.manager.waitFor(runId, 1000, undefined, parseWaitOptions({}));
     expect(result).toEqual({
       status: "completed",
       output: "Implemented feature X. Second message.",
+      total_output_chars: original.length + second.length,
+    });
+    expect(h.manager.getStatus(runId, undefined, parseWaitOptions({ full_output: true }))).toEqual({
+      status: "completed",
+      output: "Implemented feature X. Second message.",
+    });
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 5 })).toEqual({
+      status: "completed",
+      output: "Implemented feature X. Second message.",
+      total_output_chars: original.length + second.length,
     });
   });
 
@@ -434,12 +447,13 @@ describe("SubagentRunManager", () => {
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
     await flush();
     const handle = h.handles[0]!;
+    const suppressed = "Secret scratchpad note";
     handle.emit({
       type: "content.delta",
       threadId: "child",
       itemId: "m1",
       stream: "assistant_text",
-      delta: "Secret scratchpad note",
+      delta: suppressed,
     });
     handle.emit({
       type: "item.updated",
@@ -456,8 +470,26 @@ describe("SubagentRunManager", () => {
     });
     handle.completeTurn("completed");
 
-    const result = await h.manager.waitFor(runId, 1000);
-    expect(result).toEqual({ status: "completed", output: "Final answer." });
+    const result = await h.manager.waitFor(runId, 1000, undefined, parseWaitOptions({}));
+    expect(result).toEqual({
+      status: "completed",
+      output: "Final answer.",
+      total_output_chars: suppressed.length + "Final answer.".length,
+    });
+    expect(h.manager.getStatus(runId, undefined, parseWaitOptions({ full_output: true }))).toEqual({
+      status: "completed",
+      output: "Final answer.",
+    });
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 5 })).toEqual({
+      status: "completed",
+      output: "Final answer.",
+      total_output_chars: suppressed.length + "Final answer.".length,
+    });
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: suppressed.length })).toEqual({
+      status: "completed",
+      output: "Final answer.",
+      total_output_chars: suppressed.length + "Final answer.".length,
+    });
   });
 
   it("returns cursor-based output without consuming retries", async () => {
@@ -880,6 +912,12 @@ describe("SubagentRunManager", () => {
     });
     const first = h.manager.getStatus(runId, undefined, { afterOutputChars: 0 });
     expect(first.total_output_chars).toBe(13);
+    h.handles[0]!.emit({
+      type: "item.updated",
+      threadId: "child",
+      itemId: "m",
+      payload: { content: [{ kind: "text", text: "" }], displayAuthoritative: true },
+    });
 
     h.handles[0]!.completeTurn("failed");
     await flush();
@@ -893,6 +931,11 @@ describe("SubagentRunManager", () => {
     });
 
     expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 13 })).toMatchObject({
+      status: "running",
+      output: "retry",
+      total_output_chars: 18,
+    });
+    expect(h.manager.getStatus(runId, undefined, { afterOutputChars: 5 })).toMatchObject({
       status: "running",
       output: "retry",
       total_output_chars: 18,
