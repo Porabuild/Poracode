@@ -123,6 +123,9 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
   },
+  qoder: {
+    supportsBrowserLogin: true,
+  },
 };
 
 const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = USAGE_PROVIDER_DESCRIPTORS.map(

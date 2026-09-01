@@ -7,6 +7,7 @@ import { collectFactory } from "./collectors/factory";
 import { collectGemini } from "./collectors/gemini";
 import { collectGrok } from "./collectors/grok";
 import { collectKimi } from "./collectors/kimi";
+import { collectQoder } from "./collectors/qoder";
 import { collectQwen } from "./collectors/qwen";
 import { collectZai } from "./collectors/zai";
 import type { CollectOptions, HostPort } from "./host";
@@ -78,6 +79,11 @@ const QWEN_COLLECTOR: UsageCollector = {
   collect: collectQwen,
 };
 
+const QODER_COLLECTOR: UsageCollector = {
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.qoder,
+  collect: collectQoder,
+};
+
 // Antigravity is collected supervisor-side from its local language server
 // (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
 
@@ -93,6 +99,7 @@ const BUILT_IN: UsageCollector[] = [
   ZAI_COLLECTOR,
   KIMI_COLLECTOR,
   QWEN_COLLECTOR,
+  QODER_COLLECTOR,
 ];
 
 export interface UsageCollectorRegistry {

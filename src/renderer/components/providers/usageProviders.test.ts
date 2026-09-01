@@ -52,8 +52,10 @@ describe("usageProviders", () => {
     expect(supportsApiKeyLogin("zai")).toBe(true);
     expect(supportsApiKeyLogin("kimi")).toBe(true);
     expect(supportsApiKeyLogin("qwen")).toBe(true);
+    expect(supportsApiKeyLogin("qoder")).toBe(true);
     expect(supportsApiKeyLogin("grok")).toBe(false);
     expect(supportsBrowserLogin("qwen")).toBe(true);
+    expect(supportsBrowserLogin("qoder")).toBe(true);
   });
 
   it("identifies providers whose empty local snapshot still needs browser usage auth", () => {
@@ -159,6 +161,14 @@ describe("usageProviders", () => {
     const rings = pickUsageRings("qwen", windows);
     expect(rings.outer?.id).toBe("session-5h");
     expect(rings.inner?.id).toBe("weekly");
+  });
+
+  it("rings Qoder with the monthly credits window", () => {
+    const windows: UsageWindow[] = [
+      { id: "monthly", label: "Credits", usedPercent: 45, unit: "credits" },
+    ];
+    const rings = pickUsageRings("qoder", windows);
+    expect(rings.outer?.id).toBe("monthly");
   });
 
   describe("Antigravity ring groups", () => {

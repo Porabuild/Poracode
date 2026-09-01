@@ -3,6 +3,7 @@ import {
   allUsageProviderDescriptors,
 } from "@poracode/agents-usage";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
+import { isQoderLoginCookieLive } from "./qoderLoginProbe";
 
 /**
  * The per-provider browser-login configuration table, split out of
@@ -130,6 +131,17 @@ export const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     cookieUrl: "https://modelstudio.console.alibabacloud.com/",
     authCookiePattern: /^login_(?:aliyunid_ticket|aliyunid_pk|current_pk|aliyunid)$/i,
     validateSession: async (cookieHeader) => isAlibabaConsoleSessionCandidate(cookieHeader),
+  },
+  qoder: {
+    kind: "cookie",
+    loginUrl: "https://qoder.com/",
+    cookieUrl: "https://qoder.com/",
+    // qoder.com sets non-auth cookies on every page load (qoder_locale, anti-bot
+    // tokens) whose names match these fragments, and the real session cookie's
+    // name is not pinned — so a name match alone must not report a signed-in
+    // session; confirm the header actually authenticates first (opencode's lesson).
+    authCookiePattern: /(?:qoder|session|token|auth)/i,
+    validateSession: isQoderLoginCookieLive,
   },
 };
 

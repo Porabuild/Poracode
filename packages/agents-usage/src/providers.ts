@@ -82,6 +82,14 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     apiKeyFallback: true,
     windowIds: ["session-5h", "weekly", "monthly"],
   },
+  qoder: {
+    id: "qoder",
+    label: "Qoder",
+    mechanism: "cookie",
+    needsLogin: true,
+    apiKeyFallback: true,
+    windowIds: ["monthly"],
+  },
 } satisfies Record<string, UsageProviderDescriptor>;
 
 /** Descriptors for the built-in HTTP collectors, in registration order. */

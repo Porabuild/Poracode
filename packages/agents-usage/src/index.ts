@@ -134,6 +134,15 @@ export {
 } from "./collectors/qwen";
 export type { AlibabaCodingPlanRegion } from "./collectors/qwen";
 export {
+  collectQoder,
+  isQoderSessionLive,
+  parseQoderUsage,
+  resolveQoderUsagesUrl,
+  QODER_PROVIDER_ID,
+  QODER_USAGES_ENDPOINT,
+} from "./collectors/qoder";
+export type { QoderUsagesResponse } from "./collectors/qoder";
+export {
   antigravityPool,
   antigravityPoolWindows,
   antigravityQuotaSummaryWindows,
