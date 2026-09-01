@@ -21,6 +21,10 @@ describe("runtimeEventSchema discriminated union", () => {
   it("keeps pre-thread message blocks valid and accepts thread blocks", () => {
     const oldShape = { content: [{ kind: "mcp", name: "Browser" }] };
     expect(messageItemPayloadSchema.parse(roundTrip(oldShape))).toEqual(oldShape);
+    // Pre-flag payloads (no `displayAuthoritative`) and flagged ones both
+    // round-trip; readers treat a missing flag as stream-first.
+    const flagged = { content: [{ kind: "text", text: "" }], displayAuthoritative: true };
+    expect(messageItemPayloadSchema.parse(roundTrip(flagged))).toEqual(flagged);
     expect(promptSegmentSchema.parse({ kind: "mcp", id: "browser", name: "Browser" })).toEqual({
       kind: "mcp",
       id: "browser",

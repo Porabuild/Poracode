@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type {
   AgentKind,
   Project,
@@ -735,7 +736,15 @@ function waitSnapshot(
 }
 
 /** Best-effort plain-text projection of a persisted runtime item's streams. */
-function itemText(item: { payload?: unknown; streams: Record<string, string> }): string {
+function itemText(item: {
+  type: string;
+  state: "started" | "updated" | "completed";
+  payload?: unknown;
+  streams: Record<string, string>;
+}): string {
+  // Assistant messages go through the shared display-truth helper so text a
+  // display hook rewrote or suppressed reads the same here as on screen.
+  if (item.type === "assistant_message") return assistantDisplayText(item).trim();
   const streamed = Object.values(item.streams).join("").trim();
   if (streamed) return streamed;
   const payload = messageItemPayloadSchema.safeParse(item.payload);

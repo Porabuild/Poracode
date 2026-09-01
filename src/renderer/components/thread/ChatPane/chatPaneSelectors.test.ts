@@ -202,10 +202,12 @@ describe("chatPaneSelectors", () => {
           "empty",
           "whitespace",
           "payload-whitespace",
+          "payload-empty-with-stream",
           "streaming",
           "stream-text",
           "payload-text",
           "payload-image",
+          "unflagged-whitespace-payload-with-stream",
         ],
       },
       runtimeItemsByIdByThread: {
@@ -229,6 +231,13 @@ describe("chatPaneSelectors", () => {
             state: "completed",
             payload: { content: [{ kind: "text", text: "\n" }] },
             streams: {},
+          },
+          "payload-empty-with-stream": {
+            id: "payload-empty-with-stream",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "" }], displayAuthoritative: true },
+            streams: { assistant_text: "suppressed original" },
           },
           streaming: {
             id: "streaming",
@@ -260,6 +269,15 @@ describe("chatPaneSelectors", () => {
             },
             streams: {},
           },
+          // Without the authoritative flag a whitespace-only payload must not
+          // hide real streamed text (stream-first providers).
+          "unflagged-whitespace-payload-with-stream": {
+            id: "unflagged-whitespace-payload-with-stream",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "\n\n" }] },
+            streams: { assistant_text: "real streamed answer" },
+          },
         },
       },
     } as unknown as AppStoreState;
@@ -269,6 +287,7 @@ describe("chatPaneSelectors", () => {
       "stream-text",
       "payload-text",
       "payload-image",
+      "unflagged-whitespace-payload-with-stream",
     ]);
   });
 

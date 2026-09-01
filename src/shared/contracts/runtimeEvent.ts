@@ -105,6 +105,15 @@ export type CanonicalContentBlock = z.infer<typeof canonicalContentBlockSchema>;
 
 export const messageItemPayloadSchema = z.object({
   content: z.array(canonicalContentBlockSchema),
+  // Marks `content` as the display source of truth for a completed message,
+  // overriding any accumulated `assistant_text` stream — set only by provider
+  // mappers whose final payload can legitimately differ from what streamed
+  // (Claude MessageDisplay hooks rewrite the final snapshot, including to
+  // empty text that suppresses output). Versioning: optional on purpose —
+  // items persisted before this field existed and stream-first providers have
+  // no flag, and every reader falls back to the stream for them, which is the
+  // pre-flag behaviour. Old data stays valid, so no version bump or migration.
+  displayAuthoritative: z.boolean().optional(),
 });
 export type MessageItemPayload = z.infer<typeof messageItemPayloadSchema>;
 

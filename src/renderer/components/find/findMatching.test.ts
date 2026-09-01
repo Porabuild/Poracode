@@ -47,6 +47,30 @@ describe("getChatItemSearchText", () => {
     expect(getChatItemSearchText(user("u", "a prompt"))).toBe("a prompt");
   });
 
+  it("searches the displayed text, not a stream a display hook replaced", () => {
+    const rewritten: RuntimeChatItem = {
+      id: "a",
+      type: "assistant_message",
+      state: "completed",
+      payload: {
+        content: [{ kind: "text", text: "Rewritten for display" }],
+        displayAuthoritative: true,
+      },
+      streams: { assistant_text: "Original streamed text" },
+    };
+    expect(getChatItemSearchText(rewritten)).toBe("Rewritten for display");
+
+    const interrupted: RuntimeChatItem = {
+      id: "b",
+      type: "assistant_message",
+      state: "completed",
+      // No authoritative flag: the visible stream stays searchable.
+      payload: { content: [{ kind: "text", text: "Partial" }] },
+      streams: { assistant_text: "Partial but complete stream" },
+    };
+    expect(getChatItemSearchText(interrupted)).toBe("Partial but complete stream");
+  });
+
   it("makes an MCP mention badge findable by its @name directive", () => {
     const item: RuntimeChatItem = {
       id: "u",

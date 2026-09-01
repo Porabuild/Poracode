@@ -6,6 +6,13 @@ export interface TextItemState {
   itemId: string;
   emittedText: boolean;
   fallbackText: string;
+  /**
+   * Every assistant_text delta emitted for this item, concatenated — the same
+   * text the renderer's stream holds. The final assistant snapshot is compared
+   * against this so an untransformed message (no MessageDisplay hook) emits no
+   * redundant `item.updated`.
+   */
+  streamedText: string;
   completed: boolean;
   messageId?: string;
 }

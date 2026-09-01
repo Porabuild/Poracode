@@ -391,6 +391,75 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("replaces an item's streamed output with its authoritative display payload", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m1",
+      stream: "assistant_text",
+      delta: "Draft: the wrong way",
+    });
+    // A Claude display hook rewrites the completed message after it streamed.
+    handle.emit({
+      type: "item.updated",
+      threadId: "child",
+      itemId: "m1",
+      payload: {
+        content: [{ kind: "text", text: "Implemented feature X." }],
+        displayAuthoritative: true,
+      },
+    });
+    handle.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m2",
+      stream: "assistant_text",
+      delta: " Second message.",
+    });
+    handle.completeTurn("completed");
+
+    const result = await h.manager.waitFor(runId, 1000);
+    expect(result).toEqual({
+      status: "completed",
+      output: "Implemented feature X. Second message.",
+    });
+  });
+
+  it("drops hook-suppressed output from the settled result", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m1",
+      stream: "assistant_text",
+      delta: "Secret scratchpad note",
+    });
+    handle.emit({
+      type: "item.updated",
+      threadId: "child",
+      itemId: "m1",
+      payload: { content: [{ kind: "text", text: "" }], displayAuthoritative: true },
+    });
+    handle.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m2",
+      stream: "assistant_text",
+      delta: "Final answer.",
+    });
+    handle.completeTurn("completed");
+
+    const result = await h.manager.waitFor(runId, 1000);
+    expect(result).toEqual({ status: "completed", output: "Final answer." });
+  });
+
   it("returns cursor-based output without consuming retries", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
