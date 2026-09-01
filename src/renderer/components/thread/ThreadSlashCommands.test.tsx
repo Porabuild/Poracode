@@ -222,7 +222,7 @@ describe("ThreadSlashCommands", () => {
       description: "Review the diff",
       argumentHint: "[focus]",
     };
-    const onSelect = vi.fn();
+    const onSelect = vi.fn<(selected: typeof command) => void>();
     const { rerender } = render(
       <AppProvider>
         <ThreadCommandPanel
