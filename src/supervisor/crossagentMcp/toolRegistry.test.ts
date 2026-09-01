@@ -1178,3 +1178,59 @@ describe("subagent tool registration", () => {
     });
   });
 });
+
+describe("union-free schema runtime enforcement", () => {
+  function trackingManager() {
+    let calls = 0;
+    const bump = () => {
+      calls += 1;
+    };
+    const manager = {
+      spawn: () => {
+        bump();
+        return { runId: "run-1" };
+      },
+      spawnMany: () => {
+        bump();
+        return [{ runId: "run-1" }];
+      },
+      waitFor: async () => {
+        bump();
+        return { status: "completed", output: "" };
+      },
+      waitForMany: async () => {
+        bump();
+        return [];
+      },
+    } as unknown as SubagentRunManager;
+    return { manager, count: () => calls };
+  }
+
+  it("rejects spawn_agent calls that pass both prompt and tasks", async () => {
+    const { ctx } = makeToolContext();
+    const { manager, count } = trackingManager();
+    ctx.runManager = manager;
+    const result = await dispatchTool(
+      "spawn_agent",
+      { provider: "codex", prompt: "solo", tasks: [{ prompt: "batched" }] },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("not both");
+    expect(count()).toBe(0);
+  });
+
+  it("rejects wait_for_agent calls that pass both run_id and run_ids", async () => {
+    const { ctx } = makeToolContext();
+    const { manager, count } = trackingManager();
+    ctx.runManager = manager;
+    const result = await dispatchTool(
+      "wait_for_agent",
+      { run_id: "run-1", run_ids: ["run-2"] },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("not both");
+    expect(count()).toBe(0);
+  });
+});
