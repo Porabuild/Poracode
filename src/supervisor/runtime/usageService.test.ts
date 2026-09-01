@@ -144,6 +144,7 @@ describe("UsageService", () => {
       "grok",
       "kimi",
       "opencode",
+      "qoder",
       "qwen",
       "zai",
     ]);

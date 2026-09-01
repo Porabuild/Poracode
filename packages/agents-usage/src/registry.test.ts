@@ -20,6 +20,7 @@ describe("createUsageCollectorRegistry", () => {
       "gemini",
       "grok",
       "kimi",
+      "qoder",
       "qwen",
       "zai",
     ]);
