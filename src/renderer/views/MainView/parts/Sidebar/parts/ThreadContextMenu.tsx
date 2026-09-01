@@ -23,6 +23,8 @@ import type { Project, Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
+import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { readBridge } from "@/renderer/bridge";
@@ -32,8 +34,8 @@ import { gitMenuIcons } from "@/renderer/views/MainView/parts/Sidebar/parts/gitM
 import {
   useCurrentThreadIdsCount,
   useIsCurrentThread,
-  useProjectAgentStatuses,
   useRunningProjectActionIds,
+  useThreadAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
@@ -82,7 +84,16 @@ export function ThreadContextMenu(props: {
   const isExperimentCandidate = experiment !== undefined;
   const isCurrentThread = useIsCurrentThread(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
-  const projectAgents = useProjectAgentStatuses(project.location);
+  // The continue-in gate reads the pane's own population — the local installed
+  // list, or the host's installed statuses for a mirrored thread (see
+  // `useThreadAgentStatuses`). An enabled entry here must always be able to
+  // act once its pane mounts.
+  const installedAgents = useThreadAgentStatuses({
+    remoteServerId: thread.remoteServerId,
+    projectLocation: project.location,
+  });
+  const hasOtherInstalledAgents =
+    installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0;
   const worktreeGitItems = useWorktreeGitItems(
     thread.projectId,
     thread.worktreePath ?? "",
@@ -97,6 +108,15 @@ export function ThreadContextMenu(props: {
   // Home has no project menu even in the grouped layout (its sidebar section
   // is a plain header), so flat Home threads don't get project actions either.
   const showProjectActions = props.showProjectActions === true && !isHomeProject(project);
+  const workspaceMenuItem = useWorkspaceMenuItems(thread.workspaceId);
+  // Home threads are workspace-scoped individually (real-project threads follow
+  // their project), so only they get a per-thread move; remote mirrors don't —
+  // the host owns their metadata.
+  const showMoveToWorkspace =
+    isHomeProject(project) &&
+    workspaceMenuItem !== undefined &&
+    !thread.remoteServerId &&
+    !isExperimentCandidate;
   const runningActionIds = useRunningProjectActionIds(project.id, thread.worktreePath);
   const runActionItems: ContextMenuItem[] = [];
   for (const action of project.scripts?.actions ?? []) {
@@ -240,22 +260,21 @@ export function ThreadContextMenu(props: {
           label: thread.starred ? t`Unpin` : t`Pin to top`,
           icon: <Star className="size-3.5" />,
         },
+        ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
         ...(!isExperimentCandidate
           ? [
               {
                 id: "continue-in",
                 label: t`Continue in...`,
                 icon: <ArrowRightLeft className="size-3.5" />,
-                isDisabled:
-                  !thread.sessionRef ||
-                  projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0,
-                ...(!thread.sessionRef ||
-                projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0
-                  ? {
-                      disabledReason: !thread.sessionRef
-                        ? t`No active session`
-                        : t`No other agents installed`,
-                    }
+                // No session-ref gate (matching the thread header): without one
+                // the handoff falls back to the stored transcript, which is
+                // precisely when continuing elsewhere is most useful. Remote
+                // threads take the same flow — the switch/fork launches on
+                // their host.
+                isDisabled: !hasOtherInstalledAgents,
+                ...(!hasOtherInstalledAgents
+                  ? { disabledReason: t`No other agents installed` }
                   : {}),
               },
             ]
@@ -388,6 +407,9 @@ export function ThreadContextMenu(props: {
         if (key.startsWith("stop-action:")) {
           stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
         }
+        applyWorkspaceMenuChoice(key, (workspaceId) =>
+          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId),
+        );
       }}
     >
       {props.children}

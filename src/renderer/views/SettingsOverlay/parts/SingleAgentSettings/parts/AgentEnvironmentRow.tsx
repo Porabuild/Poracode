@@ -55,9 +55,29 @@ export function AgentInstallEnvironmentRow(props: {
   );
 }
 
+/**
+ * A provider whose tile hosts several independently installed runtimes
+ * (Antigravity's `agy` CLI plus its ACP chat artifact) reports all of them
+ * through one environment row: one version chip, one install action for
+ * whichever runtime is missing, one update action for whichever is stale.
+ * Composed by the caller so the row stays presentational.
+ */
+export interface AgentEnvironmentRuntimes {
+  /** Replaces the single-version chip, e.g. `CLI v1.1.22 · ACP not installed`. */
+  summary: string;
+  install?: { label: string; isPending: boolean; onInstall: () => void };
+  /**
+   * One action reconciling every stale runtime. `label` names a target version
+   * ("Update to v0.3.2") when a single runtime is behind; omit it when several
+   * are, so the button does not claim one runtime's version for all of them.
+   */
+  update?: { label?: string; isPending: boolean; onUpdate: () => void };
+}
+
 export function AgentEnvironmentRow(props: {
   agentLabel: string;
   status: AgentStatus;
+  runtimes?: AgentEnvironmentRuntimes | undefined;
   authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
   canLogout: boolean;
   authPending: boolean;
@@ -132,21 +152,40 @@ export function AgentEnvironmentRow(props: {
       ? props.newestInstalledVersion
       : undefined;
   const targetVersion = registryTargetVersion ?? peerTargetVersion;
-  const updateLabel = targetVersion ? `v${targetVersion}` : "";
-  const showUpdateButton =
-    !props.isRedetecting &&
-    props.acpInstanceId === undefined &&
-    status.installed &&
-    targetVersion !== undefined;
+  const updateLabel = props.runtimes
+    ? props.runtimes.update?.label
+    : targetVersion
+      ? `v${targetVersion}`
+      : "";
+  const showUpdateButton = props.runtimes
+    ? !props.isRedetecting && props.runtimes.update !== undefined
+    : !props.isRedetecting &&
+      props.acpInstanceId === undefined &&
+      status.installed &&
+      targetVersion !== undefined;
+  const updatePending = props.runtimes
+    ? (props.runtimes.update?.isPending ?? false)
+    : props.binaryUpdatePending;
+  const runUpdate = () => {
+    if (props.runtimes?.update) {
+      props.runtimes.update.onUpdate();
+      return;
+    }
+    props.onUpdate(status);
+  };
 
+  const runtimeInstall = props.runtimes?.install;
   const previewScope = statusUpdateScope(status);
-  const previewCommand = showUpdateButton
-    ? resolveSharedUpdateCommand({
-        update: status.update,
-        executablePath: status.executablePath,
-        envKind: previewScope.envKind,
-      })
-    : undefined;
+  // The combined update reconciles several runtimes at once, so previewing one
+  // runtime's shell command there would misreport what the button runs.
+  const previewCommand =
+    showUpdateButton && !props.runtimes
+      ? resolveSharedUpdateCommand({
+          update: status.update,
+          executablePath: status.executablePath,
+          envKind: previewScope.envKind,
+        })
+      : undefined;
   const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
 
   const envOrAgentLabel = env || t`Agent`;
@@ -171,10 +210,27 @@ export function AgentEnvironmentRow(props: {
             <PixelLoader size="xs" />
           ) : (
             <span className="shrink-0 tabular-nums text-muted/60 font-normal text-xs">
-              {installedVer ? `v${installedVer}` : "—"}
+              {props.runtimes?.summary ?? (installedVer ? `v${installedVer}` : "—")}
             </span>
           )}
-          {props.binaryUpdatePending && !props.isRedetecting ? (
+          {runtimeInstall && !props.isRedetecting ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-5 min-h-5 shrink-0 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground @max-[400px]:basis-full"
+              aria-label={env ? `${runtimeInstall.label} (${env})` : runtimeInstall.label}
+              isPending={runtimeInstall.isPending}
+              onPress={runtimeInstall.onInstall}
+            >
+              {runtimeInstall.isPending ? (
+                <PixelLoader size="xs" />
+              ) : (
+                <Download className="size-3" />
+              )}
+              {runtimeInstall.label}
+            </Button>
+          ) : null}
+          {updatePending && !props.isRedetecting ? (
             <div
               className="flex h-5 min-h-5 items-center @max-[400px]:basis-full"
               role="status"
@@ -192,14 +248,18 @@ export function AgentEnvironmentRow(props: {
                   variant="ghost"
                   className="h-5 min-h-5 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
                   aria-label={
-                    env
-                      ? t`Update to ${updateLabel} for ${props.agentLabel} (${env})`
-                      : t`Update to ${updateLabel} for ${props.agentLabel}`
+                    updateLabel
+                      ? env
+                        ? t`Update to ${updateLabel} for ${props.agentLabel} (${env})`
+                        : t`Update to ${updateLabel} for ${props.agentLabel}`
+                      : env
+                        ? t`Update ${props.agentLabel} (${env})`
+                        : t`Update ${props.agentLabel}`
                   }
-                  onPress={() => props.onUpdate(status)}
+                  onPress={runUpdate}
                 >
                   <ArrowUpCircle className="size-3" />
-                  <Trans>Update to {updateLabel}</Trans>
+                  {updateLabel ? <Trans>Update to {updateLabel}</Trans> : <Trans>Update</Trans>}
                 </Button>
               </Tooltip.Trigger>
               <Tooltip.Content placement="right" className="max-w-[440px]">
@@ -210,11 +270,15 @@ export function AgentEnvironmentRow(props: {
                     </span>
                     <code className="font-mono text-[11px]">{previewCommandLine}</code>
                   </div>
-                ) : (
+                ) : updateLabel ? (
                   <span className="text-[11px]">
                     <Trans>
                       Update {props.agentLabel} to {updateLabel}
                     </Trans>
+                  </span>
+                ) : (
+                  <span className="text-[11px]">
+                    <Trans>Bring every {props.agentLabel} runtime up to date</Trans>
                   </span>
                 )}
               </Tooltip.Content>

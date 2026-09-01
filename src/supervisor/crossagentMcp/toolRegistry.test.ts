@@ -152,6 +152,25 @@ describe("buildSpawnableAgents", () => {
     expect(agent?.execution).toBe("one-shot");
   });
 
+  it("honors an explicit one-shot preference when both child lanes exist", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "antigravity" as AgentKind,
+        {
+          createStructuredSession: async () => ({}),
+          buildSubagentOneShotCommand: () => ({ command: "agy", args: ["-p"] }),
+          subagentExecutionPreference: "one-shot",
+        } as unknown as AgentAdapter,
+      ],
+    ]);
+
+    expect(
+      buildSpawnableAgents(adapters, [
+        makeStatus({ kind: "antigravity" as AgentKind, label: "Antigravity" }),
+      ])[0]?.execution,
+    ).toBe("one-shot");
+  });
+
   it("excludes agents that support neither a structured session nor a one-shot child", () => {
     const adapters = new Map<AgentKind, AgentAdapter>([
       ["claude" as AgentKind, {} as unknown as AgentAdapter],

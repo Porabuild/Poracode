@@ -359,9 +359,9 @@ export function isKnownToolName(name: string): boolean {
  * filtered to installed + authenticated providers the run manager can drive as a
  * child. An adapter qualifies via either lane:
  * - `structured`: implements `createStructuredSession` (full GUI runtime).
- * - `one-shot`: has no structured runtime but implements
- *   `buildSubagentOneShotCommand` (a bypass-permissions CLI invocation) — this
- *   pulls CLI-only providers (Antigravity, Command Code) into the roster.
+ * - `one-shot`: implements `buildSubagentOneShotCommand` (a bypass-permissions
+ *   CLI invocation) and either lacks a structured runtime or explicitly keeps
+ *   its CLI child lane — this pulls Antigravity and Command Code into the roster.
  * The `execution` field is surfaced so calling agents can see which lane a child
  * uses (one-shot children stream a single result and can't be steered).
  */

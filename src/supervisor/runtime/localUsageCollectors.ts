@@ -28,8 +28,8 @@ export function createLocalUsageCollectors(
     { id: "opencode", collect: (nowMs, host) => scanOpenCodeUsage(nowMs, host) },
     {
       id: "antigravity",
-      collect: (nowMs) =>
-        scanAntigravityUsage(nowMs, options.getActiveAntigravityWslDistros?.() ?? []),
+      collect: (nowMs, host) =>
+        scanAntigravityUsage(nowMs, options.getActiveAntigravityWslDistros?.() ?? [], host),
     },
   ];
 }

@@ -234,7 +234,7 @@ export function McpServersManager(props: {
       id: "app-controls",
       name: BUILT_IN_MCP_SERVER_NAMES["app-controls"],
       tools: BUILT_IN_MCP_SERVER_TOOL_NAMES["app-controls"],
-      label: t`App Controls`,
+      label: t`Poracode`,
       description: builtInDescription,
       icon: <Settings2 className="size-4" />,
     },
@@ -566,12 +566,28 @@ export function McpServersManager(props: {
       {props.disabledBuiltIns !== undefined ? (
         <section className="space-y-2">
           <div>
-            <SectionHeading title={t`Built-in MCP servers`} count={visibleBuiltIns.length} />
+            <SectionHeading
+              title={
+                visibleBuiltIns.length > 0 &&
+                visibleBuiltIns.every((server) => props.managedBuiltIns?.[server.id])
+                  ? t`Plugin servers`
+                  : t`Built-in MCP servers`
+              }
+              count={visibleBuiltIns.length}
+            />
             <p className="mt-0.5 text-xs text-muted">
-              <Trans>
-                Built-in servers are managed by Poracode. They can be disabled globally but cannot
-                be edited or removed.
-              </Trans>
+              {visibleBuiltIns.length > 0 &&
+              visibleBuiltIns.every((server) => props.managedBuiltIns?.[server.id]) ? (
+                <Trans>
+                  These servers come from plugins. Enable or disable them from Plugins; they cannot
+                  be edited here.
+                </Trans>
+              ) : (
+                <Trans>
+                  Built-in servers are managed by Poracode. They can be disabled globally but cannot
+                  be edited or removed.
+                </Trans>
+              )}
             </p>
           </div>
           {visibleBuiltIns.length > 0 ? (
@@ -915,11 +931,13 @@ function BuiltInServerRow(props: {
             <Tooltip.Content>{props.server.settingsLabel}</Tooltip.Content>
           </Tooltip>
         ) : null}
-        <ToggleSwitch
-          aria-label={enabled ? t`Disable ${serverLabel}` : t`Enable ${serverLabel}`}
-          isSelected={enabled}
-          onChange={props.onToggle}
-        />
+        {props.managedByPlugin ? null : (
+          <ToggleSwitch
+            aria-label={enabled ? t`Disable ${serverLabel}` : t`Enable ${serverLabel}`}
+            isSelected={enabled}
+            onChange={props.onToggle}
+          />
+        )}
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
+import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigravityRuntimeInstall";
 
 /**
  * Props handed to a provider's `settingsPanel`. Panels may consume any
@@ -326,15 +327,11 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   },
   {
     id: "antigravity",
-    description: msg`First-class Antigravity CLI integration using Poracode's native runtime.`,
-    docsUrl: "https://antigravity.google/docs/cli-getting-started",
-    installCommand: (project) =>
-      posixOrWindows(
-        project,
-        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://antigravity.google/cli/install.sh | bash; " +
-          "else printf 'curl is required to install Antigravity. Install curl, then refresh detected agents.\\n'; fi",
-        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://antigravity.google/cli/install.ps1 | iex } elseif (Get-Command curl.exe -ErrorAction SilentlyContinue) { cmd /c \"curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd\" } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or curl first, then refresh detected agents.' }",
-      ),
+    acpRegistryAliases: [{ id: "antigravity-acp", nativeSupport: true }],
+    description: msg`First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime.`,
+    docsUrl: "https://antigravity.google/docs/ide/extensions/zed/",
+    installCommand: antigravityCliInstallCommand,
+    runtimeSlots: antigravityRuntimeSlots,
     // Antigravity's signed-in account lives behind its language server (the
     // credential sits in the OS keyring), so it isn't in the detected status.
     accountResolver: (wslDistros) =>

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { posix, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ProjectLocation, PromptSegment } from "@/shared/contracts";
-import { formatDiffCommentPrompt } from "@/shared/promptContent";
+import { formatDiffCommentPrompt, isTextFilePath } from "@/shared/promptContent";
 import { readOpenCodeErrorText } from "./opencodeErrors";
 
 export type OpenCodePromptPart =
@@ -11,52 +11,6 @@ export type OpenCodePromptPart =
 
 const OCTET_STREAM_MIME = "application/octet-stream";
 const FALLBACK_TEXT_FILE_MAX_BYTES = 128 * 1024;
-
-const TEXT_FILE_EXTENSIONS = new Set([
-  "bash",
-  "c",
-  "cc",
-  "conf",
-  "cpp",
-  "cs",
-  "css",
-  "csv",
-  "cxx",
-  "diff",
-  "env",
-  "go",
-  "graphql",
-  "h",
-  "hpp",
-  "html",
-  "java",
-  "js",
-  "jsx",
-  "kt",
-  "log",
-  "lua",
-  "mjs",
-  "patch",
-  "php",
-  "ps1",
-  "py",
-  "rb",
-  "rs",
-  "scss",
-  "sh",
-  "sql",
-  "svelte",
-  "swift",
-  "toml",
-  "ts",
-  "tsx",
-  "txt",
-  "vue",
-  "xml",
-  "yaml",
-  "yml",
-  "zsh",
-]);
 
 function encodePosixFileUrl(path: string): string {
   return `file://${path.split("/").map(encodeURIComponent).join("/")}`;
@@ -112,7 +66,7 @@ function inferMimeFromPath(path: string): string {
     case "json":
       return "text/plain";
     default:
-      return ext && TEXT_FILE_EXTENSIONS.has(ext) ? "text/plain" : OCTET_STREAM_MIME;
+      return isTextFilePath(path) ? "text/plain" : OCTET_STREAM_MIME;
   }
 }
 
@@ -216,6 +170,7 @@ export function buildOpenCodePromptParts(
         parts.push({ type: "text", text: segment.invocation });
         continue;
       }
+      if (!("path" in segment)) continue;
       const segmentPath = segment.path;
       if (segmentPath === undefined) continue;
       const absolute = resolveAbsolutePath(location, segmentPath);

@@ -170,7 +170,11 @@ export interface SkillsServiceOptions {
   fetch?: typeof fetch;
   readInstalledPlugins?: () => InstalledPlugins;
   /** Agent Plugins packages discovered by the supervisor's plugin registry. */
-  readPlugins?: () => readonly LoadedPlugin[];
+  /**
+   * Packages visible for a scan. The project path scopes the repository's own
+   * `.poracode/plugins` root; omitting it reads the app-global roots only.
+   */
+  readPlugins?: (projectFsPath?: string) => readonly LoadedPlugin[];
   hostPlatform?: NodeJS.Platform;
 }
 
@@ -513,7 +517,7 @@ export class SkillsService {
   private readonly resolveAgentVersion: (kind: AgentKind, wslDistro?: string) => string | undefined;
   private readonly fetchImpl: typeof fetch;
   private readonly pluginSkillPolicy: PluginSkillPolicy;
-  private readonly readPlugins: () => readonly LoadedPlugin[];
+  private readonly readPlugins: (projectFsPath?: string) => readonly LoadedPlugin[];
   private readonly marketplaceCache = new Map<
     string,
     { expiresAt: number; result: SkillMarketplaceResult }
@@ -533,7 +537,7 @@ export class SkillsService {
     this.fetchImpl = options.fetch ?? fetch;
     this.readPlugins = options.readPlugins ?? (() => []);
     this.pluginSkillPolicy = new PluginSkillPolicy({
-      readPluginRoots: () => this.pluginSkillRoots(),
+      readPluginRoots: (projectFsPath) => this.pluginSkillRoots(projectFsPath),
       readInstalledPlugins: options.readInstalledPlugins ?? (() => ({})),
       hostPlatform: options.hostPlatform ?? process.platform,
       resolveWslRealPaths: this.resolveWslRealPaths,
@@ -1682,7 +1686,7 @@ export class SkillsService {
     }
     const bundledRoot = this.bundledRoot();
     if (bundledRoot) roots.push(bundledRoot);
-    roots.push(...this.pluginLocatedRoots());
+    roots.push(...this.pluginLocatedRoots(environment.projectFsPath));
     const seen = new Set(roots.map((root) => normalizePath(root.fsPath)));
 
     for (const adapter of selectedAdapters ?? this.adapters.values()) {
@@ -1814,16 +1818,16 @@ export class SkillsService {
    * is that package's own `skills/` directory, so containment and attribution
    * follow the package boundary rather than a shared folder.
    */
-  private pluginSkillRoots(): PluginSkillRoot[] {
-    return this.readPlugins().flatMap((plugin) =>
+  private pluginSkillRoots(projectFsPath?: string): PluginSkillRoot[] {
+    return this.readPlugins(projectFsPath).flatMap((plugin) =>
       plugin.skills.length > 0
         ? [{ plugin, skillsRoot: join(plugin.root, PLUGIN_SKILLS_DIR) }]
         : [],
     );
   }
 
-  private pluginLocatedRoots(): LocatedRoot[] {
-    return this.pluginSkillRoots().map(({ plugin, skillsRoot }) => {
+  private pluginLocatedRoots(projectFsPath?: string): LocatedRoot[] {
+    return this.pluginSkillRoots(projectFsPath).map(({ plugin, skillsRoot }) => {
       const label = plugin.poracode.title ?? plugin.name;
       return {
         providerId: pluginSkillProviderId(plugin.name),

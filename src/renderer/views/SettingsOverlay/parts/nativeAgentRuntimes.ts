@@ -1,5 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
-import type { AgentStatus, Project } from "@/shared/contracts";
+import { msg } from "@lingui/core/macro";
+import type { AcpRegistryAgent, AgentStatus, Project } from "@/shared/contracts";
 
 /**
  * Declarative description of the independently installable runtimes behind one
@@ -24,7 +25,11 @@ export interface NativeAgentRuntimeInstallOption {
   id: string;
   /** `environment` is set only when several install targets are offered. */
   installLabel: (environment: string | undefined) => MessageDescriptor;
-  installCommand: (project: Project) => string;
+  installCommand?: (project: Project) => string;
+  /** Runtime id that must be detected after the shell command succeeds. */
+  commandRuntimeId?: string;
+  /** Registry artifact installed through the supervisor instead of a shell command. */
+  registryAgentId?: string;
 }
 
 export interface NativeAgentRuntimeUpdateSlot {
@@ -37,8 +42,9 @@ export interface NativeAgentRuntimeUpdateSlot {
   updatedToast: (version: string) => MessageDescriptor;
   upToDateToast: MessageDescriptor;
   /** False when this installation is not app-managed (no update action shown). */
-  canUpdate: (status: AgentStatus) => boolean;
-  command: (status: AgentStatus, project: Project) => string | undefined;
+  canUpdate: (status: AgentStatus, registryAgent: AcpRegistryAgent | undefined) => boolean;
+  command?: (status: AgentStatus, project: Project) => string | undefined;
+  registryAgentId?: string;
 }
 
 export interface NativeAgentRuntimeSlot extends NativeAgentRuntimeInstallOption {
@@ -61,6 +67,12 @@ export interface NativeAgentRuntimeSlots {
   runtimes: readonly NativeAgentRuntimeSlot[];
   /** Offered in addition to the individual runtimes when more than one is missing. */
   bundle?: NativeAgentRuntimeInstallOption;
+  /**
+   * The runtimes implement surfaces of one user-facing agent. When several are
+   * missing, installation reconciles the bundle instead of exposing binaries
+   * as separate choices, and the card omits per-runtime tags.
+   */
+  unifiedAgent?: boolean;
 }
 
 export function detectAgentRuntime(
@@ -85,7 +97,9 @@ export function availableRuntimeInstallOptions(
   status: AgentStatus | undefined,
 ): NativeAgentRuntimeInstallOption[] {
   const missing = slots.runtimes.filter((slot) => !detectAgentRuntime(slot, status).installed);
-  if (missing.length > 1 && slots.bundle) return [...missing, slots.bundle];
+  if (missing.length > 1 && slots.bundle) {
+    return slots.unifiedAgent ? [slots.bundle] : [...missing, slots.bundle];
+  }
   return missing;
 }
 
@@ -99,6 +113,26 @@ export function installedRuntimeIds(
       .filter((slot) => statuses.some((status) => detectAgentRuntime(slot, status).installed))
       .map((slot) => slot.id),
   );
+}
+
+/**
+ * `CLI v1.1.22 · ACP not installed` — every declared runtime, whether or not
+ * it is detected. The agent settings page shows this next to the environment
+ * name so a half-installed provider reads at a glance from the same row every
+ * other provider uses, instead of needing a panel of its own.
+ */
+export function runtimeStateSummaryText(
+  slots: NativeAgentRuntimeSlots,
+  status: AgentStatus,
+  translate: RuntimeLabelTranslator,
+): string {
+  return slots.runtimes
+    .map((slot) => {
+      const detection = detectAgentRuntime(slot, status);
+      if (!detection.installed) return `${slot.badge} ${translate(msg`not installed`)}`;
+      return detection.version ? `${slot.badge} v${detection.version}` : slot.badge;
+    })
+    .join(" · ");
 }
 
 /** `ACP v1.2.3 · SDK v1.0.31 (global npm)` for one detected environment. */

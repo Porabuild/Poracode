@@ -57,6 +57,17 @@ export const poracodePluginExtensionSchema = z
      * user knows whose code is about to run.
      */
     communityMaintained: z.boolean().default(false),
+    /**
+     * Whether installing the package also switches it on. Packages that start a
+     * third-party server, or need the user to authenticate before they do
+     * anything useful, ship `false` so nothing runs until the user enables them.
+     */
+    defaultEnabled: z.boolean().default(true),
+    /**
+     * Bundled capability that cannot be switched off (Terminal). Still shows in
+     * Plugins so the user can read what it does; the enable switch is hidden.
+     */
+    alwaysEnabled: z.boolean().default(false),
     platforms: z.array(pluginPlatformSchema).optional(),
     projectKinds: z.array(pluginProjectKindSchema).optional(),
     /** Skill invoked when the package itself is mentioned in chat. */
@@ -77,6 +88,8 @@ export const EMPTY_PORACODE_EXTENSION: PoracodePluginExtension = {
   category: "developer-tools",
   featured: false,
   communityMaintained: false,
+  defaultEnabled: true,
+  alwaysEnabled: false,
   nativePluginNames: [],
   builtInMcpServerIds: [],
   skills: {},

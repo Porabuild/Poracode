@@ -93,3 +93,7 @@ export function readGrokAuthFromWsl(): Promise<string | undefined> {
 export function readGeminiCredsFromWsl(): Promise<string | undefined> {
   return readFromAnyWslDistro("cat $HOME/.gemini/oauth_creds.json 2>/dev/null");
 }
+
+export function readAntigravityAcpCredsFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("cat $HOME/.gemini/antigravity-acp/acp_token.json 2>/dev/null");
+}

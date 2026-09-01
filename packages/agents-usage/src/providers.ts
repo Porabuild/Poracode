@@ -97,10 +97,10 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * Most providers are HTTP collectors registered in `registry.ts`. A couple are
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
- * `antigravity` probes its local language server (cli-jsonrpc), and `opencode`
- * needs the supervisor for the opencode.ai cookie session plus a local
- * `auth.json` probe (Go plan badge). Go quota meters are web-only — never
- * derived from local `opencode.db` spend.
+ * `antigravity` prefers its local language server and falls back to Cloud Code
+ * with official ACP credentials, while `opencode` needs the supervisor for the
+ * opencode.ai cookie session plus a local `auth.json` probe (Go plan badge). Go
+ * quota meters are web-only — never derived from local `opencode.db` spend.
  */
 export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[] = [
   {

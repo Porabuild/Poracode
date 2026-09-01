@@ -1,10 +1,13 @@
 import type { LoadedPlugin } from "@/shared/contracts";
 import { parsePluginManifest, parsePoracodeExtension } from "@/shared/plugins/spec";
 import { usePlugins } from "@/renderer/state/pluginsStore";
+import appControls from "../../../resources/plugins/app-controls/plugin.json";
 import browserTools from "../../../resources/plugins/browser-tools/plugin.json";
 import chromeTools from "../../../resources/plugins/chrome-tools/plugin.json";
 import computerUse from "../../../resources/plugins/computer-use/plugin.json";
+import github from "../../../resources/plugins/github/plugin.json";
 import subagentDelegation from "../../../resources/plugins/subagent-delegation/plugin.json";
+import terminal from "../../../resources/plugins/terminal/plugin.json";
 
 /**
  * Seeds the renderer plugin store from the real shipped manifests.
@@ -17,7 +20,15 @@ import subagentDelegation from "../../../resources/plugins/subagent-delegation/p
  * `src/supervisor/plugins/conformance.test.ts`.
  */
 
-const SHIPPED_MANIFESTS = [browserTools, chromeTools, computerUse, subagentDelegation];
+const SHIPPED_MANIFESTS = [
+  appControls,
+  browserTools,
+  chromeTools,
+  computerUse,
+  subagentDelegation,
+  terminal,
+  github,
+];
 
 function toLoadedPlugin(raw: unknown): LoadedPlugin {
   const parsed = parsePluginManifest(raw);
@@ -51,17 +62,19 @@ export function loadBuiltInPluginFixtures(): LoadedPlugin[] {
 export function seedBuiltInPlugins(): LoadedPlugin[] {
   const plugins = loadBuiltInPluginFixtures();
   usePlugins.setState({
-    plugins,
+    pluginsByScope: { "": plugins },
     userPluginsDir: "/home/test/.poracode/plugins",
-    loaded: true,
-    loading: false,
+    loadedScopes: { "": true },
+    loading: {},
     error: undefined,
   });
   return plugins;
 }
 
 export function pluginFixture(name: string): LoadedPlugin {
-  const plugin = usePlugins.getState().plugins.find((candidate) => candidate.name === name);
+  const plugin = usePlugins
+    .getState()
+    .pluginsByScope[""]?.find((candidate) => candidate.name === name);
   if (!plugin) throw new Error(`plugin fixture '${name}' is not seeded`);
   return plugin;
 }

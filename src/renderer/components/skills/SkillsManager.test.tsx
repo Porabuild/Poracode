@@ -250,10 +250,10 @@ describe("SkillsManager", () => {
             "C:\\Users\\me\\.poracode\\plugins\\browser-tools\\browser-control\\SKILL.md",
           rootPath: "C:\\Users\\me\\.poracode\\plugins\\browser-tools",
           providerId: "plugin:browser-tools",
-          providerLabel: "Browser Tools",
+          providerLabel: "Browser",
           providerGroupId: "plugin:browser-tools",
           pluginId: "browser-tools",
-          pluginName: "Browser Tools",
+          pluginName: "Browser",
           origin: "plugin",
           mutable: false,
           enabled: false,
@@ -266,13 +266,13 @@ describe("SkillsManager", () => {
 
     renderManager();
 
-    expect(screen.getByRole("heading", { name: "Browser Tools" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Browser" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View Browser Control" })).toBeInTheDocument();
     expect(
       screen.getByText("Navigate, inspect, and test pages with the in-app Browser MCP."),
     ).toBeInTheDocument();
     expect(screen.getByText("Plugin")).toBeInTheDocument();
-    expect(screen.getByText("Managed by Browser Tools")).toBeInTheDocument();
+    expect(screen.getByText("Managed by Browser")).toBeInTheDocument();
     expect(screen.getByText("Disabled", { selector: "span" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Delete browser-control" }),

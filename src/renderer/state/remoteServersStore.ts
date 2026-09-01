@@ -40,6 +40,7 @@ import {
   remoteOwner,
   remoteProjectId,
   remoteThreadId,
+  unprojectRemoteThreadMentionSegments,
 } from "@/renderer/state/remoteProjection";
 import {
   emitRemoteTerminalExited,
@@ -1057,12 +1058,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               agentKind: input.agentKind,
               config: input.config,
               prompt: input.prompt,
-              ...(input.segments ? { segments: input.segments } : {}),
+              ...(input.segments
+                ? {
+                    segments: unprojectRemoteThreadMentionSegments(
+                      input.desktopId,
+                      input.segments,
+                      useAppStore.getState().threads,
+                    ),
+                  }
+                : {}),
               presentationMode: input.presentationMode,
               ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
               ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
               ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
               ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
+              ...(input.title ? { title: input.title } : {}),
+              ...(input.groupId ? { groupId: input.groupId } : {}),
+              ...(input.groupName ? { groupName: input.groupName } : {}),
             }),
           );
           const compensateIfAbandoned = async (): Promise<

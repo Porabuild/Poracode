@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { IPty } from "node-pty";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import type { SupervisorEvent } from "@/shared/ipc/events";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import type { SessionRuntime } from "./runtime/sessionTypes";
 
@@ -58,6 +59,7 @@ vi.spyOn(console, "warn").mockImplementation(() => {});
 vi.spyOn(console, "log").mockImplementation(() => {});
 
 import { codexExtraArgsPosition } from "./agents/codex/argv";
+import { buildProviderHandoffInstruction } from "./runtime/threadMentionResolver";
 import { SupervisorRuntime } from "./supervisorRuntime";
 
 const tempDirs: string[] = [];
@@ -2673,4 +2675,217 @@ describe("SupervisorRuntime thread input", () => {
       expect(command).toContain("@/tmp/Image 1.png");
     },
   );
+
+  it("does not persist a provider handoff when the target lacks GUI support", async () => {
+    const events: unknown[] = [];
+    const runtime = makeRuntime((event) => events.push(event));
+    const adapter = {
+      kind: "codex" as const,
+      label: "Codex",
+      capabilities: {
+        models: [{ id: "gpt-5", label: "GPT-5" }],
+        efforts: [],
+        modelEfforts: {},
+        modes: ["agent"],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal" as const,
+        presentationMode: "terminal" as const,
+      },
+      detectInstall: vi.fn<() => void>(),
+      buildLaunchArgv: vi.fn<() => { binary: string; args: string[] }>(() => ({
+        binary: "codex",
+        args: [],
+      })),
+      buildResumeArgv: vi.fn<() => void>(),
+      createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
+    };
+    (runtime as unknown as { adapters: Map<string, typeof adapter> }).adapters.set(
+      "codex",
+      adapter,
+    );
+
+    await expect(
+      runtime.threadSessionManager.startThread({
+        threadId: "thread-switch",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "continue",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "gui",
+        providerSwitch: { fromAgentKind: "claude" },
+      }),
+    ).rejects.toThrow("does not support gui presentation");
+    expect(events).not.toContainEqual(
+      expect.objectContaining({
+        type: "thread-runtime-event",
+        event: expect.objectContaining({ itemType: "provider_handoff" }),
+      }),
+    );
+  });
+
+  /** Runtime events are coalesced on a 16ms tick; wait past it before asserting. */
+  async function drainRuntimeEventBatch(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 40));
+  }
+
+  /** Every runtime event in an emitted stream, whatever batch shape carried it. */
+  function runtimeEventsOf(events: readonly SupervisorEvent[]): RuntimeEvent[] {
+    return events.flatMap((event) => {
+      if (event.type === "thread-runtime-event") return [event.event];
+      if (event.type === "thread-runtime-events") return event.events;
+      if (event.type === "thread-runtime-events-multi") {
+        return event.batches.flatMap((batch) => batch.events);
+      }
+      return [];
+    });
+  }
+
+  /** GUI-capable adapter whose structured session records its startTurn args. */
+  function makeGuiSwitchFixture() {
+    const events: SupervisorEvent[] = [];
+    const runtime = makeRuntime((event) => {
+      events.push(event);
+    });
+    const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const setListener =
+      vi.fn<(listener: { onUpdate(update: Record<string, unknown>): void }) => void>();
+    const adapter = {
+      kind: "codex" as const,
+      label: "Codex",
+      capabilities: {
+        models: [{ id: "gpt-5.4", label: "5.4" }],
+        efforts: ["high"],
+        modelEfforts: {},
+        modes: ["agent"],
+        approvalPolicies: [{ id: "on-request", label: "On Request" }],
+        sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal" as const,
+        presentationMode: "terminal" as const,
+        presentationModes: ["terminal", "gui"] as const,
+      },
+      detectInstall: vi.fn<() => void>(),
+      buildLaunchArgv: vi.fn<() => { binary: string; args: string[] }>(() => ({
+        binary: "codex",
+        args: ["should-not-spawn"],
+      })),
+      buildResumeArgv: vi.fn<() => void>(),
+      createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
+      createStructuredSession: vi.fn<() => Promise<Record<string, unknown>>>().mockResolvedValue({
+        activate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        openThread: vi.fn<() => Promise<string>>().mockResolvedValue("session-1"),
+        startTurn,
+        setListener,
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    };
+    (runtime as unknown as { adapters: Map<string, typeof adapter> }).adapters.set(
+      "codex",
+      adapter,
+    );
+    return { runtime, startTurn, events };
+  }
+
+  const guiSwitchPayload = {
+    threadId: "thread-switch-gui",
+    projectLocation: { kind: "windows" as const, path: "C:\\repo" },
+    agentKind: "codex",
+    config: { model: "gpt-5.4" },
+    prompt: "continue the task",
+    initialSize: { cols: 132, rows: 42 },
+    presentationMode: "gui" as const,
+    providerSwitch: { fromAgentKind: "claude", contextStrategy: "thread-transcript" as const },
+  };
+
+  it("hands an in-place provider switch to the transcript-reading instruction when read_thread is available", async () => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "http://127.0.0.1:9/mcp");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "test-token");
+    try {
+      const { runtime, startTurn } = makeGuiSwitchFixture();
+      await runtime.threadSessionManager.startThread({ ...guiSwitchPayload });
+
+      expect(startTurn).toHaveBeenCalledWith("continue the task", { model: "gpt-5.4" }, undefined, {
+        userMessageItemId: expect.stringMatching(/^user-/),
+        inlineInstructions: buildProviderHandoffInstruction("thread-switch-gui", "claude"),
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("omits the transcript handoff instruction when read_thread is unavailable for the incoming session", async () => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "");
+    try {
+      const { runtime, startTurn } = makeGuiSwitchFixture();
+      await runtime.threadSessionManager.startThread({ ...guiSwitchPayload });
+
+      expect(startTurn).toHaveBeenCalledWith("continue the task", { model: "gpt-5.4" }, undefined, {
+        userMessageItemId: expect.stringMatching(/^user-/),
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("warns in the thread when a transcript handoff cannot reach read_thread", async () => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "");
+    try {
+      const { runtime, events } = makeGuiSwitchFixture();
+      await runtime.threadSessionManager.startThread({ ...guiSwitchPayload });
+
+      await drainRuntimeEventBatch();
+      const warning = runtimeEventsOf(events).find((event) => event.type === "warning");
+      expect(warning).toMatchObject({
+        threadId: "thread-switch-gui",
+        message: expect.stringContaining("read_thread"),
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("leaves a context-file switch alone: the prompt already carries the handoff context", async () => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "http://127.0.0.1:9/mcp");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "test-token");
+    try {
+      const { runtime, startTurn, events } = makeGuiSwitchFixture();
+      await runtime.threadSessionManager.startThread({
+        ...guiSwitchPayload,
+        providerSwitch: { fromAgentKind: "claude", contextStrategy: "context-file" },
+      });
+
+      expect(startTurn).toHaveBeenCalledWith("continue the task", { model: "gpt-5.4" }, undefined, {
+        userMessageItemId: expect.stringMatching(/^user-/),
+      });
+      await drainRuntimeEventBatch();
+      expect(runtimeEventsOf(events).some((event) => event.type === "warning")).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("treats a switch from a client that predates contextStrategy as context-file", async () => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "http://127.0.0.1:9/mcp");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "test-token");
+    try {
+      const { runtime, startTurn } = makeGuiSwitchFixture();
+      await runtime.threadSessionManager.startThread({
+        ...guiSwitchPayload,
+        providerSwitch: { fromAgentKind: "claude" },
+      });
+
+      expect(startTurn).toHaveBeenCalledWith("continue the task", { model: "gpt-5.4" }, undefined, {
+        userMessageItemId: expect.stringMatching(/^user-/),
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

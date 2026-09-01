@@ -171,6 +171,14 @@ msgstr "{0} ({envName}) mis à jour vers v{newVersion}."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) mis à jour."
 
+#. placeholder {0}: ""
+#. placeholder {0}: sourceThread.title
+#. placeholder {0}: thread.title
+#: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "{0} (fork)"
+msgstr "{0} (fork)"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -346,6 +354,8 @@ msgid "{0} updated to v{resolvedLatest}."
 msgstr "{0} mis à jour vers v{resolvedLatest}."
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
 msgstr "{0} mis à jour."
@@ -806,10 +816,12 @@ msgstr "Agents ACP"
 #~ msgid "ACP authentication"
 #~ msgstr "Authentification ACP"
 
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "ACP installed"
 msgstr "ACP installé"
 
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "ACP not installed"
 msgstr "ACP non installé"
@@ -1172,6 +1184,10 @@ msgstr "Les agents classent le travail délégué avec des tags de tâche. Les r
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "Les agents classent le travail délégué avec des étiquettes de tâche. Les routes apprises correspondantes sont classées en premier, suivies de l’utilisation globale de Crossagents, des favoris, de l’utilisation normale des agents et de l’ordre intégré."
 
+#: src/renderer/components/providers/antigravity/index.tsx
+msgid "agy CLI"
+msgstr "agy CLI"
+
 #. Settings section: AI / assistant configuration
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -1267,7 +1283,7 @@ msgstr "Tous les fils de la section Terminé seront archivés."
 msgid "All threads in Done will be permanently deleted."
 msgstr "Tous les fils de la section Terminé seront définitivement supprimés."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Tous les espaces de travail"
@@ -1356,6 +1372,26 @@ msgstr "Une autre opération pour cette expérience est toujours en cours."
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/components/providers/antigravity/index.tsx
+msgid "Antigravity ACP"
+msgstr "Antigravity ACP"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Antigravity Chat is up to date."
+#~ msgstr "Le Chat Antigravity est à jour."
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Antigravity Chat updated to v{version}."
+#~ msgstr "Le Chat Antigravity a été mis à jour vers la v{version}."
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Antigravity is up to date."
+#~ msgstr "Antigravity est à jour."
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Antigravity updated to v{version}."
+#~ msgstr "Antigravity a été mis à jour vers la v{version}."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "Tout ce qui est actuellement indisponible — un fournisseur, un modèle, un niveau de raisonnement ou un mode Fast — est ignoré automatiquement. Les fournisseurs et modèles décochés sont ignorés jusqu'à ce qu'ils soient à nouveau cochés."
@@ -1377,8 +1413,9 @@ msgid "App Browser"
 msgstr "Navigateur d'applications"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-msgid "App Controls"
-msgstr "Contrôles de l’application"
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "App Controls"
+#~ msgstr "Contrôles de l’application"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -1524,8 +1561,8 @@ msgid "Attach"
 msgstr "Joindre"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-msgid "Attach files"
-msgstr "Joindre des fichiers"
+#~ msgid "Attach files"
+#~ msgstr "Joindre des fichiers"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -1899,6 +1936,11 @@ msgstr "Branches"
 msgid "Bring back to panel"
 msgstr "Ramener dans le panneau"
 
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Bring every {0} runtime up to date"
+msgstr "Mettre à jour toutes les durées d'exécution de {0}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Ramenez-le dans ce panneau ou accédez à la fenêtre dans laquelle il s’exécute."
@@ -1988,8 +2030,8 @@ msgid "Browser tabs"
 msgstr "Onglets du navigateur"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Browser Tools"
-msgstr "Outils du navigateur"
+#~ msgid "Browser Tools"
+#~ msgstr "Outils du navigateur"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -2001,6 +2043,7 @@ msgid "Building diff…"
 msgstr "Génération de la différence…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Intégré"
@@ -2093,7 +2136,6 @@ msgstr "Serveur distant inaccessible. Vérifiez qu'il est en ligne, puis reconne
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -2173,6 +2215,7 @@ msgstr "Changer le dossier du projet"
 msgid "Change project icon"
 msgstr "Changer l'icône du projet"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Change servers in provider settings"
 msgstr "Modifiez les serveurs dans les paramètres du fournisseur"
@@ -2454,8 +2497,8 @@ msgid "Chrome MCP enabled for this thread"
 msgstr "MCP Chrome activé pour ce fil de discussion"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Chrome Tools"
-msgstr "Outils Chrome"
+#~ msgid "Chrome Tools"
+#~ msgstr "Outils Chrome"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2549,7 +2592,6 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Cliquez sur un raccourci pour enregistrer une nouvelle touche, ou sur ＋ pour en ajouter un autre."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
@@ -3028,6 +3070,7 @@ msgstr "Commandes du compositeur"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -3217,8 +3260,8 @@ msgstr "Contexte compacté : {before} → {after} jetons"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Context extraction ({0})"
-msgstr "Extraction du contexte ({0})"
+#~ msgid "Context extraction ({0})"
+#~ msgstr "Extraction du contexte ({0})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Context manually compacted from {before} tokens"
@@ -3228,6 +3271,7 @@ msgstr "Contexte compacté manuellement à partir de {before} jetons"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Contexte compacté manuellement : {before} → {after} jetons"
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Contexte transféré à {targetLabel}"
@@ -3244,12 +3288,13 @@ msgstr "Fenêtres de contexte"
 msgid "Continue"
 msgstr "Continuer"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Continue in another provider"
 msgstr "Continuer dans un autre fournisseur"
 
+#: src/mobile/views/threadActionSurfaces.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Continuez dans..."
@@ -3399,7 +3444,6 @@ msgid "Could not create the project folder."
 msgstr "Impossible de créer le dossier du projet."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
 msgstr "Impossible d'extraire le contexte."
 
@@ -4662,8 +4706,12 @@ msgid "Enabled agents, model visibility and order"
 msgstr "Agents activés, visibilité et ordre des modèles"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Enabled servers stay on for new threads"
-msgstr "Les serveurs activés restent actifs pour les nouveaux fils de discussion"
+msgid "Enabled plugins stay on for new threads"
+msgstr "Les plugins activés restent actifs pour les nouveaux fils de discussion"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Enabled servers stay on for new threads"
+#~ msgstr "Les serveurs activés restent actifs pour les nouveaux fils de discussion"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -4829,6 +4877,11 @@ msgstr "Exclure de la synchronisation"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Exclure les motifs"
+
+#. placeholder {0}: parsed.exitCode
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Exit code {0}"
+msgstr "Code de sortie {0}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
@@ -5000,7 +5053,6 @@ msgstr "Très élevé"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
 msgstr "Extraction du contexte depuis {0}..."
 
@@ -5013,6 +5065,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "échoué"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -5147,6 +5200,7 @@ msgstr "Le fichier utilise un encodage non pris en charge."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
@@ -5230,8 +5284,12 @@ msgid "Finished · Waiting for your input"
 msgstr "Terminé · En attente de votre saisie"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Antigravity CLI integration using Poracode's native runtime."
-msgstr "Intégration CLI Antigravity de première classe utilisant le runtime natif de Poracode."
+#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+#~ msgstr "Intégration CLI Antigravity de première classe utilisant le runtime natif de Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
+msgstr "Intégration Antigravity de première classe utilisant la CLI de terminal agy et le runtime ACP Chat officiel de Google."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Claude Code integration using Poracode's native SDK runtime."
@@ -5395,6 +5453,10 @@ msgstr "Fork"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "Bifurquer depuis <0>{0}</0>"
+
+#: src/mobile/views/threadActionSurfaces.tsx
+msgid "Fork to another provider"
+msgstr "Forker vers un autre fournisseur"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -6086,6 +6148,10 @@ msgstr "Dans ce projet"
 msgid "Inspect canonical runtime items"
 msgstr "Inspecter les éléments d'exécution canoniques"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
+msgstr "Inspecter les fils et les panneaux de terminal, et piloter git, les pull requests et les planifications."
+
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "install"
 msgstr "installer"
@@ -6116,6 +6182,10 @@ msgstr "Installez {0} pour créer un fil de discussion."
 msgid "Install {0}."
 msgstr "Installez {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Install {badge}"
+msgstr "Installer {badge}"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Install {env}"
 #~ msgstr "Installer {env}"
@@ -6139,6 +6209,38 @@ msgstr "Installer ACP + SDK dans {environment}"
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Installer et redémarrer"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install Antigravity"
+msgstr "Installer Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Install Antigravity Chat"
+#~ msgstr "Installer le Chat Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Install Antigravity Chat in {environment}"
+#~ msgstr "Installer le Chat Antigravity dans {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Install Antigravity CLI"
+#~ msgstr "Installer la CLI Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Install Antigravity CLI in {environment}"
+#~ msgstr "Installer la CLI Antigravity dans {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install Antigravity in {environment}"
+msgstr "Installer Antigravity dans {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Install Antigravity Terminal + Chat"
+#~ msgstr "Installer Antigravity Terminal + Chat"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Install Antigravity Terminal + Chat in {environment}"
+#~ msgstr "Installer Antigravity Terminal + Chat dans {environment}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Install bundles of skills and MCP servers built for the Agent Plugins specification."
@@ -6233,6 +6335,7 @@ msgstr "L'installation, la mise à jour et la connexion ne sont pas encore dispo
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Installed"
@@ -6873,8 +6976,7 @@ msgstr "MCP"
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
 
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "MCP server"
 msgstr "Serveur MCP"
 
@@ -6926,7 +7028,7 @@ msgstr "Délai d’expiration du serveur MCP en millisecondes"
 msgid "MCP server URL"
 msgstr "URL du serveur MCP"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -7269,8 +7371,6 @@ msgid "Most used reasoning"
 msgstr "Raisonnement le plus utilisé"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Déplacer"
 
@@ -7295,7 +7395,7 @@ msgstr "Déplacer le panneau"
 msgid "Move to clean worktree"
 msgstr "Déplacer vers un worktree propre"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+#: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Déplacer vers un espace de travail"
 
@@ -7546,7 +7646,7 @@ msgstr "Nouvel onglet dans le groupe"
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/app.tsx
+#: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -7572,6 +7672,7 @@ msgstr "Nouveau fil de discussion — {projectName}"
 msgid "New thread from this to-do"
 msgstr "Nouveau fil de cette tâche"
 
+#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -7630,8 +7731,8 @@ msgid "No active browser tab"
 msgstr "Aucun onglet de navigateur actif"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
-msgid "No active session"
-msgstr "Aucune session active"
+#~ msgid "No active session"
+#~ msgstr "Aucune session active"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -7876,8 +7977,8 @@ msgid "No matching threads"
 msgstr "Aucun fil correspondant"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "No MCP servers are enabled for this run"
-msgstr "Aucun serveur MCP n'est activé pour cette exécution"
+#~ msgid "No MCP servers are enabled for this run"
+#~ msgstr "Aucun serveur MCP n'est activé pour cette exécution"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -7920,6 +8021,10 @@ msgstr "Aucun motif."
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "Aucune phase pour l'instant."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No plugins are enabled for this run"
+msgstr "Aucun plugin n'est activé pour cette exécution"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -8061,6 +8166,10 @@ msgstr "Aucun fil pour le moment"
 msgid "No threads yet."
 msgstr "Aucun fil pour l'instant."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+msgstr "aucun verdict n'est arrivé — la CLI a peut-être bloqué /goal (confiance de l'espace de travail ou paramètres des hooks) ou l'évaluateur n'a pas pu s'exécuter"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "Aucune fenêtre signalée"
@@ -8099,6 +8208,10 @@ msgstr "Pas un dépôt git"
 msgid "Not a Git repository"
 msgstr "Pas un dépôt Git"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Not available for remote threads"
+#~ msgstr "Indisponible pour les fils de discussion distants"
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Not detected on this machine yet."
 msgstr "Pas encore détecté sur cette machine."
@@ -8107,6 +8220,12 @@ msgstr "Pas encore détecté sur cette machine."
 msgid "Not found"
 msgstr "Pas trouvé"
 
+#: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
+msgid "not installed"
+msgstr "non installé"
+
+#: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -8185,7 +8304,6 @@ msgstr "Sources officielles uniquement"
 
 #: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Offline"
 msgstr "Hors ligne"
 
@@ -8258,6 +8376,7 @@ msgstr "Ouvrir"
 msgid "Open {0}"
 msgstr "Ouvrir {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Open {label}"
 msgstr "Ouvrir {label}"
@@ -8928,13 +9047,16 @@ msgid "Play notification sound"
 msgstr "Lire le son des notifications"
 
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Plugin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "Dossier des plugins"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Plugin servers"
+msgstr "Serveurs de plugins"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -8952,6 +9074,8 @@ msgstr "plugin.json n'est pas valide pour la spécification Agent Plugins."
 msgid "plugin.json targets an Agent Plugins version this build does not support."
 msgstr "plugin.json vise une version d'Agent Plugins que cette build ne prend pas en charge."
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8970,6 +9094,14 @@ msgstr "Dirigez ce profil vers un fournisseur non-Anthropic (z.ai, …) avec des
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Thèmes d'éditeur populaires adaptés à Poracode. Chacun suit le mode clair ou sombre ci-dessus."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Poracode"
+msgstr "Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
@@ -9249,6 +9381,8 @@ msgstr "Profils"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9614,6 +9748,18 @@ msgstr "Réexécuter toutes les tâches"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Re-run failed jobs"
 msgstr "Réexécuter les tâches en échec"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
+msgstr "Lire et piloter Poracode lui-même : fils, panneaux de terminal, git, pull requests et planifications."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report the evidence."
+msgstr "Lisez le panneau Terminal de cet arbre de travail et rapportez les preuves."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Read the Terminal panel attached to this worktree and report what it is printing."
+msgstr "Lisez le panneau Terminal de cet arbre de travail et rapportez ce qu'il affiche."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
@@ -10534,6 +10680,7 @@ msgstr "S'épuise dans {runOut}"
 #~ msgid "Runs through the Cursor CLI. Install it, update it, and sign in from the environment rows above."
 #~ msgstr "S’exécute via la CLI Cursor. Installez-la, mettez-la à jour et connectez-vous depuis les lignes d’environnement ci-dessus."
 
+#: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Runtime"
@@ -11055,8 +11202,12 @@ msgid "Set shortcut"
 msgstr "Définir un raccourci"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Set when this session started — start a new thread to change servers"
-msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les serveurs"
+msgid "Set when this session started — start a new thread to change plugins"
+msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les plugins"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Set when this session started — start a new thread to change servers"
+#~ msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les serveurs"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -11697,7 +11848,6 @@ msgid "Start with a schedule"
 msgstr "Commencer avec une planification"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Start Without Context"
 msgstr "Démarrer sans contexte"
 
@@ -11709,6 +11859,7 @@ msgstr "Démarrer sans contexte"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Démarrez des workflows et surveillez leurs exécutions."
 
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Fil de discussion {targetLabel} démarré"
@@ -11849,8 +12000,8 @@ msgid "Subagent"
 msgstr "Sous-agent"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Subagent Delegation"
-msgstr "Délégation de sous-agents"
+#~ msgid "Subagent Delegation"
+#~ msgstr "Délégation de sous-agents"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
@@ -11947,6 +12098,7 @@ msgstr "Compatible avec le mode rapide"
 msgid "Swap notes and to-dos"
 msgstr "Basculer entre les notes et les tâches"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Switch"
 msgstr "Basculer"
@@ -11996,6 +12148,22 @@ msgstr "Passer à l'onglet précédent"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 msgid "Switch workspace"
 msgstr "Changer d'espace de travail"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ProviderHandoffRow.tsx
+msgid "Switched from {fromLabel} to {toLabel}"
+msgstr "Basculé de {fromLabel} vers {toLabel}"
+
+#: src/renderer/actions/providerSwitchActions.ts
+msgid "Switched to {targetLabel}"
+msgstr "Basculé vers {targetLabel}"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
+msgstr "Basculer démarre un nouveau fil de discussion avec le même titre, car la conversation ne peut se poursuivre sur place qu'entre deux fournisseurs de chat."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#~ msgid "Switching to a terminal provider starts a new thread with the same title."
+#~ msgstr "Basculer vers un fournisseur de terminal démarre un nouveau fil de discussion avec le même titre."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -12097,16 +12265,24 @@ msgid "Target branch"
 msgstr "Branche cible"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
-msgid "Target provider"
-msgstr "Fournisseur cible"
+#~ msgid "Target provider"
+#~ msgstr "Fournisseur cible"
 
 #: src/renderer/components/providers/qwen/index.tsx
 msgid "Task"
 msgstr "Tâche"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Task {id}"
+msgstr "Tâche {id}"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "Correspondance de tâche"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+msgid "Task Notification"
+msgstr "Notification de tâche"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
@@ -12134,8 +12310,7 @@ msgstr "Dites au fournisseur cible quoi faire ensuite..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
-#: src/renderer/components/thread/ThreadComposerSection.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12429,6 +12604,10 @@ msgstr "Thème et taille de police du chat"
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Ces serveurs MCP intégrés sont partagés entre les fils OpenCode. L'enregistrement met à jour les projets GUI en cours ; la suppression d'un serveur peut interrompre un tour actif. Les fils de terminal récupèrent les modifications à leur prochain lancement."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
+msgstr "Ces serveurs proviennent de plugins. Activez-les ou désactivez-les dans Plugins ; ils ne peuvent pas être modifiés ici."
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
@@ -12566,6 +12745,8 @@ msgstr "Ce profil s'exécute sur le Cursor SDK. Cursor CLI et ACP partagent une 
 msgid "this project"
 msgstr "ce projet"
 
+#: src/renderer/actions/providerSwitchActions.ts
+#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -12605,6 +12786,10 @@ msgstr "Ce serveur s'exécute sur cet ordinateur et n'est pas disponible pour le
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Ce raccourci système n’est pas disponible. Choisissez une autre combinaison de touches."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "Ce fil de discussion a changé de fournisseur sans transférer de contexte : {agent} a démarré sans l'outil read_thread de Poracode et ne peut donc pas lire la conversation précédente. Réactivez l'outil MCP app-controls ou résumez ce dont il a besoin."
 
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
@@ -12691,6 +12876,10 @@ msgstr "Options de la liste des fils"
 msgid "Thread mode"
 msgstr "Mode fil de discussion"
 
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Thread not found"
+msgstr "Fil de discussion introuvable"
+
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "Thread Only"
@@ -12704,6 +12893,7 @@ msgstr "Mode fil de discussion"
 msgid "Thread todo dock"
 msgstr "Dock des tâches du fil"
 
+#: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -12985,8 +13175,10 @@ msgstr "Impossible de déterminer la branche source de l’expérience."
 msgid "Unable to install {0} hooks."
 msgstr "Impossible d'installer les hooks {0}."
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "Impossible d'installer {0}."
 
@@ -13050,6 +13242,7 @@ msgstr "Impossible de lire le fichier non suivi du candidat : {path}"
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to refresh {0} status."
@@ -13059,6 +13252,10 @@ msgstr "Impossible d'actualiser le statut {0}."
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Unable to refresh {0}."
 msgstr "Impossible d'actualiser {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to refresh {agentLabel} status."
+msgstr "Impossible d'actualiser le statut {agentLabel}."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
@@ -13136,6 +13333,10 @@ msgstr "Impossible de démarrer le fil distant."
 msgid "Unable to start the thread."
 msgstr "Impossible de démarrer le fil."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to switch the provider."
+msgstr "Impossible de changer de fournisseur."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName}): {detailText}"
@@ -13166,6 +13367,8 @@ msgstr "Impossible de mettre à jour {0} : {detailText}"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
@@ -13192,6 +13395,7 @@ msgstr "Impossible de mettre à jour l'URL publique."
 msgid "Unable to update the thread."
 msgstr "Impossible de mettre à jour le fil."
 
+#: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Non attribué"
@@ -13357,10 +13561,22 @@ msgid "update"
 msgstr "mise à jour"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Mise à jour"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Update {0}"
+msgstr "Mettre à jour {0}"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Update {0} ({env})"
+msgstr "Mettre à jour {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -13372,6 +13588,22 @@ msgstr "Mettre à jour {0} vers {updateLabel}"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Update all"
 msgstr "Tout mettre à jour"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Update Antigravity"
+#~ msgstr "Mettre à jour Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Update Antigravity Chat"
+#~ msgstr "Mettre à jour le Chat Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Update Antigravity Chat in {environment}"
+#~ msgstr "Mettre à jour le Chat Antigravity dans {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#~ msgid "Update Antigravity in {environment}"
+#~ msgstr "Mettre à jour Antigravity dans {environment}"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"

@@ -51,6 +51,14 @@ rl.on("line", (line) => {
       send({ type: "extension_ui_request", id: "dlg-1", method: "select", title: "Pick one", options: ["alpha", "beta"] });
       return;
     }
+    if (text.includes("ECHO")) {
+      send({ type: "agent_start" });
+      send({ type: "message_start" });
+      send({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "SAW:" + text } });
+      send({ type: "message_end" });
+      send({ type: "agent_settled" });
+      return;
+    }
     if (text.includes("FAIL")) {
       send({ type: "agent_start" });
       send({ type: "message_update", assistantMessageEvent: { type: "error", error: { errorMessage: "MOCK_PROVIDER_ERROR" } } });
@@ -224,6 +232,30 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         model: "mock/model",
       },
     });
+    await disposeSettledSession(session, events, updates);
+  });
+
+  it("sends inline instructions to pi without painting them into the user's message", async () => {
+    const { session, events, updates } = await createSession();
+    await session.startTurn?.("ECHO please", { model: "mock/model", effort: "off" }, undefined, {
+      userMessageItemId: "user-1",
+      inlineInstructions: "[provider handoff] read_thread first",
+    });
+
+    const seen = events
+      .filter(
+        (e): e is Extract<RuntimeEvent, { type: "content.delta" }> =>
+          e.type === "content.delta" && e.stream === "assistant_text",
+      )
+      .map((e) => e.delta)
+      .join("");
+    expect(seen).toBe("SAW:ECHO please\n\n[provider handoff] read_thread first");
+    // The painted user_message stays the user's own text.
+    const userMessage = events.find(
+      (event) => event.type === "item.started" && event.itemType === "user_message",
+    );
+    expect(JSON.stringify(userMessage)).toContain("ECHO please");
+    expect(JSON.stringify(userMessage)).not.toContain("provider handoff");
     await disposeSettledSession(session, events, updates);
   });
 

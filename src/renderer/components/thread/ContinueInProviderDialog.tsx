@@ -1,11 +1,10 @@
-import { useRef, useState } from "react";
-import { Paperclip } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { Monitor, Settings2, Webhook } from "lucide-react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentCapability,
   AgentStatus,
-  ExtractContextResult,
   ProjectDraftConfig,
   ProjectLocation,
   PromptSegment,
@@ -13,6 +12,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { resolveComposerMcpScope } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
@@ -27,48 +27,95 @@ import {
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
 import { openPdfPreview } from "../pdf/openPdfPreview";
-import { MentionInput, type MentionInputHandle } from "../composer/MentionInput";
-import { useAttachments } from "../composer/useAttachments";
+import {
+  MentionInput,
+  type McpMentionItem,
+  type MentionInputHandle,
+} from "../composer/MentionInput";
+import { readThreadToolEnabled, useThreadMentionItems } from "../composer/useThreadMentionItems";
+import {
+  usePluginMentionItems,
+  useSkillSlashCommandState,
+} from "@/renderer/components/skills/useSkills";
+import {
+  COMPUTER_USE_MCP_ID,
+  composerMcpServers,
+  mcpTogglePatch,
+  providerMcpSettingEnabled,
+  providerOwnsMcpConfig,
+} from "../composer/composerMcpServers";
+import {
+  pluginLabelsForMcpServers,
+  pluginMentionsForAvailableMcp,
+  withoutPluginBackedMcpMentions,
+} from "../composer/pluginBackedMcp";
+import {
+  ComposerAddMenu,
+  type ComposerCustomMcpItem,
+  type ComposerMcpMenuItem,
+} from "../composer/ComposerAddMenu";
+import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
+import { getComputerUseScope } from "../composer/computerUseScope";
+import { mergeMcpServers } from "@/shared/contracts/mcpServer";
+import { ThreadCommandPanel } from "./ThreadCommandPanel";
+import {
+  bindLeadingSkillUnlessLocalAction,
+  filterSlashCommands,
+  handleSlashCommandPanelKeyDown,
+  resolveAvailableSlashCommands,
+  resolveLocalSlashCommandAction,
+  slashCommandDisplayId,
+} from "./threadSlashCommands";
+import { carryOverComposerMcpConfig, composerMcpConfig } from "../composer/carryOverMcpConfig";
+import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
   agentStatusForPresentation,
   capabilitiesForPresentation,
   filterHiddenModels,
+  hasSelectableReasoning,
   resolveModelSelection,
   resolveReasoningSelection,
 } from "@/shared/agentSelection";
+import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import type { RankedCrossagentCandidate } from "@/shared/crossagentRanking";
+import {
+  continuesInPlace,
+  rankContinueProviders,
+  resolveInitialPresentationMode,
+  supportsPresentation,
+} from "@/shared/continueProviderRanking";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
+import {
+  defaultHandoffPrompt,
+  type ProviderHandoffContext,
+} from "@/renderer/actions/providerHandoff";
+import { resolveProviderHandoffStrategy } from "@/shared/providerHandoff";
 
 type Phase = "select" | "extracting" | "error";
 type PendingSubmission = { prompt: string; segments?: PromptSegment[] };
-const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
-const DEFAULT_HANDOFF_PROMPT =
-  "Continue from the transferred context and pick up where the previous provider left off.";
+/**
+ * `fork` opens a second thread beside the original; `switch` continues the same
+ * task in the target provider — in place for a chat target, as a replacement
+ * thread when the target is a terminal.
+ */
+export type ContinueIntent = "fork" | "switch";
 
-function supportedPresentationModes(agent: AgentStatus): ThreadPresentationMode[] {
-  return agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-}
-
-function supportsPresentation(agent: AgentStatus, mode: ThreadPresentationMode): boolean {
-  return supportedPresentationModes(agent).includes(mode);
-}
-
-function resolveInitialPresentationMode(
-  agent: AgentStatus | undefined,
-  lastByAgent: Record<string, ThreadPresentationMode>,
-  sourceMode: ThreadPresentationMode,
-): ThreadPresentationMode {
-  if (!agent) return "terminal";
-  const supported = supportedPresentationModes(agent);
-  const last = lastByAgent[agent.kind];
-  if (last && supported.includes(last)) return last;
-  if (supported.includes(sourceMode)) return sourceMode;
-  if (supported.includes("gui")) return "gui";
-  return supported[0] ?? agent.capabilities.presentationMode ?? "terminal";
+/** The model/reasoning/Fast values the ranked provider is normally launched with. */
+function preferredConfigPatch(
+  ranked: RankedCrossagentCandidate | undefined,
+): Partial<ThreadConfig> {
+  const selection = ranked?.preferredSelection;
+  if (!selection?.model) return {};
+  return {
+    model: selection.model,
+    ...(selection.effort ? { effort: selection.effort } : {}),
+    ...(selection.fast ? { fast: true } : {}),
+  };
 }
 
 function resolveContextSizeValue(
@@ -109,7 +156,9 @@ function resolveDefaultConfig(
   agent: AgentStatus,
   presentationMode: ThreadPresentationMode,
   preferred?: Partial<ThreadConfig>,
+  projectLocation?: ProjectLocation,
 ): ThreadConfig {
+  const hostPlatform = readBridge()?.platform;
   const capabilities = capabilitiesForPresentation(agent.capabilities, presentationMode);
   const model = resolveModelSelection(capabilities, preferred?.model);
   const effort = resolveReasoningSelection(capabilities, model, preferred?.effort);
@@ -140,99 +189,20 @@ function resolveDefaultConfig(
     ...(approvalPolicy ? { approvalPolicy } : {}),
     ...(preferred?.approvalsReviewer ? { approvalsReviewer: preferred.approvalsReviewer } : {}),
     ...(sandboxMode ? { sandboxMode } : {}),
+    // The MCP servers the user turned on for this task follow it into the
+    // target provider, minus the ones that provider cannot honor.
+    ...carryOverComposerMcpConfig(
+      capabilities,
+      presentationMode,
+      preferred ?? {},
+      projectLocation,
+      hostPlatform,
+    ),
   };
 }
 
 function savedConfigForAgent(agent: AgentStatus, savedConfig?: ProjectDraftConfig) {
   return savedConfig?.agentKind === agent.kind ? savedConfig : undefined;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function textFromContentBlocks(payload: unknown): string {
-  const content = asRecord(payload)?.content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((block) => {
-      const record = asRecord(block);
-      if (!record) return "";
-      if (record.kind === "text" && typeof record.text === "string") return record.text;
-      if (record.kind === "file" && typeof record.path === "string") return `@${record.path}`;
-      if (record.kind === "image") {
-        if (typeof record.path === "string") return `@${record.path}`;
-        if (typeof record.name === "string") return `[image: ${record.name}]`;
-        return "[image]";
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-
-function formatRuntimeItemForHandoff(item: RuntimeChatItem): string | null {
-  const streams = item.streams;
-  const payload = asRecord(item.payload);
-  switch (item.type) {
-    case "user_message": {
-      const text = textFromContentBlocks(item.payload);
-      return text ? `User:\n${text}` : null;
-    }
-    case "assistant_message": {
-      const text = textFromContentBlocks(item.payload) || streams.assistant_text;
-      return text ? `Assistant:\n${text}` : null;
-    }
-    case "plan": {
-      const steps = payload?.steps;
-      if (!Array.isArray(steps)) return null;
-      const text = steps
-        .map((step) => {
-          const record = asRecord(step);
-          if (!record || typeof record.step !== "string") return "";
-          const status = typeof record.status === "string" ? record.status : "pending";
-          return `- [${status}] ${record.step}`;
-        })
-        .filter(Boolean)
-        .join("\n");
-      return text ? `Plan:\n${text}` : null;
-    }
-    case "goal": {
-      const objective = typeof payload?.objective === "string" ? payload.objective : "";
-      const status = typeof payload?.status === "string" ? ` (${payload.status})` : "";
-      return objective ? `Goal${status}:\n${objective}` : null;
-    }
-    case "tool_call":
-    case "mcp_tool_call":
-    case "image_view":
-    case "dynamic_tool_call": {
-      const name = typeof payload?.title === "string" ? payload.title : payload?.name;
-      const status = typeof payload?.status === "string" ? payload.status : item.state;
-      return typeof name === "string" ? `Tool ${status}: ${name}` : null;
-    }
-    case "command_execution": {
-      const command = typeof payload?.command === "string" ? payload.command : "";
-      const output = streams.command_output;
-      return command || output
-        ? `Command:\n${command}${output ? `\nOutput:\n${output}` : ""}`
-        : null;
-    }
-    case "file_change": {
-      const path = typeof payload?.path === "string" ? payload.path : "";
-      const kind = typeof payload?.changeKind === "string" ? payload.changeKind : "change";
-      return path ? `File ${kind}: ${path}` : null;
-    }
-    case "web_search": {
-      const query = typeof payload?.query === "string" ? payload.query : "";
-      return query ? `Web search: ${query}` : null;
-    }
-    case "error": {
-      const message = typeof payload?.message === "string" ? payload.message : "";
-      return message ? `Error:\n${message}` : null;
-    }
-    default:
-      return null;
-  }
 }
 
 export function ContinueInProviderDialog(props: {
@@ -241,6 +211,10 @@ export function ContinueInProviderDialog(props: {
   projectLocation: ProjectLocation;
   installedAgents: AgentStatus[];
   lastDraftConfig?: ProjectDraftConfig;
+  /** Thread-owner-aware file picker; remote panes pass one that uploads to the host. */
+  pickFiles?: (() => Promise<string[] | null>) | undefined;
+  /** Thread-owner-aware clipboard saver; remote panes upload pasted images to the host. */
+  saveClipboardImage?: SaveClipboardImage | undefined;
   onClose: () => void;
   onContinue: (
     targetAgentKind: string,
@@ -248,50 +222,95 @@ export function ContinueInProviderDialog(props: {
     targetPresentationMode: ThreadPresentationMode,
     prompt: string,
     segments: PromptSegment[] | undefined,
-    closeOriginal: boolean,
-    extractedContext: ExtractContextResult | null,
+    intent: ContinueIntent,
+    handoffContext: ProviderHandoffContext,
   ) => void;
 }) {
   const { thread, installedAgents, onClose, onContinue } = props;
   const { t } = useLingui();
 
-  const otherAgents = installedAgents.filter((a) => a.kind !== thread.agentKind);
-  const [selectedKind, setSelectedKind] = useState<string>(otherAgents[0]?.kind ?? "");
-  const [phase, setPhase] = useState<Phase>("select");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [pendingCloseOriginal, setPendingCloseOriginal] = useState(false);
-  const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
-  const mentionRef = useRef<MentionInputHandle>(null);
-  const attachments = useAttachments();
+  const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
+  const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
+  const agentSelectionUsage = useSharedSettings((s) => s.agentSelectionUsage);
+  const crossagentSelectionUsage = useSharedSettings((s) => s.crossagentSelectionUsage);
+  const crossagentRoutingOverrides = useSharedSettings((s) => s.crossagentRoutingOverrides);
+  const favoriteModels = useSharedSettings((s) => s.favoriteModels);
 
+  // Whether this thread's sessions get the app-controls `read_thread` tool —
+  // the transcript-reading path a handoff hands to the incoming provider in
+  // place of an extracted summary. The per-thread record is the last session's
+  // launch-time snapshot, so it is read together with the current settings
+  // gate: a tool disabled since then only shows up in the next launch.
+  const threadMentionToolsAvailable = useAppStore(
+    (s) => s.threadMentionToolsAvailableByThreadId[thread.id] === true,
+  );
+  const readThreadToolsEnabled = useSharedSettings(readThreadToolEnabled);
+
+  const otherAgents = installedAgents.filter((a) => a.kind !== thread.agentKind);
   const sourceAgent = installedAgents.find((a) => a.kind === thread.agentKind);
-  const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
   const sourcePresentationMode =
     thread.presentationMode ?? sourceAgent?.capabilities.presentationMode ?? "terminal";
+
+  // Propose the provider the user actually reaches for most; `proposedRanking`
+  // feeds `preferredConfigPatch` below so the proposal carries the model the
+  // selection normally launches with.
+  const rankedTargets = rankContinueProviders(
+    otherAgents,
+    lastPresentationModeByAgent,
+    sourcePresentationMode,
+    crossagentRankingPreferences({
+      agentSelectionUsage,
+      crossagentSelectionUsage,
+      crossagentRoutingOverrides,
+      favoriteModels,
+    }),
+  );
+  const proposedAgent =
+    otherAgents.find((a) => a.kind === rankedTargets[0]?.provider) ?? otherAgents[0];
+  const proposedRanking = rankedTargets.find((entry) => entry.provider === proposedAgent?.kind);
+  const proposedPresentationMode = resolveInitialPresentationMode(
+    proposedAgent,
+    lastPresentationModeByAgent,
+    sourcePresentationMode,
+  );
+
+  const [selectedKind, setSelectedKind] = useState<string>(proposedAgent?.kind ?? "");
+  const [phase, setPhase] = useState<Phase>("select");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
+  const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
+  const mentionRef = useRef<MentionInputHandle>(null);
+  // Portal root inside the modal DOM. The mention popover portaled to body
+  // would get `inert` from the modal's ariaHideOutside: no scrolling, and
+  // clicks fall through to the backdrop and dismiss the dialog.
+  const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
+  const attachments = useAttachments({
+    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+  });
+
+  const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
   const sourceRuntimeStatus = sourceAgent
     ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
     : undefined;
-  const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
-  const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
-  const [targetPresentationMode, setTargetPresentationMode] = useState<ThreadPresentationMode>(() =>
-    resolveInitialPresentationMode(
-      selectedAgent,
-      lastPresentationModeByAgent,
-      sourcePresentationMode,
-    ),
-  );
+  const [targetPresentationMode, setTargetPresentationMode] =
+    useState<ThreadPresentationMode>(proposedPresentationMode);
 
   // --- Target provider config ---
+  // The MCP servers this task is already running with. They seed every target
+  // config below, so switching providers does not silently drop the tools the
+  // work depends on; the ones the target cannot honor are filtered out.
+  const sourceMcpConfig = composerMcpConfig(thread.config);
   const [targetConfig, setTargetConfig] = useState<ThreadConfig>(() =>
-    selectedAgent
+    proposedAgent
       ? resolveDefaultConfig(
-          selectedAgent,
-          resolveInitialPresentationMode(
-            selectedAgent,
-            lastPresentationModeByAgent,
-            sourcePresentationMode,
-          ),
-          savedConfigForAgent(selectedAgent, props.lastDraftConfig),
+          proposedAgent,
+          proposedPresentationMode,
+          {
+            ...savedConfigForAgent(proposedAgent, props.lastDraftConfig),
+            ...preferredConfigPatch(proposedRanking),
+            ...sourceMcpConfig,
+          },
+          props.projectLocation,
         )
       : { model: "" },
   );
@@ -311,10 +330,18 @@ export function ContinueInProviderDialog(props: {
         setTargetPresentationMode(nextPresentationMode);
       }
       setTargetConfig(
-        resolveDefaultConfig(agent, nextPresentationMode, {
-          ...savedConfigForAgent(agent, props.lastDraftConfig),
-          ...preferred,
-        }),
+        resolveDefaultConfig(
+          agent,
+          nextPresentationMode,
+          {
+            ...savedConfigForAgent(agent, props.lastDraftConfig),
+            ...preferred,
+            // Whatever is enabled right now — seeded from the source thread and
+            // possibly since toggled in this dialog — not the saved draft's.
+            ...composerMcpConfig(targetConfig),
+          },
+          props.projectLocation,
+        ),
       );
     }
   }
@@ -333,7 +360,8 @@ export function ContinueInProviderDialog(props: {
       resolveDefaultConfig(
         nextAgent,
         next,
-        nextAgent.kind === selectedKind ? targetConfig : undefined,
+        nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig),
+        props.projectLocation,
       ),
     );
   }
@@ -341,9 +369,47 @@ export function ContinueInProviderDialog(props: {
   function handleTargetConfigPatch(patch: Partial<ThreadConfig>) {
     if (!selectedAgent) return;
     setTargetConfig((prev) =>
-      resolveDefaultConfig(selectedAgent, targetPresentationMode, { ...prev, ...patch }),
+      resolveDefaultConfig(
+        selectedAgent,
+        targetPresentationMode,
+        { ...prev, ...patch },
+        props.projectLocation,
+      ),
     );
   }
+
+  // --- Composer affordances (same set the normal composer offers) ---
+  // The prompt typed here is the target provider's first turn, so it takes
+  // file/thread/plugin/MCP mentions and slash commands exactly like the draft
+  // composer that starts any other thread.
+  const commandListId = useId();
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [slashActiveIndex, setSlashActiveIndex] = useState(0);
+  const { commands: skillCommands } = useSkillSlashCommandState(
+    props.projectLocation,
+    selectedKind,
+    targetPresentationMode,
+  );
+  const pluginMentions = usePluginMentionItems(
+    props.projectLocation,
+    selectedKind,
+    targetPresentationMode,
+  );
+  const threadMentions = useThreadMentionItems(
+    {
+      kind: "project",
+      projectId: thread.projectId,
+      currentWorktreePath: thread.worktreePath,
+    },
+    thread.id,
+  );
+  const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
+  const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
+  const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
+  const providerMcpSettings = useSharedSettings((s) => s.agentSettings[selectedKind]);
+  const projectCustomMcpServers = useAppStore(
+    (s) => s.projects.find((project) => project.id === thread.projectId)?.mcpServers,
+  );
 
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
   const selectedTargetCapabilities = selectedAgent
@@ -383,6 +449,207 @@ export function ContinueInProviderDialog(props: {
         },
       )
     : [];
+  const targetCapabilities = selectedTargetCapabilities ?? selectedAgent?.capabilities;
+  const slashLookupContext = {
+    agentKind: selectedKind,
+    presentationMode: targetPresentationMode,
+    ...(targetCapabilities?.runtimeLabel ? { runtimeLabel: targetCapabilities.runtimeLabel } : {}),
+  };
+  // Commands that would drive local dialog UI (`/model`, `/effort`, …) are
+  // dropped: the pickers beside this composer already own those, and a launch
+  // has nowhere to run them. Skills and provider commands ride along as prompt.
+  const availableCommands = targetCapabilities
+    ? resolveAvailableSlashCommands(undefined, targetCapabilities.slashCommands, {
+        ...slashLookupContext,
+        hasEffort: hasSelectableReasoning(targetCapabilities, targetConfig.model),
+        supportsFast: supportsUsableFastMode(targetCapabilities, targetConfig.model),
+        skillCommands,
+        ...(targetCapabilities.disabledSkillNames
+          ? { disabledSkillNames: targetCapabilities.disabledSkillNames }
+          : {}),
+      }).filter(
+        (command) =>
+          !resolveLocalSlashCommandAction(`/${slashCommandDisplayId(command)}`, slashLookupContext),
+      )
+    : [];
+  const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
+  const showCommandPanel = filteredCommands.length > 0;
+
+  // `@`-mentions for the servers the target thread will launch with. Registry
+  // servers that are off can be turned on from the mention list (it patches the
+  // target config); custom servers come from settings and are informational.
+  const providerOwnsMcp = targetCapabilities ? providerOwnsMcpConfig(targetCapabilities) : false;
+  // Mirrored desktop threads launch from their host's settings. This renderer
+  // does not own that MCP snapshot, so showing or mutating its local controls
+  // would promise servers the host may not launch.
+  const mcpControlsAvailable = targetCapabilities !== undefined && !thread.remoteServerId;
+  const mergedCustomMcpServers = mergeMcpServers(
+    userCustomMcpServers,
+    projectCustomMcpServers ?? [],
+  );
+  const customMcpServers = mcpControlsAvailable
+    ? mergedCustomMcpServers.filter((server) => server.enabled)
+    : [];
+  // Offer a mention when the provider's composer gates this server per thread,
+  // and also whenever the flag is already on — a server carried over from the
+  // source thread launches either way, so hiding it would misreport the run.
+  const computerUseScope =
+    mcpControlsAvailable &&
+    disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
+    targetCapabilities
+      ? getComputerUseScope(
+          targetCapabilities,
+          targetPresentationMode,
+          props.projectLocation,
+          readBridge()?.platform,
+        )
+      : "none";
+  const providerComputerUseEnabled =
+    mcpControlsAvailable &&
+    providerOwnsMcp &&
+    targetCapabilities !== undefined &&
+    disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
+    providerMcpSettingEnabled(targetCapabilities, providerMcpSettings, "computerUse");
+  const showComputerUseMention =
+    mcpControlsAvailable &&
+    (providerOwnsMcp
+      ? providerComputerUseEnabled
+      : computerUseScope !== "none" || targetConfig.computerUse === true) &&
+    props.projectLocation.kind !== "wsl" &&
+    readBridge()?.platform !== "linux";
+  const mcpMentions: McpMentionItem[] =
+    mcpControlsAvailable && targetCapabilities
+      ? [
+          ...(disabledBuiltInMcpServers["app-controls"] !== true && !providerOwnsMcp
+            ? [
+                {
+                  id: "app-controls",
+                  name: t`Poracode`,
+                  icon: Settings2,
+                  enabled: true,
+                },
+              ]
+            : []),
+          ...composerMcpServers
+            .filter(
+              (descriptor) =>
+                disabledBuiltInMcpServers[descriptor.id] !== true &&
+                descriptor.isAvailable(props.projectLocation) &&
+                (providerOwnsMcp
+                  ? providerMcpSettingEnabled(
+                      targetCapabilities,
+                      providerMcpSettings,
+                      descriptor.configKey,
+                    )
+                  : descriptor.getScope(
+                      targetCapabilities,
+                      targetPresentationMode,
+                      props.projectLocation,
+                    ) !== "none" || targetConfig[descriptor.configKey] === true),
+            )
+            .map((descriptor) => ({
+              id: descriptor.id,
+              name: t(descriptor.label),
+              icon: descriptor.icon,
+              detail: t`MCP server`,
+              enabled: providerOwnsMcp ? true : targetConfig[descriptor.configKey] === true,
+            })),
+          ...customMcpServers.map((server) => ({
+            id: server.id,
+            name: server.name,
+            icon: Webhook,
+            detail: t`MCP server`,
+            enabled: true,
+          })),
+          ...(showComputerUseMention
+            ? [
+                {
+                  id: COMPUTER_USE_MCP_ID,
+                  name: t`Computer Use`,
+                  icon: Monitor,
+                  detail: t`Computer Use`,
+                  enabled: providerOwnsMcp ? true : targetConfig.computerUse === true,
+                },
+              ]
+            : []),
+        ]
+      : [];
+  const composerPluginMentions = pluginMentionsForAvailableMcp(pluginMentions, mcpMentions);
+  const composerMcpMentions = withoutPluginBackedMcpMentions(mcpMentions, composerPluginMentions);
+  const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
+
+  // "+" menu rows for this switch. Unlike the draft composer's menu — which
+  // edits the standing default for *future* threads — these edit the config of
+  // the one launch being set up here, preselected from the servers the thread
+  // already runs with. Toggling off leaves the user's standing defaults alone.
+  const mcpMenuServers: ComposerMcpMenuItem[] =
+    mcpControlsAvailable && targetCapabilities
+      ? composerMcpServers.map((descriptor) => {
+          const providerSettingEnabled =
+            providerOwnsMcp &&
+            providerMcpSettingEnabled(
+              targetCapabilities,
+              providerMcpSettings,
+              descriptor.configKey,
+            );
+          return {
+            descriptor,
+            enabled: providerOwnsMcp
+              ? providerSettingEnabled
+              : targetConfig[descriptor.configKey] === true,
+            visible:
+              disabledBuiltInMcpServers[descriptor.id] !== true &&
+              descriptor.isAvailable(props.projectLocation) &&
+              (!providerOwnsMcp || providerSettingEnabled),
+            onToggle: (next: boolean) => {
+              if (!providerOwnsMcp) {
+                handleTargetConfigPatch(mcpTogglePatch(descriptor.configKey, next));
+              }
+            },
+          };
+        })
+      : [];
+  // Custom servers bind at launch from settings, not per-thread config, so
+  // these rows flip the same persistent switch the MCP Servers page does — the
+  // draft composer's menu behaves identically.
+  const projectCustomMcpIds = new Set((projectCustomMcpServers ?? []).map((server) => server.id));
+  const mcpMenuCustomServers: ComposerCustomMcpItem[] = (
+    mcpControlsAvailable
+      ? providerOwnsMcp
+        ? mergedCustomMcpServers.filter((server) => server.enabled)
+        : mergedCustomMcpServers
+      : []
+  ).map((server) => {
+    const isProject = projectCustomMcpIds.has(server.id);
+    const scopedServers = isProject ? (projectCustomMcpServers ?? []) : userCustomMcpServers;
+    return {
+      id: `${isProject ? "project" : "user"}:${server.id}`,
+      name: server.name,
+      enabled: server.enabled,
+      ...(providerOwnsMcp
+        ? {}
+        : {
+            onToggle: (next: boolean) => {
+              const nextServers = scopedServers.map((item) =>
+                item.id === server.id ? { ...item, enabled: next } : item,
+              );
+              if (isProject) updateProjectMcpServers(thread.projectId, nextServers);
+              else setUserCustomMcpServers(nextServers);
+            },
+          }),
+    };
+  });
+
+  function handleMcpMentionSelect(id: string) {
+    if (providerOwnsMcp) return;
+    if (id === COMPUTER_USE_MCP_ID) {
+      handleTargetConfigPatch({ computerUse: true });
+      return;
+    }
+    const descriptor = composerMcpServers.find((candidate) => candidate.id === id);
+    if (descriptor) handleTargetConfigPatch(mcpTogglePatch(descriptor.configKey, true));
+  }
+
   const supportsTargetTerminalMode = otherAgents.some((agent) =>
     supportsPresentation(agent, "terminal"),
   );
@@ -406,12 +673,41 @@ export function ContinueInProviderDialog(props: {
         extractionEfforts.includes(filteredSourceCaps.defaultEffort)
       ? filteredSourceCaps.defaultEffort
       : (extractionEfforts[0] ?? "");
-  function buildSubmission(inputSegments?: PromptSegment[]): PendingSubmission | null {
-    const composerSegments = inputSegments ?? mentionRef.current?.serializeSegments() ?? [];
+  /**
+   * Whether this handoff hands over the thread id or a written context file —
+   * the chat→chat / everything-else split described on
+   * `resolveProviderHandoffStrategy`.
+   */
+  function handoffStrategy(intent: ContinueIntent) {
+    return resolveProviderHandoffStrategy({
+      intent,
+      sourcePresentationMode,
+      targetPresentationMode,
+      isMirroredThread: thread.remoteServerId !== undefined,
+      readThreadToolEnabled: readThreadToolsEnabled,
+      threadResolvedReadThreadTool: threadMentionToolsAvailable,
+      targetReadThreadToolGuaranteed:
+        targetCapabilities !== undefined &&
+        resolveComposerMcpScope(targetCapabilities.mcpScope, targetPresentationMode) === "always",
+    });
+  }
+
+  function buildSubmission(
+    intent: ContinueIntent,
+    inputSegments?: PromptSegment[],
+  ): PendingSubmission | null {
+    // A typed `/skill …` becomes a real skill segment, the same delivery path a
+    // chip insertion takes, so the target provider receives the skill rather
+    // than literal slash text.
+    const composerSegments = bindLeadingSkillUnlessLocalAction(
+      inputSegments ?? mentionRef.current?.serializeSegments() ?? [],
+      availableCommands,
+      slashLookupContext,
+    );
     const allSegments = [...attachments.toSegments(), ...composerSegments];
     const flatPrompt = flattenSegments(allSegments);
     if (!flatPrompt.trim()) {
-      return { prompt: DEFAULT_HANDOFF_PROMPT };
+      return { prompt: defaultHandoffPrompt(handoffStrategy(intent)) };
     }
     return {
       prompt: flatPrompt,
@@ -419,54 +715,42 @@ export function ContinueInProviderDialog(props: {
     };
   }
 
-  function buildTranscriptContext(): ExtractContextResult | null {
-    const state = useAppStore.getState();
-    const itemIds = state.runtimeItemIdsByThread[thread.id] ?? [];
-    const itemsById = state.runtimeItemsByIdByThread[thread.id];
-    if (!itemsById || itemIds.length === 0) return null;
-
-    const transcript = itemIds
-      .map((itemId) => itemsById[itemId])
-      .filter((item): item is RuntimeChatItem => Boolean(item && !item.parentItemId))
-      .map(formatRuntimeItemForHandoff)
-      .filter((text): text is string => Boolean(text?.trim()))
-      .join("\n\n");
-
-    if (!transcript.trim()) return null;
-    const sourceLabel = sourceAgent?.label ?? thread.agentKind;
-    const summary = [
-      `Context captured from the ${sourceLabel} chat transcript because provider resume and terminal scrollback were unavailable.`,
-      "",
-      transcript.length > MAX_TRANSCRIPT_CONTEXT_CHARS
-        ? `${transcript.slice(-MAX_TRANSCRIPT_CONTEXT_CHARS)}\n\n[earlier transcript truncated]`
-        : transcript,
-    ].join("\n");
-
-    return {
-      summary,
-      sourceProvider: thread.agentKind,
-      sourceSessionId: thread.sessionRef?.providerSessionId ?? thread.id,
-      ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-      extractedAt: new Date().toISOString(),
-    };
-  }
-
-  async function handleAction(closeOriginal: boolean, inputSegments?: PromptSegment[]) {
-    const submission = buildSubmission(inputSegments);
+  async function handleAction(intent: ContinueIntent, inputSegments?: PromptSegment[]) {
+    const submission = buildSubmission(intent, inputSegments);
     if (!submission) return;
-    setPendingCloseOriginal(closeOriginal);
+    setPendingIntent(intent);
     setPendingSubmission(submission);
     setLastPresentationMode(selectedKind, targetPresentationMode);
 
-    if (!thread.sessionRef) {
+    // chat → chat: skip extraction and hand off immediately. The thread keeps
+    // its transcript, so the incoming provider reads it with `read_thread`
+    // instead of costing the outgoing provider a one-shot summary run.
+    if (handoffStrategy(intent) === "thread-transcript") {
       onContinue(
         selectedKind,
         targetConfig,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
-        closeOriginal,
-        null,
+        intent,
+        { strategy: "thread-transcript" },
+      );
+      return;
+    }
+
+    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
+      // No session to extract from — or a mirrored thread, whose `extractContext`
+      // is a host-side procedure this renderer deliberately does not route. The
+      // stored transcript (hydrated from the host snapshot) is the context.
+      const fallback = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
+      onContinue(
+        selectedKind,
+        targetConfig,
+        targetPresentationMode,
+        submission.prompt,
+        submission.segments,
+        intent,
+        { strategy: "context-file", extracted: fallback },
       );
       return;
     }
@@ -488,11 +772,11 @@ export function ContinueInProviderDialog(props: {
         targetPresentationMode,
         submission.prompt,
         submission.segments,
-        closeOriginal,
-        result,
+        intent,
+        { strategy: "context-file", extracted: result },
       );
     } catch (err) {
-      const fallback = buildTranscriptContext();
+      const fallback = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
       if (fallback) {
         onContinue(
           selectedKind,
@@ -500,8 +784,8 @@ export function ContinueInProviderDialog(props: {
           targetPresentationMode,
           submission.prompt,
           submission.segments,
-          closeOriginal,
-          fallback,
+          intent,
+          { strategy: "context-file", extracted: fallback },
         );
         return;
       }
@@ -522,7 +806,9 @@ export function ContinueInProviderDialog(props: {
   }
 
   function handleStartWithoutContext() {
-    const submission = pendingSubmission ?? buildSubmission();
+    // Every error-phase path records a submission first (setPendingSubmission
+    // runs before extraction starts), so there is nothing to re-derive here.
+    const submission = pendingSubmission;
     if (!submission) return;
     onContinue(
       selectedKind,
@@ -530,19 +816,21 @@ export function ContinueInProviderDialog(props: {
       targetPresentationMode,
       submission.prompt,
       submission.segments,
-      pendingCloseOriginal,
-      null,
+      pendingIntent,
+      { strategy: "context-file", extracted: null },
     );
   }
 
   const canSubmit = Boolean(selectedKind && targetConfig.model);
   const targetProviderFallback = t`the target provider`;
+  const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
   return (
     <>
       <Modal.Backdrop isOpen={props.isOpen} onOpenChange={(open) => !open && handleCancel()}>
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[760px]">
+            <div ref={setMentionPortalRoot} className="contents" />
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading>
@@ -553,12 +841,34 @@ export function ContinueInProviderDialog(props: {
             <Modal.Body className="px-5 pb-5 pt-2">
               {phase === "select" && (
                 <div className="flex flex-col gap-4">
-                  <PresentationModeTabs
-                    presentationMode={targetPresentationMode}
-                    supportsTerminal={supportsTargetTerminalMode}
-                    supportsGui={supportsTargetGuiMode}
-                    onChange={handlePresentationModeChange}
-                  />
+                  <div className="flex flex-col gap-1.5">
+                    <PresentationModeTabs
+                      presentationMode={targetPresentationMode}
+                      supportsTerminal={supportsTargetTerminalMode}
+                      supportsGui={supportsTargetGuiMode}
+                      onChange={handlePresentationModeChange}
+                    />
+                    {switchOpensNewThread && (
+                      <p className="text-center text-xs text-muted">
+                        <Trans>
+                          Switching starts a new thread with the same title, because the chat can
+                          only continue in place between two chat providers.
+                        </Trans>
+                      </p>
+                    )}
+                  </div>
+                  {showCommandPanel ? (
+                    <ThreadCommandPanel
+                      commands={filteredCommands}
+                      activeIndex={slashActiveIndex}
+                      listId={commandListId}
+                      onActiveIndexChange={setSlashActiveIndex}
+                      onSelect={(command) => {
+                        mentionRef.current?.insertSlashCommand(command);
+                        setSlashQuery(null);
+                      }}
+                    />
+                  ) : null}
                   <div className="flex flex-col gap-1.5">
                     <ThreadComposer
                       autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
@@ -597,12 +907,35 @@ export function ContinueInProviderDialog(props: {
                           placeholder={t`Tell ${selectedAgent?.label ?? targetProviderFallback} what to do next...`}
                           projectLocation={props.projectLocation}
                           projectId={thread.projectId}
+                          mcpMentions={composerMcpMentions}
+                          pluginMentions={composerPluginMentions}
+                          threadMentions={threadMentions}
+                          onMcpMentionSelect={handleMcpMentionSelect}
+                          popoverPortalContainer={mentionPortalRoot}
+                          {...(showCommandPanel
+                            ? {
+                                commandListId,
+                                commandActiveDescendant: `${commandListId}-option-${slashActiveIndex}`,
+                              }
+                            : {})}
                           onTextChange={() => undefined}
                           onPasteImage={(file) => {
                             void attachments.addClipboardImage(file, `handoff:${thread.id}`);
                           }}
+                          onInterceptKey={(e) => {
+                            if (!showCommandPanel) return false;
+                            return handleSlashCommandPanelKeyDown(e, {
+                              slashQuery,
+                              filteredCommands,
+                              slashActiveIndex,
+                              setSlashActiveIndex,
+                              setSlashQuery,
+                              mentionRef,
+                            });
+                          }}
+                          onSlashCommandChange={setSlashQuery}
                           onSubmit={(segments) => {
-                            void handleAction(false, segments);
+                            void handleAction("fork", segments);
                           }}
                         />
                       }
@@ -612,25 +945,37 @@ export function ContinueInProviderDialog(props: {
                       submitLabel={t`Fork`}
                       onPromptChange={() => undefined}
                       onSubmit={() => {
-                        void handleAction(false);
+                        void handleAction("fork");
                       }}
                       afterControls={
-                        <Button
-                          isIconOnly
-                          aria-label={t`Attach files`}
-                          className="poracode-composer-menu min-w-9 px-2"
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => {
-                            void readBridge()
-                              .pickFiles()
-                              .then((paths) => {
-                                if (paths) attachments.addFiles(paths);
-                              });
+                        <ComposerAddMenu
+                          mcpServers={mcpMenuServers}
+                          customMcpServers={mcpMenuCustomServers}
+                          pluginLabels={composerPluginLabels}
+                          {...(providerOwnsMcp && mcpControlsAvailable
+                            ? {
+                                readOnly: true,
+                                readOnlyCaption: <Trans>Change servers in provider settings</Trans>,
+                              }
+                            : {})}
+                          showFileOption
+                          onPickFiles={() => {
+                            void (
+                              props.pickFiles ? props.pickFiles() : readBridge().pickFiles()
+                            ).then((paths) => {
+                              if (paths) attachments.addFiles(paths);
+                            });
                           }}
-                        >
-                          <Paperclip className="size-4" />
-                        </Button>
+                          computerUse={{
+                            enabled: providerOwnsMcp
+                              ? providerComputerUseEnabled
+                              : targetConfig.computerUse === true,
+                            visible: showComputerUseMention,
+                            onToggle: (next) => {
+                              if (!providerOwnsMcp) handleTargetConfigPatch({ computerUse: next });
+                            },
+                          }}
+                        />
                       }
                     />
                   </div>
@@ -670,7 +1015,7 @@ export function ContinueInProviderDialog(props: {
                     variant="secondary"
                     isDisabled={!canSubmit}
                     onPress={() => {
-                      void handleAction(false);
+                      void handleAction("fork");
                     }}
                   >
                     <Trans>Fork</Trans>
@@ -679,10 +1024,10 @@ export function ContinueInProviderDialog(props: {
                     variant="tertiary"
                     isDisabled={!canSubmit}
                     onPress={() => {
-                      void handleAction(true);
+                      void handleAction("switch");
                     }}
                   >
-                    <Trans>Move</Trans>
+                    <Trans>Switch</Trans>
                   </Button>
                 </>
               )}

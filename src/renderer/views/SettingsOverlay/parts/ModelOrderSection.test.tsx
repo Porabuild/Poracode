@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { MessageDescriptor } from "@lingui/core";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -124,7 +125,13 @@ vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
   ProviderIcon: (props: { fallbackLabel?: string }) => <span>{props.fallbackLabel}</span>,
 }));
 
+import { registerCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { ModelOrderSection } from "./ModelOrderSection";
+
+/** Lingui descriptors without the macro, so extraction never sees test-only ids. */
+function runtimeLabel(id: string): MessageDescriptor {
+  return { id };
+}
 
 function makeStatus(overrides: Partial<AgentStatus> & { kind: string }): AgentStatus {
   return {
@@ -217,6 +224,39 @@ describe("ModelOrderSection provider updates", () => {
     );
   });
 
+  it("leaves a provider with independently versioned runtimes off the binary update lane", async () => {
+    // Antigravity's root version is whichever runtime is installed — comparing
+    // it against the agy binary's upstream would offer a bogus update.
+    registerCombinedRuntimeUpdates("antigravity", () => [
+      {
+        id: "cli",
+        label: runtimeLabel("agy CLI"),
+        installed: false,
+        channel: { kind: "agent-binary" },
+      },
+      {
+        id: "acp",
+        label: runtimeLabel("Antigravity ACP"),
+        installed: true,
+        installedVersion: "0.3.0",
+        channel: { kind: "acp-registry", agentId: "antigravity-acp" },
+      },
+    ]);
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.3.0" }),
+      makeStatus({ kind: "antigravity", label: "Antigravity", version: "0.3.0" }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
+
+    render(<ModelOrderSection />);
+
+    await waitFor(() =>
+      expect(bridge.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "claude" }),
+    );
+    expect(bridge.getLatestAgentVersion).not.toHaveBeenCalledWith({ agentKind: "antigravity" });
+    expect(screen.queryByRole("button", { name: /^Update/u })).toBeNull();
+  });
+
   it("hides the update control while the provider is current", async () => {
     statusesState.agentStatuses = [
       makeStatus({ kind: "claude", label: "Claude Code", version: "1.3.0" }),
@@ -227,7 +267,7 @@ describe("ModelOrderSection provider updates", () => {
 
     await waitFor(() => expect(bridge.getLatestAgentVersion).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: /^Update/u })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Update all" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Update all/u })).toBeNull();
   });
 
   it("updates every outdated provider from the Update all control", async () => {
@@ -246,7 +286,7 @@ describe("ModelOrderSection provider updates", () => {
 
     render(<ModelOrderSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Update all" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (2)" }));
 
     await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(2));
     expect(bridge.updateAgentBinary.mock.calls.map(([payload]) => payload.agentKind)).toEqual([
@@ -284,18 +324,18 @@ describe("ModelOrderSection provider updates", () => {
     );
 
     render(<ModelOrderSection />);
-    const updateAllButton = await screen.findByRole("button", { name: "Update all" });
+    const updateAllButton = await screen.findByRole("button", { name: "Update all (2)" });
     updateAllButton.focus();
     fireEvent.click(updateAllButton);
 
     const firstProgress = await screen.findByRole("status", {
-      name: "Updating Claude Code to v1.3.0",
+      name: "Updating Claude Code (1 of 2)",
     });
     expect(firstProgress.querySelector("span.truncate")).toBeTruthy();
-    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(screen.getByRole("status", { name: "Codex queued for update to v1.0.0" })).toBeTruthy();
     expect(document.activeElement).toBe(updateAllButton);
     expect(updateAllButton).toHaveAttribute("aria-disabled", "true");
-    expect(screen.queryByRole("img", { name: "Loading" })).toBeNull();
+    expect(screen.getByText("Updating (1/2)")).toBeTruthy();
     expect(screen.getByText("Updating to v1.3.0")).toBeTruthy();
     expect(screen.getByText("Queued for v1.0.0")).toBeTruthy();
     expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1);
@@ -304,7 +344,9 @@ describe("ModelOrderSection provider updates", () => {
       resolveClaudeUpdate({ ok: true });
     });
 
-    expect(await screen.findByRole("status", { name: "Probing Claude Code v1.3.0" })).toBeTruthy();
+    expect(
+      await screen.findByRole("status", { name: "Probing Claude Code (1 of 2)" }),
+    ).toBeTruthy();
     expect(screen.getByText("Probing v1.3.0")).toBeTruthy();
     expect(screen.getByText("Queued for v1.0.0")).toBeTruthy();
 
@@ -312,8 +354,8 @@ describe("ModelOrderSection provider updates", () => {
       resolveRefreshes.shift()?.({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
     });
 
-    expect(await screen.findByText("Updating Codex to v1.0.0")).toBeTruthy();
-    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(await screen.findByRole("status", { name: "Updating Codex (2 of 2)" })).toBeTruthy();
+    expect(screen.getByText("Updating (2/2)")).toBeTruthy();
     expect(screen.getByText("Updating to v1.0.0")).toBeTruthy();
     expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(2);
 
@@ -321,7 +363,7 @@ describe("ModelOrderSection provider updates", () => {
       resolveCodexUpdate({ ok: true });
     });
 
-    expect(await screen.findByRole("status", { name: "Probing Codex v1.0.0" })).toBeTruthy();
+    expect(await screen.findByRole("status", { name: "Probing Codex (2 of 2)" })).toBeTruthy();
     expect(screen.getByText("Probing v1.0.0")).toBeTruthy();
 
     await act(async () => {
@@ -397,7 +439,7 @@ describe("ModelOrderSection provider updates", () => {
     expect(bridge.getLatestAgentVersion).toHaveBeenCalledTimes(1);
     expect(bridge.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "claude" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Update all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update all (1)" }));
 
     await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1));
     expect(bridge.updateAgentBinary).toHaveBeenCalledWith({
@@ -425,7 +467,7 @@ describe("ModelOrderSection provider updates", () => {
 
     render(<ModelOrderSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Update all" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (1)" }));
 
     await waitFor(() => expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1));
     expect(bridge.updateAgentBinary.mock.calls.map(([payload]) => payload)).toEqual([
@@ -493,7 +535,7 @@ describe("ModelOrderSection provider updates", () => {
     );
 
     render(<ModelOrderSection />);
-    fireEvent.click(await screen.findByRole("button", { name: "Update all" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (1)" }));
 
     await act(async () => {
       resolveCodexProbe({ source: "npm", version: "1.0.0" });

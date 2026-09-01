@@ -57,6 +57,12 @@ export interface GroupSection {
   label: string;
   Icon: LucideIcon;
   diffSummary?: NonNullable<FileChangePayload["diffSummary"]>;
+  /**
+   * At least one item in this category is still running. Detached background
+   * commands outlive their turn (the collapsed header is then the only
+   * surface), so the header must carry the running treatment.
+   */
+  hasRunning?: boolean;
 }
 
 export interface SameFileEditGroupSummary {
@@ -67,12 +73,14 @@ export interface SameFileEditGroupSummary {
 
 export function summarizeToolCalls(items: readonly RuntimeChatItem[]): GroupSection[] {
   const counts = new Map<GroupCategory, number>();
+  const runningCategories = new Set<GroupCategory>();
   let editAdded = 0;
   let editRemoved = 0;
   let hasMissingEditDiffSummary = false;
   for (const item of items) {
     const category = categorizeItem(item);
     counts.set(category, (counts.get(category) ?? 0) + 1);
+    if (item.state !== "completed") runningCategories.add(category);
     if (category !== "edited") continue;
     const diffSummary = readEditDiffSummary(item);
     if (!diffSummary) {
@@ -97,6 +105,7 @@ export function summarizeToolCalls(items: readonly RuntimeChatItem[]): GroupSect
         ...(category === "edited" && !hasMissingEditDiffSummary
           ? { diffSummary: { added: editAdded, removed: editRemoved } }
           : {}),
+        ...(runningCategories.has(category) ? { hasRunning: true } : {}),
       };
     });
 }

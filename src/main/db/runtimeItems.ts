@@ -379,6 +379,45 @@ export function dbGetThreadRuntimeItemsPage(
   };
 }
 
+/** Read an exact page of conversational user/assistant messages, excluding tool and reasoning rows. */
+export function dbGetThreadConversationItemsPage(
+  threadId: string,
+  beforePosition: number | undefined,
+  limit: number,
+): PersistedRuntimePage {
+  runtimeWriteQueue.flush(threadId);
+  const sqlite = getSqlite();
+  const rows = (
+    beforePosition === undefined
+      ? sqlite
+          .prepare(
+            `SELECT item_id, position, type, state, payload, streams, parent_item_id
+           FROM thread_runtime_items
+           WHERE thread_id = ? AND parent_item_id IS NULL
+             AND type IN ('user_message', 'assistant_message')
+           ORDER BY position DESC
+           LIMIT ?`,
+          )
+          .all(threadId, limit + 1)
+      : sqlite
+          .prepare(
+            `SELECT item_id, position, type, state, payload, streams, parent_item_id
+           FROM thread_runtime_items
+           WHERE thread_id = ? AND position < ? AND parent_item_id IS NULL
+             AND type IN ('user_message', 'assistant_message')
+           ORDER BY position DESC
+           LIMIT ?`,
+          )
+          .all(threadId, beforePosition, limit + 1)
+  ) as PositionedPersistedRuntimeItemRow[];
+  const hasMore = rows.length > limit;
+  const pageRows = rows.slice(0, limit).reverse();
+  return {
+    items: mapRuntimeItemRows(sqlite, threadId, pageRows),
+    nextCursor: hasMore ? (pageRows[0]?.position ?? null) : null,
+  };
+}
+
 function isRuntimePageGroupItem(
   sqlite: InstanceType<typeof Database>,
   threadId: string,
@@ -857,7 +896,7 @@ export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string |
       `SELECT item_id
        FROM thread_runtime_items
        WHERE thread_id = ?
-         AND type NOT IN ('user_message', 'plan', 'error')
+         AND type NOT IN ('user_message', 'plan', 'error', 'provider_handoff')
          AND type != ?
        ORDER BY position DESC
        LIMIT 1`,

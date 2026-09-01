@@ -4,6 +4,8 @@
  */
 
 import type { CanonicalItemType, GoalItemPayload, RuntimeEvent } from "@/shared/contracts";
+import type { AcpTextStreamExtension } from "./textStreamExtension";
+import { resetTextStreamExtension } from "./textStreamExtension";
 
 export interface AcpToolCallItemState {
   itemId: string;
@@ -34,6 +36,8 @@ export interface AcpContentItemState {
   openAssistantItemId?: string;
   openReasoningItemId?: string;
   openUserItemId?: string;
+  /** Whether currently inside an active `<thinking>` / `<think>` block in agent text. */
+  inThinkingBlock?: boolean;
 }
 
 /** Per-session state — tracks open items so deltas land on the right item id. */
@@ -45,6 +49,8 @@ export interface AcpMapperState {
   openReasoningItemId?: string;
   /** Item id of the currently-streaming user message, if any. */
   openUserItemId?: string;
+  /** Whether currently inside an active `<thinking>` / `<think>` block in agent text. */
+  inThinkingBlock?: boolean;
   /** Open streamed content keyed by its owning subagent tool call. */
   subAgentContentItems: Map<string, AcpContentItemState>;
   /** Map ACP `toolCallId` → our internal item id + canonical item type + payload. */
@@ -78,6 +84,17 @@ export interface AcpMapperState {
    */
   suppressedTodoWriteIds: Set<string>;
   /**
+   * Provider hook for agent-text quirks the shared mapper must not know about
+   * (see `./textStreamExtension`). Undefined for providers that stream plain
+   * assistant text, which is the norm.
+   */
+  textStreamExtension?: AcpTextStreamExtension;
+  /**
+   * Private per-extension scratch storage keyed by `AcpTextStreamExtension.id`.
+   * Opaque here on purpose: only the owning extension knows its shape.
+   */
+  extensionStore: Map<string, unknown>;
+  /**
    * Resolve the live output of a client-hosted ACP terminal by its
    * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
    * (separate JSON-RPC channel) and references the terminal from
@@ -94,7 +111,10 @@ export interface AcpMapperState {
   resolveTerminalOutputByCommand?: (command: string) => string | undefined;
 }
 
-export function createAcpMapperState(threadId: string): AcpMapperState {
+export function createAcpMapperState(
+  threadId: string,
+  textStreamExtension?: AcpTextStreamExtension,
+): AcpMapperState {
   return {
     threadId,
     toolCallItems: new Map(),
@@ -102,6 +122,8 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     subAgentContentItems: new Map(),
     suppressedToolCallIds: new Set(),
     suppressedTodoWriteIds: new Set(),
+    extensionStore: new Map(),
+    ...(textStreamExtension ? { textStreamExtension } : {}),
   };
 }
 
@@ -153,6 +175,7 @@ export function closeOpenContentItems(
       delete contentState[key];
     }
   }
+  contentState.inThinkingBlock = false;
   return events;
 }
 
@@ -175,4 +198,6 @@ export function resetMapperForTurnEnd(state: AcpMapperState): void {
   state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;
   delete state.openPlanSteps;
+  resetTextStreamExtension(state);
+  state.inThinkingBlock = false;
 }

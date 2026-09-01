@@ -72,6 +72,7 @@ export function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
   return {
     id: row.id,
     projectId: row.projectId,
+    ...(row.workspaceId ? { workspaceId: row.workspaceId } : {}),
     title: row.title,
     agentKind: row.agentKind as Thread["agentKind"],
     ...(row.agentInstanceId ? { agentInstanceId: row.agentInstanceId } : {}),

@@ -1,5 +1,6 @@
 import type { AgentCapability, AgentKind, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
+import type { CrossagentExecution } from "@/shared/crossagentRanking";
 import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { SubagentSpawnError } from "./errors";
@@ -12,6 +13,13 @@ export interface ResolvedSpawnAttempt {
   provider: string;
   model: string;
   label: string;
+  /**
+   * Lane resolved once at plan time. Re-deriving it per attempt could flip the
+   * lane between validation and execution when an adapter's preference depends
+   * on detection state (e.g. Antigravity's CLI-gated one-shot lane), picking a
+   * different process than the validated model was chosen for.
+   */
+  execution: CrossagentExecution;
 }
 
 export interface PreparedSubagentRun {
@@ -114,6 +122,7 @@ function resolveAttempt(
     adapter,
     provider: selection.agent,
     model,
+    execution,
     label: runName ? `${runName} — ${selectionLabel}` : selectionLabel,
     config: buildUnrestrictedChildConfig(
       {

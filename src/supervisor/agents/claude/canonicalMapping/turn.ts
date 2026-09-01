@@ -51,8 +51,13 @@ export function startClaudeTurn(
     },
     { type: "item.completed", threadId: state.threadId, itemId: userItemId },
   ];
+  // Bare `/goal` parses to the "viewed" action: a status query. The CLI prints
+  // the status and any active goal STAYS active (docs: /goal with no argument
+  // "shows current status"), so it must not touch the dock or tracking — an
+  // objective-less goal item would only blank the dock (goal items render
+  // nowhere else).
   const goalPayload = parseGoalSlashCommand(prompt);
-  if (goalPayload) {
+  if (goalPayload && goalPayload.action !== "viewed") {
     const goalItemId = `goal-${turnId}`;
     events.push(...startGoalItemEvents(state.threadId, goalItemId, goalPayload));
     if (goalPayload.action === "set" && goalPayload.objective) {
@@ -65,7 +70,7 @@ export function startClaudeTurn(
     } else {
       clearActiveGoal(state);
     }
-  } else if (isClearPrompt(prompt) && state.activeGoalItemId) {
+  } else if (!goalPayload && isClearPrompt(prompt) && state.activeGoalItemId) {
     const payload = goalPayloadFromProviderState(
       state.activeGoalObjective ? { objective: state.activeGoalObjective } : {},
       "cleared",

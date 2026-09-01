@@ -15,9 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v6 pins an out-of-window goal before paged runtime history. Older clients
-// mistake that goal for the page anchor and can preserve a disjoint cursor.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 6;
+// v8 adds thread prompt segments and canonical thread content blocks. Older
+// clients cannot paint or preserve those structured mentions correctly.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 8;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

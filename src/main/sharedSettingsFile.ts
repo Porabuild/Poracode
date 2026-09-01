@@ -59,7 +59,8 @@ export function patchSharedSettingsFile(
  * from the on-disk settings into an `incoming` (renderer- or tool-originated)
  * settings object, so a plaintext-capable write can never clobber a secret or a
  * field the supervisor owns. Preserves:
- *   - `acpRegistryInstalledAgents` and `agentHookSupport` (supervisor-managed),
+ *   - `acpRegistryInstalledAgents`, `acpRegistryAutoInstallOptOuts` and
+ *     `agentHookSupport` (supervisor-managed),
  *   - `acp-generic` agent instances (supervisor-managed), and
  *   - each Claude/Cursor profile's `environment` (owned by an encrypting
  *     main-local write path).
@@ -112,6 +113,7 @@ export function mergeManagedSharedSettings(
     ...incoming,
     agentSettings,
     acpRegistryInstalledAgents: onDisk.acpRegistryInstalledAgents,
+    acpRegistryAutoInstallOptOuts: onDisk.acpRegistryAutoInstallOptOuts,
     agentInstances: {
       ...rendererManagedInstances,
       ...supervisorManagedInstances,

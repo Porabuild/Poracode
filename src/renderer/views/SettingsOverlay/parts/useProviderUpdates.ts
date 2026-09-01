@@ -8,6 +8,7 @@ import {
 } from "@/shared/contracts";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import { readBridge } from "@/renderer/bridge";
+import { getCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { machineIdForStatus } from "@/renderer/state/machines";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -56,6 +57,8 @@ export interface ProviderUpdateAllProgress {
   agentLabel: string;
   targetVersion: string;
   phase: ActiveProviderUpdatePhase;
+  current: number;
+  total: number;
 }
 
 interface PendingProviderUpdateState {
@@ -82,6 +85,10 @@ function newerOf(left: string | undefined, right: string | undefined): string | 
 
 function splitKinds(kindsKey: string): string[] {
   return kindsKey ? kindsKey.split("\0") : [];
+}
+
+function hasCombinedRuntimes(kind: string): boolean {
+  return getCombinedRuntimeUpdates(kind) !== undefined;
 }
 
 /**
@@ -123,7 +130,10 @@ export function useProviderUpdates(
   // versions for 30 minutes, so reopening the page does not re-hit registries.
   useEffect(() => {
     const probeKinds = splitKinds(kindsKey).filter(
-      (kind) => !isAgentProfileKind(kind) && extractAcpGenericInstanceId(kind) === undefined,
+      (kind) =>
+        !isAgentProfileKind(kind) &&
+        extractAcpGenericInstanceId(kind) === undefined &&
+        !hasCombinedRuntimes(kind),
     );
     if (probeKinds.length === 0) return;
     let cancelled = false;
@@ -223,7 +233,11 @@ export function useProviderUpdates(
     if (statuses.length === 0) return EMPTY_ENTRY;
     const pendingUpdate = pendingUpdates.get(kind);
     const pendingTargetVersion = pendingUpdate?.targetVersion;
-    if (isAgentProfileKind(kind)) {
+    // A provider whose surfaces ship as independently versioned runtimes has no
+    // single binary to compare here — its root version is whichever runtime is
+    // installed. Its update action lives on the provider page and the composer
+    // dock, which compare every runtime against its own upstream.
+    if (isAgentProfileKind(kind) || hasCombinedRuntimes(kind)) {
       return {
         installedVersion: newestVersionOf(statuses),
         environments: environmentsOf(statuses),
@@ -366,6 +380,7 @@ export function useProviderUpdates(
       (agent) => outdatedKinds.includes(agent.kind) && !pendingUpdates.has(agent.kind),
     );
     if (targets.length === 0) return;
+    const total = targets.length;
     setIsUpdatingAll(true);
     setPendingUpdates((current) => {
       const next = new Map(current);
@@ -377,15 +392,19 @@ export function useProviderUpdates(
     });
     void (async () => {
       try {
+        let current = 0;
         // Sequential: concurrent installs contend for the same package
         // manager prefix (and the same WSL distro) and fail unpredictably.
         for (const agent of targets) {
           const targetVersion = entryFor(agent.kind).targetVersion;
           if (!targetVersion) continue;
+          current += 1;
           setUpdateAllProgress({
             agentLabel: agent.label,
             targetVersion,
             phase: "updating",
+            current,
+            total,
           });
           await withPending({ kind: agent.kind, targetVersion, phase: "updating" }, (setPhase) =>
             runUpdate(agent, (phase) => {
@@ -394,6 +413,8 @@ export function useProviderUpdates(
                 agentLabel: agent.label,
                 targetVersion,
                 phase,
+                current,
+                total,
               });
             }),
           );

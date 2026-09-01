@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, truncateSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   RequestError,
+  type PromptCapabilities,
   type RequestPermissionRequest,
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
@@ -11,6 +12,7 @@ import type { CreateStructuredSessionInput } from "../base";
 import type { ThreadConfig } from "@/shared/contracts";
 import {
   AcpStructuredSession,
+  type AcpSessionBehavior,
   isAcpHomeScopeLocation,
   resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
@@ -20,6 +22,8 @@ import {
   toAcpResourceUri,
 } from "./session";
 import { shouldSpawnAcpSession } from "./sessionFactory";
+import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
+import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
 import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
 
 function makeInput(
@@ -50,6 +54,7 @@ type TestableAcpSession = {
   resolveServerRequest(requestId: string, response: unknown): Promise<void>;
   handlePermissionRequest(params: RequestPermissionRequest): Promise<unknown>;
   handleSessionUpdate(params: { update: unknown }): void;
+  handleStderrTurnSignalLine(line: string): void;
   ingestExternalSessionUpdate(notification: SessionNotification): void;
   attachExternalSessionUpdateSource(source: {
     onSessionUpdate(notification: SessionNotification): boolean | void;
@@ -83,6 +88,10 @@ function makeConfigSyncSession(
     }>;
     fsTextCapability?: boolean;
     initializeMeta?: Record<string, unknown>;
+    agentPromptCapabilities?: PromptCapabilities;
+    behavior?: AcpSessionBehavior;
+    textStreamExtension?: AcpTextStreamExtension;
+    stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
   } = {},
 ) {
   const connection = {
@@ -183,6 +192,7 @@ function makeConfigSyncSession(
   session["promptInFlight"] = false;
   session["pendingPromptInterrupt"] = false;
   session["currentTurnInterruptRequested"] = false;
+  session["suppressAgentOutputUntilNextTurn"] = false;
   session["recentInterruptAckTextTail"] = "";
   session["currentTurnHadAgentActivity"] = false;
   session["stderrChunks"] = [];
@@ -192,9 +202,14 @@ function makeConfigSyncSession(
   session["acpTerminalSeq"] = 0;
   session["releasedAcpTerminalOutput"] = new Map();
   session["acpTerminalCommandById"] = new Map();
-  session["agentPromptCapabilities"] = undefined;
+  session["agentPromptCapabilities"] = overrides.agentPromptCapabilities;
   session["agentSessionCapabilities"] = undefined;
   session["initializeMeta"] = overrides.initializeMeta;
+  session["behavior"] = overrides.behavior ?? {};
+  session["textStreamExtension"] = overrides.textStreamExtension;
+  session["stderrTurnSignalParser"] = overrides.stderrTurnSignalParser;
+  session["promptHeldForBackgroundWork"] = false;
+  session["startTurnChain"] = Promise.resolve();
   session["cwd"] = "C:\\repo";
   session["stableSessionRef"] = undefined;
   session["usageScopeId"] = undefined;
@@ -435,6 +450,29 @@ describe("ACP transport close lifecycle", () => {
 
     expect(listener.onError).toHaveBeenCalledExactlyOnceWith("ACP connection closed unexpectedly.");
     expect(listener.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels pending requests when the transport closes", async () => {
+    const { listener, session } = makeConfigSyncSession();
+    const pending = session.handlePermissionRequest({
+      sessionId: "session-1",
+      toolCall: { toolCallId: "tool-1", title: "Run tests", kind: "execute" },
+      options: [{ optionId: "once", name: "Allow once", kind: "allow_once" }],
+    });
+    listener.onRuntimeEvent.mockClear();
+    const internal = session as unknown as {
+      reportTransportOutcome(message: string | undefined): void;
+    };
+
+    internal.reportTransportOutcome("ACP connection closed unexpectedly.");
+
+    await expect(pending).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledExactlyOnceWith({
+      type: "request.resolved",
+      threadId: "thread-1",
+      requestId: "acp-perm-0",
+      outcome: "cancelled",
+    });
   });
 
   it("treats a clean transport close as expected", () => {
@@ -1031,10 +1069,12 @@ describe("ACP client protocol helpers", () => {
     expect(readFileSync(join(projectRoot, "out.txt"), "utf8")).toBe("ok");
   });
 
-  it("sends image content blocks for image attachments regardless of advertised prompt capabilities", async () => {
+  it("sends image content blocks when the ACP agent advertises image prompts", async () => {
     const projectRoot = makePosixProject();
     writeFileSync(join(projectRoot, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { connection, session } = makeConfigSyncSession();
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { image: true },
+    });
     (session as unknown as Record<string, unknown>)["projectLocation"] = {
       kind: HOST_KIND,
       path: projectRoot,
@@ -1057,6 +1097,33 @@ describe("ACP client protocol helpers", () => {
         {
           type: "image",
           data: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64"),
+          mimeType: "image/png",
+        },
+        { type: "text", text: "inspect" },
+      ],
+    });
+  });
+
+  it("keeps images as resource links when the ACP agent does not advertise image prompts", async () => {
+    const projectRoot = makePosixProject();
+    writeFileSync(join(projectRoot, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const { connection, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("inspect", { model: "model-a" }, [
+      { kind: "attachment", path: "diagram.png", mimeType: "image/png" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource_link",
+          uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "diagram.png"),
+          name: "diagram.png",
           mimeType: "image/png",
         },
         { type: "text", text: "inspect" },
@@ -1097,6 +1164,253 @@ describe("ACP client protocol helpers", () => {
       ],
     });
   });
+
+  it("sends audio content blocks when the ACP agent advertises audio prompts", async () => {
+    const projectRoot = makePosixProject();
+    const audio = Buffer.from([0x49, 0x44, 0x33]);
+    writeFileSync(join(projectRoot, "sample.mp3"), audio);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { audio: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("listen", { model: "model-a" }, [
+      { kind: "attachment", path: "sample.mp3" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        { type: "audio", data: audio.toString("base64"), mimeType: "audio/mpeg" },
+        { type: "text", text: "listen" },
+      ],
+    });
+  });
+
+  it("normalizes a generic declared MIME before sending an audio content block", async () => {
+    const projectRoot = makePosixProject();
+    const audio = Buffer.from([0x49, 0x44, 0x33]);
+    writeFileSync(join(projectRoot, "sample.mp3"), audio);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { audio: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("listen", { model: "model-a" }, [
+      { kind: "attachment", path: "sample.mp3", mimeType: "application/octet-stream" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        { type: "audio", data: audio.toString("base64"), mimeType: "audio/mpeg" },
+        { type: "text", text: "listen" },
+      ],
+    });
+  });
+
+  it("keeps audio as a resource link when the ACP agent does not advertise audio", async () => {
+    const projectRoot = makePosixProject();
+    writeFileSync(join(projectRoot, "sample.mp3"), Buffer.from([0x49, 0x44, 0x33]));
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("listen", { model: "model-a" }, [
+      { kind: "attachment", path: "sample.mp3" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource_link",
+          uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "sample.mp3"),
+          name: "sample.mp3",
+          mimeType: "audio/mpeg",
+        },
+        { type: "text", text: "listen" },
+      ],
+    });
+  });
+
+  it("embeds text and binary resources when the ACP agent advertises embedded context", async () => {
+    const projectRoot = makePosixProject();
+    const pdf = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+    writeFileSync(join(projectRoot, "notes.md"), "shared context");
+    writeFileSync(join(projectRoot, "brief.pdf"), pdf);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [
+      { kind: "file", path: "notes.md" },
+      { kind: "attachment", path: "brief.pdf", mimeType: "application/pdf" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource",
+          resource: {
+            uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "notes.md"),
+            mimeType: "text/markdown",
+            text: "shared context",
+          },
+        },
+        {
+          type: "resource",
+          resource: {
+            uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, "brief.pdf"),
+            mimeType: "application/pdf",
+            blob: pdf.toString("base64"),
+          },
+        },
+        { type: "text", text: "review" },
+      ],
+    });
+  });
+
+  it("does not read an outside-project file mention as embedded context", async () => {
+    const projectRoot = makePosixProject();
+    const outsideRoot = makePosixProject();
+    const outside = join(outsideRoot, "secret.txt");
+    writeFileSync(outside, "not for the agent");
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [{ kind: "file", path: outside }]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "resource_link",
+          uri: toAcpResourceUri({ kind: HOST_KIND, path: projectRoot }, outside),
+          name: "secret.txt",
+          mimeType: "text/plain",
+        },
+        { type: "text", text: "review" },
+      ],
+    });
+  });
+
+  it("falls back to resource links when inline ACP content exceeds the byte limit", async () => {
+    const projectRoot = makePosixProject();
+    const largeAudio = join(projectRoot, "large.mp3");
+    const largeContext = join(projectRoot, "large.bin");
+    writeFileSync(largeAudio, "");
+    writeFileSync(largeContext, "");
+    truncateSync(largeAudio, ACP_INLINE_CONTENT_MAX_BYTES + 1);
+    truncateSync(largeContext, ACP_INLINE_CONTENT_MAX_BYTES + 1);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { audio: true, embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [
+      { kind: "attachment", path: "large.mp3" },
+      { kind: "attachment", path: "large.bin" },
+    ]);
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        expect.objectContaining({ type: "resource_link", name: "large.mp3" }),
+        expect.objectContaining({ type: "resource_link", name: "large.bin" }),
+        { type: "text", text: "review" },
+      ],
+    });
+  });
+
+  it("enforces the inline ACP byte limit across the whole prompt", async () => {
+    const projectRoot = makePosixProject();
+    const first = join(projectRoot, "first.bin");
+    const second = join(projectRoot, "second.bin");
+    writeFileSync(first, "");
+    writeFileSync(second, "");
+    const partSize = Math.floor(ACP_INLINE_CONTENT_MAX_BYTES / 2) + 1;
+    truncateSync(first, partSize);
+    truncateSync(second, partSize);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { embeddedContext: true },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn("review", { model: "model-a" }, [
+      { kind: "attachment", path: "first.bin" },
+      { kind: "attachment", path: "second.bin" },
+    ]);
+
+    const prompt = connection.prompt.mock.calls[0]?.[0].prompt as Array<{
+      type: string;
+      name?: string;
+    }>;
+    expect(prompt[0]?.type).toBe("resource");
+    expect(prompt[1]).toMatchObject({ type: "resource_link", name: "second.bin" });
+    expect(prompt[2]).toEqual({ type: "text", text: "review" });
+  });
+
+  it.runIf(process.platform === "win32")(
+    "reads WSL project files through the host UNC root for embedded context",
+    async () => {
+      const projectRoot = makePosixProject();
+      writeFileSync(join(projectRoot, "notes.ts"), "export const marker = true;");
+      const location = {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/workspace",
+        uncPath: projectRoot,
+      };
+      const { connection, session } = makeConfigSyncSession({
+        agentPromptCapabilities: { embeddedContext: true },
+      });
+      (session as unknown as Record<string, unknown>)["projectLocation"] = location;
+
+      await session.startTurn("review", { model: "model-a" }, [{ kind: "file", path: "notes.ts" }]);
+
+      expect(connection.prompt).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        prompt: [
+          {
+            type: "resource",
+            resource: {
+              uri: toAcpResourceUri(location, "notes.ts"),
+              mimeType: "text/plain",
+              text: "export const marker = true;",
+            },
+          },
+          { type: "text", text: "review" },
+        ],
+      });
+    },
+  );
 
   it("implements ACP terminal create/output/wait/release over a real PTY", async () => {
     const projectRoot = makePosixProject();
@@ -2295,6 +2609,341 @@ describe("ACP turn config sync", () => {
     expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
   });
 
+  it("completes the turn when end_turn arrives with a never-completed foreground subagent tool call", async () => {
+    // Antigravity ends turns without terminal tool_call_updates for its task
+    // tool. The zombie subagent is purged by the turn close, so nothing can
+    // drain an "awaiting subagents" wait — the turn must finish immediately.
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("delegate work", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "zombie-task",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", description: "Inspect" },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    const events = listener.onRuntimeEvent.mock.calls.map(([event]) => event as { type?: string });
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("keeps an awaiting foreground turn open through silence until the terminal report lands", async () => {
+    vi.useFakeTimers();
+    try {
+      const { connection, listener, session } = makeConfigSyncSession();
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+
+      const turn = session.startTurn("launch silent background agent", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "quiet-bg",
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+
+      // Silence alone must never auto-complete the awaiting turn; only a
+      // terminal report (or the user) does.
+      vi.advanceTimersByTime(10 * 60_000);
+      expect(
+        listener.onRuntimeEvent.mock.calls
+          .map(([event]) => event as { type?: string })
+          .filter((event) => event.type === "turn.completed"),
+      ).toHaveLength(0);
+
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "quiet-bg",
+          status: "completed",
+          content: [{ type: "text", text: "done" }],
+        },
+      });
+
+      expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+        type: "turn.completed",
+        state: "completed",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Stop closes an awaiting foreground turn as cancelled without waiting for reports", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background agent", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "stuck-bg",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    await session.interruptTurn();
+
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "cancelled",
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("Stop closes an awaiting foreground turn when the provider rejects cancel", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background agent", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "stuck-bg-rejected-cancel",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+    connection.cancel.mockRejectedValueOnce(new Error("no active prompt"));
+
+    await expect(session.interruptTurn()).resolves.toBeUndefined();
+
+    const completed = listener.onRuntimeEvent.mock.calls
+      .map(([event]) => event as { type?: string; state?: string })
+      .filter((event) => event.type === "turn.completed");
+    expect(completed).toEqual([expect.objectContaining({ state: "cancelled" })]);
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  // Antigravity's agy_acp_server holds `session/prompt` open in
+  // STATE_WAITING_FOR_TASKS until every background task exits — never, for a
+  // task that doesn't. The provider's stderr parser is the only end-of-reply
+  // boundary; these tests drive the shared session through that signal.
+  describe("prompt held open for background work (stderr turn signal)", () => {
+    const WAITING_LINE =
+      'I0831 14:08:16.659332 51136 local_connection.py:521] RAW WS MSG: {"trajectoryStateUpdate":{"trajectoryId":"session-1", "state":"STATE_WAITING_FOR_TASKS"}, "seqNum":"17", "timestampMicros":"1788210496658811"}';
+
+    function heldPromptSession() {
+      return makeConfigSyncSession({
+        stderrTurnSignalParser: (line) =>
+          line.includes('"STATE_WAITING_FOR_TASKS"') ? "background-wait" : undefined,
+      });
+    }
+
+    function startHeldTurn(harness: ReturnType<typeof makeConfigSyncSession>) {
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      harness.connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+      const turn = harness.session.startTurn("run the dev server in the background", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      return { turn, resolvePrompt: (result: { stopReason: string }) => resolvePrompt(result) };
+    }
+
+    it("completes the turn and goes idle at the background-wait signal", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { turn, resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "bg-cmd",
+          title: "node server.js",
+          kind: "execute",
+          status: "in_progress",
+          rawInput: { CommandLine: "node server.js", Cwd: "C:\\repo", WaitMsBeforeAsync: 500 },
+        },
+      });
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "The task is running in the background." },
+        },
+      });
+      session.handleStderrTurnSignalLine(WAITING_LINE);
+
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+      const events = () =>
+        listener.onRuntimeEvent.mock.calls.map(
+          ([event]) => event as { type?: string; state?: string; itemId?: string },
+        );
+      expect(events().filter((event) => event.type === "turn.completed")).toEqual([
+        expect.objectContaining({ state: "completed" }),
+      ]);
+      // The still-running background command row stays open as a detached
+      // item — the turn close must not seal it with a stale payload.
+      const commandItemId = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; itemType?: string; itemId?: string })
+        .find(
+          (event) => event.type === "item.started" && event.itemType === "command_execution",
+        )?.itemId;
+      expect(commandItemId).toBeDefined();
+      expect(
+        events().some((event) => event.type === "item.completed" && event.itemId === commandItemId),
+      ).toBe(false);
+
+      // The task's real terminal update lands later, out of band, on the
+      // original row — without repainting working.
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "bg-cmd",
+          status: "completed",
+          rawOutput: { commandLine: "node server.js", exitCode: 0, combinedOutput: "listening\n" },
+        },
+      });
+      expect(
+        events().some((event) => event.type === "item.completed" && event.itemId === commandItemId),
+      ).toBe(true);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+
+      // The held prompt finally resolves once the task exits; the turn must
+      // not be closed a second time.
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+      expect(events().filter((event) => event.type === "turn.completed")).toHaveLength(1);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+
+    it("wraps the post-task report in a synthetic turn closed by the late resolution", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { turn, resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "Task started; I will report when it finishes." },
+        },
+      });
+      session.handleStderrTurnSignalLine(WAITING_LINE);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+
+      // The task ends; the agent streams its report inside the still-held
+      // prompt. That activity gets its own synthetic turn.
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "The background task has finished." },
+        },
+      });
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({
+        status: "working",
+        attention: "working",
+      });
+
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+      const completed = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; state?: string })
+        .filter((event) => event.type === "turn.completed");
+      expect(completed).toEqual([
+        expect.objectContaining({ state: "completed" }),
+        expect.objectContaining({ state: "completed" }),
+      ]);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+
+    it("queues a follow-up startTurn behind the held prompt", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+      session.handleStderrTurnSignalLine(WAITING_LINE);
+
+      // ACP takes one prompt per session at a time: the follow-up must wait
+      // for the held prompt to settle instead of racing a second one out.
+      const secondTurn = session.startTurn("follow-up message", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(connection.prompt).toHaveBeenCalledOnce();
+
+      resolvePrompt({ stopReason: "end_turn" });
+      await secondTurn;
+      expect(connection.prompt).toHaveBeenCalledTimes(2);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+  });
+
   it("stays working until all concurrently reporting detached subagents complete", () => {
     const { listener, session } = makeConfigSyncSession();
     for (const toolCallId of ["detached-a", "detached-b"]) {
@@ -2656,6 +3305,13 @@ describe("ACP turn config sync", () => {
         content: { type: "text", text: "Info: Operation cancelled by user" },
       },
     });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "content.delta",
+        stream: "assistant_text",
+        delta: "Info: Operation cancelled by user",
+      }),
+    );
 
     resolvePrompt?.({ stopReason: "end_turn" });
     await turnPromise;
@@ -2668,6 +3324,214 @@ describe("ACP turn config sync", () => {
       status: "idle",
       attention: "none",
     });
+  });
+
+  it("stops painting agent output immediately after interrupt when the provider opts in", async () => {
+    const { connection, listener, session } = makeConfigSyncSession({
+      behavior: { suppressOutputAfterInterrupt: true },
+    });
+    let resolvePrompt!: (value: { stopReason: string }) => void;
+    let resolveCancel!: () => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+    connection.cancel.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCancel = resolve;
+      }),
+    );
+
+    const turnPromise = session.startTurn("hello", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    listener.onRuntimeEvent.mockClear();
+
+    const interruptPromise = session.interruptTurn();
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Info: Operation cancelled by user" },
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_thought_chunk",
+        content: { type: "text", text: "late reasoning" },
+      },
+    });
+
+    const postInterruptEvents = listener.onRuntimeEvent.mock.calls.map(
+      ([event]) => event as { type: string; stream?: string; itemId?: string },
+    );
+    expect(postInterruptEvents).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "content.delta",
+          stream: expect.stringMatching(/^(?:assistant|reasoning)_text$/),
+        }),
+      ]),
+    );
+    resolveCancel();
+    await interruptPromise;
+    resolvePrompt({ stopReason: "end_turn" });
+    await turnPromise;
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "late output after prompt settlement" },
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_thought_chunk",
+        content: { type: "text", text: "late reasoning after prompt settlement" },
+      },
+    });
+    expect(
+      listener.onRuntimeEvent.mock.calls.map(
+        ([event]) => event as { type: string; stream?: string },
+      ),
+    ).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "content.delta",
+          stream: expect.stringMatching(/^(?:assistant|reasoning)_text$/),
+        }),
+      ]),
+    );
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.started" }),
+    );
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({
+      status: "working",
+      attention: "working",
+    });
+
+    let resolveNextPrompt!: (value: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveNextPrompt = resolve;
+      }),
+    );
+    const nextTurn = session.startTurn("next turn", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledTimes(2));
+    listener.onRuntimeEvent.mockClear();
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "next turn output" },
+      },
+    });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "content.delta",
+        stream: "assistant_text",
+        delta: "next turn output",
+      }),
+    );
+    resolveNextPrompt({ stopReason: "end_turn" });
+    await nextTurn;
+  });
+
+  it("does not suppress the next turn when the interrupt landed on an idle session", async () => {
+    const { connection, listener, session } = makeConfigSyncSession({
+      behavior: { suppressOutputAfterInterrupt: true },
+    });
+    // Stop on an idle thread stages the cancel instead of sending it: there
+    // is no interrupted turn whose output could follow, so the staged path
+    // must not arm suppression for the next user-requested turn.
+    await session.interruptTurn();
+    expect(connection.cancel).not.toHaveBeenCalled();
+
+    let resolvePrompt!: (value: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+    const turn = session.startTurn("fresh prompt after idle stop", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    listener.onRuntimeEvent.mockClear();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "fresh answer" },
+      },
+    });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "content.delta",
+        stream: "assistant_text",
+        delta: "fresh answer",
+      }),
+    );
+
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+  });
+
+  it("routes agent text through a supplied text-stream extension", async () => {
+    const handleAgentText = vi.fn<(input: { text: string }) => { events: never[]; text: string }>(
+      (input) => ({ events: [], text: input.text.toUpperCase() }),
+    );
+    const { connection, listener, session } = makeConfigSyncSession({
+      textStreamExtension: { id: "test.extension", handleAgentText },
+    });
+    let resolvePrompt!: (value: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("extension plumbing", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    listener.onRuntimeEvent.mockClear();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "mapped text" },
+      },
+    });
+
+    expect(handleAgentText).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "mapped text", parentToolCallId: undefined }),
+    );
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "content.delta",
+        stream: "assistant_text",
+        delta: "MAPPED TEXT",
+      }),
+    );
+
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
   });
 
   it("treats an interrupt-triggered prompt abort as a cancelled turn", async () => {
@@ -2823,6 +3687,81 @@ describe("ACP orphan turns — agent-initiated work after prompt() settled", () 
       type: "turn.completed",
       state: "completed",
     });
+  });
+
+  it("does not pin the orphan turn on a stuck read tool_call", () => {
+    vi.useFakeTimers();
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running client_view_file",
+        kind: "read",
+        status: "in_progress",
+        rawInput: { absolute_path: "src/file.ts", start_line: 1, end_line: 40 },
+      },
+    });
+    expect(statusUpdates(listener)).toEqual(["working"]);
+
+    vi.advanceTimersByTime(ORPHAN_TURN_IDLE_MS + 1);
+
+    expect(statusUpdates(listener).at(-1)).toBe("idle");
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+  });
+
+  it("fails the in-flight turn when Antigravity reports a quota error", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt: ((value: { stopReason: string }) => void) | undefined;
+    connection.prompt.mockReturnValueOnce(
+      new Promise<{ stopReason: string }>((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("continue", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-view",
+        title: "Running view_file",
+        kind: "read",
+        status: "in_progress",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-view",
+        status: "failed",
+        rawOutput:
+          'Encountered retryable error from model provider: Agent execution terminated due to error. ("request failed (code 429): Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 1h33m48s.")',
+      },
+    });
+
+    expect(listener.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error", attention: "error" }),
+    );
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "failed",
+    });
+
+    resolvePrompt?.({ stopReason: "end_turn" });
+    await turn;
+    expect(statusUpdates(listener).at(-1)).toBe("error");
   });
 
   it("stays working past the idle window while a tool call is still open", () => {

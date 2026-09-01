@@ -17,9 +17,8 @@ import type { UsageWindow } from "../types";
  * Antigravity builds that predate the quota-summary RPC.
  *
  * Pure (no host dependency) so it stays unit-testable. Antigravity usage is
- * collected supervisor-side from the local language server only; there is no
- * always-on HTTP collector here (its Cloud Code surface reports a different
- * backend's quota and was intentionally dropped to avoid inconsistent numbers).
+ * collected supervisor-side from the local language server or the matching
+ * Cloud Code quota-summary endpoint using official ACP credentials.
  */
 
 /** A model group key in the quota summary; drives window ids + ring grouping. */

@@ -217,7 +217,14 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.publishUpdate("working", "none");
     const completion = this.turnCompletion;
     try {
-      const response = await this.client.request("prompt", { message: prompt, source: "rpc" });
+      // Inline instructions (skill injections, provider-handoff context) ride
+      // with the prompt Pi receives but stay out of the painted user_message —
+      // `beginTurn` above records the user's own text (see
+      // StartTurnOptions.inlineInstructions).
+      const message = options?.inlineInstructions
+        ? `${prompt}\n\n${options.inlineInstructions}`
+        : prompt;
+      const response = await this.client.request("prompt", { message, source: "rpc" });
       if (!response.success) {
         this.failTurn(response.error ?? "Pi rejected the prompt.");
         return;

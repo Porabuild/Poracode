@@ -182,10 +182,19 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
   "supervisor.proposedPlan": msg({ message: "Proposed plan" }),
+  "supervisor.handoffTranscriptUnavailable": msg({
+    message:
+      "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
+  }),
+  "claude.goal.noVerdict": msg({
+    message:
+      "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run",
+  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
   }),
+  "acp.taskNotification.task": msg({ message: "Task {id}" }),
   "kimi.credentialsLocked": msg({
     message:
       "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",

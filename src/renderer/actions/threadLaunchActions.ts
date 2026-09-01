@@ -27,11 +27,18 @@ import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
-import { remoteOwner, remoteThreadId } from "@/renderer/state/remoteProjection";
+import {
+  downgradeProjectedThreadMentionSegments,
+  remoteOwner,
+  remoteThreadId,
+  unprojectRemoteThreadMentionSegments,
+} from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
+import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
@@ -47,9 +54,14 @@ export async function performInitialThreadLaunch(input: {
   prompt: string;
   segments?: PromptSegment[];
   userMessageItemId?: string;
+  providerSwitch?: PendingLaunchProviderSwitch;
   initialSize: TerminalSize;
 }): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
+  const providerSwitch = input.providerSwitch;
+  // A switched thread starts a brand-new session under the new provider; the
+  // previous provider's ref must not reach either the optimistic state or launch.
+  const resumableSessionRef = providerSwitch ? undefined : thread.sessionRef;
   const presentation = thread.presentationMode ?? "terminal";
   if (thread.config.model) {
     useSharedSettings
@@ -64,13 +76,16 @@ export async function performInitialThreadLaunch(input: {
   }
 
   const optimisticUserMessageItemId =
-    userMessageItemId ?? appendOptimisticInitialUserMessage(thread, prompt, segments);
-  if (optimisticUserMessageItemId) {
+    userMessageItemId ??
+    (providerSwitch
+      ? allocateInitialUserMessageItemId(thread, prompt)
+      : appendOptimisticInitialUserMessage(thread, prompt, segments));
+  if (optimisticUserMessageItemId && !providerSwitch) {
     useAppStore.getState().updateThreadRuntime(thread.id, {
       status: "working",
       attention: "working",
       canResumeWithConfig: thread.canResumeWithConfig,
-      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+      ...(resumableSessionRef ? { sessionRef: resumableSessionRef } : {}),
     });
   }
 
@@ -100,9 +115,10 @@ export async function performInitialThreadLaunch(input: {
     prompt,
     ...(segments ? { segments } : {}),
     initialSize,
-    ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+    ...(resumableSessionRef ? { sessionRef: resumableSessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+    ...(providerSwitch ? { providerSwitch } : {}),
   };
 
   // Mirrored remote threads must launch on their host. Spawning locally would
@@ -117,6 +133,15 @@ export async function performInitialThreadLaunch(input: {
         threadId: owner.remoteId,
         projectLocation: unprojectProjectLocation(projectLocation),
         ...startInput,
+        ...(startInput.segments
+          ? {
+              segments: unprojectRemoteThreadMentionSegments(
+                owner.desktopId,
+                startInput.segments,
+                useAppStore.getState().threads,
+              ),
+            }
+          : {}),
       }),
     );
   } else {
@@ -124,6 +149,9 @@ export async function performInitialThreadLaunch(input: {
       threadId: thread.id,
       projectLocation,
       ...startInput,
+      ...(startInput.segments
+        ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
+        : {}),
       ...mcpLaunchSnapshot,
     });
   }
@@ -468,9 +496,13 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
       ? applyHomeScopePermissions(launch.project.location, launch.config, agentStatus.capabilities)
       : launch.config;
 
+  // Home threads stay local to the workspace they were started in; threads in
+  // real projects scope through their project's workspaceId instead.
+  const homeWorkspaceId = isHomeProject(launch.project) ? getActiveWorkspaceId() : null;
   const thread = store.createThread({
     ...(launch.threadId ? { threadId: launch.threadId } : {}),
     projectId: launch.project.id,
+    ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
     agentKind: launch.agentKind,
     config,
     prompt: titlePrompt,
@@ -507,17 +539,20 @@ function markThreadLaunchFailed(threadId: string, error: unknown): void {
   });
 }
 
-function appendOptimisticInitialUserMessage(
+/**
+ * Paint the user's first message for a launch that has not reached the
+ * supervisor yet, so the chat shows what was sent instead of a bare working
+ * row. The supervisor reuses the returned id for its own canonical
+ * `user_message`, and the store's per-id dedupe drops the duplicate.
+ */
+export function appendOptimisticInitialUserMessage(
   thread: Thread,
   prompt: string,
   segments?: PromptSegment[],
 ): string | undefined {
-  const presentation = thread.presentationMode ?? "terminal";
-  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
-    return undefined;
-  }
+  const itemId = allocateInitialUserMessageItemId(thread, prompt);
+  if (!itemId) return undefined;
 
-  const itemId = `user-${crypto.randomUUID()}`;
   useAppStore.getState().applyRuntimeEvent(thread.id, {
     type: "item.started",
     threadId: thread.id,
@@ -531,4 +566,12 @@ function appendOptimisticInitialUserMessage(
     itemId,
   });
   return itemId;
+}
+
+function allocateInitialUserMessageItemId(thread: Thread, prompt: string): string | undefined {
+  const presentation = thread.presentationMode ?? "terminal";
+  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
+    return undefined;
+  }
+  return `user-${crypto.randomUUID()}`;
 }

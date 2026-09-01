@@ -38,13 +38,23 @@ export function readLocalImageFile(url: string): Uint8Array {
   return readFileSync(resolve(filePath));
 }
 
+/**
+ * Persist a provider-handoff summary under the thread's attachment directory.
+ *
+ * The filename carries a timestamp because a thread can now switch provider in
+ * place more than once: a fixed name would let a later handoff rewrite the file
+ * an earlier user message still points at, so scrolling back would show context
+ * that was never actually sent. Old summaries are removed with the rest of the
+ * thread's attachments by `deleteThreadAttachments`.
+ */
 export function saveHandoffContextFile(
   paths: PoracodePaths,
   payload: { threadId: string; content: string },
 ): string {
   const threadDir = getThreadAttachmentDir(paths, payload.threadId);
   mkdirSync(threadDir, { recursive: true });
-  const filePath = join(threadDir, "handoff-context.md");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filePath = join(threadDir, `handoff-context-${stamp}.md`);
   writeFileSync(filePath, payload.content, "utf-8");
   return filePath;
 }

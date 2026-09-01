@@ -58,6 +58,7 @@ import type {
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
+import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
 import {
   closeOpenTurnItems,
   createAcpMapperState,
@@ -124,6 +125,7 @@ import {
   rewriteLoadSessionError,
   shouldEmitAcpPromptRpcErrorItem,
 } from "./sessionErrors";
+import { isFatalAcpQuotaError } from "./acpUserVisibleErrors";
 import { AcpSessionRequests } from "./sessionRequests";
 import {
   buildAcpMcpServers,
@@ -200,6 +202,13 @@ function isOrphanTurnActivity(update: SessionUpdate): boolean {
 
 // ── Session ──────────────────────────────────────────────────────
 
+export interface AcpSessionBehavior {
+  /** Stop painting message and thought chunks as soon as the user cancels. */
+  suppressOutputAfterInterrupt?: boolean;
+  /** Keep noisy provider diagnostics out of the parent process console. */
+  suppressStderrLogging?: boolean;
+}
+
 export interface AcpStructuredSessionOptions {
   /**
    * Hook the adapter passes in when it wants to control the message a failed
@@ -256,6 +265,30 @@ export interface AcpStructuredSessionOptions {
    * errors — see `acpFsTextCapability` in the adapter contract.
    */
   fsTextCapability?: boolean;
+  /** Provider-specific lifecycle behavior layered over the shared ACP transport. */
+  behavior?: AcpSessionBehavior;
+  /**
+   * Provider hook for agent-text quirks the shared canonical mapper must not
+   * know about (e.g. Antigravity's background-task reports embedded in
+   * assistant prose).
+   */
+  textStreamExtension?: AcpTextStreamExtension;
+  /**
+   * Parse one line of the agent's stderr diagnostics into a turn-hold signal.
+   *
+   * Some agents keep `session/prompt` unresolved while detached background
+   * work is still running: the model has finished its reply, but the stop
+   * reason only arrives once every background task exits — never, for a task
+   * that doesn't (a dev server, a watcher). The ACP stream itself carries no
+   * boundary between "still responding" and "only background tasks remain",
+   * so a provider whose agent publishes that boundary on stderr declares a
+   * parser here. Returning `"background-wait"` completes the open runtime
+   * turn: still-running command items stay open as detached rows (their
+   * terminal `tool_call_update` lands later, out of band), the thread paints
+   * idle, and the prompt's eventual late resolution is adopted silently
+   * instead of double-closing the turn.
+   */
+  stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
 }
 
 export interface AcpExternalSessionUpdateSource {
@@ -276,6 +309,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
 
   private readonly initializeMeta: Record<string, unknown> | undefined;
+  private readonly behavior: AcpSessionBehavior;
+  private readonly textStreamExtension: AcpTextStreamExtension | undefined;
+  private readonly stderrTurnSignalParser:
+    | ((line: string) => "background-wait" | undefined)
+    | undefined;
 
   private readonly goalCommands: boolean;
 
@@ -352,6 +390,23 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private foregroundTurnOpen = false;
   private pendingPromptInterrupt = false;
   private currentTurnInterruptRequested = false;
+  private suppressAgentOutputUntilNextTurn = false;
+  /**
+   * The provider signalled (via `stderrTurnSignalParser`) that the in-flight
+   * `session/prompt` is now held open only for detached background work. The
+   * runtime turn has already been completed and painted idle; the prompt's
+   * eventual resolution must be adopted silently instead of closing a turn.
+   */
+  private promptHeldForBackgroundWork = false;
+  /**
+   * Serializes `startTurn` calls. ACP allows one `session/prompt` per session
+   * at a time, and an agent that holds the prompt open for background work
+   * (see `stderrTurnSignalParser`) is already idle from the user's point of
+   * view — a new message must queue behind the held prompt rather than race a
+   * second prompt onto the wire (the agent would queue it server-side anyway,
+   * with no updates until the background work ends).
+   */
+  private startTurnChain: Promise<void> = Promise.resolve();
   private recentInterruptAckTextTail = "";
   /** User-visible error text from an `agent_message_chunk` before `prompt()` settles. */
   private agentSurfacedErrorMessage: string | undefined;
@@ -455,6 +510,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.extensionSessionUpdateTransform = options.extensionSessionUpdateTransform;
     }
     this.initializeMeta = options?.initializeMeta;
+    this.behavior = options?.behavior ?? {};
+    this.textStreamExtension = options?.textStreamExtension;
+    this.stderrTurnSignalParser = options?.stderrTurnSignalParser;
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
@@ -468,7 +526,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   /** Initialize the canonical mapper once we have a stable thread id. */
   private ensureMapperState(): AcpMapperState {
     if (!this.mapperState || this.mapperState.threadId !== this.threadId) {
-      this.mapperState = createAcpMapperState(this.threadId);
+      this.mapperState = createAcpMapperState(this.threadId, this.textStreamExtension);
       // Bridge the client-hosted ACP terminal store into the mapper so
       // `ToolCallContent` entries of type `"terminal"` (Gemini's shell tool)
       // get inlined as the canonical `result` payload.
@@ -570,13 +628,27 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       child.on("spawn", resolve);
     });
 
+    let session: AcpStructuredSession;
+
     // Collect stderr for error diagnostics
     const stderrChunks: string[] = [];
+    let stderrLineTail = "";
     child.stderr?.on("data", (chunk) => {
       const text = String(chunk);
-      console.log("[acp stderr]", text.trimEnd());
+      if (!options?.behavior?.suppressStderrLogging) {
+        console.log("[acp stderr]", text.trimEnd());
+      }
       stderrChunks.push(text);
       if (stderrChunks.length > 20) stderrChunks.shift();
+      if (options?.stderrTurnSignalParser) {
+        stderrLineTail += text;
+        let newlineIdx;
+        while ((newlineIdx = stderrLineTail.indexOf("\n")) !== -1) {
+          const line = stderrLineTail.slice(0, newlineIdx);
+          stderrLineTail = stderrLineTail.slice(newlineIdx + 1);
+          session.handleStderrTurnSignalLine(line);
+        }
+      }
     });
 
     // Wrap Node.js streams into Web Streams for the ACP SDK.
@@ -587,8 +659,6 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const stream = filterAcpInboundNoise(
       ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
     );
-
-    let session: AcpStructuredSession;
 
     const connection = new ClientSideConnection(
       (_agent): Client => ({
@@ -838,7 +908,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.sessionConfigSync.rememberOptions([], []);
 
     if (sessionRef) {
-      if (this.agentSessionCapabilities?.resume !== undefined) {
+      if (this.agentSessionCapabilities?.resume != null) {
         console.log("[acp] resuming session:", sessionRef.providerSessionId);
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
@@ -941,7 +1011,42 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (!this.sessionId) {
       throw new Error("ACP session not opened yet.");
     }
+    // Serialize turns. A prompt held open for background work (see
+    // `stderrTurnSignalParser`) leaves the thread idle while `session/prompt`
+    // is still pending, so a follow-up message queues behind it here instead
+    // of racing a second prompt onto a session that only takes one at a time.
+    const previousTurn = this.startTurnChain;
+    let releaseTurn!: () => void;
+    this.startTurnChain = new Promise((resolve) => {
+      releaseTurn = resolve;
+    });
+    try {
+      // Only queue when a prompt is actually pending — the fast path must
+      // start synchronously so interrupt staging keeps its existing timing.
+      if (this.promptInFlight) {
+        await previousTurn;
+        if (this.isDisposed) return;
+      }
+      await this.runStartTurn(prompt, config, segments, options);
+    } finally {
+      releaseTurn();
+    }
+  }
+
+  private async runStartTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    if (!this.sessionId) {
+      throw new Error("ACP session not opened yet.");
+    }
     this.currentTurnInterruptRequested = false;
+    // Whatever the interrupted turn was still streaming ends here: a staged
+    // `pendingPromptInterrupt` cancel fires against an idle session before
+    // this prompt goes out, so nothing suppressed can follow it either.
+    this.suppressAgentOutputUntilNextTurn = false;
     this.recentInterruptAckTextTail = "";
     this.agentSurfacedErrorMessage = undefined;
     this.currentTurnHadAgentActivity = false;
@@ -957,6 +1062,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // its items close under that turn instead of leaking into this one. Silent:
     // the `working` paint below covers the handover with no idle flicker.
     this.completeOrphanTurn({ silent: true });
+    // Same for a foreground turn still awaiting detached subagent reports:
+    // the wait has no prompt left to anchor it. Detached tool calls stay in
+    // the mapper and can still report as detached turns.
+    if (this.foregroundTurnAwaitingSubagents) {
+      this.foregroundTurnAwaitingSubagents = false;
+      this.completeTurn(this.ensureMapperState(), "completed");
+    }
     // Claim turn ownership before the first `await` below. `promptInFlight` only
     // goes true once the prompt is actually issued, and an inbound notification
     // landing in that gap would otherwise open a competing orphan turn.
@@ -1033,6 +1145,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         }
       }
 
+      if (this.promptHeldForBackgroundWork) {
+        // The runtime turn was already completed when the background-wait
+        // signal arrived (see `stderrTurnSignalParser`). This late resolution
+        // only has to close the synthetic turn that wrapped the agent's
+        // post-task report, if the report opened one.
+        this.completeOrphanTurn();
+        return;
+      }
+
       // Map stopReason to Poracode status
       const normalizedStopReason = normalizeAcpStopReason(result.stopReason, {
         interruptRequested: this.currentTurnInterruptRequested,
@@ -1064,13 +1185,33 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         // Close the foreground response now, while deliberately preserving
         // detached subagent tool calls in the mapper until their reports land.
         this.emitRuntimeEvents(closeOpenTurnItems(mapperState));
+        if (mapperState.activeSubAgents.length === 0) {
+          // `closeOpenTurnItems` purges subagent tool calls that never
+          // received a terminal update (Antigravity ends turns this way), so
+          // no report can ever complete the wait — finish now instead of
+          // pinning `working` until the user force-stops the thread.
+          this.foregroundTurnAwaitingSubagents = false;
+          this.emitTurnStatusAfterPrompt(normalizedStopReason);
+          this.completeTurn(mapperState, turnState);
+        }
       } else {
         this.emitTurnStatusAfterPrompt(normalizedStopReason);
         this.completeTurn(mapperState, turnState);
       }
     } catch (error) {
       if (this.isDisposed) return;
-      if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
+      if (this.promptHeldForBackgroundWork) {
+        // The turn already completed at the background-wait signal, so a late
+        // rejection (transport loss, cancel acknowledgement) has no open turn
+        // to fail. Close any synthetic report turn and stay idle.
+        this.completeOrphanTurn({ state: "cancelled" });
+        return;
+      }
+      if (this.agentSurfacedErrorMessage) {
+        // Quota/provider failures already sealed the turn; a later transport
+        // abort from session/cancel must not overwrite that error with idle.
+        if (this.currentTurnId) this.completeTurn(this.ensureMapperState(), "failed");
+      } else if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
         this.emitListenerUpdate({ status: "idle", attention: "none" });
         this.completeTurn(this.ensureMapperState(), "cancelled");
       } else {
@@ -1078,6 +1219,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     } finally {
       this.promptInFlight = false;
+      this.promptHeldForBackgroundWork = false;
       this.foregroundTurnOpen = false;
       this.pendingPromptInterrupt = false;
       this.currentTurnInterruptRequested = false;
@@ -1123,15 +1265,33 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.pendingPromptInterrupt = true;
       return;
     }
+    // A real cancel is going out against work that was streaming output, so
+    // suppress the trailing message/thought chunks the agent still emits after
+    // it. The staged-idle path above must not suppress: its cancel lands on an
+    // idle session, and the next prompt is a fresh turn whose output the user
+    // asked for.
+    if (this.behavior.suppressOutputAfterInterrupt) {
+      this.suppressAgentOutputUntilNextTurn = true;
+    }
+    const closeAwaitingForegroundTurn =
+      this.foregroundTurnAwaitingSubagents && !this.promptInFlight;
     try {
-      await this.connection.cancel({ sessionId: this.sessionId });
+      const cancelRequest = this.connection.cancel({ sessionId: this.sessionId });
+      if (closeAwaitingForegroundTurn) {
+        this.completeForegroundTurnAfterSubagents(this.ensureMapperState(), "cancelled");
+      }
+      await cancelRequest;
     } catch (error) {
+      if (closeAwaitingForegroundTurn) {
+        this.completeForegroundTurnAfterSubagents(this.ensureMapperState(), "cancelled");
+        return;
+      }
       // A close callback owns the root failure. A cancel racing that callback
       // is derivative noise, but unrelated provider rejections still surface.
       if (this.isDisposed || this.transportClosed) return;
       throw error;
     }
-    if (this.orphanTurnId && !this.promptInFlight) {
+    if (this.orphanTurnId && (!this.promptInFlight || this.promptHeldForBackgroundWork)) {
       this.completeOrphanTurn({ state: "cancelled" });
     }
   }
@@ -1177,6 +1337,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private reportTransportOutcome(errorMessage: string | undefined): void {
     if (this.transportOutcomeReported) return;
     this.transportOutcomeReported = true;
+    this.sessionRequests.cancelPending();
     if (errorMessage) {
       this.listener?.onError(errorMessage);
     }
@@ -1471,28 +1632,35 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // `session/update` notifications. Poracode already has those messages
     // in its own DB, so we skip canonical mapping for the replay window to
     // avoid duplicating every message in the chat pane.
+    const suppressInterruptedOutput =
+      this.suppressAgentOutputUntilNextTurn &&
+      (update.sessionUpdate === "agent_message_chunk" ||
+        update.sessionUpdate === "agent_thought_chunk");
     if (!suppressReplayUpdate) {
       const mapperState = this.ensureMapperState();
       // Whether a turn already owned this notification before we mapped it.
       // Read up front: the blocks below can close a turn on this very update,
       // and an orphan turn must not reopen one in the same breath.
+      const promptOwnsNotifications = this.promptInFlight && !this.promptHeldForBackgroundWork;
       const turnWasLive =
-        this.promptInFlight ||
+        promptOwnsNotifications ||
         this.foregroundTurnOpen ||
         this.foregroundTurnAwaitingSubagents ||
         this.detachedTurnId !== undefined;
       const detachedParentToolCallId =
-        !this.promptInFlight && !this.foregroundTurnAwaitingSubagents
+        !promptOwnsNotifications && !this.foregroundTurnAwaitingSubagents
           ? getDetachedSubAgentToolCallIdForNotification(mapperState, update)
           : undefined;
       if (detachedParentToolCallId) {
         this.startDetachedTurn(detachedParentToolCallId);
       }
-      const events = mapAcpSessionUpdate(params, mapperState);
+      const events = mapAcpSessionUpdate(params, mapperState, {
+        ...(suppressInterruptedOutput ? { suppressAgentOutput: true } : {}),
+      });
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
-        this.recordAgentSurfacedError(events);
         this.emitRuntimeEvents(events);
+        this.recordAgentSurfacedError(events);
       }
       for (const toolCallId of this.detachedTurnParentToolCallIds) {
         if (!mapperState.activeSubAgents.some((active) => active.toolCallId === toolCallId)) {
@@ -1506,6 +1674,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       } else if (
         !turnWasLive &&
         detachedParentToolCallId === undefined &&
+        !suppressInterruptedOutput &&
         isOrphanTurnActivity(update)
       ) {
         this.noteOrphanTurnActivity();
@@ -1541,7 +1710,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         // notifications after prompt() has already settled; those updates
         // remain visible in the transcript but must not reopen the thread as
         // a steerable turn when there is no request left to cancel.
-        if (this.promptInFlight) {
+        if (this.promptInFlight && !this.promptHeldForBackgroundWork) {
           this.emitListenerUpdate({ status: "working", attention: "working" });
         }
         break;
@@ -1658,6 +1827,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         attention: "error",
         errorMessage: event.message,
       });
+      if (isFatalAcpQuotaError(event.message) && this.promptInFlight && this.sessionId) {
+        // Antigravity retries 429s without resolving session/prompt. Fail the
+        // turn now and cancel so the in-flight prompt cannot pin `working`.
+        this.completeTurn(this.ensureMapperState(), "failed");
+        void this.connection.cancel({ sessionId: this.sessionId }).catch((error: unknown) => {
+          console.warn(
+            "[acp] cancel after quota error failed:",
+            error instanceof Error ? error.message : String(error),
+          );
+        });
+      }
       return;
     }
   }
@@ -1726,13 +1906,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.orphanTurnIdleTimer = setTimeout(() => {
       this.orphanTurnIdleTimer = undefined;
       if (this.isDisposed || !this.orphanTurnId) return;
-      // Sitting inside a long tool call is not idleness — a test run or build
+      // Sitting inside a long *command* is not idleness — a test run or build
       // can go minutes without emitting anything. Detached subagent calls are
-      // held open on purpose, so they never count as "still running here".
-      const insideToolCall = [...this.ensureMapperState().toolCallItems.values()].some(
-        (item) => !item.detached,
+      // held open on purpose. Read/search tool_calls that never receive a
+      // terminal update (Antigravity `client_view_file` / `view_file`) must
+      // not pin the orphan turn forever.
+      const insideLiveCommand = [...this.ensureMapperState().toolCallItems.values()].some(
+        (item) => !item.detached && item.itemType === "command_execution",
       );
-      if (insideToolCall) {
+      if (insideLiveCommand) {
         this.armOrphanTurnIdleTimer();
         return;
       }
@@ -1770,10 +1952,58 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
-  private completeForegroundTurnAfterSubagents(mapperState: AcpMapperState): void {
+  /** Feed one line of agent stderr diagnostics to the provider's turn-signal parser. */
+  private handleStderrTurnSignalLine(line: string): void {
+    if (!this.stderrTurnSignalParser || this.isDisposed) return;
+    let signal: "background-wait" | undefined;
+    try {
+      signal = this.stderrTurnSignalParser(line);
+    } catch (error) {
+      console.warn(
+        "[acp] stderr turn-signal parser failed:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
+    if (signal === "background-wait") this.completeTurnForBackgroundWait();
+  }
+
+  /**
+   * The agent reported (out of band, on stderr) that its reply is finished and
+   * `session/prompt` now stays open only for detached background tasks — which
+   * may never exit. Complete the runtime turn as if the stop reason had
+   * arrived: keep the still-running command rows open as detached items so the
+   * tasks' late terminal `tool_call_update`s can land on them, paint idle, and
+   * let the held prompt resolve silently later (`promptHeldForBackgroundWork`).
+   */
+  private completeTurnForBackgroundWait(): void {
+    if (!this.promptInFlight || this.promptHeldForBackgroundWork) return;
+    if (
+      !this.currentTurnId ||
+      this.currentTurnInterruptRequested ||
+      this.agentSurfacedErrorMessage
+    ) {
+      return;
+    }
+    const mapperState = this.ensureMapperState();
+    // Anything still executing at this boundary is background work by
+    // definition — the agent said the reply itself is done.
+    for (const item of mapperState.toolCallItems.values()) {
+      if (item.itemType === "command_execution") item.detached = true;
+    }
+    this.promptHeldForBackgroundWork = true;
+    this.foregroundTurnOpen = false;
+    this.emitListenerUpdate({ status: "idle", attention: "none" });
+    this.completeTurn(mapperState, "completed");
+  }
+
+  private completeForegroundTurnAfterSubagents(
+    mapperState: AcpMapperState,
+    state: "completed" | "cancelled" = "completed",
+  ): void {
     if (!this.foregroundTurnAwaitingSubagents) return;
     this.foregroundTurnAwaitingSubagents = false;
-    this.completeTurn(mapperState, "completed");
+    this.completeTurn(mapperState, state);
     this.emitListenerUpdate({ status: "idle", attention: "none" });
     this.clearCompletedTurnCaches();
   }
@@ -1788,12 +2018,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     turnState: "completed" | "cancelled" | "failed",
   ): void {
     if (!this.currentTurnId) return;
+    const turnId = this.currentTurnId;
+    this.currentTurnId = undefined;
     this.emitRuntimeEvents([
       ...closeOpenTurnItems(mapperState),
       {
         type: "turn.completed",
         threadId: this.threadId,
-        turnId: this.currentTurnId,
+        turnId,
         state: turnState,
       },
     ]);
@@ -1813,10 +2045,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       events.push({ type: "error", threadId: this.threadId, message: rpcMessage });
     }
     if (this.currentTurnId) {
+      const turnId = this.currentTurnId;
+      this.currentTurnId = undefined;
       events.push({
         type: "turn.completed",
         threadId: this.threadId,
-        turnId: this.currentTurnId,
+        turnId,
         state: "failed",
       });
     }

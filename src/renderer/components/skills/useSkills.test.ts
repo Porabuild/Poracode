@@ -58,12 +58,12 @@ function pluginSkillScan(): SkillScanResult {
         skillFilePath: "C:\\project\\.poracode\\skills\\browser-control\\SKILL.md",
         rootPath: "C:\\project\\.poracode\\skills",
         providerId: "plugin:browser-tools",
-        providerLabel: "Browser Tools",
+        providerLabel: "Browser",
         scope: "project",
         scopeLabel: "Project",
         origin: "plugin",
         pluginId: "browser-tools",
-        pluginName: "Browser Tools",
+        pluginName: "Browser",
         enabled: true,
         mutable: false,
         valid: true,
@@ -156,13 +156,61 @@ describe("useSkills", () => {
     await waitFor(() => expect(hook.result.current).toHaveLength(1));
     expect(hook.result.current[0]).toMatchObject({
       id: "browser-tools",
-      name: "Browser Tools",
-      detail: "Plugin",
+      name: "Browser",
       command: {
         skillName: "browser-control",
         skillInvocation: "$browser-control",
         pluginId: "browser-tools",
-        pluginName: "Browser Tools",
+        pluginName: "Browser",
+      },
+    });
+  });
+
+  it("offers Terminal as an always-on plugin mention", async () => {
+    const id = "global:plugin:terminal:terminal-inspection";
+    scanSkillsMock.mockResolvedValueOnce({
+      skills: [
+        {
+          id,
+          name: "terminal-inspection",
+          description: "Read the Terminal panel attached to this worktree and report the evidence.",
+          folderName: "terminal-inspection",
+          absolutePath: "C:\\resources\\plugins\\terminal\\skills\\terminal-inspection",
+          skillFilePath: "C:\\resources\\plugins\\terminal\\skills\\terminal-inspection\\SKILL.md",
+          rootPath: "C:\\resources\\plugins\\terminal\\skills",
+          providerId: "plugin:terminal",
+          providerLabel: "Terminal",
+          scope: "global",
+          scopeLabel: "Global",
+          origin: "plugin",
+          pluginId: "terminal",
+          pluginName: "Terminal",
+          enabled: true,
+          mutable: false,
+          valid: true,
+          linked: false,
+        },
+      ],
+      effectiveSkillIds: [id],
+      invocation: "dollar",
+      issues: [],
+      canLinkToGlobal: true,
+    });
+    const hook = renderHook(
+      () => usePluginMentionItems({ kind: "windows", path: "C:\\TerminalMentionTest" }, "codex"),
+      { wrapper: I18nWrapper },
+    );
+
+    await waitFor(() =>
+      expect(hook.result.current.some((item) => item.id === "terminal")).toBe(true),
+    );
+    expect(hook.result.current.find((item) => item.id === "terminal")).toMatchObject({
+      name: "Terminal",
+      enablesMcpServerIds: ["app-controls"],
+      command: {
+        skillName: "terminal-inspection",
+        pluginId: "terminal",
+        pluginName: "Terminal",
       },
     });
   });
@@ -205,7 +253,7 @@ describe("useSkills", () => {
         description: "Navega, inspecciona y prueba páginas con el MCP del navegador integrado.",
         skillName: "browser-control",
         skillInvocation: "$browser-control",
-        skillProvider: "Herramientas del navegador",
+        skillProvider: "Navegador",
       });
     } finally {
       hook.unmount();

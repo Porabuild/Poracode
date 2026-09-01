@@ -7,7 +7,10 @@
  * user-registered generic-ACP instances, and the `codex-acp` Rust shim.
  *
  * **Zero provider-specific branches.** The mapper imports types from the ACP
- * SDK only; provider identity is irrelevant to the translation.
+ * SDK only; provider identity is irrelevant to the translation. An agent that
+ * multiplexes its own payload format through assistant text supplies an
+ * `AcpTextStreamExtension` (see `./canonicalMapping/textStreamExtension`) from
+ * its own provider folder instead.
  *
  * The implementation is split by concern under `./canonicalMapping/*`; this
  * barrel preserves the original public API surface so importers (session, tests)

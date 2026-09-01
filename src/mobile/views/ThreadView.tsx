@@ -56,6 +56,8 @@ export interface ThreadViewProps {
   readonly loading?: boolean;
   readonly onThreadAction: (action: ThreadAction) => void;
   readonly onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
+  /** Open a referenced thread through the mobile route and remote session. */
+  readonly onOpenThread?: ((threadId: string) => void) | undefined;
   readonly onOpenSubAgent?: ((parentItemId: string) => void) | undefined;
   /** Open the unified workspace panel (Changes/Files) for this thread. */
   readonly onOpenWorkspace?: (tab: WorkspaceTab) => void;
@@ -261,6 +263,7 @@ export function ThreadView(props: ThreadViewProps) {
     paneCount: 1,
     terminalPaneRef,
     onSubmitInput: handleSubmitInput,
+    ...(props.onOpenThread ? { onOpenThread: props.onOpenThread } : {}),
     ...(props.onOpenWorkspaceFile ? { onOpenProjectRelativePath: props.onOpenWorkspaceFile } : {}),
     ...(props.onOpenWorkspaceFolder
       ? { onRevealProjectFolderInTree: props.onOpenWorkspaceFolder }

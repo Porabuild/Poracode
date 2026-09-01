@@ -1,6 +1,124 @@
 {
   "releases": [
     {
+      "version": "1.7.0",
+      "date": "2026-08-31",
+      "title": "Antigravity ACP, Handoff 2.0 & thread mentions",
+      "summary": "A big feature release: Poracode introduces first-class Antigravity ACP runtime support, Handoff 2.0 for continuing conversations in other providers without losing thread history, thread @-mentions in the composer, and project-scoped agent plugins. You can also manage GitHub Actions across multiple accounts, run Cursor SDK over WSL and remote hosts, customize project icons, and assign Home threads to workspaces.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Antigravity",
+          "text": "You can now run Google DeepMind's Antigravity agent via first-class ACP runtime support with live usage discovery and machine-scoped settings."
+        },
+        {
+          "kind": "added",
+          "label": "Composer",
+          "text": "You can now @-mention other threads and worktree chats directly in your prompt to pull their context and results into the conversation."
+        },
+        {
+          "kind": "added",
+          "label": "Plugins",
+          "text": "You can now install and configure project-scoped agent plugins in .poracode/plugins alongside bundled and user packages."
+        },
+        {
+          "kind": "added",
+          "label": "Cursor",
+          "text": "Cursor SDK chat is now supported across WSL and remote SSH machines, complete with multi-account usage profiles and plan allowance tracking."
+        },
+        {
+          "kind": "added",
+          "label": "Workspaces",
+          "text": "You can now assign Home threads and projects to specific workspaces to keep unrelated work organized."
+        },
+        {
+          "kind": "added",
+          "label": "Projects",
+          "text": "You can now customize project icons and colors with an icon picker modal or let Poracode automatically detect project icons."
+        },
+        {
+          "kind": "added",
+          "label": "Settings",
+          "text": "You can now check for provider updates and update all installed CLI agents sequentially with live progress indicators."
+        },
+        {
+          "kind": "improved",
+          "label": "Provider switch",
+          "text": "Switching providers or models now continues seamlessly inside the same thread while preserving your full conversation history and active MCP configuration (Handoff 2.0)."
+        },
+        {
+          "kind": "improved",
+          "label": "Plugins",
+          "text": "App controls, MCP servers, and the always-on Terminal are now consolidated under a unified plugin architecture with per-project scopes and mention aliases in the composer."
+        },
+        {
+          "kind": "improved",
+          "label": "GitHub",
+          "text": "GitHub Actions now supports multiple signed-in GitHub accounts, letting you switch accounts when browsing workflows, dispatching runs, or inspecting CI statuses."
+        },
+        {
+          "kind": "improved",
+          "label": "Archived threads",
+          "text": "The archived threads management view is redesigned for easier restoration, permanent deletion, and filtering across workspaces and remote connections."
+        },
+        {
+          "kind": "improved",
+          "label": "Updates",
+          "text": "The updater keeps checking for newer releases even while an update is staged, ensuring you always install the latest available version upon restart."
+        },
+        {
+          "kind": "improved",
+          "label": "Grok",
+          "text": "The default one-shot model now uses Grok 4.6 with automatic reasoning effort tier resolution."
+        },
+        {
+          "kind": "improved",
+          "label": "Claude",
+          "text": "Claude settings now support GLM 5.3 and DeepSeek Pro deepseek-v4-pro-0813 presets."
+        },
+        {
+          "kind": "improved",
+          "label": "Chat",
+          "text": "Streamed responses now adapt their reveal animation to chunk arrival speed for smoother reading, and tool-call row shifts animate smoothly."
+        },
+        {
+          "kind": "improved",
+          "label": "Windows",
+          "text": "The Windows system tray icon now automatically switches between light and dark glyphs to match your system theme."
+        },
+        {
+          "kind": "improved",
+          "label": "Terminal",
+          "text": "Terminal sessions now prewarm in the background so new tabs open instantly."
+        },
+        {
+          "kind": "improved",
+          "label": "Git Review",
+          "text": "The Git Review sidebar now provides a one-click Push & Create PR action when you have unpushed commits with no remaining unstaged changes."
+        },
+        {
+          "kind": "fixed",
+          "label": "ACP agents",
+          "text": "Background turns waiting on stderr no longer hold the UI, and stuck turns automatically complete while dropping leaked notification fragments."
+        },
+        {
+          "kind": "fixed",
+          "label": "Windows",
+          "text": "Poracode now resolves bare executable names and global pnpm agent shims reliably when launching CLI tools."
+        },
+        {
+          "kind": "fixed",
+          "label": "Pull requests",
+          "text": "PR status indicators now clearly separate in-progress checks from blocking review or merge requirements."
+        },
+        {
+          "kind": "fixed",
+          "label": "Remote",
+          "text": "Reconnecting to remote hosts after updates now tracks restart status smoothly without dropping draft state."
+        }
+      ]
+    },
+    {
       "version": "1.6.5",
       "date": "2026-08-18",
       "title": "Windows shell preferences, sturdier ACP agents & smarter PR targets",

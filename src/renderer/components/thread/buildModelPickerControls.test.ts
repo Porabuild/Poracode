@@ -378,6 +378,41 @@ describe("buildProviderModelMenuProviders", () => {
     ]);
   });
 
+  it("keeps Antigravity's ACP identity internal while showing its canonical label", () => {
+    const guiCapabilities = {
+      ...capabilities,
+      runtimeLabel: "ACP",
+      showRuntimeLabelInPicker: false,
+      presentationMode: "gui" as const,
+      presentationModes: ["gui" as const],
+      models: [{ id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" }],
+    };
+    const providers = expandAgentToVisibilityProviders({
+      kind: "antigravity",
+      label: "Antigravity",
+      installed: true,
+      authState: "authenticated",
+      capabilities: guiCapabilities,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: guiCapabilities,
+        },
+      },
+    });
+
+    expect(providers).toMatchObject([
+      {
+        label: "Antigravity",
+        modelPickerKey: "antigravity:gui:acp",
+        hiddenModelsKey: "antigravity-acp",
+      },
+    ]);
+  });
+
   it("omits an installed Cursor SDK surface until its API key is authenticated", () => {
     const guiCapabilities = {
       ...cursorStatus.capabilities,

@@ -1,7 +1,14 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentInstanceConfig, AgentStatus, Project } from "@/shared/contracts";
+import type {
+  AcpRegistryListResult,
+  AgentInstanceConfig,
+  AgentStatusesResponse,
+  AgentStatus,
+  InstalledAcpRegistryAgent,
+  Project,
+} from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const statusesState = {
@@ -15,6 +22,7 @@ const sharedSettingsState = {
   agentSettings: {} as Record<string, Record<string, unknown>>,
   agentInstances: {} as Record<string, AgentInstanceConfig>,
   acpRegistryInstalledAgents: {} as Record<string, unknown>,
+  syncAcpRegistryInstalledAgents: vi.fn<(installed: InstalledAcpRegistryAgent[]) => void>(),
   setAgentDisabled: vi.fn<(kind: string, disabled: boolean) => void>(),
   setHiddenModels: vi.fn<(kind: string, hidden: string[]) => void>(),
   setAgentSetting: vi.fn<(kind: string, key: string, value: unknown) => void>(),
@@ -141,9 +149,15 @@ vi.mock("@heroui/react", () => {
     Content: Wrapper,
     Body: Wrapper,
   });
+  const Card = Object.assign(Wrapper, {
+    Header: Wrapper,
+    Title: Wrapper,
+    Content: Wrapper,
+  });
 
   return {
     Button,
+    Card,
     Disclosure,
     Input,
     Label: (props: { children?: ReactNode }) => <span>{props.children}</span>,
@@ -159,7 +173,9 @@ vi.mock("@heroui/react", () => {
   };
 });
 
-const refreshAgentStatusesMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
+const refreshAgentStatusesMock = vi.hoisted(() =>
+  vi.fn<() => Promise<AgentStatusesResponse | void>>(),
+);
 const setAcpRegistryAgentAuthMock = vi.hoisted(() =>
   vi.fn<(payload: { agentId: string; environment: Record<string, string> }) => Promise<unknown>>(),
 );
@@ -184,9 +200,7 @@ const logoutAcpAgentMock = vi.hoisted(() =>
 );
 const focusWindowMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
-const listAcpRegistryMock = vi.hoisted(() =>
-  vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
-);
+const listAcpRegistryMock = vi.hoisted(() => vi.fn<() => Promise<AcpRegistryListResult>>());
 
 const getLatestAgentVersionMock = vi.hoisted(() =>
   vi
@@ -215,6 +229,12 @@ const updateAgentBinaryMock = vi.hoisted(() =>
     >()
     .mockResolvedValue({ ok: true }),
 );
+const updateAcpRegistryAgentMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
+);
+const installAcpRegistryAgentMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
+);
 const getAgentHookPluginStatusesMock = vi.hoisted(() =>
   vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
 );
@@ -236,6 +256,8 @@ vi.mock("@/renderer/bridge", () => ({
     getLatestAgentVersion: getLatestAgentVersionMock,
     resolveAgentAccount: resolveAgentAccountMock,
     updateAgentBinary: updateAgentBinaryMock,
+    updateAcpRegistryAgent: updateAcpRegistryAgentMock,
+    installAcpRegistryAgent: installAcpRegistryAgentMock,
     getAgentHookPluginStatuses: getAgentHookPluginStatusesMock,
     installAgentHookPlugin: installAgentHookPluginMock,
     uninstallAgentHookPlugin: uninstallAgentHookPluginMock,
@@ -338,6 +360,8 @@ vi.mock("@/renderer/components/common", () => ({
 
 import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import "@/renderer/components/providers/antigravity";
+import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { SingleAgentSettings } from "./SingleAgentSettings";
 
 const baseCapabilities = {
@@ -365,6 +389,36 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
   };
 }
 
+function makeAntigravityStatus(cliVersion: string, acpVersion: string): AgentStatus {
+  return makeStatus("antigravity", {
+    label: "Antigravity",
+    version: cliVersion,
+    envKind: "windows",
+    runtimeVariants: {
+      cli: {
+        presentationMode: "terminal",
+        installed: true,
+        version: cliVersion,
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: baseCapabilities,
+      },
+      acp: {
+        presentationMode: "gui",
+        installed: true,
+        version: acpVersion,
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: {
+          ...baseCapabilities,
+          presentationMode: "gui",
+          liveInputMode: "server",
+        },
+      },
+    },
+  });
+}
+
 function makeProject(input: { id: string; name: string; location: Project["location"] }): Project {
   return {
     id: input.id,
@@ -385,6 +439,7 @@ function envRow(label: string): HTMLElement {
 
 describe("SingleAgentSettings", () => {
   beforeEach(() => {
+    resetAcpRegistryListingCache();
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
@@ -396,6 +451,7 @@ describe("SingleAgentSettings", () => {
     sharedSettingsState.setHiddenModels.mockReset();
     sharedSettingsState.setAgentSetting.mockReset();
     sharedSettingsState.setAgentInstance.mockReset();
+    sharedSettingsState.syncAcpRegistryInstalledAgents.mockReset();
     refreshAgentStatusesMock.mockReset().mockResolvedValue(undefined);
     setAcpRegistryAgentAuthMock.mockReset().mockResolvedValue({});
     authenticateAcpAgentMock.mockReset().mockResolvedValue(undefined);
@@ -405,6 +461,7 @@ describe("SingleAgentSettings", () => {
     getLatestAgentVersionMock.mockReset().mockImplementation(() => new Promise(() => {}));
     resolveAgentAccountMock.mockReset().mockImplementation(() => new Promise(() => {}));
     updateAgentBinaryMock.mockReset().mockResolvedValue({ ok: true });
+    updateAcpRegistryAgentMock.mockReset().mockResolvedValue({ installed: [] });
     getAgentHookPluginStatusesMock.mockReset().mockImplementation(() => new Promise(() => {}));
     toastMock.danger.mockReset();
     toastMock.success.mockReset();
@@ -968,6 +1025,89 @@ describe("SingleAgentSettings", () => {
     // No `agy logout` exists, so authLogoutSupported is absent → Re-login, never Logout.
     expect(within(row).getByRole("button", { name: /re-login/i })).toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /logout/i })).not.toBeInTheDocument();
+  });
+
+  it("reports both Antigravity runtimes on the environment row, with one update action", async () => {
+    statusesState.agentStatuses = [makeAntigravityStatus("1.2.0", "1.0.0")];
+    getLatestAgentVersionMock.mockResolvedValue({ version: "1.3.0", source: "npm" });
+    listAcpRegistryMock.mockResolvedValue({
+      version: "1.0.0",
+      agents: [
+        {
+          id: "antigravity-acp",
+          name: "Google Antigravity",
+          version: "1.1.0",
+          description: "Official Antigravity ACP runtime",
+          distribution: { npx: { package: "antigravity-acp" } },
+        },
+      ],
+    });
+    refreshAgentStatusesMock.mockResolvedValue({
+      windows: [makeAntigravityStatus("1.3.0", "1.1.0")],
+      wsl: [],
+      fromCache: false,
+    });
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    // No bespoke runtime panel: the versions ride the same row every other
+    // provider uses.
+    expect(screen.queryByRole("list", { name: "Runtime" })).not.toBeInTheDocument();
+    const row = envRow("This computer");
+    expect(row).toHaveTextContent("CLI v1.2.0 · ACP v1.0.0");
+
+    // Both runtimes are behind, so the single reconciling action does not claim
+    // either one's version.
+    const update = await within(row).findByRole("button", { name: /^Update Antigravity/i });
+    fireEvent.click(update);
+
+    await waitFor(() => {
+      expect(updateAgentBinaryMock).toHaveBeenCalledWith({
+        agentKind: "antigravity",
+        envKind: "windows",
+      });
+      expect(updateAcpRegistryAgentMock).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+  });
+
+  it("offers to install the Antigravity chat runtime when only the CLI is detected", async () => {
+    const halfInstalled = makeAntigravityStatus("1.2.0", "1.0.0");
+    statusesState.agentStatuses = [
+      {
+        ...halfInstalled,
+        runtimeVariants: {
+          ...halfInstalled.runtimeVariants,
+          acp: { ...halfInstalled.runtimeVariants!.acp!, installed: false, version: undefined },
+        },
+      },
+    ];
+    getLatestAgentVersionMock.mockResolvedValue({ version: "1.3.0", source: "npm" });
+    listAcpRegistryMock.mockResolvedValue({ version: "1.0.0", agents: [] });
+    installAcpRegistryAgentMock.mockResolvedValue({ installed: [] });
+    refreshAgentStatusesMock.mockResolvedValue({
+      windows: [makeAntigravityStatus("1.2.0", "1.0.0")],
+      wsl: [],
+      fromCache: false,
+    });
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    const row = envRow("This computer");
+    expect(row).toHaveTextContent("CLI v1.2.0 · ACP not installed");
+    // Half-installed used to leave chat unavailable with no way to fix it from
+    // this page — the auto-install is best-effort and silent when it fails.
+    fireEvent.click(within(row).getByRole("button", { name: /Install ACP/i }));
+
+    await waitFor(() =>
+      expect(installAcpRegistryAgentMock).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      }),
+    );
+    await waitFor(() => expect(refreshAgentStatusesMock).toHaveBeenCalled());
   });
 
   it("shows Login (not the shared account) for an Antigravity env that isn't signed in", async () => {

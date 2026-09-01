@@ -3,6 +3,7 @@ import type { Project } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 const bridge = vi.hoisted(() => ({
+  platform: "darwin" as NodeJS.Platform,
   startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   closeThread: vi.fn<() => Promise<void>>(),
   onSupervisorEvent: vi.fn<(handler: (event: SupervisorEvent) => void) => () => void>(),
@@ -31,6 +32,7 @@ vi.mock("@heroui/react", () => ({
 }));
 
 vi.mock("@/renderer/bridge", () => ({
+  isWindows: () => bridge.platform === "win32",
   readBridge: () => bridge,
 }));
 
@@ -71,6 +73,7 @@ vi.mock("@/renderer/utils/shellUtils", () => ({
 }));
 
 import { toast } from "@heroui/react";
+import { antigravityCliInstallCommand } from "@/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall";
 import { runAgentInstallCommand, runAgentLoginCommand } from "./agentLoginActions";
 
 const wslProject: Project = {
@@ -121,6 +124,7 @@ function unwrapBashScript(script: string): string {
 describe("runAgentLoginCommand", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    bridge.platform = "darwin";
     supervisorHandlers.length = 0;
     bridge.startShell.mockReset().mockResolvedValue(undefined);
     bridge.closeThread.mockReset().mockResolvedValue(undefined);
@@ -480,6 +484,34 @@ describe("runAgentLoginCommand", () => {
     expect(innerScript).toContain("https://opencode.ai/install | bash");
     expect(innerScript).toContain("printf '\\033]777;poracode-login-complete=lc_");
     expect(innerScript).toContain('"$__lc_exit"');
+  });
+
+  it("keeps the completion marker reachable after the Antigravity POSIX installer", () => {
+    const command = antigravityCliInstallCommand(posixProject);
+    expect(command).toContain('test "$antigravity_install_status" -eq 0');
+    expect(command).toContain("else printf");
+    expect(command).toContain("; false; fi");
+    expect(command).not.toMatch(/(?:^|[;}])\s*exit\b/u);
+
+    runAgentInstallCommand({ label: "Antigravity", command, project: posixProject });
+
+    const innerScript = unwrapBashScript(writeScriptToShellMock.mock.calls[0]?.[1] ?? "");
+    expect(innerScript.indexOf("poracode-login-complete=")).toBeGreaterThan(
+      innerScript.indexOf(command),
+    );
+  });
+
+  it("keeps the completion marker reachable after Antigravity Windows failures", () => {
+    bridge.platform = "win32";
+    const command = antigravityCliInstallCommand(windowsProject);
+    expect(command).toContain("cmd /c exit 1");
+    expect(command).not.toMatch(/(?:^|[;}])\s*exit\b/u);
+
+    runAgentInstallCommand({ label: "Antigravity", command, project: windowsProject });
+
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    expect(script.indexOf("poracode-login-complete=")).toBeGreaterThan(script.indexOf(command));
+    expect(script).toContain("$lcExit");
   });
 
   it("opens update commands with update-specific terminal state", () => {

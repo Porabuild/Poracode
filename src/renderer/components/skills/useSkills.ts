@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useLingui } from "@lingui/react/macro";
 import type {
   AgentSlashCommand,
   InstalledPlugins,
@@ -21,6 +20,7 @@ import {
   getPluginCoreSkill,
   isPluginSkillEnabled,
   isPluginSupportedForProject,
+  resolveInstalledPluginState,
 } from "@/shared/plugins/catalog";
 
 const scanCache = new Map<string, SkillScanResult>();
@@ -140,7 +140,7 @@ export function useSkillSlashCommandState(
     undefined,
     presentationMode,
   );
-  const localizedPlugins = useLocalizedPluginCatalog();
+  const localizedPlugins = useLocalizedPluginCatalog(projectLocation);
   return {
     commands: buildSkillSlashCommands(scan, localizedPlugins),
     resolved: !loading && (scan !== null || error !== undefined),
@@ -197,9 +197,8 @@ export function usePluginMentionItems(
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
 ): PluginMentionItem[] {
-  const { t } = useLingui();
   const { scan } = useSkills(projectLocation, agentKind, undefined, presentationMode);
-  const localizedPlugins = useLocalizedPluginCatalog();
+  const localizedPlugins = useLocalizedPluginCatalog(projectLocation);
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const disabledBuiltIns = useSharedSettings((state) => state.disabledBuiltInMcpServers);
   const invocation = scan?.invocation;
@@ -207,7 +206,7 @@ export function usePluginMentionItems(
 
   return localizedPlugins.flatMap((localized): PluginMentionItem[] => {
     const plugin = localized.plugin;
-    const state = installedPlugins[plugin.name];
+    const state = resolveInstalledPluginState(plugin, installedPlugins);
     const core = getPluginCoreSkill(plugin);
     if (
       !state?.enabled ||
@@ -231,8 +230,14 @@ export function usePluginMentionItems(
       {
         id: plugin.name,
         name: localized.name,
-        detail: t`Plugin`,
+        // Manifest keywords double as mention aliases so a package still
+        // answers to what it does ("@pane" → Terminal), not only to
+        // its display name.
+        ...(plugin.manifest.keywords?.length ? { searchAliases: plugin.manifest.keywords } : {}),
         command: { ...command, pluginId: plugin.name, pluginName: localized.name },
+        ...(plugin.poracode.builtInMcpServerIds.length > 0
+          ? { enablesMcpServerIds: plugin.poracode.builtInMcpServerIds }
+          : {}),
       },
     ];
   });

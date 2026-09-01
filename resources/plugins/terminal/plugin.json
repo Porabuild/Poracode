@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "terminal",
+  "version": "1.0.0",
+  "description": "Read the Terminal panel attached to this worktree and report what it is printing.",
+  "author": {
+    "name": "Poracode",
+    "url": "https://poracode.com"
+  },
+  "homepage": "https://poracode.com",
+  "license": "Apache-2.0",
+  "keywords": ["terminal", "shell", "pane"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "Terminal",
+      "category": "developer-tools",
+      "featured": true,
+      "examplePrompt": "Check the Terminal panel for this worktree and tell me what the running command is doing",
+      "alwaysEnabled": true,
+      "coreSkill": "terminal-inspection",
+      "builtInMcpServerIds": ["app-controls"],
+      "skills": {
+        "terminal-inspection": {
+          "name": "Terminal",
+          "description": "Read the Terminal panel attached to this worktree and report the evidence."
+        }
+      }
+    }
+  }
+}

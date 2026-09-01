@@ -617,6 +617,7 @@ describe("ThreadSessionManager start guards", () => {
     expect(manager.getThreadSnapshots()[0]?.launchConfig).toEqual(
       expect.objectContaining({ crossagentMcp: true }),
     );
+    expect(manager.getThreadSnapshots()[0]?.threadMentionToolsAvailable).toBe(false);
     expect(
       events.find((event) => event.type === "thread-state" && event.status === "working"),
     ).toEqual(
