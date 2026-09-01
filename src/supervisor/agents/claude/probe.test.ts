@@ -217,9 +217,10 @@ describe("claudeCapabilitiesFromCliVersion", () => {
     expect(p?.modelContextSizes && "claude-sonnet-5" in p.modelContextSizes).toBe(false);
   });
 
-  it("hides only Opus 5 after Sonnet 5 and before Claude Code 2.1.219", () => {
+  it("hides Opus 5 and Fable 5.1 after Sonnet 5 and before Claude Code 2.1.219", () => {
     const p = claudeCapabilitiesFromCliVersion("2.1.218");
     expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-5");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-fable-5-1");
     expect(p?.models?.map((m) => m.id)).toContain("claude-fable-5");
     expect(p?.models?.map((m) => m.id)).toContain("claude-sonnet-5");
     expect(p?.modelEfforts && "claude-opus-5" in p.modelEfforts).toBe(false);
@@ -227,8 +228,17 @@ describe("claudeCapabilitiesFromCliVersion", () => {
     expect(p?.fastModels).not.toContain("claude-opus-5");
   });
 
-  it("returns undefined when CLI supports Opus 5", () => {
-    expect(claudeCapabilitiesFromCliVersion("2.1.219")).toBeUndefined();
+  it("hides only Fable 5.1 after Opus 5 and before Claude Code 2.1.250", () => {
+    const p = claudeCapabilitiesFromCliVersion("2.1.249");
+    expect(p?.models?.map((m) => m.id)).toContain("claude-opus-5");
+    expect(p?.models?.map((m) => m.id)).toContain("claude-fable-5");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-fable-5-1");
+    expect(p?.modelEfforts && "claude-fable-5-1" in p.modelEfforts).toBe(false);
+    expect(p?.modelContextSizes && "claude-fable-5-1" in p.modelContextSizes).toBe(false);
+  });
+
+  it("returns undefined when CLI supports Fable 5.1", () => {
+    expect(claudeCapabilitiesFromCliVersion("2.1.250")).toBeUndefined();
     expect(claudeCapabilitiesFromCliVersion("3.0.0")).toBeUndefined();
   });
 

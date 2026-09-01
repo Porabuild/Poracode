@@ -7,9 +7,11 @@ const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
 const MIN_CLAUDE_FABLE_5_CLI = [2, 1, 170] as const;
 const MIN_CLAUDE_SONNET_5_CLI = [2, 1, 197] as const;
 const MIN_CLAUDE_OPUS_5_CLI = [2, 1, 219] as const;
+const MIN_CLAUDE_FABLE_51_CLI = [2, 1, 250] as const;
 
 export const CLAUDE_OPUS_5_MODEL_ID = "claude-opus-5";
 export const CLAUDE_FABLE_5_MODEL_ID = "claude-fable-5";
+export const CLAUDE_FABLE_51_MODEL_ID = "claude-fable-5-1";
 export const CLAUDE_OPUS_48_MODEL_ID = "claude-opus-4-8";
 export const CLAUDE_OPUS_47_MODEL_ID = "claude-opus-4-7";
 export const CLAUDE_SONNET_5_MODEL_ID = "claude-sonnet-5";
@@ -28,6 +30,7 @@ export const CLAUDE_PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
 export const CLAUDE_BUILTIN_MODELS: AgentCapability["models"] = [
   { id: CLAUDE_OPUS_5_MODEL_ID, label: "Opus 5" },
   { id: CLAUDE_FABLE_5_MODEL_ID, label: "Fable 5" },
+  { id: CLAUDE_FABLE_51_MODEL_ID, label: "Fable 5.1" },
   { id: CLAUDE_OPUS_48_MODEL_ID, label: "Opus 4.8" },
   { id: CLAUDE_OPUS_47_MODEL_ID, label: "Opus 4.7" },
   { id: "claude-opus-4-6", label: "Opus 4.6" },
@@ -38,6 +41,7 @@ export const CLAUDE_BUILTIN_MODELS: AgentCapability["models"] = [
 export const CLAUDE_BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
   [CLAUDE_OPUS_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   [CLAUDE_FABLE_5_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
+  [CLAUDE_FABLE_51_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   [CLAUDE_OPUS_48_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   [CLAUDE_OPUS_47_MODEL_ID]: CLAUDE_PREMIUM_EFFORT_TIERS,
   "claude-opus-4-6": ["low", "medium", "high", "max"],
@@ -49,6 +53,7 @@ export const CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["mo
   {
     [CLAUDE_OPUS_5_MODEL_ID]: ["1m"],
     [CLAUDE_FABLE_5_MODEL_ID]: ["1m"],
+    [CLAUDE_FABLE_51_MODEL_ID]: ["1m"],
     [CLAUDE_OPUS_48_MODEL_ID]: ["1m", "200k"],
     [CLAUDE_OPUS_47_MODEL_ID]: ["1m", "200k"],
     "claude-opus-4-6": ["1m", "200k"],
@@ -93,6 +98,9 @@ export function claudeCapabilitiesFromCliVersion(
   }
   if (!semverGte(triplet, MIN_CLAUDE_FABLE_5_CLI)) {
     hiddenModelIds.add(CLAUDE_FABLE_5_MODEL_ID);
+  }
+  if (!semverGte(triplet, MIN_CLAUDE_FABLE_51_CLI)) {
+    hiddenModelIds.add(CLAUDE_FABLE_51_MODEL_ID);
   }
   if (!semverGte(triplet, MIN_CLAUDE_SONNET_5_CLI)) {
     hiddenModelIds.add(CLAUDE_SONNET_5_MODEL_ID);
