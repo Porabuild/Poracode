@@ -179,6 +179,39 @@ describe("ContinueInProviderDialog handoff flow", () => {
     );
   });
 
+  it("hands the thread itself over to a target that owns its MCP config at provider level", async () => {
+    // Such a provider declares a composer MCP scope of "none" because the
+    // composer has nothing to toggle, yet the supervisor still resolves the
+    // built-in `read_thread` server for it. It must not be sent a context file.
+    useAppStore.setState({
+      threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+    } as never);
+    const providerOwnedMcpTarget = agent("codex", "Codex", "gui");
+    Object.assign(providerOwnedMcpTarget.capabilities, {
+      mcpScope: { terminal: "none", gui: "none" },
+      mcpConfigSource: "agentSettings",
+    });
+    const onContinue = renderDialog({
+      thread: {
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+      installedAgents: [agent("claude", "Claude", "gui"), providerOwnedMcpTarget],
+    });
+
+    await pressSwitch();
+
+    expect(bridge.extractContext).not.toHaveBeenCalled();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      { strategy: "thread-transcript" },
+    );
+  });
+
   it("starts without context when nothing is stored and no session exists", async () => {
     const onContinue = renderDialog({});
 

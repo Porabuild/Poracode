@@ -13,7 +13,6 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { resolveComposerMcpScope } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
@@ -96,7 +95,10 @@ import {
   defaultHandoffPrompt,
   type ProviderHandoffContext,
 } from "@/renderer/actions/providerHandoff";
-import { resolveProviderHandoffStrategy } from "@/shared/providerHandoff";
+import {
+  resolveProviderHandoffStrategy,
+  targetGuaranteesReadThreadTool,
+} from "@/shared/providerHandoff";
 
 type Phase = "select" | "extracting" | "error";
 type PendingSubmission = { prompt: string; segments?: PromptSegment[] };
@@ -746,13 +748,9 @@ export function ContinueInProviderDialog(props: {
       isMirroredThread: thread.remoteServerId !== undefined,
       readThreadToolEnabled: readThreadToolsEnabled,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
-      // A handoff is a fresh launch, so a target that bakes its MCP set at
-      // session start ("launch") keeps `read_thread` for the whole session
-      // just as one that rebuilds it every turn ("always") does. Only "none"
-      // has no MCP wiring to carry the tool.
       targetReadThreadToolGuaranteed:
         targetCapabilities !== undefined &&
-        resolveComposerMcpScope(targetCapabilities.mcpScope, targetPresentationMode) !== "none",
+        targetGuaranteesReadThreadTool(targetCapabilities, targetPresentationMode),
     });
   }
 
