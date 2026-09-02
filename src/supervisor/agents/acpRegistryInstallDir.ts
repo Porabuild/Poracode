@@ -5,6 +5,19 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 export const ACP_REGISTRY_INSTALL_DIR = "acp-registry";
 
+/**
+ * Generation of the extracted binary artifact's on-disk layout, recorded per
+ * installation in `acpRegistryInstalledAgents[id].installations`. Bump it when
+ * an already-extracted install can be present but no longer valid, and teach
+ * `repairAcpRegistryInstallLayouts` how to bring the previous generation up.
+ *
+ * - (absent) — only the primary command was marked executable. Archives
+ *   extracted from Windows into a WSL distro land with `0644`, so bundled
+ *   helper binaries the server spawns failed with EACCES.
+ * - 2 — every file under the install `bin/` dir is executable.
+ */
+export const ACP_REGISTRY_INSTALL_LAYOUT_VERSION = 2;
+
 /** Marker prefix for install dirs that couldn't be unlinked yet. */
 export const PENDING_DELETE_PREFIX = ".pending-delete-";
 

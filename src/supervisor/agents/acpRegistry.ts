@@ -38,6 +38,7 @@ import {
 } from "./acpRegistryNpx";
 import {
   ACP_REGISTRY_INSTALL_DIR,
+  ACP_REGISTRY_INSTALL_LAYOUT_VERSION,
   acpRegistryAgentInstallDir,
   PENDING_DELETE_PREFIX,
   removeAcpRegistryInstallDir,
@@ -79,6 +80,79 @@ export async function pruneWslAcpRegistryPendingDeletes(distro: string): Promise
   if (!result?.ok) {
     console.warn(`[acp-registry] WSL pending-delete sweep failed for ${distro}`);
   }
+}
+
+function wslInstallLayoutRepairScript(linuxInstallDir: string): string {
+  return `chmod -R 755 ${quotePosixShellArg(linuxInstallDir)}`;
+}
+
+type AcpRegistryInstallation = NonNullable<
+  NonNullable<InstalledAcpRegistryAgent["installations"]>["native"]
+>;
+
+function installationNeedsLayoutRepair(installation: AcpRegistryInstallation): boolean {
+  return (installation.layoutVersion ?? 0) < ACP_REGISTRY_INSTALL_LAYOUT_VERSION;
+}
+
+function stampInstallationLayout(installation: AcpRegistryInstallation): AcpRegistryInstallation {
+  return { ...installation, layoutVersion: ACP_REGISTRY_INSTALL_LAYOUT_VERSION };
+}
+
+/**
+ * Launch-time layout migration for already-extracted registry artifacts (see
+ * `ACP_REGISTRY_INSTALL_LAYOUT_VERSION`). Each recorded installation is brought
+ * to the current layout once and stamped, so a healthy record costs nothing on
+ * later launches. WSL installs get their `bin/` tree marked executable in the
+ * distro; native installs were extracted by the host's own unzip/tar, which
+ * keep the archive's mode bits, and package (`npx`/`uvx`) installs have no
+ * extracted layout — both are stamped as-is. A failed WSL repair is left
+ * unstamped and retried on the next launch. Returns whether settings changed.
+ */
+export async function repairAcpRegistryInstallLayouts(input: {
+  settingsPath: string;
+}): Promise<boolean> {
+  const settings = readAcpRegistrySettings(input.settingsPath);
+  let changed = false;
+  const nextRecords: SharedSettings["acpRegistryInstalledAgents"] = {};
+  for (const [id, record] of Object.entries(settings.acpRegistryInstalledAgents)) {
+    const installations = record.installations;
+    if (!installations) {
+      nextRecords[id] = record;
+      continue;
+    }
+    const instance = settings.agentInstances[id];
+    const config =
+      instance?.driver === "acp-generic"
+        ? parseAcpGenericInstanceConfig(instance.config)
+        : undefined;
+    const next: NonNullable<InstalledAcpRegistryAgent["installations"]> = { ...installations };
+    if (installations.native && installationNeedsLayoutRepair(installations.native)) {
+      next.native = stampInstallationLayout(installations.native);
+      changed = true;
+    }
+    for (const [distro, installation] of Object.entries(installations.wsl ?? {})) {
+      if (!installationNeedsLayoutRepair(installation)) continue;
+      const binary = config?.environmentCommands?.wsl?.[distro]?.binary;
+      if (binary?.startsWith("/")) {
+        const [result] = await batchWslCommandsAsync(distro, [
+          wslInstallLayoutRepairScript(binary.slice(0, binary.lastIndexOf("/"))),
+        ]).catch(() => []);
+        if (!result?.ok) {
+          console.warn(`[acp-registry] WSL install layout repair failed for ${id} in ${distro}`);
+          continue;
+        }
+      }
+      next.wsl = { ...(next.wsl ?? {}), [distro]: stampInstallationLayout(installation) };
+      changed = true;
+    }
+    nextRecords[id] = { ...record, installations: next };
+  }
+  if (!changed) return false;
+  writeAcpRegistrySettings(input.settingsPath, {
+    ...readAcpRegistrySettings(input.settingsPath),
+    acpRegistryInstalledAgents: nextRecords,
+  });
+  return true;
 }
 
 export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
@@ -308,16 +382,17 @@ function registryInstallRecord(
           },
         }
       : {});
+  const installation = {
+    version: agent.version,
+    target: targetName,
+    installedAt,
+    layoutVersion: ACP_REGISTRY_INSTALL_LAYOUT_VERSION,
+  };
   const installations = {
     ...previousInstallations,
     ...(target.kind === "native"
-      ? { native: { version: agent.version, target: targetName, installedAt } }
-      : {
-          wsl: {
-            ...(previousInstallations.wsl ?? {}),
-            [target.distro]: { version: agent.version, target: targetName, installedAt },
-          },
-        }),
+      ? { native: installation }
+      : { wsl: { ...(previousInstallations.wsl ?? {}), [target.distro]: installation } }),
   };
   return {
     id: agent.id,
@@ -446,10 +521,11 @@ async function binaryInstance(
   const rootDir = join(baseDir, ACP_REGISTRY_INSTALL_DIR, agent.id, agent.version);
   let installDir: string;
   let commandPath: string;
+  let linuxInstallDir: string | undefined;
   if (installTarget.kind === "wsl") {
     const home = await resolveWslHomeDirectoryAsync(installTarget.distro);
     if (!home) throw new Error(`Unable to resolve home directory for WSL ${installTarget.distro}`);
-    const linuxInstallDir = `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agent.id}/${agent.version}/bin`;
+    linuxInstallDir = `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agent.id}/${agent.version}/bin`;
     installDir = toWslUncPath(installTarget.distro, linuxInstallDir);
     commandPath = `${linuxInstallDir}/${target.cmd.replace(/^\.\//, "")}`;
   } else {
@@ -471,9 +547,13 @@ async function binaryInstance(
   if (!existsSync(readableCommandPath)) {
     copyFileSync(archivePath, readableCommandPath);
   }
-  if (installTarget.kind === "wsl") {
+  if (installTarget.kind === "wsl" && linuxInstallDir) {
+    // The archive is extracted by Windows tooling into the distro, which drops
+    // every mode bit (0644). Servers spawn bundled helpers from the same dir,
+    // so the whole `bin/` tree must be executable, not just the command
+    // (ACP_REGISTRY_INSTALL_LAYOUT_VERSION 2).
     const [chmod] = await batchWslCommandsAsync(installTarget.distro, [
-      `chmod 755 ${quotePosixShellArg(commandPath)}`,
+      wslInstallLayoutRepairScript(linuxInstallDir),
     ]);
     if (!chmod?.ok) throw new Error(`Unable to mark ${agent.name} executable in WSL`);
   } else if (process.platform !== "win32") {

@@ -534,6 +534,18 @@ export const acpRegistryListResultSchema = z.object({
 });
 export type AcpRegistryListResult = z.infer<typeof acpRegistryListResultSchema>;
 
+const acpRegistryInstallationSchema = z.object({
+  version: z.string().min(1),
+  target: z.string().min(1),
+  installedAt: z.string(),
+  /**
+   * On-disk layout generation of the extracted artifact (see
+   * `ACP_REGISTRY_INSTALL_LAYOUT_VERSION`). Absent means the layout predates
+   * the marker and needs the launch-time repair sweep.
+   */
+  layoutVersion: z.number().int().positive().optional(),
+});
+
 export const installedAcpRegistryAgentSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -545,19 +557,8 @@ export const installedAcpRegistryAgentSchema = z.object({
   /** Per-environment registry artifact versions. Absent means a legacy native install. */
   installations: z
     .object({
-      native: z
-        .object({ version: z.string().min(1), target: z.string().min(1), installedAt: z.string() })
-        .optional(),
-      wsl: z
-        .record(
-          z.string().min(1),
-          z.object({
-            version: z.string().min(1),
-            target: z.string().min(1),
-            installedAt: z.string(),
-          }),
-        )
-        .optional(),
+      native: acpRegistryInstallationSchema.optional(),
+      wsl: z.record(z.string().min(1), acpRegistryInstallationSchema).optional(),
     })
     .optional(),
 });

@@ -38,6 +38,7 @@ import {
   persistAcpRegistrySettingsMigrations,
   pruneWslAcpRegistryPendingDeletes,
   readAcpRegistrySettings,
+  repairAcpRegistryInstallLayouts,
   removeAcpRegistryAgent as removeAcpRegistryAgentFromRegistry,
   setAcpGenericAgentAuthAcknowledged,
   setAcpRegistryAgentAuth as setAcpRegistryAgentAuthInRegistry,
@@ -375,6 +376,23 @@ export class AgentRegistryService {
         }),
       ),
     );
+  }
+
+  /**
+   * Bring already-extracted registry artifacts up to the current install
+   * layout (see `ACP_REGISTRY_INSTALL_LAYOUT_VERSION`) and refresh the affected
+   * statuses when a repair landed, so a chat runtime that failed its first
+   * probe for a layout reason recovers this session.
+   */
+  async repairAcpRegistryInstallLayoutsOnLaunch(): Promise<void> {
+    try {
+      const changed = await repairAcpRegistryInstallLayouts({
+        settingsPath: this.deps.settingsPath,
+      });
+      if (changed) await this.propagateAcpRegistryChange();
+    } catch (error) {
+      console.warn("[supervisor] launch ACP install layout repair failed", error);
+    }
   }
 
   async listAcpRegistry(): Promise<AcpRegistryListResult> {
