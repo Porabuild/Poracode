@@ -119,7 +119,23 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build test native dependencies
-        run: pnpm rebuild better-sqlite3 node-pty
+        # node-pty ships no Linux prebuild, so every shard compiles it from
+        # source and downloads Node headers from nodejs.org. A flaky transfer
+        # crashes node-gyp's downloader (undici assert(!this.paused)) instead
+        # of failing cleanly, so retry the rebuild like other network steps.
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm rebuild better-sqlite3 node-pty; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Native dependency rebuild failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
+        shell: bash
 
       - name: Test shard
         run: pnpm run test --shard=${{ matrix.shard }}/4
