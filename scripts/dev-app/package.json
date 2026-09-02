@@ -1,5 +1,5 @@
 {
   "name": "poracode-dev",
   "main": "../../dist/main/main.cjs",
-  "packageManager": "pnpm@12.1.0"
+  "packageManager": "pnpm@12.2.1"
 }

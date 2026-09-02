@@ -19,5 +19,5 @@
   "devDependencies": {
     "@openai/codex": "0.144.5"
   },
-  "packageManager": "pnpm@12.1.0"
+  "packageManager": "pnpm@12.2.1"
 }
