@@ -20,6 +20,7 @@ import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadPendingSteerStrip } from "./ThreadPendingSteerStrip";
 import { ThreadRuntimeRequestPanel } from "./ThreadRuntimeRequestPanel";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
+import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 import type { ThreadErrorDockState } from "./threadErrorState";
@@ -29,6 +30,7 @@ import type { ThreadTodoDockState } from "./threadTodoState";
 type ThreadComposerDocksProps = {
   // Visibility flags — each gates one dock.
   hasActiveSubAgent: boolean;
+  hasBackgroundTasks: boolean;
   showContextInComposer: boolean;
   showErrorInComposer: boolean;
   showGoalInComposer: boolean;
@@ -48,7 +50,6 @@ type ThreadComposerDocksProps = {
   goalDockState: ThreadGoalDockState | null;
   todoDockState: ThreadTodoDockState | null;
   todoDockCollapsed: boolean;
-  todoDockPlacement: "composer" | "right";
   pendingSteer: PendingSteerState | undefined;
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
   filteredCommands: AgentSlashCommand[];
@@ -59,7 +60,6 @@ type ThreadComposerDocksProps = {
   onDismissError: (sourceItemId: string) => void;
   onGoalDockDismiss: () => void;
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
-  onTodoDockPlacementChange: (placement: "composer" | "right") => void;
   onTodoDockRetire?: () => void;
   onCancelPendingSteer: () => void;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
@@ -76,6 +76,7 @@ type ThreadComposerDocksProps = {
 export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
   const {
     hasActiveSubAgent,
+    hasBackgroundTasks,
     showContextInComposer,
     showErrorInComposer,
     showGoalInComposer,
@@ -94,7 +95,6 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     goalDockState,
     todoDockState,
     todoDockCollapsed,
-    todoDockPlacement,
     pendingSteer,
     activeRuntimeRequest,
     filteredCommands,
@@ -104,7 +104,6 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     onDismissError,
     onGoalDockDismiss,
     onTodoDockCollapsedChange,
-    onTodoDockPlacementChange,
     onTodoDockRetire,
     onCancelPendingSteer,
     onOpenProjectRelativePath,
@@ -112,10 +111,32 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     onSelectCommand,
   } = props;
 
+  const firstInformationalDock = hasActiveSubAgent
+    ? "agents"
+    : hasBackgroundTasks
+      ? "backgroundTasks"
+      : showGoalInComposer
+        ? "goal"
+        : showTodoInComposer
+          ? "plan"
+          : null;
+
   return (
     <>
       {hasActiveSubAgent ? (
-        <ActiveSubAgentTile threadId={threadId} projectLocation={projectLocation} />
+        <ActiveSubAgentTile
+          threadId={threadId}
+          projectLocation={projectLocation}
+          placement="composer"
+          showPlacementToggle={firstInformationalDock === "agents"}
+        />
+      ) : null}
+      {hasBackgroundTasks ? (
+        <ThreadBackgroundTasksDock
+          threadId={threadId}
+          placement="composer"
+          showPlacementToggle={firstInformationalDock === "backgroundTasks"}
+        />
       ) : null}
       {showContextInComposer ? (
         <ThreadContextDock summary={contextSummary} onClose={onCloseContextDock} />
@@ -130,15 +151,21 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
           ))
         : null}
       {showGoalInComposer ? (
-        <ThreadGoalDock threadId={threadId} state={goalDockState!} onDismiss={onGoalDockDismiss} />
+        <ThreadGoalDock
+          threadId={threadId}
+          state={goalDockState!}
+          placement="composer"
+          showPlacementToggle={firstInformationalDock === "goal"}
+          onDismiss={onGoalDockDismiss}
+        />
       ) : null}
       {showTodoInComposer ? (
         <ThreadTodoDock
           collapsed={todoDockCollapsed}
-          placement={todoDockPlacement}
+          placement="composer"
+          showPlacementToggle={firstInformationalDock === "plan"}
           state={todoDockState!}
           onCollapsedChange={onTodoDockCollapsedChange}
-          onPlacementChange={onTodoDockPlacementChange}
           onRetire={() => onTodoDockRetire?.()}
         />
       ) : null}

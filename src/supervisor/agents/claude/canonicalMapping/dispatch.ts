@@ -26,7 +26,6 @@ import {
   mapResultState,
 } from "./result";
 import {
-  applyBackgroundTasksChanged,
   applyTaskLifecycle,
   applyTaskNotification,
   applyTaskUpdated,
@@ -41,6 +40,7 @@ import {
   isSubAgentParentTool,
 } from "./toolClassification";
 import { startToolItem, syncSubAgentModelProgress } from "./toolItems";
+import { applyBackgroundTasksChanged } from "./backgroundTasks";
 import { toolPayload } from "./toolPayload";
 import { createClaudeUsageSpentEvent, readClaudeAssistantSpendTokens } from "./usageSpent";
 import { workflowFromToolUseResult } from "./workflowOutput";

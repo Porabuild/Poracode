@@ -4,8 +4,11 @@ import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
+  normalizeThreadDocksOrder,
   WINDOWS_SHELL_ARGUMENTS_MAX,
   type CliPickerTarget,
+  type ThreadDocksPlacement,
+  type ThreadDockKind,
   type PreventSleep,
   type ProviderModelPreference,
   type SidebarShortcutId,
@@ -106,6 +109,8 @@ interface SharedSettingsState extends SharedSettings {
   ) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
   setCliPickerTarget: (value: CliPickerTarget) => void;
+  setThreadDocksPlacement: (value: ThreadDocksPlacement) => void;
+  setThreadDocksOrder: (order: ThreadDockKind[]) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
   setAutoArchiveDoneAfterDays: (value: number) => void;
   setScrollSpeed: (value: number) => void;
@@ -546,6 +551,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setCliPickerTarget: (cliPickerTarget) => {
     set({ cliPickerTarget });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setThreadDocksPlacement: (threadDocksPlacement) => {
+    set({ threadDocksPlacement });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setThreadDocksOrder: (order) => {
+    const next = normalizeThreadDocksOrder(order);
+    const current = get().threadDocksOrder;
+    if (current.length === next.length && current.every((kind, index) => kind === next[index]))
+      return;
+    set({ threadDocksOrder: next });
     persistSettings(selectSharedSettings(get()));
   },
   setStaleThreadUnloadMinutes: (staleThreadUnloadMinutes) => {
@@ -1080,6 +1097,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     agentInstances: state.agentInstances,
     collapseTerminalComposer: state.collapseTerminalComposer,
     cliPickerTarget: state.cliPickerTarget,
+    threadDocksPlacement: state.threadDocksPlacement,
+    threadDocksOrder: state.threadDocksOrder,
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
     autoArchiveDoneAfterDays: state.autoArchiveDoneAfterDays,
     scrollSpeed: state.scrollSpeed,

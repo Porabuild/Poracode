@@ -255,6 +255,19 @@ function sdkTaskStarted(sessionId: string, taskId: string, toolUseId: string): S
   } as unknown as SDKMessage;
 }
 
+function sdkBackgroundTasksChanged(
+  sessionId: string,
+  tasks: ReadonlyArray<{ task_id: string; task_type: string; description: string }>,
+): SDKMessage {
+  return {
+    type: "system",
+    subtype: "background_tasks_changed",
+    uuid: `uuid-background-tasks-${tasks.map((task) => task.task_id).join("-") || "empty"}`,
+    session_id: sessionId,
+    tasks,
+  } as unknown as SDKMessage;
+}
+
 function sdkTaskNotification(
   sessionId: string,
   taskId: string,
@@ -1487,6 +1500,74 @@ describe("ClaudeSdkSession", () => {
           payload: expect.objectContaining({ status: "complete" }),
         }),
       );
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("holds the working status behind a plain backgrounded command until the level signal drains", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-bash",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("run the suite in the background", config);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // No `task_started` registers a sub-agent here: a backgrounded Bash is
+      // reported only through the `background_tasks_changed` level.
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          { task_id: "bash-1", task_type: "local_bash", description: "pnpm test" },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(runtimeEvents).toContainEqual({
+        type: "background_tasks.changed",
+        threadId: "thread-claude-bg-bash",
+        tasks: [{ taskId: "bash-1", kind: "command", description: "pnpm test" }],
+      });
+      expect(session.getBackgroundTasks()).toEqual([
+        { taskId: "bash-1", kind: "command", description: "pnpm test" },
+      ]);
+
+      // Still working while the command runs — even well past the grace window.
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtimeEvents.at(-1)).toEqual({
+        type: "background_tasks.changed",
+        threadId: "thread-claude-bg-bash",
+        tasks: [],
+      });
+      expect(session.getBackgroundTasks()).toEqual([]);
+      // Held through the resume grace so a wake-up to consume the result keeps
+      // the thread continuously live; settles idle if nothing resumes.
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
 
       await session.dispose();
     } finally {

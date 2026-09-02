@@ -17,12 +17,14 @@ import {
 } from "@/shared/remote";
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type {
+  BackgroundTask,
   McpLaunchSnapshot,
   Project,
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
   RemoteThreadCommand,
+  RuntimeEvent,
   ScheduledTask,
   ScheduledTaskInput,
 } from "@/shared/contracts";
@@ -293,6 +295,7 @@ export class RemoteAccessServer {
   /** Per-connection transcript-content scoping; absent = receives everything. */
   private readonly itemInterests = new Map<WebSocket, ReadonlySet<string>>();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
+  private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
   private readonly context: RemoteServerContext;
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
@@ -338,6 +341,7 @@ export class RemoteAccessServer {
       gitStateInterests: this.gitStateInterests,
       itemInterests: this.itemInterests,
       eventBuffer: this.eventBuffer,
+      backgroundTasksByThread: this.backgroundTasksByThread,
       get seq() {
         return server.seq;
       },
@@ -471,6 +475,7 @@ export class RemoteAccessServer {
   /** Pushes an event onto the replayable WS event stream. Out-of-band desktop
    * events (git summaries) ride the same stream as supervisor events. */
   publishSupervisorEvent(event: RemoteBroadcastEvent): void {
+    this.updateBackgroundTasks(event);
     if (this.options.ownsSupervisorPersistence !== false) {
       persistSupervisorEvent(event);
     }
@@ -535,6 +540,33 @@ export class RemoteAccessServer {
     // is serialized exactly once per publish rather than once here and again in
     // `broadcast`.
     this.broadcastRaw(`{"type":"event","seq":${seq},"event":${capped.json}}`);
+  }
+
+  /** Drops every cached background-task level. The supervisor process that
+   * reported them is gone after a crash-restart; its fresh sessions report
+   * their own levels, so stale entries must not shadow the live read. */
+  clearBackgroundTaskLevels(): void {
+    this.backgroundTasksByThread.clear();
+  }
+
+  private updateBackgroundTasks(event: RemoteBroadcastEvent): void {
+    if (event.type === "thread-reset" || event.type === "thread-exited") {
+      this.backgroundTasksByThread.set(event.threadId, []);
+      return;
+    }
+    const runtimeEvents: readonly RuntimeEvent[] =
+      event.type === "thread-runtime-event"
+        ? [event.event]
+        : event.type === "thread-runtime-events"
+          ? event.events
+          : event.type === "thread-runtime-events-multi"
+            ? event.batches.flatMap((batch) => batch.events)
+            : [];
+    for (const runtimeEvent of runtimeEvents) {
+      if (runtimeEvent.type === "background_tasks.changed") {
+        this.backgroundTasksByThread.set(runtimeEvent.threadId, [...runtimeEvent.tasks]);
+      }
+    }
   }
 
   /** True for event types whose content varies per connection. */

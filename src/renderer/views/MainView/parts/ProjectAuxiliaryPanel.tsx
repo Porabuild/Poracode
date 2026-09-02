@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { resolveProjectLocation } from "@/shared/worktree";
 import {
   productSurfaceView,
   useProductViewTracking,
@@ -23,19 +24,17 @@ import {
   SubAgentContent,
   SubAgentHeaderText,
 } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
-import { ThreadTodoDock } from "@/renderer/components/thread/ThreadTodoDock";
-import { selectThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
+import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel";
+import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { usePanelStore, type GitReviewContext } from "@/renderer/state/panelStore";
-import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import {
   closeAllPanels,
-  moveThreadTodoDock,
   showFilesPanel,
   showGitReviewPanel,
   undockPanelTab,
@@ -107,24 +106,17 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
   const terminalProject = projects.find((project) => project.id === terminalProjectId);
   const currentThreadId = useFocusedThreadId();
-  const todoDockPlacement = useThreadTodoDockStore((state) =>
-    currentThreadId
-      ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)
-      : "composer",
+  const currentThread = useAppStore((state) =>
+    currentThreadId ? state.threads.find((thread) => thread.id === currentThreadId) : undefined,
   );
-  const todoDockCollapsed = useThreadTodoDockStore((state) =>
-    currentThreadId
-      ? (state.byThreadId[currentThreadId]?.collapsed ?? state.defaultCollapsed)
-      : false,
-  );
-  const retiredTodoSourceItemId = useThreadTodoDockStore((state) =>
-    currentThreadId ? state.byThreadId[currentThreadId]?.retiredSourceItemId : undefined,
-  );
-  const todoDockState = useAppStore((state) =>
-    currentThreadId && todoDockPlacement === "right"
-      ? selectThreadTodoDockState(state, currentThreadId)
-      : null,
-  );
+  const currentThreadProject = currentThread
+    ? projects.find((project) => project.id === currentThread.projectId)
+    : undefined;
+  const currentThreadProjectLocation =
+    currentThread && currentThreadProject
+      ? resolveProjectLocation(currentThreadProject.location, currentThread.worktreePath)
+      : undefined;
+  const docksInCurrentThread = useDocksPanelHasContent();
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;
@@ -139,11 +131,6 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     subAgentPanelContext !== null &&
     subAgentPanelContext.threadId === currentThreadId &&
     subAgentItemExists;
-  const planInCurrentThread =
-    currentThreadId !== null &&
-    todoDockPlacement === "right" &&
-    todoDockState !== null &&
-    todoDockState.sourceItemId !== retiredTodoSourceItemId;
 
   const previousGitReviewContextRef = useRef<GitReviewContext | null>(null);
   const gitReviewContextChanged = previousGitReviewContextRef.current !== gitReviewContext;
@@ -172,7 +159,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
         rightPanelTab === "browser" ||
         rightPanelTab === "usage" ||
         rightPanelTab === "notes" ||
-        rightPanelTab === "plan" ||
+        rightPanelTab === "docks" ||
         rightPanelTab === "subagent"
       ? rightPanelTab
       : "git";
@@ -181,13 +168,13 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     // A bottom-docked tab already renders in the bottom row.
     if (isBottomDocked(requestedTab)) return false;
     if (requestedTab === "subagent") return subAgentInCurrentThread;
-    if (requestedTab === "plan") return planInCurrentThread;
+    if (requestedTab === "docks") return docksInCurrentThread;
     // The browser panel is dismissed out-of-band when its last tab closes (the
     // browser sync clears browserPanelOpen but leaves rightPanelTab pointing at
     // "browser"), so it must honor its open flag even when no plan is present —
     // otherwise the panel stays open on an empty browser layer.
     if (requestedTab === "browser") return browserPanelOpen;
-    if (!planInCurrentThread) return true;
+    if (!docksInCurrentThread) return true;
     if (requestedTab === "terminal") return terminalOpen;
     if (requestedTab === "files") return filesPanelOpen;
     if (requestedTab === "git") return gitPanelOpen;
@@ -196,7 +183,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   }
 
   function fallbackActiveTab(): RightPanelTab {
-    if (planInCurrentThread) return "plan";
+    if (docksInCurrentThread) return "docks";
     if (subAgentInCurrentThread) return "subagent";
     if (filesPanelOpen && !isBottomDocked("files")) return "files";
     if (gitPanelOpen && !isBottomDocked("git")) return "git";
@@ -291,7 +278,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
           : undefined;
       }
       case "subagent":
-      case "plan":
+      case "docks":
         return undefined;
       case "files":
         return resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope());
@@ -355,7 +342,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const renderUsageContent = usagePanelOpen && !isBottomDocked("usage");
   const renderNotesContent =
     notesPanelOpen && notesProjectId !== undefined && !isBottomDocked("notes");
-  const renderPlanContent = planInCurrentThread;
+  const renderDocksContent = docksInCurrentThread;
   const renderSubAgentContent = subAgentInCurrentThread;
 
   return (
@@ -363,7 +350,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       activeTab={activeTab}
       onTabChange={(tab) => {
         if (tab === "subagent" && !renderSubAgentContent) return;
-        if (tab === "plan" && !renderPlanContent) return;
+        if (tab === "docks" && !renderDocksContent) return;
         pressTab(tab, () => setRightPanelTab(tab));
       }}
       {...(renderTerminalContent
@@ -410,22 +397,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
           <NotesPanel key={notesProjectId} projectId={notesProjectId} />
         ) : undefined
       }
-      {...(renderPlanContent && currentThreadId && todoDockState
+      {...(renderDocksContent && currentThreadId
         ? {
-            planContent: (
-              <ThreadTodoDock
-                collapsed={todoDockCollapsed}
-                placement="right"
-                state={todoDockState}
-                onCollapsedChange={(collapsed) =>
-                  useThreadTodoDockStore.getState().setCollapsed(currentThreadId, collapsed)
-                }
-                onPlacementChange={(placement) => moveThreadTodoDock(currentThreadId, placement)}
-                onRetire={() =>
-                  useThreadTodoDockStore
-                    .getState()
-                    .retire(currentThreadId, todoDockState.sourceItemId)
-                }
+            docksContent: (
+              <ThreadDocksPanel
+                key={currentThreadId}
+                threadId={currentThreadId}
+                {...(currentThreadProjectLocation
+                  ? { projectLocation: currentThreadProjectLocation }
+                  : {})}
               />
             ),
           }
@@ -450,7 +430,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       showFilesTab={!isHomeScope}
       showGitTab={!isHomeScope}
       showNotesTab={notesProjectId !== undefined}
-      showPlanTab={renderPlanContent}
+      showDocksTab={renderDocksContent}
       showSubagentTab={renderSubAgentContent}
       {...(renderSubAgentContent
         ? {

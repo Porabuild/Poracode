@@ -75,6 +75,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     cancelExtractContext: ({ threadId }) => generation.cancelExtractContext(threadId),
     readTerminalScrollback: ({ threadId }) => threads.readTerminalScrollback(threadId),
     readTerminalSize: ({ threadId }) => threads.readTerminalSize(threadId),
+    readThreadBackgroundTasks: ({ threadId }) => [...threads.readThreadBackgroundTasks(threadId)],
     subagentSubscribe: (payload) => threads.subagentSubscribe(payload),
     subagentUnsubscribe: async (payload) => {
       threads.subagentUnsubscribe(payload);

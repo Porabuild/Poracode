@@ -8,6 +8,7 @@ import {
   type ControlThreadGoalPayload,
   type AgentEventEnvelope,
   type AgentKind,
+  type BackgroundTask,
   type CloseThreadPayload,
   type PromptSegment,
   type ProjectLocation,
@@ -1175,6 +1176,10 @@ export class ThreadSessionManager {
 
   readTerminalSize(threadId: string): TerminalSize | null {
     return this.sessions.get(threadId)?.terminalSize ?? null;
+  }
+
+  readThreadBackgroundTasks(threadId: string): readonly BackgroundTask[] {
+    return this.sessions.get(threadId)?.structuredSession?.getBackgroundTasks?.() ?? [];
   }
 
   handlePtyDataForTests(session: SessionRuntime, data: string): void {

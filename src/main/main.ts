@@ -824,6 +824,7 @@ if (!hasSingleInstanceLock) {
         },
         onReset: () => {
           workingThreads.clear();
+          remoteAccessController?.handleSupervisorReset();
           updatePowerSaveBlocker();
         },
       });

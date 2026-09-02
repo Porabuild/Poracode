@@ -87,6 +87,8 @@ export interface DesktopRemoteAccessControllerOptions {
 export interface DesktopRemoteAccessController {
   getServer(): RemoteAccessServer | null;
   handleSupervisorEvent(event: SupervisorEvent): void;
+  /** The supervisor process restarted; its in-session state is gone. */
+  handleSupervisorReset(): void;
   updateGitSummaries(summaries: RemoteGitSummaries): void;
   startIfEnabled(): Promise<void>;
   setEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
@@ -695,6 +697,12 @@ export function createDesktopRemoteAccessController(
     handleSupervisorEvent: (event) => {
       remoteAccessServer?.publishSupervisorEvent(event);
       pushCoordinator?.handleSupervisorEvent(event);
+    },
+    handleSupervisorReset: () => {
+      // No `thread-exited` is emitted for the sessions that died with the old
+      // supervisor process, so their cached background-task levels would
+      // otherwise shadow the fresh live reads forever.
+      remoteAccessServer?.clearBackgroundTaskLevels();
     },
     updateGitSummaries: (summaries) => {
       remoteGitSummaries = summaries;

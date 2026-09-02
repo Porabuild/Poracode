@@ -347,6 +347,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       // Claude window rendered under a Codex thread.
       const { [threadId]: _droppedContext, ...runtimeContextByThread } =
         state.runtimeContextByThread;
+      // Background tasks belong to the abandoned session's process; the new
+      // provider reports its own set (or none).
+      const { [threadId]: _droppedBackgroundTasks, ...runtimeBackgroundTasksByThread } =
+        state.runtimeBackgroundTasksByThread;
       // A steer staged against the abandoned session has nothing left to
       // consume it; no `thread-reset` is emitted on this path to clear it.
       const { [threadId]: _droppedSteer, ...pendingSteerByThreadId } = state.pendingSteerByThreadId;
@@ -387,6 +391,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         threadMentionToolsAvailableByThreadId,
         ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),
         ...(state.runtimeContextByThread[threadId] ? { runtimeContextByThread } : {}),
+        ...(state.runtimeBackgroundTasksByThread[threadId]
+          ? { runtimeBackgroundTasksByThread }
+          : {}),
         ...(state.pendingSteerByThreadId[threadId] ? { pendingSteerByThreadId } : {}),
         ...(threadId in state.openSubAgentByThread ? { openSubAgentByThread } : {}),
         ...(threadId in state.runtimeOpenTurnByThread ? { runtimeOpenTurnByThread } : {}),
@@ -421,6 +428,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.runtimeRequestsByThread;
       const { [threadId]: _droppedContext, ...runtimeContextByThread } =
         state.runtimeContextByThread;
+      const { [threadId]: _droppedBackgroundTasks, ...runtimeBackgroundTasksByThread } =
+        state.runtimeBackgroundTasksByThread;
       const { [threadId]: _droppedVersion, ...runtimeStructuralVersionByThread } =
         state.runtimeStructuralVersionByThread;
       const { [threadId]: _droppedTurns, ...runtimeCompletedTurnsByThread } =
@@ -459,6 +468,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         runtimeItemsByIdByThread,
         runtimeRequestsByThread,
         runtimeContextByThread,
+        runtimeBackgroundTasksByThread,
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         lastRuntimeConfigByThreadId,
@@ -870,15 +880,24 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.runtimeLaunchConfigByThreadId;
       const { [threadId]: droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
         state.threadMentionToolsAvailableByThreadId;
+      // Background work dies with the agent process, and a session can exit
+      // without a draining `background_tasks.changed` (CLI crash, close,
+      // unload) — the list must not outlive it.
+      const { [threadId]: droppedBackgroundTasks, ...runtimeBackgroundTasksByThread } =
+        state.runtimeBackgroundTasksByThread;
       const launchConfigPatch = droppedLaunchConfig ? { runtimeLaunchConfigByThreadId } : undefined;
       const mentionToolsPatch = droppedMentionTools
         ? { threadMentionToolsAvailableByThreadId }
+        : undefined;
+      const backgroundTasksPatch = droppedBackgroundTasks
+        ? { runtimeBackgroundTasksByThread }
         : undefined;
       if (!changed) {
         return {
           ...(turnsChanged ? turnUpdate : {}),
           ...(launchConfigPatch ?? {}),
           ...(mentionToolsPatch ?? {}),
+          ...(backgroundTasksPatch ?? {}),
         };
       }
       return {
@@ -886,6 +905,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(turnsChanged ? turnUpdate : {}),
         ...(launchConfigPatch ?? {}),
         ...(mentionToolsPatch ?? {}),
+        ...(backgroundTasksPatch ?? {}),
       };
     }),
   touchThread: (threadId) =>

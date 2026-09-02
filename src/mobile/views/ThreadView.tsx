@@ -328,14 +328,13 @@ export function ThreadView(props: ThreadViewProps) {
         hideInfoDocks
         hideActionDocks
         todoDockCollapsed={dockState.todoDockCollapsed}
-        todoDockPlacement={dockState.todoDockPlacement}
+        docksPlacement={dockState.docksPlacement}
         todoDockState={dockState.todoDockState}
         goalDockState={dockState.goalDockState}
         errorDockStates={dockState.errorDockStates}
         onGoalDockDismiss={dockState.onGoalDockDismiss}
         onDismissError={dockState.onDismissError}
         onTodoDockCollapsedChange={dockState.onTodoDockCollapsedChange}
-        onTodoDockPlacementChange={dockState.onTodoDockPlacementChange}
         onTodoDockRetire={dockState.onTodoDockRetire}
       />
       <ComposerCompactSummary thread={thread} agentStatus={agentStatus} />

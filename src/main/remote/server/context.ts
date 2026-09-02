@@ -10,6 +10,7 @@ import type {
   RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { BackgroundTask } from "@/shared/contracts";
 import type { GitStateInterest } from "@/shared/gitState";
 import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
 import type { PortProxy } from "../portForward/portProxy";
@@ -55,6 +56,8 @@ export interface RemoteServerContext {
    * the client never declared any, so it keeps receiving everything. */
   readonly itemInterests: Map<WebSocket, ReadonlySet<string>>;
   readonly eventBuffer: BufferedSupervisorEvent[];
+  /** Latest replayable background-task level, updated synchronously with live events. */
+  readonly backgroundTasksByThread: ReadonlyMap<string, readonly BackgroundTask[]>;
   /** Live in-memory event sequence; read through a getter so replays see the
    * current value rather than a snapshot taken at context-build time. */
   readonly seq: number;

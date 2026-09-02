@@ -3,6 +3,8 @@ import {
   defaultSharedSettings,
   normalizeSharedSettings,
   normalizeSidebarShortcutOrder,
+  normalizeThreadDocksOrder,
+  reorderVisibleThreadDocks,
 } from "./settings";
 
 describe("shared settings defaults", () => {
@@ -12,6 +14,23 @@ describe("shared settings defaults", () => {
       "pullRequests",
       "githubActions",
     ]);
+  });
+
+  it("normalizes and reorders thread docks without moving hidden dock slots", () => {
+    expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
+      "plan",
+      "goal",
+      "agents",
+      "backgroundTasks",
+    ]);
+    expect(
+      reorderVisibleThreadDocks(
+        ["goal", "plan", "agents", "backgroundTasks"],
+        ["plan", "backgroundTasks"],
+        1,
+        0,
+      ),
+    ).toEqual(["goal", "backgroundTasks", "agents", "plan"]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

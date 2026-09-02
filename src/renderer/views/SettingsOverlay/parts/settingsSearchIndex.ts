@@ -185,6 +185,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "appearance",
+    anchor: "appearance.threadDocksPlacement",
+    title: msg`Thread docks`,
+    description: msg`Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them.`,
+    keywords:
+      "docks plan goal agents subagents background tasks right panel composer bubbles layout",
+  },
+  {
+    section: "appearance",
     anchor: "appearance.guiChatFontSize",
     title: msg`GUI chat font size`,
     keywords: "text size typography zoom larger smaller readability chat markdown",

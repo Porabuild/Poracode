@@ -1061,6 +1061,32 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.lastTurnEndedAt).toBe("2026-05-01T12:00:30.000Z");
   });
 
+  it("markThreadExited drops the thread's background-task list", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    useAppStore.setState({
+      runtimeBackgroundTasksByThread: {
+        [thread.id]: [{ taskId: "b1", kind: "command", description: "pnpm test" }],
+      },
+    });
+
+    useAppStore.getState().markThreadExited(thread.id);
+
+    // A session can exit without a draining `background_tasks.changed` (CLI
+    // crash, close, unload); the dock must not outlive the process.
+    expect(thread.id in useAppStore.getState().runtimeBackgroundTasksByThread).toBe(false);
+  });
+
   it("closes visible GUI idle updates even before assistant output", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));

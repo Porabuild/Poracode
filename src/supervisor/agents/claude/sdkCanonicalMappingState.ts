@@ -1,4 +1,9 @@
-import type { CanonicalItemType, ToolCallProgress, ToolCallWorkflow } from "@/shared/contracts";
+import type {
+  BackgroundTask,
+  CanonicalItemType,
+  ToolCallProgress,
+  ToolCallWorkflow,
+} from "@/shared/contracts";
 import type { PlanAggregatorState } from "../planAggregator";
 import type { ClaudeUsageScopeTracker } from "./canonicalMapping/usageSpent";
 
@@ -191,6 +196,15 @@ export interface ClaudeMapperState {
    * without the level signal).
    */
   liveBackgroundTaskIds?: Set<string>;
+  /**
+   * Fingerprint of the last `background_tasks.changed` event emitted, so the
+   * level signal (which fires on every membership change, including sub-agent
+   * runs the event filters out) only reaches the renderer when the visible
+   * list actually differs.
+   */
+  lastReportedBackgroundTasksKey?: string;
+  /** Renderer-visible subset of the latest authoritative background-task level. */
+  reportedBackgroundTasks?: readonly BackgroundTask[];
   /**
    * tool_use ids of tools launched INSIDE a running subagent (forwarded child
    * messages). Tracked so the main turn's `result` close doesn't evict them

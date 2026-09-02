@@ -780,6 +780,10 @@ msgstr "Перервати злиття"
 msgid "About"
 msgstr "Про програму"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Above the composer"
+msgstr "Над полем введення"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "Прийняти обидві зміни"
@@ -1168,6 +1172,8 @@ msgid "Agent: {subagent}"
 msgstr "Агент: {subagent}"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agents"
@@ -1575,8 +1581,8 @@ msgid "Attach to thread"
 msgstr "Прикріпити до треду"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-msgid "Attach todo dock to composer"
-msgstr "Прикріпити панель завдань до Composer"
+#~ msgid "Attach todo dock to composer"
+#~ msgstr "Прикріпити панель завдань до Composer"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Attached browser selection."
@@ -1810,9 +1816,16 @@ msgstr "Фоновий процес не запущено"
 msgid "Background process restarted"
 msgstr "Фоновий процес перезапущено"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#~ msgid "Background tasks"
-#~ msgstr "Фонові завдання"
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Background task"
+msgstr "Фонове завдання"
+
+#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Background tasks"
+msgstr "Фонові завдання"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2631,6 +2644,7 @@ msgstr "Клонування…"
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2648,6 +2662,10 @@ msgstr "Закрити термінал {purposeNoun}"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Close add project"
 msgstr "Закрити додавання проєкту"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Close background tasks"
+msgstr "Закрити фонові завдання"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
@@ -2849,6 +2867,7 @@ msgstr "Код скопійовано. "
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
@@ -2869,6 +2888,10 @@ msgstr "Згорнути все"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Collapse all folders"
 msgstr "Згорнути всі теки"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Collapse background tasks"
+msgstr "Згорнути фонові завдання"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Collapse composer"
@@ -4445,6 +4468,10 @@ msgstr "Закріпити ліворуч"
 msgid "Dock right"
 msgstr "Закріпити праворуч"
 
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Docks"
+msgstr "Доки"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "Документація"
@@ -4908,6 +4935,7 @@ msgstr "завершено ({0})"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Завершився з кодом {0}. Закрийте, щоб повторити."
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
@@ -4920,6 +4948,10 @@ msgstr "Розгорнути {label}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Розгорнути все"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Expand background tasks"
+msgstr "Розгорнути фонові завдання"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
@@ -5735,6 +5767,8 @@ msgid "Go forward in navigation history"
 msgstr "Вперед в історії навігації"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "Мета"
@@ -5742,6 +5776,10 @@ msgstr "Мета"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Goal objective"
 msgstr "Опис мети"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#~ msgid "Goal, plan, agents, and background tasks for this thread."
+#~ msgstr "Ціль, план, агенти та фонові завдання цього треду."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5835,6 +5873,10 @@ msgstr "Приховані відновлювані треди перевіря�
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Сховати"
+
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+msgid "Hide {label}"
+msgstr "Сховати {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
@@ -7421,8 +7463,8 @@ msgstr "Перемістити в worktree зі змінами"
 #~ msgstr "Перемістити в worktree…"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-msgid "Move todo dock to right panel"
-msgstr "Перемістити панель завдань у праву панель"
+#~ msgid "Move todo dock to right panel"
+#~ msgstr "Перемістити панель завдань у праву панель"
 
 #. placeholder {0}: fallback.name
 #: src/renderer/actions/workspaceActions.ts
@@ -9032,8 +9074,9 @@ msgid "Pinned task routes"
 msgstr "Закріплені маршрути завдань"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
@@ -10239,6 +10282,7 @@ msgstr "Рендерер зіткнувся з необробленим відх
 msgid "Reorder {0}"
 msgstr "Змінити порядок {0}"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Змінити порядок {label}"
@@ -10551,6 +10595,7 @@ msgid "Right"
 msgstr "Праворуч"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Права панель"
 
@@ -11267,6 +11312,10 @@ msgstr "Комбінації клавіш"
 msgid "Show {0}"
 msgstr "Показати {0}"
 
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+msgid "Show {label}"
+msgstr "Показати {label}"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Показати коло {label} на бічній панелі"
@@ -11319,6 +11368,14 @@ msgstr "Показати Composer"
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
 msgid "Show context usage details"
 msgstr "Показати деталі використання контексту"
+
+#: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
+msgid "Show docks above the composer"
+msgstr "Показувати доки над полем введення"
+
+#: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
+msgid "Show docks in the right panel"
+msgstr "Показувати доки на правій панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -12867,6 +12924,16 @@ msgstr "Настройки потоков по умолчанию и облас�
 msgid "Thread dock"
 msgstr "Панель треда"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Thread docks"
+msgstr "Доки треду"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Thread docks placement"
+msgstr "Розташування доків треду"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
 msgstr "Не вдалося запустити тред."
@@ -12879,6 +12946,10 @@ msgstr "Тред завершено або він очікує на ваш вв�
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Панель мети треда"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread info"
+msgstr "Інформація про потік"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
@@ -14196,6 +14267,11 @@ msgstr "Коли ви закриваєте вікно, залишати Poracode
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal."
 msgstr "Куди потрапляє вибір засобу вибору елементів браузера в нативних термінальних тредах. Згорнуте поле вводу завжди спрямовує в термінал."
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+msgstr "Де відображаються ціль, план, агенти та фонові завдання треду. На правій панелі їх відкривають компактні бульбашки над полем введення."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

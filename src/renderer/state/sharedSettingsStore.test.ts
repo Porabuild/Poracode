@@ -36,6 +36,7 @@ describe("sharedSettingsStore", () => {
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
       providerOrder: [],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       lastUsedProjectDirs: {},
       enabledMcpServers: {},
@@ -115,6 +116,17 @@ describe("sharedSettingsStore", () => {
       "schedules",
       "pullRequests",
       "githubActions",
+    ]);
+  });
+
+  it("reorders thread docks and keeps every supported dock", () => {
+    useSharedSettings.getState().setThreadDocksOrder(["backgroundTasks", "plan"]);
+
+    expect(useSharedSettings.getState().threadDocksOrder).toEqual([
+      "backgroundTasks",
+      "plan",
+      "goal",
+      "agents",
     ]);
   });
 

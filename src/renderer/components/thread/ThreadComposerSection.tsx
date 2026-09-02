@@ -59,9 +59,10 @@ import { useComposerUiStore } from "@/renderer/state/composerUiStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
-import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThread } from "@/renderer/state/useThread";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
+import { ThreadDockBubbles } from "./ThreadDockBubbles";
+import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
@@ -96,7 +97,7 @@ type ThreadComposerSectionProps = {
   paneCount: number;
   terminalPaneRef: RefObject<TerminalPaneHandle | null>;
   todoDockCollapsed: boolean;
-  todoDockPlacement: "composer" | "right";
+  docksPlacement: "composer" | "right";
   todoDockState: ThreadTodoDockState | null;
   goalDockState: ThreadGoalDockState | null;
   errorDockStates: ThreadErrorDockState[];
@@ -141,7 +142,6 @@ type ThreadComposerSectionProps = {
   hideActionDocks?: boolean | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
-  onTodoDockPlacementChange: (placement: "composer" | "right") => void;
   onTodoDockRetire?: () => void;
 };
 
@@ -171,7 +171,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     projectLocation,
     paneCount,
     todoDockCollapsed,
-    todoDockPlacement,
+    docksPlacement: requestedDocksPlacement,
     todoDockState,
     goalDockState,
     errorDockStates,
@@ -185,6 +185,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const isRemoteSurface = isRemoteSession();
+  // The remote/mobile surface has no right panel to host the docks.
+  const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
+  const docksInComposer = docksPlacement === "composer";
   const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const showVoiceInputButton =
     useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
@@ -413,22 +416,23 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.status !== "launching";
   const hideInfoDocks = props.hideInfoDocks === true;
   const showTodoInComposer =
-    !hideInfoDocks &&
-    canShowRuntimeChrome &&
-    todoDockState !== null &&
-    todoDockPlacement === "composer";
-  const showGoalInComposer = !hideInfoDocks && canShowRuntimeChrome && goalDockState !== null;
+    !hideInfoDocks && canShowRuntimeChrome && docksInComposer && todoDockState !== null;
+  const showGoalInComposer =
+    !hideInfoDocks && canShowRuntimeChrome && docksInComposer && goalDockState !== null;
+  const showDockBubbles = !hideInfoDocks && canShowRuntimeChrome && !docksInComposer;
+  const docksSummary = useThreadDocksSummary(thread.id, goalDockState, todoDockState);
   const showErrorInComposer =
     !hideInfoDocks &&
     (!usesTerminalPresentation || usesRemoteTransport) &&
     errorDockStates.length > 0 &&
     !hasRuntimeAuthError;
-  const hasActiveSubAgent = useAppStore(
-    (s) =>
-      !hideInfoDocks &&
-      canShowRuntimeChrome &&
-      selectActiveSubAgentParentItemIds(s, thread.id).length > 0,
-  );
+  const hasActiveSubAgent =
+    !hideInfoDocks && canShowRuntimeChrome && docksInComposer && docksSummary.agentCount > 0;
+  const hasBackgroundTasks =
+    !hideInfoDocks &&
+    canShowRuntimeChrome &&
+    docksInComposer &&
+    docksSummary.backgroundTaskCount > 0;
   const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
   const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
   const canCollapseComposer = showTerminalComposer && !isRemoteSurface;
@@ -730,13 +734,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
         <div className="relative">
-          {awaitingWorktree ? null : (
-            <ThreadChangesBubble
-              projectId={thread.projectId}
-              {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-              {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
-            />
-          )}
+          {/* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
+              measures the real buttons without adding a line box above the composer. */}
+          <div className="absolute right-3 bottom-full z-10 mb-1.5 flex max-w-full flex-wrap items-center justify-end gap-1.5">
+            {showDockBubbles ? <ThreadDockBubbles summary={docksSummary} /> : null}
+            {awaitingWorktree ? null : (
+              <ThreadChangesBubble
+                projectId={thread.projectId}
+                {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
+              />
+            )}
+          </div>
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
             style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
@@ -765,6 +774,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   ].join("|")}
                   fixedContent={
                     hasActiveSubAgent ||
+                    hasBackgroundTasks ||
                     showContextInComposer ||
                     showErrorInComposer ||
                     showGoalInComposer ||
@@ -775,6 +785,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     showCommandPanel ? (
                       <ThreadComposerDocks
                         hasActiveSubAgent={hasActiveSubAgent}
+                        hasBackgroundTasks={hasBackgroundTasks}
                         showContextInComposer={showContextInComposer}
                         showErrorInComposer={showErrorInComposer}
                         showGoalInComposer={showGoalInComposer}
@@ -793,7 +804,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         goalDockState={goalDockState}
                         todoDockState={todoDockState}
                         todoDockCollapsed={todoDockCollapsed}
-                        todoDockPlacement={todoDockPlacement}
                         pendingSteer={composerPendingSteer}
                         activeRuntimeRequest={composerRuntimeRequest}
                         filteredCommands={filteredCommands}
@@ -803,7 +813,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         onDismissError={props.onDismissError}
                         onGoalDockDismiss={props.onGoalDockDismiss}
                         onTodoDockCollapsedChange={props.onTodoDockCollapsedChange}
-                        onTodoDockPlacementChange={props.onTodoDockPlacementChange}
                         {...(props.onTodoDockRetire
                           ? { onTodoDockRetire: props.onTodoDockRetire }
                           : {})}

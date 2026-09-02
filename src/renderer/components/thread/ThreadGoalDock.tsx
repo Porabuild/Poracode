@@ -4,47 +4,37 @@ import { CircleCheckBig, CircleStop, CircleX, Target } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
+import type { ThreadDocksPlacement } from "@/shared/settings";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatElapsed } from "@/renderer/utils/formatTime";
+import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import { ThreadDockSection } from "./ThreadDockUI";
 import { ThreadGoalControls } from "./ThreadGoalControls";
 import { formatTokenCount } from "./formatTokenCount";
+import { useGoalElapsedSeconds } from "./threadGoalTiming";
 
 interface ThreadGoalDockProps {
   threadId: string;
   state: ThreadGoalDockState;
-  onDismiss: () => void;
+  placement: ThreadDocksPlacement;
+  showPlacementToggle?: boolean;
+  /** Composer-only: hide this goal until it changes. The right panel has no dismiss. */
+  onDismiss?: () => void;
 }
 
-const localGoalTimingByItemId = new Map<
-  string,
-  { timeUsedSeconds: number; anchorSeconds: number }
->();
-
-export function ThreadGoalDock({ threadId, state, onDismiss }: ThreadGoalDockProps) {
+export function ThreadGoalDock({
+  threadId,
+  state,
+  placement,
+  showPlacementToggle = false,
+  onDismiss,
+}: ThreadGoalDockProps) {
   const { t } = useLingui();
-  const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() =>
-    resolveLocalGoalAnchorSeconds(state, Date.now() / 1000),
-  );
-  const [nowSeconds, setNowSeconds] = useState(() => Date.now() / 1000);
   const isActive = state.status === "active";
   const isComplete = state.status === "complete";
   const isFailed = state.status === "failed";
   const isCancelled = state.status === "cancelled";
-
-  useEffect(() => {
-    const now = Date.now() / 1000;
-    setLocalAnchorSeconds(resolveLocalGoalAnchorSeconds(state, now));
-    setNowSeconds(now);
-  }, [state]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    const interval = window.setInterval(() => setNowSeconds(Date.now() / 1000), 1000);
-    return () => window.clearInterval(interval);
-  }, [isActive]);
-
-  const elapsedSeconds = resolveGoalElapsedSeconds(state, nowSeconds, localAnchorSeconds);
+  const elapsedSeconds = useGoalElapsedSeconds(state);
   const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
   const evaluationChecks = state.iterations !== undefined && state.iterations > 0;
@@ -64,7 +54,7 @@ export function ThreadGoalDock({ threadId, state, onDismiss }: ThreadGoalDockPro
         ? "text-white"
         : "text-foreground-muted";
   return (
-    <ThreadDockSection ariaLabel={t`Thread goal dock`} className="px-2 py-1">
+    <ThreadDockSection ariaLabel={t`Thread goal dock`} placement={placement} className="px-2 py-1">
       <div className="flex min-w-0 items-center gap-2 leading-5">
         {isActive ? (
           <span className="poracode-goal-active-icon shrink-0" aria-hidden="true">
@@ -98,7 +88,12 @@ export function ThreadGoalDock({ threadId, state, onDismiss }: ThreadGoalDockPro
         ) : null}
         <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
         <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
-        <ThreadGoalControls threadId={threadId} state={state} onDismiss={onDismiss} />
+        {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
+        <ThreadGoalControls
+          threadId={threadId}
+          state={state}
+          {...(onDismiss ? { onDismiss } : {})}
+        />
       </div>
     </ThreadDockSection>
   );
@@ -182,38 +177,4 @@ function goalStatusLabel(status: ThreadGoalDockState["status"], t: TranslateFn):
     case "cancelled":
       return t(msg`Cancelled`);
   }
-}
-
-function resolveGoalElapsedSeconds(
-  state: ThreadGoalDockState,
-  nowSeconds: number,
-  localAnchorSeconds: number,
-): number {
-  const baseSeconds = state.timeUsedSeconds ?? 0;
-  if (state.status !== "active") return Math.max(0, Math.round(baseSeconds));
-
-  const serverUpdatedAtSeconds = normalizeTimestampSeconds(state.updatedAt);
-  const anchorSeconds = serverUpdatedAtSeconds ?? localAnchorSeconds;
-  const localDeltaSeconds = Math.max(0, nowSeconds - anchorSeconds);
-  return Math.max(0, Math.round(baseSeconds + localDeltaSeconds));
-}
-
-function normalizeTimestampSeconds(timestamp: number | undefined): number | undefined {
-  if (timestamp === undefined) return undefined;
-  return timestamp > 1_000_000_000_000 ? timestamp / 1000 : timestamp;
-}
-
-function resolveLocalGoalAnchorSeconds(state: ThreadGoalDockState, nowSeconds: number): number {
-  if (state.status !== "active" || state.updatedAt !== undefined) return nowSeconds;
-
-  const timeUsedSeconds = state.timeUsedSeconds ?? 0;
-  const cached = localGoalTimingByItemId.get(state.sourceItemId);
-  if (cached?.timeUsedSeconds === timeUsedSeconds) {
-    return cached.anchorSeconds;
-  }
-
-  const anchorSeconds = nowSeconds;
-  if (localGoalTimingByItemId.size > 200) localGoalTimingByItemId.clear();
-  localGoalTimingByItemId.set(state.sourceItemId, { timeUsedSeconds, anchorSeconds });
-  return anchorSeconds;
 }

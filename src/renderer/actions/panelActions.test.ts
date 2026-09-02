@@ -127,7 +127,7 @@ describe("dockPanelTab", () => {
   });
 
   it("ignores non-dockable tabs", () => {
-    dockPanelTab("plan", { zone: "right-panel", placement: "bottom" });
+    dockPanelTab("docks", { zone: "right-panel", placement: "bottom" });
 
     expect(usePanelStore.getState().rightPanelSplit).toBeNull();
   });

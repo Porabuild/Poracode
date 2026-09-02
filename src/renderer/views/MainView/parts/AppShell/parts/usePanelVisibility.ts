@@ -3,8 +3,7 @@ import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
-import { selectThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
+import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -58,19 +57,7 @@ export function usePanelVisibility() {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const currentThreadId = useFocusedThreadId();
   const bottomTerminalOpen = useBottomTerminalVisible();
-  const todoDockPlacement = useThreadTodoDockStore((state) =>
-    currentThreadId
-      ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)
-      : "composer",
-  );
-  const retiredTodoSourceItemId = useThreadTodoDockStore((state) =>
-    currentThreadId ? state.byThreadId[currentThreadId]?.retiredSourceItemId : undefined,
-  );
-  const todoDockState = useAppStore((state) =>
-    currentThreadId && todoDockPlacement === "right"
-      ? selectThreadTodoDockState(state, currentThreadId)
-      : null,
-  );
+  const docksPanelOpen = useDocksPanelHasContent();
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
@@ -88,10 +75,6 @@ export function usePanelVisibility() {
     subAgentItemExists;
   const scopedSubAgentPanelOpen =
     subAgentPanelOpen && subAgentPanelContext !== null && subAgentInCurrentThread;
-  const planPanelOpen =
-    todoDockPlacement === "right" &&
-    todoDockState !== null &&
-    todoDockState.sourceItemId !== retiredTodoSourceItemId;
 
   // Docked panels keep the bottom row open on their own, so a dropped Usage or
   // Git stays on screen after the terminal is closed.
@@ -100,7 +83,7 @@ export function usePanelVisibility() {
     ? devTerminalOpen ||
       gitPanelOpen ||
       filesPanelOpen ||
-      planPanelOpen ||
+      docksPanelOpen ||
       scopedSubAgentPanelOpen ||
       browserPanelOpen ||
       usagePanelOpen ||
@@ -113,7 +96,7 @@ export function usePanelVisibility() {
     !isTerminalRight &&
     ((gitPanelOpen && !isDocked("git")) ||
       (filesPanelOpen && !isDocked("files")) ||
-      planPanelOpen ||
+      docksPanelOpen ||
       scopedSubAgentPanelOpen ||
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||

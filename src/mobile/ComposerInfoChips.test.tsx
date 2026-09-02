@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { I18nProvider } from "@lingui/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadDockState } from "@/renderer/components/thread/useThreadDockState";
 import type { ThreadContextUsageSummary } from "@/renderer/components/thread/threadContextUsage";
 import { i18n } from "@/renderer/i18n/i18n";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { ComposerInfoChips } from "./ComposerInfoChips";
 import { byTextContent } from "@/renderer/testUtils/text";
 
@@ -14,7 +16,7 @@ vi.mock("@/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile", 
 
 const dockState: ThreadDockState = {
   todoDockCollapsed: false,
-  todoDockPlacement: "composer",
+  docksPlacement: "composer",
   todoDockState: null,
   goalDockState: {
     sourceItemId: "goal-1",
@@ -31,7 +33,6 @@ const dockState: ThreadDockState = {
   onGoalDockDismiss: vi.fn<ThreadDockState["onGoalDockDismiss"]>(),
   onDismissError: vi.fn<ThreadDockState["onDismissError"]>(),
   onTodoDockCollapsedChange: vi.fn<ThreadDockState["onTodoDockCollapsedChange"]>(),
-  onTodoDockPlacementChange: vi.fn<ThreadDockState["onTodoDockPlacementChange"]>(),
   onTodoDockRetire: vi.fn<ThreadDockState["onTodoDockRetire"]>(),
 };
 
@@ -50,6 +51,34 @@ const contextSummary: ThreadContextUsageSummary = {
 };
 
 describe("ComposerInfoChips", () => {
+  afterEach(() => {
+    useAppStore.setState({ runtimeBackgroundTasksByThread: {} });
+    useThreadBackgroundTasksDockStore.setState({ dismissedTasksKeyByThread: {} });
+  });
+
+  it("opens live background tasks from a mobile info chip", () => {
+    useAppStore.setState({
+      runtimeBackgroundTasksByThread: {
+        "thread-1": [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
+      },
+    });
+    const { container } = render(
+      <I18nProvider i18n={i18n}>
+        <ComposerInfoChips
+          threadId="thread-1"
+          projectLocation={{ kind: "posix", path: "/repo" }}
+          dockState={{ ...dockState, goalDockState: null, showGoalDock: false }}
+          hidden={false}
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Background tasks" }));
+
+    expect(container.querySelector(".m-chip-panel")).toHaveAttribute("data-open");
+    expect(screen.getByText("pnpm test")).toBeInTheDocument();
+  });
+
   it("opens context usage details in the external panel", () => {
     const { container } = render(
       <I18nProvider i18n={i18n}>

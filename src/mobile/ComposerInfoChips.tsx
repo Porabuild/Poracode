@@ -1,6 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { AlertTriangle, Bot, Gauge, GitBranch, ListChecks, Target, Users } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Bot,
+  Gauge,
+  GitBranch,
+  ListChecks,
+  Target,
+  Users,
+} from "lucide-react";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   ActiveSubAgentTile,
@@ -10,17 +19,20 @@ import {
 import { ThreadErrorDock } from "@/renderer/components/thread/ThreadErrorDock";
 import { ThreadContextDock } from "@/renderer/components/thread/ThreadContextDock";
 import { ThreadGoalDock } from "@/renderer/components/thread/ThreadGoalDock";
+import { ThreadBackgroundTasksDock } from "@/renderer/components/thread/ThreadBackgroundTasksDock";
+import { useVisibleThreadBackgroundTasks } from "@/renderer/components/thread/useThreadDocksSummary";
 import { ThreadTodoDock } from "@/renderer/components/thread/ThreadTodoDock";
 import type { ThreadContextUsageSummary } from "@/renderer/components/thread/threadContextUsage";
 import type { ThreadDockState } from "@/renderer/components/thread/useThreadDockState";
 
-type ChipKey = ActiveAgentKind | "context" | "plan" | "goal" | "errors";
+type ChipKey = ActiveAgentKind | "backgroundTasks" | "context" | "plan" | "goal" | "errors";
 const PANEL_EXIT_MS = 160;
 const CHIP_EXIT_MS = 160;
 const CHIP_ORDER: readonly ChipKey[] = [
   "subagent",
   "crossagent",
   "workflow",
+  "backgroundTasks",
   "context",
   "plan",
   "goal",
@@ -61,6 +73,7 @@ export function ComposerInfoChips(props: {
   const previousChipsRef = useRef<readonly ChipDescriptor[]>([]);
   const previousThreadIdRef = useRef(threadId);
   const agentCounts = useActiveAgentKindCounts(threadId);
+  const backgroundTasks = useVisibleThreadBackgroundTasks(threadId);
   const todoState = dockState.todoDockState;
   const completedSteps = todoState?.steps.filter((step) => step.status === "completed").length ?? 0;
 
@@ -89,6 +102,15 @@ export function ComposerInfoChips(props: {
       icon: GitBranch,
       label: t`Workflows`,
       count: String(agentCounts.workflow),
+      active: true,
+    });
+  }
+  if (backgroundTasks.length > 0) {
+    chips.push({
+      key: "backgroundTasks",
+      icon: Activity,
+      label: t`Background tasks`,
+      count: String(backgroundTasks.length),
       active: true,
     });
   }
@@ -211,6 +233,7 @@ export function ComposerInfoChips(props: {
             <ThreadGoalDock
               threadId={threadId}
               state={dockState.goalDockState}
+              placement="composer"
               onDismiss={dockState.onGoalDockDismiss}
             />
           ) : null}
@@ -222,11 +245,12 @@ export function ComposerInfoChips(props: {
               state={todoState}
               placement="composer"
               collapsed={false}
-              canMove={false}
               onCollapsedChange={closePanel}
-              onPlacementChange={dockState.onTodoDockPlacementChange}
               onRetire={dockState.onTodoDockRetire}
             />
+          ) : null}
+          {open.key === "backgroundTasks" ? (
+            <ThreadBackgroundTasksDock threadId={threadId} placement="composer" />
           ) : null}
           {open.key === "errors"
             ? dockState.errorDockStates.map((state) => (

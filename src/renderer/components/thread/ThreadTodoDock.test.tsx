@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
-import type { ThreadTodoDockPlacement } from "@/renderer/state/threadTodoDockStore";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 
 const scrollIntoView = vi.fn<() => void>();
@@ -27,8 +26,7 @@ describe("ThreadTodoDock", () => {
     ],
   };
 
-  it("auto-scrolls the active item into view and exposes placement/collapse controls", () => {
-    const onPlacementChange = vi.fn<(placement: ThreadTodoDockPlacement) => void>();
+  it("auto-scrolls the active item into view and exposes collapse controls", () => {
     const onCollapsedChange = vi.fn<(collapsed: boolean) => void>();
 
     render(
@@ -38,7 +36,6 @@ describe("ThreadTodoDock", () => {
           placement="composer"
           state={state}
           onCollapsedChange={onCollapsedChange}
-          onPlacementChange={onPlacementChange}
           onRetire={() => undefined}
         />
       </AppProvider>,
@@ -46,12 +43,12 @@ describe("ThreadTodoDock", () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
 
-    for (const name of ["Move todo dock to right panel", "Collapse todo dock", "Close plan"]) {
+    for (const name of ["Collapse todo dock", "Close plan"]) {
       expect(screen.getByRole("button", { name })).toHaveClass("h-6", "w-6");
     }
-
-    fireEvent.click(screen.getByRole("button", { name: "Move todo dock to right panel" }));
-    expect(onPlacementChange).toHaveBeenCalledWith("right");
+    expect(
+      screen.queryByRole("button", { name: "Show docks in the right panel" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Collapse todo dock" }));
     expect(onCollapsedChange).toHaveBeenCalledWith(true);
@@ -65,7 +62,6 @@ describe("ThreadTodoDock", () => {
           placement="right"
           state={state}
           onCollapsedChange={() => undefined}
-          onPlacementChange={() => undefined}
           onRetire={() => undefined}
         />
       </AppProvider>,
@@ -98,7 +94,6 @@ describe("ThreadTodoDock", () => {
           placement="right"
           state={multiInProgressState}
           onCollapsedChange={() => undefined}
-          onPlacementChange={() => undefined}
           onRetire={() => undefined}
         />
       </AppProvider>,

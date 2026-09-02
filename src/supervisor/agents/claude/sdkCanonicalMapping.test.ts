@@ -630,7 +630,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
 
   it("replaces the live background task set wholesale and drops malformed entries", () => {
     const state = createClaudeMapperState("thread-1");
-    mapClaudeSdkMessage(
+    const firstEvents = mapClaudeSdkMessage(
       {
         type: "system",
         subtype: "background_tasks_changed",
@@ -638,6 +638,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
         tasks: [
           { task_id: "task-1", task_type: "local_agent", description: "explore" },
           { task_id: "task-2", task_type: "local_bash", description: "serve" },
+          { task_id: "task-3", task_type: "local_monitor", description: "watch build" },
           null,
           "not-an-object",
           { description: "no id" },
@@ -646,10 +647,26 @@ describe("sdkCanonicalMapping — prompt content", () => {
       } as unknown as SDKMessage,
       state,
     );
-    expect(state.liveBackgroundTaskIds).toEqual(new Set(["task-1", "task-2"]));
+    expect(state.liveBackgroundTaskIds).toEqual(new Set(["task-1", "task-2", "task-3"]));
+    // The renderer list excludes sub-agent runs (they have their own dock) and
+    // classifies everything else by a coarse, provider-agnostic kind.
+    expect(firstEvents).toEqual([
+      {
+        type: "background_tasks.changed",
+        threadId: "thread-1",
+        tasks: [
+          { taskId: "task-2", kind: "command", description: "serve" },
+          { taskId: "task-3", kind: "other", description: "watch build" },
+        ],
+      },
+    ]);
+    expect(state.reportedBackgroundTasks).toEqual([
+      { taskId: "task-2", kind: "command", description: "serve" },
+      { taskId: "task-3", kind: "other", description: "watch build" },
+    ]);
 
     // REPLACE, not merge: task-1 finished, task-2 still live.
-    mapClaudeSdkMessage(
+    const secondEvents = mapClaudeSdkMessage(
       {
         type: "system",
         subtype: "background_tasks_changed",
@@ -659,6 +676,55 @@ describe("sdkCanonicalMapping — prompt content", () => {
       state,
     );
     expect(state.liveBackgroundTaskIds).toEqual(new Set(["task-2"]));
+    expect(secondEvents).toEqual([
+      {
+        type: "background_tasks.changed",
+        threadId: "thread-1",
+        tasks: [{ taskId: "task-2", kind: "command", description: "serve" }],
+      },
+    ]);
+
+    // A level that only changes sub-agent membership leaves the visible list
+    // untouched and emits nothing.
+    const thirdEvents = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [
+          { task_id: "task-2", task_type: "local_bash", description: "serve" },
+          { task_id: "task-4", task_type: "local_agent", description: "review" },
+        ],
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(thirdEvents).toEqual([]);
+
+    // Draining reports the empty list exactly once.
+    const drained = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [],
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(drained).toEqual([
+      { type: "background_tasks.changed", threadId: "thread-1", tasks: [] },
+    ]);
+    expect(state.reportedBackgroundTasks).toEqual([]);
+    expect(
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "background_tasks_changed",
+          session_id: "claude-session",
+          tasks: [],
+        } as unknown as SDKMessage,
+        state,
+      ),
+    ).toEqual([]);
   });
 
   it("detects frame-capable CLIs from the init version", () => {

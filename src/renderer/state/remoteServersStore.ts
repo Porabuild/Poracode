@@ -647,7 +647,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 ) {
                   return;
                 }
-                applyThreadSnapshot(projectRemoteThreadSnapshot(server.desktopId, nextSnapshot));
+                applyThreadSnapshot(projectRemoteThreadSnapshot(server.desktopId, nextSnapshot), {
+                  fromServer: true,
+                  lastSeenEventSeq: remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0,
+                });
                 remoteServerSnapshotSeqByDesktopId.set(
                   server.desktopId,
                   Math.max(
@@ -1159,7 +1162,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               ),
             },
           );
-          applyThreadSnapshot(projectedSnapshot);
+          applyThreadSnapshot(projectedSnapshot, {
+            fromServer: true,
+            lastSeenEventSeq: remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0,
+          });
           const openThread = buildOpenThread(desktopId, snapshot);
           set({ openThread });
           useAppStore.getState().openThread(openThread.thread.id);

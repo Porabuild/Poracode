@@ -8,13 +8,12 @@ import type { ThreadContentCommonProps } from "./ThreadContent";
 
 const emptyTodoComposerProps = {
   todoDockCollapsed: false,
-  todoDockPlacement: "composer" as const,
+  docksPlacement: "composer" as const,
   todoDockState: null,
   goalDockState: null,
   errorDockStates: [],
   onGoalDockDismiss: () => undefined,
   onTodoDockCollapsedChange: () => undefined,
-  onTodoDockPlacementChange: () => undefined,
   onDismissError: () => undefined,
 };
 

@@ -29,7 +29,7 @@ export function UnifiedRightPanel(props: {
   usageContent?: ReactNode;
   notesContent?: ReactNode;
   portsContent?: ReactNode;
-  planContent?: ReactNode;
+  docksContent?: ReactNode;
   subagentContent?: ReactNode;
   subagentModel?: ReactNode;
   subagentTitle?: ReactNode;
@@ -41,7 +41,7 @@ export function UnifiedRightPanel(props: {
   showUsageTab?: boolean;
   showNotesTab?: boolean;
   showPortsTab?: boolean;
-  showPlanTab?: boolean;
+  showDocksTab?: boolean;
   showSubagentTab?: boolean;
   showBrowserTab?: boolean;
   onCloseSubagent?: () => void;
@@ -79,7 +79,7 @@ export function UnifiedRightPanel(props: {
     usageContent,
     notesContent,
     portsContent,
-    planContent,
+    docksContent,
     subagentContent,
     subagentModel,
     subagentTitle,
@@ -90,7 +90,7 @@ export function UnifiedRightPanel(props: {
     showUsageTab = true,
     showNotesTab = true,
     showPortsTab = false,
-    showPlanTab = false,
+    showDocksTab = false,
     showSubagentTab = false,
     showBrowserTab = true,
     onCloseSubagent,
@@ -149,11 +149,11 @@ export function UnifiedRightPanel(props: {
   const labels = usePanelTabLabels();
   const tabs = [
     {
-      id: "plan",
-      label: labels.plan,
-      icon: PANEL_TAB_ICONS.plan,
-      content: planContent,
-      visible: showPlanTab,
+      id: "docks",
+      label: labels.docks,
+      icon: PANEL_TAB_ICONS.docks,
+      content: docksContent,
+      visible: showDocksTab,
       onOpen: undefined,
     },
     {
