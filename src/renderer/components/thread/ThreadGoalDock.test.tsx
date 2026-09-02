@@ -50,6 +50,7 @@ describe("ThreadGoalDock", () => {
             timeUsedSeconds: 5,
             updatedAt: Date.parse("2026-05-12T10:00:10Z") / 1000,
           }}
+          placement="composer"
           onDismiss={onDismiss}
         />
       </AppProvider>,
@@ -78,6 +79,7 @@ describe("ThreadGoalDock", () => {
             action: "set",
             availableActions: ["edit", "pause", "clear"],
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -131,6 +133,7 @@ describe("ThreadGoalDock", () => {
             action: "updated",
             availableActions: ["edit", "resume", "clear"],
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -159,6 +162,7 @@ describe("ThreadGoalDock", () => {
             timeUsedSeconds: 621,
             updatedAt: Date.parse("2026-05-12T10:00:10Z") / 1000,
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -188,6 +192,7 @@ describe("ThreadGoalDock", () => {
             lastReason: "login.test.ts still failing",
             updatedAt: Date.parse("2026-05-12T10:00:10Z") / 1000,
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -213,6 +218,7 @@ describe("ThreadGoalDock", () => {
             status: "active",
             action: "set",
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -236,6 +242,7 @@ describe("ThreadGoalDock", () => {
             tokensUsed: 1200,
             timeUsedSeconds: 90,
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -263,6 +270,7 @@ describe("ThreadGoalDock", () => {
             action: "updated",
             lastReason: `${label} by provider`,
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -290,6 +298,7 @@ describe("ThreadGoalDock", () => {
             timeUsedSeconds: 10,
             updatedAt: Date.parse("2026-05-12T10:00:10Z") / 1000,
           }}
+          placement="composer"
           onDismiss={() => undefined}
         />
       </AppProvider>,
@@ -318,7 +327,12 @@ describe("ThreadGoalDock", () => {
 
     const first = render(
       <AppProvider>
-        <ThreadGoalDock threadId="thread-1" state={state} onDismiss={() => undefined} />
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={state}
+          placement="composer"
+          onDismiss={() => undefined}
+        />
       </AppProvider>,
     );
 
@@ -327,7 +341,12 @@ describe("ThreadGoalDock", () => {
 
     render(
       <AppProvider>
-        <ThreadGoalDock threadId="thread-1" state={state} onDismiss={() => undefined} />
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={state}
+          placement="composer"
+          onDismiss={() => undefined}
+        />
       </AppProvider>,
     );
 

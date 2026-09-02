@@ -114,18 +114,14 @@ export function ThreadChangesBubble(props: {
     </button>
   );
 
-  return (
-    // Position an out-of-flow wrapper, not the tooltip trigger. HeroUI's trigger
-    // then measures the real button without adding a line box above the composer.
-    <div className="absolute right-3 bottom-full z-10 mb-1.5">
-      {worktreeName ? (
-        <Tooltip delay={0}>
-          <Tooltip.Trigger>{bubble}</Tooltip.Trigger>
-          <Tooltip.Content placement="top">{worktreeName}</Tooltip.Content>
-        </Tooltip>
-      ) : (
-        bubble
-      )}
-    </div>
+  // The caller positions this (with the other composer bubbles) in one
+  // out-of-flow wrapper so HeroUI's tooltip trigger measures the real button.
+  return worktreeName ? (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger>{bubble}</Tooltip.Trigger>
+      <Tooltip.Content placement="top">{worktreeName}</Tooltip.Content>
+    </Tooltip>
+  ) : (
+    bubble
   );
 }

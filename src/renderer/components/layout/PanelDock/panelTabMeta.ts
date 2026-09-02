@@ -4,7 +4,7 @@ import {
   FolderOpen,
   Gauge,
   Globe,
-  ListChecks,
+  LayoutList,
   NotebookPen,
   TerminalSquare,
   Waypoints,
@@ -15,7 +15,7 @@ import type { RightPanelTab } from "@/renderer/state/panelStore";
 
 /** Single source of truth for panel-tab chrome, shared by the toolbar and every dock section. */
 export const PANEL_TAB_ICONS: Record<RightPanelTab, LucideIcon> = {
-  plan: ListChecks,
+  docks: LayoutList,
   subagent: Bot,
   terminal: TerminalSquare,
   files: FolderOpen,
@@ -29,7 +29,7 @@ export const PANEL_TAB_ICONS: Record<RightPanelTab, LucideIcon> = {
 export function usePanelTabLabels(): Record<RightPanelTab, string> {
   const { t } = useLingui();
   return {
-    plan: t`Plan`,
+    docks: t`Docks`,
     subagent: t`Subagent`,
     terminal: t`Terminal`,
     files: t`Files`,

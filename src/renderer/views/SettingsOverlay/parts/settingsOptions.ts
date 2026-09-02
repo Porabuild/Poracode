@@ -20,6 +20,11 @@ export const themeOptions = [
   { id: "dark", label: msg`Dark` },
 ] as const satisfies readonly LocalizedOption[];
 
+export const threadDocksPlacementOptions = [
+  { id: "composer", label: msg`Above the composer` },
+  { id: "right", label: msg`Right panel` },
+] as const satisfies readonly LocalizedOption[];
+
 export const terminalPositionOptions = [
   { id: "right", label: msg`Right` },
   { id: "bottom", label: msg`Bottom` },

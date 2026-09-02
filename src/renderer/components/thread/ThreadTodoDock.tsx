@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import { ArrowRightLeft, Check, ChevronDown, Hourglass, ListChecks, X } from "lucide-react";
+import { Check, ChevronDown, Hourglass, ListChecks, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import type { ThreadTodoDockPlacement } from "@/renderer/state/threadTodoDockStore";
+import type { ThreadDocksPlacement } from "@/shared/settings";
+import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { ThreadTodoDockState, ThreadTodoStepStatus } from "./threadTodoState";
@@ -15,11 +16,9 @@ import {
 
 interface ThreadTodoDockProps {
   state: ThreadTodoDockState;
-  placement: ThreadTodoDockPlacement;
+  placement: ThreadDocksPlacement;
   collapsed: boolean;
-  /** Hide the composer↔right-panel move action (no right panel on mobile). */
-  canMove?: boolean;
-  onPlacementChange: (placement: ThreadTodoDockPlacement) => void;
+  showPlacementToggle?: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onRetire: () => void;
 }
@@ -29,8 +28,7 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
     state,
     placement,
     collapsed,
-    canMove = true,
-    onPlacementChange,
+    showPlacementToggle = false,
     onCollapsedChange,
     onRetire,
   } = props;
@@ -56,8 +54,6 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
 
   if (displayedStepIndices.length === 0) return null;
 
-  const moveLabel =
-    placement === "composer" ? t`Move todo dock to right panel` : t`Attach todo dock to composer`;
   const completedCount = state.steps.reduce(
     (count, step) => (step.status === "completed" ? count + 1 : count),
     0,
@@ -65,28 +61,14 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
   const countLabel = <AnimatedFraction value={completedCount} total={state.steps.length} />;
 
   return (
-    <ThreadDockSection
-      ariaLabel={t`Thread todo dock`}
-      placement={placement}
-      collapsed={collapsed}
-      className={
-        placement === "right" ? "rounded-none border-0 bg-[var(--content-background)]" : ""
-      }
-    >
+    <ThreadDockSection ariaLabel={t`Thread todo dock`} placement={placement} collapsed={collapsed}>
       <ThreadDockHeader
         icon={ListChecks}
         title={t`Plan`}
         countLabel={countLabel}
         actions={
           <>
-            {canMove ? (
-              <ThreadDockIconButton
-                label={moveLabel}
-                onPress={() => onPlacementChange(placement === "composer" ? "right" : "composer")}
-              >
-                <ArrowRightLeft className="size-3.5" />
-              </ThreadDockIconButton>
-            ) : null}
+            {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
             <ThreadDockIconButton
               label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
               tooltip={collapsed ? t`Expand` : t`Collapse`}

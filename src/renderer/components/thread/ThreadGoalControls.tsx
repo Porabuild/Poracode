@@ -12,7 +12,7 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 interface ThreadGoalControlsProps {
   threadId: string;
   state: ThreadGoalDockState;
-  onDismiss: () => void;
+  onDismiss?: () => void;
 }
 
 export function ThreadGoalControls({ threadId, state, onDismiss }: ThreadGoalControlsProps) {
@@ -88,11 +88,11 @@ export function ThreadGoalControls({ threadId, state, onDismiss }: ThreadGoalCon
         >
           <X className="size-3.5" />
         </ThreadDockIconButton>
-      ) : (
+      ) : onDismiss ? (
         <ThreadDockIconButton label={t`Close goal`} onPress={onDismiss}>
           <X className="size-3.5" />
         </ThreadDockIconButton>
-      )}
+      ) : null}
       {objectiveDraft !== null ? (
         <Modal.Backdrop isOpen onOpenChange={(open) => !open && setObjectiveDraft(null)}>
           <Modal.Container placement="center" size="md">

@@ -18,12 +18,14 @@ export function ThreadDockSection({
 }) {
   const { t } = useLingui();
   const resolvedAriaLabel = ariaLabel ?? t`Thread dock`;
+  // In the right panel the docks tab lays the sections out flush; composer
+  // sections carry the bordered strip chrome.
   const baseClass =
     placement === "composer"
       ? "flex flex-col border-b border-[color:var(--border)] bg-transparent text-xs"
       : collapsed
-        ? "flex flex-col rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] text-xs"
-        : "flex h-full min-h-0 flex-col rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] text-xs";
+        ? "flex flex-col rounded-none border-0 bg-[var(--content-background)] text-xs"
+        : "flex h-full min-h-0 flex-col rounded-none border-0 bg-[var(--content-background)] text-xs";
 
   return (
     <section
@@ -53,7 +55,7 @@ export function ThreadDockHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 px-2 py-1 leading-none">
+    <div className="flex h-8 items-center gap-2 px-2 leading-none">
       <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />
       <div className="flex min-w-0 flex-1 items-center gap-2 leading-none">
         <span className="font-semibold text-foreground">{title}</span>

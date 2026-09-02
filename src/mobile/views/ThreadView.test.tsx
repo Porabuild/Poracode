@@ -123,14 +123,17 @@ vi.mock("@/renderer/components/thread/ThreadContent", () => ({
 vi.mock("@/renderer/components/thread/useThreadDockState", () => ({
   useThreadDockState: () => ({
     todoDockCollapsed: false,
-    todoDockPlacement: "composer",
+    docksPlacement: "composer",
     todoDockState: null,
     goalDockState: null,
     errorDockStates: [],
+    showTodoDock: false,
+    showGoalDock: false,
+    hiddenRuntimeItemId: undefined,
+    dockLayoutToken: null,
     onGoalDockDismiss: () => undefined,
     onDismissError: () => undefined,
     onTodoDockCollapsedChange: () => undefined,
-    onTodoDockPlacementChange: () => undefined,
     onTodoDockRetire: () => undefined,
   }),
 }));

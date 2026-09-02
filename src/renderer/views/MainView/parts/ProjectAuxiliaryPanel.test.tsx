@@ -1,10 +1,12 @@
 import { act, render, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { I18nProvider } from "@lingui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
 
 vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
@@ -19,11 +21,11 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
 }));
 
 const unifiedRightPanelProps = vi.hoisted(() => ({
-  current: null as { activeTab: string } | null,
+  current: null as { activeTab: string; docksContent?: ReactElement } | null,
 }));
 
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
-  UnifiedRightPanel: (props: { activeTab: string }) => {
+  UnifiedRightPanel: (props: { activeTab: string; docksContent?: ReactElement }) => {
     unifiedRightPanelProps.current = props;
     return null;
   },
@@ -66,6 +68,8 @@ describe("ProjectAuxiliaryPanel", () => {
     localStorage.clear();
     unifiedRightPanelProps.current = null;
     focusThread(threadA.id);
+    useAppStore.setState({ projects: [], runtimeBackgroundTasksByThread: {} });
+    useSharedSettings.setState({ threadDocksPlacement: "composer" });
     usePanelStore.setState({
       gitReviewContext: {
         projectId: threadB.projectId,
@@ -79,6 +83,7 @@ describe("ProjectAuxiliaryPanel", () => {
       browserPanelOpen: false,
       usagePanelOpen: false,
       notesPanelOpen: false,
+      threadDocksPanelOpen: false,
     });
   });
 
@@ -105,6 +110,37 @@ describe("ProjectAuxiliaryPanel", () => {
         worktreePath: threadC.worktreePath!,
       });
     });
+  });
+
+  it("passes the focused worktree location to right-panel docks", async () => {
+    useAppStore.setState({
+      projects: [
+        {
+          id: threadA.projectId,
+          name: "Project A",
+          location: { kind: "posix", path: "/repo-a" },
+          createdAt: "2026-08-03T00:00:00.000Z",
+        },
+      ],
+      runtimeBackgroundTasksByThread: {
+        [threadA.id]: [{ taskId: "task-1", kind: "other", description: "Watch" }],
+      },
+    });
+    useSharedSettings.setState({ threadDocksPlacement: "right" });
+    usePanelStore.setState({ threadDocksPanelOpen: true, rightPanelTab: "docks" });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => expect(unifiedRightPanelProps.current?.docksContent).toBeDefined());
+    expect(
+      unifiedRightPanelProps.current?.docksContent?.props as {
+        projectLocation?: { kind: string; path: string };
+      },
+    ).toMatchObject({ projectLocation: { kind: "posix", path: "/worktree-a" } });
   });
 
   it("leaves the browser tab when the browser panel was dismissed with it selected", async () => {
