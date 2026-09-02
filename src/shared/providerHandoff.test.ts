@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveProviderHandoffStrategy } from "./providerHandoff";
+import { resolveProviderHandoffStrategy, targetGuaranteesReadThreadTool } from "./providerHandoff";
 
 const reachable = {
   isMirroredThread: false,
@@ -75,5 +75,33 @@ describe("resolveProviderHandoffStrategy", () => {
         targetPresentationMode: "gui",
       }),
     ).toBe("context-file");
+  });
+});
+
+describe("targetGuaranteesReadThreadTool", () => {
+  it("trusts a chat target that bakes or rebuilds its MCP set", () => {
+    expect(targetGuaranteesReadThreadTool({ mcpScope: { gui: "launch" } }, "gui")).toBe(true);
+    expect(targetGuaranteesReadThreadTool({ mcpScope: { gui: "always" } }, "gui")).toBe(true);
+    // Absent scope falls back to the generic structured-runtime behavior.
+    expect(targetGuaranteesReadThreadTool({}, "gui")).toBe(true);
+  });
+
+  it("rejects a target whose runtime has no MCP wiring", () => {
+    expect(targetGuaranteesReadThreadTool({ mcpScope: { gui: "none" } }, "gui")).toBe(false);
+    expect(targetGuaranteesReadThreadTool({ mcpScope: { terminal: "none" } }, "terminal")).toBe(
+      false,
+    );
+  });
+
+  it("trusts a provider that owns its MCP config even though its composer scope is none", () => {
+    // The composer has nothing to toggle for such a provider, so it declares
+    // "none" — but the supervisor still resolves the built-in servers for it
+    // from its settings page, so `read_thread` is reachable.
+    expect(
+      targetGuaranteesReadThreadTool(
+        { mcpScope: { terminal: "none", gui: "none" }, mcpConfigSource: "agentSettings" },
+        "gui",
+      ),
+    ).toBe(true);
   });
 });

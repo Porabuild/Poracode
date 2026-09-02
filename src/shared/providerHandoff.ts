@@ -1,5 +1,32 @@
-import type { ProviderHandoffContextStrategy, ThreadPresentationMode } from "./contracts";
+import {
+  type AgentCapability,
+  type ProviderHandoffContextStrategy,
+  type ThreadPresentationMode,
+  resolveComposerMcpScope,
+} from "./contracts";
 import { continuesInPlace } from "./continueProviderRanking";
+
+/**
+ * Whether a handoff target's next launch is guaranteed to carry the built-in
+ * `read_thread` tool, judged from its declared capabilities alone.
+ *
+ * A handoff is a fresh launch, so a target that bakes its MCP set at session
+ * start ("launch") keeps `read_thread` for the whole session just as one that
+ * rebuilds it every turn ("always") does. A composer scope of "none" normally
+ * means the runtime has no MCP wiring at all — but a provider that owns its
+ * MCP configuration (`mcpConfigSource: "agentSettings"`) also declares "none",
+ * because the composer has nothing to toggle, while the supervisor still
+ * resolves the built-in servers for it from its settings page. Reading the
+ * composer scope alone would send every such provider down the context-file
+ * route even though it can read the thread.
+ */
+export function targetGuaranteesReadThreadTool(
+  capabilities: Pick<AgentCapability, "mcpScope" | "mcpConfigSource">,
+  targetPresentationMode: ThreadPresentationMode,
+): boolean {
+  if (capabilities.mcpConfigSource === "agentSettings") return true;
+  return resolveComposerMcpScope(capabilities.mcpScope, targetPresentationMode) !== "none";
+}
 
 export interface ProviderHandoffStrategyInput {
   sourcePresentationMode: ThreadPresentationMode;
