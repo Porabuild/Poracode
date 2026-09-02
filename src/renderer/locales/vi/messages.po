@@ -8775,8 +8775,8 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt với máy tính này."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
-msgid "Pair a remote machine…"
-msgstr "Ghép nối máy từ xa…"
+#~ msgid "Pair a remote machine…"
+#~ msgstr "Ghép nối máy từ xa…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts
