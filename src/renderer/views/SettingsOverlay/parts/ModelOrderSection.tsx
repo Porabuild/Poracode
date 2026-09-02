@@ -202,6 +202,7 @@ export function ModelOrderSection() {
   };
   // Update actions run on the local supervisor only.
   const updates = useProviderUpdates(isRemoteMachine ? [] : orderedAgents, selectedMachine.id);
+  const outdatedCount = updates.outdatedKinds.length;
   const updateAllProgress = updates.updateAllProgress;
   const updateAllProgressAriaLabel = updateAllProgress
     ? updateAllProgress.phase === "probing"
@@ -245,7 +246,7 @@ export function ModelOrderSection() {
             <RotateCcw className="size-3" />
           </button>
         ) : null}
-        {updateAllProgress || updates.outdatedKinds.length > 0 ? (
+        {updateAllProgress || outdatedCount > 0 ? (
           <div
             className="ml-auto flex min-w-0 justify-end"
             {...(updateAllProgress
@@ -261,9 +262,7 @@ export function ModelOrderSection() {
               variant="ghost"
               className="h-6 min-h-6 max-w-full gap-1.5 px-2 text-[11px]"
               aria-label={
-                updateAllProgress
-                  ? updateAllProgressAriaLabel
-                  : t`Update all (${updates.outdatedKinds.length})`
+                updateAllProgress ? updateAllProgressAriaLabel : t`Update all (${outdatedCount})`
               }
               {...(updates.isUpdatingAll
                 ? { "aria-disabled": true }
@@ -283,7 +282,7 @@ export function ModelOrderSection() {
               ) : (
                 <>
                   <ArrowUpCircle className="size-3 shrink-0" />
-                  <Trans>Update all ({updates.outdatedKinds.length})</Trans>
+                  <Trans>Update all ({outdatedCount})</Trans>
                 </>
               )}
             </Button>
