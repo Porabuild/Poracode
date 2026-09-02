@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Capacitor bridge from the Poracode mobile web layer to iOS ActivityKit (Live Activities / Dynamic Island). No-op on Android and web.",
   "license": "Apache-2.0",
-  "author": "SDSLeon",
+  "author": "Porabuild",
   "files": [
     "src",
     "ios/Sources",

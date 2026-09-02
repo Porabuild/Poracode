@@ -1,4 +1,4 @@
-const GITHUB_REPO = "SDSLeon/lightcode";
+const GITHUB_REPO = "Porabuild/Poracode";
 const RELEASES_LATEST_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 const RELEASES_INDEX_URL = `https://github.com/${GITHUB_REPO}/releases`;
 const NIGHTLY_TAG_PATTERN = /-nightly\./;

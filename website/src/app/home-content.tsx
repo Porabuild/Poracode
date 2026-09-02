@@ -542,7 +542,7 @@ function HomeBody({ release }: { release: ReleaseInfo }) {
               {t("nav.changelog")}
             </Link>
             <a
-              href="https://github.com/SDSLeon/lightcode"
+              href="https://github.com/Porabuild/Poracode"
               target="_blank"
               rel="noreferrer"
               aria-label="GitHub"
@@ -600,7 +600,7 @@ function HomeBody({ release }: { release: ReleaseInfo }) {
               <ArrowUpRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
             <a
-              href="https://github.com/SDSLeon/lightcode"
+              href="https://github.com/Porabuild/Poracode"
               target="_blank"
               rel="noreferrer"
               className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-7 font-semibold text-moon transition will-change-transform hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
@@ -906,7 +906,7 @@ function HomeBody({ release }: { release: ReleaseInfo }) {
                   {t("hero.downloadFor", { platform: platform.label })}
                 </a>
                 <a
-                  href="https://github.com/SDSLeon/lightcode"
+                  href="https://github.com/Porabuild/Poracode"
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-6 font-medium text-moon transition hover:border-white/20 hover:bg-white/[0.06]"
@@ -944,7 +944,7 @@ function HomeBody({ release }: { release: ReleaseInfo }) {
               {t("nav.changelog")}
             </Link>
             <a
-              href="https://github.com/SDSLeon/lightcode"
+              href="https://github.com/Porabuild/Poracode"
               className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
             >
               GitHub

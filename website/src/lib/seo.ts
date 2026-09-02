@@ -27,7 +27,7 @@ const OG_LOCALE: Record<Locale, string> = {
 
 export const SITE_NAME = "Poracode";
 export const SITE_URL = "https://poracode.com";
-export const GITHUB_URL = "https://github.com/SDSLeon/lightcode";
+export const GITHUB_URL = "https://github.com/Porabuild/Poracode";
 export const SOCIAL_IMAGE_PATH = "/hero-screenshot.png";
 export const SOCIAL_IMAGE_ALT = "Poracode AI coding agent orchestrator social card";
 const SOCIAL_IMAGE_WIDTH = 1200;
