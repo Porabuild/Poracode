@@ -56,3 +56,19 @@ describe("keybindingMatcher", () => {
     expect(canonicalizeKeybinding("Ctrl+Shift+[", "win32")).toBe("ctrl+shift+[");
   });
 });
+
+describe("eventToKeybinding with incomplete events", () => {
+  it("ignores keyboard events that carry no key", () => {
+    // Regression: synthetic events without `key` reached normalizeKeyPart and
+    // crashed the renderer instead of simply matching no keybinding.
+    const event = {
+      key: undefined as unknown as string,
+      ctrlKey: false,
+      metaKey: true,
+      altKey: false,
+      shiftKey: false,
+    };
+    expect(() => eventToKeybinding(event, "darwin")).not.toThrow();
+    expect(eventToKeybinding(event, "darwin")).toBe("");
+  });
+});

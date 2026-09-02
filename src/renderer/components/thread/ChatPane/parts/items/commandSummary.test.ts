@@ -230,6 +230,17 @@ describe("humanIntentTitle", () => {
     expect(commandIntentDisplay("cat a | nl | grep x | head -20").kind).not.toBe("view");
   });
 
+  it("labels blank and pipe-only commands without crashing", () => {
+    // Regression: an empty pipeline reached parseHeadFileView, which indexed
+    // parts[-1] and iterated undefined ("e is not iterable" renderer crash).
+    expect(commandIntentDisplay("").kind).toBe("command");
+    expect(commandIntentDisplay("   ").kind).toBe("command");
+    expect(commandIntentDisplay("|").kind).toBe("command");
+    expect(commandIntentDisplay(" | | ").kind).toBe("command");
+    expect(commandIntentDisplay(`bash -c ''`).kind).toBe("command");
+    expect(commandIntentDisplay("cd /tmp && ").kind).toBe("command");
+  });
+
   it("does not treat head byte windows as line views", () => {
     expect(commandIntentDisplay("cat src/foo.ts | head -c 200").kind).toBe("command");
     expect(commandIntentDisplay("head -c-200 src/foo.ts").kind).toBe("command");

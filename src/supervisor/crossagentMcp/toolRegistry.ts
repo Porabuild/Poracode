@@ -226,12 +226,9 @@ const RAW_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
       },
-      // Keep every root union branch explicitly object-typed. Some OpenAI-compatible
-      // providers reject `required`-only branches because they also match non-objects.
-      oneOf: [
-        { type: "object", required: ["prompt"] },
-        { type: "object", required: ["tasks"] },
-      ],
+      // No root-level union here: Cursor's backend rejects tool schemas that carry
+      // `oneOf` at the root and fails the whole turn with a provider error. Callers
+      // pass either `prompt` or `tasks`; dispatch rejects calls carrying both.
     },
   },
   {
@@ -288,11 +285,7 @@ const RAW_TOOLS: ToolSpec[] = [
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
         after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
       },
-      // See the spawn_agent schema above for why these branches repeat the root type.
-      oneOf: [
-        { type: "object", required: ["run_id"] },
-        { type: "object", required: ["run_ids"] },
-      ],
+      // No root-level union — see the spawn_agent schema above.
     },
   },
   {
@@ -613,6 +606,12 @@ async function spawnAgent(
     return pending;
   };
 
+  // The published schema is union-free for Cursor compatibility, so the
+  // either/or contract is enforced here: a call carrying both shapes is
+  // ambiguous and must fail instead of silently picking one branch.
+  if (args.tasks !== undefined && args.prompt !== undefined) {
+    return errorResult("Pass either prompt or tasks, not both.");
+  }
   if (Array.isArray(args.tasks)) {
     const tasks = args.tasks;
     if (tasks.length > MAX_CONCURRENT_CHILDREN_PER_PARENT) {
@@ -777,6 +776,9 @@ export async function dispatchTool(
         return jsonResult({ run_ids: runs.map(({ runId }) => runId) });
       }
       case "wait_for_agent": {
+        if (args.run_id !== undefined && args.run_ids !== undefined) {
+          return errorResult("Pass either run_id or run_ids, not both.");
+        }
         if (Array.isArray(args.run_ids)) {
           const runIds = parseRunIds(args);
           return jsonResult(

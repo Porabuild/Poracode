@@ -90,6 +90,17 @@ export function cursorSdkInstallCommand(project: Project): string {
   );
 }
 
+/**
+ * Global installs the SDK discovery can report. `global-npm` / `global-pnpm`
+ * only come from the deferred `npm root -g` / `pnpm root -g` probe, which never
+ * runs once a filesystem candidate already matched — a Node prefix of its own
+ * (~/.local, nvm, fnm, volta, Homebrew) resolves as `global-inferred` instead.
+ * Treating only the probe sources as updatable left the update action dead for
+ * those installs, so the button fell through to the agent updater and refreshed
+ * the CLI while the SDK stayed on its old version.
+ */
+const NPM_UPDATABLE_SDK_SOURCES = new Set(["global-npm", "global-explicit", "global-inferred"]);
+
 export function cursorSdkUpdateCommand(status: AgentStatus, project: Project): string | undefined {
   const source = cursorRuntimeInstallState(status).sdkInstallationSource;
   if (source === "global-pnpm") {
@@ -100,13 +111,13 @@ export function cursorSdkUpdateCommand(status: AgentStatus, project: Project): s
       MISSING_PNPM_MESSAGE,
     );
   }
-  if (source !== "global-npm") return undefined;
+  if (!source || !NPM_UPDATABLE_SDK_SOURCES.has(source)) return undefined;
   return cursorSdkInstallCommand(project);
 }
 
 export function canUpdateCursorSdk(status: AgentStatus): boolean {
   const source = cursorRuntimeInstallState(status).sdkInstallationSource;
-  return source === "global-npm" || source === "global-pnpm";
+  return source === "global-pnpm" || (!!source && NPM_UPDATABLE_SDK_SOURCES.has(source));
 }
 
 export function cursorRuntimeInstallCommand(

@@ -69,8 +69,11 @@ function canonicalizeParts(parts: string[], platform: PlatformName): string {
   return [...MODIFIER_ORDER.filter((modifier) => modifiers.has(modifier)), ...main].join("+");
 }
 
-function normalizeKeyPart(part: string, platform: PlatformName): string | undefined {
-  const lower = part.toLowerCase();
+function normalizeKeyPart(part: string | undefined, platform: PlatformName): string | undefined {
+  // The global keydown listener forwards every event here, and synthetic or
+  // stand-in events can arrive without `key`. Reading it unguarded threw and,
+  // because the listener has no boundary, took down the whole renderer.
+  const lower = part?.toLowerCase();
   if (!lower) return undefined;
   if (lower === "cmd" || lower === "command" || lower === "super" || lower === "win") {
     return "meta";

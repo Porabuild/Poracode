@@ -548,11 +548,17 @@ describe("subagent tool registration", () => {
 
   it("declares required fields on the subagent tool schemas", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    // Cursor's backend rejects tool schemas with a root-level union and fails the
+    // whole turn with a provider error, so the prompt/tasks choice is documented
+    // in the tool description and enforced by the request parser instead.
+    expect(byName.get("spawn_agent")!.inputSchema).not.toHaveProperty("oneOf");
+    expect(byName.get("wait_for_agent")!.inputSchema).not.toHaveProperty("oneOf");
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
-      oneOf: [
-        { type: "object", required: ["prompt"] },
-        { type: "object", required: ["tasks"] },
-      ],
+      type: "object",
+      properties: expect.objectContaining({
+        prompt: expect.anything(),
+        tasks: expect.anything(),
+      }),
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
     expect(byName.get("set_routing_preference")!.inputSchema).toMatchObject({
@@ -562,10 +568,11 @@ describe("subagent tool registration", () => {
       required: ["tags"],
     });
     expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
-      oneOf: [
-        { type: "object", required: ["run_id"] },
-        { type: "object", required: ["run_ids"] },
-      ],
+      type: "object",
+      properties: expect.objectContaining({
+        run_id: expect.anything(),
+        run_ids: expect.anything(),
+      }),
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
@@ -1188,5 +1195,61 @@ describe("subagent tool registration", () => {
         { run_id: "run-2", status: "completed", output: "two" },
       ],
     });
+  });
+});
+
+describe("union-free schema runtime enforcement", () => {
+  function trackingManager() {
+    let calls = 0;
+    const bump = () => {
+      calls += 1;
+    };
+    const manager = {
+      spawn: () => {
+        bump();
+        return { runId: "run-1" };
+      },
+      spawnMany: () => {
+        bump();
+        return [{ runId: "run-1" }];
+      },
+      waitFor: async () => {
+        bump();
+        return { status: "completed", output: "" };
+      },
+      waitForMany: async () => {
+        bump();
+        return [];
+      },
+    } as unknown as SubagentRunManager;
+    return { manager, count: () => calls };
+  }
+
+  it("rejects spawn_agent calls that pass both prompt and tasks", async () => {
+    const { ctx } = makeToolContext();
+    const { manager, count } = trackingManager();
+    ctx.runManager = manager;
+    const result = await dispatchTool(
+      "spawn_agent",
+      { provider: "codex", prompt: "solo", tasks: [{ prompt: "batched" }] },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("not both");
+    expect(count()).toBe(0);
+  });
+
+  it("rejects wait_for_agent calls that pass both run_id and run_ids", async () => {
+    const { ctx } = makeToolContext();
+    const { manager, count } = trackingManager();
+    ctx.runManager = manager;
+    const result = await dispatchTool(
+      "wait_for_agent",
+      { run_id: "run-1", run_ids: ["run-2"] },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("not both");
+    expect(count()).toBe(0);
   });
 });
