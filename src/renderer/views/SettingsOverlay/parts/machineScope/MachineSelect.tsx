@@ -5,9 +5,6 @@ import { RemoteServerStatusDot } from "@/renderer/components/common/RemoteServer
 import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import type { MachineDescriptor } from "@/renderer/state/machines";
 
-/** Pseudo-option id intercepted to open the Remote Environments page. */
-const PAIR_REMOTE_OPTION_ID = "__pair-remote";
-
 function machineIcon(machine: MachineDescriptor) {
   if (machine.kind === "local") return <Monitor className="size-3.5 shrink-0 text-muted" />;
   if (machine.kind === "local-wsl") return <TuxIcon className="size-3.5 shrink-0 text-muted" />;
@@ -29,10 +26,15 @@ function machineIcon(machine: MachineDescriptor) {
   );
 }
 
-export function MachineSelect(props: {
-  machines: readonly MachineDescriptor[];
-  onPairRemote: () => void;
-}) {
+/**
+ * The option label. Local WSL distros drop the "WSL · " prefix because the Tux
+ * icon already says so; everywhere else the shared machine label is used.
+ */
+function machineOptionLabel(machine: MachineDescriptor): string {
+  return machine.kind === "local-wsl" && machine.wslDistro ? machine.wslDistro : machine.label;
+}
+
+export function MachineSelect(props: { machines: readonly MachineDescriptor[] }) {
   const { t } = useLingui();
   const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
   const setSelectedMachine = useMachineSelectionStore((state) => state.setSelectedMachine);
@@ -40,25 +42,18 @@ export function MachineSelect(props: {
   const machineDetail = (machine: MachineDescriptor): string | undefined =>
     machine.status === "connecting" ? t`Connecting…` : undefined;
 
-  const options: SelectOption[] = [
-    ...props.machines.map((machine) => {
-      const detail = machineDetail(machine);
-      return {
-        id: machine.id,
-        label: machine.label,
-        icon: machineIcon(machine),
-        ...(detail ? { detail } : {}),
-        // An offline machine has nothing to scope to, so it stays listed (its
-        // status dot says why) but unselectable instead of carrying a caption.
-        ...(machine.status === "offline" ? { isDisabled: true } : {}),
-      };
-    }),
-    {
-      id: PAIR_REMOTE_OPTION_ID,
-      label: t`Pair a remote machine…`,
-      icon: <Server className="size-3.5 shrink-0 text-muted" />,
-    },
-  ];
+  const options: SelectOption[] = props.machines.map((machine) => {
+    const detail = machineDetail(machine);
+    return {
+      id: machine.id,
+      label: machineOptionLabel(machine),
+      icon: machineIcon(machine),
+      ...(detail ? { detail } : {}),
+      // An offline machine has nothing to scope to, so it stays listed (its
+      // status dot says why) but unselectable instead of carrying a caption.
+      ...(machine.status === "offline" ? { isDisabled: true } : {}),
+    };
+  });
 
   return (
     <Select
@@ -66,13 +61,7 @@ export function MachineSelect(props: {
       className="w-[220px] shrink-0"
       options={options}
       value={selectedMachineId}
-      onChange={(value) => {
-        if (value === PAIR_REMOTE_OPTION_ID) {
-          props.onPairRemote();
-          return;
-        }
-        setSelectedMachine(value);
-      }}
+      onChange={setSelectedMachine}
     />
   );
 }

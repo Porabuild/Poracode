@@ -8773,8 +8773,8 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "このデスクトップとスマートフォン、タブレット、またはブラウザをペアリングします。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
-msgid "Pair a remote machine…"
-msgstr "リモートマシンをペアリング…"
+#~ msgid "Pair a remote machine…"
+#~ msgstr "リモートマシンをペアリング…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts

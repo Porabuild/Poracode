@@ -8775,8 +8775,8 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어링합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
-msgid "Pair a remote machine…"
-msgstr "원격 기기 페어링…"
+#~ msgid "Pair a remote machine…"
+#~ msgstr "원격 기기 페어링…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts

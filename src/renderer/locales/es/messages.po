@@ -8775,8 +8775,8 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Empareja un teléfono, una tableta o un navegador con este escritorio."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
-msgid "Pair a remote machine…"
-msgstr "Vincular una máquina remota…"
+#~ msgid "Pair a remote machine…"
+#~ msgstr "Vincular una máquina remota…"
 
 #: src/mobile/components.tsx
 #: src/mobile/remoteConnectionState.ts

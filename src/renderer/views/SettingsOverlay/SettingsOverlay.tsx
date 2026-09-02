@@ -193,6 +193,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
   const isMachineScopedSection =
     activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
+  const showsAgentDiscovery = isAgentsSectionActive && isRefreshingAgents;
   // Mirrors `AgentsMachineBar`'s own render condition: the floating pill only
   // appears once a second machine exists, and only then does the scroll area
   // need to reserve room so its last rows are not covered by it.
@@ -265,7 +266,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
               }`}
             >
               {section}
-              {isAgentsSectionActive && isRefreshingAgents ? (
+              {showsAgentDiscovery ? (
                 <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
                   <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
                 </div>
@@ -273,8 +274,9 @@ export function SettingsOverlay(props: { onClose: () => void }) {
             </div>
             {/* Floats over the scroll area rather than living in the section's
                 flow, so it keeps its position and state across agent-section
-                remounts (`key={activeSection}`). */}
-            {isMachineScopedSection ? <AgentsMachineBar onNavigate={navigateToSection} /> : null}
+                remounts (`key={activeSection}`). Hidden while the discovery
+                overlay covers the page so it does not sit on top of it. */}
+            {isMachineScopedSection && !showsAgentDiscovery ? <AgentsMachineBar /> : null}
           </div>
         )
       }
