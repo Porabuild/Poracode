@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
 import type { SessionRuntime } from "./sessionTypes";
 
-function pipeline() {
+function pipeline(emit = vi.fn<() => void>()) {
   return new ThreadOutputPipeline({
-    emit: vi.fn<() => void>(),
+    emit,
     isDev: false,
     logWriter: { append: vi.fn<() => void>() } as never,
     resolveLogPath: () => "",
@@ -723,5 +723,48 @@ describe("ThreadOutputPipeline / user-interrupt recovery timer", () => {
     p.clearSessionTimers(session);
 
     expect(session.userInterruptRecoveryTimer).toBeUndefined();
+  });
+});
+
+describe("ThreadOutputPipeline / emitState", () => {
+  function sessionWithMentionTools(threadMentionToolsAvailable: boolean | undefined) {
+    return {
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      agentKind: "claude",
+      config: {},
+      canResumeWithConfig: false,
+      adapter: { capabilities: { presentationMode: "gui" } },
+      ...(threadMentionToolsAvailable !== undefined ? { threadMentionToolsAvailable } : {}),
+    } as unknown as SessionRuntime;
+  }
+
+  function emittedState(emit: ReturnType<typeof vi.fn<() => void>>) {
+    const states = (emit.mock.calls as unknown as Array<[Record<string, unknown>]>)
+      .map((call) => call[0])
+      .filter((event) => event.type === "thread-state");
+    expect(states).toHaveLength(1);
+    return states[0]!;
+  }
+
+  it("carries the session's read_thread availability on every live state event", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+
+    p.emitState(sessionWithMentionTools(true));
+    expect(emittedState(emit)).toMatchObject({ threadMentionToolsAvailable: true });
+
+    emit.mockClear();
+    p.emitState(sessionWithMentionTools(false));
+    expect(emittedState(emit)).toMatchObject({ threadMentionToolsAvailable: false });
+  });
+
+  it("omits the flag when the session never resolved its MCP set, leaving client state alone", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+
+    p.emitState(sessionWithMentionTools(undefined));
+    expect(emittedState(emit)).not.toHaveProperty("threadMentionToolsAvailable");
   });
 });

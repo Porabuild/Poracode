@@ -27,45 +27,27 @@ function textFromRuntimeContentBlock(block: unknown, includeText: boolean): stri
   return "";
 }
 
-function joinTranscriptParts(parts: readonly string[], maxChars?: number): string {
-  const present = parts.filter(Boolean);
-  if (maxChars === undefined) return present.join("\n");
-  const kept: string[] = [];
-  let length = 0;
-  for (let index = present.length - 1; index >= 0; index -= 1) {
-    const text = present[index]!;
-    const separatorLength = kept.length > 0 ? 1 : 0;
-    const remaining = maxChars - length - separatorLength;
-    if (remaining <= 0) break;
-    kept.push(text.length > remaining ? text.slice(-remaining) : text);
-    length += separatorLength + Math.min(text.length, remaining);
-    if (text.length > remaining) break;
-  }
-  return kept.reverse().join("\n");
+function joinTranscriptParts(parts: readonly string[]): string {
+  return parts.filter(Boolean).join("\n");
 }
 
-function projectRuntimeContentBlocks(
-  payload: unknown,
-  maxChars: number | undefined,
-  includeText: boolean,
-): string {
+function projectRuntimeContentBlocks(payload: unknown, includeText: boolean): string {
   const content = asRecord(payload)?.content;
   if (!Array.isArray(content)) return "";
   return joinTranscriptParts(
     content.map((block) => textFromRuntimeContentBlock(block, includeText)),
-    maxChars,
   );
 }
 
-export function textFromRuntimeContentBlocks(payload: unknown, maxChars?: number): string {
-  return projectRuntimeContentBlocks(payload, maxChars, true);
+export function textFromRuntimeContentBlocks(payload: unknown): string {
+  return projectRuntimeContentBlocks(payload, true);
 }
 
-export function assistantTranscriptContent(item: PersistedRuntimeItem, maxChars?: number): string {
-  return joinTranscriptParts(
-    [assistantDisplayText(item), projectRuntimeContentBlocks(item.payload, undefined, false)],
-    maxChars,
-  );
+export function assistantTranscriptContent(item: PersistedRuntimeItem): string {
+  return joinTranscriptParts([
+    assistantDisplayText(item),
+    projectRuntimeContentBlocks(item.payload, false),
+  ]);
 }
 
 function formatChatMessage(item: PersistedRuntimeItem): string | null {

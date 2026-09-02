@@ -93,9 +93,11 @@ export async function switchThreadProviderInPlace(input: {
   // transcript. A context-file switch already carries its context in the
   // prompt, and would otherwise be handed the same conversation twice.
   store.queueThreadLaunch(thread.id, launch.prompt, launch.segments, userMessageItemId, {
-    fromAgentKind,
-    handoffItemId,
-    contextStrategy: handoffContext.strategy,
+    providerSwitch: {
+      fromAgentKind,
+      handoffItemId,
+      contextStrategy: handoffContext.strategy,
+    },
   });
 
   toast.success(i18n._(msg`Switched to ${targetLabel}`));

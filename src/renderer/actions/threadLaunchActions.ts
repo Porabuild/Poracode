@@ -55,6 +55,7 @@ export async function performInitialThreadLaunch(input: {
   segments?: PromptSegment[];
   userMessageItemId?: string;
   providerSwitch?: PendingLaunchProviderSwitch;
+  mentionHandoff?: true;
   initialSize: TerminalSize;
 }): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
@@ -119,6 +120,7 @@ export async function performInitialThreadLaunch(input: {
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
     ...(providerSwitch ? { providerSwitch } : {}),
+    ...(input.mentionHandoff ? { mentionHandoff: true as const } : {}),
   };
 
   // Mirrored remote threads must launch on their host. Spawning locally would

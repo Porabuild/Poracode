@@ -3,6 +3,17 @@ import type { SliceCreator } from "./shared";
 
 export type PendingLaunchProviderSwitch = NonNullable<StartThreadPayload["providerSwitch"]>;
 
+/** Launch-time marks a queued launch carries besides its prompt and segments. */
+export interface PendingLaunchOptions {
+  providerSwitch?: PendingLaunchProviderSwitch;
+  /**
+   * The launch reads its context from a thread mention in its own prompt (a
+   * forked chat thread), so the supervisor degrades instead of failing when
+   * the session cannot resolve `read_thread`. See `StartThreadPayload`.
+   */
+  mentionHandoff?: true;
+}
+
 export interface LaunchSlice {
   pendingThreadLaunches: Record<string, string>;
   pendingLaunchSegments: Record<string, PromptSegment[]>;
@@ -13,6 +24,8 @@ export interface LaunchSlice {
    * records the handoff divider.
    */
   pendingLaunchProviderSwitches: Record<string, PendingLaunchProviderSwitch>;
+  /** Marks a queued launch as a fork reading its source thread by mention. */
+  pendingLaunchMentionHandoffs: Record<string, true>;
   /** Renderer-only reconnect state. Kept separate from `ThreadStatus` so an
    * empty reconnect does not manufacture an active/completed turn. */
   connectingThreadIds: Record<string, string>;
@@ -21,7 +34,7 @@ export interface LaunchSlice {
     prompt: string,
     segments?: PromptSegment[],
     userMessageItemId?: string,
-    providerSwitch?: PendingLaunchProviderSwitch,
+    options?: PendingLaunchOptions,
   ) => void;
   consumeThreadLaunch: (threadId: string) => void;
   beginThreadConnecting: (threadId: string) => string;
@@ -39,8 +52,9 @@ export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
   pendingLaunchSegments: {},
   pendingLaunchUserMessageItemIds: {},
   pendingLaunchProviderSwitches: {},
+  pendingLaunchMentionHandoffs: {},
   connectingThreadIds: {},
-  queueThreadLaunch: (threadId, prompt, segments, userMessageItemId, providerSwitch) =>
+  queueThreadLaunch: (threadId, prompt, segments, userMessageItemId, options) =>
     set((state) => ({
       pendingThreadLaunches: {
         ...state.pendingThreadLaunches,
@@ -65,9 +79,12 @@ export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
       // Set AND cleared here: a plain relaunch queued while a stale marker
       // lingered would otherwise drop its session ref and emit a second
       // handoff divider for a switch that already happened.
-      pendingLaunchProviderSwitches: providerSwitch
-        ? { ...state.pendingLaunchProviderSwitches, [threadId]: providerSwitch }
+      pendingLaunchProviderSwitches: options?.providerSwitch
+        ? { ...state.pendingLaunchProviderSwitches, [threadId]: options.providerSwitch }
         : omitThreadKey(state.pendingLaunchProviderSwitches, threadId),
+      pendingLaunchMentionHandoffs: options?.mentionHandoff
+        ? { ...state.pendingLaunchMentionHandoffs, [threadId]: true }
+        : omitThreadKey(state.pendingLaunchMentionHandoffs, threadId),
     })),
   consumeThreadLaunch: (threadId) =>
     set((state) => {
@@ -84,6 +101,7 @@ export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
         pendingLaunchSegments,
         pendingLaunchUserMessageItemIds,
         pendingLaunchProviderSwitches: omitThreadKey(state.pendingLaunchProviderSwitches, threadId),
+        pendingLaunchMentionHandoffs: omitThreadKey(state.pendingLaunchMentionHandoffs, threadId),
       };
     }),
   beginThreadConnecting: (threadId) => {

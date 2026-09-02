@@ -1,127 +1,81 @@
 import type { ExtractContextResult, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
-import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import {
-  assistantTranscriptContent,
-  textFromRuntimeContentBlocks,
-} from "./experimentResponseTranscript";
+import { formatHandoffRow, type HandoffRow } from "./handoffTranscriptRows";
 
-const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
+/**
+ * Whole-file budget, roughly 12-15k tokens. Small next to any current context
+ * window, but the file rides in the new provider's first message for the rest
+ * of its session, so it is filled by priority rather than recency alone.
+ */
+export const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
+const ROW_SEPARATOR = "\n\n";
+const LEADING_GAP_MARKER = "[earlier turns omitted]";
+const INNER_GAP_MARKER = "[turns omitted]";
+/**
+ * What one gap marker can cost the joined file: a row separator plus the
+ * longest marker. Kept rows are contiguous per tier, not per position, so
+ * `joinRows` may separate any two of them with a marker; reserving this on
+ * every kept row keeps the joined file near the budget instead of past it.
+ */
+const GAP_MARKER_ALLOWANCE = ROW_SEPARATOR.length + LEADING_GAP_MARKER.length;
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+/**
+ * Pick which rows fit the budget:
+ *
+ * 1. The first user message, always. It is the original task, and pure
+ *    tail-first truncation would drop it first on a long thread.
+ * 2. Conversation rows, newest first, until the budget is spent.
+ * 3. Activity rows, newest first, with whatever is left.
+ *
+ * Each tier stops at the first row that does not fit, so the kept set is a
+ * recent contiguous run per tier rather than a scatter of small rows.
+ */
+function selectRows(rows: readonly HandoffRow[]): ReadonlySet<HandoffRow> {
+  const kept = new Set<HandoffRow>();
+  let used = 0;
+  const tryKeep = (candidate: HandoffRow): boolean => {
+    const cost =
+      candidate.text.length + (kept.size > 0 ? ROW_SEPARATOR.length + GAP_MARKER_ALLOWANCE : 0);
+    if (used + cost > MAX_TRANSCRIPT_CONTEXT_CHARS) return false;
+    kept.add(candidate);
+    used += cost;
+    return true;
+  };
+
+  const firstUserMessage = rows.find((candidate) => candidate.isUserMessage);
+  if (firstUserMessage) tryKeep(firstUserMessage);
+  for (const tier of ["conversation", "activity"] as const) {
+    for (let position = rows.length - 1; position >= 0; position -= 1) {
+      const candidate = rows[position]!;
+      if (candidate.tier !== tier || kept.has(candidate)) continue;
+      if (!tryKeep(candidate)) break;
+    }
+  }
+  return kept;
 }
 
-function joinTailWithinBudget(parts: readonly string[], maxChars: number): string {
-  const kept: string[] = [];
-  let length = 0;
-  for (let index = parts.length - 1; index >= 0; index -= 1) {
-    const part = parts[index]!;
-    const remaining = maxChars - length;
-    if (remaining <= 0) break;
-    kept.push(part.length > remaining ? part.slice(-remaining) : part);
-    length += Math.min(part.length, remaining);
-    if (part.length > remaining) break;
-  }
-  return kept.reverse().join("");
-}
-
-function formatRuntimeItemForHandoff(item: RuntimeChatItem, maxChars: number): string | null {
-  const streams = item.streams;
-  const payload = asRecord(item.payload);
-  switch (item.type) {
-    case "user_message": {
-      const prefix = "User:\n";
-      const text = textFromRuntimeContentBlocks(
-        item.payload,
-        Math.max(0, maxChars - prefix.length),
-      );
-      return text ? `${prefix}${text}` : null;
+/** Join kept rows in thread order, marking where rows were left out. */
+function joinRows(rows: readonly HandoffRow[], kept: ReadonlySet<HandoffRow>): string {
+  const parts: string[] = [];
+  let previousKeptPosition = -1;
+  rows.forEach((candidate, position) => {
+    if (!kept.has(candidate)) return;
+    if (position > previousKeptPosition + 1) {
+      parts.push(previousKeptPosition < 0 ? LEADING_GAP_MARKER : INNER_GAP_MARKER);
     }
-    case "assistant_message": {
-      const prefix = "Assistant:\n";
-      // Display truth only: a hook-suppressed or rewritten message hands off
-      // exactly what the user saw, never the replaced stream.
-      const text = assistantTranscriptContent(item, Math.max(0, maxChars - prefix.length));
-      return text ? joinTailWithinBudget([prefix, text], maxChars) : null;
-    }
-    case "plan": {
-      const steps = payload?.steps;
-      if (!Array.isArray(steps)) return null;
-      const lines: string[] = [];
-      let length = 0;
-      const contentBudget = Math.max(0, maxChars - "Plan:\n".length);
-      for (let index = steps.length - 1; index >= 0; index -= 1) {
-        const record = asRecord(steps[index]);
-        if (!record || typeof record.step !== "string") continue;
-        const separatorLength = lines.length > 0 ? 1 : 0;
-        const remaining = contentBudget - length - separatorLength;
-        if (remaining <= 0) break;
-        const status = typeof record.status === "string" ? record.status : "pending";
-        const line = joinTailWithinBudget([`- [${status}] `, record.step], remaining);
-        lines.push(line);
-        length += separatorLength + line.length;
-        if (line.length === remaining) break;
-      }
-      const text = lines.reverse().join("\n");
-      return text ? joinTailWithinBudget(["Plan:\n", text], maxChars) : null;
-    }
-    case "goal": {
-      const objective = typeof payload?.objective === "string" ? payload.objective : "";
-      const status = typeof payload?.status === "string" ? ` (${payload.status})` : "";
-      return objective ? joinTailWithinBudget([`Goal${status}:\n`, objective], maxChars) : null;
-    }
-    case "tool_call":
-    case "mcp_tool_call":
-    case "image_view":
-    case "dynamic_tool_call": {
-      const name = typeof payload?.title === "string" ? payload.title : payload?.name;
-      const status = typeof payload?.status === "string" ? payload.status : item.state;
-      return typeof name === "string"
-        ? joinTailWithinBudget([`Tool ${status}: `, name], maxChars)
-        : null;
-    }
-    case "command_execution": {
-      const command = typeof payload?.command === "string" ? payload.command : "";
-      const output = streams.command_output;
-      return command || output
-        ? joinTailWithinBudget(
-            ["Command:\n", command, ...(output ? ["\nOutput:\n", output] : [])],
-            maxChars,
-          )
-        : null;
-    }
-    case "file_change": {
-      const path = typeof payload?.path === "string" ? payload.path : "";
-      const kind = typeof payload?.changeKind === "string" ? payload.changeKind : "change";
-      return path ? joinTailWithinBudget([`File ${kind}: `, path], maxChars) : null;
-    }
-    case "web_search": {
-      const query = typeof payload?.query === "string" ? payload.query : "";
-      return query ? joinTailWithinBudget(["Web search: ", query], maxChars) : null;
-    }
-    case "error": {
-      const message = typeof payload?.message === "string" ? payload.message : "";
-      return message ? joinTailWithinBudget(["Error:\n", message], maxChars) : null;
-    }
-    case "provider_handoff": {
-      const from = typeof payload?.fromAgentKind === "string" ? payload.fromAgentKind : "";
-      const to = typeof payload?.toAgentKind === "string" ? payload.toAgentKind : "";
-      return from && to
-        ? joinTailWithinBudget(["[Thread switched provider: ", from, " → ", to, "]"], maxChars)
-        : null;
-    }
-    default:
-      return null;
-  }
+    parts.push(candidate.text);
+    previousKeptPosition = position;
+  });
+  return parts.join(ROW_SEPARATOR);
 }
 
 /**
- * Summarize a thread's stored transcript into handoff context — the fallback
- * when provider-side extraction is unavailable: no resumable session, or a
- * mirrored thread whose `extractContext` procedure lives on its host. The
- * result is the same shape the extraction path produces, so the handoff launch
- * input treats both identically.
+ * Copy a thread's stored chat history into handoff context: messages first,
+ * key tool activity after, noise dropped (see `handoffTranscriptRows`). The
+ * result is the same shape provider-side extraction produces, tagged as a
+ * "transcript" so the launch input tells the incoming provider it is reading
+ * the actual prior turns rather than a digest. Null when the thread has no
+ * stored rows, which is a terminal thread's normal state.
  */
 export function buildTranscriptContext(
   thread: Thread,
@@ -132,46 +86,28 @@ export function buildTranscriptContext(
   const itemsById = state.runtimeItemsByIdByThread[thread.id];
   if (!itemsById || itemIds.length === 0) return null;
 
-  const parts: string[] = [];
-  let transcriptLength = 0;
-  let truncated = false;
-  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
-    const item = itemsById[itemIds[index]!];
-    if (!item || item.parentItemId) continue;
-    const separatorLength = parts.length > 0 ? 2 : 0;
-    const remaining = MAX_TRANSCRIPT_CONTEXT_CHARS - transcriptLength - separatorLength;
-    if (remaining <= 0) {
-      truncated = true;
-      break;
-    }
-    const text = formatRuntimeItemForHandoff(item, remaining);
-    if (!text?.trim()) continue;
-    if (text.length > remaining) {
-      parts.push(text.slice(-remaining));
-      truncated = true;
-      break;
-    }
-    parts.push(text);
-    transcriptLength += separatorLength + text.length;
-    if (text.length === remaining) {
-      truncated = true;
-      break;
-    }
-  }
-  const transcript = parts.reverse().join("\n\n");
+  const rows: HandoffRow[] = [];
+  itemIds.forEach((itemId) => {
+    const item = itemsById[itemId];
+    if (!item || item.parentItemId) return;
+    const formatted = formatHandoffRow(item);
+    if (formatted?.text.trim()) rows.push(formatted);
+  });
+  if (rows.length === 0) return null;
 
+  const transcript = joinRows(rows, selectRows(rows));
   if (!transcript.trim()) return null;
-  const summary = [
-    `Context captured from the ${sourceLabel} chat transcript because provider resume and terminal scrollback were unavailable.`,
-    "",
-    truncated ? `${transcript}\n\n[earlier transcript truncated]` : transcript,
-  ].join("\n");
 
   return {
-    summary,
+    summary: [
+      `Chat history of this conversation from the ${sourceLabel} session, oldest turn first. Tool output is omitted; rerun commands if you need their results.`,
+      "",
+      transcript,
+    ].join("\n"),
     sourceProvider: thread.agentKind,
     sourceSessionId: thread.sessionRef?.providerSessionId ?? thread.id,
     ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
     extractedAt: new Date().toISOString(),
+    contentKind: "transcript",
   };
 }

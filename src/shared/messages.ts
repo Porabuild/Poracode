@@ -124,6 +124,8 @@ const messages = {
   "supervisor.proposedPlan": "Proposed plan",
   "supervisor.handoffTranscriptUnavailable":
     "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
+  "supervisor.forkTranscriptUnavailable":
+    "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
 
   // ── Claude ────────────────────────────────────────────────
   "claude.goal.noVerdict":

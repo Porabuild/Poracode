@@ -23,6 +23,7 @@ import {
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { markThreadDone } from "@/renderer/actions/threadActions";
 import {
+  buildForkMentionLaunchInput,
   buildHandoffLaunchInput,
   type ProviderHandoffContext,
 } from "@/renderer/actions/providerHandoff";
@@ -122,12 +123,14 @@ export function AppContent() {
       return;
     }
 
-    // A replacement thread cannot inherit the transcript route: it has a new id
-    // and no rows of its own. The dialog only picks that route for an in-place
-    // switch, so anything arriving here carries a context file (possibly none).
+    // A fork on the transcript route reads its source thread through a thread
+    // mention; every other replacement thread carries a context file (possibly
+    // none). A replacement terminal thread never gets the transcript route —
+    // the dialog only picks it for a chat target.
     const extractedContext =
       handoffContext.strategy === "context-file" ? handoffContext.extracted : null;
     const isFork = intent === "fork";
+    const readsSourceThread = isFork && handoffContext.strategy === "thread-transcript";
 
     // The title is the user's own label for the task, and the task is what
     // carries over — so inherit it instead of generating a new one. A fork is
@@ -186,13 +189,24 @@ export function AppContent() {
       ...(groupName ? { groupName } : {}),
     });
 
-    const launch = await buildHandoffLaunchInput({
-      threadId: thread.id,
-      prompt,
-      segments,
-      extractedContext,
-    });
-    queueThreadLaunch(thread.id, launch.prompt, launch.segments);
+    const launch = readsSourceThread
+      ? buildForkMentionLaunchInput({ sourceThread, prompt, segments })
+      : await buildHandoffLaunchInput({
+          threadId: thread.id,
+          prompt,
+          segments,
+          extractedContext,
+        });
+    queueThreadLaunch(
+      thread.id,
+      launch.prompt,
+      launch.segments,
+      undefined,
+      // The mention is this fork's whole context. If the target session cannot
+      // resolve `read_thread`, the supervisor starts without it and says so
+      // instead of failing the launch.
+      readsSourceThread ? { mentionHandoff: true } : undefined,
+    );
 
     if (isFork) {
       useAppStore.getState().openThreadSideBySide(thread.id);
@@ -209,7 +223,7 @@ export function AppContent() {
     }
 
     toast.success(
-      extractedContext
+      extractedContext || readsSourceThread
         ? t`Context transferred to ${targetLabel}`
         : t`Started ${targetLabel} thread`,
     );

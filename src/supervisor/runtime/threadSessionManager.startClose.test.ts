@@ -793,3 +793,79 @@ describe("ThreadSessionManager start guards", () => {
     },
   );
 });
+
+describe("ThreadSessionManager fork mention handoff", () => {
+  function forkLaunchPayload() {
+    return {
+      threadId: "thread-fork-mention",
+      projectLocation: { kind: "windows" as const, path: "C:\repo" },
+      agentKind: "codex" as AgentKind,
+      config: { model: "codex/model" },
+      prompt: "@Source Continue where the previous provider left off.",
+      segments: [
+        { kind: "thread" as const, threadId: "source-1", title: "Source" },
+        { kind: "text" as const, content: " " },
+        { kind: "text" as const, content: "Continue where the previous provider left off." },
+      ],
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui" as const,
+      // The app-controls server carries `read_thread`; disabling it makes the
+      // mention unresolvable for this session.
+      disabledBuiltInMcpServerIds: ["app-controls" as const],
+    };
+  }
+
+  function warningMessages(events: SupervisorEvent[]): string[] {
+    const out: string[] = [];
+    for (const event of events) {
+      if (event.type === "thread-runtime-event") {
+        if (event.event.type === "warning") out.push(event.event.message);
+      } else if (event.type === "thread-runtime-events") {
+        for (const runtimeEvent of event.events) {
+          if (runtimeEvent.type === "warning") out.push(runtimeEvent.message);
+        }
+      } else if (event.type === "thread-runtime-events-multi") {
+        for (const batch of event.batches) {
+          for (const runtimeEvent of batch.events) {
+            if (runtimeEvent.type === "warning") out.push(runtimeEvent.message);
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  it("starts a fork whose mention cannot be honored, without the mention and with a note", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    structuredSession.startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const adapter = createAdapter("codex", structuredSession);
+    const supervisorEvents: SupervisorEvent[] = [];
+    const manager = createManager("codex", adapter, (event) => supervisorEvents.push(event));
+
+    await manager.startThread({ ...forkLaunchPayload(), mentionHandoff: true });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(structuredSession.startTurn).toHaveBeenCalledTimes(1);
+    const [, , turnSegments] = vi.mocked(structuredSession.startTurn).mock.calls[0]!;
+    expect(turnSegments).toEqual([
+      { kind: "text", content: " " },
+      { kind: "text", content: "Continue where the previous provider left off." },
+    ]);
+    expect(warningMessages(supervisorEvents)).toContainEqual(
+      expect.stringContaining("was forked without transferring context"),
+    );
+    expect(manager.getThreadSnapshots()[0]?.threadMentionToolsAvailable).toBe(false);
+  });
+
+  it("still fails a user-typed mention when the tool is unavailable", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+
+    await expect(manager.startThread(forkLaunchPayload())).rejects.toThrow(
+      "Thread mentions require the Poracode read_thread tool",
+    );
+  });
+});

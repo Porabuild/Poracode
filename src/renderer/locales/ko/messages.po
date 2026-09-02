@@ -6383,7 +6383,7 @@ msgstr "내부 명령 및 에이전트"
 msgid "Interrupted"
 msgstr "중단됨"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/state/slices/staleSubAgents.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
 
@@ -12807,6 +12807,10 @@ msgstr "이 스레드는 컨텍스트를 전달하지 않고 프로바이더를 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 #~ msgstr "이 스레드는 작업 트리 <0>{0}</0>을 사용합니다. 작업 트리 디렉터리도 제거하시겠습니까?"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "이 스레드는 컨텍스트를 전달하지 않고 포크되었습니다. {agent}이(가) Poracode의 read_thread 도구 없이 시작되어 원본 대화를 읽을 수 없습니다. app-controls MCP 도구를 다시 활성화하거나 필요한 내용을 요약해 주세요."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."

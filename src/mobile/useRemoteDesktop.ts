@@ -29,7 +29,7 @@ import {
 } from "@/shared/remote";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
 import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
-import { DEFAULT_HANDOFF_PROMPT } from "@/renderer/actions/providerHandoff";
+import { DEFAULT_HANDOFF_PROMPT, handoffInlineLabel } from "@/renderer/actions/providerHandoff";
 import { continuesInPlace } from "@/shared/continueProviderRanking";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
@@ -1178,12 +1178,12 @@ export function useRemoteDesktop() {
     const sourceMode = thread.presentationMode ?? "terminal";
     const inPlace = !input.fork && continuesInPlace(sourceMode, input.targetPresentationMode);
 
-    // The phone has no composer here, so the handoff carries the transcript
-    // summary inline (the attachment-file route is a desktop-owned bridge
-    // path) plus the shared default instruction.
+    // The phone has no composer here, so the handoff carries the chat history
+    // inline (the attachment-file route is a desktop-owned bridge path) plus
+    // the shared default instruction.
     const context = buildTranscriptContext(thread, thread.agentKind);
     const handoffPrompt = context
-      ? `[Context from previous ${context.sourceProvider} session]\n\n${context.summary}\n\n${DEFAULT_HANDOFF_PROMPT}`
+      ? `${handoffInlineLabel(context)}\n\n${context.summary}\n\n${DEFAULT_HANDOFF_PROMPT}`
       : DEFAULT_HANDOFF_PROMPT;
 
     if (inPlace) {
