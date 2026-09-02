@@ -376,6 +376,23 @@ export const threadContextUsageSchema = z.object({
 export type ThreadContextUsage = z.infer<typeof threadContextUsageSchema>;
 
 /**
+ * One unit of provider-reported background work that outlives the turn that
+ * launched it (a backgrounded shell command, a file watcher, a detached job).
+ * Sub-agent runs are NOT reported here — they surface as running `tool_call`
+ * items with their own dock. `kind` is a coarse, provider-agnostic class the
+ * renderer uses only for iconography; `description` is the provider's own
+ * human-readable label (typically the command or the task's stated purpose).
+ */
+export const backgroundTaskKindSchema = z.enum(["command", "other"]);
+export type BackgroundTaskKind = z.infer<typeof backgroundTaskKindSchema>;
+export const backgroundTaskSchema = z.object({
+  taskId: z.string().min(1),
+  kind: backgroundTaskKindSchema,
+  description: z.string(),
+});
+export type BackgroundTask = z.infer<typeof backgroundTaskSchema>;
+
+/**
  * Provider-reported token CONSUMPTION, kept strictly separate from
  * `context.updated` (which carries context-window occupancy for the dock).
  * Adapters normalize their native usage payloads into this shape; the
@@ -581,6 +598,17 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     type: z.literal("usage.spent"),
     threadId: z.string(),
     usage: usageSpentSchema,
+  }),
+  /**
+   * The complete set of live background tasks after a change — REPLACE
+   * semantics, never merge. An empty `tasks` array means all background work
+   * has drained. Not persisted: background work dies with the agent process,
+   * so a reopened thread must not resurrect it.
+   */
+  z.object({
+    type: z.literal("background_tasks.changed"),
+    threadId: z.string(),
+    tasks: z.array(backgroundTaskSchema),
   }),
   z.object({
     type: z.literal("request.opened"),

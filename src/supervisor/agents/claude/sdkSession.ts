@@ -14,6 +14,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   AgentSlashCommand,
+  BackgroundTask,
   PromptSegment,
   RuntimeEvent,
   SessionRef,
@@ -43,6 +44,7 @@ import {
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { DeferredTurnCompletion } from "./deferredTurnCompletion";
+import { clearBackgroundTasks } from "./canonicalMapping/backgroundTasks";
 import { applyClaudeContextSuffix } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
@@ -181,6 +183,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.pendingError = undefined;
       listener.onError(message);
     }
+  }
+
+  getBackgroundTasks(): readonly BackgroundTask[] {
+    return this.mapperState.reportedBackgroundTasks ?? [];
   }
 
   private emitUpdate(update: StructuredSessionUpdate): void {
@@ -437,8 +443,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.stopGoalTracking();
     this.mapperState.activeSubAgentTaskToTool?.clear();
     this.mapperState.activeSubAgentToolToTask?.clear();
-    this.mapperState.liveBackgroundTaskIds?.clear();
-    const events = closeClaudeOpenItems(this.mapperState, { closePlan: true });
+    const events = clearBackgroundTasks(this.mapperState);
+    events.push(...closeClaudeOpenItems(this.mapperState, { closePlan: true }));
     if (this.mapperState.currentTurnId) {
       events.push({
         type: "turn.completed",
@@ -641,7 +647,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     // emitted at startup, so a restarted query (rollback re-spawns the CLI)
     // must reset to the empty set and let the next membership change
     // repopulate it — stale ids would hold goal completion forever.
-    delete this.mapperState.liveBackgroundTaskIds;
+    this.emitRuntimeEvents(clearBackgroundTasks(this.mapperState));
 
     this.queryReady = (async () => {
       const wslPrime =
@@ -1031,7 +1037,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         ...(errorMessage ? { errorMessage } : {}),
         ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
       };
-      if (this.hasLiveSubAgentTasks()) {
+      if (this.hasLiveBackgroundWork()) {
         this.deferredCompletion.defer(completion);
       } else {
         this.emitUpdate(completion);
@@ -1040,8 +1046,18 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.flushDeferredCompletionIfDrained();
   }
 
-  private hasLiveSubAgentTasks(): boolean {
-    return (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0;
+  /**
+   * Whether any background work the model will be woken for is still live:
+   * sub-agent runs (edge-tracked, closed by `task_notification`) or any task in
+   * the CLI's `background_tasks_changed` level set — plain backgrounded Bash
+   * and watchers included. The turn is not over for the user while either is
+   * running, so the held idle must wait for both to drain.
+   */
+  private hasLiveBackgroundWork(): boolean {
+    return (
+      (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0 ||
+      (this.mapperState.liveBackgroundTaskIds?.size ?? 0) > 0
+    );
   }
 
   /**
@@ -1060,12 +1076,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * flushes when the grace expires.
    */
   private flushDeferredCompletionIfDrained(): void {
-    if (this.hasLiveSubAgentTasks()) return;
-    // A goal held open across a clean turn end also drains here. Its "still
-    // busy" signal is wider than the subagent registry — a plain backgrounded
-    // Bash reported only via `background_tasks_changed` defers the goal without
-    // ever deferring the turn completion — so the pending goal alone is enough
-    // to arm the flush, or the dock would sit active until the session ends.
+    if (this.hasLiveBackgroundWork()) return;
+    // A goal held open across a clean turn end also drains here, so the
+    // pending goal alone is enough to arm the flush, or the dock would sit
+    // active until the session ends.
     if (!this.deferredCompletion.hasPending && !this.mapperState.pendingGoalCompletionOnTaskDrain) {
       return;
     }
@@ -1076,7 +1090,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.deferredFlushTimer !== undefined) return;
     this.deferredFlushTimer = setTimeout(() => {
       this.deferredFlushTimer = undefined;
-      if (this.disposed || this.hasLiveSubAgentTasks()) return;
+      if (this.disposed || this.hasLiveBackgroundWork()) return;
       this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);

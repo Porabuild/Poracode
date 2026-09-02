@@ -149,36 +149,8 @@ export function registerSubAgentTaskIfNeeded(message: SDKMessage, state: ClaudeM
   if (title) tool.subAgentTitle = title;
 }
 
-function readNonEmptyString(value: unknown): string | undefined {
+export function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-/**
- * Fold a `background_tasks_changed` level signal into
- * {@link ClaudeMapperState.liveBackgroundTaskIds}. The payload is the complete
- * live set after the change (REPLACE semantics — never merge), carrying ids
- * only; per the CLI contract, ambient housekeeping entries are not goal work
- * and are dropped. Emits no renderer events: this is bookkeeping for the
- * "is background work still running" checks (goal completion deferral), not a
- * transcript surface.
- */
-export function applyBackgroundTasksChanged(
-  message: SDKMessage,
-  state: ClaudeMapperState,
-): RuntimeEvent[] {
-  const tasks = (message as { tasks?: unknown }).tasks;
-  const next = new Set<string>();
-  if (Array.isArray(tasks)) {
-    for (const task of tasks) {
-      if (!task || typeof task !== "object") continue;
-      const entry = task as { task_id?: unknown; ambient?: unknown };
-      if (entry.ambient === true) continue;
-      const taskId = readNonEmptyString(entry.task_id);
-      if (taskId) next.add(taskId);
-    }
-  }
-  state.liveBackgroundTaskIds = next;
-  return [];
 }
 
 const MAX_TRACKED_SUBAGENT_LAUNCHES = 500;

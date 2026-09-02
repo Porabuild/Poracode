@@ -34,6 +34,7 @@ import type {
   AgentHookPluginStatus,
   AgentStatusesResponse,
   AuthenticateAcpAgentPayload,
+  BackgroundTask,
   ClearPendingSteerPayload,
   ControlThreadGoalPayload,
   CloseThreadPayload,
@@ -269,6 +270,11 @@ export const threadProcedures = {
     "supervisor",
     readThreadPayloadSchema,
   ),
+  readThreadBackgroundTasks: definePayloadProcedure<
+    { threadId: string },
+    BackgroundTask[],
+    "supervisor"
+  >("readThreadBackgroundTasks", "supervisor", readThreadPayloadSchema),
   subagentSubscribe: definePayloadProcedure<
     SubAgentSubscribePayload,
     SubAgentSubscribeResult,
