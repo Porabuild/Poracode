@@ -256,10 +256,9 @@ describe("ThreadAgentUpdateDock", () => {
 
     render(<ThreadAgentUpdateDock agentStatus={installed} project={project} />);
 
-    await screen.findByText("agy CLI");
-    const runtimeRows = screen.getAllByRole("listitem");
-    expect(runtimeRows[0]).toHaveTextContent("agy CLIv1.2.0 → v1.3.0");
-    expect(runtimeRows[1]).toHaveTextContent("Antigravity ACPv1.0.0 → v1.1.0");
+    expect(
+      await screen.findByText(/agy CLI v1\.2\.0 → v1\.3\.0 · Antigravity ACP v1\.0\.0 → v1\.1\.0/u),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Update" })).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
@@ -287,10 +286,8 @@ describe("ThreadAgentUpdateDock", () => {
       <ThreadAgentUpdateDock agentStatus={antigravityStatus("1.3.0", "1.0.0")} project={project} />,
     );
 
-    const runtimeRows = await screen.findAllByRole("listitem");
-    expect(runtimeRows).toHaveLength(1);
-    expect(runtimeRows[0]).toHaveTextContent("Antigravity ACPv1.0.0 → v1.1.0");
-    expect(screen.queryByText("agy CLI")).toBeNull();
+    expect(await screen.findByText(/Antigravity ACP v1\.0\.0 → v1\.1\.0/u)).toBeInTheDocument();
+    expect(screen.queryByText(/agy CLI/u)).toBeNull();
   });
 
   it("reuses one registry listing across dock remounts", async () => {
@@ -301,14 +298,14 @@ describe("ThreadAgentUpdateDock", () => {
     const first = render(
       <ThreadAgentUpdateDock agentStatus={antigravityStatus("1.2.0", "1.0.0")} project={project} />,
     );
-    await screen.findByText("agy CLI");
+    await screen.findByText(/agy CLI/u);
     await vi.waitFor(() => expect(bridgeMock.listAcpRegistry).toHaveBeenCalledTimes(1));
     first.unmount();
 
     render(
       <ThreadAgentUpdateDock agentStatus={antigravityStatus("1.2.0", "1.0.0")} project={project} />,
     );
-    await screen.findByText("agy CLI");
+    await screen.findByText(/agy CLI/u);
 
     expect(bridgeMock.listAcpRegistry).toHaveBeenCalledTimes(1);
   });

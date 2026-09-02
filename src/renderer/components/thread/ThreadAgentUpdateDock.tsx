@@ -13,7 +13,6 @@ import { runAgentInstallCommand } from "@/renderer/actions/agentLoginActions";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { getComposerRuntimeUpdate } from "@/renderer/components/providers/providerComposer";
-import { CombinedRuntimeVersionList } from "@/renderer/components/providers/CombinedRuntimeVersionList";
 import { useCombinedProviderRuntimeUpdates } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import {
   currentWslDistros,
@@ -135,7 +134,16 @@ export function ThreadAgentUpdateDock(props: {
   }, [combinedEntry.pending, combinedEntry.supported, onUpdatingChange]);
 
   if (combinedEntry.supported) {
-    if (!combinedEntry.updateAvailable) return null;
+    // One row like the single-runtime dock: the outdated runtimes collapse into
+    // a truncated summary in the header instead of a version list below it.
+    const summary = combinedEntry.runtimes
+      .flatMap((runtime) =>
+        runtime.updateAvailable && runtime.installedVersion && runtime.latestVersion
+          ? [`${runtime.label} v${runtime.installedVersion} → v${runtime.latestVersion}`]
+          : [],
+      )
+      .join(" · ");
+    if (!summary) return null;
     return (
       <ThreadDockSection
         placement="composer"
@@ -163,12 +171,11 @@ export function ThreadAgentUpdateDock(props: {
               <Trans>Update</Trans>
             </Button>
           }
-        />
-        <CombinedRuntimeVersionList
-          entry={combinedEntry}
-          className="px-7 pb-1.5 text-[11px]"
-          updatesOnly
-        />
+        >
+          <span className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]">
+            {summary}
+          </span>
+        </ThreadDockHeader>
       </ThreadDockSection>
     );
   }
