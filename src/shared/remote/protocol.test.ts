@@ -5,7 +5,42 @@ import {
   remotePushRegistrationSchema,
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,
+  remoteThreadSnapshotSchema,
 } from "./protocol";
+
+describe("remote thread snapshots", () => {
+  const thread = {
+    id: "thread-1",
+    projectId: "project-1",
+    title: "Thread",
+    agentKind: "claude",
+    config: { model: "default" },
+    status: "working",
+    attention: "none",
+    canResumeWithConfig: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  it("accepts authoritative background tasks and legacy snapshots without them", () => {
+    const base = {
+      snapshotSeq: 1,
+      thread,
+      runtimeItems: [],
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    expect(remoteThreadSnapshotSchema.parse(base).backgroundTasks).toBeUndefined();
+    expect(
+      remoteThreadSnapshotSchema.parse({
+        ...base,
+        backgroundTasks: [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
+      }).backgroundTasks,
+    ).toEqual([{ taskId: "task-1", kind: "command", description: "pnpm test" }]);
+  });
+});
 
 describe("remote push registrations", () => {
   const subscription = {

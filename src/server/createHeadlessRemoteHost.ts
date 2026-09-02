@@ -221,7 +221,10 @@ export async function createHeadlessRemoteHost(
     onReset: () => {
       // Supervisor restarted/exited: in-flight requests are already rejected by
       // the client. Connected remote clients self-heal on their next request or
-      // WebSocket reconnect (the replay window covers transient drops).
+      // WebSocket reconnect (the replay window covers transient drops) — except
+      // the cached background-task levels, which no `thread-exited` drains and
+      // which would otherwise shadow the fresh supervisor's live reads forever.
+      serverRef?.clearBackgroundTaskLevels();
     },
   });
   const scheduleCoordinator = new ScheduleRunCoordinator({

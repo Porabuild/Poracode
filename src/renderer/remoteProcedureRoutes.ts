@@ -90,6 +90,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   dbGetThreadContextUsage: "remote-runtime-mirror-local",
   readTerminalScrollback: "remote-thread-snapshot-provided",
   readTerminalSize: "remote-server-internal",
+  readThreadBackgroundTasks: "remote-thread-snapshot-provided",
   dbPersistExperimentState: "remote-experiments-excluded",
   browserStartPicker: "device-owned-browser-control",
   showNotification: "device-owned-notification",

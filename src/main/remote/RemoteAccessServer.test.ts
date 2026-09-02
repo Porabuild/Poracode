@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
+  BackgroundTask,
   Experiment,
   PrWatch,
   PrWatchAgentSync,
@@ -1025,6 +1026,150 @@ describe("RemoteAccessServer", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ thread: { status: "idle" } });
+  });
+
+  it("keeps a live background-task level that races an older supervisor snapshot", async () => {
+    const thread = createTestThread({ id: "thread-background-race", status: "working" });
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    let resolveTaskRead!: (tasks: BackgroundTask[]) => void;
+    let markTaskReadStarted!: () => void;
+    const taskReadStarted = new Promise<void>((resolve) => {
+      markTaskReadStarted = resolve;
+    });
+    const taskRead = new Promise<BackgroundTask[]>((resolve) => {
+      resolveTaskRead = resolve;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: async (name) => {
+        if (name === "readThreadBackgroundTasks") {
+          markTaskReadStarted();
+          return (await taskRead) as never;
+        }
+        return null as never;
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const responsePromise = fetch(
+      new URL("/api/threads/thread-background-race/history", info.httpBaseUrl),
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+
+    await taskReadStarted;
+    server.publishSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: thread.id,
+      event: {
+        type: "background_tasks.changed",
+        threadId: thread.id,
+        tasks: [{ taskId: "new", kind: "command", description: "new level" }],
+      },
+    });
+    resolveTaskRead([{ taskId: "stale", kind: "command", description: "stale level" }]);
+
+    const response = await responsePromise;
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      backgroundTasks: [{ taskId: "new", kind: "command", description: "new level" }],
+    });
+  });
+
+  it("tracks background-task levels delivered in batch envelopes", async () => {
+    const thread = createTestThread({ id: "thread-background-batch", status: "working" });
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: async (name) =>
+        name === "readThreadBackgroundTasks" ? ([] as never) : (null as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const history = async () => {
+      const response = await fetch(new URL(`/api/threads/${thread.id}/history`, info.httpBaseUrl), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      return response.json();
+    };
+
+    // Batched events are the common production shape: the runtime event buffer
+    // coalesces same-tick events per thread, and multi-thread bursts ride the
+    // multi envelope. A level that only arrives there must still update the
+    // replayable map the snapshots prefer.
+    server.publishSupervisorEvent({
+      type: "thread-runtime-events",
+      threadId: thread.id,
+      events: [
+        {
+          type: "background_tasks.changed",
+          threadId: thread.id,
+          tasks: [{ taskId: "b1", kind: "command", description: "batched" }],
+        },
+      ],
+    });
+    await expect(history()).resolves.toMatchObject({
+      backgroundTasks: [{ taskId: "b1", kind: "command", description: "batched" }],
+    });
+
+    server.publishSupervisorEvent({
+      type: "thread-runtime-events-multi",
+      batches: [
+        {
+          threadId: thread.id,
+          events: [{ type: "background_tasks.changed", threadId: thread.id, tasks: [] }],
+        },
+      ],
+    });
+    await expect(history()).resolves.toMatchObject({ backgroundTasks: [] });
+  });
+
+  it("drops cached background-task levels when the supervisor resets", async () => {
+    const thread = createTestThread({ id: "thread-background-reset", status: "working" });
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: async (name) =>
+        name === "readThreadBackgroundTasks" ? ([] as never) : (null as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const history = async () => {
+      const response = await fetch(new URL(`/api/threads/${thread.id}/history`, info.httpBaseUrl), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      return response.json();
+    };
+
+    server.publishSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: thread.id,
+      event: {
+        type: "background_tasks.changed",
+        threadId: thread.id,
+        tasks: [{ taskId: "b1", kind: "command", description: "from old process" }],
+      },
+    });
+    await expect(history()).resolves.toMatchObject({
+      backgroundTasks: [{ taskId: "b1", kind: "command", description: "from old process" }],
+    });
+
+    // A supervisor restart emits no `thread-exited` for the sessions that died
+    // with it, and the fresh process reports an empty live set — the cached
+    // level must not shadow that read forever.
+    server.clearBackgroundTaskLevels();
+    await expect(history()).resolves.toMatchObject({ backgroundTasks: [] });
   });
 
   it("builds shell snapshots from aggregated runtime summaries", async () => {

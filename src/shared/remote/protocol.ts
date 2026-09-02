@@ -2,6 +2,7 @@ import { z } from "zod";
 import { sensitiveAgentSettingKeys } from "../agentSecrets";
 import {
   agentStatusSchema,
+  backgroundTaskSchema,
   cloneRepoSourceSchema,
   projectSchema,
   scheduledTaskIdPayloadSchema,
@@ -584,6 +585,8 @@ export const remoteThreadSnapshotSchema = z.object({
   runtimeNextCursor: z.number().int().nonnegative().nullable().optional(),
   completedTurns: z.array(persistedCompletedTurnSchema),
   contextUsage: threadContextUsageSchema.nullable(),
+  /** Authoritative live background work. Absent on legacy hosts. */
+  backgroundTasks: z.array(backgroundTaskSchema).optional(),
   terminalScrollback: z.string().optional(),
   terminalSize: terminalSizeSchema.optional(),
   updatedAt: z.string().min(1),

@@ -13,7 +13,7 @@ import {
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
-import type { Thread } from "@/shared/contracts";
+import type { BackgroundTask, Thread } from "@/shared/contracts";
 import {
   dbGetProjects,
   dbGetThread,
@@ -125,17 +125,22 @@ export async function buildThreadSnapshot(
 
   let terminalScrollback: string | undefined;
   let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
+  let backgroundTasks: BackgroundTask[] = [];
   try {
-    const [scrollback, size] = await Promise.all([
+    const [scrollback, size, tasks] = await Promise.all([
       ctx.options.callSupervisor("readTerminalScrollback", { threadId }),
       ctx.options.callSupervisor("readTerminalSize", { threadId }),
+      ctx.options.callSupervisor("readThreadBackgroundTasks", { threadId }),
     ]);
     terminalScrollback = scrollback;
     terminalSize = size ?? undefined;
+    backgroundTasks = Array.isArray(tasks) ? tasks : [];
   } catch {
     terminalScrollback = undefined;
     terminalSize = undefined;
+    backgroundTasks = [];
   }
+  backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? backgroundTasks)];
 
   // The terminal reads above cross an async supervisor boundary. Runtime and
   // thread-state events can persist while they are in flight, so re-read the
@@ -165,6 +170,7 @@ export async function buildThreadSnapshot(
       ...(runtimePage ? { runtimeNextCursor: runtimePage.nextCursor } : {}),
       completedTurns: dbGetThreadCompletedTurns(threadId),
       contextUsage: dbGetThreadContextUsage(threadId),
+      backgroundTasks,
       ...(terminalScrollback ? { terminalScrollback } : {}),
       ...(terminalSize ? { terminalSize } : {}),
     }),
