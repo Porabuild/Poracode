@@ -302,6 +302,12 @@ msgstr "{0}件のプロンプト - {when}"
 msgid "{0} prompts - {when}"
 msgstr "{0}件のプロンプト - {when}"
 
+#. placeholder {0}: agent.label
+#. placeholder {1}: update.targetVersion
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "{0} queued for update to v{1}"
+msgstr "{0}はv{1}への更新待ち"
+
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} run"
@@ -9329,10 +9335,15 @@ msgstr "プライバシーポリシー"
 msgid "Private key"
 msgstr "秘密鍵"
 
-#. placeholder {0}: agent.label
 #. placeholder {0}: updateAllProgress.agentLabel
+#. placeholder {1}: updateAllProgress.current
+#. placeholder {2}: updateAllProgress.total
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Probing {0} ({1} of {2})"
+msgstr "{0}を確認中（{1}/{2}）"
+
+#. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
-#. placeholder {1}: updateAllProgress.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Probing {0} v{1}"
 msgstr "{0} v{1}を確認中"
@@ -13585,8 +13596,12 @@ msgid "Update {0} to {updateLabel}"
 msgstr "{0}を{updateLabel}に更新します"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Update all"
-msgstr "すべて更新"
+#~ msgid "Update all"
+#~ msgstr "すべて更新"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Update all ({outdatedCount})"
+msgstr "すべて更新（{outdatedCount}）"
 
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #~ msgid "Update Antigravity"
@@ -13693,10 +13708,23 @@ msgstr "{0}を更新しました"
 msgid "Updating"
 msgstr "更新中"
 
+#. placeholder {0}: updateAllProgress.current
+#. placeholder {1}: updateAllProgress.total
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Updating ({0}/{1})"
+msgstr "更新中（{0}/{1}）"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0}を更新しています"
+
+#. placeholder {0}: updateAllProgress.agentLabel
+#. placeholder {1}: updateAllProgress.current
+#. placeholder {2}: updateAllProgress.total
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Updating {0} ({1} of {2})"
+msgstr "{0}を更新中（{1}/{2}）"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -13704,9 +13732,7 @@ msgid "Updating {0} ({env})"
 msgstr "{0}({env}) を更新しています"
 
 #. placeholder {0}: agent.label
-#. placeholder {0}: updateAllProgress.agentLabel
 #. placeholder {1}: update.targetVersion
-#. placeholder {1}: updateAllProgress.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating {0} to v{1}"
 msgstr "{0}をv{1}に更新しています"
