@@ -17,6 +17,7 @@ import {
   changeThreadConfig,
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
+import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -961,6 +962,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
+                          onManageMcpServers={openMcpServersSettings}
                           pluginLabels={composerPluginLabels}
                           readOnly
                           computerUse={{

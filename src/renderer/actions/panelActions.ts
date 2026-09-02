@@ -104,6 +104,10 @@ export function openWorkspaceSettings(): void {
   usePanelStore.getState().openSettingsSection("workspaces");
 }
 
+export function openMcpServersSettings(): void {
+  usePanelStore.getState().openSettingsSection("mcpServers");
+}
+
 /** Open the docked usage panel, or close all right-side panels if it is already active. */
 export function openUsagePanel(): void {
   const panelStore = usePanelStore.getState();

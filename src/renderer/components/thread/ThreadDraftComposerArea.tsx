@@ -69,6 +69,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
+import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import {
   ExperimentDraftTargets,
@@ -260,6 +261,7 @@ function DraftComposerAfterControls(props: {
       <ComposerAddMenu
         mcpServers={props.mcpServers}
         customMcpServers={props.customMcpServers}
+        onManageMcpServers={openMcpServersSettings}
         pluginLabels={props.pluginLabels}
         {...(props.readOnlyMcp
           ? {

@@ -1,17 +1,16 @@
 import { useState, type ReactNode } from "react";
 import {
+  Cable,
   ChevronLeft,
   ChevronRight,
   FlaskConical,
-  Info,
   Monitor,
   Paperclip,
   Plus,
   Server,
-  Settings2,
 } from "lucide-react";
 import type { Selection } from "@heroui/react";
-import { Dropdown, Label, Separator, Tooltip } from "@heroui/react";
+import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common/Button";
@@ -19,10 +18,23 @@ import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
+import {
+  InfoHint,
+  MenuSwitch,
+  readOnlyRowClassName,
+  submenuCaptionClassName,
+} from "./ComposerAddMenuParts";
 import { COMPUTER_USE_MCP_ID } from "./composerMcpServers";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
+import {
+  ComposerMcpServersMobileList,
+  ComposerMcpServersSubmenuContent,
+  type ComposerCustomMcpItem,
+} from "./ComposerMcpServersMenu";
 
-/** Selection id for the Computer Use row inside the MCP submenu. */
+export type { ComposerCustomMcpItem } from "./ComposerMcpServersMenu";
+
+/** Selection id for the Computer Use row inside the Plugins submenu. */
 const COMPUTER_USE_KEY = COMPUTER_USE_MCP_ID;
 
 export type ComposerMcpMenuItem = {
@@ -32,86 +44,23 @@ export type ComposerMcpMenuItem = {
   onToggle: (next: boolean) => void;
 };
 
-/**
- * A user-configured MCP server (global or workspace scope) surfaced in the
- * submenu. Toggling flips the server's persistent `enabled` flag in settings —
- * the same switch as on the MCP Servers settings page.
- */
-export type ComposerCustomMcpItem = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  /** Omitted in read-only mode (an active thread's bindings can't change). */
-  onToggle?: (next: boolean) => void;
-};
-
 /** Stable empty map so an omitted `pluginLabels` prop doesn't churn renders. */
 const EMPTY_PLUGIN_LABELS: Readonly<Record<string, string>> = {};
 
-/** Menu-selection key prefix so custom ids can never collide with registry ids. */
-const CUSTOM_KEY_PREFIX = "custom:";
-
-/**
- * Presentational switch used inside the MCP rows. The desktop rows are a
- * multi-selection menu, so the accessible checked state comes from selection;
- * this visual is aria-hidden. In `readOnly` mode the track is muted so it
- * does not read as an interactive control.
- */
-function MenuSwitch(props: { checked: boolean; readOnly?: boolean }) {
-  const { checked, readOnly = false } = props;
-  return (
-    <span
-      aria-hidden
-      className={`relative ms-auto h-4 w-7 shrink-0 rounded-full ${
-        readOnly ? "" : "transition-colors"
-      } ${
-        checked
-          ? readOnly
-            ? "bg-success/45"
-            : "bg-success"
-          : readOnly
-            ? "bg-surface-tertiary/70"
-            : "bg-surface-tertiary"
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 size-3 rounded-full bg-white ${
-          readOnly ? "opacity-90" : "transition-transform"
-        } ${checked ? "translate-x-3.5" : "translate-x-0.5"}`}
-      />
-    </span>
-  );
-}
-
-/** Static row chrome for session-bound MCP entries (no hover/press affordance). */
-const readOnlyRowClassName =
-  "flex min-h-7 cursor-default items-center gap-2 rounded px-2 py-0.5 text-xs text-foreground";
-
-/**
- * Compact info affordance for a menu row: the explanation lives in a tooltip
- * so long descriptions do not stretch the menu. The press is swallowed so
- * hitting the icon does not toggle the surrounding row.
- */
-function InfoHint(props: { text: string }) {
-  return (
-    <Tooltip delay={300}>
-      <Tooltip.Trigger
-        aria-label={props.text}
-        className="shrink-0 cursor-help text-muted/70 hover:text-foreground"
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <Info className="size-3.5" aria-hidden />
-      </Tooltip.Trigger>
-      <Tooltip.Content className="max-w-60">{props.text}</Tooltip.Content>
-    </Tooltip>
-  );
-}
+/** Mobile sheet drill-in target: the root list swaps to a sub-list in place. */
+type MobileView = "root" | "plugins" | "mcp";
 
 export function ComposerAddMenu(props: {
+  /** First-party plugin MCP servers, listed under "Plugins". */
   mcpServers: readonly ComposerMcpMenuItem[];
-  /** User-configured servers (global + workspace) listed after the built-ins. */
+  /** User-configured servers (global + workspace), listed under "MCP Servers". */
   customMcpServers?: readonly ComposerCustomMcpItem[];
+  /**
+   * Opens the MCP Servers settings page from the "MCP Servers" submenu. When
+   * provided, the submenu is offered even with no server configured so the
+   * user can always reach management from the composer.
+   */
+  onManageMcpServers?: () => void;
   showFileOption?: boolean;
   onPickFiles: () => void;
   /**
@@ -131,7 +80,7 @@ export function ComposerAddMenu(props: {
   };
   /**
    * Display-only mode for an active thread: MCP bindings were fixed when the
-   * session launched, so the list shows what this run has without switches
+   * session launched, so the lists show what this run has without switches
    * being interactive.
    */
   readOnly?: boolean;
@@ -145,34 +94,36 @@ export function ComposerAddMenu(props: {
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
+  const onManageMcpServers = props.onManageMcpServers;
   const readOnly = props.readOnly === true;
   const pluginLabels = props.pluginLabels ?? EMPTY_PLUGIN_LABELS;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
-  // Mobile sheet drill-in: the root list swaps to the MCP list in place.
-  const [mobileView, setMobileView] = useState<"root" | "mcp">("root");
-  const visibleMcpServers = mcpServers.filter((server) => server.visible);
+  const [mobileView, setMobileView] = useState<MobileView>("root");
+  const visiblePlugins = mcpServers.filter((server) => server.visible);
   const showComputerUse = computerUse?.visible === true;
-  const hasMcpRows = visibleMcpServers.length > 0 || showComputerUse || customMcpServers.length > 0;
-  // Read-only mode keeps the MCP entry visible even with nothing enabled so
-  // the user gets an explicit "none for this run" answer instead of a missing row.
-  const hasMcpMenu = hasMcpRows || readOnly;
+  const hasPluginRows = visiblePlugins.length > 0 || showComputerUse;
+  // Read-only mode keeps both entries visible even with nothing enabled so the
+  // user gets an explicit "none for this run" answer instead of a missing row.
+  const hasPluginsMenu = hasPluginRows || readOnly;
+  const hasMcpServersMenu =
+    customMcpServers.length > 0 || onManageMcpServers !== undefined || readOnly;
   const computerUseLabel = pluginLabels[COMPUTER_USE_MCP_ID] ?? t`Computer Use`;
   const computerUseHint = isRemoteSession()
     ? t`Controls the paired desktop while the agent clicks or types`
     : t`Takes over the desktop while the agent clicks or types`;
   const experimentHint = t`Run one prompt with multiple agents, then compare their work.`;
 
-  // Counts every enabled row the submenu shows, Computer Use included — it is
-  // not a registry entry but it renders as one of the switches, so leaving it
-  // out makes the badge disagree with the list the user opens.
-  const enabledMcpCount =
-    visibleMcpServers.filter((server) => server.enabled).length +
-    customMcpServers.filter((server) => server.enabled).length +
+  // Counts every enabled row the Plugins submenu shows, Computer Use included —
+  // it is not a registry entry but it renders as one of the switches, so
+  // leaving it out makes the badge disagree with the list the user opens.
+  const enabledPluginCount =
+    visiblePlugins.filter((server) => server.enabled).length +
     (showComputerUse && computerUse.enabled ? 1 : 0);
+  const enabledMcpServerCount = customMcpServers.filter((server) => server.enabled).length;
 
-  if (!showFileOption && !hasMcpMenu && !experiment) return null;
+  if (!showFileOption && !hasPluginsMenu && !hasMcpServersMenu && !experiment) return null;
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -180,31 +131,28 @@ export function ComposerAddMenu(props: {
     if (!open) setMobileView("root");
   };
 
-  const handlePickFiles = () => {
+  const closeMenu = () => {
     setIsOpen(false);
     setMobileView("root");
+  };
+
+  const handlePickFiles = () => {
+    closeMenu();
     onPickFiles();
   };
 
-  // The MCP submenu is a multiple-selection menu (Computer Use included as one
-  // of its rows). Diff the new selection against current state to fire only the
-  // single toggle that changed, and never close the parent menu on toggle.
-  const submenuSelectedKeys = new Set<string>([
-    ...visibleMcpServers.filter((server) => server.enabled).map((server) => server.descriptor.id),
-    ...customMcpServers
-      .filter((server) => server.enabled)
-      .map((server) => `${CUSTOM_KEY_PREFIX}${server.id}`),
+  // The Plugins submenu is a multiple-selection menu (Computer Use included as
+  // one of its rows). Diff the new selection against current state to fire only
+  // the single toggle that changed, and never close the parent menu on toggle.
+  const pluginSelectedKeys = new Set<string>([
+    ...visiblePlugins.filter((server) => server.enabled).map((server) => server.descriptor.id),
     ...(showComputerUse && computerUse.enabled ? [COMPUTER_USE_KEY] : []),
   ]);
 
-  const handleSubmenuSelection = (keys: Selection) => {
-    for (const server of visibleMcpServers) {
+  const handlePluginSelection = (keys: Selection) => {
+    for (const server of visiblePlugins) {
       const next = keys !== "all" && keys.has(server.descriptor.id);
       if (next !== server.enabled) server.onToggle(next);
-    }
-    for (const server of customMcpServers) {
-      const next = keys !== "all" && keys.has(`${CUSTOM_KEY_PREFIX}${server.id}`);
-      if (next !== server.enabled) server.onToggle?.(next);
     }
     if (showComputerUse) {
       const next = keys !== "all" && keys.has(COMPUTER_USE_KEY);
@@ -212,14 +160,21 @@ export function ComposerAddMenu(props: {
     }
   };
 
-  const persistenceCaption = readOnly ? (
+  const pluginsCaption = readOnly ? (
     (props.readOnlyCaption ?? (
       <Trans>Set when this session started — start a new thread to change plugins</Trans>
     ))
   ) : (
     <Trans>Enabled plugins stay on for new threads</Trans>
   );
-  const emptyReadOnlyNote = <Trans>No plugins are enabled for this run</Trans>;
+  const emptyPluginsNote = <Trans>No plugins are enabled for this run</Trans>;
+
+  const mcpServersMenuProps = {
+    servers: customMcpServers,
+    readOnly,
+    ...(props.readOnlyCaption !== undefined ? { readOnlyCaption: props.readOnlyCaption } : {}),
+    ...(onManageMcpServers ? { onManage: onManageMcpServers } : {}),
+  };
 
   const button = (
     <Button
@@ -234,7 +189,7 @@ export function ComposerAddMenu(props: {
     </Button>
   );
 
-  // ── Mobile: bottom-sheet with a drill-in for the MCP list ──────────────
+  // ── Mobile: bottom-sheet with drill-ins for the Plugins and MCP lists ─────
   const mobileRootList = (
     <div className="m-sheet-list">
       {showFileOption ? (
@@ -264,14 +219,28 @@ export function ComposerAddMenu(props: {
           <MenuSwitch checked={experiment.enabled} />
         </button>
       ) : null}
-      {hasMcpMenu ? (
-        <button type="button" className="m-sheet-action" onClick={() => setMobileView("mcp")}>
+      {hasPluginsMenu ? (
+        <button type="button" className="m-sheet-action" onClick={() => setMobileView("plugins")}>
           <Server className="size-4 text-muted" />
           <span className="flex-1 truncate">
             <Trans>Plugins</Trans>
           </span>
-          {enabledMcpCount > 0 ? (
-            <span className="shrink-0 text-xs tabular-nums text-muted">{enabledMcpCount}</span>
+          {enabledPluginCount > 0 ? (
+            <span className="shrink-0 text-xs tabular-nums text-muted">{enabledPluginCount}</span>
+          ) : null}
+          <ChevronRight className="size-4 shrink-0 text-muted" />
+        </button>
+      ) : null}
+      {hasMcpServersMenu ? (
+        <button type="button" className="m-sheet-action" onClick={() => setMobileView("mcp")}>
+          <Cable className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>MCP Servers</Trans>
+          </span>
+          {enabledMcpServerCount > 0 ? (
+            <span className="shrink-0 text-xs tabular-nums text-muted">
+              {enabledMcpServerCount}
+            </span>
           ) : null}
           <ChevronRight className="size-4 shrink-0 text-muted" />
         </button>
@@ -279,7 +248,7 @@ export function ComposerAddMenu(props: {
     </div>
   );
 
-  const mobileMcpList = (
+  const mobilePluginsList = (
     <div className="m-sheet-list">
       <button
         type="button"
@@ -292,7 +261,7 @@ export function ComposerAddMenu(props: {
           <Trans>Plugins</Trans>
         </span>
       </button>
-      {visibleMcpServers.map((server) => {
+      {visiblePlugins.map((server) => {
         const Icon = server.descriptor.icon;
         const label = pluginLabels[server.descriptor.id] ?? t(server.descriptor.label);
         return readOnly ? (
@@ -320,34 +289,8 @@ export function ComposerAddMenu(props: {
           </button>
         );
       })}
-      {customMcpServers.map((server) =>
-        readOnly ? (
-          <div
-            key={`${CUSTOM_KEY_PREFIX}${server.id}`}
-            className="m-sheet-action"
-            data-static="true"
-            aria-disabled="true"
-          >
-            <Settings2 className="size-4 text-muted" />
-            <span className="flex-1 truncate">{server.name}</span>
-            <MenuSwitch checked={server.enabled} readOnly />
-          </div>
-        ) : (
-          <button
-            key={`${CUSTOM_KEY_PREFIX}${server.id}`}
-            type="button"
-            className="m-sheet-action"
-            aria-pressed={server.enabled}
-            onClick={() => server.onToggle?.(!server.enabled)}
-          >
-            <Settings2 className="size-4 text-muted" />
-            <span className="flex-1 truncate">{server.name}</span>
-            <MenuSwitch checked={server.enabled} />
-          </button>
-        ),
-      )}
-      {readOnly && !hasMcpRows ? (
-        <p className="px-2 py-1 text-sm text-muted">{emptyReadOnlyNote}</p>
+      {readOnly && !hasPluginRows ? (
+        <p className="px-2 py-1 text-sm text-muted">{emptyPluginsNote}</p>
       ) : null}
       {showComputerUse && readOnly ? (
         <div className="m-sheet-action" data-static="true" aria-disabled="true">
@@ -370,7 +313,7 @@ export function ComposerAddMenu(props: {
           <MenuSwitch checked={computerUse.enabled} />
         </button>
       ) : null}
-      <p className="px-2 pt-0.5 text-[11px] leading-snug text-muted">{persistenceCaption}</p>
+      <p className="px-2 pt-0.5 text-[11px] leading-snug text-muted">{pluginsCaption}</p>
     </div>
   );
 
@@ -385,12 +328,22 @@ export function ComposerAddMenu(props: {
         contentClassName="p-0"
         dialogClassName="overflow-hidden"
       >
-        {mobileView === "mcp" && hasMcpMenu ? mobileMcpList : mobileRootList}
+        {mobileView === "plugins" && hasPluginsMenu ? (
+          mobilePluginsList
+        ) : mobileView === "mcp" && hasMcpServersMenu ? (
+          <ComposerMcpServersMobileList
+            {...mcpServersMenuProps}
+            onBack={() => setMobileView("root")}
+            onManaged={closeMenu}
+          />
+        ) : (
+          mobileRootList
+        )}
       </ResponsiveMenuSurface>
     );
   }
 
-  // ── Desktop: HeroUI dropdown with a real flyout submenu for the MCP list ──
+  // ── Desktop: HeroUI dropdown with real flyout submenus ──────────────────────
   return (
     <Dropdown>
       {button}
@@ -431,16 +384,18 @@ export function ComposerAddMenu(props: {
               <MenuSwitch checked={experiment.enabled} />
             </Dropdown.Item>
           ) : null}
-          {(showFileOption || experiment) && hasMcpMenu ? <Separator /> : null}
-          {hasMcpMenu ? (
+          {(showFileOption || experiment) && (hasPluginsMenu || hasMcpServersMenu) ? (
+            <Separator />
+          ) : null}
+          {hasPluginsMenu ? (
             <Dropdown.SubmenuTrigger>
-              <Dropdown.Item id="mcp-servers" textValue={t`Plugins`}>
+              <Dropdown.Item id="plugins" textValue={t`Plugins`}>
                 <Server className="size-4 text-muted" />
                 <Label className="flex-1 truncate">
                   <Trans>Plugins</Trans>
                 </Label>
-                {enabledMcpCount > 0 ? (
-                  <span className="text-xs tabular-nums text-muted">{enabledMcpCount}</span>
+                {enabledPluginCount > 0 ? (
+                  <span className="text-xs tabular-nums text-muted">{enabledPluginCount}</span>
                 ) : null}
                 <Dropdown.SubmenuIndicator />
               </Dropdown.Item>
@@ -454,7 +409,7 @@ export function ComposerAddMenu(props: {
                       aria-label={t`Plugins`}
                       className="poracode-menu max-h-72 min-w-56 overflow-y-auto p-1"
                     >
-                      {visibleMcpServers.map((server) => {
+                      {visiblePlugins.map((server) => {
                         const Icon = server.descriptor.icon;
                         const label =
                           pluginLabels[server.descriptor.id] ?? t(server.descriptor.label);
@@ -470,17 +425,6 @@ export function ComposerAddMenu(props: {
                           </div>
                         );
                       })}
-                      {customMcpServers.map((server) => (
-                        <div
-                          key={`${CUSTOM_KEY_PREFIX}${server.id}`}
-                          role="listitem"
-                          className={readOnlyRowClassName}
-                        >
-                          <Settings2 className="size-4 shrink-0 text-muted" />
-                          <span className="min-w-0 flex-1 truncate">{server.name}</span>
-                          <MenuSwitch checked={server.enabled} readOnly />
-                        </div>
-                      ))}
                       {showComputerUse ? (
                         <div role="listitem" className={readOnlyRowClassName}>
                           <Monitor className="size-4 shrink-0 text-muted" />
@@ -489,19 +433,19 @@ export function ComposerAddMenu(props: {
                           <MenuSwitch checked={computerUse.enabled} readOnly />
                         </div>
                       ) : null}
-                      {!hasMcpRows ? (
-                        <p className="px-2 py-1.5 text-sm text-muted">{emptyReadOnlyNote}</p>
+                      {!hasPluginRows ? (
+                        <p className="px-2 py-1.5 text-sm text-muted">{emptyPluginsNote}</p>
                       ) : null}
                     </div>
                   ) : (
                     <Dropdown.Menu
                       aria-label={t`Plugins`}
                       selectionMode="multiple"
-                      selectedKeys={submenuSelectedKeys}
-                      onSelectionChange={handleSubmenuSelection}
+                      selectedKeys={pluginSelectedKeys}
+                      onSelectionChange={handlePluginSelection}
                       className="poracode-menu max-h-72 min-w-56 overflow-y-auto"
                     >
-                      {visibleMcpServers.map((server) => {
+                      {visiblePlugins.map((server) => {
                         const Icon = server.descriptor.icon;
                         const label =
                           pluginLabels[server.descriptor.id] ?? t(server.descriptor.label);
@@ -517,17 +461,6 @@ export function ComposerAddMenu(props: {
                           </Dropdown.Item>
                         );
                       })}
-                      {customMcpServers.map((server) => (
-                        <Dropdown.Item
-                          key={`${CUSTOM_KEY_PREFIX}${server.id}`}
-                          id={`${CUSTOM_KEY_PREFIX}${server.id}`}
-                          textValue={server.name}
-                        >
-                          <Settings2 className="size-4 text-muted" />
-                          <Label className="flex-1 truncate">{server.name}</Label>
-                          <MenuSwitch checked={server.enabled} />
-                        </Dropdown.Item>
-                      ))}
                       {showComputerUse ? (
                         <Dropdown.Item id={COMPUTER_USE_KEY} textValue={computerUseLabel}>
                           <Monitor className="size-4 shrink-0 text-muted" />
@@ -538,10 +471,25 @@ export function ComposerAddMenu(props: {
                       ) : null}
                     </Dropdown.Menu>
                   )}
-                  <p className="border-t border-border px-3 py-1.5 text-[11px] leading-snug text-muted">
-                    {persistenceCaption}
-                  </p>
+                  <p className={submenuCaptionClassName}>{pluginsCaption}</p>
                 </div>
+              </Dropdown.Popover>
+            </Dropdown.SubmenuTrigger>
+          ) : null}
+          {hasMcpServersMenu ? (
+            <Dropdown.SubmenuTrigger>
+              <Dropdown.Item id="mcp-servers" textValue={t`MCP Servers`}>
+                <Cable className="size-4 text-muted" />
+                <Label className="flex-1 truncate">
+                  <Trans>MCP Servers</Trans>
+                </Label>
+                {enabledMcpServerCount > 0 ? (
+                  <span className="text-xs tabular-nums text-muted">{enabledMcpServerCount}</span>
+                ) : null}
+                <Dropdown.SubmenuIndicator />
+              </Dropdown.Item>
+              <Dropdown.Popover>
+                <ComposerMcpServersSubmenuContent {...mcpServersMenuProps} />
               </Dropdown.Popover>
             </Dropdown.SubmenuTrigger>
           ) : null}

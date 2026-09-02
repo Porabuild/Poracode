@@ -1780,6 +1780,7 @@ msgstr "Revisão pendente"
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Voltar"
@@ -4738,6 +4739,10 @@ msgstr "Habilitado"
 msgid "Enabled agents, model visibility and order"
 msgstr "Agentes ativados, visibilidade e ordem de modelos"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Enabled MCP servers stay on for new threads"
+msgstr "Os servidores MCP ativados permanecem ativos para novos tópicos"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Enabled plugins stay on for new threads"
 msgstr "Os plugins ativados permanecem ativos para novos tópicos"
@@ -6868,6 +6873,10 @@ msgstr "Gerenciar"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Gerencie skills globais e de projeto dos agentes, inclusive skills importadas de outros provedores."
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Manage MCP servers"
+msgstr "Gerenciar servidores MCP"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
 #~ msgstr "Gerenciar ambientes remotos"
@@ -7028,6 +7037,10 @@ msgstr "MCP"
 msgid "MCP server"
 msgstr "Servidor MCP"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "MCP server actions"
+msgstr "Ações de servidores MCP"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
 msgstr "Argumentos do servidor MCP"
@@ -7083,6 +7096,8 @@ msgstr "URL do servidor MCP"
 msgid "MCP servers"
 msgstr "Servidores MCP"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -8025,9 +8040,13 @@ msgstr "Nenhum agendamento correspondente."
 msgid "No matching threads"
 msgstr "Não há tópicos correspondentes"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "No MCP servers are enabled for this run"
-#~ msgstr "Nenhum servidor MCP está habilitado para esta execução"
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Nenhum servidor MCP está habilitado para esta execução"
+
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "No MCP servers configured"
+msgstr "Nenhum servidor MCP configurado"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -11257,6 +11276,10 @@ msgstr "Definir ou visualizar uma meta experimental"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "Definir atalho"
+
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Set when this session started — start a new thread to change MCP servers"
+msgstr "Definido quando esta sessão começou — inicie um novo tópico para mudar os servidores MCP"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Set when this session started — start a new thread to change plugins"
