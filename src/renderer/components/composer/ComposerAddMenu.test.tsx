@@ -29,6 +29,13 @@ function openMcpSubmenu() {
   });
 }
 
+/** Open the user-configured "MCP Servers" flyout submenu (desktop). */
+function openMcpServersSubmenu() {
+  act(() => {
+    fireEvent.click(screen.getByText("MCP Servers"));
+  });
+}
+
 describe("ComposerAddMenu", () => {
   beforeEach(() => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
@@ -371,12 +378,12 @@ describe("ComposerAddMenu", () => {
     );
 
     openMenu();
-    // Count badge includes built-in + custom servers bound to this run.
-    expect(screen.getByText("2")).toBeInTheDocument();
+    // Plugins and custom MCP servers each carry their own badge.
+    expect(screen.getAllByText("1")).toHaveLength(2);
     openMcpSubmenu();
 
     expect(screen.getByText("Browser")).toBeInTheDocument();
-    expect(screen.getByText("context7")).toBeInTheDocument();
+    expect(screen.queryByText("context7")).not.toBeInTheDocument();
     expect(
       screen.getByText("Set when this session started — start a new thread to change plugins"),
     ).toBeInTheDocument();
@@ -434,6 +441,126 @@ describe("ComposerAddMenu", () => {
     openMcpSubmenu();
 
     expect(screen.getByText("No plugins are enabled for this run")).toBeInTheDocument();
+  });
+
+  describe("MCP Servers submenu", () => {
+    it("lists user-configured servers separately from plugins and toggles one", () => {
+      const context7Toggle = vi.fn<(next: boolean) => void>();
+      render(
+        <ComposerAddMenu
+          mcpServers={[
+            {
+              descriptor: browserMcpServer,
+              enabled: true,
+              visible: true,
+              onToggle: vi.fn<(next: boolean) => void>(),
+            },
+          ]}
+          customMcpServers={[
+            { id: "user:context7", name: "context7", enabled: false, onToggle: context7Toggle },
+            { id: "project:linear", name: "linear", enabled: true },
+          ]}
+          showFileOption={false}
+          onPickFiles={vi.fn<() => void>()}
+        />,
+      );
+
+      openMenu();
+      expect(screen.getByText("Plugins")).toBeInTheDocument();
+      expect(screen.getByText("MCP Servers")).toBeInTheDocument();
+      // One enabled plugin, one enabled custom server — separate badges.
+      expect(screen.getAllByText("1")).toHaveLength(2);
+
+      openMcpServersSubmenu();
+      expect(screen.getByText("context7")).toBeInTheDocument();
+      expect(screen.getByText("linear")).toBeInTheDocument();
+      expect(screen.queryByText("Browser")).not.toBeInTheDocument();
+      expect(screen.getByText("Enabled MCP servers stay on for new threads")).toBeInTheDocument();
+
+      act(() => {
+        fireEvent.click(screen.getByText("context7"));
+      });
+      expect(context7Toggle).toHaveBeenCalledTimes(1);
+      expect(context7Toggle).toHaveBeenCalledWith(true);
+    });
+
+    it("offers management even with no server configured", () => {
+      const onManage = vi.fn<() => void>();
+      render(
+        <ComposerAddMenu
+          mcpServers={[]}
+          customMcpServers={[]}
+          onManageMcpServers={onManage}
+          showFileOption={false}
+          onPickFiles={vi.fn<() => void>()}
+        />,
+      );
+
+      openMenu();
+      expect(screen.queryByText("Plugins")).not.toBeInTheDocument();
+      openMcpServersSubmenu();
+
+      expect(screen.getByText("No MCP servers configured")).toBeInTheDocument();
+      act(() => {
+        fireEvent.click(screen.getByText("Manage MCP servers"));
+      });
+      expect(onManage).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the submenu without servers or a manage action", () => {
+      render(
+        <ComposerAddMenu mcpServers={[]} customMcpServers={[]} onPickFiles={vi.fn<() => void>()} />,
+      );
+
+      openMenu();
+      expect(screen.getByText("File")).toBeInTheDocument();
+      expect(screen.queryByText("MCP Servers")).not.toBeInTheDocument();
+    });
+
+    it("shows read-only session bindings as a static list", () => {
+      const onToggle = vi.fn<(next: boolean) => void>();
+      render(
+        <ComposerAddMenu
+          readOnly
+          mcpServers={[]}
+          customMcpServers={[{ id: "context7", name: "context7", enabled: true, onToggle }]}
+          showFileOption={false}
+          onPickFiles={vi.fn<() => void>()}
+        />,
+      );
+
+      openMenu();
+      openMcpServersSubmenu();
+
+      expect(screen.getByRole("list", { name: "MCP Servers" })).toBeInTheDocument();
+      expect(screen.getByText("context7")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Set when this session started — start a new thread to change MCP servers",
+        ),
+      ).toBeInTheDocument();
+      act(() => {
+        fireEvent.click(screen.getByText("context7"));
+      });
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it("shows an explicit empty state in read-only mode", () => {
+      render(
+        <ComposerAddMenu
+          readOnly
+          mcpServers={[]}
+          customMcpServers={[]}
+          showFileOption={false}
+          onPickFiles={vi.fn<() => void>()}
+        />,
+      );
+
+      openMenu();
+      openMcpServersSubmenu();
+
+      expect(screen.getByText("No MCP servers are enabled for this run")).toBeInTheDocument();
+    });
   });
 
   it("shows a paired-desktop hint for Computer Use in a remote session", () => {

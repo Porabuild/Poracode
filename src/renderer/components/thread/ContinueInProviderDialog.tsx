@@ -55,6 +55,7 @@ import {
   type ComposerCustomMcpItem,
   type ComposerMcpMenuItem,
 } from "../composer/ComposerAddMenu";
+import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
@@ -1038,6 +1039,11 @@ export function ContinueInProviderDialog(props: {
                         <ComposerAddMenu
                           mcpServers={mcpMenuServers}
                           customMcpServers={mcpMenuCustomServers}
+                          onManageMcpServers={() => {
+                            // Settings sit behind the modal — dismiss it first.
+                            handleCancel();
+                            openMcpServersSettings();
+                          }}
                           pluginLabels={composerPluginLabels}
                           {...(providerOwnsMcp && mcpControlsAvailable
                             ? {

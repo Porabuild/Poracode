@@ -1779,6 +1779,7 @@ msgstr "レビュー保留中"
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "戻る"
@@ -4737,6 +4738,10 @@ msgstr "有効"
 msgid "Enabled agents, model visibility and order"
 msgstr "有効なエージェント、モデルの表示と順序"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Enabled MCP servers stay on for new threads"
+msgstr "有効なMCPサーバーは新しいスレッドでも有効なままです"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Enabled plugins stay on for new threads"
 msgstr "有効なプラグインは新しいスレッドでも有効なままです"
@@ -6867,6 +6872,10 @@ msgstr "管理"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "他のプロバイダーからインポートしたスキルを含む、グローバルおよびプロジェクトのエージェントスキルを管理します。"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Manage MCP servers"
+msgstr "MCPサーバーを管理"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
 #~ msgstr "リモート環境を管理"
@@ -7027,6 +7036,10 @@ msgstr "MCP"
 msgid "MCP server"
 msgstr "MCPサーバー"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "MCP server actions"
+msgstr "MCPサーバーの操作"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
 msgstr "MCPサーバーの引数"
@@ -7082,6 +7095,8 @@ msgstr "MCPサーバーのURL"
 msgid "MCP servers"
 msgstr "MCPサーバー"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -8023,9 +8038,13 @@ msgstr "一致するスケジュールはありません。"
 msgid "No matching threads"
 msgstr "一致するスレッドがありません"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "No MCP servers are enabled for this run"
-#~ msgstr "この実行で有効な MCP サーバーはありません"
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "この実行で有効な MCP サーバーはありません"
+
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "No MCP servers configured"
+msgstr "MCPサーバーが設定されていません"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -11255,6 +11274,10 @@ msgstr "実験目標を設定または表示する"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "ショートカットを設定"
+
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Set when this session started — start a new thread to change MCP servers"
+msgstr "このセッションの開始時に確定されます — MCPサーバーを変更するには新しいスレッドを開始してください"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Set when this session started — start a new thread to change plugins"

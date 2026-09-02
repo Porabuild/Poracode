@@ -1780,6 +1780,7 @@ msgstr "검토 대기 중"
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "뒤로"
@@ -4738,6 +4739,10 @@ msgstr "활성화됨"
 msgid "Enabled agents, model visibility and order"
 msgstr "활성화된 에이전트, 모델 표시 여부 및 순서"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Enabled MCP servers stay on for new threads"
+msgstr "활성화된 MCP 서버는 새 스레드에서도 계속 켜져 있습니다"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Enabled plugins stay on for new threads"
 msgstr "활성화된 플러그인은 새 스레드에서도 계속 켜져 있습니다"
@@ -6868,6 +6873,10 @@ msgstr "관리"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "다른 제공자에서 가져온 스킬을 포함하여 전역 및 프로젝트 에이전트 스킬을 관리합니다."
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Manage MCP servers"
+msgstr "MCP 서버 관리"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
 #~ msgstr "원격 환경 관리"
@@ -7028,6 +7037,10 @@ msgstr "MCP"
 msgid "MCP server"
 msgstr "MCP 서버"
 
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "MCP server actions"
+msgstr "MCP 서버 작업"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP server arguments"
 msgstr "MCP 서버 인수"
@@ -7083,6 +7096,8 @@ msgstr "MCP 서버 URL"
 msgid "MCP servers"
 msgstr "MCP 서버"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -8025,9 +8040,13 @@ msgstr "일치하는 일정이 없습니다."
 msgid "No matching threads"
 msgstr "일치하는 스레드 없음"
 
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "No MCP servers are enabled for this run"
-#~ msgstr "이 실행에 활성화된 MCP 서버가 없습니다"
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "이 실행에 활성화된 MCP 서버가 없습니다"
+
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "No MCP servers configured"
+msgstr "구성된 MCP 서버가 없습니다"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
@@ -11257,6 +11276,10 @@ msgstr "실험 목표 설정 또는 보기"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "단축키 설정"
+
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+msgid "Set when this session started — start a new thread to change MCP servers"
+msgstr "이 세션 시작 시 확정됨 — MCP 서버를 변경하려면 새 스레드를 시작하세요"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Set when this session started — start a new thread to change plugins"
