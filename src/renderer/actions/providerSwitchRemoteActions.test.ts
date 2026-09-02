@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "../state/appStore";
 import { useRemoteServersStore } from "../state/remoteServersStore";
 import { continueRemoteThreadInNewThread } from "./providerSwitchRemoteActions";
-import { buildTranscriptContext } from "./handoffTranscript";
 import type { Thread } from "@/shared/contracts";
 
 const originalPoracode = window.poracode;
@@ -247,77 +246,5 @@ describe("continueRemoteThreadInNewThread", () => {
     expect(
       useAppStore.getState().threads.filter((t) => t.remoteServerId === "d1" && t.done !== true),
     ).toHaveLength(1);
-  });
-
-  it("stops formatting transcript history once the handoff character budget is filled", () => {
-    const source = seedSource();
-    const olderItem = Object.defineProperty(
-      {
-        id: "older",
-        type: "user_message",
-        state: "completed",
-        streams: {},
-      },
-      "payload",
-      {
-        get: () => {
-          throw new Error("older transcript item should not be formatted");
-        },
-      },
-    );
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [source.id]: ["older", "latest"] },
-      runtimeItemsByIdByThread: {
-        [source.id]: {
-          older: olderItem,
-          latest: {
-            id: "latest",
-            type: "command_execution",
-            state: "completed",
-            payload: { command: "build" },
-            streams: { command_output: "x".repeat(60_000) },
-          },
-        },
-      },
-    } as never);
-
-    const result = buildTranscriptContext(source, "Claude");
-
-    expect(result?.summary).toContain("[earlier transcript truncated]");
-    expect(result?.summary).toContain("x".repeat(1_000));
-  });
-
-  it("keeps visible assistant attachments while omitting suppressed display text", () => {
-    const source = seedSource();
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [source.id]: ["assistant"] },
-      runtimeItemsByIdByThread: {
-        [source.id]: {
-          assistant: {
-            id: "assistant",
-            type: "assistant_message",
-            state: "completed",
-            payload: {
-              content: [
-                { kind: "text", text: "" },
-                {
-                  kind: "image",
-                  mimeType: "image/png",
-                  dataUrl: "data:image/png;base64,eA==",
-                  name: "kept.png",
-                },
-              ],
-              displayAuthoritative: true,
-            },
-            streams: { assistant_text: "Suppressed secret" },
-          },
-        },
-      },
-    } as never);
-
-    const result = buildTranscriptContext(source, "Claude");
-
-    expect(result?.summary).toContain("Assistant:\n[image: kept.png]");
-    expect(result?.summary).not.toContain("Suppressed secret");
   });
 });

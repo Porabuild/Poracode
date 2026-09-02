@@ -6383,7 +6383,7 @@ msgstr "Dahili komutlar ve ajanlar"
 msgid "Interrupted"
 msgstr "Kesintiye uğradı"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/state/slices/staleSubAgents.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Kesintiye uğradı: Ajan oturumu tamamlanmadan sona erdi."
 
@@ -12807,6 +12807,10 @@ msgstr "Bu konu bağlam aktarılmadan sağlayıcı değiştirdi: {agent}, Poraco
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 #~ msgstr "Bu iş parçacığı <0>{0}</0> çalışma ağacını kullanıyor. Ayrıca çalışma ağacı dizini de kaldırılsın mı?"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "Bu konu bağlam aktarılmadan fork olarak oluşturuldu: {agent}, Poracode'un read_thread aracı olmadan başlatıldığı için özgün konuşmayı okuyamıyor. app-controls MCP aracını yeniden etkinleştirin veya ihtiyaç duyduğu bilgileri özetleyin."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."

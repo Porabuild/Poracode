@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { resolveProviderHandoffStrategy } from "./providerHandoff";
 
 const reachable = {
-  intent: "switch" as const,
   isMirroredThread: false,
   readThreadToolEnabled: true,
   threadResolvedReadThreadTool: true,
@@ -10,7 +9,7 @@ const reachable = {
 };
 
 describe("resolveProviderHandoffStrategy", () => {
-  it("hands chat → chat the thread itself", () => {
+  it("hands chat → chat the thread itself, for a switch and for a fork alike", () => {
     expect(
       resolveProviderHandoffStrategy({
         ...reachable,
@@ -30,17 +29,6 @@ describe("resolveProviderHandoffStrategy", () => {
         ...reachable,
         sourcePresentationMode: source,
         targetPresentationMode: target,
-      }),
-    ).toBe("context-file");
-  });
-
-  it("writes a context file for a fork, which lands in a thread of its own", () => {
-    expect(
-      resolveProviderHandoffStrategy({
-        ...reachable,
-        intent: "fork",
-        sourcePresentationMode: "gui",
-        targetPresentationMode: "gui",
       }),
     ).toBe("context-file");
   });

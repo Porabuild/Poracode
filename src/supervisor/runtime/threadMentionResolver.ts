@@ -1,7 +1,14 @@
 import type { PromptSegment } from "@/shared/contracts";
 
+const THREAD_MENTION_PREFIX = "[thread mention] ";
+
 function threadMentionInstruction(mention: Extract<PromptSegment, { kind: "thread" }>): string {
-  return `[thread mention] The user referenced another Poracode thread (thread_id: ${JSON.stringify(mention.threadId)}). Read its conversation with the poracode MCP tool read_thread using this thread_id (get_thread returns metadata). Fetch additional pages only if needed.`;
+  return `${THREAD_MENTION_PREFIX}The user referenced another Poracode thread (thread_id: ${JSON.stringify(mention.threadId)}). Read its conversation with the poracode MCP tool read_thread using this thread_id (get_thread returns metadata). Fetch additional pages only if needed.`;
+}
+
+/** True for the text segment `resolveThreadMentionSegments` made from a mention. */
+export function isResolvedThreadMentionSegment(segment: PromptSegment): boolean {
+  return segment.kind === "text" && segment.content.startsWith(THREAD_MENTION_PREFIX);
 }
 
 export function resolveThreadMentionSegments(segments: PromptSegment[]): PromptSegment[] {

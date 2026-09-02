@@ -166,6 +166,14 @@ export class ThreadOutputPipeline {
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
+      // Ride along on every state change so the renderer learns whether this
+      // session resolved `read_thread` as soon as it launches. Without this the
+      // flag only travelled in pulled snapshots, which a client refetches on
+      // navigation — so a fresh thread looked tool-less until the user
+      // happened to switch views, and its handoff fell back to a context file.
+      ...(session.threadMentionToolsAvailable !== undefined
+        ? { threadMentionToolsAvailable: session.threadMentionToolsAvailable }
+        : {}),
       canResumeWithConfig: session.canResumeWithConfig,
       threadStatusSource: resolveThreadStatusSource(
         session,

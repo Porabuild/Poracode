@@ -290,12 +290,23 @@ export const extractContextPayloadSchema = z.object({
 });
 export type ExtractContextPayload = z.infer<typeof extractContextPayloadSchema>;
 
+/**
+ * What `summary` holds. A provider-produced compaction is a "summary"; the
+ * thread's own chat history, copied verbatim, is a "transcript". The handoff
+ * prompt describes the attached file differently for each, so the incoming
+ * provider knows whether it is reading a digest or the actual prior turns.
+ * Absent means "summary": that is all extraction ever produced before this
+ * field existed.
+ */
+export type ExtractContextContentKind = "summary" | "transcript";
+
 export interface ExtractContextResult {
   summary: string;
   sourceProvider: string;
   sourceSessionId: string;
   worktreePath?: string;
   extractedAt: string;
+  contentKind?: ExtractContextContentKind;
 }
 
 export interface GitBranchInfo {

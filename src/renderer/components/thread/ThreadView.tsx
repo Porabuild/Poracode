@@ -77,6 +77,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.pendingLaunchSegments === next.pendingLaunchSegments &&
     prev.pendingLaunchUserMessageItemId === next.pendingLaunchUserMessageItemId &&
     prev.pendingLaunchProviderSwitch === next.pendingLaunchProviderSwitch &&
+    prev.pendingLaunchMentionHandoff === next.pendingLaunchMentionHandoff &&
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.paneAlign === next.paneAlign &&
@@ -107,6 +108,7 @@ export type ThreadViewProps = {
   pendingLaunchSegments?: PromptSegment[];
   pendingLaunchUserMessageItemId?: string;
   pendingLaunchProviderSwitch?: PendingLaunchProviderSwitch;
+  pendingLaunchMentionHandoff?: true;
   isWsl?: boolean;
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
@@ -165,6 +167,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     pendingLaunchSegments,
     pendingLaunchUserMessageItemId,
     pendingLaunchProviderSwitch,
+    pendingLaunchMentionHandoff,
     isWsl,
     showCloseButton,
     paneAlign = "center",
@@ -277,6 +280,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           ? { userMessageItemId: pendingLaunchUserMessageItemId }
           : {}),
         ...(pendingLaunchProviderSwitch ? { providerSwitch: pendingLaunchProviderSwitch } : {}),
+        ...(pendingLaunchMentionHandoff ? { mentionHandoff: true as const } : {}),
         initialSize: launchTerminalSize,
       });
     })()
@@ -297,6 +301,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     pendingLaunchSegments,
     pendingLaunchUserMessageItemId,
     pendingLaunchProviderSwitch,
+    pendingLaunchMentionHandoff,
     projectLocation,
     launchTerminalSize,
     thread,

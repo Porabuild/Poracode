@@ -67,6 +67,7 @@ import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import {
   buildProviderHandoffInstruction,
+  isResolvedThreadMentionSegment,
   resolveThreadMentionSegments,
 } from "../threadMentionResolver";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
@@ -353,7 +354,7 @@ export class SpawnPipeline {
           segments: wslSegments,
         })) ?? wslSegments)
       : wslSegments;
-    const effectiveSegments =
+    let effectiveSegments =
       !useStructuredFlow && policySegments?.some((segment) => segment.kind === "skill")
         ? ((await ctx.options.rewriteTerminalSkillSegments?.({
             agentKind: payload.agentKind,
@@ -362,10 +363,11 @@ export class SpawnPipeline {
             segments: policySegments,
           })) ?? policySegments)
         : policySegments;
-    const initialPrompt =
+    const formatPrompt = (segments: PromptSegment[]): string =>
+      adapter.formatPromptSegments?.(segments) ?? defaultFormatPromptSegments(segments);
+    let initialPrompt =
       effectiveSegments && effectiveSegments.length > 0
-        ? (adapter.formatPromptSegments?.(effectiveSegments) ??
-          defaultFormatPromptSegments(effectiveSegments))
+        ? formatPrompt(effectiveSegments)
         : payload.prompt.trim();
     // Portable-skills fallback for the initial structured turn: inline SKILL.md
     // instructions for invoked skills this provider can't load natively.
@@ -490,6 +492,26 @@ export class SpawnPipeline {
       presentationMode: requestedPresentation,
     });
     const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
+    // A fork handoff reads its source thread through the mention in its own
+    // prompt (see `buildForkMentionLaunchInput`), so its whole context rides on
+    // `read_thread` resolving. When it does not, no mention is readable, so
+    // degrade the way a "thread-transcript" switch does — drop them all, start
+    // anyway, and say so — rather than failing a launch the user did not
+    // hand-write. Launches without the marker (a mention the user typed
+    // themselves) still fail loudly below.
+    const handoffMentionUnresolved =
+      payload.mentionHandoff === true &&
+      !threadMentionToolsAvailable &&
+      payload.segments?.some((segment) => segment.kind === "thread") === true;
+    if (handoffMentionUnresolved) {
+      effectiveSegments = effectiveSegments?.filter(
+        (segment) => !isResolvedThreadMentionSegment(segment),
+      );
+      initialPrompt =
+        effectiveSegments && effectiveSegments.length > 0
+          ? formatPrompt(effectiveSegments)
+          : payload.prompt.trim();
+    }
     // A "thread-transcript" switch (chat → chat) keeps the thread id and the
     // whole transcript, so the incoming provider reads the prior conversation
     // straight from the app database instead of being handed a summary. Every
@@ -513,7 +535,8 @@ export class SpawnPipeline {
         : (handoffInstruction ?? inlineSkillInstructions);
     if (
       payload.segments?.some((segment) => segment.kind === "thread") &&
-      !threadMentionToolsAvailable
+      !threadMentionToolsAvailable &&
+      payload.mentionHandoff !== true
     ) {
       throw new Error(
         "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
@@ -590,13 +613,15 @@ export class SpawnPipeline {
           );
           this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
         }
-        if (transcriptHandoffLost) {
-          ctx.runtimeEventRouter.append(payload.threadId, {
-            type: "warning",
-            threadId: payload.threadId,
-            message: msg("supervisor.handoffTranscriptUnavailable", { agent: adapter.label }),
-          });
-        }
+      }
+      if (transcriptHandoffLost || handoffMentionUnresolved) {
+        ctx.runtimeEventRouter.append(payload.threadId, {
+          type: "warning",
+          threadId: payload.threadId,
+          message: handoffMentionUnresolved
+            ? msg("supervisor.forkTranscriptUnavailable", { agent: adapter.label })
+            : msg("supervisor.handoffTranscriptUnavailable", { agent: adapter.label }),
+        });
       }
       const resolvedSessionRef =
         payload.sessionRef ??

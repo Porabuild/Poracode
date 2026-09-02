@@ -1,11 +1,7 @@
 import type { ProviderHandoffContextStrategy, ThreadPresentationMode } from "./contracts";
 import { continuesInPlace } from "./continueProviderRanking";
 
-/** What the user asked the handoff dialog for: a replacement thread, or a switch. */
-export type ProviderHandoffIntent = "fork" | "switch";
-
 export interface ProviderHandoffStrategyInput {
-  intent: ProviderHandoffIntent;
   sourcePresentationMode: ThreadPresentationMode;
   targetPresentationMode: ThreadPresentationMode;
   /** True for a mirrored thread, whose transcript lives on its host. */
@@ -21,14 +17,15 @@ export interface ProviderHandoffStrategyInput {
 /**
  * How a handoff hands the prior conversation to the incoming provider.
  *
- * - **chat → chat** (an in-place switch) is "thread-transcript": the thread
- *   keeps its id and every persisted row, so the new provider gets the id and
- *   reads the conversation itself. Nothing is extracted — a summary run would
- *   spend a one-shot turn on the provider being left behind, which is usually
- *   the one that ran out of quota and prompted the switch.
- * - **chat → cli**, **cli → cli**, **cli → chat**, and every fork are
- *   "context-file": each lands in a different thread, or in a PTY that has no
- *   persisted rows to read, so the id buys the new provider nothing and the
+ * - **chat → chat**, switch or fork, is "thread-transcript": the source
+ *   thread's rows stay in the app database, so the new provider reads them
+ *   itself with the built-in `read_thread` tool. An in-place switch reads its
+ *   own thread; a fork reads the source thread through a thread mention in
+ *   its first prompt. Nothing is copied or summarized, and the new provider
+ *   pulls only as much history as it needs instead of carrying it all in its
+ *   first message.
+ * - **chat → cli**, **cli → cli**, and **cli → chat** are "context-file": a
+ *   PTY has no persisted rows to read and cannot call the tool, so the
  *   context has to travel with the prompt.
  *
  * The transcript route additionally needs the thread to be local (a mirrored
@@ -41,10 +38,8 @@ export interface ProviderHandoffStrategyInput {
 export function resolveProviderHandoffStrategy(
   input: ProviderHandoffStrategyInput,
 ): ProviderHandoffContextStrategy {
-  const handsOverTheSameThread =
-    input.intent === "switch" &&
-    continuesInPlace(input.sourcePresentationMode, input.targetPresentationMode);
-  return handsOverTheSameThread &&
+  const chatToChat = continuesInPlace(input.sourcePresentationMode, input.targetPresentationMode);
+  return chatToChat &&
     !input.isMirroredThread &&
     input.readThreadToolEnabled &&
     input.threadResolvedReadThreadTool &&

@@ -28,6 +28,7 @@ import { recordThreadStarted } from "../usageRecorder";
 import { removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { terminateStaleSubAgentItems } from "./staleSubAgents";
 
 export interface ThreadSlice {
   threads: Thread[];
@@ -360,8 +361,28 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       // records its own set.
       const { [threadId]: _droppedMcpNames, ...mcpLaunchCustomServerNamesByThreadId } =
         state.mcpLaunchCustomServerNamesByThreadId;
+      // Sub-agents and Crossagents runs still shown as running belong to the
+      // session being torn down; the supervisor cancels them with it, but their
+      // rows would keep spinning here and hold the composer dock open. Finalize
+      // them now, before the new provider paints anything, so every row above
+      // the divider reads as settled history. The plan and goal docks already
+      // scope themselves to the current provider era.
+      const items = state.runtimeItemsByIdByThread[threadId];
+      const settledItems = items ? terminateStaleSubAgentItems(items) : undefined;
       return {
         threads,
+        ...(settledItems
+          ? {
+              runtimeItemsByIdByThread: {
+                ...state.runtimeItemsByIdByThread,
+                [threadId]: settledItems,
+              },
+              runtimeStructuralVersionByThread: {
+                ...state.runtimeStructuralVersionByThread,
+                [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+              },
+            }
+          : {}),
         runtimeLaunchConfigByThreadId,
         threadMentionToolsAvailableByThreadId,
         ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),

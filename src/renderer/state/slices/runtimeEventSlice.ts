@@ -1,4 +1,3 @@
-import { msg } from "@lingui/core/macro";
 import type {
   CanonicalItemType,
   CanonicalRequestType,
@@ -8,11 +7,8 @@ import type {
   RuntimeContentStreamKind,
   RuntimeEvent,
   ThreadContextUsage,
-  ToolCallPayload,
 } from "@/shared/contracts";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
-import { i18n } from "@/renderer/i18n/i18n";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import {
@@ -20,8 +16,7 @@ import {
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
-
-const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
+import { terminateStaleSubAgentItems } from "./staleSubAgents";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -271,13 +266,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
     set((state) => {
       const items = state.runtimeItemsByIdByThread[threadId];
       if (!items) return {};
-      let nextItems: Record<string, RuntimeChatItem> | undefined;
-      for (const [id, item] of Object.entries(items)) {
-        if (options?.preserveObservedLive === true && item.observedLive === true) continue;
-        if (!isStaleSubAgentItem(item)) continue;
-        nextItems ??= { ...items };
-        nextItems[id] = terminateSubAgentItem(item);
-      }
+      const nextItems = terminateStaleSubAgentItems(items, options);
       if (!nextItems) return {};
       return {
         runtimeItemsByIdByThread: {
@@ -503,33 +492,3 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 });
-
-function isStaleSubAgentItem(item: RuntimeChatItem): boolean {
-  if (item.type !== "tool_call") return false;
-  const payload = item.payload as ToolCallPayload | undefined;
-  if (!isDelegatedAgentTool(payload)) return false;
-  return item.state !== "completed" || payload?.status === "running";
-}
-
-function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
-  const payload: ToolCallPayload = (item.payload as ToolCallPayload | undefined) ?? {
-    name: "Task",
-    status: "error",
-  };
-  const nextPayload: ToolCallPayload = {
-    ...payload,
-    status: "error",
-    ...(payload.isCrossagent &&
-    (payload.crossagentStatus === undefined || payload.crossagentStatus === "running")
-      ? { crossagentStatus: "failed" as const }
-      : {}),
-    ...(payload.result === undefined
-      ? { result: { error: i18n._(STALE_SUB_AGENT_ERROR_MESSAGE) } }
-      : {}),
-  };
-  return {
-    ...item,
-    state: "completed",
-    payload: nextPayload,
-  };
-}

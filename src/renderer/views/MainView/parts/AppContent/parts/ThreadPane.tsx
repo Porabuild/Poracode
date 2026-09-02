@@ -74,6 +74,7 @@ export function ThreadPane(props: {
     segments: pendingLaunchSegments,
     userMessageItemId: pendingLaunchUserMessageItemId,
     providerSwitch: pendingLaunchProviderSwitch,
+    mentionHandoff: pendingLaunchMentionHandoff,
   } = useThreadPendingLaunch(props.threadId);
   const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = useAppStore.getState();
 
@@ -183,6 +184,7 @@ export function ThreadPane(props: {
       {...(pendingLaunchSegments ? { pendingLaunchSegments } : {})}
       {...(pendingLaunchUserMessageItemId ? { pendingLaunchUserMessageItemId } : {})}
       {...(pendingLaunchProviderSwitch ? { pendingLaunchProviderSwitch } : {})}
+      {...(pendingLaunchMentionHandoff ? { pendingLaunchMentionHandoff: true } : {})}
       installedAgents={installedAgents}
       {...(thread.remoteServerId
         ? {

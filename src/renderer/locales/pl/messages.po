@@ -6383,7 +6383,7 @@ msgstr "Polecenia wewnętrzne i agenci"
 msgid "Interrupted"
 msgstr "Przerwano"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/state/slices/staleSubAgents.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Przerwano: sesja agenta zakończyła się przed jej ukończeniem."
 
@@ -12807,6 +12807,10 @@ msgstr "Ten wątek zmienił dostawcę bez przeniesienia kontekstu: {agent} uruch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 #~ msgstr "W tym wątku używane jest drzewo robocze <0>{0}</0>. Usunąć także katalog drzewa roboczego?"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "Ten wątek został sforkowany bez przeniesienia kontekstu: {agent} uruchomił się bez narzędzia read_thread Poracode, więc nie może odczytać oryginalnej rozmowy. Włącz ponownie narzędzie MCP app-controls lub podsumuj to, czego potrzebuje."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."

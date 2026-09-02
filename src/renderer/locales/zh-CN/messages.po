@@ -6383,7 +6383,7 @@ msgstr "内部命令和代理"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/renderer/state/slices/runtimeEventSlice.ts
+#: src/renderer/state/slices/staleSubAgents.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "已中断：代理会话在完成之前结束。"
 
@@ -12806,6 +12806,10 @@ msgstr "此线程在未传递上下文的情况下切换了提供商：{agent} �
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 #~ msgstr "该线程使用工作树 <0>{0}</0>。还要删除工作树目录吗？"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+msgstr "此线程在未传递上下文的情况下被派生：{agent} 启动时没有 Poracode 的 read_thread 工具，因此无法读取原始对话。请重新启用 app-controls MCP 工具，或概述它需要的内容。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."

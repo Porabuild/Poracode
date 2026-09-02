@@ -446,6 +446,7 @@ export function useThreadPendingLaunch(threadId: string): {
   segments: PromptSegment[] | undefined;
   userMessageItemId: string | undefined;
   providerSwitch: PendingLaunchProviderSwitch | undefined;
+  mentionHandoff: boolean;
 } {
   return useAppStore(
     useShallow((s) => ({
@@ -453,6 +454,7 @@ export function useThreadPendingLaunch(threadId: string): {
       segments: s.pendingLaunchSegments[threadId],
       userMessageItemId: s.pendingLaunchUserMessageItemIds[threadId],
       providerSwitch: s.pendingLaunchProviderSwitches[threadId],
+      mentionHandoff: s.pendingLaunchMentionHandoffs[threadId] === true,
     })),
   );
 }

@@ -734,28 +734,28 @@ export function ContinueInProviderDialog(props: {
       ? filteredSourceCaps.defaultEffort
       : (extractionEfforts[0] ?? "");
   /**
-   * Whether this handoff hands over the thread id or a written context file —
-   * the chat→chat / everything-else split described on
-   * `resolveProviderHandoffStrategy`.
+   * Whether this handoff hands over a thread to read or a written context
+   * file — the chat→chat / everything-else split described on
+   * `resolveProviderHandoffStrategy`. The same for a switch and a fork.
    */
-  function handoffStrategy(intent: ContinueIntent) {
+  function handoffStrategy() {
     return resolveProviderHandoffStrategy({
-      intent,
       sourcePresentationMode,
       targetPresentationMode,
       isMirroredThread: thread.remoteServerId !== undefined,
       readThreadToolEnabled: readThreadToolsEnabled,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
+      // A handoff is a fresh launch, so a target that bakes its MCP set at
+      // session start ("launch") keeps `read_thread` for the whole session
+      // just as one that rebuilds it every turn ("always") does. Only "none"
+      // has no MCP wiring to carry the tool.
       targetReadThreadToolGuaranteed:
         targetCapabilities !== undefined &&
-        resolveComposerMcpScope(targetCapabilities.mcpScope, targetPresentationMode) === "always",
+        resolveComposerMcpScope(targetCapabilities.mcpScope, targetPresentationMode) !== "none",
     });
   }
 
-  function buildSubmission(
-    intent: ContinueIntent,
-    inputSegments?: PromptSegment[],
-  ): PendingSubmission | null {
+  function buildSubmission(inputSegments?: PromptSegment[]): PendingSubmission | null {
     // A typed `/skill …` becomes a real skill segment, the same delivery path a
     // chip insertion takes, so the target provider receives the skill rather
     // than literal slash text.
@@ -767,7 +767,7 @@ export function ContinueInProviderDialog(props: {
     const allSegments = [...attachments.toSegments(), ...composerSegments];
     const flatPrompt = flattenSegments(allSegments);
     if (!flatPrompt.trim()) {
-      return { prompt: defaultHandoffPrompt(handoffStrategy(intent)) };
+      return { prompt: defaultHandoffPrompt(handoffStrategy()) };
     }
     return {
       prompt: flatPrompt,
@@ -776,16 +776,16 @@ export function ContinueInProviderDialog(props: {
   }
 
   async function handleAction(intent: ContinueIntent, inputSegments?: PromptSegment[]) {
-    const submission = buildSubmission(intent, inputSegments);
+    const submission = buildSubmission(inputSegments);
     if (!submission) return;
     setPendingIntent(intent);
     setPendingSubmission(submission);
     setLastPresentationMode(selectedKind, targetPresentationMode);
 
-    // chat → chat: skip extraction and hand off immediately. The thread keeps
-    // its transcript, so the incoming provider reads it with `read_thread`
-    // instead of costing the outgoing provider a one-shot summary run.
-    if (handoffStrategy(intent) === "thread-transcript") {
+    // chat → chat: skip extraction and hand off immediately. The source rows
+    // stay in the app, so the incoming provider reads them with `read_thread`
+    // — its own thread on a switch, the source thread via a mention on a fork.
+    if (handoffStrategy() === "thread-transcript") {
       onContinue(
         selectedKind,
         targetConfig,
@@ -798,11 +798,15 @@ export function ContinueInProviderDialog(props: {
       return;
     }
 
-    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
-      // No session to extract from — or a mirrored thread, whose `extractContext`
-      // is a host-side procedure this renderer deliberately does not route. The
-      // stored transcript (hydrated from the host snapshot) is the context.
-      const fallback = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
+    // A chat source keeps its rows, so the new provider gets the stored chat
+    // history — messages first, key tool activity after — instead of a
+    // compaction. A summary would cost a full turn on the outgoing provider
+    // (often the one that just ran out of quota) and decide what matters
+    // before the new provider can. This holds whether or not the user typed a
+    // prompt: a typed prompt narrows the next step, not the history behind it.
+    // A terminal source has no stored rows and still goes through extraction.
+    const history = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
+    if (history) {
       onContinue(
         selectedKind,
         targetConfig,
@@ -810,7 +814,23 @@ export function ContinueInProviderDialog(props: {
         submission.prompt,
         submission.segments,
         intent,
-        { strategy: "context-file", extracted: fallback },
+        { strategy: "context-file", extracted: history },
+      );
+      return;
+    }
+
+    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
+      // Nothing stored and no session to extract from — or a mirrored thread,
+      // whose `extractContext` is a host-side procedure this renderer
+      // deliberately does not route. The new provider starts without context.
+      onContinue(
+        selectedKind,
+        targetConfig,
+        targetPresentationMode,
+        submission.prompt,
+        submission.segments,
+        intent,
+        { strategy: "context-file", extracted: null },
       );
       return;
     }
@@ -836,19 +856,6 @@ export function ContinueInProviderDialog(props: {
         { strategy: "context-file", extracted: result },
       );
     } catch (err) {
-      const fallback = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
-      if (fallback) {
-        onContinue(
-          selectedKind,
-          targetConfig,
-          targetPresentationMode,
-          submission.prompt,
-          submission.segments,
-          intent,
-          { strategy: "context-file", extracted: fallback },
-        );
-        return;
-      }
       setPhase("error");
       setErrorMessage(err instanceof Error ? err.message : String(err));
     }

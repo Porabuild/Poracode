@@ -99,6 +99,13 @@ export type SupervisorEvent =
       config?: ThreadConfig;
       /** Effective launch-time config after plugin and global MCP policy is applied. */
       launchConfig?: ThreadConfig;
+      /**
+       * Whether the emitting session launched with Poracode's `read_thread`
+       * tool available. Mirrors the snapshot field so clients learn it from
+       * the live stream, not only from a pulled snapshot. Absent from hosts
+       * predating the field, which leaves the client's cached value alone.
+       */
+      threadMentionToolsAvailable?: boolean;
       sessionRef?: { providerSessionId: string; discoveredAt: string };
       canResumeWithConfig: boolean;
       errorMessage?: string;
