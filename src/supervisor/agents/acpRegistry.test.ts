@@ -83,6 +83,7 @@ import {
   persistAcpRegistrySettingsMigrations,
   readAcpRegistrySettings,
   removeAcpRegistryAgent,
+  repairAcpRegistryInstallLayouts,
   setAcpGenericAgentAuthAcknowledged,
   setAcpRegistryAgentAuth,
   updateAcpRegistryAgent,
@@ -499,7 +500,9 @@ describe("ACP registry installs", () => {
 
       expect(installed[0]).toMatchObject({
         version: "1.0.0",
-        installations: { wsl: { Ubuntu: { version: "1.0.0", target: "linux-x86_64" } } },
+        installations: {
+          wsl: { Ubuntu: { version: "1.0.0", target: "linux-x86_64", layoutVersion: 2 } },
+        },
       });
       expect(readAcpRegistrySettings(settingsPath).agentInstances["antigravity-acp"]).toMatchObject(
         {
@@ -516,7 +519,7 @@ describe("ACP registry installs", () => {
         },
       );
       expect(batchWslCommandsAsyncMock).toHaveBeenCalledWith("Ubuntu", [
-        expect.stringContaining("chmod 755 '/home/tester/.poracode/acp-registry/"),
+        expect.stringContaining("chmod -R 755 '/home/tester/.poracode/acp-registry/"),
       ]);
     } finally {
       Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
@@ -1446,5 +1449,127 @@ describe("ACP registry installs", () => {
     expect(
       readAcpRegistrySettings(settingsPath).agentInstances["factory-droid"]?.config,
     ).toMatchObject({ args: ["-y", "droid@0.170.0", "exec", "--output-format", "acp"] });
+  });
+});
+
+describe("ACP registry install layout repair", () => {
+  const wslBinary =
+    "/home/tester/.poracode/acp-registry/antigravity-acp/1.0.0/bin/agy_acp_server.par";
+
+  function writeLegacyLayoutSettings(dir: string, layoutVersion?: number): string {
+    const settingsPath = join(dir, "settings.json");
+    const installation = {
+      version: "1.0.0",
+      target: "linux-x86_64",
+      installedAt: "2026-08-30T16:38:49.661Z",
+      ...(layoutVersion !== undefined ? { layoutVersion } : {}),
+    };
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentInstances: {
+          "antigravity-acp": {
+            id: "antigravity-acp",
+            driver: "acp-generic",
+            displayName: "Google Antigravity",
+            enabled: true,
+            config: {
+              binary: wslBinary,
+              args: [],
+              cwd: "project",
+              authMode: "none",
+              environmentCommands: {
+                native: { binary: "C:\\acp\\agy_acp_server.exe", args: [], version: "1.0.0" },
+                wsl: { Ubuntu: { binary: wslBinary, args: ["--uid="], version: "1.0.0" } },
+              },
+            },
+          },
+        },
+        acpRegistryInstalledAgents: {
+          "antigravity-acp": {
+            id: "antigravity-acp",
+            name: "Google Antigravity",
+            version: "1.0.0",
+            installedAt: "2026-08-30T16:38:53.661Z",
+            adapterKind: "antigravity",
+            installKind: "first-class",
+            installations: {
+              native: { ...installation, target: "windows-x86_64" },
+              wsl: { Ubuntu: installation },
+            },
+          },
+        },
+      }),
+    );
+    return settingsPath;
+  }
+
+  beforeEach(() => {
+    batchWslCommandsAsyncMock.mockClear();
+  });
+
+  it("marks a pre-layout WSL install executable once and stamps both environments", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-layout-"));
+    const settingsPath = writeLegacyLayoutSettings(dir);
+    batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
+
+    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(true);
+
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledExactlyOnceWith("Ubuntu", [
+      "chmod -R 755 '/home/tester/.poracode/acp-registry/antigravity-acp/1.0.0/bin'",
+    ]);
+    const record =
+      readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"];
+    expect(record?.installations).toEqual({
+      native: {
+        version: "1.0.0",
+        target: "windows-x86_64",
+        installedAt: "2026-08-30T16:38:49.661Z",
+        layoutVersion: 2,
+      },
+      wsl: {
+        Ubuntu: {
+          version: "1.0.0",
+          target: "linux-x86_64",
+          installedAt: "2026-08-30T16:38:49.661Z",
+          layoutVersion: 2,
+        },
+      },
+    });
+
+    // Stamped records never touch the distro again.
+    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(false);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a WSL install unstamped when the repair command fails so the next launch retries", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-layout-"));
+    const settingsPath = writeLegacyLayoutSettings(dir);
+    batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+
+    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(true);
+
+    const record =
+      readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"];
+    expect(record?.installations?.native?.layoutVersion).toBe(2);
+    expect(record?.installations?.wsl?.Ubuntu?.layoutVersion).toBeUndefined();
+
+    batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
+    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(true);
+    expect(
+      readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"]
+        ?.installations?.wsl?.Ubuntu?.layoutVersion,
+    ).toBe(2);
+  });
+
+  it("is a no-op for installs already on the current layout", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-layout-"));
+    const settingsPath = writeLegacyLayoutSettings(dir, 2);
+    const before = readFileSync(settingsPath, "utf8");
+
+    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(false);
+
+    expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();
+    expect(readFileSync(settingsPath, "utf8")).toBe(before);
   });
 });

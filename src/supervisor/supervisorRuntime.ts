@@ -546,6 +546,7 @@ export class SupervisorRuntime {
     // icons are local. Fire-and-forget — never blocks the window from opening.
     void this.agentRegistryService.cacheLocalAcpIconsOnLaunch();
     void this.agentRegistryService.pruneAcpRegistryLeftoversOnLaunch();
+    void this.agentRegistryService.repairAcpRegistryInstallLayoutsOnLaunch();
   }
 
   /**
