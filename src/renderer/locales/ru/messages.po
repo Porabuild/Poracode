@@ -780,6 +780,10 @@ msgstr "Прервать слияние"
 msgid "About"
 msgstr "О программе"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Above the composer"
+msgstr "Над полем ввода"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "Принять оба изменения"
@@ -1168,6 +1172,8 @@ msgid "Agent: {subagent}"
 msgstr "Агент: {subagent}"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agents"
@@ -1575,8 +1581,8 @@ msgid "Attach to thread"
 msgstr "Прикрепить к треду"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-msgid "Attach todo dock to composer"
-msgstr "Прикрепить панель задач к Composer"
+#~ msgid "Attach todo dock to composer"
+#~ msgstr "Прикрепить панель задач к Composer"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Attached browser selection."
@@ -1810,9 +1816,16 @@ msgstr "Фоновый процесс не запущен"
 msgid "Background process restarted"
 msgstr "Фоновый процесс перезапущен"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#~ msgid "Background tasks"
-#~ msgstr "Фоновые задачи"
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Background task"
+msgstr "Фоновая задача"
+
+#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Background tasks"
+msgstr "Фоновые задачи"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2631,6 +2644,7 @@ msgstr "Клонирование…"
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2648,6 +2662,10 @@ msgstr "Закрыть терминал {purposeNoun}"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Close add project"
 msgstr "Закрыть добавление проекта"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Close background tasks"
+msgstr "Закрыть фоновые задачи"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
@@ -2849,6 +2867,7 @@ msgstr "Код скопирован. "
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
@@ -2869,6 +2888,10 @@ msgstr "Свернуть все"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Collapse all folders"
 msgstr "Свернуть все папки"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Collapse background tasks"
+msgstr "Свернуть фоновые задачи"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Collapse composer"
@@ -4445,6 +4468,10 @@ msgstr "Закрепить слева"
 msgid "Dock right"
 msgstr "Закрепить справа"
 
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Docks"
+msgstr "Доки"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "Документация"
@@ -4908,6 +4935,7 @@ msgstr "завершено ({0})"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Завершился с кодом {0}. Закройте, чтобы повторить."
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
@@ -4920,6 +4948,10 @@ msgstr "Развернуть {label}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Развернуть всё"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Expand background tasks"
+msgstr "Развернуть фоновые задачи"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
@@ -5735,6 +5767,8 @@ msgid "Go forward in navigation history"
 msgstr "Вперёд по истории навигации"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "Цель"
@@ -5742,6 +5776,10 @@ msgstr "Цель"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Goal objective"
 msgstr "Описание цели"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#~ msgid "Goal, plan, agents, and background tasks for this thread."
+#~ msgstr "Цель, план, агенты и фоновые задачи этого треда."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5835,6 +5873,10 @@ msgstr "Скрытые возобновляемые треды проверяю�
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Скрыть"
+
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+msgid "Hide {label}"
+msgstr "Скрыть {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
@@ -7421,8 +7463,8 @@ msgstr "Переместить в worktree с изменениями"
 #~ msgstr "Переместить в worktree…"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-msgid "Move todo dock to right panel"
-msgstr "Переместить панель задач в правую панель"
+#~ msgid "Move todo dock to right panel"
+#~ msgstr "Переместить панель задач в правую панель"
 
 #. placeholder {0}: fallback.name
 #: src/renderer/actions/workspaceActions.ts
@@ -9032,8 +9074,9 @@ msgid "Pinned task routes"
 msgstr "Закреплённые маршруты задач"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
@@ -10239,6 +10282,7 @@ msgstr "Рендерер столкнулся с необработанным о
 msgid "Reorder {0}"
 msgstr "Изменить порядок {0}"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Изменить порядок {label}"
@@ -10551,6 +10595,7 @@ msgid "Right"
 msgstr "Справа"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Панель справа"
 
@@ -11267,6 +11312,10 @@ msgstr "Сочетания клавиш"
 msgid "Show {0}"
 msgstr "Показать {0}"
 
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+msgid "Show {label}"
+msgstr "Показать {label}"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Показать кружок {label} на боковой панели"
@@ -11319,6 +11368,14 @@ msgstr "Показать Composer"
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
 msgid "Show context usage details"
 msgstr "Показать детали использования контекста"
+
+#: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
+msgid "Show docks above the composer"
+msgstr "Показывать доки над полем ввода"
+
+#: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
+msgid "Show docks in the right panel"
+msgstr "Показывать доки в правой панели"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -12863,6 +12920,16 @@ msgstr "Настройки потоков по умолчанию и облас�
 msgid "Thread dock"
 msgstr "Панель треда"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Thread docks"
+msgstr "Доки треда"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Thread docks placement"
+msgstr "Расположение доков треда"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
 msgstr "Не удалось запустить тред."
@@ -12875,6 +12942,10 @@ msgstr "Тред завершён или ожидает вашего ввода.
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Панель цели треда"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread info"
+msgstr "Информация о треде"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
@@ -14192,6 +14263,11 @@ msgstr "При закрытии окна оставлять Poracode работ�
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal."
 msgstr "Куда направляется выбор элемента браузера в терминальных тредах. Свёрнутое поле ввода всегда направляет его в терминал."
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+msgstr "Где отображаются цель, план, агенты и фоновые задачи треда. В правой панели их открывают компактные пузырьки над полем ввода."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

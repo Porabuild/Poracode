@@ -780,6 +780,10 @@ msgstr "Cancelar fusión"
 msgid "About"
 msgstr "Acerca de"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Above the composer"
+msgstr "Encima del compositor"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "Aceptar ambos cambios"
@@ -1168,6 +1172,8 @@ msgid "Agent: {subagent}"
 msgstr "Agente: {subagent}"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agents"
@@ -1575,8 +1581,8 @@ msgid "Attach to thread"
 msgstr "Adjuntar al hilo"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-msgid "Attach todo dock to composer"
-msgstr "Adjuntar el panel de tareas al Composer"
+#~ msgid "Attach todo dock to composer"
+#~ msgstr "Adjuntar el panel de tareas al Composer"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Attached browser selection."
@@ -1810,9 +1816,16 @@ msgstr "El proceso en segundo plano no está en ejecución"
 msgid "Background process restarted"
 msgstr "El proceso en segundo plano se reinició"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#~ msgid "Background tasks"
-#~ msgstr "Tareas en segundo plano"
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Background task"
+msgstr "Tarea en segundo plano"
+
+#: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Background tasks"
+msgstr "Tareas en segundo plano"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2631,6 +2644,7 @@ msgstr "Clonando…"
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2648,6 +2662,10 @@ msgstr "Cerrar terminal de {purposeNoun}"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Close add project"
 msgstr "Cerrar agregar proyecto"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Close background tasks"
+msgstr "Cerrar tareas en segundo plano"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
@@ -2849,6 +2867,7 @@ msgstr "Código copiado. "
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
@@ -2869,6 +2888,10 @@ msgstr "Contraer todo"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Collapse all folders"
 msgstr "Contraer todas las carpetas"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Collapse background tasks"
+msgstr "Contraer tareas en segundo plano"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Collapse composer"
@@ -4445,6 +4468,10 @@ msgstr "Acoplar a la izquierda"
 msgid "Dock right"
 msgstr "Acoplar a la derecha"
 
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Docks"
+msgstr "Paneles"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "Documentación"
@@ -4908,6 +4935,7 @@ msgstr "salió ({0})"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Salió con código {0}. Cierra para reintentar."
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
@@ -4920,6 +4948,10 @@ msgstr "Expandir {label}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Expandir todo"
+
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Expand background tasks"
+msgstr "Expandir tareas en segundo plano"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
@@ -5735,6 +5767,8 @@ msgid "Go forward in navigation history"
 msgstr "Avanzar en el historial de navegación"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "Objetivo"
@@ -5742,6 +5776,10 @@ msgstr "Objetivo"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Goal objective"
 msgstr "Descripción del objetivo"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#~ msgid "Goal, plan, agents, and background tasks for this thread."
+#~ msgstr "Objetivo, plan, agentes y tareas en segundo plano de este hilo."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5835,6 +5873,10 @@ msgstr "Los hilos ocultos reanudables se revisan cada 5 minutos y se descargan t
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Ocultar"
+
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+msgid "Hide {label}"
+msgstr "Ocultar {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
@@ -7421,8 +7463,8 @@ msgstr "Mover a worktree con cambios"
 #~ msgstr "Mover a worktree…"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-msgid "Move todo dock to right panel"
-msgstr "Mover el dock de tareas al panel derecho"
+#~ msgid "Move todo dock to right panel"
+#~ msgstr "Mover el dock de tareas al panel derecho"
 
 #. placeholder {0}: fallback.name
 #: src/renderer/actions/workspaceActions.ts
@@ -9032,8 +9074,9 @@ msgid "Pinned task routes"
 msgstr "Rutas de tarea fijadas"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
@@ -10239,6 +10282,7 @@ msgstr "El renderizador encontró un rechazo de promesa no controlado"
 msgid "Reorder {0}"
 msgstr "Reordenar {0}"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Reordenar {label}"
@@ -10551,6 +10595,7 @@ msgid "Right"
 msgstr "Derecha"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Panel derecho"
 
@@ -11267,6 +11312,10 @@ msgstr "Atajos"
 msgid "Show {0}"
 msgstr "Mostrar {0}"
 
+#: src/renderer/components/thread/ThreadDockBubbles.tsx
+msgid "Show {label}"
+msgstr "Mostrar {label}"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Mostrar el círculo de {label} en la barra lateral"
@@ -11319,6 +11368,14 @@ msgstr "Mostrar Composer"
 #: src/renderer/components/thread/ThreadContextIndicator.tsx
 msgid "Show context usage details"
 msgstr "Mostrar detalles del uso de contexto"
+
+#: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
+msgid "Show docks above the composer"
+msgstr "Mostrar paneles encima del compositor"
+
+#: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
+msgid "Show docks in the right panel"
+msgstr "Mostrar paneles en el panel derecho"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -12863,6 +12920,16 @@ msgstr "Valores predeterminados de hilos y alcance de inicio"
 msgid "Thread dock"
 msgstr "Panel del hilo"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Thread docks"
+msgstr "Paneles del hilo"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Thread docks placement"
+msgstr "Ubicación de los paneles del hilo"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
 msgstr "El hilo no pudo iniciarse."
@@ -12875,6 +12942,10 @@ msgstr "El hilo terminó o está esperando tu respuesta."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Panel del objetivo del hilo"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread info"
+msgstr "Información del hilo"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
@@ -14192,6 +14263,11 @@ msgstr "Cuando cierres la ventana, mantener Poracode en ejecución en la bandeja
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal."
 msgstr "Adónde va la selección del selector de elementos del navegador en los hilos nativos de terminal. Un redactor contraído siempre la envía al terminal."
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+msgstr "Dónde aparecen el objetivo, el plan, los agentes y las tareas en segundo plano de un hilo. En el panel derecho, burbujas compactas encima del compositor los abren."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
