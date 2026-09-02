@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 import type {
@@ -54,10 +55,12 @@ export type RightPanelTab =
   | "usage"
   | "notes"
   | "ports"
-  | "plan"
+  | "docks"
   | "subagent";
 
-/** Tabs that can be dragged into a dock zone. Thread-transient tabs (plan, subagent) and ports stay fixed. */
+export type { ThreadDockKind } from "@/shared/settings";
+
+/** Tabs that can be dragged into a dock zone. Thread-transient tabs (docks, subagent) and ports stay fixed. */
 export const DOCKABLE_PANEL_TABS: ReadonlySet<RightPanelTab> = new Set([
   "git",
   "files",
@@ -123,6 +126,15 @@ interface PanelState {
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
+  /**
+   * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
+   * background tasks in the right panel) is showing. Only meaningful while
+   * `threadDocksPlacement` is "right"; closing it leaves the mode alone and the
+   * composer bubbles bring it back.
+   */
+  threadDocksPanelOpen: boolean;
+  /** Dock section the Docks tab should scroll to on its next open; consumed once. */
+  threadDocksFocus: ThreadDockKind | null;
   browserOverlayOpen: boolean;
   browserOverlayMaximized: boolean;
   browserOverlayDrawerWidth: number;
@@ -158,6 +170,8 @@ interface PanelState {
   setBrowserPanelOpen: (v: boolean) => void;
   setUsagePanelOpen: (v: boolean) => void;
   openUsagePanel: () => void;
+  setThreadDocksPanelOpen: (v: boolean) => void;
+  openThreadDocksPanel: (focus?: ThreadDockKind) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
@@ -299,6 +313,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
+  threadDocksPanelOpen: false,
+  threadDocksFocus: null,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
   browserOverlayDrawerWidth: clampDrawerWidth(
@@ -520,6 +536,18 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ? {}
         : { usagePanelOpen: true, rightPanelTab: "usage" as const },
     ),
+  setThreadDocksPanelOpen: (v) =>
+    set((state) =>
+      state.threadDocksPanelOpen === v
+        ? {}
+        : { threadDocksPanelOpen: v, ...(v ? {} : { threadDocksFocus: null }) },
+    ),
+  openThreadDocksPanel: (focus) =>
+    set((state) => ({
+      threadDocksPanelOpen: true,
+      rightPanelTab: "docks" as const,
+      threadDocksFocus: focus ?? state.threadDocksFocus,
+    })),
   setNotesPanelOpen: (v) =>
     set((state) =>
       state.notesPanelOpen === v
@@ -583,12 +611,15 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
         subAgentPanelOpen: false,
+        threadDocksPanelOpen: false,
+        threadDocksFocus: null,
         rightPanelSplit: null,
       };
       const alreadyClosed =
         (next.gitReviewContext === undefined || state.gitReviewContext === null) &&
         (next.filesPanelContext === undefined || state.filesPanelContext === null) &&
         !state.subAgentPanelOpen &&
+        !state.threadDocksPanelOpen &&
         (next.browserPanelOpen === undefined || !state.browserPanelOpen) &&
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
         (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&

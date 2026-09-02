@@ -1,5 +1,6 @@
 import { msg } from "@lingui/core/macro";
 import type {
+  BackgroundTask,
   CanonicalItemType,
   CanonicalRequestType,
   FileCheckpointRecord,
@@ -100,6 +101,13 @@ export interface RuntimeEventSlice {
   /** Latest provider-reported context usage per GUI thread. */
   runtimeContextByThread: Record<string, ThreadContextUsage>;
   /**
+   * Live provider-reported background tasks per thread (REPLACE semantics from
+   * `background_tasks.changed`). Session-scoped only: never hydrated from the
+   * DB, and dropped when the session exits, because the work dies with the
+   * agent process.
+   */
+  runtimeBackgroundTasksByThread: Record<string, readonly BackgroundTask[]>;
+  /**
    * Per-thread monotonic counter that bumps only on grouping-affecting changes
    * (item add/remove/payload mutation). Excludes `content.delta` so that
    * streaming text does not invalidate cached timeline groupings. Selectors
@@ -197,6 +205,7 @@ export function createInitialRuntimeEventState(): Pick<
   | "runtimeItemsByIdByThread"
   | "runtimeRequestsByThread"
   | "runtimeContextByThread"
+  | "runtimeBackgroundTasksByThread"
   | "runtimeStructuralVersionByThread"
   | "runtimeCompletedTurnsByThread"
   | "runtimeOpenTurnByThread"
@@ -208,6 +217,7 @@ export function createInitialRuntimeEventState(): Pick<
     runtimeItemsByIdByThread: {},
     runtimeRequestsByThread: {},
     runtimeContextByThread: {},
+    runtimeBackgroundTasksByThread: {},
     runtimeStructuralVersionByThread: {},
     runtimeCompletedTurnsByThread: {},
     runtimeOpenTurnByThread: {},
@@ -236,6 +246,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         !(threadId in state.runtimeItemsByIdByThread) &&
         !(threadId in state.runtimeRequestsByThread) &&
         !(threadId in state.runtimeContextByThread) &&
+        !(threadId in state.runtimeBackgroundTasksByThread) &&
         !(threadId in state.runtimeStructuralVersionByThread) &&
         !(threadId in state.runtimeCompletedTurnsByThread) &&
         !(threadId in state.runtimeOpenTurnByThread)
@@ -250,6 +261,8 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         state.runtimeRequestsByThread;
       const { [threadId]: _droppedContext, ...runtimeContextByThread } =
         state.runtimeContextByThread;
+      const { [threadId]: _droppedBackgroundTasks, ...runtimeBackgroundTasksByThread } =
+        state.runtimeBackgroundTasksByThread;
       const { [threadId]: _droppedVersion, ...runtimeStructuralVersionByThread } =
         state.runtimeStructuralVersionByThread;
       const { [threadId]: _droppedTurns, ...runtimeCompletedTurnsByThread } =
@@ -261,6 +274,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         runtimeItemsByIdByThread,
         runtimeRequestsByThread,
         runtimeContextByThread,
+        runtimeBackgroundTasksByThread,
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         runtimeOpenTurnByThread,
@@ -392,6 +406,8 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       const { [threadId]: _itemIds, ...runtimeItemIdsByThread } = state.runtimeItemIdsByThread;
       const { [threadId]: _items, ...runtimeItemsByIdByThread } = state.runtimeItemsByIdByThread;
       const { [threadId]: _context, ...runtimeContextByThread } = state.runtimeContextByThread;
+      const { [threadId]: _backgroundTasks, ...runtimeBackgroundTasksByThread } =
+        state.runtimeBackgroundTasksByThread;
       const { [threadId]: _version, ...runtimeStructuralVersionByThread } =
         state.runtimeStructuralVersionByThread;
       const { [threadId]: _turns, ...runtimeCompletedTurnsByThread } =
@@ -401,6 +417,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         runtimeItemIdsByThread,
         runtimeItemsByIdByThread,
         runtimeContextByThread,
+        runtimeBackgroundTasksByThread,
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         runtimeOpenTurnByThread,

@@ -240,6 +240,9 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
 export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
 export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
 
+export const THREAD_DOCK_KINDS = ["goal", "plan", "agents", "backgroundTasks"] as const;
+export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
+
 export function normalizeSidebarShortcutOrder(
   order: readonly SidebarShortcutId[],
 ): SidebarShortcutId[] {
@@ -248,6 +251,33 @@ export function normalizeSidebarShortcutOrder(
     if (!normalized.includes(id)) normalized.push(id);
   }
   return normalized;
+}
+
+export function normalizeThreadDocksOrder(order: readonly ThreadDockKind[]): ThreadDockKind[] {
+  const normalized = [...new Set(order)];
+  for (const kind of THREAD_DOCK_KINDS) {
+    if (!normalized.includes(kind)) normalized.push(kind);
+  }
+  return normalized;
+}
+
+export function reorderVisibleThreadDocks(
+  order: readonly ThreadDockKind[],
+  visibleOrder: readonly ThreadDockKind[],
+  fromIndex: number,
+  toIndex: number,
+): ThreadDockKind[] {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return [...order];
+  const reorderedVisible = [...visibleOrder];
+  const [moved] = reorderedVisible.splice(fromIndex, 1);
+  if (!moved) return [...order];
+  reorderedVisible.splice(toIndex, 0, moved);
+
+  const visibleKinds = new Set(visibleOrder);
+  let visibleIndex = 0;
+  return order.map((kind) =>
+    visibleKinds.has(kind) ? (reorderedVisible[visibleIndex++] ?? kind) : kind,
+  );
 }
 
 export const sharedSettingsSchema = z.object({
@@ -357,6 +387,14 @@ export const sharedSettingsSchema = z.object({
   agentInstances: agentInstanceConfigMapSchema,
   /** When true, the composer in terminal-native threads starts collapsed. */
   collapseTerminalComposer: z.boolean(),
+  /**
+   * Where a thread's informational docks (goal, plan, agents, background
+   * tasks) live: stacked above the composer, or in the right panel's Docks tab
+   * with compact bubbles over the composer standing in for them.
+   */
+  threadDocksPlacement: z.enum(["composer", "right"]),
+  /** User-defined order for informational docks in the right panel and its composer bubbles. */
+  threadDocksOrder: z.array(z.enum(THREAD_DOCK_KINDS)),
   /**
    * Where a browser element-picker selection is delivered for a terminal-native
    * (CLI) thread. "ask" shows a chooser on pick (but a collapsed composer always
@@ -642,6 +680,9 @@ export type PreventSleep = SharedSettings["preventSleep"];
 /** Browser element-picker delivery target for terminal-native (CLI) threads. */
 export type CliPickerTarget = SharedSettings["cliPickerTarget"];
 
+/** Where a thread's informational docks render: above the composer or in the right panel. */
+export type ThreadDocksPlacement = SharedSettings["threadDocksPlacement"];
+
 /**
  * Settings as written by the renderer / IPC consumer. Excludes
  * supervisor-only fields (`agentHookSupport`) that the renderer never
@@ -701,6 +742,8 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryAutoInstallOptOuts: [],
   agentInstances: {},
   collapseTerminalComposer: false,
+  threadDocksPlacement: "composer",
+  threadDocksOrder: [...THREAD_DOCK_KINDS],
   cliPickerTarget: "ask",
   staleThreadUnloadMinutes: 60,
   autoArchiveDoneAfterDays: 3,
@@ -1493,6 +1536,7 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       ...normalized,
       machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
+      threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,

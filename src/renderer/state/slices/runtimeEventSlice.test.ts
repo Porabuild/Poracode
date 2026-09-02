@@ -1010,3 +1010,59 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(after.runtimeStructuralVersionByThread["t1"]).toBe(structuralVersion);
   });
 });
+
+describe("runtimeEventSlice background tasks", () => {
+  let store: ReturnType<typeof makeStore>;
+
+  beforeEach(() => {
+    store = makeStore();
+  });
+
+  function apply(threadId: string, event: RuntimeEvent) {
+    store.getState().applyRuntimeEvent(threadId, event);
+  }
+
+  it("replaces the live background task list and drops the key when it drains", () => {
+    apply("t1", {
+      type: "background_tasks.changed",
+      threadId: "t1",
+      tasks: [{ taskId: "b1", kind: "command", description: "pnpm test" }],
+    });
+    expect(store.getState().runtimeBackgroundTasksByThread["t1"]).toEqual([
+      { taskId: "b1", kind: "command", description: "pnpm test" },
+    ]);
+
+    // REPLACE, never merge: b1 finished and b2 appeared in one level.
+    apply("t1", {
+      type: "background_tasks.changed",
+      threadId: "t1",
+      tasks: [{ taskId: "b2", kind: "other", description: "watch build" }],
+    });
+    expect(store.getState().runtimeBackgroundTasksByThread["t1"]).toEqual([
+      { taskId: "b2", kind: "other", description: "watch build" },
+    ]);
+
+    // A repeated identical level is a no-op — no new map identity.
+    const before = store.getState().runtimeBackgroundTasksByThread;
+    apply("t1", {
+      type: "background_tasks.changed",
+      threadId: "t1",
+      tasks: [{ taskId: "b2", kind: "other", description: "watch build" }],
+    });
+    expect(store.getState().runtimeBackgroundTasksByThread).toBe(before);
+
+    // Draining drops the key instead of storing an empty list.
+    apply("t1", { type: "background_tasks.changed", threadId: "t1", tasks: [] });
+    expect("t1" in store.getState().runtimeBackgroundTasksByThread).toBe(false);
+  });
+
+  it("clears background tasks when the session exits", () => {
+    apply("t1", {
+      type: "background_tasks.changed",
+      threadId: "t1",
+      tasks: [{ taskId: "b1", kind: "command", description: "serve" }],
+    });
+    apply("t1", { type: "session.exited", threadId: "t1" });
+    expect("t1" in store.getState().runtimeBackgroundTasksByThread).toBe(false);
+  });
+});

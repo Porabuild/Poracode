@@ -1,4 +1,9 @@
-import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import type {
+  BackgroundTask,
+  RuntimeEvent,
+  ThreadContextUsage,
+  ToolCallPayload,
+} from "@/shared/contracts";
 import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
@@ -16,6 +21,7 @@ type RuntimeEventState = Pick<
   | "runtimeItemsByIdByThread"
   | "runtimeRequestsByThread"
   | "runtimeContextByThread"
+  | "runtimeBackgroundTasksByThread"
   | "runtimeStructuralVersionByThread"
   | "runtimeCompletedTurnsByThread"
   | "runtimeOpenTurnByThread"
@@ -46,6 +52,7 @@ export function applyRuntimeEventBatchesToState(
     runtimeItemsByIdByThread: state.runtimeItemsByIdByThread,
     runtimeRequestsByThread: state.runtimeRequestsByThread,
     runtimeContextByThread: state.runtimeContextByThread,
+    runtimeBackgroundTasksByThread: state.runtimeBackgroundTasksByThread ?? {},
     runtimeStructuralVersionByThread: state.runtimeStructuralVersionByThread,
     runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread ?? {},
     runtimeOpenTurnByThread: state.runtimeOpenTurnByThread ?? {},
@@ -485,10 +492,17 @@ function applyRuntimeEventToRuntimeState(
 
   switch (event.type) {
     case "session.started":
-    case "session.exited":
     case "warning":
       // No item state to mutate. Status flows through the existing thread-state channel.
       return {};
+
+    case "session.exited":
+      // Background work dies with the agent process; nothing will ever report
+      // it drained, so the list must not outlive the session.
+      return replaceBackgroundTasks(state, threadId, []);
+
+    case "background_tasks.changed":
+      return replaceBackgroundTasks(state, threadId, event.tasks);
 
     case "usage.spent":
       // Token consumption is persisted by the main-process usage ledger; the
@@ -584,6 +598,38 @@ function applyRuntimeEventToRuntimeState(
     default:
       return {};
   }
+}
+
+/** REPLACE the thread's live background task list; an empty list drops the key. */
+function replaceBackgroundTasks(
+  state: RuntimeEventState,
+  threadId: string,
+  tasks: readonly BackgroundTask[],
+): Partial<RuntimeEventState> {
+  const prev = state.runtimeBackgroundTasksByThread[threadId];
+  if (tasks.length === 0) {
+    if (!prev) return {};
+    const { [threadId]: _dropped, ...rest } = state.runtimeBackgroundTasksByThread;
+    return { runtimeBackgroundTasksByThread: rest };
+  }
+  if (
+    prev &&
+    prev.length === tasks.length &&
+    prev.every(
+      (task, index) =>
+        task.taskId === tasks[index]!.taskId &&
+        task.kind === tasks[index]!.kind &&
+        task.description === tasks[index]!.description,
+    )
+  ) {
+    return {};
+  }
+  return {
+    runtimeBackgroundTasksByThread: {
+      ...state.runtimeBackgroundTasksByThread,
+      [threadId]: tasks.map((task) => ({ ...task })),
+    },
+  };
 }
 
 function mergeContextUsage(
