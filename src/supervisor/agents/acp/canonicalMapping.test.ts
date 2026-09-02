@@ -2889,3 +2889,25 @@ describe("mapAcpPermissionRequest", () => {
     expect(state.openReasoningItemId).toBeUndefined();
   });
 });
+
+describe("extension lifecycle hooks", () => {
+  it("lets an extension observe every update and emits its events first", () => {
+    const seen: string[] = [];
+    const state = createAcpMapperState("t-observe", {
+      id: "test.observe",
+      observeSessionUpdate({ update }) {
+        seen.push(update.sessionUpdate);
+        return [{ type: "item.completed", threadId: "t-observe", itemId: "settled" }];
+      },
+    });
+    const events = mapAcpSessionUpdate(
+      note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "hi" } }),
+      state,
+    );
+    expect(seen).toEqual(["agent_message_chunk"]);
+    expect(events[0]).toEqual(
+      expect.objectContaining({ type: "item.completed", itemId: "settled" }),
+    );
+    expect(events.some((event) => event.type === "item.started")).toBe(true);
+  });
+});

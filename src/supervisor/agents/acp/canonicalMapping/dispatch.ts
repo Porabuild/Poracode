@@ -57,7 +57,11 @@ import {
   readAcpCanonicalGoalUpdate,
 } from "./goal";
 import { mapAcpCanonicalGoalUpdate } from "./goals";
-import { applyAgentTextExtension, trackToolCallExtension } from "./textStreamExtension";
+import {
+  applyAgentTextExtension,
+  observeSessionUpdateExtension,
+  trackToolCallExtension,
+} from "./textStreamExtension";
 
 function acpContentBlockToCanonical(block: ContentBlock): CanonicalContentBlock | undefined {
   if (block.type === "text") {
@@ -178,6 +182,7 @@ export function mapAcpSessionUpdate(
   const events: RuntimeEvent[] = [];
   const { threadId } = state;
   events.push(...mapAcpCanonicalGoalUpdate(update, state));
+  events.push(...observeSessionUpdateExtension(state, update));
   let activeSubAgent = getActiveSubAgentForNotification(state, update);
   let pendingSubAgent: ActiveAcpSubAgent | undefined;
 

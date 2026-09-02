@@ -36,7 +36,7 @@ rule is about control flow and data shape, not about erasing history.
    hit it, and defaults must be safe for a provider that declares nothing.
 3. **Supplied hook.** Parsing or event synthesis for a vendor format lives in the
    provider folder and plugs in through an interface: `AcpTextStreamExtension`
-   (agent-text and background-task quirks), `acpSessionUpdateTransform` /
+   (agent-text, background-task, and tool-lifecycle quirks), `acpSessionUpdateTransform` /
    `acpExtensionSessionUpdateTransform` (payload normalization),
    `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
 
