@@ -12,6 +12,7 @@
  * shared `AcpMapperState` carries no provider-shaped fields.
  */
 
+import type { SessionUpdate } from "@agentclientprotocol/sdk";
 import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
 import type { AcpMapperState } from "./state";
 
@@ -53,6 +54,17 @@ export interface AcpTextStreamExtension {
   handleAgentText?(input: AcpAgentTextInput): AcpAgentTextResult;
   /** Observe a completing tool call so later async reports can update its row. */
   trackToolCall?(input: AcpExtensionToolCallInput): void;
+  /**
+   * Observe every `session/update` before the shared mapper handles it and
+   * return events to emit first, e.g. to settle rows the agent itself reports
+   * late. Must not consume the update; the mapper still maps it.
+   */
+  observeSessionUpdate?(input: { state: AcpMapperState; update: SessionUpdate }): RuntimeEvent[];
+  /**
+   * The client just served an `fs/readTextFile` request for `path` (as the
+   * agent spelled it). Lets a provider settle the tool row that requested it.
+   */
+  handleClientFileRead?(input: { state: AcpMapperState; path: string }): RuntimeEvent[];
   /** Emit or discard anything still buffered when a turn closes. */
   flushTurnBoundary?(state: AcpMapperState): RuntimeEvent[];
   /** Drop per-turn buffers once a turn has ended. */
@@ -86,4 +98,15 @@ export function flushTextStreamExtension(state: AcpMapperState): RuntimeEvent[] 
 
 export function resetTextStreamExtension(state: AcpMapperState): void {
   state.textStreamExtension?.resetForTurnEnd?.(state);
+}
+
+export function observeSessionUpdateExtension(
+  state: AcpMapperState,
+  update: SessionUpdate,
+): RuntimeEvent[] {
+  return state.textStreamExtension?.observeSessionUpdate?.({ state, update }) ?? [];
+}
+
+export function applyClientFileReadExtension(state: AcpMapperState, path: string): RuntimeEvent[] {
+  return state.textStreamExtension?.handleClientFileRead?.({ state, path }) ?? [];
 }

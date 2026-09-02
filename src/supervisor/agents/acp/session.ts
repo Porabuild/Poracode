@@ -59,6 +59,7 @@ import type {
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
+import { applyClientFileReadExtension } from "./canonicalMapping/textStreamExtension";
 import {
   closeOpenTurnItems,
   createAcpMapperState,
@@ -1394,6 +1395,16 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * A served `fs/readTextFile` is the one exact signal that the tool call
+   * behind it has its data. See `AcpTextStreamExtension.handleClientFileRead`.
+   */
+  private notifyClientFileRead(agentPath: string): void {
+    if (!this.textStreamExtension?.handleClientFileRead) return;
+    const events = applyClientFileReadExtension(this.ensureMapperState(), agentPath);
+    if (events.length > 0) this.emitRuntimeEvents(events);
+  }
+
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     this.assertRequestSession(params.sessionId);
     const path = resolveAcpReadableHostFsPath(
@@ -1403,6 +1414,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     );
     try {
       const fullContent = await readFile(path, "utf8");
+      this.notifyClientFileRead(params.path);
       return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
     } catch (error: unknown) {
       const fallbackPath = resolveAcpGlobalSkillFallbackHostFsPath(
@@ -1412,6 +1424,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       if (fallbackPath && fallbackPath !== path && isMissingPathError(error)) {
         try {
           const fullContent = await readFile(fallbackPath, "utf8");
+          this.notifyClientFileRead(params.path);
           return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
         } catch {
           // Keep the original project-path error so a missing skill stays
