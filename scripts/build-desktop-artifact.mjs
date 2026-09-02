@@ -576,8 +576,8 @@ afterPack: build/after-pack.cjs
 
 publish:
   provider: github
-  owner: SDSLeon
-  repo: lightcode${publishChannelLine}
+  owner: Porabuild
+  repo: Poracode${publishChannelLine}
 
 win:
   target:
@@ -604,7 +604,7 @@ linux:
         - x64
   icon: build/icon${iconSuffix}.png
   category: Development
-  maintainer: SDSLeon <${supportEmail}>
+  maintainer: Porabuild <${supportEmail}>
   artifactName: ${prefix}-\${version}-\${arch}.\${ext}
 
 mac:

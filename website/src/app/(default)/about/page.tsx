@@ -28,7 +28,7 @@ const OFFICIAL_LINKS = [
   },
   {
     label: "Source repository",
-    value: "SDSLeon/lightcode",
+    value: "Porabuild/Poracode",
     href: GITHUB_URL,
     icon: GitBranch,
   },
@@ -130,7 +130,7 @@ export default function AboutPage() {
               <p>
                 Poracode, Pora.code, and poracode.com refer to this AI coding agent software
                 project. The canonical website is poracode.com, and the canonical source repository
-                is SDSLeon/lightcode on GitHub.
+                is Porabuild/Poracode on GitHub.
               </p>
             </section>
           </div>

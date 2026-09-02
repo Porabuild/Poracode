@@ -6,8 +6,8 @@ By contributing, you agree your work is licensed under the [Apache License 2.0](
 
 ## Before you start
 
-- For anything non-trivial, [open an issue](https://github.com/SDSLeon/lightcode/issues/new/choose) first so we can align on scope.
-- Search [existing issues](https://github.com/SDSLeon/lightcode/issues) and [PRs](https://github.com/SDSLeon/lightcode/pulls) to avoid duplicates.
+- For anything non-trivial, [open an issue](https://github.com/Porabuild/Poracode/issues/new/choose) first so we can align on scope.
+- Search [existing issues](https://github.com/Porabuild/Poracode/issues) and [PRs](https://github.com/Porabuild/Poracode/pulls) to avoid duplicates.
 
 ## Local setup
 
@@ -47,7 +47,7 @@ Rebase on the latest `master` before requesting review. Husky runs `lint-staged`
 
 ## Reporting issues
 
-Use the [issue templates](https://github.com/SDSLeon/lightcode/issues/new/choose). Include OS, Poracode version, the agent(s) involved, and reproduction steps.
+Use the [issue templates](https://github.com/Porabuild/Poracode/issues/new/choose). Include OS, Poracode version, the agent(s) involved, and reproduction steps.
 
 For security issues, don't open a public issue. See [SECURITY.md](SECURITY.md).
 

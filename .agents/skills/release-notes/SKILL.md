@@ -57,7 +57,7 @@ feature or product prefix; labeled and unlabeled changes may appear in the same 
 
 ## Step 1 — Gather source material
 
-Resolve the repo slug from the remote (default `SDSLeon/lightcode`):
+Resolve the repo slug from the remote (default `Porabuild/Poracode`):
 
 ```bash
 gh repo view --json nameWithOwner -q .nameWithOwner

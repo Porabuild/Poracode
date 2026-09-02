@@ -11,7 +11,7 @@ export const metadata: Metadata = createPageMetadata({
   path: "/support",
 });
 
-const ISSUES_URL = "https://github.com/SDSLeon/lightcode/issues";
+const ISSUES_URL = "https://github.com/Porabuild/Poracode/issues";
 
 export default function SupportPage() {
   return (
@@ -127,7 +127,7 @@ export default function SupportPage() {
                 Privacy policy
               </Link>
               <a
-                href="https://github.com/SDSLeon/lightcode"
+                href="https://github.com/Porabuild/Poracode"
                 target="_blank"
                 rel="noreferrer"
                 className="text-white underline underline-offset-4"
