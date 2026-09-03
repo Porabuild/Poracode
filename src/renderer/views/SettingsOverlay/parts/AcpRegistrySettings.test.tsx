@@ -1092,6 +1092,34 @@ describe("AcpRegistrySettings", () => {
     expect(command).toContain("irm https://x.ai/cli/install.ps1 | iex");
   });
 
+  it("runs Muse's native Windows install through the default WSL distro", async () => {
+    bridge.platform = "win32";
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\repo" },
+    });
+    appState.projects = [windowsProject];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const museCard = screen.getByText(/First-class Muse Code integration/u).closest(".rounded-lg");
+    expect(museCard).toBeTruthy();
+    fireEvent.click(within(museCard as HTMLElement).getByRole("button", { name: "Install" }));
+
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Muse Code",
+      }),
+    );
+    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    expect(installInput?.command(windowsProject)).toContain("wsl.exe --exec bash -lc");
+    expect(installInput?.command(windowsProject)).toContain("https://dev.meta.ai/install.sh");
+  });
+
   it("keeps brew install commands mac-only", () => {
     const wslProject = makeProject({
       id: "wsl-project",
@@ -1133,6 +1161,9 @@ describe("AcpRegistrySettings", () => {
     );
     expect(entries.get("grok")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://x.ai/cli/install.sh | bash",
+    );
+    expect(entries.get("muse")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://dev.meta.ai/install.sh | bash",
     );
     expect(entries.get("factory")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://app.factory.ai/cli | sh",

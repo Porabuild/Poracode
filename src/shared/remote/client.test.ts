@@ -685,6 +685,16 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("rejects a v8 host that predates pinned thread execution environments", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(8, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+  });
+
   it("forwards providerSwitch on a thread start so the host records the handoff divider", async () => {
     let startBody: unknown;
     const client = new RemoteDesktopClient(

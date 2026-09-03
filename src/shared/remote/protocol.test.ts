@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { defaultSharedSettings } from "../settings";
+import { LAUNCH_REMOTE_SERVER_SCRIPT } from "../sshRemoteScripts";
 import {
+  PORACODE_REMOTE_PROTOCOL_VERSION,
   pickRemoteSettings,
   remotePushRegistrationSchema,
   remoteSettingsPatchSchema,
@@ -39,6 +41,27 @@ describe("remote thread snapshots", () => {
         backgroundTasks: [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
       }).backgroundTasks,
     ).toEqual([{ taskId: "task-1", kind: "command", description: "pnpm test" }]);
+  });
+
+  it("preserves a thread's pinned WSL execution environment", () => {
+    expect(
+      remoteThreadSnapshotSchema.parse({
+        snapshotSeq: 1,
+        thread: {
+          ...thread,
+          config: {
+            model: "default",
+            executionEnvironment: { kind: "wsl", distro: "Ubuntu-24.04" },
+          },
+        },
+        runtimeItems: [],
+        completedTurns: [],
+        contextUsage: null,
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }).thread.config.executionEnvironment,
+    ).toEqual({ kind: "wsl", distro: "Ubuntu-24.04" });
+    expect(PORACODE_REMOTE_PROTOCOL_VERSION).toBe(9);
+    expect(LAUNCH_REMOTE_SERVER_SCRIPT).toContain("descriptor.protocolVersion === 9");
   });
 });
 

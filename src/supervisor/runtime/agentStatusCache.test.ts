@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(22);
+    expect(STATUS_CACHE_VERSION).toBe(23);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(22);
+    expect(STATUS_CACHE_VERSION).toBe(23);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -348,7 +348,54 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(22);
+    expect(STATUS_CACHE_VERSION).toBe(23);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v22 native terminal-only Muse statuses", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 22,
+        windows: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            capabilities: { presentationModes: ["terminal"] },
+            envKind: "windows",
+          },
+        ],
+        wsl: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { presentationModes: ["terminal"] },
+            envKind: "wsl",
+            wslDistro: "Ubuntu",
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+
+    expect(STATUS_CACHE_VERSION).toBe(23);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

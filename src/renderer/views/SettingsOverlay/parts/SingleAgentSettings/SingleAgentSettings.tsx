@@ -344,6 +344,7 @@ export function SingleAgentSettings(props: {
     findTerminalLoginStatus(installedStatuses) ??
     missingAuthStatuses.find((status) => status.loginCommand);
   const loginCommand = loginStatus?.loginCommand;
+  const loginCommandDisplay = loginStatus?.loginCommandDisplay ?? loginCommand;
   const terminalLoginMethod = findTerminalAuthMethodForStatus(loginStatus);
   const acpInstanceId = extractAcpGenericInstanceId(agent.kind);
   // Native ACP adapters (copilot/gemini/cursor) and generic ACP instances all
@@ -1051,8 +1052,8 @@ export function SingleAgentSettings(props: {
                                   : t`Save ${envVarAuthMethod.name} credentials.`
                                 : agentAuth
                                   ? t`Complete ${agentAuth.method.name} sign-in.`
-                                  : loginCommand
-                                    ? t`Run ${loginCommand} to sign in.`
+                                  : loginCommandDisplay
+                                    ? t`Run ${loginCommandDisplay} to sign in.`
                                     : t`Sign in with the agent CLI.`
                             }`
                           : t`Credentials are configured.`)}

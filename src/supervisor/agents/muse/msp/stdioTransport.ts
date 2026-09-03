@@ -34,6 +34,7 @@ export class MuseMspStdioTransport implements MuseMspTransport {
   private readonly outputChunks: string[] = [];
   private listener: MuseMspTransportListener | undefined;
   private disposed = false;
+  private errorReported = false;
 
   constructor(private readonly child: ChildProcess) {
     child.stdout?.setEncoding("utf8");
@@ -41,12 +42,9 @@ export class MuseMspStdioTransport implements MuseMspTransport {
 
     child.stdout?.on("data", (chunk) => this.handleStdout(String(chunk)));
     child.stderr?.on("data", (chunk) => this.recordOutput(String(chunk)));
-    child.once("error", (error) => {
-      if (!this.disposed) {
-        this.listener?.onError(error);
-      }
-    });
-    child.once("exit", () => {
+    child.once("error", (error) => this.reportError(error));
+    child.stdin?.on("error", (error) => this.reportError(error));
+    child.once("close", () => {
       if (this.stdoutBuffer.trim().length > 0) {
         this.recordOutput(`Unterminated stdout: ${formatStdoutLine(this.stdoutBuffer)}`);
         this.stdoutBuffer = "";
@@ -118,5 +116,11 @@ export class MuseMspStdioTransport implements MuseMspTransport {
     if (this.outputChunks.length > 12) {
       this.outputChunks.shift();
     }
+  }
+
+  private reportError(error: Error): void {
+    if (this.disposed || this.errorReported) return;
+    this.errorReported = true;
+    this.listener?.onError(error);
   }
 }

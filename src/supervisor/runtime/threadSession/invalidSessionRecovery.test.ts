@@ -11,6 +11,7 @@ import {
 
 const THREAD_ID = "thread-recover";
 const PROJECT_LOCATION = { kind: "posix", path: "/repo" } as const;
+const LOGICAL_PROJECT_LOCATION = { kind: "windows", path: "C:\\repo" } as const;
 const CONFIG: ThreadConfig = { model: "recover-test/model" };
 
 function createHarness() {
@@ -49,6 +50,7 @@ function createHarness() {
     threadId: THREAD_ID,
     agentKind: adapter.kind,
     adapter,
+    logicalProjectLocation: LOGICAL_PROJECT_LOCATION,
     projectLocation: PROJECT_LOCATION,
     config: CONFIG,
     mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
@@ -193,6 +195,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     expect(spawnInput).not.toHaveProperty("sessionRef");
     expect(spawnInput.mcpLaunchSnapshot).toBe(harness.session.mcpLaunchSnapshot);
     expect(spawnInput.launchConfig).toEqual(CONFIG);
+    expect(spawnInput.logicalProjectLocation).toEqual(LOGICAL_PROJECT_LOCATION);
     expect(spawnInput).toMatchObject({
       threadId: THREAD_ID,
       launchPrompt: "",

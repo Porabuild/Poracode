@@ -121,6 +121,15 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 - `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
 - `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
 
+### Optional — Execution Environment
+
+- `windowsProjectExecution?: "wsl"` — Run this provider in the default WSL
+  distro when the project is native Windows. Detection, terminal launch/resume,
+  auth/logout, one-shot generation, attachments, skills, MCPs, and provider
+  session discovery all use the resolved WSL environment; the project itself
+  remains a native Windows project. Use only when the provider has no native
+  Windows runtime.
+
 ### Optional — Terminal Heuristics
 
 - `isReadyForInitialPrompt?(text)` — True when the TUI is ready to receive the first user prompt.
@@ -161,19 +170,19 @@ Model/effort lists below are the **statically declared defaults**. Several provi
 
 The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
 
-| Provider     | Models                                                                   | Efforts                                  | Live Input            | Structured Session                                                            |
-| ------------ | ------------------------------------------------------------------------ | ---------------------------------------- | --------------------- | ----------------------------------------------------------------------------- |
-| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                     | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                                                                     |
-| Codex        | (probed dynamically via app-server)                                      | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)                                                        |
-| Gemini       | (probed dynamically via ACP)                                             | (probed dynamically)                     | terminal              | Yes (ACP)                                                                     |
-| Copilot      | (probed via ACP)                                                         | (probed via ACP)                         | terminal              | Yes (ACP)                                                                     |
-| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)                                                                     |
-| Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)                                                                     |
-| OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                                                              |
-| Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                                                              |
-| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                           | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`)                                              |
-| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                                                                            |
-| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries       | probed (`none…ultra` fallback)           | terminal              | No (MSP transport/client/probe in `muse/msp/`; session factory + GUI pending) |
+| Provider     | Models                                                                   | Efforts                                  | Live Input            | Structured Session               |
+| ------------ | ------------------------------------------------------------------------ | ---------------------------------------- | --------------------- | -------------------------------- |
+| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                     | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                        |
+| Codex        | (probed dynamically via app-server)                                      | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)           |
+| Gemini       | (probed dynamically via ACP)                                             | (probed dynamically)                     | terminal              | Yes (ACP)                        |
+| Copilot      | (probed via ACP)                                                         | (probed via ACP)                         | terminal              | Yes (ACP)                        |
+| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)                        |
+| Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)                        |
+| OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                 |
+| Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                 |
+| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                           | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`) |
+| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                               |
+| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries       | probed (`none…ultra` fallback)           | terminal              | Yes (MSP over `muse serve`)      |
 
 Antigravity is one built-in agent and one registry card with two managed runtime
 prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry

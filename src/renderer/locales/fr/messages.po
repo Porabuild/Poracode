@@ -5375,8 +5375,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Intégration CLI Kimi Code de première classe à l'aide du runtime natif de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Intégration CLI Muse Code de première classe à l'aide du runtime de terminal natif de Poracode."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Intégration CLI Muse Code de première classe à l'aide du runtime de terminal natif de Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Intégration Muse Code de première classe avec les runtimes natifs de terminal et d'interface graphique de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -10651,12 +10655,20 @@ msgstr "Exécuter {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Exécuter {0} avant que ce fil puisse s'exécuter."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Exécuter {0} avant que ce fil puisse s'exécuter."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Exécutez {loginCommand} pour vous connecter."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Exécutez {loginCommand} pour vous connecter."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Exécuter {loginCommandDisplay} avant que ce fil puisse s'exécuter."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Exécutez {loginCommandDisplay} pour vous connecter."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

@@ -5379,8 +5379,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "First-class Kimi Code CLI integration using Poracode's native runtime."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -10656,12 +10660,20 @@ msgstr "Run {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Run {0} before this thread can run."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Run {0} before this thread can run."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Run {loginCommand} to sign in."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Run {loginCommand} to sign in."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Run {loginCommandDisplay} before this thread can run."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Run {loginCommandDisplay} to sign in."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

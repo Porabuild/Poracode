@@ -59,6 +59,7 @@ export function authStatusForPresentation(
 function stripProviderLogin(status: AgentStatus): AgentStatus {
   const {
     loginCommand: _loginCommand,
+    loginCommandDisplay: _loginCommandDisplay,
     authMethods: _authMethods,
     authLogoutSupported: _authLogoutSupported,
     preferTerminalLogin: _preferTerminalLogin,
@@ -70,13 +71,20 @@ function stripProviderLogin(status: AgentStatus): AgentStatus {
 function restoreProviderLogin(
   source: Pick<
     AgentStatus,
-    "loginCommand" | "authMethods" | "authLogoutSupported" | "preferTerminalLogin"
+    | "loginCommand"
+    | "loginCommandDisplay"
+    | "authMethods"
+    | "authLogoutSupported"
+    | "preferTerminalLogin"
   >,
   status: AgentStatus,
 ): AgentStatus {
   return {
     ...status,
     ...(source.loginCommand !== undefined ? { loginCommand: source.loginCommand } : {}),
+    ...(source.loginCommandDisplay !== undefined
+      ? { loginCommandDisplay: source.loginCommandDisplay }
+      : {}),
     ...(source.authMethods !== undefined ? { authMethods: source.authMethods } : {}),
     ...(source.authLogoutSupported !== undefined
       ? { authLogoutSupported: source.authLogoutSupported }
@@ -169,6 +177,7 @@ export function agentStatusForPresentation(
   };
   const hasRuntimeLogin =
     runtimeVariant.loginCommand !== undefined ||
+    runtimeVariant.loginCommandDisplay !== undefined ||
     runtimeVariant.authMethods !== undefined ||
     runtimeVariant.authLogoutSupported !== undefined ||
     runtimeVariant.preferTerminalLogin !== undefined;

@@ -5375,8 +5375,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Kimi Code CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Poracode'un yerel terminal çalışma zamanını kullanan birinci sınıf Muse Code CLI entegrasyonu."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Poracode'un yerel terminal çalışma zamanını kullanan birinci sınıf Muse Code CLI entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Poracode'un yerel terminal ve GUI çalışma zamanlarını kullanan birinci sınıf Muse Code entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -10652,12 +10656,20 @@ msgstr "{0} komutunu çalıştırın"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Bu iş parçacığının çalıştırılabilmesi için önce {0} komutunu çalıştırın."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Bu iş parçacığının çalıştırılabilmesi için önce {0} komutunu çalıştırın."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Bu iş parçacığının çalıştırılabilmesi için önce {loginCommandDisplay} komutunu çalıştırın."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Oturum açmak için {loginCommandDisplay} komutunu çalıştırın."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

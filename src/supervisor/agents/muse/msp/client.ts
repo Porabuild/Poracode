@@ -20,6 +20,7 @@ import { MuseMspStdioTransport, type MuseMspTransport } from "./stdioTransport";
 export const MSP_DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export type MuseMspNotificationHandler = (method: string, params: Record<string, unknown>) => void;
+export type MuseMspErrorHandler = (error: Error) => void;
 
 /**
  * Handler for server-initiated JSON-RPC requests (`approval/request`,
@@ -38,6 +39,7 @@ export interface SpawnMuseServeHostOptions {
   extraEnv?: Record<string, string>;
   serveArgs: string[];
   label?: string;
+  isolateCwd?: boolean;
 }
 
 /**
@@ -58,7 +60,7 @@ export async function spawnMuseServeHost(
     options.executablePath,
     options.extraEnv,
   );
-  const spawnCwd = resolveProbeSpawnCwd(location, cmd.cwd);
+  const spawnCwd = options.isolateCwd === false ? cmd.cwd : resolveProbeSpawnCwd(location, cmd.cwd);
   const ownedProcessGroup = process.platform !== "win32";
   const child = spawn(cmd.command, cmd.args, {
     ...(spawnCwd ? { cwd: spawnCwd } : {}),
@@ -99,13 +101,13 @@ interface PendingMspRequest {
  * requests with timeouts, server→client notification fan-out. Unknown
  * methods and fields pass through untouched — the schema is additive-open,
  * so the client never validates beyond the envelope (see `parseMspFrame`).
- * Higher-level session/turn flows belong in the future session module, not
- * here.
+ * Higher-level session/turn flows belong in the structured session module.
  */
 export class MuseMspClient {
   private nextId = 1;
   private readonly pending = new Map<MspRequestId, PendingMspRequest>();
   private readonly notificationHandlers = new Set<MuseMspNotificationHandler>();
+  private readonly errorHandlers = new Set<MuseMspErrorHandler>();
   private readonly serverRequestHandlers = new Set<MuseMspServerRequestHandler>();
   private disposed = false;
 
@@ -116,8 +118,11 @@ export class MuseMspClient {
     transport.setListener({
       onMessage: (message) => this.handleMessage(message),
       onClose: () => this.failPending(new Error("Muse MSP server closed the connection.")),
-      onError: (error) =>
-        this.failPending(error instanceof Error ? error : new Error("Muse MSP transport error.")),
+      onError: (error) => {
+        const normalized = error instanceof Error ? error : new Error("Muse MSP transport error.");
+        this.failPending(normalized);
+        for (const handler of [...this.errorHandlers]) handler(normalized);
+      },
     });
   }
 
@@ -171,6 +176,13 @@ export class MuseMspClient {
     this.notificationHandlers.add(handler);
     return () => {
       this.notificationHandlers.delete(handler);
+    };
+  }
+
+  onError(handler: MuseMspErrorHandler): () => void {
+    this.errorHandlers.add(handler);
+    return () => {
+      this.errorHandlers.delete(handler);
     };
   }
 
