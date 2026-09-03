@@ -6050,6 +6050,8 @@ msgstr "Image"
 msgid "Image preview"
 msgstr "Aperçu de l'image"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Images"
@@ -8559,7 +8561,14 @@ msgstr "Ouvrir la revue Git"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Ouvrez git review sous forme de panneau de droite ou de page complète."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Ouvrir l'image {0} sur {1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Ouvrir l'aperçu de l'image"
 
@@ -11409,6 +11418,10 @@ msgstr "Afficher le coût estimé"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Afficher GitHub Actions dans le pied de la barre latérale."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Afficher les images"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Afficher dans l'explorateur de fichiers"
@@ -12968,6 +12981,10 @@ msgstr "Fil de discussion terminé ou en attente de votre saisie."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Dock d'objectif du fil"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Images du fil"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"

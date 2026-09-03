@@ -25,12 +25,14 @@ import {
   SubAgentHeaderText,
 } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel";
+import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { usePanelStore, type GitReviewContext } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import {
@@ -117,6 +119,14 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       ? resolveProjectLocation(currentThreadProject.location, currentThread.worktreePath)
       : undefined;
   const docksInCurrentThread = useDocksPanelHasContent();
+  // Image-only threads offer the Docks tab without making image presence itself
+  // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
+  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
+  const gallery = useThreadGalleryImages(
+    currentThreadId !== null && docksPlacement === "right" ? currentThreadId : undefined,
+  );
+  const imagesInCurrentThread = gallery.length > 0;
+  const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;
@@ -168,7 +178,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     // A bottom-docked tab already renders in the bottom row.
     if (isBottomDocked(requestedTab)) return false;
     if (requestedTab === "subagent") return subAgentInCurrentThread;
-    if (requestedTab === "docks") return docksInCurrentThread;
+    if (requestedTab === "docks") return docksTabAvailable;
     // The browser panel is dismissed out-of-band when its last tab closes (the
     // browser sync clears browserPanelOpen but leaves rightPanelTab pointing at
     // "browser"), so it must honor its open flag even when no plan is present —
@@ -342,7 +352,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const renderUsageContent = usagePanelOpen && !isBottomDocked("usage");
   const renderNotesContent =
     notesPanelOpen && notesProjectId !== undefined && !isBottomDocked("notes");
-  const renderDocksContent = docksInCurrentThread;
+  const renderDocksContent = docksTabAvailable;
   const renderSubAgentContent = subAgentInCurrentThread;
 
   return (

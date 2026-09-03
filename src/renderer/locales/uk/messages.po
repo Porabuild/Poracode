@@ -6050,6 +6050,8 @@ msgstr "Зображення"
 msgid "Image preview"
 msgstr "Попередній перегляд зображення"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Зображення"
@@ -8560,7 +8562,14 @@ msgstr "Відкрити перегляд Git"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Відкривати перегляд Git як праву панель або повну сторінку."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Відкрити зображення {0} з {1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Відкрити перегляд зображення"
 
@@ -11410,6 +11419,10 @@ msgstr "Показувати орієнтовну вартість"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Показувати GitHub Actions унизу бічної панелі."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Показати зображення"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Показати в провіднику файлів"
@@ -12969,6 +12982,10 @@ msgstr "Тред завершено або він очікує на ваш вв�
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Панель мети треда"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Зображення потоку"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"

@@ -124,7 +124,9 @@ export function useVisibleThreadTodoDockState(threadId: string): ThreadTodoDockS
 /**
  * Whether the Docks tab has content to show for the focused thread. Panel
  * visibility and the auxiliary panel — the two hosts of the docks layer — must
- * agree on this, so the dismissal plumbing lives in this one hook.
+ * agree on this, so the informational-dock dismissal plumbing lives here.
+ * Image availability is handled separately because the panel's explicit open
+ * state, rather than the existence of gallery content, owns dismissal.
  */
 export function useDocksPanelHasContent(): boolean {
   const currentThreadId = useFocusedThreadId();

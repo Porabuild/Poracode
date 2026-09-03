@@ -6050,6 +6050,8 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Ảnh"
@@ -8560,7 +8562,14 @@ msgstr "Mở Git Review"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải hoặc toàn trang."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Mở hình ảnh {0}/{1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Mở xem trước hình ảnh"
 
@@ -11410,6 +11419,10 @@ msgstr "Hiển thị chi phí ước tính"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Hiển thị GitHub Actions ở chân thanh bên."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Hiển thị ảnh"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Hiển thị trong trình duyệt tệp"
@@ -12969,6 +12982,10 @@ msgstr "Luồng đã kết thúc hoặc đang chờ bạn nhập."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Dock mục tiêu luồng"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Hình ảnh của luồng"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"

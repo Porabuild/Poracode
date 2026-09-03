@@ -211,7 +211,7 @@ export function ImageLightboxView(props: {
       }}
       role="dialog"
       aria-modal="true"
-      aria-label={current.alt ?? t`Image preview`}
+      aria-label={current.alt || t`Image preview`}
     >
       <button
         type="button"

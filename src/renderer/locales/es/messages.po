@@ -6050,6 +6050,8 @@ msgstr "Imagen"
 msgid "Image preview"
 msgstr "Vista previa de imagen"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Imágenes"
@@ -8560,7 +8562,14 @@ msgstr "Abrir revisión de Git"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Abrir la revisión de Git como un panel a la derecha o como una página completa."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Abrir imagen {0} de {1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Abrir vista previa de la imagen"
 
@@ -11410,6 +11419,10 @@ msgstr "Mostrar coste estimado"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Mostrar GitHub Actions en el pie de la barra lateral."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Mostrar imágenes"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Mostrar en el explorador de archivos"
@@ -12969,6 +12982,10 @@ msgstr "El hilo terminó o está esperando tu respuesta."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Panel del objetivo del hilo"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Imágenes del hilo"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"

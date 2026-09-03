@@ -335,6 +335,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1(supports-color@10.2.2)
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0(supports-color@10.2.2)
       shiki:
         specifier: ^4.3.0
         version: 4.3.0
@@ -347,6 +350,9 @@ importers:
       tailwindcss:
         specifier: ^4.3.2
         version: 4.3.2
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       vscode-jsonrpc:
         specifier: ^9.0.1
         version: 9.0.1

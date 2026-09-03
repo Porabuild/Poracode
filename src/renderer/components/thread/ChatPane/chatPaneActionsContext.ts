@@ -3,6 +3,8 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { RemoteImageRefValue } from "@/shared/remote";
 
 export type ChatPaneActions = {
+  /** Owning thread — lets inline images open the thread-wide gallery. */
+  threadId?: string | undefined;
   /**
    * File-editor actions are project-scope only: Home-scope threads get a
    * partial object (today just `openThread`), so every project-dependent

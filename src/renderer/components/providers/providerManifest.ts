@@ -1,5 +1,12 @@
 import type { MessageDescriptor } from "@lingui/core";
-import { baseAgentKind } from "@/shared/contracts";
+import { baseAgentKind, type ProjectLocation } from "@/shared/contracts";
+
+export interface ProviderMarkdownImageRootsInput {
+  sessionId?: string;
+  projectLocation: ProjectLocation;
+  homeDir?: string;
+  isRemote?: boolean;
+}
 
 export interface RendererProviderManifest {
   kind: string;
@@ -8,6 +15,10 @@ export interface RendererProviderManifest {
   order: number;
   /** Optional override for automatic utility tasks; otherwise `order` applies. */
   utilityOrder?: number;
+  /** Provider-owned roots for relative image paths emitted in transcript markdown. */
+  resolveMarkdownImageRoots?: (
+    input: ProviderMarkdownImageRootsInput,
+  ) => readonly string[] | undefined;
 }
 
 const manifestModules = import.meta.glob<RendererProviderManifest>("./*/manifest.ts", {

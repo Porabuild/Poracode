@@ -63,6 +63,7 @@ import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useThread } from "@/renderer/state/useThread";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
+import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -739,6 +740,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               measures the real buttons without adding a line box above the composer. */}
           <div className="absolute right-3 bottom-full z-10 mb-1.5 flex max-w-full flex-wrap items-center justify-end gap-1.5">
             {showDockBubbles ? <ThreadDockBubbles summary={docksSummary} /> : null}
+            {!hideInfoDocks && canShowRuntimeChrome ? (
+              <ThreadImagesBubble threadId={thread.id} />
+            ) : null}
             {awaitingWorktree ? null : (
               <ThreadChangesBubble
                 projectId={thread.projectId}

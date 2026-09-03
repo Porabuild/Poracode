@@ -6050,6 +6050,8 @@ msgstr "이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "이미지"
@@ -8560,7 +8562,14 @@ msgstr "Git 검토 열기"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "이미지 {0}/{1} 열기"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
@@ -11410,6 +11419,10 @@ msgstr "예상 비용 표시"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "사이드바 바닥글에 GitHub Actions를 표시합니다."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "이미지 보기"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "파일 탐색기에 표시"
@@ -12969,6 +12982,10 @@ msgstr "스레드가 완료되었거나 입력을 기다리는 중입니다."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "스레드 목표 도크"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "스레드 이미지"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"

@@ -6050,6 +6050,8 @@ msgstr "Resim"
 msgid "Image preview"
 msgstr "Resim önizlemesi"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Görseller"
@@ -8560,7 +8562,14 @@ msgstr "Git İncelemesini Aç"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Git incelemesini sağ taraftaki panel veya tam sayfa olarak açın."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "{0}/{1} görselini aç"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Görsel önizlemesini aç"
 
@@ -11410,6 +11419,10 @@ msgstr "Tahmini maliyeti göster"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "GitHub Actions'ı kenar çubuğu alt kısmında göster."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Görselleri göster"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Dosya gezgininde göster"
@@ -12969,6 +12982,10 @@ msgstr "Konu bitti veya girişinizi bekliyor."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Konu hedefi yuvası"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "İş parçacığı görselleri"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"

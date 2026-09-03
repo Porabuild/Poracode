@@ -6054,6 +6054,8 @@ msgstr "Image"
 msgid "Image preview"
 msgstr "Image preview"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Images"
@@ -8564,7 +8566,14 @@ msgstr "Open Git Review"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Open git review as a right-side panel or a full page."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Open image {0} of {1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Open image preview"
 
@@ -11414,6 +11423,10 @@ msgstr "Show estimated cost"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Show GitHub Actions in the sidebar footer."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Show images"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Show in file explorer"
@@ -12973,6 +12986,10 @@ msgstr "Thread finished or waiting for your input."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Thread goal dock"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Thread images"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Thread info"
