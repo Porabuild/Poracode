@@ -20,9 +20,10 @@ export {
   markOpenCodeUsageScopeSampled,
   openCodeUsageScopeForSession,
   setOpenCodeMainSessionId,
+  setOpenCodeMapperLocation,
   type OpenCodeMapperState,
   type OpenCodeSubAgentSessionState,
 } from "./sdkCanonicalMappingState";
 
-export { mapOpenCodeEvent } from "./canonicalMapping/dispatch";
+export { isOpenCodeAbortError, mapOpenCodeEvent } from "./canonicalMapping/dispatch";
 export { closeOpenItems } from "./canonicalMapping/textItems";

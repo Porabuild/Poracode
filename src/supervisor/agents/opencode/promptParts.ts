@@ -85,6 +85,7 @@ function shouldSendFilePart(mime: string): boolean {
   return (
     mime.startsWith("image/") ||
     mime.startsWith("text/") ||
+    mime.startsWith("audio/") ||
     mime === "application/json" ||
     mime === "application/pdf"
   );
@@ -162,6 +163,13 @@ export function buildOpenCodePromptParts(
       if (segment.kind === "mcp") {
         // MCP mentions are a plain-text directive for the turn, not a file ref.
         parts.push({ type: "text", text: `@${segment.name}` });
+        continue;
+      }
+      if (segment.kind === "thread") {
+        // Thread mentions have no path, so the file branch below would drop
+        // them silently. Keep the mention label as plain text (matching
+        // `inlinePromptSegmentText`) so the reference survives.
+        parts.push({ type: "text", text: `@${segment.title || segment.threadId}` });
         continue;
       }
       // A provider-native skill has no SKILL.md to attach — send its
