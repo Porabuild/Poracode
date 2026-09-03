@@ -238,6 +238,62 @@ describe("McpOAuthService", () => {
     expect(service.status().authenticatedUrls).toEqual([]);
   });
 
+  it("stops reporting expired tokens without a refresh token as authenticated", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-mcp-oauth-"));
+    cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+    const url = "https://mcp.vercel.com";
+    const sealed = encryptSecret(
+      dir,
+      JSON.stringify({ access_token: "expired", expires_in: 3600 }),
+    );
+    writeFileSync(
+      join(dir, "mcp-oauth.json"),
+      JSON.stringify({
+        servers: {
+          [url]: { tokens: sealed, tokensSavedAt: Date.now() - 2 * 3600 * 1000 },
+        },
+      }),
+    );
+    const service = new McpOAuthService({ baseDir: dir });
+    cleanups.push(() => service.dispose());
+
+    // No refresh token means the next turn would be sent without an
+    // `Authorization` header and fail-closed agents abort with
+    // `MCP load failed ... Unauthorized` — so the URL must read as signed out.
+    expect(service.status().authenticatedUrls).toEqual([]);
+    const server: McpServer = {
+      id: "vercel",
+      name: "Vercel",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "http", url, headers: {} },
+    };
+    expect(await service.applyAuthorizationToServer(server)).toBe(server);
+  });
+
+  it("keeps reporting expired tokens with a refresh token as authenticated", () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-mcp-oauth-"));
+    cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+    const url = "https://mcp.vercel.com";
+    const sealed = encryptSecret(
+      dir,
+      JSON.stringify({ access_token: "expired", refresh_token: "rt-1", expires_in: 3600 }),
+    );
+    writeFileSync(
+      join(dir, "mcp-oauth.json"),
+      JSON.stringify({
+        servers: {
+          [url]: { tokens: sealed, tokensSavedAt: Date.now() - 2 * 3600 * 1000 },
+        },
+      }),
+    );
+    const service = new McpOAuthService({ baseDir: dir });
+    cleanups.push(() => service.dispose());
+
+    expect(service.status().authenticatedUrls).toEqual([url]);
+  });
+
   it("ignores callbacks with a mismatched state parameter", async () => {
     const fake = await startFakeAuthServer({ expiresIn: 3600 });
     const service = makeService();
