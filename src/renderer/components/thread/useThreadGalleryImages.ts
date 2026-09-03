@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { i18n as i18nSingleton } from "@/renderer/i18n/i18n";
@@ -29,7 +28,7 @@ const EMPTY_GALLERY: readonly ThreadGalleryImage[] = [];
 export function useThreadGalleryImages(
   threadId: string | undefined,
 ): readonly ThreadGalleryImage[] {
-  const { i18n } = useLingui();
+  const locale = i18nSingleton.locale;
   const itemIds = useAppStore((s) =>
     threadId ? (s.runtimeItemIdsByThread[threadId] ?? EMPTY_IDS) : EMPTY_IDS,
   );
@@ -62,19 +61,10 @@ export function useThreadGalleryImages(
         import("@/renderer/state/slices/runtimeEventSlice").RuntimeChatItem
       >,
       resolvers,
-      { structuralVersion, remoteRevision, locale: i18n.locale },
+      { structuralVersion, remoteRevision, locale },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: resolvers derive from live store state per update
-  }, [
-    threadId,
-    itemIds,
-    itemsById,
-    thread,
-    project,
-    structuralVersion,
-    remoteRevision,
-    i18n.locale,
-  ]);
+  }, [threadId, itemIds, itemsById, thread, project, structuralVersion, remoteRevision, locale]);
 }
 
 /**
