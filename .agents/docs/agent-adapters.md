@@ -173,7 +173,7 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                                                              |
 | Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                           | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`)                                              |
 | Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                                                                            |
-| Muse Code    | muse-spark-1.3 family, static + `--help` discoveries                     | probed (`none…ultra` fallback)           | terminal              | No (MSP transport/client/probe in `muse/msp/`; session factory + GUI pending) |
+| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries       | probed (`none…ultra` fallback)           | terminal              | No (MSP transport/client/probe in `muse/msp/`; session factory + GUI pending) |
 
 Antigravity is one built-in agent and one registry card with two managed runtime
 prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry

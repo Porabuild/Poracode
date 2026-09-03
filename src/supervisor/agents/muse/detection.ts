@@ -11,6 +11,7 @@ import {
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { nativeMuseAuthPath, WSL_MUSE_AUTH_PATH } from "./paths";
+import { probeMuseModelCatalog, type MuseProbedCatalog } from "./msp/probe";
 
 // Curated static fallback — Muse ships no `list-models` command, so this is
 // the model/effort source of truth when the `--help` probe below yields
@@ -164,6 +165,45 @@ function museStaticModelEntries(): Array<{ id: string; label: string }> {
 }
 
 /**
+ * Overlay a live `model/list` catalog onto base models (the curated statics,
+ * possibly already extended by the `--help` overlay): append catalog ids the
+ * base doesn't know, in catalog order, keeping the curated default first.
+ * Context limits come from the catalog when declared, else the 1M all Muse
+ * models ship with. Returns null when the catalog adds nothing, so the probe
+ * result stays minimal.
+ */
+export function buildMuseCatalogCapabilities(
+  baseModels: ReadonlyArray<{ id: string; label: string }>,
+  catalog: MuseProbedCatalog,
+  efforts: string[],
+): Pick<AgentCapability, "models" | "modelEfforts" | "contextSizes" | "modelContextSizes"> | null {
+  const known = new Set(baseModels.map((model) => model.id));
+  const discovered = catalog.models.filter((model) => model.id && !known.has(model.id));
+  if (discovered.length === 0) return null;
+  const models = [
+    ...baseModels.map((model) => ({ ...model })),
+    ...discovered.map((model) => ({
+      id: model.id,
+      label: model.label || humanizeMuseModelLabel(model.id),
+    })),
+  ];
+  const limits = new Map<string, number>();
+  for (const model of baseModels) limits.set(model.id, 1_000_000);
+  for (const model of catalog.models) {
+    if (typeof model.contextLimit === "number" && model.contextLimit > 0) {
+      limits.set(model.id, model.contextLimit);
+    }
+  }
+  return {
+    models,
+    modelEfforts: Object.fromEntries(models.map((model) => [model.id, [...efforts]])),
+    ...buildContextSizeCapabilities(
+      new Map(models.map((model) => [model.id, limits.get(model.id) ?? 1_000_000])),
+    ),
+  };
+}
+
+/**
  * Overlay the installed binary's `--help` onto the curated static
  * capabilities: adopt a newly shipped effort ladder, and append newly
  * mentioned model ids (1M context, full ladder — every Muse model to date).
@@ -276,12 +316,13 @@ export const museDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["META_API_KEY"]), storedCredentialsAuthProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    // One cheap, unauthenticated `muse --help` spawn: adopt the installed
-    // binary's effort ladder and any newly shipped model ids it mentions.
-    // The overlay is additive-only (see buildMuseProbedCapabilities), so a
-    // failed spawn or unparseable help falls back to the static list above
-    // with zero behavior change. probeEnv carries baseSpawnEnv
-    // (MUSE_NO_AUTO_UPDATE) so the probe never triggers the CLI's updater.
+    // Two dynamic sources, one static fallback. First the cheap,
+    // unauthenticated `muse --help` spawn (effort ladder + mentioned model
+    // ids, additive-only). Then the `muse serve` model catalog when the host
+    // answers — live when logged in, empty otherwise. probeEnv carries
+    // baseSpawnEnv (MUSE_NO_AUTO_UPDATE) so neither probe triggers the CLI's
+    // updater. Anything missing falls back to the static list above with zero
+    // behavior change.
     const help = await readAgentCommandOutput(ctx.location, ctx.executablePath, ["--help"], {
       timeoutMs: 8_000,
       ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
@@ -291,12 +332,29 @@ export const museDetectionSpec: DetectionSpec = {
       return undefined;
     });
     const helpText = help ? `${help.stdout}\n${help.stderr}` : "";
+    const helpCaps = helpText.trim() ? buildMuseProbedCapabilities(helpText) : null;
+    const catalog = await probeMuseModelCatalog(ctx.location, {
+      executablePath: ctx.executablePath,
+      ...(ctx.probeEnv ? { probeEnv: ctx.probeEnv } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    });
+    // The catalog wins when it adds models (it builds on the help overlay);
+    // an empty/failed probe keeps the help/static result.
+    const catalogCaps =
+      catalog && catalog.models.length > 0
+        ? buildMuseCatalogCapabilities(
+            helpCaps?.models ?? museStaticModelEntries(),
+            catalog,
+            helpCaps?.efforts ?? [...MUSE_EFFORTS],
+          )
+        : null;
+    const overlay = catalogCaps ?? helpCaps;
     // `muse logout` clears the saved Meta credential (verified on 1.0.2), so
     // the Settings logout action is always available once installed.
     return {
       authMethods: [MUSE_TERMINAL_AUTH],
       authLogoutSupported: true,
-      ...(helpText.trim() ? (buildMuseProbedCapabilities(helpText) ?? {}) : {}),
+      ...(overlay ?? {}),
     };
   },
   // Muse ships via Meta's installer script only — no npm package, no

@@ -8,12 +8,22 @@ const readAgentCommandOutputMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ ok: boolean; stdout: string; stderr: string }>>(),
 );
 
+const probeMuseModelCatalogMock = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+);
+
 vi.mock("../base", async () => {
   const actual = await vi.importActual<typeof import("../base")>("../base");
   return { ...actual, readAgentCommandOutput: readAgentCommandOutputMock };
 });
 
+vi.mock("./msp/probe", async () => {
+  const actual = await vi.importActual<typeof import("./msp/probe")>("./msp/probe");
+  return { ...actual, probeMuseModelCatalog: probeMuseModelCatalogMock };
+});
+
 import {
+  buildMuseCatalogCapabilities,
   buildMuseProbedCapabilities,
   humanizeMuseModelLabel,
   MUSE_DEFAULT_MODEL_ID,
@@ -110,6 +120,7 @@ describe("museHasStoredCredentials (temp dir, never touches ~/.config/muse)", ()
 describe("museDetectionSpec", () => {
   beforeEach(() => {
     readAgentCommandOutputMock.mockResolvedValue({ ok: true, stdout: "", stderr: "" });
+    probeMuseModelCatalogMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -191,6 +202,63 @@ describe("museDetectionSpec", () => {
     expect(result?.models?.[0]?.id).toBe(MUSE_DEFAULT_MODEL_ID);
     expect(result?.models?.map((m) => m.id)).toContain("muse-spark-1.4");
     expect(result?.efforts).toContain("max");
+  });
+
+  it("appends live catalog models after the curated defaults", async () => {
+    probeMuseModelCatalogMock.mockResolvedValueOnce({
+      models: [
+        { id: "muse-spark-1.3", label: "Muse Spark 1.3", contextLimit: 1_048_576, isDefault: true },
+        {
+          id: "muse-spark-1.9",
+          label: "Muse Spark 1.9",
+          contextLimit: 2_000_000,
+          isDefault: false,
+        },
+      ],
+      source: "providerCatalog",
+      providerId: "meta",
+      profileId: null,
+    });
+    const location = { kind: "posix", path: "/tmp" } as ProjectLocation;
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location,
+      executablePath: "/usr/bin/muse",
+      probeEnv: { MUSE_NO_AUTO_UPDATE: "1" },
+    });
+    expect(probeMuseModelCatalogMock).toHaveBeenCalledWith(
+      location,
+      expect.objectContaining({ executablePath: "/usr/bin/muse" }),
+    );
+    // Curated default stays first; the live id is appended with its label.
+    expect(result?.models?.slice(0, 2).map((m) => m.id)).toEqual([
+      MUSE_DEFAULT_MODEL_ID,
+      "muse-spark-1.3-contributor",
+    ]);
+    expect(result?.models?.at(-1)).toEqual({
+      id: "muse-spark-1.9",
+      label: "Muse Spark 1.9",
+    });
+    // Context comes from the catalog limit; known ids keep their mapping.
+    expect(result?.modelContextSizes?.["muse-spark-1.9"]).toEqual(["2M"]);
+    expect(result?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["1M"]);
+  });
+
+  it("ignores an empty live catalog", async () => {
+    probeMuseModelCatalogMock.mockResolvedValueOnce({
+      models: [],
+      source: "bundledCatalog",
+      providerId: "meta",
+      profileId: "tbh",
+    });
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    // Empty help output parses to nothing and the empty catalog adds nothing.
+    expect(result).toEqual({
+      authMethods: [{ id: "muse-terminal-login", name: "Login", type: "terminal" }],
+      authLogoutSupported: true,
+    });
   });
 });
 
@@ -445,5 +513,90 @@ describe("buildMuseProbedCapabilities", () => {
       "minimal",
       "none",
     ]);
+  });
+});
+
+describe("buildMuseCatalogCapabilities", () => {
+  const base = [
+    { id: "muse-spark-1.3", label: "Muse Spark 1.3" },
+    { id: "muse-spark-1.1", label: "Muse Spark 1.1" },
+  ];
+  const efforts = ["low", "medium", "high"];
+
+  it("returns null when the catalog adds no unknown ids", () => {
+    expect(
+      buildMuseCatalogCapabilities(
+        base,
+        {
+          models: [{ id: "muse-spark-1.3", label: "x", contextLimit: null, isDefault: false }],
+          source: "providerCatalog",
+          providerId: "meta",
+          profileId: null,
+        },
+        efforts,
+      ),
+    ).toBeNull();
+    expect(
+      buildMuseCatalogCapabilities(
+        base,
+        { models: [], source: "bundledCatalog", providerId: "meta", profileId: "tbh" },
+        efforts,
+      ),
+    ).toBeNull();
+  });
+
+  it("appends unknown ids with catalog labels and limits on the given ladder", () => {
+    const probed = buildMuseCatalogCapabilities(
+      base,
+      {
+        models: [
+          {
+            id: "muse-spark-1.9",
+            label: "Muse Spark 1.9",
+            contextLimit: 2_000_000,
+            isDefault: true,
+          },
+          { id: "", label: "blank", contextLimit: null, isDefault: false },
+        ],
+        source: "providerCatalog",
+        providerId: "meta",
+        profileId: null,
+      },
+      efforts,
+    );
+    expect(probed?.models.map((m) => m.id)).toEqual([
+      "muse-spark-1.3",
+      "muse-spark-1.1",
+      "muse-spark-1.9",
+    ]);
+    expect(probed?.modelEfforts["muse-spark-1.9"]).toEqual(efforts);
+    expect(probed?.modelContextSizes?.["muse-spark-1.9"]).toEqual(["2M"]);
+    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["1M"]);
+  });
+
+  it("humanizes blank catalog labels and prefers catalog limits for known ids", () => {
+    const probed = buildMuseCatalogCapabilities(
+      base,
+      {
+        models: [
+          {
+            id: "muse-spark-1.3",
+            label: "Muse Spark 1.3",
+            contextLimit: 2_000_000,
+            isDefault: false,
+          },
+          { id: "muse-spark-1.9-contributor", label: "", contextLimit: null, isDefault: false },
+        ],
+        source: "providerCatalog",
+        providerId: "meta",
+        profileId: null,
+      },
+      efforts,
+    );
+    expect(probed?.models.at(-1)).toEqual({
+      id: "muse-spark-1.9-contributor",
+      label: "Muse Spark 1.9 Contributor",
+    });
+    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["2M"]);
   });
 });
