@@ -1,7 +1,10 @@
 import type { ThreadConfig } from "@/shared/contracts";
 
 /**
- * Flag references — verified against Muse Code 0.1.0 (0.1.0-R708.1):
+ * Flag references — verified against Muse Code 0.1.0 (0.1.0-R708.1), then
+ * re-verified against real 1.0.2 `--help` / `exec --help` output (same launch,
+ * resume, and exec flags; TUI heuristics in terminal.ts are still grounded in
+ * the 0.1.0 capture).
  *
  * Interactive TUI: `muse [OPTIONS] [PROMPT]`
  *   • `--model <ID>`
@@ -59,7 +62,8 @@ export function buildMuseArgs(config: ThreadConfig, prompt?: string): string[] {
 
 /**
  * Argv for `muse resume <session-uuid>` (config flags after the subcommand so
- * they stay with the resumed session).
+ * they stay with the resumed session — real 1.0.2 help confirms root options
+ * may appear on either side of `resume`).
  */
 export function buildMuseResumeArgs(sessionRef: string, config: ThreadConfig): string[] {
   return ["resume", sessionRef, ...buildMuseConfigFlags(config)];

@@ -118,9 +118,11 @@ describe("createMuseAdapter launch / resume argv", () => {
 });
 
 describe("detectMuseTerminalStatus", () => {
-  // Strings grounded in the captured echo-provider TUI
-  // (tmp/muse-tui-echo-clean.txt): Working / esc to interrupt / Voice input /
-  // Muse Code header.
+  // Strings grounded in real echo-provider TUI captures
+  // (`muse --provider echo --no-session-log --trust-workspace "say hello"`):
+  // 0.1.0 (`Working / esc to interrupt / Voice input / Muse Code` header) and
+  // 1.0.2 (adds `◇ Thinking` / `◇ Double checking` states, `@ to search`
+  // composer hint, `Muse Code 1.0.2` header).
 
   it("detects working from esc to interrupt", () => {
     expect(detectMuseTerminalStatus("◆ Working (0s · esc to interrupt)")).toMatchObject({
@@ -135,12 +137,49 @@ describe("detectMuseTerminalStatus", () => {
     });
   });
 
-  it("falls back to idle on Voice input / Muse Code chrome", () => {
+  it("detects working from the 1.0.2 Thinking state without an interrupt suffix", () => {
+    // The Thinking frame carries no `esc to interrupt` text, and the
+    // always-visible `Muse Code` header would otherwise read as idle.
+    expect(detectMuseTerminalStatus("echo · ◇ Thinking")).toMatchObject({
+      status: "working",
+      attention: "working",
+    });
+  });
+
+  it("detects working from the 1.0.2 Double checking state", () => {
+    expect(detectMuseTerminalStatus("◇ Double checking (0s · esc to interrupt)")).toMatchObject({
+      status: "working",
+    });
+  });
+
+  it("falls back to idle on composer hints / Muse Code chrome", () => {
     expect(detectMuseTerminalStatus("Voice input (⌥ + v to start)")).toMatchObject({
       status: "idle",
       attention: "none",
     });
+    expect(
+      detectMuseTerminalStatus("Type @ to search and insert workspace file paths"),
+    ).toMatchObject({
+      status: "idle",
+      attention: "none",
+    });
     expect(detectMuseTerminalStatus("Muse Code 0.1.0")).toMatchObject({ status: "idle" });
+    expect(detectMuseTerminalStatus("Muse Code 1.0.2")).toMatchObject({ status: "idle" });
+  });
+
+  it("corroborates idle only when composer hint and header co-occur", () => {
+    // The shared matcher requires EVERY fallback entry to match; the two
+    // version-specific composer hints are one entry so either corroborates.
+    expect(
+      detectMuseTerminalStatus("Muse Code 1.0.2\nType @ to search and insert workspace file paths"),
+    ).toMatchObject({ status: "idle", corroborated: true });
+    expect(detectMuseTerminalStatus("Muse Code 0.1.0\nVoice input (⌥ + v to start)")).toMatchObject(
+      { status: "idle", corroborated: true },
+    );
+    expect(detectMuseTerminalStatus("Muse Code 1.0.2")).toMatchObject({
+      status: "idle",
+      corroborated: false,
+    });
   });
 
   it("detects generic approval prompts conservatively", () => {
@@ -237,5 +276,22 @@ describe("muse session discovery (native)", () => {
     expect((await discoverMuseSessionRef(loc))?.providerSessionId).toBe(
       "44444444-4444-4444-4444-444444444444",
     );
+  });
+
+  it("ignores subagent-nested session ids and sidecar dirs (real 1.0.2 layout)", async () => {
+    // Real sessions nest `subagent/<uuid>/session.jsonl` plus sidecars
+    // (`approval-review/`, `cron.db`, `*.sqlite3`) inside the top-level uuid
+    // dir. Discovery must bind the top id only — the walk never descends past
+    // the YYYY/MM/DD/<uuid> level.
+    snapshotMusePreSpawnSessions(loc);
+    const top = "55555555-5555-5555-5555-555555555555";
+    makeSession(["2026", "09", "02"], top);
+    const topDir = join(dataHome, "sessions", "2026", "09", "02", top);
+    const nested = join(topDir, "subagent", "66666666-6666-6666-6666-666666666666");
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(nested, "session.jsonl"), "{}\n");
+    mkdirSync(join(topDir, "approval-review"), { recursive: true });
+
+    expect((await discoverMuseSessionRef(loc))?.providerSessionId).toBe(top);
   });
 });

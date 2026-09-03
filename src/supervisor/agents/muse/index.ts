@@ -54,6 +54,8 @@ export function createMuseAdapter(): AgentAdapter {
     buildResumeArgv(_location, config, _prompt, sessionRef) {
       const id = sessionRef.providerSessionId;
       // Degenerate/legacy ref: resume the most recent session in this workspace.
+      // Verified benign on real 1.0.2 with an empty store: `resume --last`
+      // exits 0 with `no retained sessions found for this workspace`.
       const args = id
         ? buildMuseResumeArgs(id, config)
         : ["resume", "--last", ...buildMuseArgs(config)];
