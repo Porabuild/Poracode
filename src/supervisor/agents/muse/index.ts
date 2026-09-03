@@ -12,7 +12,7 @@ import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./termina
 
 // Muse Code provider — Meta's terminal coding agent CLI.
 // Docs: https://dev.meta.ai/docs/muse-code
-// Install: curl -fsSL https://dev.meta.ai/install.sh | sh
+// Install: curl -fsSL https://dev.meta.ai/install.sh | bash
 //
 // Terminal-only: interactive TUI via PTY. Muse has no ACP mode; a GUI
 // structured session is deliberately deferred until Muse ships real ACP

@@ -298,15 +298,16 @@ export const museDetectionSpec: DetectionSpec = {
   },
   // Muse ships via Meta's installer script only — no npm package, no
   // `muse update` / self-updater. Re-run the official install script for
-  // updates. Windows has no Muse build; the windows installer entry surfaces a
-  // clear message (schema requires both platforms when `installer` is set).
+  // updates. The script uses bash-isms (`set -o pipefail`), so it must be
+  // piped to `bash`, not `sh` (dash aborts with "Illegal option -o pipefail"
+  // and curl then fails with SIGPIPE). Windows has no Muse build; the windows
   // installer entry surfaces a clear message (schema requires both platforms
   // when `installer` is set).
   update: {
     installer: {
       posix: {
         binary: "sh",
-        args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | sh"],
+        args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
       },
       windows: {
         binary: "powershell.exe",

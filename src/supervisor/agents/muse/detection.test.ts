@@ -129,7 +129,7 @@ describe("museDetectionSpec", () => {
     expect(museDetectionSpec.update?.builtIn).toBeUndefined();
     expect(museDetectionSpec.update?.installer?.posix).toEqual({
       binary: "sh",
-      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | sh"],
+      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
     expect(museDetectionSpec.update?.installer?.windows?.binary).toBe("powershell.exe");
   });

@@ -29,7 +29,7 @@ describe("createMuseAdapter shape", () => {
     expect(adapter.update?.npm).toBeUndefined();
     expect(adapter.update?.installer?.posix).toEqual({
       binary: "sh",
-      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | sh"],
+      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
   });
 
