@@ -142,6 +142,9 @@ const messages = {
   "kimi.emptyResponse":
     "Kimi Code ended the turn without returning a response. Restart the thread and try again.",
 
+  // ── OpenCode ──────────────────────────────────────────
+  "opencode.retryFallback": "OpenCode request failed, retrying...",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",
