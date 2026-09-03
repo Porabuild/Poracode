@@ -13,7 +13,7 @@ import {
 import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./terminal";
 
 const location = { kind: "posix", path: "/tmp/demo" } as ProjectLocation;
-const config = { mode: "agent", model: "muse-spark-1.2" } as ThreadConfig;
+const config = { mode: "agent", model: "muse-spark-1.3" } as ThreadConfig;
 
 describe("createMuseAdapter shape", () => {
   const adapter = createMuseAdapter();
@@ -29,7 +29,7 @@ describe("createMuseAdapter shape", () => {
     expect(adapter.update?.npm).toBeUndefined();
     expect(adapter.update?.installer?.posix).toEqual({
       binary: "sh",
-      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | sh"],
+      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
   });
 
@@ -43,6 +43,17 @@ describe("createMuseAdapter shape", () => {
     expect(adapter.spawnEnv?.wsl).toEqual({ BROWSER: "/bin/true" });
   });
 
+  it("builds a `muse logout` command so the Settings logout button can drive it", async () => {
+    const command = await adapter.buildAcpLogoutCommand?.();
+    expect(command).toBeDefined();
+    const args = command?.args ?? [];
+    const rendered = args.includes("-EncodedCommand")
+      ? Buffer.from(args.at(-1) ?? "", "base64").toString("utf16le")
+      : `${command?.command ?? ""} ${args.join(" ")}`;
+    expect(rendered).toMatch(/muse/i);
+    expect(rendered).toContain("logout");
+  });
+
   it("wires session discovery + watching and mints no initial ref", () => {
     expect(typeof adapter.discoverSessionRef).toBe("function");
     expect(typeof adapter.watchSessionRef).toBe("function");
@@ -50,7 +61,7 @@ describe("createMuseAdapter shape", () => {
   });
 
   it("advertises one-shot generation through muse exec", () => {
-    expect(adapter.defaultOneShotModel).toBe("muse-spark-1.2");
+    expect(adapter.defaultOneShotModel).toBe("muse-spark-1.3");
     expect(adapter.buildOneShotCommand).toBeTypeOf("function");
     expect(adapter.capabilities.supportsOneShot).toBe(true);
   });
@@ -63,7 +74,7 @@ describe("createMuseAdapter launch / resume argv", () => {
     const result = adapter.buildLaunchArgv(location, config, "hi");
     expect(result.binary).toBe("muse");
     expect(result.sessionRef).toBeUndefined();
-    expect(result.args).toEqual(["--trust-workspace", "--model", "muse-spark-1.2", "hi"]);
+    expect(result.args).toEqual(["--trust-workspace", "--model", "muse-spark-1.3", "hi"]);
   });
 
   it("resumes a discovered id with resume <uuid>", () => {
@@ -80,7 +91,7 @@ describe("createMuseAdapter launch / resume argv", () => {
       id,
       "--trust-workspace",
       "--model",
-      "muse-spark-1.2",
+      "muse-spark-1.3",
       "--reasoning-effort",
       "low",
       "--yolo",
@@ -118,9 +129,11 @@ describe("createMuseAdapter launch / resume argv", () => {
 });
 
 describe("detectMuseTerminalStatus", () => {
-  // Strings grounded in the captured echo-provider TUI
-  // (tmp/muse-tui-echo-clean.txt): Working / esc to interrupt / Voice input /
-  // Muse Code header.
+  // Strings grounded in real echo-provider TUI captures
+  // (`muse --provider echo --no-session-log --trust-workspace "say hello"`):
+  // 0.1.0 (`Working / esc to interrupt / Voice input / Muse Code` header) and
+  // 1.0.2 (adds `◇ Thinking` / `◇ Double checking` states, `@ to search`
+  // composer hint, `Muse Code 1.0.2` header).
 
   it("detects working from esc to interrupt", () => {
     expect(detectMuseTerminalStatus("◆ Working (0s · esc to interrupt)")).toMatchObject({
@@ -135,12 +148,49 @@ describe("detectMuseTerminalStatus", () => {
     });
   });
 
-  it("falls back to idle on Voice input / Muse Code chrome", () => {
+  it("detects working from the 1.0.2 Thinking state without an interrupt suffix", () => {
+    // The Thinking frame carries no `esc to interrupt` text, and the
+    // always-visible `Muse Code` header would otherwise read as idle.
+    expect(detectMuseTerminalStatus("echo · ◇ Thinking")).toMatchObject({
+      status: "working",
+      attention: "working",
+    });
+  });
+
+  it("detects working from the 1.0.2 Double checking state", () => {
+    expect(detectMuseTerminalStatus("◇ Double checking (0s · esc to interrupt)")).toMatchObject({
+      status: "working",
+    });
+  });
+
+  it("falls back to idle on composer hints / Muse Code chrome", () => {
     expect(detectMuseTerminalStatus("Voice input (⌥ + v to start)")).toMatchObject({
       status: "idle",
       attention: "none",
     });
+    expect(
+      detectMuseTerminalStatus("Type @ to search and insert workspace file paths"),
+    ).toMatchObject({
+      status: "idle",
+      attention: "none",
+    });
     expect(detectMuseTerminalStatus("Muse Code 0.1.0")).toMatchObject({ status: "idle" });
+    expect(detectMuseTerminalStatus("Muse Code 1.0.2")).toMatchObject({ status: "idle" });
+  });
+
+  it("corroborates idle only when composer hint and header co-occur", () => {
+    // The shared matcher requires EVERY fallback entry to match; the two
+    // version-specific composer hints are one entry so either corroborates.
+    expect(
+      detectMuseTerminalStatus("Muse Code 1.0.2\nType @ to search and insert workspace file paths"),
+    ).toMatchObject({ status: "idle", corroborated: true });
+    expect(detectMuseTerminalStatus("Muse Code 0.1.0\nVoice input (⌥ + v to start)")).toMatchObject(
+      { status: "idle", corroborated: true },
+    );
+    expect(detectMuseTerminalStatus("Muse Code 1.0.2")).toMatchObject({
+      status: "idle",
+      corroborated: false,
+    });
   });
 
   it("detects generic approval prompts conservatively", () => {
@@ -237,5 +287,22 @@ describe("muse session discovery (native)", () => {
     expect((await discoverMuseSessionRef(loc))?.providerSessionId).toBe(
       "44444444-4444-4444-4444-444444444444",
     );
+  });
+
+  it("ignores subagent-nested session ids and sidecar dirs (real 1.0.2 layout)", async () => {
+    // Real sessions nest `subagent/<uuid>/session.jsonl` plus sidecars
+    // (`approval-review/`, `cron.db`, `*.sqlite3`) inside the top-level uuid
+    // dir. Discovery must bind the top id only — the walk never descends past
+    // the YYYY/MM/DD/<uuid> level.
+    snapshotMusePreSpawnSessions(loc);
+    const top = "55555555-5555-5555-5555-555555555555";
+    makeSession(["2026", "09", "02"], top);
+    const topDir = join(dataHome, "sessions", "2026", "09", "02", top);
+    const nested = join(topDir, "subagent", "66666666-6666-6666-6666-666666666666");
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(nested, "session.jsonl"), "{}\n");
+    mkdirSync(join(topDir, "approval-review"), { recursive: true });
+
+    expect((await discoverMuseSessionRef(loc))?.providerSessionId).toBe(top);
   });
 });

@@ -18,8 +18,8 @@ registerProviderIcon(PROVIDER_KIND, MuseIcon);
 // `muse exec` because that command does not consume prompts from stdin.
 const MUSE_UTILITY_DEFAULTS = {
   label: "Muse Code",
-  hint: "Muse Spark 1.2",
-  model: "muse-spark-1.2",
+  hint: "Muse Spark 1.3",
+  model: "muse-spark-1.3",
   effort: "high",
 };
 
