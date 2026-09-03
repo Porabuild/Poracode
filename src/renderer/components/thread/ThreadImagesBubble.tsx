@@ -2,7 +2,10 @@ import { Tooltip } from "@heroui/react";
 import { Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { openThreadGallery, useThreadGalleryImages } from "./useThreadGalleryImages";
-import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
+import {
+  floatingGlassBubbleClass,
+  floatingGlassSurfaceClass,
+} from "@/renderer/components/layout/floatingGlass";
 
 /**
  * Translucent image count that floats over the top-right corner of the
@@ -20,7 +23,7 @@ export function ThreadImagesBubble({ threadId }: { threadId: string }) {
       type="button"
       aria-label={t`Show images`}
       data-images-bubble="true"
-      className={`${floatingGlassSurfaceClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors hover:border-border/30`}
+      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors`}
       onClick={() => openThreadGallery(gallery)}
     >
       <Images className="size-3.5 shrink-0 text-muted" />

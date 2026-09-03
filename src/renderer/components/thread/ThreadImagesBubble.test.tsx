@@ -167,6 +167,7 @@ describe("ThreadImagesBubble", () => {
     );
     const bubble = screen.getByRole("button", { name: "Show images" });
     // user attachment + markdown + assistant block + tool image = 4
+    expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
     expect(bubble).toHaveTextContent("4");
     fireEvent.click(bubble);
     expect(document.querySelector(".poracode-image-lightbox")).not.toBeNull();
