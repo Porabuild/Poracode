@@ -44,6 +44,9 @@ env:
 
 jobs:
   build:
+    # Pinned off macos-latest (macos-26): image 20260831.0337 breaks
+    # electron-builder 26 code signing (`security set-key-partition-list`
+    # fails with SecKeychainUnlock). Stay on macos-15 until upstream fixes it.
     strategy:
       fail-fast: false
       matrix:
@@ -56,7 +59,7 @@ jobs:
             artifact: dist-linux
             platform: linux
             electron-cache: "~/.cache/electron"
-          - os: macos-latest
+          - os: macos-15
             artifact: dist-mac
             platform: mac
             electron-cache: "~/Library/Caches/electron"
