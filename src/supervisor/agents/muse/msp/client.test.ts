@@ -6,7 +6,12 @@ import { MuseMspClient, spawnMuseServeHost } from "./client";
 import { MspRpcError } from "./protocol";
 import type { MuseMspTransport, MuseMspTransportListener } from "./stdioTransport";
 import { MuseMspStdioTransport } from "./stdioTransport";
-import type { MspRpcNotification, MspRpcRequest } from "./protocol";
+import type {
+  MspRpcErrorFrame,
+  MspRpcNotification,
+  MspRpcRequest,
+  MspRpcSuccess,
+} from "./protocol";
 
 const spawnMock = vi.hoisted(() =>
   vi.fn<(command: string, args: string[], options?: Record<string, unknown>) => unknown>(),
@@ -22,7 +27,8 @@ vi.mock("@/shared/processTree", () => ({
 }));
 
 class FakeTransport implements MuseMspTransport {
-  readonly written: Array<MspRpcRequest | MspRpcNotification> = [];
+  readonly written: Array<MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame> =
+    [];
   listener: MuseMspTransportListener | undefined;
   disposed = false;
   writeBehavior: "ok" | "throw" = "ok";
@@ -31,7 +37,7 @@ class FakeTransport implements MuseMspTransport {
     this.listener = listener;
   }
 
-  write(message: MspRpcRequest | MspRpcNotification): void {
+  write(message: MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame): void {
     if (this.writeBehavior === "throw") throw new Error("stdin gone");
     this.written.push(message);
   }
@@ -138,6 +144,68 @@ describe("MuseMspClient", () => {
     const hanging = client.request("model/list");
     transport.listener?.onClose();
     await expect(hanging).rejects.toThrow(/closed the connection/);
+    client.dispose();
+  });
+
+  it("answers server-initiated requests through the registered handler", async () => {
+    const transport = new FakeTransport();
+    const client = new MuseMspClient(transport, 1_000);
+    const seen: Array<{ id: unknown; method: string }> = [];
+    client.onServerRequest(({ id, method }) => {
+      seen.push({ id, method });
+      return { acknowledged: method };
+    });
+    transport.deliver({
+      jsonrpc: "2.0",
+      id: 41,
+      method: "approval/request",
+      params: { approvalId: "a1" },
+    });
+    await vi.waitFor(() => {
+      expect(transport.written).toContainEqual({
+        jsonrpc: "2.0",
+        id: 41,
+        result: { acknowledged: "approval/request" },
+      });
+    });
+    expect(seen).toEqual([{ id: 41, method: "approval/request" }]);
+    client.dispose();
+  });
+
+  it("answers unhandled server requests with methodNotFound", async () => {
+    const transport = new FakeTransport();
+    const client = new MuseMspClient(transport, 1_000);
+    transport.deliver({ jsonrpc: "2.0", id: 7, method: "userInput/request", params: {} });
+    await vi.waitFor(() => {
+      expect(transport.written).toContainEqual({
+        jsonrpc: "2.0",
+        id: 7,
+        error: { code: -32601, message: "Unknown method: userInput/request" },
+      });
+    });
+    client.dispose();
+  });
+
+  it("answers internal when the server-request handler throws", async () => {
+    const transport = new FakeTransport();
+    const client = new MuseMspClient(transport, 1_000);
+    client.onServerRequest(() => {
+      throw new Error("handler bug");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      transport.deliver({ jsonrpc: "2.0", id: 9, method: "approval/request", params: {} });
+      await vi.waitFor(() => {
+        expect(transport.written).toContainEqual({
+          jsonrpc: "2.0",
+          id: 9,
+          error: { code: -32603, message: "Handler failed for approval/request" },
+        });
+      });
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
     client.dispose();
   });
 });

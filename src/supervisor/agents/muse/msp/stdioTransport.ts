@@ -1,5 +1,10 @@
 import type { ChildProcess } from "node:child_process";
-import type { MspRpcNotification, MspRpcRequest } from "./protocol";
+import type {
+  MspRpcErrorFrame,
+  MspRpcNotification,
+  MspRpcRequest,
+  MspRpcSuccess,
+} from "./protocol";
 
 export interface MuseMspTransportListener {
   onMessage(message: unknown): void;
@@ -9,7 +14,7 @@ export interface MuseMspTransportListener {
 
 /** Minimal transport surface the MSP client speaks (seam for tests). */
 export interface MuseMspTransport {
-  write(message: MspRpcRequest | MspRpcNotification): void;
+  write(message: MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame): void;
   setListener(listener: MuseMspTransportListener): void;
   dispose(): void;
 }
@@ -56,7 +61,7 @@ export class MuseMspStdioTransport implements MuseMspTransport {
     this.listener = listener;
   }
 
-  write(message: MspRpcRequest | MspRpcNotification): void {
+  write(message: MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame): void {
     if (this.disposed) {
       throw new Error("Muse MSP stdio transport is disposed.");
     }

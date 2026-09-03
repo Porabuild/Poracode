@@ -17,6 +17,17 @@
  * Transport: newline-delimited JSON-RPC 2.0 over the `muse serve` stdio
  * pipes (verified live). Handshake is `initialize` then a bare
  * `initialized` notification; anything earlier is rejected `notInitialized`.
+ *
+ * Implementation strategy: hand-rolled client, not `@muse-code/sdk`. The
+ * official SDK (MIT, zero-dep) covers the same ground, but it is pre-1.0
+ * with no stability promise, its pinned schema fingerprint matches neither
+ * this host generation nor the transcript corpus, and Poracode-specific
+ * mapping, WSL routing, and thread lifecycle must be ours regardless.
+ * Revisit when the SDK reaches 1.0 with a stability promise, its
+ * fingerprint aligns with our minimum supported host, and WSL spawn
+ * override is confirmed. Useful references either way:
+ * https://meta-models.github.io/muse-code-sdk/ and the transcript corpus at
+ * github.com/meta-models/muse-code-sdk/tree/main/schema/msp/transcripts.
  */
 
 export const MSP_SCHEMA_VERSION = 1;
@@ -49,6 +60,7 @@ export interface MspRpcErrorDetail {
   code: number;
   message: string;
   data?: { kind?: string; [key: string]: unknown };
+  retryable?: boolean;
 }
 
 export interface MspRpcErrorFrame {
@@ -68,6 +80,13 @@ export class MspRpcError extends Error {
   readonly kind: string | undefined;
   readonly requestId: MspRequestId | null;
   readonly data: Record<string, unknown> | undefined;
+  /**
+   * The server's own retry verdict when present (`overloaded` and
+   * `backpressured` are retryable with backoff; `inputTooLarge` never is).
+   * Absent on older hosts — see {@link isRetryableMspError} for the
+   * kind-based fallback the errors guide prescribes.
+   */
+  readonly retryable: boolean | undefined;
 
   constructor(
     message: string,
@@ -76,6 +95,7 @@ export class MspRpcError extends Error {
       kind?: string;
       requestId?: MspRequestId | null;
       data?: Record<string, unknown>;
+      retryable?: boolean;
     },
   ) {
     super(message);
@@ -84,11 +104,25 @@ export class MspRpcError extends Error {
     this.kind = options.kind;
     this.requestId = options.requestId ?? null;
     this.data = options.data;
+    this.retryable = options.retryable;
   }
 }
 
 export function isMspRpcError(error: unknown): error is MspRpcError {
   return error instanceof MspRpcError;
+}
+
+/**
+ * Whether a failed request is worth retrying. The server's explicit
+ * `retryable` verdict wins when present; otherwise `overloaded` and
+ * `backpressured` retry with exponential backoff and jitter (backpressure
+ * guide), everything else fails fast. Callers reuse the request's
+ * `commandId` on retry so an admitted command is not submitted twice.
+ */
+export function isRetryableMspError(error: unknown): boolean {
+  if (!isMspRpcError(error)) return false;
+  if (error.retryable !== undefined) return error.retryable;
+  return error.kind === "overloaded" || error.kind === "backpressured";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -133,6 +167,8 @@ export function parseMspFrame(message: unknown):
       const text = typeof detail["message"] === "string" ? detail["message"] : "MSP error";
       const data = isRecord(detail["data"]) ? detail["data"] : undefined;
       const kind = data && typeof data["kind"] === "string" ? data["kind"] : undefined;
+      const retryable =
+        data && typeof data["retryable"] === "boolean" ? data["retryable"] : undefined;
       return {
         kind: "response",
         id: message["id"],
@@ -140,6 +176,7 @@ export function parseMspFrame(message: unknown):
           code,
           message: text,
           ...(data ? { data: { ...data, ...(kind ? { kind } : {}) } } : {}),
+          ...(retryable !== undefined ? { retryable } : {}),
         },
       };
     }

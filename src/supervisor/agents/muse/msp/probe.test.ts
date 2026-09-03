@@ -3,7 +3,12 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { probeMuseModelCatalog } from "./probe";
 import { MSP_SCHEMA_FINGERPRINT, MSP_SCHEMA_VERSION } from "./protocol";
-import type { MspRpcNotification, MspRpcRequest } from "./protocol";
+import type {
+  MspRpcErrorFrame,
+  MspRpcNotification,
+  MspRpcRequest,
+  MspRpcSuccess,
+} from "./protocol";
 import type { MuseMspTransport, MuseMspTransportListener } from "./stdioTransport";
 
 vi.mock("@/shared/processTree", () => ({
@@ -12,7 +17,8 @@ vi.mock("@/shared/processTree", () => ({
 
 /** In-memory `muse serve`: answers initialize + model/list like the real host. */
 class ScriptedServeHost implements MuseMspTransport {
-  readonly written: Array<MspRpcRequest | MspRpcNotification> = [];
+  readonly written: Array<MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame> =
+    [];
   listener: MuseMspTransportListener | undefined;
   constructor(
     private readonly catalog: Record<string, unknown>,
@@ -28,10 +34,12 @@ class ScriptedServeHost implements MuseMspTransport {
     this.listener = listener;
   }
 
-  write(message: MspRpcRequest | MspRpcNotification): void {
+  write(message: MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame): void {
     this.written.push(message);
     if (this.neverAnswer) return;
-    const method = message.method;
+    if (!("method" in message)) return;
+    const { method } = message;
+    if (method !== "initialize" && method !== "model/list") return;
     const id = "id" in message ? message.id : undefined;
     if (method === "initialize" && typeof id === "number") {
       if (this.failHandshake) {
@@ -141,7 +149,7 @@ describe("probeMuseModelCatalog", () => {
       serveArgs: ["serve", "--no-session-log", "--trust-workspace"],
     });
     // Full handshake observed on the wire: initialize, initialized, model/list.
-    expect(host.written.map((frame) => frame["method"])).toEqual([
+    expect(host.written.map((frame) => ("method" in frame ? frame.method : "<response>"))).toEqual([
       "initialize",
       "initialized",
       "model/list",

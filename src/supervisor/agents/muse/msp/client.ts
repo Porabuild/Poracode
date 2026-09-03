@@ -3,20 +3,35 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildAgentCommand } from "../../base";
 import { resolveProbeSpawnCwd } from "../../probeCwd";
+import { classifyMuseServeExit } from "./exitClassification";
 import {
   MspRpcError,
   parseMspFrame,
   parseMspInitializeResult,
   type MspInitializeResult,
   type MspRequestId,
+  type MspRpcErrorFrame,
   type MspRpcNotification,
   type MspRpcRequest,
+  type MspRpcSuccess,
 } from "./protocol";
 import { MuseMspStdioTransport, type MuseMspTransport } from "./stdioTransport";
 
 export const MSP_DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export type MuseMspNotificationHandler = (method: string, params: Record<string, unknown>) => void;
+
+/**
+ * Handler for server-initiated JSON-RPC requests (`approval/request`,
+ * `userInput/request`). The returned object becomes the response `result`;
+ * a throw answers `internal`. Every server request expects exactly one
+ * answer — hanging one stalls the host side that asked.
+ */
+export type MuseMspServerRequestHandler = (request: {
+  id: MspRequestId;
+  method: string;
+  params: Record<string, unknown>;
+}) => Promise<Record<string, unknown>> | Record<string, unknown>;
 
 export interface SpawnMuseServeHostOptions {
   executablePath?: string;
@@ -65,7 +80,10 @@ export async function spawnMuseServeHost(
   }
   if (child.exitCode !== null) {
     terminateChildProcessTree(child, { ownedProcessGroup });
-    throw new Error(`${tag} exited before handshake:${transport.formatOutput()}`);
+    const classification = classifyMuseServeExit(child.exitCode, child.signalCode ?? null);
+    throw new Error(
+      `${tag} exited before handshake (${classification.kind}): ${classification.detail}${transport.formatOutput()}`,
+    );
   }
   return { child, transport, commandLabel: `${cmd.command} ${cmd.args.join(" ")}` };
 }
@@ -88,6 +106,7 @@ export class MuseMspClient {
   private nextId = 1;
   private readonly pending = new Map<MspRequestId, PendingMspRequest>();
   private readonly notificationHandlers = new Set<MuseMspNotificationHandler>();
+  private readonly serverRequestHandlers = new Set<MuseMspServerRequestHandler>();
   private disposed = false;
 
   constructor(
@@ -155,6 +174,19 @@ export class MuseMspClient {
     };
   }
 
+  /**
+   * Answer server-initiated requests. The first registered handler owns the
+   * answer; with no handler the client answers `methodNotFound` so the host
+   * never hangs awaiting a reply. Handlers run off the read path — keep them
+   * non-blocking (the stdio server never severs a wedged pipe for us).
+   */
+  onServerRequest(handler: MuseMspServerRequestHandler): () => void {
+    this.serverRequestHandlers.add(handler);
+    return () => {
+      this.serverRequestHandlers.delete(handler);
+    };
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -178,6 +210,7 @@ export class MuseMspClient {
               : {}),
             requestId: frame.id,
             ...(frame.error.data ? { data: { ...frame.error.data } } : {}),
+            ...(frame.error.retryable !== undefined ? { retryable: frame.error.retryable } : {}),
           }),
         );
       } else {
@@ -191,11 +224,53 @@ export class MuseMspClient {
           handler(frame.method, frame.params);
         } catch {
           // One bad subscriber must not break fan-out to the rest.
+          // Handlers must stay non-blocking: the stdio server never severs a
+          // wedged pipe for us, so slow work belongs off the read path.
         }
       }
+      return;
     }
-    // Server→client requests need no client answer in v1; unknown frames are
-    // ignored so additive schema growth never breaks the client.
+    if (frame.kind === "request") {
+      this.answerServerRequest(frame.id, frame.method, frame.params);
+      return;
+    }
+    // Unknown frames are ignored so additive schema growth never breaks the client.
+  }
+
+  private answerServerRequest(
+    id: MspRequestId,
+    method: string,
+    params: Record<string, unknown>,
+  ): void {
+    const [handler] = [...this.serverRequestHandlers];
+    const respond = (
+      payload: { result: Record<string, unknown> } | { error: { code: number; message: string } },
+    ): void => {
+      try {
+        if ("result" in payload) {
+          const response: MspRpcSuccess = { jsonrpc: "2.0", id, result: payload.result };
+          this.transport.write(response);
+        } else {
+          const response: MspRpcErrorFrame = { jsonrpc: "2.0", id, error: payload.error };
+          this.transport.write(response);
+        }
+      } catch {
+        // Transport gone: the host will observe EOF; nothing left to answer with.
+      }
+    };
+    if (!handler) {
+      respond({ error: { code: -32601, message: `Unknown method: ${method}` } });
+      return;
+    }
+    void Promise.resolve()
+      .then(() => handler({ id, method, params }))
+      .then(
+        (result) => respond({ result }),
+        (error: unknown) => {
+          console.warn(`[muse] MSP server-request handler failed for ${method}:`, error);
+          respond({ error: { code: -32603, message: `Handler failed for ${method}` } });
+        },
+      );
   }
 
   private failPending(error: Error): void {
