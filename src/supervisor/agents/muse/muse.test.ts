@@ -13,7 +13,7 @@ import {
 import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./terminal";
 
 const location = { kind: "posix", path: "/tmp/demo" } as ProjectLocation;
-const config = { mode: "agent", model: "muse-spark-1.2" } as ThreadConfig;
+const config = { mode: "agent", model: "muse-spark-1.3" } as ThreadConfig;
 
 describe("createMuseAdapter shape", () => {
   const adapter = createMuseAdapter();
@@ -50,7 +50,7 @@ describe("createMuseAdapter shape", () => {
   });
 
   it("advertises one-shot generation through muse exec", () => {
-    expect(adapter.defaultOneShotModel).toBe("muse-spark-1.2");
+    expect(adapter.defaultOneShotModel).toBe("muse-spark-1.3");
     expect(adapter.buildOneShotCommand).toBeTypeOf("function");
     expect(adapter.capabilities.supportsOneShot).toBe(true);
   });
@@ -63,7 +63,7 @@ describe("createMuseAdapter launch / resume argv", () => {
     const result = adapter.buildLaunchArgv(location, config, "hi");
     expect(result.binary).toBe("muse");
     expect(result.sessionRef).toBeUndefined();
-    expect(result.args).toEqual(["--trust-workspace", "--model", "muse-spark-1.2", "hi"]);
+    expect(result.args).toEqual(["--trust-workspace", "--model", "muse-spark-1.3", "hi"]);
   });
 
   it("resumes a discovered id with resume <uuid>", () => {
@@ -80,7 +80,7 @@ describe("createMuseAdapter launch / resume argv", () => {
       id,
       "--trust-workspace",
       "--model",
-      "muse-spark-1.2",
+      "muse-spark-1.3",
       "--reasoning-effort",
       "low",
       "--yolo",
