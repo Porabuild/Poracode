@@ -183,14 +183,15 @@ export function setThreadDocksPlacement(placement: ThreadDocksPlacement): void {
   }
 }
 
-/** Composer bubble click: show the Docks tab scrolled to one dock, or hide it if already showing. */
+/**
+ * Composer bubble click: show the Docks tab scrolled to one dock, or hide the
+ * panel when the Docks tab is already showing. The bubbles are one group
+ * standing in for one panel, so any of them closes it — clicking Plan while
+ * Agents is showing hides the panel rather than scrolling within it.
+ */
 export function toggleThreadDocksPanel(focus: ThreadDockKind): void {
   const panelStore = usePanelStore.getState();
-  if (
-    panelStore.threadDocksPanelOpen &&
-    panelStore.rightPanelTab === "docks" &&
-    panelStore.threadDocksFocus === focus
-  ) {
+  if (panelStore.threadDocksPanelOpen && panelStore.rightPanelTab === "docks") {
     closeAllPanels();
     return;
   }

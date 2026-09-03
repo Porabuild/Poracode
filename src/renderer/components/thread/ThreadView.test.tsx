@@ -1528,13 +1528,12 @@ describe("ThreadView", () => {
     expect(useSharedSettings.getState().threadDocksPlacement).toBe("right");
     expect(usePanelStore.getState().rightPanelTab).toBe("docks");
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(true);
-    // Compact bubbles stand in for the docks above the composer. This open has
-    // no focused dock yet, so every bubble still reads "Show" — its pressed
-    // state and name must describe what clicking it does (open/focus, not
-    // hide).
-    expect(screen.getByRole("button", { name: "Show Plan" })).toBeInTheDocument();
-    const backgroundBubble = screen.getByRole("button", { name: "Show Background tasks" });
-    expect(backgroundBubble).toHaveAttribute("aria-pressed", "false");
+    // Compact bubbles stand in for the docks above the composer. They are one
+    // group for one panel: while the Docks tab shows, every bubble is pressed
+    // and reads "Hide", because clicking any of them hides the panel.
+    expect(screen.getByRole("button", { name: "Hide Plan" })).toBeInTheDocument();
+    const backgroundBubble = screen.getByRole("button", { name: "Hide Background tasks" });
+    expect(backgroundBubble).toHaveAttribute("aria-pressed", "true");
     expect(backgroundBubble.querySelector("svg.lucide-activity")).toHaveClass(
       "motion-safe:animate-pulse",
     );
@@ -1545,6 +1544,10 @@ describe("ThreadView", () => {
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
     expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
     expect(useSharedSettings.getState().threadDocksPlacement).toBe("right");
+    expect(screen.getByRole("button", { name: "Show Plan" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
 
     // The bubble reopens the Docks tab focused on the plan.
     fireEvent.click(screen.getByRole("button", { name: "Show Plan" }));
@@ -1555,12 +1558,14 @@ describe("ThreadView", () => {
       "true",
     );
 
-    // Another bubble changes the focused dock without closing the shared panel.
+    // Any other bubble closes the shared panel instead of re-focusing it.
+    fireEvent.click(screen.getByRole("button", { name: "Hide Background tasks" }));
+    expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
+
+    // Reopening from that bubble focuses its own dock.
     fireEvent.click(screen.getByRole("button", { name: "Show Background tasks" }));
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(true);
     expect(usePanelStore.getState().threadDocksFocus).toBe("backgroundTasks");
-
-    // Repeating the currently focused bubble closes it.
     fireEvent.click(screen.getByRole("button", { name: "Hide Background tasks" }));
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
 

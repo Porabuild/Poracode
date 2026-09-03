@@ -53,9 +53,17 @@ export function ThreadGoalDock({
       : isActive
         ? "text-white"
         : "text-foreground-muted";
+  const placementToggle = showPlacementToggle ? (
+    <ThreadDocksPlacementToggle placement="composer" />
+  ) : null;
+  const controls = (
+    <ThreadGoalControls threadId={threadId} state={state} {...(onDismiss ? { onDismiss } : {})} />
+  );
   return (
     <ThreadDockSection ariaLabel={t`Thread goal dock`} placement={placement} className="px-2 py-1">
-      <div className="flex min-w-0 items-center gap-2 leading-5">
+      <div
+        className={`flex min-w-0 items-center gap-x-2 leading-5 ${placement === "right" ? "flex-wrap gap-y-0.5" : ""}`}
+      >
         {isActive ? (
           <span className="poracode-goal-active-icon shrink-0" aria-hidden="true">
             <span className="poracode-goal-active-icon__ring" />
@@ -86,14 +94,24 @@ export function ThreadGoalDock({
             ) : null}
           </span>
         ) : null}
-        <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
-        <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
-        {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
-        <ThreadGoalControls
-          threadId={threadId}
-          state={state}
-          {...(onDismiss ? { onDismiss } : {})}
-        />
+        {placement === "right" ? (
+          <>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {placementToggle}
+              {controls}
+            </div>
+            <div className="basis-full min-w-0 pl-[22px]">
+              <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
+            <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
+            {placementToggle}
+            {controls}
+          </>
+        )}
       </div>
     </ThreadDockSection>
   );

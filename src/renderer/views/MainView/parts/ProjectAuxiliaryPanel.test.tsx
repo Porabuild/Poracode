@@ -7,6 +7,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
 
 vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
@@ -21,11 +22,19 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
 }));
 
 const unifiedRightPanelProps = vi.hoisted(() => ({
-  current: null as { activeTab: string; docksContent?: ReactElement } | null,
+  current: null as {
+    activeTab: string;
+    docksContent?: ReactElement;
+    docksHeaderActions?: ReactElement;
+  } | null,
 }));
 
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
-  UnifiedRightPanel: (props: { activeTab: string; docksContent?: ReactElement }) => {
+  UnifiedRightPanel: (props: {
+    activeTab: string;
+    docksContent?: ReactElement;
+    docksHeaderActions?: ReactElement;
+  }) => {
     unifiedRightPanelProps.current = props;
     return null;
   },
@@ -136,6 +145,10 @@ describe("ProjectAuxiliaryPanel", () => {
     );
 
     await waitFor(() => expect(unifiedRightPanelProps.current?.docksContent).toBeDefined());
+    expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({
+      type: ThreadDocksPlacementToggle,
+      props: { placement: "right" },
+    });
     expect(
       unifiedRightPanelProps.current?.docksContent?.props as {
         projectLocation?: { kind: string; path: string };
