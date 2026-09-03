@@ -13,7 +13,7 @@ import {
   usePanelStore,
   type PanelDockTarget,
   type RightPanelTab,
-  type ThreadDockKind,
+  type ThreadDockFocus,
 } from "@/renderer/state/panelStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -189,7 +189,7 @@ export function setThreadDocksPlacement(placement: ThreadDocksPlacement): void {
  * standing in for one panel, so any of them closes it — clicking Plan while
  * Agents is showing hides the panel rather than scrolling within it.
  */
-export function toggleThreadDocksPanel(focus: ThreadDockKind): void {
+export function toggleThreadDocksPanel(focus: ThreadDockFocus): void {
   const panelStore = usePanelStore.getState();
   if (panelStore.threadDocksPanelOpen && panelStore.rightPanelTab === "docks") {
     closeAllPanels();
