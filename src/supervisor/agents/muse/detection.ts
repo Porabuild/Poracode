@@ -291,8 +291,11 @@ export const museDetectionSpec: DetectionSpec = {
       return undefined;
     });
     const helpText = help ? `${help.stdout}\n${help.stderr}` : "";
+    // `muse logout` clears the saved Meta credential (verified on 1.0.2), so
+    // the Settings logout action is always available once installed.
     return {
       authMethods: [MUSE_TERMINAL_AUTH],
+      authLogoutSupported: true,
       ...(helpText.trim() ? (buildMuseProbedCapabilities(helpText) ?? {}) : {}),
     };
   },

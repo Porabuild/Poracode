@@ -1,5 +1,10 @@
 import type { AgentCapability } from "@/shared/contracts";
-import { detectAgentInstall, type AgentAdapter, inheritBaseSpawnEnv } from "../base";
+import {
+  buildAgentLogoutCommand,
+  detectAgentInstall,
+  type AgentAdapter,
+  inheritBaseSpawnEnv,
+} from "../base";
 import { buildMuseArgs, buildMuseResumeArgs } from "./argv";
 import { MUSE_DEFAULT_MODEL_ID, museDefaultCapabilities, museDetectionSpec } from "./detection";
 import { formatMusePromptSegments } from "./prompt";
@@ -14,9 +19,12 @@ import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./termina
 // Docs: https://dev.meta.ai/docs/muse-code
 // Install: curl -fsSL https://dev.meta.ai/install.sh | bash
 //
-// Terminal-only: interactive TUI via PTY. Muse has no ACP mode; a GUI
-// structured session is deliberately deferred until Muse ships real ACP
-// support (then wire it through the shared ACP client like Grok/Kimi/Qwen).
+// Terminal-only: interactive TUI via PTY. 1.0.2 ships an MSP session host
+// (`muse serve` over stdio, schema via `muse schema`) with a `model/list`
+// catalog — the future structured-session and dynamic-model avenue. The MSP
+// transport/client/probe live in `muse/msp/`; no structured-session
+// integration (session factory) exists yet, so GUI presentation stays
+// deferred until one is built.
 
 export function createMuseAdapter(): AgentAdapter {
   let capabilities: AgentCapability = museDefaultCapabilities;
@@ -91,6 +99,10 @@ export function createMuseAdapter(): AgentAdapter {
     formatPromptSegments: formatMusePromptSegments,
 
     detectTerminalStatus: detectMuseTerminalStatus,
+
+    // `muse logout` removes the saved Meta credential (API key or login);
+    // the shared registry logout action drives this on explicit user action.
+    buildAcpLogoutCommand: buildAgentLogoutCommand("muse", ["logout"]),
 
     // `muse exec` requires the prompt as an argv argument (stdin and
     // /dev/stdin prompt files are unsupported), which matches the shared

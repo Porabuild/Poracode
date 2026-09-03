@@ -43,6 +43,17 @@ describe("createMuseAdapter shape", () => {
     expect(adapter.spawnEnv?.wsl).toEqual({ BROWSER: "/bin/true" });
   });
 
+  it("builds a `muse logout` command so the Settings logout button can drive it", async () => {
+    const command = await adapter.buildAcpLogoutCommand?.();
+    expect(command).toBeDefined();
+    const args = command?.args ?? [];
+    const rendered = args.includes("-EncodedCommand")
+      ? Buffer.from(args.at(-1) ?? "", "base64").toString("utf16le")
+      : `${command?.command ?? ""} ${args.join(" ")}`;
+    expect(rendered).toMatch(/muse/i);
+    expect(rendered).toContain("logout");
+  });
+
   it("wires session discovery + watching and mints no initial ref", () => {
     expect(typeof adapter.discoverSessionRef).toBe("function");
     expect(typeof adapter.watchSessionRef).toBe("function");

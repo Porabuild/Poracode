@@ -154,6 +154,20 @@ describe("museDetectionSpec", () => {
   it("registers auth probes for META_API_KEY and stored credentials", () => {
     expect(museDetectionSpec.authProbes).toHaveLength(2);
   });
+
+  it("falls back to auth methods only when the help probe fails", async () => {
+    readAgentCommandOutputMock.mockRejectedValueOnce(new Error("spawn ENOENT"));
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect(result).toEqual({
+      authMethods: [{ id: "muse-terminal-login", name: "Login", type: "terminal" }],
+      // `muse logout` exists independently of the help probe.
+      authLogoutSupported: true,
+    });
+  });
+
   it("probes muse --help with the detection env and overlays new models", async () => {
     readAgentCommandOutputMock.mockResolvedValueOnce({
       ok: true,

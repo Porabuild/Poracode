@@ -263,9 +263,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 18,
-      // v18 mirrors supervisor STATUS_CACHE_VERSION=21: Antigravity now reports
-      // terminal and ACP runtimes independently and ACP resume is probe-driven.
+      version: 19,
+      // v19 mirrors supervisor STATUS_CACHE_VERSION=22: Muse now reports
+      // authLogoutSupported so the Settings logout action appears.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
