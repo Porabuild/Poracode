@@ -4,6 +4,11 @@ import { Check, Copy, Download, Maximize2 } from "lucide-react";
 import { memo, useState, type ReactNode } from "react";
 import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
+import {
+  getThreadGalleryImages,
+  openThreadGallery,
+} from "@/renderer/components/thread/useThreadGalleryImages";
+import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { friendlyError } from "@/shared/messages";
 import { chatInlineImageClass, reserveInlineImageSlot } from "./chatImageClass";
 import type { ImageViewSource } from "./imageViewSource";
@@ -27,7 +32,21 @@ export const ImageCard = memo(function ImageCard({
 }: ImageCardProps) {
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
-  const openPreview = () => openImageLightbox([{ src: source.src, alt: imageAlt }], 0);
+  // Thread-wide gallery: opening any transcript image offers prev/next across
+  // every image in the loaded history. Resolved click-time (no store
+  // subscription) so rows never re-render on unrelated ticks. Falls back to a
+  // single-image preview when rendered outside a thread.
+  const threadId = useChatPaneActions()?.threadId;
+  const openPreview = () => {
+    if (threadId) {
+      const gallery = getThreadGalleryImages(threadId);
+      if (gallery.length > 1 && gallery.some((img) => img.src === source.src)) {
+        openThreadGallery(gallery, source.src);
+        return;
+      }
+    }
+    openImageLightbox([{ src: source.src, alt: imageAlt }], 0);
+  };
   // A `data:` source is already in hand, so it paints on the first frame; fading
   // it would only add perceived latency. Anything fetched over the network gets
   // the crossfade (and the blurred stand-in, when the host supplied one).

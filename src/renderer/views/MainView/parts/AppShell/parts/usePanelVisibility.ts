@@ -4,6 +4,7 @@ import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -55,9 +56,15 @@ export function usePanelVisibility() {
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const currentThreadId = useFocusedThreadId();
   const bottomTerminalOpen = useBottomTerminalVisible();
-  const docksPanelOpen = useDocksPanelHasContent();
+  const informationalDocksPanelOpen = useDocksPanelHasContent();
+  const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
+  const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
+  const docksPanelOpen =
+    informationalDocksPanelOpen ||
+    (threadDocksPlacement === "right" && threadDocksPanelOpen && gallery.length > 0);
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;

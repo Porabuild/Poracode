@@ -20,7 +20,12 @@ import {
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
+import {
+  getThreadGalleryImages,
+  openThreadGallery,
+} from "@/renderer/components/thread/useThreadGalleryImages";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
 import {
   diffCommentTarget,
@@ -286,6 +291,18 @@ export const UserMessage = memo(function UserMessage({
               imagesAsPreview
               {...(imageUrlForPath ? { imageUrlForPath } : {})}
               onPreviewImage={(att) => {
+                // Prefer the thread-wide gallery so prev/next walks the whole
+                // history (resolved click-time, no extra subscription); fall
+                // back to this message's attachments when the gallery cannot
+                // resolve the same URL (e.g. ephemeral preview).
+                const gallery = getThreadGalleryImages(threadId);
+                if (gallery.length > 1) {
+                  const src = attachmentImageUrl(att, imageUrlForPath);
+                  if (gallery.some((img) => img.src === src)) {
+                    openThreadGallery(gallery, src);
+                    return;
+                  }
+                }
                 const imageAttachments = attachments.filter((a) => a.isImage);
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
                 if (idx >= 0) openAttachmentLightbox(imageAttachments, idx, imageUrlForPath);

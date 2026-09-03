@@ -1,14 +1,16 @@
-import { act, render, waitFor } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
 import { I18nProvider } from "@lingui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
+import { usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
 
 vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
   productSurfaceView: vi.fn<(tab: string, mode: string) => string>(() => "git"),
@@ -77,8 +79,15 @@ describe("ProjectAuxiliaryPanel", () => {
     localStorage.clear();
     unifiedRightPanelProps.current = null;
     focusThread(threadA.id);
-    useAppStore.setState({ projects: [], runtimeBackgroundTasksByThread: {} });
-    useSharedSettings.setState({ threadDocksPlacement: "composer" });
+    useAppStore.setState({
+      projects: [],
+      runtimeBackgroundTasksByThread: {},
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      runtimeStructuralVersionByThread: {},
+    });
+    useDevTerminalStore.setState({ isOpen: false, tabs: [] });
+    useSharedSettings.setState({ threadDocksPlacement: "composer", terminalPosition: "right" });
     usePanelStore.setState({
       gitReviewContext: {
         projectId: threadB.projectId,
@@ -93,6 +102,9 @@ describe("ProjectAuxiliaryPanel", () => {
       usagePanelOpen: false,
       notesPanelOpen: false,
       threadDocksPanelOpen: false,
+      subAgentPanelOpen: false,
+      subAgentPanelContext: null,
+      bottomPanelDocks: { left: null, right: null },
     });
   });
 
@@ -154,6 +166,49 @@ describe("ProjectAuxiliaryPanel", () => {
         projectLocation?: { kind: string; path: string };
       },
     ).toMatchObject({ projectLocation: { kind: "posix", path: "/worktree-a" } });
+  });
+
+  it("keeps an explicitly opened image-only Thread info panel visible", () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadA.id]: ["user-image"] },
+      runtimeItemsByIdByThread: {
+        [threadA.id]: {
+          "user-image": {
+            id: "user-image",
+            type: "user_message",
+            state: "completed",
+            payload: {
+              content: [
+                {
+                  kind: "image",
+                  source: "attachment",
+                  path: "/tmp/a.png",
+                  name: "a.png",
+                },
+              ],
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { [threadA.id]: 1 },
+    });
+    useSharedSettings.setState({ threadDocksPlacement: "right" });
+    usePanelStore.setState({
+      gitReviewContext: null,
+      gitReviewAsPanel: false,
+      threadDocksPanelOpen: true,
+      rightPanelTab: "docks",
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <I18nProvider i18n={i18n}>{children}</I18nProvider>
+    );
+    const { result } = renderHook(() => usePanelVisibility(), { wrapper });
+    expect(result.current.rightPanelOpen).toBe(true);
+
+    act(() => usePanelStore.getState().setThreadDocksPanelOpen(false));
+    expect(result.current.rightPanelOpen).toBe(false);
   });
 
   it("leaves the browser tab when the browser panel was dismissed with it selected", async () => {

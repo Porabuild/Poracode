@@ -6050,6 +6050,8 @@ msgstr "Obraz"
 msgid "Image preview"
 msgstr "Podgląd obrazu"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Obrazy"
@@ -8561,7 +8563,14 @@ msgstr "Otwórz przegląd Gita"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Otwórz przegląd git jako panel po prawej stronie lub całą stronę."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Otwórz obraz {0} z {1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Otwórz podgląd obrazu"
 
@@ -11411,6 +11420,10 @@ msgstr "Pokaż szacunkowy koszt"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Pokaż GitHub Actions w stopce paska bocznego."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Pokaż obrazy"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Pokaż w eksploratorze plików"
@@ -12970,6 +12983,10 @@ msgstr "Wątek został zakończony lub oczekuje na Twoje dane wejściowe."
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Stacja dokująca celu wątku"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Obrazy wątku"
 
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

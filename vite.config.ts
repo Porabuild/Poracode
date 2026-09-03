@@ -55,6 +55,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "react/jsx-runtime",
   "rehype-raw",
   "remark-gfm",
+  "remark-parse",
   "streamdown",
   "style-to-js",
   "use-sync-external-store",
@@ -62,6 +63,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   // zustand/react/shallow (useShallow) imports this shim; the mobile.html entry
   // served by the default dev server crashes without it (noDiscovery skips it).
   "use-sync-external-store/shim/with-selector",
+  "unified",
   "zod",
   "zustand",
   "zustand/middleware",

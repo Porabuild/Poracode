@@ -6049,6 +6049,8 @@ msgstr "画像"
 msgid "Image preview"
 msgstr "画像プレビュー"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "画像"
@@ -8559,7 +8561,14 @@ msgstr "Git レビューを開く"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "git review を右側のパネルまたはページ全体として開きます。"
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "画像 {0}/{1} を開く"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "画像のプレビューを開く"
 
@@ -11409,6 +11418,10 @@ msgstr "推定コストを表示"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "サイドバーのフッターに GitHub Actions を表示します。"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "画像を表示"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "ファイルエクスプローラーで表示"
@@ -12968,6 +12981,10 @@ msgstr "スレッドが終了したか、入力を待っています。"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "スレッドゴールドック"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "スレッドの画像"
 
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

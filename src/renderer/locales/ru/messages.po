@@ -6050,6 +6050,8 @@ msgstr "Изображение"
 msgid "Image preview"
 msgstr "Предпросмотр изображения"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Изображения"
@@ -8561,7 +8563,14 @@ msgstr "Открыть проверку Git"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Открывать просмотр Git как панель справа или как полную страницу."
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "Открыть изображение {0} из {1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "Открыть предпросмотр изображения"
 
@@ -11411,6 +11420,10 @@ msgstr "Показывать оценочную стоимость"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "Показывать GitHub Actions в нижней части боковой панели."
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "Показать изображения"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Показать в проводнике"
@@ -12970,6 +12983,10 @@ msgstr "Тред завершён или ожидает вашего ввода.
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "Панель цели треда"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "Изображения треда"
 
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Trans } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
-import { resolveGrokSessionDir } from "@/shared/grokSessionMedia";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
@@ -47,6 +46,7 @@ import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometr
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
+import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
 
 interface ChatPaneProps {
   thread: Thread;
@@ -133,16 +133,20 @@ export function ChatPane(props: ChatPaneProps) {
     isHomeScope ? undefined : targetContext?.projectLocation,
   );
 
-  // Grok image_gen → session `images/N.jpg`; pass the session dir so markdown
-  // can resolve those relative paths via poracode-local://.
+  // Session-media roots (e.g. Grok `image_gen` → session `images/N.jpg`) so
+  // markdown can resolve those relative paths via poracode-local://.
   const markdownImageRoots = useMemo(() => {
-    if (thread.agentKind !== "grok" || isRemoteThread) return undefined;
-    const sessionId = thread.sessionRef?.providerSessionId;
     const projectLocation = targetContext?.projectLocation;
-    const homeDir = readBridge().homeDir;
-    if (!sessionId || !projectLocation || !homeDir) return undefined;
-    const sessionDir = resolveGrokSessionDir({ projectLocation, sessionId, homeDir });
-    return sessionDir ? [sessionDir] : undefined;
+    if (!projectLocation) return undefined;
+    return resolveThreadMarkdownImageRoots({
+      agentKind: thread.agentKind,
+      ...(thread.sessionRef?.providerSessionId
+        ? { sessionId: thread.sessionRef.providerSessionId }
+        : {}),
+      projectLocation,
+      ...(readBridge().homeDir ? { homeDir: readBridge().homeDir as string } : {}),
+      ...(isRemoteThread ? { isRemote: true as const } : {}),
+    });
   }, [
     isRemoteThread,
     thread.agentKind,
@@ -163,9 +167,10 @@ export function ChatPane(props: ChatPaneProps) {
       : undefined;
     // Home scope has no project file context, but a referenced thread can
     // still be opened — the only action a Home thread gets.
-    if (isHomeScope) return openThread ? { openThread } : null;
+    if (isHomeScope) return openThread ? { openThread, threadId } : { threadId };
     if (!project || !targetContext) return null;
     return {
+      threadId,
       openProjectRelativePath: async (path, lineNumber) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
         const resolvedPath = await resolveBareBasename(
@@ -242,6 +247,7 @@ export function ChatPane(props: ChatPaneProps) {
     targetContext,
     isHomeScope,
     branch,
+    threadId,
     worktreePath,
     projectRootNames,
     markdownImageRoots,

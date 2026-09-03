@@ -6050,6 +6050,8 @@ msgstr "图片"
 msgid "Image preview"
 msgstr "图片预览"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "图片"
@@ -8560,7 +8562,14 @@ msgstr "打开 Git 审查"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "将 git review 作为右侧面板或整页打开。"
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: gallery.length
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open image {0} of {1}"
+msgstr "打开图片 {0}/{1}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
 msgstr "打开图片预览"
 
@@ -11410,6 +11419,10 @@ msgstr "显示预计费用"
 #~ msgid "Show GitHub Actions in the sidebar footer."
 #~ msgstr "在侧边栏底部显示 GitHub Actions。"
 
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show images"
+msgstr "显示图片"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "在文件资源管理器中显示"
@@ -12969,6 +12982,10 @@ msgstr "线程已完成或正在等待您的输入。"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Thread goal dock"
 msgstr "线程目标停靠栏"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread images"
+msgstr "线程图片"
 
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

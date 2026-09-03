@@ -11,7 +11,9 @@ import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadGoalDock } from "./ThreadGoalDock";
+import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
+import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import {
   useThreadDocksSummary,
   useVisibleThreadGoalDockState,
@@ -39,6 +41,7 @@ export function ThreadDocksPanel({
   const order = useSharedSettings((s) => s.threadDocksOrder);
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
+  const gallery = useThreadGalleryImages(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
   const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,6 +124,13 @@ export function ThreadDocksPanel({
             </DockSection>
           ))}
         </DragDropProvider>
+        {gallery.length > 0 ? (
+          <div data-dock-kind="images" className="relative scroll-mt-1 pl-4">
+            <div className="min-w-0">
+              <ThreadImagesDock gallery={gallery} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
