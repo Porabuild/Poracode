@@ -7370,6 +7370,7 @@ msgid "Modes"
 msgstr "Modes"
 
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
@@ -12991,7 +12992,7 @@ msgstr "Thread goal dock"
 msgid "Thread images"
 msgstr "Thread images"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "Thread info"
 

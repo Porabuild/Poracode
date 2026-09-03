@@ -26,6 +26,8 @@ import {
 } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel";
 import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
+import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
+import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -287,8 +289,9 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
           ? formatProjectScopeLabel(terminalProjectName, terminalWorktreePath ?? undefined)
           : undefined;
       }
-      case "subagent":
       case "docks":
+        return t`Thread info`;
+      case "subagent":
         return undefined;
       case "files":
         return resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope());
@@ -435,6 +438,12 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       }
       usageHeaderActions={
         <UsagePanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
+      }
+      docksHeaderActions={
+        <ThreadDocksPlacementToggle
+          placement="right"
+          buttonClassName={`poracode-overlay-header__controls ${panelHeaderIconButtonClass}`}
+        />
       }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}

@@ -78,8 +78,10 @@ const execFileAsync = promisify(execFile);
  * detection, so statuses cached under kind-global settings must be re-probed.
  * v21 adds Antigravity's independently detected terminal and ACP runtimes and
  * ACP-probed resume capability, so terminal-only cached statuses are invalid.
+ * v22 adds Muse's `authLogoutSupported` (the `muse logout` Settings action),
+ * so cached Muse statuses that hide the logout button must be re-probed.
  */
-export const STATUS_CACHE_VERSION = 21;
+export const STATUS_CACHE_VERSION = 22;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

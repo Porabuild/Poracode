@@ -133,7 +133,7 @@ describe("ThreadDocksPanel", () => {
       "h-8",
     );
     expect(screen.getByRole("button", { name: "Reorder Plan" })).toBeInTheDocument();
-    expect(screen.getByText("Thread info")).toBeInTheDocument();
+    expect(screen.queryByTitle("Show docks above the composer")).not.toBeInTheDocument();
     expect(
       [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
         element.getAttribute("data-dock-kind"),

@@ -66,6 +66,29 @@ describe("ThreadGoalDock", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it("puts the right-panel objective on a second line", () => {
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={{
+            sourceItemId: "goal-1",
+            itemState: "completed",
+            objective: "Ship goal dock",
+            status: "active",
+            action: "set",
+            tokensUsed: 120,
+          }}
+          placement="right"
+        />
+      </AppProvider>,
+    );
+
+    const objective = screen.getByText("Ship goal dock");
+    expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "right");
+    expect(objective.parentElement?.parentElement).toHaveClass("basis-full", "pl-[22px]");
+  });
+
   it("offers Codex edit, pause, and clear controls and sends direct goal actions", async () => {
     render(
       <AppProvider>

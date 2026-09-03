@@ -10,7 +10,6 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
-import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
@@ -116,10 +115,7 @@ export function ThreadDocksPanel({
 
   return (
     <div role="region" aria-label={t`Thread docks`} className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-2 py-1 text-xs">
-        <span className="min-w-0 flex-1 truncate text-[color:var(--muted)]">{t`Thread info`}</span>
-        <ThreadDocksPlacementToggle placement="right" />
-      </div>
+      {/* The title and placement toggle live in the shared right-panel header. */}
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
         <DragDropProvider onDragEnd={handleDragEnd}>
           {visibleOrder.map((kind, index) => (

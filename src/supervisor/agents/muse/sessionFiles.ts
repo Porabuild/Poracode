@@ -19,7 +19,14 @@ import { nativeMuseDataHome, nativeMuseSessionsRoot } from "./paths";
  *
  *   ${XDG_DATA_HOME:-~/.local/share}/muse/sessions/YYYY/MM/DD/<session-uuid>/
  *
- * (verified: e.g. sessions/2026/08/05/966713f1-794f-480e-aa37-713e8387fe8e).
+ * (verified on 0.1.0 and re-verified with a real 1.0.2 echo-provider run:
+ * top-level session.jsonl carries exactly one `runtime.session.metadata`
+ * record with the launch cwd as `workspace_root`.)
+ *
+ * 1.0.2 nests more inside the session dir — `subagent/<uuid>/session.jsonl`,
+ * `approval-review/`, `cron.db`, `session.peer-history.sqlite3` — but the
+ * walk below never descends past the YYYY/MM/DD/<uuid> level, so nested ids
+ * can never be misbound.
  *
  * We snapshot every UUID dir under the sessions root before spawn, then
  * discover the brand-new dir after, returning the UUID as sessionRef so

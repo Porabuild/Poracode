@@ -6,6 +6,8 @@ import type { ThreadDockKind } from "@/shared/settings";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
 import {
   floatingGlassActiveClass,
+  floatingGlassBubbleActiveClass,
+  floatingGlassBubbleClass,
   floatingGlassSurfaceClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -25,12 +27,11 @@ import type { ThreadDocksSummary } from "./useThreadDocksSummary";
 export function ThreadDockBubbles({ summary }: { summary: ThreadDocksSummary }) {
   const { t } = useLingui();
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
-  const focus = usePanelStore((s) => s.threadDocksFocus);
   const order = useSharedSettings((s) => s.threadDocksOrder);
-  // A bubble is active only when the panel is showing THAT dock, so its
-  // pressed state and "Hide <dock>" name always describe what clicking it
-  // does (hide). A focusless open leaves every bubble reading "Show <dock>".
-  const isActive = (kind: ThreadDockKind) => panelShowing && focus === kind;
+  // The bubbles are one group for one panel: while the Docks tab is showing,
+  // every bubble is pressed and clicking any of them hides the panel, so the
+  // "Hide <dock>" name always describes what the click does.
+  const isActive = (_kind: ThreadDockKind) => panelShowing;
 
   const bubbles: Record<ThreadDockKind, ReactNode> = {
     goal: summary.goal ? (
@@ -123,8 +124,8 @@ function DockBubble({
       aria-label={active ? t`Hide ${label}` : t`Show ${label}`}
       aria-pressed={active}
       data-dock-bubble={kind}
-      className={`${floatingGlassSurfaceClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
-        active ? floatingGlassActiveClass : "hover:border-border/30"
+      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
+        active ? `${floatingGlassActiveClass} ${floatingGlassBubbleActiveClass}` : ""
       }`}
       onClick={() => toggleThreadDocksPanel(kind)}
     >

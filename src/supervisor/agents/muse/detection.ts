@@ -1,30 +1,43 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { stripAnsi } from "@/shared/ansi";
 import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
 import {
   batchWslCommandsAsync,
   envVarAuthProbe,
+  readAgentCommandOutput,
   type AuthProbe,
   type DetectionSpec,
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { nativeMuseAuthPath, WSL_MUSE_AUTH_PATH } from "./paths";
+import { probeMuseModelCatalog, type MuseProbedCatalog } from "./msp/probe";
 
-// Models are static — Muse has no `list-models` command. All three ship with a
-// 1M context window (verified against Muse Code 0.1.0 docs/binary).
+// Curated static fallback — Muse ships no `list-models` command, so this is
+// the model/effort source of truth when the `--help` probe below yields
+// nothing new. All ship with a 1M context window (1.1/1.2 verified against
+// Muse Code 0.1.0 docs/binary; 1.3 confirmed at 1,048,576 tokens via Model API
+// catalogs on release day, 2026-09-02).
 const MUSE_DISABLE_AUTO_UPDATE_ENV: Record<string, string> = {
   MUSE_NO_AUTO_UPDATE: "1",
 };
 
-export const MUSE_DEFAULT_MODEL_ID = "muse-spark-1.2";
+export const MUSE_DEFAULT_MODEL_ID = "muse-spark-1.3";
 
-const MUSE_MODEL_IDS = [
-  MUSE_DEFAULT_MODEL_ID,
-  "muse-spark-1.2-contributor",
-  "muse-spark-1.1",
-] as const;
+// Single source for the curated static models: ids, picker labels, context
+// map, and per-model efforts below all derive from this array.
+const MUSE_STATIC_MODELS: Array<{ id: string; label: string }> = [
+  { id: MUSE_DEFAULT_MODEL_ID, label: "Muse Spark 1.3" },
+  { id: "muse-spark-1.3-contributor", label: "Muse Spark 1.3 Contributor" },
+  { id: "muse-spark-1.2", label: "Muse Spark 1.2" },
+  { id: "muse-spark-1.2-contributor", label: "Muse Spark 1.2 Contributor" },
+  { id: "muse-spark-1.1", label: "Muse Spark 1.1" },
+];
 
-const MUSE_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "ultra"] as const;
+const MUSE_MODEL_IDS: string[] = MUSE_STATIC_MODELS.map((model) => model.id);
+
+/** Static effort ladder (also the MSP `ReasoningEffort` closed enum — see msp/schemaFixture.test.ts). */
+export const MUSE_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "ultra"] as const;
 
 // Muse approval modes: untrusted | on-request | never (CLI default on-request).
 // `--yolo` is the true full bypass (approval + sandbox + trust) and is the
@@ -41,11 +54,7 @@ const contextCaps = buildContextSizeCapabilities(
 );
 
 export const museDefaultCapabilities: AgentCapability = {
-  models: [
-    { id: MUSE_DEFAULT_MODEL_ID, label: "Muse Spark 1.2" },
-    { id: "muse-spark-1.2-contributor", label: "Muse Spark 1.2 Contributor" },
-    { id: "muse-spark-1.1", label: "Muse Spark 1.1" },
-  ],
+  models: MUSE_STATIC_MODELS.map((model) => ({ ...model })),
   efforts: [...MUSE_EFFORTS],
   defaultEffort: "high",
   modelEfforts: Object.fromEntries(MUSE_MODEL_IDS.map((id) => [id, [...MUSE_EFFORTS]])),
@@ -66,6 +75,174 @@ export const museDefaultCapabilities: AgentCapability = {
   settingDefs: [],
   ...contextCaps,
 };
+
+/**
+ * Parse the `--reasoning-effort` enum out of `muse --help` output. Two shapes
+ * seen in the wild: the inline enum (`--reasoning-effort <none|...|ultra>`,
+ * documented for 0.1.0) and the wrapped description form (real 1.0.2 output):
+ * `      --reasoning-effort <EFFORT>`
+ * `          Meta reasoning effort: none|minimal|low|medium|high|xhigh|ultra`
+ *
+ * Sentinel-gated: the enum must hold 2+ lowercase tokens and include a known
+ * ladder value (`high`/`medium`), so an unrelated similarly-named flag or a
+ * truncated line can never shrink the picker to garbage. Returns the ladder
+ * in help order, or undefined when the help text doesn't parse.
+ */
+export function parseMuseHelpEfforts(output: string): string[] | undefined {
+  const effortToken = /^[a-z][a-z0-9]*$/;
+  const enumRun = /[a-z][a-z0-9]*(?:\|[a-z][a-z0-9]*)+/;
+  const validLadder = (tokens: string[]): string[] | undefined => {
+    const deduped = [...new Set(tokens.map((token) => token.trim()))].filter((token) =>
+      effortToken.test(token),
+    );
+    if (deduped.length < 2) return undefined;
+    if (!deduped.includes("high") && !deduped.includes("medium")) return undefined;
+    return deduped;
+  };
+  const lines = stripAnsi(output).split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? "";
+    if (!rawLine.includes("--reasoning-effort")) continue;
+    // Inline enum first; a lone placeholder (`<EFFORT>`) carries no values and
+    // falls through to the description lines below the flag.
+    const inline = /<([^<>]+)>/.exec(rawLine)?.[1] ?? /\[([^[\]]+)\]/.exec(rawLine)?.[1];
+    if (inline) {
+      const ladder = validLadder(inline.split("|"));
+      if (ladder) return ladder;
+    }
+    // Wrapped enum on the following description lines. Stop at the next flag
+    // so a neighboring option's enum (e.g. `--worktree off|create|existing`)
+    // can never leak in.
+    for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+      const next = lines[j] ?? "";
+      if (next.trimStart().startsWith("-")) break;
+      const run = enumRun.exec(next)?.[0];
+      if (!run) continue;
+      const ladder = validLadder(run.split("|"));
+      if (ladder) return ladder;
+    }
+  }
+  return undefined;
+}
+
+const MUSE_HELP_MODEL_RE = /\bmuse-spark-\d+\.\d+(?:-contributor)?(?![\w.])/g;
+
+/**
+ * Collect `muse-spark-X.Y(-contributor)?` ids mentioned in `muse --help`
+ * output, deduped in order of first appearance. The CLI never enumerates its
+ * models, so help mentions are the only installed-binary signal for newly
+ * shipped ids — the caller overlays these additively onto the curated list.
+ */
+export function parseMuseHelpModelIds(output: string): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const match of stripAnsi(output).matchAll(MUSE_HELP_MODEL_RE)) {
+    const id = match[0];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+/**
+ * Display label derived from the id's own segments
+ * (`muse-spark-1.4-contributor` → `Muse Spark 1.4 Contributor`) — no
+ * provider-owned name table to go stale.
+ */
+export function humanizeMuseModelLabel(id: string): string {
+  return id
+    .split("-")
+    .filter(Boolean)
+    .map((part) =>
+      /^\d+(\.\d+)?$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1),
+    )
+    .join(" ");
+}
+
+function museStaticModelEntries(): Array<{ id: string; label: string }> {
+  return MUSE_STATIC_MODELS.map((model) => ({ ...model }));
+}
+
+/**
+ * Overlay a live `model/list` catalog onto base models (the curated statics,
+ * possibly already extended by the `--help` overlay): append catalog ids the
+ * base doesn't know, in catalog order, keeping the curated default first.
+ * Context limits come from the catalog when declared, else the 1M all Muse
+ * models ship with. Returns null when the catalog adds nothing, so the probe
+ * result stays minimal.
+ */
+export function buildMuseCatalogCapabilities(
+  baseModels: ReadonlyArray<{ id: string; label: string }>,
+  catalog: MuseProbedCatalog,
+  efforts: string[],
+): Pick<AgentCapability, "models" | "modelEfforts" | "contextSizes" | "modelContextSizes"> | null {
+  const known = new Set(baseModels.map((model) => model.id));
+  const discovered = catalog.models.filter((model) => model.id && !known.has(model.id));
+  if (discovered.length === 0) return null;
+  const models = [
+    ...baseModels.map((model) => ({ ...model })),
+    ...discovered.map((model) => ({
+      id: model.id,
+      label: model.label || humanizeMuseModelLabel(model.id),
+    })),
+  ];
+  const limits = new Map<string, number>();
+  for (const model of baseModels) limits.set(model.id, 1_000_000);
+  for (const model of catalog.models) {
+    if (typeof model.contextLimit === "number" && model.contextLimit > 0) {
+      limits.set(model.id, model.contextLimit);
+    }
+  }
+  return {
+    models,
+    modelEfforts: Object.fromEntries(models.map((model) => [model.id, [...efforts]])),
+    ...buildContextSizeCapabilities(
+      new Map(models.map((model) => [model.id, limits.get(model.id) ?? 1_000_000])),
+    ),
+  };
+}
+
+/**
+ * Overlay the installed binary's `--help` onto the curated static
+ * capabilities: adopt a newly shipped effort ladder, and append newly
+ * mentioned model ids (1M context, full ladder — every Muse model to date).
+ *
+ * Strictly additive on both axes: curated models are never removed and the
+ * probed ladder is adopted only when it keeps every curated effort (so a
+ * truncated help enum can neither shrink the picker nor orphan
+ * `defaultEffort`). The default model (first entry) never moves, and the
+ * result is null when help adds nothing — so the probe result stays minimal
+ * and failures fall back to the static list with zero behavior change.
+ */
+export function buildMuseProbedCapabilities(
+  helpOutput: string,
+): Pick<
+  AgentCapability,
+  "models" | "efforts" | "modelEfforts" | "contextSizes" | "modelContextSizes"
+> | null {
+  const probed = parseMuseHelpEfforts(helpOutput);
+  const knownIds: Set<string> = new Set(MUSE_MODEL_IDS);
+  const discovered = parseMuseHelpModelIds(helpOutput).filter((id) => !knownIds.has(id));
+  const ladderAdopted =
+    probed !== undefined &&
+    MUSE_EFFORTS.every((effort) => probed.includes(effort)) &&
+    (probed.length !== MUSE_EFFORTS.length ||
+      probed.some((effort, index) => effort !== MUSE_EFFORTS[index]));
+  if (!ladderAdopted && discovered.length === 0) return null;
+
+  const efforts = ladderAdopted && probed !== undefined ? [...probed] : [...MUSE_EFFORTS];
+  const models = [
+    ...museStaticModelEntries(),
+    ...discovered.map((id) => ({ id, label: humanizeMuseModelLabel(id) })),
+  ];
+  return {
+    models,
+    efforts,
+    modelEfforts: Object.fromEntries(models.map((model) => [model.id, [...efforts]])),
+    ...buildContextSizeCapabilities(new Map(models.map((model) => [model.id, 1_000_000]))),
+  };
+}
 
 /**
  * True when `auth.json` has a non-empty `providers` object. Key *names* only —
@@ -139,17 +316,59 @@ export const museDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["META_API_KEY"]), storedCredentialsAuthProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return { authMethods: [MUSE_TERMINAL_AUTH] };
+    // Two dynamic sources, one static fallback. First the cheap,
+    // unauthenticated `muse --help` spawn (effort ladder + mentioned model
+    // ids, additive-only). Then the `muse serve` model catalog when the host
+    // answers — live when logged in, empty otherwise. probeEnv carries
+    // baseSpawnEnv (MUSE_NO_AUTO_UPDATE) so neither probe triggers the CLI's
+    // updater. Anything missing falls back to the static list above with zero
+    // behavior change.
+    const help = await readAgentCommandOutput(ctx.location, ctx.executablePath, ["--help"], {
+      timeoutMs: 8_000,
+      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    }).catch((error) => {
+      console.warn("[muse] help probe failed:", error);
+      return undefined;
+    });
+    const helpText = help ? `${help.stdout}\n${help.stderr}` : "";
+    const helpCaps = helpText.trim() ? buildMuseProbedCapabilities(helpText) : null;
+    const catalog = await probeMuseModelCatalog(ctx.location, {
+      executablePath: ctx.executablePath,
+      ...(ctx.probeEnv ? { probeEnv: ctx.probeEnv } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    });
+    // The catalog wins when it adds models (it builds on the help overlay);
+    // an empty/failed probe keeps the help/static result.
+    const catalogCaps =
+      catalog && catalog.models.length > 0
+        ? buildMuseCatalogCapabilities(
+            helpCaps?.models ?? museStaticModelEntries(),
+            catalog,
+            helpCaps?.efforts ?? [...MUSE_EFFORTS],
+          )
+        : null;
+    const overlay = catalogCaps ?? helpCaps;
+    // `muse logout` clears the saved Meta credential (verified on 1.0.2), so
+    // the Settings logout action is always available once installed.
+    return {
+      authMethods: [MUSE_TERMINAL_AUTH],
+      authLogoutSupported: true,
+      ...(overlay ?? {}),
+    };
   },
   // Muse ships via Meta's installer script only — no npm package, no
   // `muse update` / self-updater. Re-run the official install script for
-  // updates. Windows has no Muse build; the windows installer entry surfaces a
-  // clear message (schema requires both platforms when `installer` is set).
+  // updates. The script uses bash-isms (`set -o pipefail`), so it must be
+  // piped to `bash`, not `sh` (dash aborts with "Illegal option -o pipefail"
+  // and curl then fails with SIGPIPE). Windows has no Muse build; the windows
+  // installer entry surfaces a clear message (schema requires both platforms
+  // when `installer` is set).
   update: {
     installer: {
       posix: {
         binary: "sh",
-        args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | sh"],
+        args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
       },
       windows: {
         binary: "powershell.exe",

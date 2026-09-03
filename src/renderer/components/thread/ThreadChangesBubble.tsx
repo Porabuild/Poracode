@@ -7,6 +7,8 @@ import { closeAllPanels, showGitReviewPanel } from "@/renderer/actions/panelActi
 import { DiffStat } from "@/renderer/components/common";
 import {
   floatingGlassActiveClass,
+  floatingGlassBubbleActiveClass,
+  floatingGlassBubbleClass,
   floatingGlassSurfaceClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -89,9 +91,9 @@ export function ThreadChangesBubble(props: {
       aria-pressed={isOpen}
       /* Sized to a 28px pill — same height as the scroll-to-bottom circle and the
          rail's icon buttons, so the floating chrome shares one scale. */
-      className={`${floatingGlassSurfaceClass} flex h-7 items-center gap-1.5 rounded-full text-xs font-medium transition-colors ${
+      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full text-xs font-medium transition-colors ${
         hasChanges || hasVisiblePr ? "px-3" : "w-7 justify-center px-0"
-      } ${isOpen ? floatingGlassActiveClass : "hover:border-border/30"}`}
+      } ${isOpen ? `${floatingGlassActiveClass} ${floatingGlassBubbleActiveClass}` : ""}`}
       onClick={() => {
         if (isOpen) {
           closeAllPanels();

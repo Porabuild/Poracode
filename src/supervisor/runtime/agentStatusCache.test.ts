@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(21);
+    expect(STATUS_CACHE_VERSION).toBe(22);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(21);
+    expect(STATUS_CACHE_VERSION).toBe(22);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -348,7 +348,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(21);
+    expect(STATUS_CACHE_VERSION).toBe(22);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
