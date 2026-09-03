@@ -1,5 +1,14 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { AssistantMessage, Event, Session, ToolPart, UserMessage } from "./legacySdk";
+import {
+  OPENCODE_INLINE_IMAGE_MAX_BYTES,
+  readOpenCodeImageDataUrl,
+  toOpenCodeFileRef,
+} from "./canonicalMapping/fileParts";
 import {
   closeOpenItems,
   createOpenCodeMapperState,
@@ -233,7 +242,7 @@ describe("sdkCanonicalMapping — permission/question events", () => {
         summary: "Permission required",
         details: {
           toolName: "bash",
-          displayName: "target",
+          displayName: "command",
           decisionReason: "OpenCode wants to run a command.",
           input: { command: "rm -rf /tmp" },
         },
@@ -245,7 +254,7 @@ describe("sdkCanonicalMapping — permission/question events", () => {
     });
   });
 
-  it("keeps OpenCode tool-name permissions as approvals", () => {
+  it("keeps OpenCode tool-name permissions as tool_call approvals", () => {
     const state = createOpenCodeMapperState("thread-1");
     const events = mapOpenCodeEvent(
       {
@@ -266,12 +275,12 @@ describe("sdkCanonicalMapping — permission/question events", () => {
     expect(events[0]).toMatchObject({
       type: "request.opened",
       requestId: "opencode-perm-perm_1",
-      requestType: "command_execution_approval",
+      requestType: "tool_call_approval",
       payload: {
         summary: "Permission required",
         details: {
           toolName: "grep",
-          displayName: "target",
+          displayName: "grep",
           decisionReason: "OpenCode wants to use grep.",
           input: { command: "TERM_PROGRAM" },
         },
@@ -392,12 +401,9 @@ describe("sdkCanonicalMapping — permission/question events", () => {
 });
 
 describe("sdkCanonicalMapping — todowrite → plan", () => {
-  it("classifies `todowrite` as a plan item and extracts steps from input.todos", () => {
-    // OpenCode's todowrite tool mirrors Claude's: `{ todos: [{ content, status,
-    // priority }] }`. The mapper must surface this as a canonical `plan` item
-    // so ThreadTodoDock picks it up instead of rendering a generic accordion.
+  it("uses todo.updated as the single plan source after todowrite", () => {
     const state = createOpenCodeMapperState("thread-1");
-    const events = mapOpenCodeEvent(
+    const toolEvents = mapOpenCodeEvent(
       toolPartUpdatedEvent({
         id: "prt_todo_1",
         sessionID: "ses_test",
@@ -419,6 +425,22 @@ describe("sdkCanonicalMapping — todowrite → plan", () => {
       }),
       state,
     );
+    expect(toolEvents).toEqual([]);
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-todo-1",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_test",
+          todos: [
+            { content: "First task", status: "in_progress", priority: "high" },
+            { content: "Second task", status: "pending", priority: "high" },
+            { content: "Third task", status: "completed", priority: "medium" },
+          ],
+        },
+      } as Event,
+      state,
+    );
     const started = events.find((e) => e.type === "item.started");
     if (started?.type !== "item.started") throw new Error("expected item.started");
     expect(started.itemType).toBe("plan");
@@ -431,27 +453,45 @@ describe("sdkCanonicalMapping — todowrite → plan", () => {
     });
   });
 
-  it("treats unknown statuses as pending and falls back to 'Task' for empty content", () => {
+  it("surfaces todowrite failures when no native todo update follows", () => {
     const state = createOpenCodeMapperState("thread-1");
     const events = mapOpenCodeEvent(
       toolPartUpdatedEvent({
-        id: "prt_todo_2",
+        id: "prt_todo_error",
         sessionID: "ses_test",
-        messageID: "msg_2",
+        messageID: "msg_1",
         type: "tool",
         tool: "todowrite",
-        callID: "call_todo_2",
+        callID: "call_todo_error",
         state: {
-          status: "running",
-          input: {
-            todos: [
-              { content: "   ", status: "weird-unknown" },
-              { content: "Real one", status: "in_progress" },
-            ],
-          },
-          time: { start: 0 },
+          status: "error",
+          input: { todos: [] },
+          error: "todo update failed",
+          time: { start: 0, end: 1 },
         },
       }),
+      state,
+    );
+    expect(events.find((event) => event.type === "item.started")).toMatchObject({
+      itemType: "tool_call",
+      payload: { status: "error", errorMessage: "todo update failed" },
+    });
+  });
+
+  it("treats unknown statuses as pending and falls back to 'Task' for empty content", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-todo-2",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_test",
+          todos: [
+            { content: "   ", status: "weird-unknown", priority: "low" },
+            { content: "Real one", status: "in_progress", priority: "high" },
+          ],
+        },
+      } as Event,
       state,
     );
     const started = events.find((e) => e.type === "item.started");
@@ -1692,6 +1732,718 @@ describe("sdkCanonicalMapping — usage.spent", () => {
         fresh: true,
         sampleId: "msg_child_1",
       },
+    });
+  });
+});
+
+describe("sdkCanonicalMapping — file parts", () => {
+  function filePartUpdatedEvent(part: Record<string, unknown>): Event {
+    return {
+      id: "evt-" + Math.random().toString(36).slice(2),
+      type: "message.part.updated",
+      properties: {
+        sessionID: "ses_test",
+        time: 0,
+        part,
+      },
+    } as Event;
+  }
+
+  it("maps image file parts to completed image_view rows with inline bytes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "opencode-file-"));
+    try {
+      const imagePath = join(dir, "shot.png");
+      writeFileSync(imagePath, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+      const state = createOpenCodeMapperState("thread-1");
+      const events = mapOpenCodeEvent(
+        filePartUpdatedEvent({
+          id: "prt_file_img",
+          sessionID: "ses_test",
+          messageID: "msg_1",
+          type: "file",
+          mime: "image/png",
+          filename: "shot.png",
+          url: pathToFileURL(imagePath).href,
+        }),
+        state,
+      );
+      const started = events.find((e) => e.type === "item.started");
+      expect(started).toMatchObject({ itemType: "image_view" });
+      expect(started && "payload" in started ? started.payload : undefined).toMatchObject({
+        name: "shot.png",
+        status: "success",
+        images: [expect.stringMatching(/^data:image\/png;base64,/)],
+      });
+      expect(events.find((e) => e.type === "item.completed")).toBeDefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("maps non-image file parts to file-reference tool rows", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      filePartUpdatedEvent({
+        id: "prt_file_pdf",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "file",
+        mime: "application/pdf",
+        filename: "report.pdf",
+        url: "file:///tmp/report.pdf",
+      }),
+      state,
+    );
+    expect(events.find((e) => e.type === "item.started")).toMatchObject({
+      itemType: "tool_call",
+      payload: {
+        name: "report.pdf",
+        status: "success",
+        args: { path: "/tmp/report.pdf", mime: "application/pdf" },
+        locations: [{ path: "/tmp/report.pdf" }],
+      },
+    });
+  });
+
+  it("ignores file parts without a file URL instead of emitting broken rows", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      filePartUpdatedEvent({
+        id: "prt_file_remote",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "file",
+        mime: "image/png",
+        url: "https://example.com/shot.png",
+      }),
+      state,
+    );
+    expect(events).toEqual([]);
+  });
+
+  it("skips file parts echoed on user messages (optimistic bubble owns them)", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    state.pendingUserMessageItemIds.push("user-optimistic-1");
+    mapOpenCodeEvent(userMessageUpdatedEvent("msg_user_1"), state);
+    const events = mapOpenCodeEvent(
+      filePartUpdatedEvent({
+        id: "prt_file_user",
+        sessionID: "ses_test",
+        messageID: "msg_user_1",
+        type: "file",
+        mime: "image/png",
+        filename: "user.png",
+        url: "file:///tmp/user.png",
+      }),
+      state,
+    );
+    expect(events).toEqual([]);
+  });
+
+  it("updates the same row when a file part is re-delivered", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const part = {
+      id: "prt_file_redeliver",
+      sessionID: "ses_test",
+      messageID: "msg_1",
+      type: "file",
+      mime: "application/pdf",
+      filename: "report.pdf",
+      url: "file:///tmp/report.pdf",
+    };
+    const first = mapOpenCodeEvent(filePartUpdatedEvent(part), state);
+    const startedId =
+      first.find((e) => e.type === "item.started")?.type === "item.started"
+        ? (first.find((e) => e.type === "item.started") as { itemId: string }).itemId
+        : undefined;
+    const second = mapOpenCodeEvent(filePartUpdatedEvent(part), state);
+    expect(second.find((e) => e.type === "item.started")).toBeUndefined();
+    expect(second).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: startedId,
+        payload: {
+          name: "report.pdf",
+          title: "report.pdf",
+          status: "success",
+          args: { path: "/tmp/report.pdf", mime: "application/pdf" },
+          locations: [{ path: "/tmp/report.pdf" }],
+        },
+      },
+    ]);
+  });
+
+  it("resolves completed tool attachments onto payload.images", () => {
+    const dir = mkdtempSync(join(tmpdir(), "opencode-attach-"));
+    try {
+      const imagePath = join(dir, "tool.png");
+      writeFileSync(imagePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+      const state = createOpenCodeMapperState("thread-1");
+      mapOpenCodeEvent(
+        toolPartUpdatedEvent({
+          id: "prt_tool_attach",
+          sessionID: "ses_test",
+          messageID: "msg_1",
+          type: "tool",
+          tool: "browser",
+          callID: "call_attach",
+          state: { status: "running", input: {}, time: { start: 0 } },
+        }),
+        state,
+      );
+      const events = mapOpenCodeEvent(
+        toolPartUpdatedEvent({
+          id: "prt_tool_attach",
+          sessionID: "ses_test",
+          messageID: "msg_1",
+          type: "tool",
+          tool: "browser",
+          callID: "call_attach",
+          state: {
+            status: "completed",
+            input: {},
+            output: "screenshot taken",
+            title: "Screenshot",
+            metadata: {},
+            time: { start: 0, end: 1 },
+            attachments: [
+              {
+                id: "att_1",
+                sessionID: "ses_test",
+                messageID: "msg_1",
+                type: "file",
+                mime: "image/png",
+                filename: "tool.png",
+                url: pathToFileURL(imagePath).href,
+              },
+            ],
+          },
+        }),
+        state,
+      );
+      expect(events.find((e) => e.type === "item.completed")).toMatchObject({
+        payload: { images: [expect.stringMatching(/^data:image\/png;base64,/)] },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves inline image and non-image data tool attachments", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const dataUrl = "data:image/png;base64,iVBORw0KGgo=";
+    const events = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_tool_inline_attachments",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "browser",
+        callID: "call_inline_attachments",
+        state: {
+          status: "completed",
+          input: {},
+          output: "attachments produced",
+          title: "Attachments",
+          metadata: {},
+          time: { start: 0, end: 1 },
+          attachments: [
+            {
+              id: "att_image",
+              sessionID: "ses_test",
+              messageID: "msg_1",
+              type: "file",
+              mime: "image/png",
+              filename: "shot.png",
+              url: dataUrl,
+            },
+            {
+              id: "att_pdf",
+              sessionID: "ses_test",
+              messageID: "msg_1",
+              type: "file",
+              mime: "application/pdf",
+              filename: "report.pdf",
+              url: "data:application/pdf;base64,JVBERi0xLjQK",
+            },
+          ],
+        },
+      }),
+      state,
+    );
+    const started = events.find((event) => event.type === "item.started");
+    expect(started).toMatchObject({
+      payload: { images: [dataUrl], locations: [{ path: expect.stringMatching(/report\.pdf$/) }] },
+    });
+    if (!started || !("payload" in started)) throw new Error("expected item.started");
+    const locations = (started.payload as { locations?: Array<{ path: string }> }).locations;
+    expect(locations?.[0] && readFileSync(locations[0].path, "utf8")).toBe("%PDF-1.4\n");
+  });
+
+  it("translates WSL file refs and refuses oversized inline reads", () => {
+    const ref = toOpenCodeFileRef(
+      { mime: "image/png", filename: "shot.png", url: "file:///home/me/shot.png" },
+      "msg_1",
+      {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/me/project",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\project",
+      },
+    );
+    expect(ref).toMatchObject({
+      path: "/home/me/shot.png",
+      hostPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\shot.png",
+    });
+
+    const dir = mkdtempSync(join(tmpdir(), "opencode-oversized-image-"));
+    try {
+      const imagePath = join(dir, "large.png");
+      writeFileSync(imagePath, Buffer.alloc(OPENCODE_INLINE_IMAGE_MAX_BYTES + 1));
+      const oversized = toOpenCodeFileRef(
+        { mime: "image/png", filename: "large.png", url: pathToFileURL(imagePath).href },
+        "msg_1",
+      );
+      expect(oversized).toBeDefined();
+      expect(readOpenCodeImageDataUrl(oversized!)).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("sdkCanonicalMapping — subtask parts", () => {
+  it("does not surface user prompt subtask parts as assistant tool rows", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    mapOpenCodeEvent(userMessageUpdatedEvent("msg_1"), state);
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-sub",
+        type: "message.part.updated",
+        properties: {
+          sessionID: "ses_test",
+          time: 0,
+          part: {
+            id: "prt_sub",
+            sessionID: "ses_test",
+            messageID: "msg_1",
+            type: "subtask",
+            prompt: "Explore the repo",
+            description: "Explore code",
+            agent: "explore",
+          },
+        },
+      } as Event,
+      state,
+    );
+    expect(events).toEqual([]);
+  });
+});
+
+describe("sdkCanonicalMapping — native todos and assistant errors", () => {
+  it("tracks todo.updated as one plan row, dropping cancelled todos", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const first = mapOpenCodeEvent(
+      {
+        id: "evt-todo-1",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_test",
+          todos: [
+            { content: "First", status: "in_progress", priority: "high" },
+            { content: "Dead", status: "cancelled", priority: "low" },
+          ],
+        },
+      } as Event,
+      state,
+    );
+    const started = first.find((e) => e.type === "item.started");
+    expect(started).toMatchObject({
+      itemType: "plan",
+      payload: { steps: [{ step: "First", status: "in_progress" }] },
+    });
+    const itemId = started && "itemId" in started ? started.itemId : undefined;
+    const second = mapOpenCodeEvent(
+      {
+        id: "evt-todo-2",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_test",
+          todos: [{ content: "First", status: "completed", priority: "high" }],
+        },
+      } as Event,
+      state,
+    );
+    expect(second).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId,
+        payload: { steps: [{ step: "First", status: "completed" }] },
+      },
+    ]);
+  });
+
+  it("surfaces assistant message errors exactly once", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const failing = messageUpdatedEvent(
+      assistantMessage("msg_err", {
+        error: {
+          name: "ProviderAuthError",
+          data: { providerID: "anthropic", message: "auth expired" },
+        },
+      }),
+    );
+    const events = mapOpenCodeEvent(failing, state);
+    expect(events.find((e) => e.type === "error")).toMatchObject({
+      type: "error",
+      message: "auth expired",
+    });
+    expect(mapOpenCodeEvent(failing, state).find((e) => e.type === "error")).toBeUndefined();
+  });
+
+  it("stays silent on user-aborted messages (Stop settles via turn completion)", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_abort", {
+          error: { name: "MessageAbortedError", data: { message: "aborted" } },
+        }),
+      ),
+      state,
+    );
+    expect(events.find((e) => e.type === "error")).toBeUndefined();
+  });
+
+  it("stays silent on user-aborted session errors", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-session-abort",
+        type: "session.error",
+        properties: {
+          sessionID: "ses_test",
+          error: { name: "MessageAbortedError", data: { message: "Aborted" } },
+        },
+      } as Event,
+      state,
+    );
+    expect(events).toEqual([]);
+  });
+
+  it("ignores todo updates from child sessions (subagent-internal)", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_main");
+    mapOpenCodeEvent(
+      {
+        id: "evt-parent-todo",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_main",
+          todos: [{ content: "Parent task", status: "pending", priority: "high" }],
+        },
+      } as Event,
+      state,
+    );
+    // Link a child session via a parent task tool.
+    mapOpenCodeEvent(
+      {
+        id: "evt-task",
+        type: "message.part.updated",
+        properties: {
+          sessionID: "ses_main",
+          time: 0,
+          part: {
+            id: "prt_task_todo",
+            sessionID: "ses_main",
+            messageID: "msg_assistant",
+            type: "tool",
+            tool: "task",
+            callID: "call_task_todo",
+            state: { status: "running", input: {}, time: { start: 0 } },
+          } as ToolPart,
+        },
+      },
+      state,
+    );
+    const childSession: Session = {
+      id: "ses_child",
+      slug: "child",
+      projectID: "proj",
+      directory: "/",
+      parentID: "ses_main",
+      title: "subagent",
+      version: "1.0.0",
+      time: { created: 1, updated: 1 },
+    };
+    mapOpenCodeEvent(
+      {
+        id: "evt-child-born",
+        type: "session.created",
+        properties: { sessionID: "ses_child", info: childSession },
+      },
+      state,
+    );
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-child-todo",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_child",
+          todos: [{ content: "Child task", status: "pending", priority: "high" }],
+        },
+      } as Event,
+      state,
+    );
+    expect(events).toEqual([]);
+  });
+
+  it("ignores transport-level events without chat rows", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    for (const event of [
+      {
+        id: "evt-x",
+        type: "session.diff",
+        properties: { sessionID: "ses_test", diff: [] },
+      },
+      {
+        id: "evt-y",
+        type: "command.executed",
+        properties: { name: "init", sessionID: "ses_test", arguments: "", messageID: "m" },
+      },
+    ]) {
+      expect(mapOpenCodeEvent(event as Event, state)).toEqual([]);
+    }
+  });
+});
+
+describe("sdkCanonicalMapping — corrected classifications", () => {
+  it("routes todoread to tool_call and rm to file_change", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const read = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_todoread",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "todoread",
+        callID: "call_tr",
+        state: { status: "running", input: {}, time: { start: 0 } },
+      }),
+      state,
+    );
+    expect(read.find((e) => e.type === "item.started")).toMatchObject({ itemType: "tool_call" });
+    const rm = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_rm",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "rm",
+        callID: "call_rm",
+        state: { status: "running", input: { path: "old.txt" }, time: { start: 0 } },
+      }),
+      state,
+    );
+    expect(rm.find((e) => e.type === "item.started")).toMatchObject({
+      itemType: "file_change",
+      payload: { changeKind: "delete" },
+    });
+  });
+
+  it("drops cancelled todos from native plan steps", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-todo-cancel",
+        type: "todo.updated",
+        properties: {
+          sessionID: "ses_test",
+          todos: [
+            { content: "Live", status: "pending", priority: "high" },
+            { content: "Dead", status: "cancelled", priority: "low" },
+          ],
+        },
+      } as Event,
+      state,
+    );
+    expect(events.find((e) => e.type === "item.started")).toMatchObject({
+      payload: { steps: [{ step: "Live", status: "pending" }] },
+    });
+  });
+});
+
+describe("sdkCanonicalMapping — corrected permissions and v2 requests", () => {
+  it("maps read permissions to file_read_approval with the real target", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-x",
+        type: "permission.asked",
+        properties: {
+          id: "perm_read",
+          sessionID: "ses_test",
+          permission: "read",
+          patterns: ["src/secret.ts"],
+          metadata: {},
+          always: [],
+        },
+      },
+      state,
+    );
+    expect(events[0]).toMatchObject({
+      type: "request.opened",
+      requestType: "file_read_approval",
+      payload: {
+        details: {
+          toolName: "read",
+          displayName: "read",
+          input: { path: "src/secret.ts" },
+        },
+      },
+    });
+  });
+
+  it("maps unknown permissions to tool_call_approval", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-x",
+        type: "permission.asked",
+        properties: {
+          id: "perm_web",
+          sessionID: "ses_test",
+          permission: "webfetch",
+          patterns: ["https://example.com"],
+          metadata: {},
+          always: [],
+        },
+      },
+      state,
+    );
+    expect(events[0]).toMatchObject({ requestType: "tool_call_approval" });
+  });
+
+  it("omits duplicate permission subjects when no target is supplied", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const legacy = mapOpenCodeEvent(
+      {
+        id: "evt-empty-v1",
+        type: "permission.asked",
+        properties: {
+          id: "perm_empty",
+          sessionID: "ses_test",
+          permission: "task",
+          patterns: [],
+          metadata: {},
+          always: [],
+        },
+      },
+      state,
+    );
+    const current = mapOpenCodeEvent(
+      {
+        id: "evt-empty-v2",
+        type: "permission.v2.asked",
+        properties: {
+          id: "pv_empty",
+          sessionID: "ses_test",
+          action: "webfetch",
+          resources: [],
+          save: [],
+          metadata: {},
+        },
+      } as Event,
+      state,
+    );
+    expect(legacy[0]).toMatchObject({ payload: { details: { displayName: "task" } } });
+    expect(legacy[0]).not.toMatchObject({ payload: { details: { input: expect.anything() } } });
+    expect(current[0]).toMatchObject({ payload: { details: { displayName: "webfetch" } } });
+    expect(current[0]).not.toMatchObject({ payload: { details: { input: expect.anything() } } });
+  });
+
+  it("maps permission.v2 round-trips with distinct request ids", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const opened = mapOpenCodeEvent(
+      {
+        id: "evt-x",
+        type: "permission.v2.asked",
+        properties: {
+          id: "pv_1",
+          sessionID: "ses_test",
+          action: "edit",
+          resources: ["src/a.ts", "src/b.ts"],
+          save: ["src/*.ts"],
+        },
+      } as Event,
+      state,
+    );
+    expect(opened[0]).toMatchObject({
+      type: "request.opened",
+      requestId: "opencode-permv2-pv_1",
+      requestType: "file_change_approval",
+    });
+    const resolved = mapOpenCodeEvent(
+      {
+        id: "evt-y",
+        type: "permission.v2.replied",
+        properties: { sessionID: "ses_test", requestID: "pv_1", reply: "once" },
+      } as Event,
+      state,
+    );
+    expect(resolved[0]).toMatchObject({
+      type: "request.resolved",
+      requestId: "opencode-permv2-pv_1",
+      outcome: "accepted",
+    });
+  });
+
+  it("maps question.v2 round-trips and preserves the custom flag", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const opened = mapOpenCodeEvent(
+      {
+        id: "evt-x",
+        type: "question.v2.asked",
+        properties: {
+          id: "qv_1",
+          sessionID: "ses_test",
+          questions: [
+            {
+              question: "Pick one",
+              header: "Pick",
+              options: [{ label: "A", description: "first" }],
+              custom: true,
+            },
+          ],
+        },
+      } as Event,
+      state,
+    );
+    const request = opened[0];
+    expect(request).toMatchObject({
+      type: "request.opened",
+      requestId: "opencode-qv2-qv_1",
+      requestType: "tool_user_input",
+    });
+    expect(
+      request && "payload" in request
+        ? (request.payload as { details?: { userInputForm?: { questions?: unknown[] } } }).details
+            ?.userInputForm?.questions?.[0]
+        : undefined,
+    ).toMatchObject({ custom: true });
+    const resolved = mapOpenCodeEvent(
+      {
+        id: "evt-y",
+        type: "question.v2.rejected",
+        properties: { sessionID: "ses_test", requestID: "qv_1" },
+      } as Event,
+      state,
+    );
+    expect(resolved[0]).toMatchObject({
+      type: "request.resolved",
+      requestId: "opencode-qv2-qv_1",
+      outcome: "declined",
     });
   });
 });

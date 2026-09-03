@@ -1,6 +1,69 @@
 {
   "releases": [
     {
+      "version": "1.7.1",
+      "date": "2026-09-03",
+      "title": "Thread docks, image gallery & richer OpenCode",
+      "summary": "Poracode 1.7.1 brings thread goals, plans, agents, and background tasks into a configurable dock system, adds a gallery for every image in a conversation, and substantially improves OpenCode structured chat. This release also makes MCP controls easier to reach, strengthens thread handoffs, expands Muse discovery, and fixes several provider and Windows reliability issues.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Thread docks",
+          "text": "Goals, plans, subagents, and background tasks can now live above the composer or together in the right panel, with compact bubbles, drag-to-reorder, per-thread dismissal, and synchronized remote and mobile state."
+        },
+        {
+          "kind": "added",
+          "label": "Images",
+          "text": "Each thread now has an image gallery dock and lightbox that collects generated images, attachments, and images embedded in assistant Markdown."
+        },
+        {
+          "kind": "added",
+          "label": "Composer",
+          "text": "The Add menu now includes an MCP Servers submenu for reviewing session bindings, toggling servers for new threads, and jumping directly to MCP settings."
+        },
+        {
+          "kind": "improved",
+          "label": "OpenCode",
+          "text": "Structured OpenCode threads now support current question and permission flows, native plans, subagent activity, produced images and files, audio and thread mentions, accurate usage, clearer tool states, and clean Stop, steer, model-switch, and resume behavior."
+        },
+        {
+          "kind": "improved",
+          "label": "Handoff",
+          "text": "Thread mentions can now transfer the real conversation transcript through read_thread when available, preserving the original request and newest useful activity within the context budget."
+        },
+        {
+          "kind": "improved",
+          "label": "Muse",
+          "text": "Muse now discovers available models and reasoning levels from the installed CLI and MSP catalog, recognizes current terminal states, supports logout, and handles MSP approval and user-input requests."
+        },
+        {
+          "kind": "improved",
+          "label": "Right panel",
+          "text": "Panel header actions now move into an overflow menu when space is tight, while the close control and active dock controls remain easy to reach."
+        },
+        {
+          "kind": "fixed",
+          "label": "ACP agents",
+          "text": "Antigravity file reads now complete reliably, and ACP agents installed in WSL automatically repair missing executable permissions from older install layouts."
+        },
+        {
+          "kind": "fixed",
+          "label": "Cursor",
+          "text": "Cross-agent tools no longer use schemas rejected by Cursor models, and globally installed Cursor SDK runtimes can be updated from Settings."
+        },
+        {
+          "kind": "fixed",
+          "label": "Chat",
+          "text": "Empty shell pipelines and incomplete synthetic keyboard events no longer crash the renderer."
+        },
+        {
+          "kind": "fixed",
+          "label": "Handoff",
+          "text": "MCP servers configured in provider settings now correctly enable read_thread handoffs without falling back to a context file."
+        }
+      ]
+    },
+    {
       "version": "1.7.0",
       "date": "2026-08-31",
       "title": "Antigravity ACP, Handoff 2.0 & thread mentions",

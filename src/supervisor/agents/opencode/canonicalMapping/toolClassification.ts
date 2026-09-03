@@ -9,14 +9,10 @@ import { normalizeToolName, readOpenCodePath } from "./readers";
 
 export function classifyToolItemType(toolName: string): CanonicalItemType {
   const n = normalizeToolName(toolName);
-  // OpenCode's todo tool is named `todowrite` (the legacy `todoread` may also
-  // surface). Route both into the canonical `plan` item so the renderer picks
-  // it up via `ThreadTodoDock` instead of a generic tool accordion.
-  if (n === "todowrite" || n === "todoread") return "plan";
   if (/(^|[_-])bash($|[_-])|(^|[_-])shell($|[_-])|(^|[_-])command($|[_-])/.test(n)) {
     return "command_execution";
   }
-  if (/(^|[_-])(create|edit|write|patch|multiedit)($|[_-])/.test(n)) {
+  if (/(^|[_-])(create|edit|write|patch|multiedit|delete|rm)($|[_-])/.test(n)) {
     return "file_change";
   }
   if (/(^|[_-])(webfetch|websearch)($|[_-])/.test(n)) {
@@ -37,6 +33,7 @@ export function openCodeToolKind(
     case "search":
       return "search";
     case "webfetch":
+    case "websearch":
       return "fetch";
     case "bash":
       return "execute";
@@ -99,8 +96,10 @@ export function openCodeToolLocations(
 /**
  * Extract canonical plan steps from a `todowrite` tool's input. OpenCode's
  * tool input mirrors Claude's: `{ todos: [{ content, status, priority }] }`.
- * Anything we can't recognise is dropped — empty `steps` results in an empty
- * dock entry, which the renderer treats as "no plan yet".
+ * `cancelled` todos are dropped — the canonical plan status has no cancelled
+ * variant, and showing them as pending would misrepresent dead tasks as
+ * upcoming work. Anything else unrecognised falls back to pending so the dock
+ * still reflects that a task exists.
  */
 export function extractOpenCodePlanSteps(
   input: Record<string, unknown> | undefined,
@@ -110,6 +109,7 @@ export function extractOpenCodePlanSteps(
   return todos.flatMap((todo) => {
     if (!todo || typeof todo !== "object") return [];
     const obj = todo as Record<string, unknown>;
+    if (obj.status === "cancelled") return [];
     const step =
       typeof obj.content === "string" && obj.content.trim().length > 0
         ? obj.content.trim()

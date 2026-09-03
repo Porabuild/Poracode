@@ -216,8 +216,8 @@ importers:
         specifier: ^0.6.2
         version: 0.6.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@opencode-ai/sdk':
-        specifier: ^1.18.10
-        version: 1.18.10
+        specifier: ^1.18.27
+        version: 1.18.27
       '@poracode/activity-bridge':
         specifier: file:native/activity-bridge
         version: file:native/activity-bridge(@capacitor/core@8.4.1)
@@ -1709,8 +1709,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@opencode-ai/sdk@1.18.10':
-    resolution: {integrity: sha512-K+glWbBp5pfGepZ/6EHvuXY3IpVG2qgsEqF4z9mOiUQUrs6KWN72Vdp15Qsl2TCDbemgHWXKQKgbX3b8PSK2hg==}
+  '@opencode-ai/sdk@1.18.27':
+    resolution: {integrity: sha512-VTfAB9SWaGiMtI2L9rf2xl+0fTYDMHB2pHYKCquWG5OIX3rHvth9oM915d9Z38IuPZUZkmdNMVz2iAdxG4IR+A==}
 
   '@opentelemetry/api-logs@0.214.0':
     resolution: {integrity: sha512-40lSJeqYO8Uz2Yj7u94/SJWE/wONa7rmMKjI1ZcIjgf3MHNHv1OZUCrCETGuaRF62d5pQD1wKIW+L4lmSMTzZA==}
@@ -8989,7 +8989,7 @@ snapshots:
   '@openai/codex@0.144.5-win32-x64':
     optional: true
 
-  '@opencode-ai/sdk@1.18.10':
+  '@opencode-ai/sdk@1.18.27':
     dependencies:
       cross-spawn: 7.0.6
 

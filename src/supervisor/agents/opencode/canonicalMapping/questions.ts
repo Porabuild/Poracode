@@ -1,10 +1,24 @@
 /**
  * OpenCode question request → canonical user-input form mapping.
+ *
+ * Covers both `question.asked` (v1) and `question.v2.asked` — the shapes are
+ * structurally identical (`questions[]` + optional `tool` link).
  */
 
 import type { QuestionRequest } from "../legacySdk";
 
-export function questionRequestPayload(req: QuestionRequest): {
+/** Minimal structural view shared by v1 and v2 question payloads. */
+export interface OpenCodeQuestionShape {
+  questions?: Array<{
+    question: string;
+    header: string;
+    options?: Array<{ label: string; description?: string }>;
+    multiple?: boolean;
+    custom?: boolean;
+  }>;
+}
+
+export function questionRequestPayload(req: QuestionRequest | OpenCodeQuestionShape): {
   summary: string;
   details?: unknown;
   options?: { optionId: string; label: string; description?: string }[];
@@ -38,6 +52,9 @@ export function questionRequestPayload(req: QuestionRequest): {
       header: q.header,
       options,
       ...(q.multiple ? { multiSelect: true } : {}),
+      // The renderer always offers a custom-answer input; still record the
+      // server's intent so future readers can distinguish free-text questions.
+      ...(q.custom ? { custom: true } : {}),
     });
   }
   const first = formQuestions[0];
@@ -56,4 +73,8 @@ export function questionRequestPayload(req: QuestionRequest): {
 
 export function questionRequestId(id: string): string {
   return `opencode-q-${id}`;
+}
+
+export function questionV2RequestId(id: string): string {
+  return `opencode-qv2-${id}`;
 }

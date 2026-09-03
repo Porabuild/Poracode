@@ -132,6 +132,18 @@ export function closeOpenItems(state: OpenCodeMapperState): RuntimeEvent[] {
     events.push({ type: "item.completed", threadId: state.threadId, itemId: value.itemId });
   }
   state.toolItems.clear();
+  for (const [, value] of state.fileItems) {
+    events.push({ type: "item.completed", threadId: state.threadId, itemId: value.itemId });
+  }
+  state.fileItems.clear();
+  if (state.nativeTodoItemId) {
+    events.push({
+      type: "item.completed",
+      threadId: state.threadId,
+      itemId: state.nativeTodoItemId,
+    });
+    state.nativeTodoItemId = undefined;
+  }
   for (const [, itemId] of state.userItems) {
     events.push({ type: "item.completed", threadId: state.threadId, itemId });
   }

@@ -20,11 +20,20 @@ import {
 } from "../sdkCanonicalMappingState";
 import { normalizeToolName } from "./readers";
 import {
+  classifyPermissionActionType,
   classifyPermissionRequestType,
   permissionRequestId,
   permissionRequestPayload,
+  permissionV2RequestId,
+  permissionV2RequestPayload,
+  type PermissionV2RequestShape,
 } from "./permissions";
-import { questionRequestId, questionRequestPayload } from "./questions";
+import {
+  questionRequestId,
+  questionRequestPayload,
+  questionV2RequestId,
+  type OpenCodeQuestionShape,
+} from "./questions";
 import {
   applyChildSessionProgress,
   tagChildEventsWithParent,
@@ -37,9 +46,36 @@ import {
   ensureAssistantItemForMessage,
   ensureReasoningItemForPart,
 } from "./textItems";
-import { classifyToolItemType } from "./toolClassification";
+import { classifyToolItemType, extractOpenCodePlanSteps } from "./toolClassification";
 import { toolPayload } from "./toolPayload";
 import { createOpenCodeContextUsageEvent, createOpenCodeUsageSpentEvent } from "./usage";
+import {
+  readOpenCodeImageDataUrl,
+  resolveOpenCodeAttachments,
+  toOpenCodeFileRef,
+} from "./fileParts";
+
+/** True for user-initiated abort errors (Stop), which settle without an error row. */
+export function isOpenCodeAbortError(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    (error as { name?: unknown }).name === "MessageAbortedError"
+  );
+}
+
+/** Extract a human message from an OpenCode native error union member. */
+function readNativeErrorMessage(error: unknown): string {
+  if (!error || typeof error !== "object") return "OpenCode session error";
+  const record = error as { name?: unknown; data?: unknown };
+  const data =
+    record.data && typeof record.data === "object"
+      ? (record.data as { message?: unknown })
+      : undefined;
+  if (data && typeof data.message === "string" && data.message.length > 0) return data.message;
+  if (typeof record.name === "string" && record.name.length > 0) return record.name;
+  return "OpenCode session error";
+}
 
 function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent[]): void {
   if (part.type === "text") {
@@ -84,19 +120,39 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
     return;
   }
   if (part.type === "tool") {
+    // The todowrite tool publishes the authoritative session-level
+    // `todo.updated` event. Mapping both would create duplicate plan rows.
+    if (normalizeToolName(part.tool) === "todowrite" && part.state.status !== "error") return;
     const existing = state.toolItems.get(part.id);
     const itemType = existing?.itemType ?? classifyToolItemType(part.tool);
     const itemId = existing?.itemId ?? newItemId("tool");
     const isTask = normalizeToolName(part.tool) === "task";
     const basePayload = toolPayload(itemType, part.tool, part.state, part.metadata);
+    // Completed tool states may carry `attachments: FilePart[]` (e.g. a
+    // screenshot from a browser tool). Image attachments resolve to the
+    // canonical `images` channel; other files surface as locations.
+    const attachments =
+      part.state.status === "completed" &&
+      "attachments" in part.state &&
+      part.state.attachments !== undefined
+        ? resolveOpenCodeAttachments(part.state.attachments, part.messageID, state.location)
+        : { images: [], locations: [] };
+    const baseLocations = Array.isArray(basePayload.locations) ? basePayload.locations : [];
+    const enrichedBase = {
+      ...basePayload,
+      ...(attachments.images.length > 0 ? { images: attachments.images } : {}),
+      ...(attachments.locations.length > 0
+        ? { locations: [...baseLocations, ...attachments.locations] }
+        : {}),
+    };
     // Preserve any progress we've already populated from the child session
     // when re-emitting the tool payload from a parent-side update.
     const cachedProgress = isTask
       ? (state.taskToolPayloads.get(part.id)?.progress as Record<string, unknown> | undefined)
       : undefined;
     const payload: Record<string, unknown> = cachedProgress
-      ? { ...basePayload, progress: cachedProgress }
-      : basePayload;
+      ? { ...enrichedBase, progress: cachedProgress }
+      : enrichedBase;
     if (isTask) state.taskToolPayloads.set(part.id, payload);
     if (!existing) {
       state.toolItems.set(part.id, { itemId, itemType });
@@ -142,10 +198,102 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
     }
     return;
   }
-  // file / step-start / step-finish / patch / agent / retry / compaction /
-  // subtask / snapshot — not surfaced as their own canonical items in this
-  // pass. They are observable via message.updated payloads or downstream
-  // dedicated UI surfaces.
+  if (part.type === "file") {
+    // The optimistic user bubble already carries prompt attachments, and
+    // OpenCode echoes them back as FileParts on the user message — same
+    // phantom-row hazard as user text (see above). Only assistant files
+    // become rows.
+    if (state.messageRoles.get(part.messageID) === "user") return;
+    // Produced files (`{ mime, filename, url }`). Images become
+    // `image_view` rows with inline bytes when readable; other files become
+    // file-reference tool rows. `file://` URLs are never promoted to `<img
+    // src>` — only self-contained `data:` URLs render inline.
+    const ref = toOpenCodeFileRef(part, part.messageID, state.location);
+    if (!ref) return;
+    if (ref.isImage) {
+      // Re-deliveries (SSE replay, snapshot refinement) update the same row
+      // instead of opening a duplicate card.
+      const existing = state.fileItems.get(part.id);
+      const itemId = existing?.itemId ?? newItemId("img");
+      const dataUrl = readOpenCodeImageDataUrl(ref);
+      const payload: Record<string, unknown> = {
+        name: ref.filename,
+        title: ref.filename,
+        status: "success",
+        ...(ref.path ? { path: ref.path } : {}),
+        mime: ref.mime,
+        ...(dataUrl ? { images: [dataUrl] } : {}),
+      };
+      if (!existing) {
+        state.fileItems.set(part.id, { itemId, itemType: "image_view", messageID: part.messageID });
+        events.push({
+          type: "item.started",
+          threadId: state.threadId,
+          itemId,
+          itemType: "image_view",
+          payload,
+        });
+        events.push({
+          type: "item.completed",
+          threadId: state.threadId,
+          itemId,
+          payload,
+        });
+      } else {
+        events.push({
+          type: "item.updated",
+          threadId: state.threadId,
+          itemId,
+          payload,
+        });
+      }
+      return;
+    }
+    const existingFile = state.fileItems.get(part.id);
+    const fileItemId = existingFile?.itemId ?? newItemId("tool");
+    if (!ref.path) return;
+    const payload: Record<string, unknown> = {
+      name: ref.filename,
+      title: ref.filename,
+      status: "success",
+      args: { path: ref.path, mime: ref.mime },
+      locations: [{ path: ref.path }],
+    };
+    if (!existingFile) {
+      state.fileItems.set(part.id, {
+        itemId: fileItemId,
+        itemType: "tool_call",
+        messageID: part.messageID,
+      });
+      events.push({
+        type: "item.started",
+        threadId: state.threadId,
+        itemId: fileItemId,
+        itemType: "tool_call",
+        payload,
+      });
+      events.push({
+        type: "item.completed",
+        threadId: state.threadId,
+        itemId: fileItemId,
+        payload,
+      });
+    } else {
+      events.push({
+        type: "item.updated",
+        threadId: state.threadId,
+        itemId: fileItemId,
+        payload,
+      });
+    }
+    return;
+  }
+  // subtask / step-start / step-finish / patch / agent / retry / compaction / snapshot —
+  // transport-level progress markers with no chat-row equivalent. Step cost
+  // and tokens are already accounted at the message level (`message.updated`
+  // usage events); retries surface through `session.status` (retry); agent
+  // switches have no provider-handoff anchor (no from/to pair is tracked).
+  // They are intentionally not surfaced as their own canonical items.
 }
 
 function mapCanonicalEvent(
@@ -168,6 +316,10 @@ function mapCanonicalEvent(
       const knownType = state.partTypes.get(partID);
       const route =
         knownType ?? (field === "reasoning" ? "reasoning" : field === "text" ? "text" : undefined);
+      // Non-text fields (tool input streaming, etc.) are intentionally
+      // ignored — the tool row's running state already covers liveness, and
+      // the `session.next.*` execution stream that mirrors them is skipped
+      // below to avoid double-emit.
       if (route === "reasoning") {
         const itemId = ensureReasoningItemForPart(state, partID, messageID, events);
         appendDelta(state, partID, itemId, delta, "reasoning_text", events);
@@ -207,6 +359,15 @@ function mapCanonicalEvent(
         });
         state.toolItems.delete(partID);
       }
+      const file = state.fileItems.get(partID);
+      if (file) {
+        events.push({
+          type: "item.completed",
+          threadId: state.threadId,
+          itemId: file.itemId,
+        });
+        state.fileItems.delete(partID);
+      }
       completeReasoningItem(state, partID, events);
       state.emittedText.delete(partID);
       state.partTypes.delete(partID);
@@ -217,6 +378,26 @@ function mapCanonicalEvent(
       const usageEvent = createOpenCodeContextUsageEvent(state.threadId, info);
       if (usageEvent) events.push(usageEvent);
       state.messageRoles.set(info.id, info.role);
+      // Assistant-level failures (auth, output-length, content filter, API
+      // errors) arrive on the message, not as `session.error`. Surface them
+      // as transient error events (same channel Claude uses) so a failed
+      // turn is never a silent stall. Exact-once per message. Aborts are
+      // excluded — user-initiated Stops already settle via `turn.completed:
+      // interrupted`, and an error row on every Stop would be noise.
+      if (
+        info.role === "assistant" &&
+        "error" in info &&
+        info.error !== undefined &&
+        !isOpenCodeAbortError(info.error) &&
+        !state.errorEmittedMessages.has(info.id)
+      ) {
+        state.errorEmittedMessages.add(info.id);
+        events.push({
+          type: "error",
+          threadId: state.threadId,
+          message: readNativeErrorMessage(info.error),
+        });
+      }
       if (info.role === "user" && !state.userItems.has(info.id)) {
         const optimistic = state.pendingUserMessageItemIds.shift();
         const itemId = optimistic ?? newItemId("user");
@@ -288,6 +469,11 @@ function mapCanonicalEvent(
         events.push({ type: "item.completed", threadId: state.threadId, itemId: u });
         state.userItems.delete(messageID);
       }
+      for (const [partID, entry] of state.fileItems) {
+        if (entry.messageID !== messageID) continue;
+        events.push({ type: "item.completed", threadId: state.threadId, itemId: entry.itemId });
+        state.fileItems.delete(partID);
+      }
       state.nonOptimisticUserMessages.delete(messageID);
       state.userMessageTextParts.delete(messageID);
       return events;
@@ -344,14 +530,117 @@ function mapCanonicalEvent(
       });
       return events;
     }
+    case "todo.updated": {
+      // The session-level native todo list. One plan row per session: started
+      // on first sight, refreshed after. `cancelled` todos are dropped by the
+      // shared extractor (no canonical cancelled state).
+      const steps = extractOpenCodePlanSteps({ todos: event.properties.todos });
+      const payload = { steps };
+      if (!state.nativeTodoItemId) {
+        const itemId = newItemId("plan");
+        state.nativeTodoItemId = itemId;
+        events.push({
+          type: "item.started",
+          threadId: state.threadId,
+          itemId,
+          itemType: "plan",
+          payload,
+        });
+      } else {
+        events.push({
+          type: "item.updated",
+          threadId: state.threadId,
+          itemId: state.nativeTodoItemId,
+          payload,
+        });
+      }
+      return events;
+    }
+    case "permission.v2.asked": {
+      const req = event.properties as PermissionV2RequestShape & { id: string };
+      const shape: PermissionV2RequestShape = {
+        id: req.id,
+        sessionID: req.sessionID,
+        action: req.action,
+        resources: Array.isArray(req.resources) ? req.resources : [],
+        ...(Array.isArray(req.save) ? { save: req.save } : {}),
+        ...(req.metadata && typeof req.metadata === "object"
+          ? { metadata: req.metadata as Record<string, unknown> }
+          : {}),
+      };
+      const { summary, details, options } = permissionV2RequestPayload(shape);
+      events.push({
+        type: "request.opened",
+        threadId: state.threadId,
+        requestId: permissionV2RequestId(req.id),
+        requestType: classifyPermissionActionType(req.action),
+        payload: { summary, details, options },
+      });
+      return events;
+    }
+    case "permission.v2.replied": {
+      const { requestID, reply } = event.properties;
+      events.push({
+        type: "request.resolved",
+        threadId: state.threadId,
+        requestId: permissionV2RequestId(requestID),
+        outcome: reply === "reject" ? "declined" : "accepted",
+      });
+      return events;
+    }
+    case "question.v2.asked": {
+      const req = event.properties as OpenCodeQuestionShape & { id: string };
+      events.push({
+        type: "request.opened",
+        threadId: state.threadId,
+        requestId: questionV2RequestId(req.id),
+        requestType: "tool_user_input",
+        payload: questionRequestPayload(req),
+      });
+      return events;
+    }
+    case "question.v2.replied": {
+      events.push({
+        type: "request.resolved",
+        threadId: state.threadId,
+        requestId: questionV2RequestId(event.properties.requestID),
+        outcome: "answered",
+      });
+      return events;
+    }
+    case "question.v2.rejected": {
+      events.push({
+        type: "request.resolved",
+        threadId: state.threadId,
+        requestId: questionV2RequestId(event.properties.requestID),
+        outcome: "declined",
+      });
+      return events;
+    }
     case "session.error": {
       const err = event.properties.error as
         | { name?: string; data?: { message?: string } }
         | undefined;
-      const message = err?.data?.message ?? err?.name ?? "OpenCode session error";
-      events.push({ type: "error", threadId: state.threadId, message });
+      if (isOpenCodeAbortError(err)) return events;
+      events.push({
+        type: "error",
+        threadId: state.threadId,
+        message: readNativeErrorMessage(err),
+      });
       return events;
     }
+    // Intentionally not surfaced (no chat-row equivalent; covered elsewhere):
+    // - session.created (child linking handled in mapOpenCodeEvent; the main
+    //   session id comes from openThread), session.updated/deleted,
+    //   session.diff (aggregate of per-tool file changes), session.compacted,
+    //   session.status/idle (thread status via StructuredSessionListener),
+    // - command.executed (slash commands already listed via command.list),
+    // - file.edited, file.watcher.updated, reference.updated, lsp.updated,
+    //   project.*, workspace.*, worktree.*, vcs.*, pty.*, tui.*, mcp.*,
+    //   installation.*, plugin.* (provider/environment chrome, not chat),
+    // - session.next.* (fine-grained execution stream of the embedded v2
+    //   runtime; message.part.* already carries the same content coarsely —
+    //   consuming both would double-emit).
     default:
       return events;
   }
@@ -396,7 +685,11 @@ export function mapOpenCodeEvent(
     applyChildSessionProgress(event, state, child, events);
   }
 
-  const canonicalEvents = mapCanonicalEvent(event, state);
+  // Native todo syncs from child sessions are subagent-internal detail — the
+  // parent task row already surfaces stepCount progress, and the mapper keeps
+  // a single native plan row per thread. Map them only for the main session.
+  const canonicalEvents =
+    child && event.type === "todo.updated" ? [] : mapCanonicalEvent(event, state);
 
   if (child) {
     // Tag any new canonical items as belonging to this sub-agent so they get

@@ -130,6 +130,33 @@ describe("buildOpenCodePromptParts", () => {
       },
     ]);
   });
+
+  it("keeps thread mention labels as text instead of dropping them", () => {
+    expect(
+      buildOpenCodePromptParts(
+        "",
+        [{ kind: "thread", threadId: "thread-1", title: "Fix the composer" }],
+        posixProject,
+      ),
+    ).toEqual([{ type: "text", text: "@Fix the composer" }]);
+  });
+
+  it("sends audio attachments as file parts", () => {
+    expect(
+      buildOpenCodePromptParts(
+        "",
+        [{ kind: "attachment", path: "/tmp/note.mp3", mimeType: "audio/mpeg" }],
+        posixProject,
+      ),
+    ).toEqual([
+      {
+        type: "file",
+        mime: "audio/mpeg",
+        filename: "note.mp3",
+        url: "file:///tmp/note.mp3",
+      },
+    ]);
+  });
 });
 
 describe("OpenCode prompt file fallback", () => {

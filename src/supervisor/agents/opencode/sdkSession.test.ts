@@ -120,6 +120,78 @@ describe("OpencodeSdkSession", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report user-aborted session errors to the listener", async () => {
+    const onError = vi.fn<(message: string) => void>();
+    let releaseErrors!: () => void;
+    const waitForSession = new Promise<void>((resolve) => {
+      releaseErrors = resolve;
+    });
+    const globalEvent = vi
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+      .mockResolvedValue({
+        stream: (async function* () {
+          yield { payload: serverConnectedEvent() };
+          await waitForSession;
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-abort",
+              type: "session.error",
+              properties: {
+                sessionID: "ses_test",
+                error: { name: "MessageAbortedError", data: { message: "Aborted" } },
+              },
+            },
+          };
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-auth-error",
+              type: "session.error",
+              properties: {
+                sessionID: "ses_test",
+                error: { name: "ProviderAuthError", data: { message: "auth expired" } },
+              },
+            },
+          };
+        })(),
+      });
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError,
+      onUpdate: () => {},
+      onRuntimeEvent: () => {},
+    });
+
+    await session.activate();
+    await session.openThread(config);
+    releaseErrors();
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledWith("auth expired"));
+    expect(onError).toHaveBeenCalledTimes(1);
+    await session.dispose();
+  });
+
   it("shares one server event stream across GUI sessions", async () => {
     const globalEvent = vi
       .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
@@ -848,6 +920,375 @@ describe("OpencodeSdkSession", () => {
     });
     expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
 
+    await session.dispose();
+  });
+
+  it("replies to v1 permission requests via permission.reply", async () => {
+    const runtimeEvents: RuntimeEvent[] = [];
+    const permissionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    let releaseEvent!: () => void;
+    const waitForEvent = new Promise<void>((resolve) => {
+      releaseEvent = resolve;
+    });
+    const globalEvent = vi
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+      .mockResolvedValue({
+        stream: (async function* () {
+          yield { payload: serverConnectedEvent() };
+          await waitForEvent;
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-perm",
+              type: "permission.asked",
+              properties: {
+                id: "perm1",
+                sessionID: "ses_test",
+                permission: "bash",
+                patterns: ["ls"],
+                metadata: {},
+                always: [],
+              },
+            },
+          };
+        })(),
+      });
+
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        permission: { reply: permissionReply },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+
+    await session.activate();
+    await session.openThread(config);
+    releaseEvent();
+
+    await vi.waitFor(() => {
+      expect(runtimeEvents.some((event) => event.type === "request.opened")).toBe(true);
+    });
+    await session.resolveServerRequest("opencode-perm-perm1", { optionId: "once" });
+    expect(permissionReply).toHaveBeenCalledWith({
+      directory: "/repo",
+      requestID: "perm1",
+      reply: "once",
+    });
+
+    await session.dispose();
+  });
+
+  it("routes v2 permission and question requests through the v2 session API", async () => {
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: Array<{ status?: string; attention?: string }> = [];
+    const permissionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const questionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const questionReject = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    let releaseEvents!: () => void;
+    const waitForEvents = new Promise<void>((resolve) => {
+      releaseEvents = resolve;
+    });
+    const globalEvent = vi
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+      .mockResolvedValue({
+        stream: (async function* () {
+          yield { payload: serverConnectedEvent() };
+          await waitForEvents;
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-permv2",
+              type: "permission.v2.asked",
+              properties: {
+                id: "pv1",
+                sessionID: "ses_test",
+                action: "bash",
+                resources: ["ls /tmp"],
+              },
+            },
+          };
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-qv2",
+              type: "question.v2.asked",
+              properties: {
+                id: "qv1",
+                sessionID: "ses_test",
+                questions: [
+                  {
+                    header: "Pick",
+                    question: "Pick one?",
+                    options: [{ label: "A", description: "first" }],
+                  },
+                ],
+              },
+            },
+          };
+          for (const id of ["pv2", "pv3"]) {
+            yield {
+              directory: "/repo",
+              payload: {
+                id: `evt-${id}`,
+                type: "permission.v2.asked",
+                properties: {
+                  id,
+                  sessionID: "ses_test",
+                  action: "edit",
+                  resources: [`${id}.txt`],
+                  save: ["*.txt"],
+                },
+              },
+            };
+          }
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-qv2-cancel",
+              type: "question.v2.asked",
+              properties: {
+                id: "qv2",
+                sessionID: "ses_test",
+                questions: [{ header: "Cancel", question: "Cancel this?", options: [] }],
+              },
+            },
+          };
+        })(),
+      });
+
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+        },
+        v2: {
+          session: {
+            permission: { reply: permissionReply },
+            question: {
+              reply: questionReply,
+              reject: questionReject,
+            },
+          },
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (update) => updates.push(update),
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+
+    await session.activate();
+    await session.openThread(config);
+    releaseEvents();
+
+    await vi.waitFor(() => {
+      expect(runtimeEvents.filter((event) => event.type === "request.opened")).toHaveLength(5);
+    });
+    expect(updates).toContainEqual(
+      expect.objectContaining({ status: "needs_approval", attention: "needs_approval" }),
+    );
+    await session.resolveServerRequest("opencode-permv2-pv1", { optionId: "once" });
+    expect(permissionReply).toHaveBeenCalledWith({
+      sessionID: "ses_test",
+      requestID: "pv1",
+      reply: "once",
+    });
+    await session.resolveServerRequest("opencode-permv2-pv2", { optionId: "always" });
+    await session.resolveServerRequest("opencode-permv2-pv3", { optionId: "reject" });
+    expect(permissionReply).toHaveBeenNthCalledWith(2, {
+      sessionID: "ses_test",
+      requestID: "pv2",
+      reply: "always",
+    });
+    expect(permissionReply).toHaveBeenNthCalledWith(3, {
+      sessionID: "ses_test",
+      requestID: "pv3",
+      reply: "reject",
+    });
+    expect(updates.at(-1)).toMatchObject({ status: "needs_reply", attention: "needs_reply" });
+    await session.resolveServerRequest("opencode-qv2-qv1", { optionId: "q0.0" });
+    expect(questionReply).toHaveBeenCalledWith({
+      sessionID: "ses_test",
+      requestID: "qv1",
+      questionV2Reply: { answers: [["A"]] },
+    });
+    await session.resolveServerRequest("opencode-qv2-qv2", { action: "cancel" });
+    expect(questionReject).toHaveBeenCalledWith({ sessionID: "ses_test", requestID: "qv2" });
+
+    await session.dispose();
+  });
+
+  it("routes v2 requests from a tracked child session", async () => {
+    const runtimeEvents: RuntimeEvent[] = [];
+    const permissionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const questionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    let releaseEvents!: () => void;
+    const waitForEvents = new Promise<void>((resolve) => {
+      releaseEvents = resolve;
+    });
+    const globalEvent = vi
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+      .mockResolvedValue({
+        stream: (async function* () {
+          yield { payload: serverConnectedEvent() };
+          await waitForEvents;
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-task",
+              type: "message.part.updated",
+              properties: {
+                sessionID: "ses_test",
+                time: 0,
+                part: {
+                  id: "prt-task",
+                  sessionID: "ses_test",
+                  messageID: "msg-assistant",
+                  type: "tool",
+                  tool: "task",
+                  callID: "call-task",
+                  state: { status: "running", input: {}, time: { start: 0 } },
+                },
+              },
+            },
+          };
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-child",
+              type: "session.created",
+              properties: { info: { id: "ses_child", parentID: "ses_test" } },
+            },
+          };
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-child-permission",
+              type: "permission.v2.asked",
+              properties: {
+                id: "child-permission",
+                sessionID: "ses_child",
+                action: "bash",
+                resources: ["pwd"],
+              },
+            },
+          };
+          yield {
+            directory: "/repo",
+            payload: {
+              id: "evt-child-question",
+              type: "question.v2.asked",
+              properties: {
+                id: "child-question",
+                sessionID: "ses_child",
+                questions: [
+                  {
+                    header: "Child",
+                    question: "Continue?",
+                    options: [{ label: "Yes" }],
+                  },
+                ],
+              },
+            },
+          };
+        })(),
+      });
+
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+        },
+        v2: {
+          session: {
+            permission: { reply: permissionReply },
+            question: {
+              reply: questionReply,
+              reject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+            },
+          },
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+    await session.activate();
+    await session.openThread(config);
+    releaseEvents();
+
+    await vi.waitFor(() => {
+      expect(runtimeEvents.filter((event) => event.type === "request.opened")).toHaveLength(2);
+    });
+    await session.resolveServerRequest("opencode-permv2-child-permission", {
+      optionId: "reject",
+    });
+    await session.resolveServerRequest("opencode-qv2-child-question", { optionId: "q0.0" });
+    expect(permissionReply).toHaveBeenCalledWith({
+      sessionID: "ses_child",
+      requestID: "child-permission",
+      reply: "reject",
+    });
+    expect(questionReply).toHaveBeenCalledWith({
+      sessionID: "ses_child",
+      requestID: "child-question",
+      questionV2Reply: { answers: [["Yes"]] },
+    });
     await session.dispose();
   });
 

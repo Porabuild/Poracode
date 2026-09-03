@@ -39,7 +39,13 @@ export function toolPayload(
       ? state.output
       : state.status === "error"
         ? state.error
-        : undefined;
+        : state.status === "pending" && state.raw.trim().length > 0
+          ? state.raw
+          : undefined;
+  // Note: `ToolStateCompleted.time.compacted` (server-side output compaction
+  // marker) has no canonical payload field and no renderer consumer, so it is
+  // intentionally not surfaced — same as the `tool_output.max_lines` server
+  // truncation, which also arrives without a flag.
   const metadata =
     "metadata" in state && state.metadata && typeof state.metadata === "object"
       ? (state.metadata as Record<string, unknown>)
