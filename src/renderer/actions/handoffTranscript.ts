@@ -7,7 +7,46 @@ import { formatHandoffRow, type HandoffRow } from "./handoffTranscriptRows";
  * window, but the file rides in the new provider's first message for the rest
  * of its session, so it is filled by priority rather than recency alone.
  */
-export const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
+export /**
+ * Handoff transcripts are truncated from the front, so a small budget silently
+ * throws away the beginning of the conversation — the part that usually carries
+ * the goal and the decisions. 50k chars is roughly 12k tokens, a sliver of any
+ * current model's window, so the receiving agent used to start half-blind.
+ *
+ * The budget now scales with the destination model's context window and only
+ * claims a share of it, leaving the rest for the actual work.
+ */
+const HANDOFF_CONTEXT_SHARE = 0.35;
+const CHARS_PER_TOKEN = 4;
+/** Used when the destination declares no context size. */
+const DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS = 400_000;
+
+/** `"1m"` / `"200k"` / `"272000"` -> token count, or undefined when unparsable. */
+function tokensFromContextSize(contextSize: string | undefined): number | undefined {
+  if (!contextSize) return undefined;
+  const match = /^(\d+(?:\.\d+)?)\s*([mk])?$/i.exec(contextSize.trim());
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  const unit = match[2]?.toLowerCase();
+  if (unit === "m") return value * 1_000_000;
+  if (unit === "k") return value * 1_000;
+  return value;
+}
+
+/**
+ * Character budget for a handoff transcript aimed at a model with `contextSize`.
+ * Exported so the caller can size the transcript to the provider it is handing
+ * off to rather than to a fixed constant.
+ */
+export function handoffTranscriptBudget(contextSize?: string): number {
+  const tokens = tokensFromContextSize(contextSize);
+  if (tokens === undefined) return DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS;
+  return Math.max(
+    DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS,
+    Math.floor(tokens * CHARS_PER_TOKEN * HANDOFF_CONTEXT_SHARE),
+  );
+}
 const ROW_SEPARATOR = "\n\n";
 const LEADING_GAP_MARKER = "[earlier turns omitted]";
 const INNER_GAP_MARKER = "[turns omitted]";
@@ -30,13 +69,13 @@ const GAP_MARKER_ALLOWANCE = ROW_SEPARATOR.length + LEADING_GAP_MARKER.length;
  * Each tier stops at the first row that does not fit, so the kept set is a
  * recent contiguous run per tier rather than a scatter of small rows.
  */
-function selectRows(rows: readonly HandoffRow[]): ReadonlySet<HandoffRow> {
+function selectRows(rows: readonly HandoffRow[], maxChars: number): ReadonlySet<HandoffRow> {
   const kept = new Set<HandoffRow>();
   let used = 0;
   const tryKeep = (candidate: HandoffRow): boolean => {
     const cost =
       candidate.text.length + (kept.size > 0 ? ROW_SEPARATOR.length + GAP_MARKER_ALLOWANCE : 0);
-    if (used + cost > MAX_TRANSCRIPT_CONTEXT_CHARS) return false;
+    if (used + cost > maxChars) return false;
     kept.add(candidate);
     used += cost;
     return true;
@@ -80,6 +119,7 @@ function joinRows(rows: readonly HandoffRow[], kept: ReadonlySet<HandoffRow>): s
 export function buildTranscriptContext(
   thread: Thread,
   sourceLabel: string,
+  maxChars: number = DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS,
 ): ExtractContextResult | null {
   const state = useAppStore.getState();
   const itemIds = state.runtimeItemIdsByThread[thread.id] ?? [];
@@ -95,7 +135,7 @@ export function buildTranscriptContext(
   });
   if (rows.length === 0) return null;
 
-  const transcript = joinRows(rows, selectRows(rows));
+  const transcript = joinRows(rows, selectRows(rows, maxChars));
   if (!transcript.trim()) return null;
 
   return {

@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "../state/appStore";
 import type { RuntimeChatItem } from "../state/slices/runtimeEventSlice";
-import { buildTranscriptContext, MAX_TRANSCRIPT_CONTEXT_CHARS } from "./handoffTranscript";
+import { buildTranscriptContext, handoffTranscriptBudget } from "./handoffTranscript";
+
+// The budget-filling tests below build fixtures sized against this value, so
+// they assert selection behaviour rather than whatever the default happens to be.
+const TEST_BUDGET = 50_000;
 import { MAX_HANDOFF_MESSAGE_CHARS } from "./handoffTranscriptRows";
 
 const thread: Thread = {
@@ -145,7 +149,7 @@ describe("buildTranscriptContext", () => {
       userMessage("u2", "Latest follow-up"),
     ]);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("User:\nOriginal ask: migrate the auth module");
     expect(summary).toContain("User:\nLatest follow-up");
@@ -156,7 +160,7 @@ describe("buildTranscriptContext", () => {
   });
 
   it("spends the budget on conversation before tool activity", () => {
-    // Eight near-cap assistant rows take ~48k of the 50k budget; twenty
+    // Eight near-cap assistant rows take ~48k of the 50k test budget; twenty
     // 480-char command rows cannot all fit in what remains.
     const long = "z".repeat(MAX_HANDOFF_MESSAGE_CHARS - 10);
     const commands: RuntimeChatItem[] = Array.from({ length: 20 }, (_, index) => ({
@@ -171,7 +175,7 @@ describe("buildTranscriptContext", () => {
       ...Array.from({ length: 8 }, (_, index) => assistantMessage(`a${index}`, `${index}:${long}`)),
     ]);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("0:zzz");
     expect(summary).toContain("7:zzz");
@@ -183,7 +187,7 @@ describe("buildTranscriptContext", () => {
   it("truncates a single oversized user message from the tail, keeping its start", () => {
     seed([userMessage("u1", `ASK ${"w".repeat(MAX_HANDOFF_MESSAGE_CHARS * 2)}`)]);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("User:\nASK ");
     expect(summary).toContain("[message truncated]");
@@ -205,10 +209,30 @@ describe("buildTranscriptContext", () => {
     ]).flat();
     seed(interleaved);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("[turns omitted]");
     // The header line rides outside the row budget, hence the small slack.
-    expect(summary.length).toBeLessThanOrEqual(MAX_TRANSCRIPT_CONTEXT_CHARS + 500);
+    expect(summary.length).toBeLessThanOrEqual(TEST_BUDGET + 500);
+  });
+});
+
+describe("handoffTranscriptBudget", () => {
+  it("scales the budget with the destination model's context window", () => {
+    // A handoff is truncated from the front, so a fixed small budget silently
+    // drops the beginning of the conversation on large-context models.
+    expect(handoffTranscriptBudget("1m")).toBeGreaterThan(handoffTranscriptBudget("200k"));
+    expect(handoffTranscriptBudget("1m")).toBeGreaterThan(1_000_000);
+  });
+
+  it("falls back to the default when the context size is missing or unparsable", () => {
+    const fallback = handoffTranscriptBudget(undefined);
+    expect(fallback).toBe(400_000);
+    expect(handoffTranscriptBudget("unlimited")).toBe(fallback);
+    expect(handoffTranscriptBudget("")).toBe(fallback);
+  });
+
+  it("never returns less than the default", () => {
+    expect(handoffTranscriptBudget("1k")).toBeGreaterThanOrEqual(400_000);
   });
 });

@@ -90,7 +90,10 @@ import {
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
+import {
+  buildTranscriptContext,
+  handoffTranscriptBudget,
+} from "@/renderer/actions/handoffTranscript";
 import {
   defaultHandoffPrompt,
   type ProviderHandoffContext,
@@ -804,7 +807,11 @@ export function ContinueInProviderDialog(props: {
     // before the new provider can. This holds whether or not the user typed a
     // prompt: a typed prompt narrows the next step, not the history behind it.
     // A terminal source has no stored rows and still goes through extraction.
-    const history = buildTranscriptContext(thread, sourceAgent?.label ?? thread.agentKind);
+    const history = buildTranscriptContext(
+      thread,
+      sourceAgent?.label ?? thread.agentKind,
+      handoffTranscriptBudget(targetConfig.contextSize),
+    );
     if (history) {
       onContinue(
         selectedKind,
