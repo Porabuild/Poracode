@@ -4,7 +4,7 @@
       "version": "1.7.1",
       "date": "2026-09-03",
       "title": "Thread docks, image gallery & richer OpenCode",
-      "summary": "Poracode 1.7.1 brings thread goals, plans, agents, and background tasks into a configurable dock system, adds a gallery for every image in a conversation, and substantially improves OpenCode structured chat. This release also makes MCP controls easier to reach, strengthens thread handoffs, expands Muse discovery, and fixes several provider and Windows reliability issues.",
+      "summary": "Poracode 1.7.1 brings thread goals, plans, agents, and background tasks into a configurable dock system, adds a gallery for every image in a conversation, and substantially improves OpenCode structured chat. This release also makes MCP controls easier to reach, strengthens thread handoffs, brings Muse Spark 1.3 with live model discovery, logout, and more reliable installs, and fixes several provider and Windows reliability issues.",
       "changes": [
         {
           "kind": "added",
@@ -34,12 +34,17 @@
         {
           "kind": "improved",
           "label": "Muse",
-          "text": "Muse now discovers available models and reasoning levels from the installed CLI and MSP catalog, recognizes current terminal states, supports logout, and handles MSP approval and user-input requests."
+          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, and installs reliably through WSL."
         },
         {
           "kind": "improved",
           "label": "Right panel",
           "text": "Panel header actions now move into an overflow menu when space is tight, while the close control and active dock controls remain easy to reach."
+        },
+        {
+          "kind": "improved",
+          "label": "Subagents",
+          "text": "Running subagents now show a live loader instead of a static icon, so active work is easy to spot in the transcript and docks panel."
         },
         {
           "kind": "fixed",
