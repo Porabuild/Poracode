@@ -48,8 +48,13 @@ export function selectThreadGoalDockState(
   }
   const result = getThreadGoalDockStateFromThreadItems(itemIds, itemsById);
   if (goalDockStateCache.size > 200) goalDockStateCache.clear();
-  goalDockStateCache.set(threadId, { itemIds, latestGoalItem, result });
-  return result;
+  // Appending an unrelated chat message rebuilds the dock state object with
+  // identical fields. Hand back the cached reference so Zustand subscribers
+  // (goal dock, composer bubbles) don't re-render on every streamed message.
+  const stableResult =
+    cached && goalDockStatesEqual(cached.result, result) ? cached.result : result;
+  goalDockStateCache.set(threadId, { itemIds, latestGoalItem, result: stableResult });
+  return stableResult;
 }
 
 export function selectThreadGoalDockItem(
@@ -89,6 +94,36 @@ export function getThreadGoalDockStateFromThreadItems(
     ...(payload.lastReason ? { lastReason: payload.lastReason } : {}),
     ...(payload.updatedAt !== undefined ? { updatedAt: payload.updatedAt } : {}),
   };
+}
+
+/**
+ * Field equality for dock states so an unrelated transcript append keeps the
+ * cached reference (see `selectThreadGoalDockState`). Compares every field
+ * `getThreadGoalDockStateFromThreadItems` can emit.
+ */
+function goalDockStatesEqual(
+  a: ThreadGoalDockState | null,
+  b: ThreadGoalDockState | null,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.sourceItemId === b.sourceItemId &&
+    a.itemState === b.itemState &&
+    a.objective === b.objective &&
+    a.status === b.status &&
+    a.action === b.action &&
+    a.tokenBudget === b.tokenBudget &&
+    a.tokensUsed === b.tokensUsed &&
+    a.timeUsedSeconds === b.timeUsedSeconds &&
+    a.iterations === b.iterations &&
+    a.lastReason === b.lastReason &&
+    a.updatedAt === b.updatedAt &&
+    (a.availableActions === b.availableActions ||
+      (a.availableActions?.length === b.availableActions?.length &&
+        a.availableActions?.every((action, index) => action === b.availableActions?.[index]) ===
+          true))
+  );
 }
 
 function selectLatestThreadGoalCandidate(
