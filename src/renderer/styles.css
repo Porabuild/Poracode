@@ -1528,10 +1528,13 @@ html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-ch
    the platform glass rule above is matched in specificity so this wins by
    order on every platform. */
 html .poracode-floating-chrome.poracode-floating-chrome--bubble {
-  border-color: color-mix(in oklab, var(--foreground) 4%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 2%, transparent);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.1),
+    0 3px 10px rgb(0 0 0 / 0.14);
 }
 html .poracode-floating-chrome.poracode-floating-chrome--bubble:hover {
-  border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
 }
 /* Bubble whose panel is open: a faint accent wash on the glass and its edge. */
 html .poracode-floating-chrome.poracode-floating-chrome--bubble-active,
@@ -1541,7 +1544,7 @@ html .poracode-floating-chrome.poracode-floating-chrome--bubble-active:hover {
     var(--floating-chrome-active-surface) 86%,
     var(--accent) 14%
   );
-  border-color: color-mix(in oklab, var(--accent) 30%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 12%, transparent);
 }
 
 /* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
