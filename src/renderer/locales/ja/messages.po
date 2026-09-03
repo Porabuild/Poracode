@@ -5879,6 +5879,7 @@ msgid "Hide"
 msgstr "隠す"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
 msgstr "{label}を隠す"
 

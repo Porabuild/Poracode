@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
@@ -10,12 +11,14 @@ import { selectThreadHasDockContent } from "./useThreadDocksSummary";
 
 describe("ThreadDocksPanel", () => {
   beforeEach(() => {
+    usePanelStore.setState({ threadDocksPanelOpen: false, threadDocksFocus: null });
     useThreadGoalDockStore.setState({ dismissedByThread: {} });
     useThreadBackgroundTasksDockStore.setState({
       collapsed: false,
       dismissedTasksKeyByThread: {},
     });
     useSharedSettings.setState({
+      threadDocksPlacement: "right",
       threadDocksOrder: ["backgroundTasks", "plan", "goal", "agents"],
     });
     useAppStore.setState({
@@ -189,5 +192,19 @@ describe("ThreadDocksPanel", () => {
     });
     expect(screen.getByRole("button", { name: "Reorder Background tasks" })).toBeInTheDocument();
     expect(screen.getByText("New background update")).toBeInTheDocument();
+  });
+
+  it("keeps composer-placed informational docks out of image-focused Thread info", () => {
+    usePanelStore.setState({ threadDocksPanelOpen: true, threadDocksFocus: "images" });
+    useSharedSettings.setState({ threadDocksPlacement: "composer" });
+
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reorder Background tasks" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reorder Plan" })).toBeNull();
   });
 });

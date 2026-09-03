@@ -5,7 +5,7 @@ import { GripVertical } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { reorderVisibleThreadDocks, type ThreadDockKind } from "@/shared/settings";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { usePanelStore, type ThreadDockFocus } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
@@ -22,8 +22,9 @@ import {
 
 /**
  * Right-panel "Docks" tab: the thread's informational docks (goal, plan,
- * agents, background tasks) stacked as separate sections in one panel. Shown
- * only while `threadDocksPlacement` is "right"; the composer bubbles open it.
+ * agents, background tasks) stacked as separate sections in one panel. When
+ * those docks stay above the composer, an image bubble can open the panel with
+ * just the thread gallery.
  */
 export function ThreadDocksPanel({
   threadId,
@@ -40,12 +41,13 @@ export function ThreadDocksPanel({
   );
   const order = useSharedSettings((s) => s.threadDocksOrder);
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
+  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
   const gallery = useThreadGalleryImages(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
   const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const containerRef = useRef<HTMLDivElement>(null);
-  const lastScrolledFocusRef = useRef<ThreadDockKind | null>(null);
+  const lastScrolledFocusRef = useRef<ThreadDockFocus | null>(null);
 
   // The layer stays mounted while another right-panel tab shows; forgetting
   // the last scroll target when hidden lets the same bubble scroll again on
@@ -103,7 +105,8 @@ export function ThreadDocksPanel({
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
   };
-  const visibleOrder = order.filter((kind) => content[kind] !== null);
+  const imageOnly = docksPlacement === "composer" && focus === "images";
+  const visibleOrder = imageOnly ? [] : order.filter((kind) => content[kind] !== null);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;

@@ -124,8 +124,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
+  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const gallery = useThreadGalleryImages(
-    currentThreadId !== null && docksPlacement === "right" ? currentThreadId : undefined,
+    currentThreadId !== null && (docksPlacement === "right" || threadDocksFocus === "images")
+      ? currentThreadId
+      : undefined,
   );
   const imagesInCurrentThread = gallery.length > 0;
   const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
@@ -441,7 +444,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       }
       docksHeaderActions={
         <ThreadDocksPlacementToggle
-          placement="right"
+          placement={docksPlacement}
           buttonClassName={`poracode-overlay-header__controls ${panelHeaderIconButtonClass}`}
         />
       }

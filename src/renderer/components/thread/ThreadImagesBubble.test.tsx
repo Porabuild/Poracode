@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import {
@@ -121,6 +122,11 @@ describe("ThreadImagesBubble", () => {
       runtime: {},
       localImageUrl: defaultLocalImageUrl,
     });
+    usePanelStore.setState({
+      threadDocksPanelOpen: false,
+      threadDocksFocus: null,
+      rightPanelTab: "git",
+    });
   });
 
   afterEach(() => {
@@ -157,7 +163,7 @@ describe("ThreadImagesBubble", () => {
     expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
   });
 
-  it("shows the thread image count and opens the gallery lightbox", () => {
+  it("shows the thread image count and toggles Thread info focused on images", () => {
     seedThreadWithImages("t-gallery");
     render(
       <>
@@ -170,8 +176,18 @@ describe("ThreadImagesBubble", () => {
     expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
     expect(bubble).toHaveTextContent("4");
     fireEvent.click(bubble);
-    expect(document.querySelector(".poracode-image-lightbox")).not.toBeNull();
-    expect(document.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("1 / 4");
+    expect(usePanelStore.getState()).toMatchObject({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "images",
+      rightPanelTab: "docks",
+    });
+    expect(document.querySelector(".poracode-image-lightbox")).toBeNull();
+    const activeBubble = screen.getByRole("button", { name: "Hide Images" });
+    expect(activeBubble).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(activeBubble);
+    expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
+    expect(usePanelStore.getState().threadDocksFocus).toBeNull();
   });
 
   it("updates after an item completes without replacing the thread item index", () => {

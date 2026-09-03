@@ -74,6 +74,33 @@ function focusThread(threadId: string): void {
   });
 }
 
+function seedImageOnlyThread(): void {
+  useAppStore.setState({
+    runtimeItemIdsByThread: { [threadA.id]: ["user-image"] },
+    runtimeItemsByIdByThread: {
+      [threadA.id]: {
+        "user-image": {
+          id: "user-image",
+          type: "user_message",
+          state: "completed",
+          payload: {
+            content: [
+              {
+                kind: "image",
+                source: "attachment",
+                path: "/tmp/a.png",
+                name: "a.png",
+              },
+            ],
+          },
+          streams: {},
+        },
+      },
+    },
+    runtimeStructuralVersionByThread: { [threadA.id]: 1 },
+  });
+}
+
 describe("ProjectAuxiliaryPanel", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -169,30 +196,7 @@ describe("ProjectAuxiliaryPanel", () => {
   });
 
   it("keeps an explicitly opened image-only Thread info panel visible", () => {
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [threadA.id]: ["user-image"] },
-      runtimeItemsByIdByThread: {
-        [threadA.id]: {
-          "user-image": {
-            id: "user-image",
-            type: "user_message",
-            state: "completed",
-            payload: {
-              content: [
-                {
-                  kind: "image",
-                  source: "attachment",
-                  path: "/tmp/a.png",
-                  name: "a.png",
-                },
-              ],
-            },
-            streams: {},
-          },
-        },
-      },
-      runtimeStructuralVersionByThread: { [threadA.id]: 1 },
-    });
+    seedImageOnlyThread();
     useSharedSettings.setState({ threadDocksPlacement: "right" });
     usePanelStore.setState({
       gitReviewContext: null,
@@ -209,6 +213,36 @@ describe("ProjectAuxiliaryPanel", () => {
 
     act(() => usePanelStore.getState().setThreadDocksPanelOpen(false));
     expect(result.current.rightPanelOpen).toBe(false);
+  });
+
+  it("opens image-focused Thread info while informational docks stay above the composer", async () => {
+    seedImageOnlyThread();
+    usePanelStore.setState({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "images",
+      rightPanelTab: "docks",
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <I18nProvider i18n={i18n}>{children}</I18nProvider>
+    );
+    const { result } = renderHook(() => usePanelVisibility(), { wrapper });
+    expect(result.current.rightPanelOpen).toBe(true);
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("docks");
+    });
+    expect(unifiedRightPanelProps.current?.docksContent).toBeDefined();
+    expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({
+      type: ThreadDocksPlacementToggle,
+      props: { placement: "composer" },
+    });
   });
 
   it("leaves the browser tab when the browser panel was dismissed with it selected", async () => {
