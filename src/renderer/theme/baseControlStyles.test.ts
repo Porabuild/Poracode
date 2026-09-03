@@ -45,6 +45,15 @@ describe("base control styles", () => {
     );
   });
 
+  it("separates composer bubbles with elevation instead of a visible outline", () => {
+    expect(styles).toMatch(
+      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble\s*\{[^}]*border-color:\s*color-mix\(in oklab, var\(--foreground\) 2%, transparent\);[^}]*box-shadow:\s*0 1px 2px rgb\(0 0 0 \/ 0\.1\),\s*0 3px 10px rgb\(0 0 0 \/ 0\.14\);/s,
+    );
+    expect(styles).toMatch(
+      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble-active,[^{]*\{[^}]*border-color:\s*color-mix\(in oklab, var\(--accent\) 12%, transparent\);/s,
+    );
+  });
+
   it("lets the auto-focused draft composer become GPU-idle", () => {
     expect(ruleFor(".poracode-composer-border-glow::before")).not.toContain("animation:");
     expect(

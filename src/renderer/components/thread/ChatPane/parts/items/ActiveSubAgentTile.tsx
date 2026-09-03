@@ -19,6 +19,7 @@ import type { ThreadDocksPlacement } from "@/shared/settings";
 import { ThreadDocksPlacementToggle } from "../../../ThreadDocksPlacementToggle";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
 import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import {
   ThreadDockActionRow,
@@ -198,6 +199,7 @@ function ActiveAgentSection({
             key={id}
             threadId={threadId}
             itemId={id}
+            placement={placement}
             {...(projectLocation ? { projectLocation } : {})}
           />
         ))}
@@ -211,11 +213,13 @@ function ActiveSubAgentRow({
   itemId,
   projectLocation,
   registrationOnly = false,
+  placement = "composer",
 }: {
   threadId: string;
   itemId: string;
   projectLocation?: ProjectLocation;
   registrationOnly?: boolean;
+  placement?: ThreadDocksPlacement;
 }) {
   const { t } = useLingui();
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
@@ -318,7 +322,7 @@ function ActiveSubAgentRow({
     <ThreadDockActionRow
       title={rowTitle}
       onClick={() => openSubAgent(threadId, item.id)}
-      className={`${isDone ? "opacity-60" : ""} ${!isDone ? "bg-accent/10" : ""}`}
+      className={`${isDone ? "opacity-60" : ""} ${!isDone && placement === "composer" ? "bg-accent/10" : ""}`}
       action={<X className="size-3" />}
       actionLabel={t`Remove ${rowTitle} from panel`}
       actionTitle={t`Remove from panel`}
@@ -327,7 +331,9 @@ function ActiveSubAgentRow({
       {isDone ? (
         <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
       ) : (
-        <Bot className="size-3.5 shrink-0 text-foreground-muted" />
+        <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
+          <PixelLoader size="xxs" className="text-foreground" />
+        </span>
       )}
       <span
         className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}

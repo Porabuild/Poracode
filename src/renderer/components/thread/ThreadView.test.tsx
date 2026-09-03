@@ -1533,6 +1533,7 @@ describe("ThreadView", () => {
     // and reads "Hide", because clicking any of them hides the panel.
     expect(screen.getByRole("button", { name: "Hide Plan" })).toBeInTheDocument();
     const backgroundBubble = screen.getByRole("button", { name: "Hide Background tasks" });
+    expect(backgroundBubble).toHaveClass("poracode-floating-chrome--bubble");
     expect(backgroundBubble).toHaveAttribute("aria-pressed", "true");
     expect(backgroundBubble.querySelector("svg.lucide-activity")).toHaveClass(
       "motion-safe:animate-pulse",

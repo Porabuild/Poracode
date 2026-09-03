@@ -123,6 +123,40 @@ describe("ThreadDocksPanel", () => {
     ).toBe(false);
   });
 
+  it("shows the running agent loader without composer active-row highlighting", () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-agent": ["agent-1"] },
+      runtimeItemsByIdByThread: {
+        "thread-agent": {
+          "agent-1": {
+            id: "agent-1",
+            type: "tool_call",
+            state: "started",
+            payload: {
+              name: "spawnAgent",
+              status: "running",
+              isSubAgent: true,
+              args: { description: "Review the resize behavior" },
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "thread-agent": 1 },
+      runtimeBackgroundTasksByThread: {},
+    });
+
+    const { container } = render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-agent" />
+      </AppProvider>,
+    );
+
+    const row = container.querySelector(".poracode-subagent-dock-row");
+    expect(row?.querySelector(".poracode-pixel-loader")).not.toBeNull();
+    expect(row).not.toHaveClass("bg-accent/10");
+  });
+
   it("renders persisted dock order with a drag handle for every visible section", () => {
     const { container } = render(
       <AppProvider>
