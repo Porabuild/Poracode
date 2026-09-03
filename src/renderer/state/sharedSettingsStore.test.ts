@@ -36,7 +36,7 @@ describe("sharedSettingsStore", () => {
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
       providerOrder: [],
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       lastUsedProjectDirs: {},
       enabledMcpServers: {},
@@ -127,6 +127,7 @@ describe("sharedSettingsStore", () => {
       "plan",
       "goal",
       "agents",
+      "images",
     ]);
   });
 

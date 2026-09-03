@@ -21,10 +21,10 @@ import {
 } from "./useThreadDocksSummary";
 
 /**
- * Right-panel "Docks" tab: the thread's informational docks (goal, plan,
- * agents, background tasks) stacked as separate sections in one panel. When
- * those docks stay above the composer, an image bubble can open the panel with
- * just the thread gallery.
+ * Right-panel "Docks" tab: the thread's informational docks and image gallery
+ * stacked as sortable sections in one panel. When the informational docks stay
+ * above the composer, an image bubble can open the panel with just the thread
+ * gallery.
  */
 export function ThreadDocksPanel({
   threadId,
@@ -98,15 +98,19 @@ export function ThreadDocksPanel({
       summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
+    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
     goal: t`Goal`,
     plan: t`Plan`,
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
+    images: t`Images`,
   };
   const imageOnly = docksPlacement === "composer" && focus === "images";
-  const visibleOrder = imageOnly ? [] : order.filter((kind) => content[kind] !== null);
+  const visibleOrder = imageOnly
+    ? order.filter((kind) => kind === "images" && content[kind] !== null)
+    : order.filter((kind) => content[kind] !== null);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -127,13 +131,6 @@ export function ThreadDocksPanel({
             </DockSection>
           ))}
         </DragDropProvider>
-        {gallery.length > 0 ? (
-          <div data-dock-kind="images" className="relative scroll-mt-1 pl-4">
-            <div className="min-w-0">
-              <ThreadImagesDock gallery={gallery} />
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );

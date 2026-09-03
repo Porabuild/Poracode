@@ -45,11 +45,12 @@ export interface ThreadGalleryResolvers {
 }
 
 /**
- * Collect every renderable image in thread order: user attachments, assistant
- * markdown images (in document order) followed by assistant image blocks, then
- * generated `image_view` / tool-call images. Skips sub-agent children (they
- * render in the overlay, not the main transcript) and anything that cannot
- * resolve to a renderable URL on this client (remote refs without a session).
+ * Collect every renderable image newest-first: later thread items come before
+ * earlier ones, and within an item later display positions come first (blocks
+ * before markdown, document tails before heads). Skips sub-agent children
+ * (they render in the overlay, not the main transcript) and anything that
+ * cannot resolve to a renderable URL on this client (remote refs without a
+ * session).
  */
 export function collectThreadGalleryImages(
   items: readonly RuntimeChatItem[],
@@ -66,10 +67,14 @@ export function collectThreadGalleryImages(
     gallery.push(image);
   };
 
-  for (const item of items) {
-    if (item.parentItemId) continue;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (!item || item.parentItemId) continue;
     if (item.type === "user_message") {
-      for (const att of buildUserImageAttachments(item)) {
+      const attachments = buildUserImageAttachments(item);
+      for (let j = attachments.length - 1; j >= 0; j--) {
+        const att = attachments[j];
+        if (!att) continue;
         push({
           src: attachmentImageUrl(att, resolvers.imageUrlForPath),
           ...(att.name ? { alt: att.name } : {}),
@@ -77,20 +82,21 @@ export function collectThreadGalleryImages(
       }
     } else if (item.type === "assistant_message") {
       const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
+      const blocks = (payload?.content ?? []).filter((b) => b.kind === "image");
+      for (let j = blocks.length - 1; j >= 0; j--) {
+        const source = imageViewSourceFromImageBlock(
+          blocks[j] as { dataUrl?: unknown; mimeType?: unknown; name?: unknown },
+          resolvers.remoteImageRefUrl,
+        );
+        if (source) push({ src: source.src, ...(source.alt ? { alt: source.alt } : {}) });
+      }
       // Pure text deltas intentionally do not invalidate the gallery cache.
       // Collect markdown once the item completes, when its structural version
       // advances and the parsed destination is no longer a streaming tail.
       if (item.state === "completed") {
         const text = assistantDisplayText(item);
-        for (const md of extractMarkdownGalleryImages(text, resolvers)) push(md);
-      }
-      const blocks = (payload?.content ?? []).filter((b) => b.kind === "image");
-      for (const block of blocks) {
-        const source = imageViewSourceFromImageBlock(
-          block as { dataUrl?: unknown; mimeType?: unknown; name?: unknown },
-          resolvers.remoteImageRefUrl,
-        );
-        if (source) push({ src: source.src, ...(source.alt ? { alt: source.alt } : {}) });
+        const markdown = extractMarkdownGalleryImages(text, resolvers);
+        for (let j = markdown.length - 1; j >= 0; j--) push(markdown[j]);
       }
     } else if (
       item.type === "image_view" ||

@@ -19,7 +19,7 @@ describe("ThreadDocksPanel", () => {
     });
     useSharedSettings.setState({
       threadDocksPlacement: "right",
-      threadDocksOrder: ["backgroundTasks", "plan", "goal", "agents"],
+      threadDocksOrder: ["backgroundTasks", "images", "plan", "goal", "agents"],
     });
     useAppStore.setState({
       runtimeItemIdsByThread: { "thread-1": ["plan-1"] },
@@ -192,6 +192,42 @@ describe("ThreadDocksPanel", () => {
     });
     expect(screen.getByRole("button", { name: "Reorder Background tasks" })).toBeInTheDocument();
     expect(screen.getByText("New background update")).toBeInTheDocument();
+  });
+
+  it("renders Images in persisted order with its drag handle", () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-1": ["plan-1", "image-1"] },
+      runtimeItemsByIdByThread: {
+        "thread-1": {
+          ...useAppStore.getState().runtimeItemsByIdByThread["thread-1"],
+          "image-1": {
+            id: "image-1",
+            type: "image_view",
+            state: "completed",
+            payload: {
+              name: "imageGeneration",
+              status: "success",
+              result: { image: "data:image/png;base64,AAA" },
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "thread-1": 1 },
+    });
+
+    const { container } = render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Reorder Images" })).toBeInTheDocument();
+    expect(
+      [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
+        element.getAttribute("data-dock-kind"),
+      ),
+    ).toEqual(["backgroundTasks", "images", "plan"]);
   });
 
   it("keeps composer-placed informational docks out of image-focused Thread info", () => {

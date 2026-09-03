@@ -133,7 +133,7 @@ describe("sharedSettingsFile", () => {
       agentInstances: {},
       collapseTerminalComposer: false,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       cliPickerTarget: "ask",
       staleThreadUnloadMinutes: 20,
       autoArchiveDoneAfterDays: 7,
@@ -277,7 +277,7 @@ describe("sharedSettingsFile", () => {
       agentInstances: {},
       collapseTerminalComposer: false,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       cliPickerTarget: "ask",
       staleThreadUnloadMinutes: 20,
       autoArchiveDoneAfterDays: 7,
@@ -537,7 +537,7 @@ describe("sharedSettingsFile", () => {
       themeMode: "dark",
       collapseTerminalComposer: true,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
     });
   });
 
