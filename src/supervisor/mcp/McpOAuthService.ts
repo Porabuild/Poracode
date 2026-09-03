@@ -161,7 +161,17 @@ export class McpOAuthService {
   status(): McpOauthStatusResult {
     const store = this.readStore();
     return {
-      authenticatedUrls: Object.keys(store.servers).filter((url) => this.readTokens(url)),
+      // A stored entry alone does not mean the next turn can authenticate:
+      // an expired access token without a refresh token will be sent as no
+      // `Authorization` header at all, and fail-closed agents (e.g. Antigravity
+      // ACP) abort the whole turn with `MCP load failed ... Unauthorized`.
+      // Only report URLs whose tokens are still usable (or refreshable).
+      authenticatedUrls: Object.keys(store.servers).filter((url) => {
+        const tokens = this.readTokens(url);
+        if (!tokens) return false;
+        if (!this.tokensExpired(url, tokens)) return true;
+        return Boolean(tokens.refresh_token);
+      }),
     };
   }
 

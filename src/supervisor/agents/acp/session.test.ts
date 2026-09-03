@@ -365,6 +365,31 @@ describe("resolveAcpPromptFailureMessage — prompt rejection after agent-surfac
     const transport = RequestError.internalError({ details: "Agent error" });
     expect(shouldEmitAcpPromptRpcErrorItem(transport, undefined)).toBe(true);
   });
+
+  it("appends the re-auth hint to an MCP Unauthorized agent-surfaced failure", () => {
+    const surfaced =
+      'Agent execution error: MCP load failed for Vercel: calling "initialize": sending "initialize": Unauthorized';
+    const out = resolveAcpPromptFailureMessage(
+      RequestError.internalError({ details: "Internal error" }),
+      surfaced,
+    );
+    expect(out.startsWith(surfaced)).toBe(true);
+    expect(out).toContain('MCP server "Vercel" rejected its saved sign-in (HTTP 401)');
+    expect(out).toContain("start a new thread");
+  });
+
+  it("appends a generic MCP re-auth hint when the server name is unknown", () => {
+    const out = resolveAcpPromptFailureMessage(
+      RequestError.internalError({ details: "MCP initialize failed: 401 Unauthorized" }),
+    );
+    expect(out).toContain("An MCP server rejected its saved sign-in (HTTP 401)");
+  });
+
+  it("leaves non-MCP failures without the re-auth hint", () => {
+    const usage = "Usage limit reached.";
+    expect(resolveAcpPromptFailureMessage(RequestError.internalError(), usage)).toBe(usage);
+    expect(resolveAcpPromptFailureMessage(new Error("boom"))).toBe("boom");
+  });
 });
 
 describe("ACP empty-response provider guard", () => {
