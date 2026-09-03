@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "../../agents/base";
 import type { SessionRuntime } from "../sessionTypes";
+import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import {
   InvalidSessionRecoveryCoordinator,
   type InvalidSessionRecoveryContext,
@@ -186,7 +187,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       "hooks",
       "compose",
       "build",
-      "prime",
+      ...(shouldPrimeNativeProjectShellEnv(harness.session.projectLocation) ? ["prime"] : []),
       "resolve",
       "spawn",
     ]);
@@ -263,6 +264,8 @@ describe("InvalidSessionRecoveryCoordinator", () => {
 
   it("aborts before spawn when pre-spawn priming replaced the session", async () => {
     const harness = createHarness();
+    harness.session.logicalProjectLocation = PROJECT_LOCATION;
+    harness.session.projectLocation = PROJECT_LOCATION;
     harness.primeProjectShellEnv.mockImplementation(async () => {
       harness.setCurrentSession(undefined);
     });
@@ -270,6 +273,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     await harness.coordinator.recover(harness.session);
 
     expect(harness.buildLaunchArgv).toHaveBeenCalledTimes(1);
+    expect(harness.primeProjectShellEnv).toHaveBeenCalledTimes(1);
     expect(harness.spawnThread).not.toHaveBeenCalled();
   });
 

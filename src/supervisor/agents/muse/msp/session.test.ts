@@ -674,7 +674,9 @@ describe("MuseMspStructuredSession", () => {
     );
     await session.dispose();
     expect(disposeClient).toHaveBeenCalled();
-    expect(terminate).toHaveBeenCalledWith(child, { ownedProcessGroup: false });
+    expect(terminate).toHaveBeenCalledWith(child, {
+      ownedProcessGroup: process.platform !== "win32",
+    });
   });
 
   it("owns child Muse sessions announced by subagent items", async () => {
