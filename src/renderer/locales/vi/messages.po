@@ -7364,6 +7364,7 @@ msgid "Modes"
 msgstr "Chế độ"
 
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
@@ -12970,7 +12971,7 @@ msgstr "Luồng đã kết thúc hoặc đang chờ bạn nhập."
 msgid "Thread goal dock"
 msgstr "Dock mục tiêu luồng"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "Thông tin luồng"
 

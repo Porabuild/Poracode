@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { dockPanelTab, openGitReview, openUsagePanel, undockPanelTab } from "./panelActions";
+import {
+  dockPanelTab,
+  openGitReview,
+  openUsagePanel,
+  toggleThreadDocksPanel,
+  undockPanelTab,
+} from "./panelActions";
 
 function resetDockState() {
   useSharedSettings.setState({ terminalPosition: "bottom", gitReviewMode: "panel" });
@@ -196,5 +202,43 @@ describe("undockPanelTab", () => {
     undockPanelTab("notes");
 
     expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: "usage", right: null });
+  });
+});
+
+describe("toggleThreadDocksPanel", () => {
+  beforeEach(() => {
+    resetDockState();
+    usePanelStore.setState({ threadDocksPanelOpen: false, threadDocksFocus: null });
+  });
+  afterEach(resetDockState);
+
+  it("opens the Docks tab focused on the clicked dock", () => {
+    toggleThreadDocksPanel("agents");
+
+    const state = usePanelStore.getState();
+    expect(state.threadDocksPanelOpen).toBe(true);
+    expect(state.rightPanelTab).toBe("docks");
+    expect(state.threadDocksFocus).toBe("agents");
+  });
+
+  it("closes the panel from any dock bubble while the Docks tab is showing", () => {
+    toggleThreadDocksPanel("agents");
+
+    toggleThreadDocksPanel("plan");
+
+    expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
+    expect(usePanelStore.getState().threadDocksFocus).toBeNull();
+  });
+
+  it("switches back to the Docks tab when another tab is in front", () => {
+    toggleThreadDocksPanel("agents");
+    usePanelStore.setState({ rightPanelTab: "git" });
+
+    toggleThreadDocksPanel("plan");
+
+    const state = usePanelStore.getState();
+    expect(state.threadDocksPanelOpen).toBe(true);
+    expect(state.rightPanelTab).toBe("docks");
+    expect(state.threadDocksFocus).toBe("plan");
   });
 });
