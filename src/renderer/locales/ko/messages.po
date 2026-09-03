@@ -5385,8 +5385,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Poracode의 기본 런타임을 사용하는 최고 수준의 Kimi Code CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Poracode의 기본 터미널 런타임을 사용하는 최고 수준의 Muse Code CLI 통합."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Poracode의 기본 터미널 런타임을 사용하는 최고 수준의 Muse Code CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Poracode의 기본 터미널 및 GUI 런타임을 사용하는 최고 수준의 Muse Code 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -10668,12 +10672,20 @@ msgstr "{0} 실행"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "이 스레드가 실행되기 전에 {0}을(를) 실행하십시오."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "이 스레드가 실행되기 전에 {0}을(를) 실행하십시오."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "{loginCommand}을 실행하여 로그인합니다."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "{loginCommand}을 실행하여 로그인합니다."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "이 스레드가 실행되기 전에 {loginCommandDisplay}을(를) 실행하십시오."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "{loginCommandDisplay}을 실행하여 로그인합니다."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

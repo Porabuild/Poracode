@@ -358,11 +358,12 @@ export class SupervisorRuntime {
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
-        resolveParentMcpAccess: (threadId, identity, targetAgentKind) =>
+        resolveParentMcpAccess: (threadId, identity, targetAgentKind, projectLocation) =>
           this.threadSessionManager.resolveSubagentParentMcpAccess(
             threadId,
             identity,
             targetAgentKind,
+            projectLocation,
           ),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
@@ -780,10 +781,9 @@ export class SupervisorRuntime {
     const threadIds = new Set<string>();
 
     for (const [threadId, session] of this.sessions) {
+      const projectLocation = session.logicalProjectLocation ?? session.projectLocation;
       const sessionPath =
-        session.projectLocation.kind === "wsl"
-          ? session.projectLocation.uncPath
-          : session.projectLocation.path;
+        projectLocation.kind === "wsl" ? projectLocation.uncPath : projectLocation.path;
       if (normalizedTargets.has(normalizePath(sessionPath))) {
         threadIds.add(threadId);
       }

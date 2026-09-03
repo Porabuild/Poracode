@@ -15,6 +15,8 @@ const threadConfigShape = {
   crossagentMcp: z.boolean().optional(),
   computerUse: z.boolean().optional(),
   chromeMcp: z.boolean().optional(),
+  /** Runtime environment selected for a provider that cannot execute natively. */
+  executionEnvironment: z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }).optional(),
 } as const;
 
 export const threadConfigBaseSchema = z.object(threadConfigShape);
@@ -59,6 +61,8 @@ export function isThreadConfigEqual(
     left.browserMcp === right.browserMcp &&
     left.crossagentMcp === right.crossagentMcp &&
     left.computerUse === right.computerUse &&
-    left.chromeMcp === right.chromeMcp
+    left.chromeMcp === right.chromeMcp &&
+    left.executionEnvironment?.kind === right.executionEnvironment?.kind &&
+    left.executionEnvironment?.distro === right.executionEnvironment?.distro
   );
 }

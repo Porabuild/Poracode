@@ -246,6 +246,8 @@ const uninstallAgentHookPluginMock = vi.hoisted(() =>
 );
 
 vi.mock("@/renderer/bridge", () => ({
+  isMac: () => false,
+  isWindows: () => true,
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
     setAcpRegistryAgentAuth: setAcpRegistryAgentAuthMock,
@@ -688,6 +690,27 @@ describe("SingleAgentSettings", () => {
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
       label: "Gemini",
       command: "gemini auth login",
+      onCommandComplete: expect.any(Function),
+    });
+  });
+
+  it("shows the concise login command while executing its platform wrapper", () => {
+    statusesState.agentStatuses = [
+      makeStatus("muse", {
+        label: "Muse Code",
+        authState: "missing",
+        loginCommand: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
+        loginCommandDisplay: "muse login",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="muse" />);
+
+    expect(screen.getByText("Run muse login to sign in.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
+      label: "Muse Code",
+      command: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
       onCommandComplete: expect.any(Function),
     });
   });
@@ -1195,6 +1218,51 @@ describe("SingleAgentSettings", () => {
       onCommandComplete: expect.any(Function),
       project: windowsProject,
     });
+  });
+
+  it("offers Muse's WSL-backed installer for a native Windows environment", () => {
+    appState.projects = [
+      makeProject({
+        id: "windows-project",
+        name: "Windows Project",
+        location: { kind: "windows", path: "C:\\project" },
+      }),
+      makeProject({
+        id: "wsl-project",
+        name: "WSL Project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/project",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+        },
+      }),
+    ];
+    statusesState.agentStatuses = [
+      makeStatus("muse", {
+        label: "Muse Code",
+        installed: false,
+        authState: "missing",
+        envKind: "windows",
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("muse", {
+        label: "Muse Code",
+        version: "1.0.2",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="muse" />);
+
+    const windowsRow = envRow("This computer");
+    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install on This computer" }));
+    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    expect(installInput?.command(appState.projects[0]!)).toContain("wsl.exe --exec bash -lc");
   });
 
   it("shows a WSL install row when Grok is only installed on Windows", async () => {

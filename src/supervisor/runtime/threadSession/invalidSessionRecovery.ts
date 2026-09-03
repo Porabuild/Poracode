@@ -5,7 +5,8 @@ import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookAr
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { PtyLifecycle } from "./ptyLifecycle";
-import { workspaceLaunchConfig, type SpawnPipeline } from "./spawnPipeline";
+import { workspaceLaunchConfig, resolveThreadExecution, type SpawnPipeline } from "./spawnPipeline";
+import { effectiveProjectLocation, withLogicalProjectLocation } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
@@ -73,6 +74,17 @@ export class InvalidSessionRecoveryCoordinator {
       return;
     }
 
+    // Re-resolve the execution location (WSL fallback pin / distro moves)
+    // instead of reusing a potentially stale cached project location.
+    if (session.logicalProjectLocation) {
+      const resolved = await resolveThreadExecution(
+        session.adapter,
+        session.logicalProjectLocation,
+        session.config,
+      );
+      session.projectLocation = resolved.location;
+      session.config = resolved.config;
+    }
     const launchConfig = context.spawnPipeline.resolveMcpLaunchConfig(
       workspaceLaunchConfig(
         session.projectLocation,
@@ -80,6 +92,7 @@ export class InvalidSessionRecoveryCoordinator {
         session.adapter,
         mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
         mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+        effectiveProjectLocation(session),
       ),
       mcpLaunchSnapshot,
       session.adapter,
@@ -142,6 +155,7 @@ export class InvalidSessionRecoveryCoordinator {
       threadId: session.threadId,
       agentKind: session.agentKind,
       adapter: session.adapter,
+      ...withLogicalProjectLocation(session),
       projectLocation: session.projectLocation,
       config: session.config,
       initialSize: session.terminalSize,

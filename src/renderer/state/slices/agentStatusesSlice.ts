@@ -24,6 +24,7 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
       x.acpSessionEstablished === b[i]!.acpSessionEstablished &&
       areAgentPresentationRuntimeFieldsEqual(x, b[i]!) &&
       x.loginCommand === b[i]!.loginCommand &&
+      x.loginCommandDisplay === b[i]!.loginCommandDisplay &&
       areAgentProviderMetadataEqual(x.providerMetadata, b[i]!.providerMetadata),
   );
 }

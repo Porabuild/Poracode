@@ -1341,6 +1341,37 @@ describe("ThreadComposerSection", () => {
     expect(onSubmitInput).not.toHaveBeenCalled();
   });
 
+  it("shows a concise command in the auth dock for wrapped WSL login", () => {
+    render(
+      <ThreadComposerSection
+        threadId={guiThread.id}
+        fallbackThread={guiThread}
+        agentStatus={{
+          ...codexGuiStatus,
+          authState: "missing",
+          loginCommand: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
+          loginCommandDisplay: "muse login",
+        }}
+        projectLocation={{ kind: "windows", path: "C:\\repo" }}
+        paneCount={1}
+        terminalPaneRef={{ current: null }}
+        todoDockCollapsed={false}
+        docksPlacement="composer"
+        todoDockState={null}
+        goalDockState={null}
+        errorDockStates={[]}
+        onGoalDockDismiss={() => undefined}
+        onDismissError={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+        onTodoDockCollapsedChange={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByText("Codex: Run muse login before this thread can run."),
+    ).toBeInTheDocument();
+  });
+
   it("keeps remote auth docks actionable without desktop-only login controls", async () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     renderComposer({

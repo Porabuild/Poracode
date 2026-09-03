@@ -1,5 +1,8 @@
-import type { RuntimeEvent } from "@/shared/contracts";
-import type { StructuredSessionHandle } from "@/supervisor/agents/base";
+import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
+import {
+  resolveAgentProjectLocation,
+  type StructuredSessionHandle,
+} from "@/supervisor/agents/base";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
 import type { PreparedSubagentRun, ResolvedSpawnAttempt } from "./spawnPlan";
 import type { SubagentRunHost, SubagentRunStatus } from "./types";
@@ -32,11 +35,7 @@ export class SubagentAttemptRunner {
     attempt: ResolvedSpawnAttempt,
     callbacks: AttemptCallbacks,
   ): void {
-    if (attempt.execution === "one-shot") {
-      this.runOneShot(state, attemptIndex, attempt, callbacks);
-      return;
-    }
-    void this.runStructured(state, attempt, callbacks);
+    void this.runResolved(state, attemptIndex, attempt, callbacks);
   }
 
   async teardown(state: AttemptExecutionState): Promise<void> {
@@ -50,9 +49,36 @@ export class SubagentAttemptRunner {
     await this.disposeHandle(handle);
   }
 
+  private async runResolved(
+    state: AttemptExecutionState,
+    attemptIndex: number,
+    attempt: ResolvedSpawnAttempt,
+    callbacks: AttemptCallbacks,
+  ): Promise<void> {
+    try {
+      const projectLocation = await resolveAgentProjectLocation(
+        attempt.adapter,
+        state.plan.projectLocation,
+        attempt.config.executionEnvironment,
+      );
+      if (!callbacks.isActive() || state.cancelRequested) return;
+      if (attempt.execution === "one-shot") {
+        this.runOneShot(state, attemptIndex, attempt, projectLocation, callbacks);
+        return;
+      }
+      await this.runStructured(state, attempt, projectLocation, callbacks);
+    } catch (error) {
+      callbacks.onSettle(
+        state.cancelRequested ? "cancelled" : "failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
   private async runStructured(
     state: AttemptExecutionState,
     attempt: ResolvedSpawnAttempt,
+    projectLocation: ProjectLocation,
     callbacks: AttemptCallbacks,
   ): Promise<void> {
     const { adapter, config } = attempt;
@@ -61,12 +87,13 @@ export class SubagentAttemptRunner {
         state.parentThreadId,
         { threadId: state.childThreadId, title: state.label },
         adapter.kind,
+        projectLocation,
       );
       if (!callbacks.isActive()) return;
 
       const handle = await adapter.createStructuredSession?.({
         threadId: state.childThreadId,
-        projectLocation: state.plan.projectLocation,
+        projectLocation,
         config,
         presentationMode: "gui",
         // Same contract as SpawnPipeline.createStructuredSession: the shared
@@ -120,6 +147,7 @@ export class SubagentAttemptRunner {
     state: AttemptExecutionState,
     attemptIndex: number,
     attempt: ResolvedSpawnAttempt,
+    projectLocation: ProjectLocation,
     callbacks: AttemptCallbacks,
   ): void {
     const { adapter, config } = attempt;
@@ -138,7 +166,7 @@ export class SubagentAttemptRunner {
 
     const handle = runOneShotChild({
       adapter,
-      projectLocation: state.plan.projectLocation,
+      projectLocation,
       model: config.model,
       effort: config.effort,
       prompt: state.plan.prompt,

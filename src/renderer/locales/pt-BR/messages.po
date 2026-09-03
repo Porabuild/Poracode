@@ -5385,8 +5385,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Integração Kimi Code CLI de primeira classe usando o tempo de execução nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Integração Muse Code CLI de primeira classe usando o tempo de execução de terminal nativo do Poracode."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Integração Muse Code CLI de primeira classe usando o tempo de execução de terminal nativo do Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Integração de primeira classe do Muse Code usando os runtimes nativos de terminal e GUI do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -10668,12 +10672,20 @@ msgstr "Executar {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Execute {0} antes que este thread possa ser executado."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Execute {0} antes que este thread possa ser executado."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Execute {loginCommand} para fazer login."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Execute {loginCommand} para fazer login."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Execute {loginCommandDisplay} antes que este thread possa ser executado."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Execute {loginCommandDisplay} para fazer login."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

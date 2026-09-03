@@ -8,6 +8,11 @@ import { registerComposerControls } from "../providerComposer";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
+import { registerGuiSlashCommands } from "../providerSlashCommands";
+import {
+  buildStandardGuiSlashCommands,
+  resolveStandardLocalSlashAction,
+} from "../standardGuiSlashCommands";
 
 const PROVIDER_KIND = providerManifest.kind;
 
@@ -27,8 +32,20 @@ registerCommitGenDefaults(PROVIDER_KIND, MUSE_UTILITY_DEFAULTS);
 registerTitleGenDefaults(PROVIDER_KIND, MUSE_UTILITY_DEFAULTS);
 registerConflictResolverDefaults(PROVIDER_KIND, MUSE_UTILITY_DEFAULTS);
 
-// Terminal-only provider (no ACP; GUI deferred until Muse ships one) — the
-// TUI can prompt for approvals, so it gets the full policy selector. Effort
-// selector is driven by capabilities.efforts in the shared model picker — no
-// provider-specific registration needed. No plan mode (modes: ["agent"] only).
+// Muse Code supports both Terminal (TUI) and Chat (GUI backed by Muse Session
+// Protocol `muse serve`). Effort selector is driven by capabilities.efforts
+// in the shared model picker. No plan mode (modes: ["agent"] only).
 registerComposerControls(PROVIDER_KIND, (input) => standardPlanApprovalControls(input));
+
+registerGuiSlashCommands(PROVIDER_KIND, {
+  // Muse has no plan/agent/fast modes, so filter those out after building.
+  buildCommands: (ctx) =>
+    buildStandardGuiSlashCommands(ctx).filter(
+      (command) => command.id !== "plan" && command.id !== "agent" && command.id !== "fast",
+    ),
+  resolveLocalAction: (typed) => {
+    const action = resolveStandardLocalSlashAction(typed);
+    if (action?.kind === "set-mode" || action?.kind === "toggle-fast") return null;
+    return action;
+  },
+});

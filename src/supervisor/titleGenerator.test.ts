@@ -13,9 +13,23 @@ const prepareOneShotMock = vi.hoisted(() =>
     }
   >(),
 );
+const resolveAgentProjectLocationMock = vi.hoisted(() =>
+  vi.fn<
+    (
+      _adapter: AgentAdapter,
+      location: ProjectLocation,
+      _environment?: unknown,
+      signal?: AbortSignal,
+    ) => Promise<ProjectLocation>
+  >(),
+);
 
 vi.mock("./oneShotSpawn", () => ({
   prepareOneShot: prepareOneShotMock,
+}));
+vi.mock("./agents/base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./agents/base")>()),
+  resolveAgentProjectLocation: resolveAgentProjectLocationMock,
 }));
 
 import { generateTitle } from "./titleGenerator";
@@ -39,10 +53,31 @@ function cliAdapter(overrides: Partial<AgentAdapter> = {}): AgentAdapter {
 describe("generateTitle CLI spawn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveAgentProjectLocationMock.mockImplementation(async (_adapter, location) => location);
     prepareOneShotMock.mockReturnValue({
       spec: { command: "droid", args: ["exec"] },
       spawn: async () => "Fix login timeout",
     });
+  });
+
+  it("uses the resolved provider execution location", async () => {
+    const wslProject: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/mnt/c/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\repo",
+    };
+    resolveAgentProjectLocationMock.mockResolvedValue(wslProject);
+
+    await generateTitle(windowsProject, cliAdapter(), "the login times out");
+
+    expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(
+      expect.anything(),
+      windowsProject,
+      undefined,
+      expect.any(AbortSignal),
+    );
+    expect(prepareOneShotMock).toHaveBeenCalledWith(wslProject, expect.anything());
   });
 
   it("applies adapter baseSpawnEnv to the one-shot command", async () => {

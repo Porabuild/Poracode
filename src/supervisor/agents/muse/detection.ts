@@ -66,9 +66,7 @@ export const museDefaultCapabilities: AgentCapability = {
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
-  // Although `muse exec --json` exists, it has no headless approval wire.
-  // Keep Muse terminal-only until it ships a real structured/ACP mode.
-  presentationModes: ["terminal"],
+  presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "on-request",
   bypassPermissions: { approvalPolicy: "yolo" },
   mcpScope: { terminal: "none", gui: "none" },
@@ -125,7 +123,7 @@ export function parseMuseHelpEfforts(output: string): string[] | undefined {
   return undefined;
 }
 
-const MUSE_HELP_MODEL_RE = /\bmuse-spark-\d+\.\d+(?:-contributor)?(?![\w.])/g;
+const MUSE_HELP_MODEL_RE = /\bmuse-spark-\d+\.\d+(?:-contributor)?(?![\w.-])/g;
 
 /**
  * Collect `muse-spark-X.Y(-contributor)?` ids mentioned in `muse --help`
@@ -165,30 +163,29 @@ function museStaticModelEntries(): Array<{ id: string; label: string }> {
 }
 
 /**
- * Overlay a live `model/list` catalog onto base models (the curated statics,
- * possibly already extended by the `--help` overlay): append catalog ids the
- * base doesn't know, in catalog order, keeping the curated default first.
+ * Convert a non-empty live `model/list` catalog into picker capabilities.
+ * The host documents this as the models it accepts in `session/setModel`, so
+ * it is authoritative rather than an additive overlay on the static fallback.
  * Context limits come from the catalog when declared, else the 1M all Muse
- * models ship with. Returns null when the catalog adds nothing, so the probe
- * result stays minimal.
+ * models ship with. Empty catalogs return null so unauthenticated detection
+ * can keep the static fallback.
  */
 export function buildMuseCatalogCapabilities(
   baseModels: ReadonlyArray<{ id: string; label: string }>,
   catalog: MuseProbedCatalog,
   efforts: string[],
 ): Pick<AgentCapability, "models" | "modelEfforts" | "contextSizes" | "modelContextSizes"> | null {
-  const known = new Set(baseModels.map((model) => model.id));
-  const discovered = catalog.models.filter((model) => model.id && !known.has(model.id));
-  if (discovered.length === 0) return null;
-  const models = [
-    ...baseModels.map((model) => ({ ...model })),
-    ...discovered.map((model) => ({
-      id: model.id,
-      label: model.label || humanizeMuseModelLabel(model.id),
-    })),
-  ];
+  const liveModels = catalog.models.filter((model) => model.id);
+  if (liveModels.length === 0) return null;
+  const baseLabels = new Map(baseModels.map((model) => [model.id, model.label]));
+  const models = liveModels.map((model) => ({
+    id: model.id,
+    label:
+      (model.label !== model.id ? model.label : "") ||
+      baseLabels.get(model.id) ||
+      humanizeMuseModelLabel(model.id),
+  }));
   const limits = new Map<string, number>();
-  for (const model of baseModels) limits.set(model.id, 1_000_000);
   for (const model of catalog.models) {
     if (typeof model.contextLimit === "number" && model.contextLimit > 0) {
       limits.set(model.id, model.contextLimit);
@@ -338,8 +335,8 @@ export const museDetectionSpec: DetectionSpec = {
       ...(ctx.probeEnv ? { probeEnv: ctx.probeEnv } : {}),
       ...(ctx.signal ? { signal: ctx.signal } : {}),
     });
-    // The catalog wins when it adds models (it builds on the help overlay);
-    // an empty/failed probe keeps the help/static result.
+    // A non-empty catalog is authoritative; an empty/failed probe keeps the
+    // help/static fallback.
     const catalogCaps =
       catalog && catalog.models.length > 0
         ? buildMuseCatalogCapabilities(
@@ -361,9 +358,8 @@ export const museDetectionSpec: DetectionSpec = {
   // `muse update` / self-updater. Re-run the official install script for
   // updates. The script uses bash-isms (`set -o pipefail`), so it must be
   // piped to `bash`, not `sh` (dash aborts with "Illegal option -o pipefail"
-  // and curl then fails with SIGPIPE). Windows has no Muse build; the windows
-  // installer entry surfaces a clear message (schema requires both platforms
-  // when `installer` is set).
+  // and curl then fails with SIGPIPE). Windows runs the same installer in its
+  // default WSL distro (schema requires both platforms when `installer` is set).
   update: {
     installer: {
       posix: {
@@ -371,13 +367,12 @@ export const museDetectionSpec: DetectionSpec = {
         args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
       },
       windows: {
-        binary: "powershell.exe",
+        binary: "wsl.exe",
         args: [
-          "-NoLogo",
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          "Write-Host 'Muse Code is not available on Windows. Install it inside WSL or on macOS/Linux.'",
+          "--exec",
+          "bash",
+          "-lc",
+          "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
         ],
       },
     },

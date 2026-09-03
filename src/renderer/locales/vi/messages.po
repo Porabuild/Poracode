@@ -5385,8 +5385,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Tích hợp Kimi Code CLI hạng nhất bằng cách sử dụng thời gian chạy gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Tích hợp Muse Code CLI hạng nhất bằng cách sử dụng thời gian chạy terminal gốc của Poracode."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Tích hợp Muse Code CLI hạng nhất bằng cách sử dụng thời gian chạy terminal gốc của Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Tích hợp Muse Code hạng nhất bằng thời gian chạy terminal và GUI gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -10668,12 +10672,20 @@ msgstr "Chạy {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Chạy {0} trước khi luồng này có thể chạy."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Chạy {0} trước khi luồng này có thể chạy."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Chạy {loginCommand} để đăng nhập."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Chạy {loginCommand} để đăng nhập."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Chạy {loginCommandDisplay} trước khi luồng này có thể chạy."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Chạy {loginCommandDisplay} để đăng nhập."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

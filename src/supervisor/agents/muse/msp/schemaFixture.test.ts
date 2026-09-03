@@ -28,7 +28,20 @@ describe("MSP schema fixture", () => {
 
   it("declares every method the client uses", () => {
     const schema = loadSchemaFixture();
-    for (const method of ["initialize", "model/list"]) {
+    for (const method of [
+      "approval/decide",
+      "initialize",
+      "model/list",
+      "session/resume",
+      "session/setApprovalMode",
+      "session/setModel",
+      "session/start",
+      "turn/interrupt",
+      "turn/start",
+      "turn/steer",
+      "userInput/answer",
+      "userInput/cancel",
+    ]) {
       expect(
         schema.methods?.[method],
         `schema fixture is missing the ${method} method`,
