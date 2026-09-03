@@ -522,13 +522,12 @@ describe("sharedSettingsFile", () => {
     });
   });
 
-  it("defaults thread dock settings for files written before they existed", () => {
+  it("defaults compact composer and thread dock settings for older files", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeFileSync(
       settingsPath,
       JSON.stringify({
         themeMode: "dark",
-        collapseTerminalComposer: true,
       }),
       "utf8",
     );
@@ -536,7 +535,7 @@ describe("sharedSettingsFile", () => {
     expect(readSharedSettingsFile(settingsPath)).toMatchObject({
       themeMode: "dark",
       collapseTerminalComposer: true,
-      threadDocksPlacement: "composer",
+      threadDocksPlacement: "right",
       threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
     });
   });
