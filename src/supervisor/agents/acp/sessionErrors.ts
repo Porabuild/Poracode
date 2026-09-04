@@ -107,8 +107,8 @@ export function resolveAcpPromptFailureMessage(
   error: unknown,
   agentSurfacedMessage?: string,
 ): string {
-  if (agentSurfacedMessage) return agentSurfacedMessage;
-  return resolveAcpPromptRpcErrorMessage(error);
+  if (agentSurfacedMessage) return withMcpAuthFailureHint(agentSurfacedMessage);
+  return withMcpAuthFailureHint(resolveAcpPromptRpcErrorMessage(error));
 }
 
 /**
@@ -152,6 +152,30 @@ export function resolveAcpPromptRpcErrorMessage(error: unknown): string {
     if (detail) return detail;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * An MCP server rejecting with 401/Unauthorized almost always means the
+ * credentials the agent session holds went stale: Poracode injects MCP
+ * `Authorization` headers once, when the ACP session opens, and generic ACP
+ * sessions have no per-turn refresh — so a long-lived thread keeps the token
+ * copy from session-open time while the settings probe (which always uses a
+ * fresh token) still shows Connected. Name the server when the agent's text
+ * identifies it and tell the user the actual remedy (re-authenticate, then a
+ * new thread), instead of leaving the raw agent error to stand alone.
+ * Provider-agnostic on purpose: any ACP agent fails its turn this way.
+ */
+const MCP_AUTH_FAILURE_RE = /\bMCP\b[^\n]*\b(Unauthorized|401)\b/i;
+const MCP_FAILED_SERVER_RE = /\bMCP load failed for ([^:]+):/i;
+
+export function withMcpAuthFailureHint(message: string): string {
+  if (!MCP_AUTH_FAILURE_RE.test(message)) return message;
+  const server = MCP_FAILED_SERVER_RE.exec(message)?.[1]?.trim();
+  const subject = server ? `MCP server "${server}"` : "An MCP server";
+  return (
+    `${message}\n${subject} rejected its saved sign-in (HTTP 401). ` +
+    "Re-authenticate it in MCP settings and start a new thread — this thread keeps the credentials from when its session opened."
+  );
 }
 
 /**

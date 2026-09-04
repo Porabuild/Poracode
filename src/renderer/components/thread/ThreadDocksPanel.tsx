@@ -5,8 +5,10 @@ import { GripVertical } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { reorderVisibleThreadDocks, type ThreadDockKind } from "@/shared/settings";
+import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore, type ThreadDockFocus } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
@@ -14,6 +16,7 @@ import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
+import { selectThreadGoalDockItem } from "./threadGoalState";
 import {
   useThreadDocksSummary,
   useVisibleThreadGoalDockState,
@@ -21,10 +24,10 @@ import {
 } from "./useThreadDocksSummary";
 
 /**
- * Right-panel "Docks" tab: the thread's informational docks (goal, plan,
- * agents, background tasks) stacked as separate sections in one panel. When
- * those docks stay above the composer, an image bubble can open the panel with
- * just the thread gallery.
+ * Right-panel "Docks" tab: the thread's informational docks and image gallery
+ * stacked as sortable sections in one panel. When the informational docks stay
+ * above the composer, an image bubble can open the panel with just the thread
+ * gallery.
  */
 export function ThreadDocksPanel({
   threadId,
@@ -35,6 +38,7 @@ export function ThreadDocksPanel({
 }) {
   const { t } = useLingui();
   const goalDockState = useVisibleThreadGoalDockState(threadId);
+  const goalDockItem = useAppStore((s) => selectThreadGoalDockItem(s, threadId));
   const todoDockState = useVisibleThreadTodoDockState(threadId);
   const todoDockCollapsed = useThreadTodoDockStore(
     (s) => s.byThreadId[threadId]?.collapsed ?? s.defaultCollapsed,
@@ -71,7 +75,14 @@ export function ThreadDocksPanel({
 
   const content: Record<ThreadDockKind, ReactNode> = {
     goal: goalDockState ? (
-      <ThreadGoalDock threadId={threadId} state={goalDockState} placement="right" />
+      <ThreadGoalDock
+        threadId={threadId}
+        state={goalDockState}
+        placement="right"
+        onDismiss={() => {
+          if (goalDockItem) useThreadGoalDockStore.getState().dismiss(threadId, goalDockItem);
+        }}
+      />
     ) : null,
     plan: todoDockState ? (
       <ThreadTodoDock
@@ -98,15 +109,19 @@ export function ThreadDocksPanel({
       summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
+    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
     goal: t`Goal`,
     plan: t`Plan`,
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
+    images: t`Images`,
   };
   const imageOnly = docksPlacement === "composer" && focus === "images";
-  const visibleOrder = imageOnly ? [] : order.filter((kind) => content[kind] !== null);
+  const visibleOrder = imageOnly
+    ? order.filter((kind) => kind === "images" && content[kind] !== null)
+    : order.filter((kind) => content[kind] !== null);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -127,13 +142,6 @@ export function ThreadDocksPanel({
             </DockSection>
           ))}
         </DragDropProvider>
-        {gallery.length > 0 ? (
-          <div data-dock-kind="images" className="relative scroll-mt-1 pl-4">
-            <div className="min-w-0">
-              <ThreadImagesDock gallery={gallery} />
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );

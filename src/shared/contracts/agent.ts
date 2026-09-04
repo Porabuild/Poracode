@@ -391,6 +391,7 @@ export const agentRuntimeVariantSchema = z.object({
   authUsesProviderLogin: z.boolean(),
   /** Runtime-specific login controls for providers with independently authenticated surfaces. */
   loginCommand: z.string().min(1).optional(),
+  loginCommandDisplay: z.string().min(1).optional(),
   preferTerminalLogin: z.boolean().optional(),
   authMethods: z.array(agentAuthMethodSchema).optional(),
   authLogoutSupported: z.boolean().optional(),
@@ -451,6 +452,8 @@ export const agentStatusSchema = z.object({
     })
     .optional(),
   loginCommand: z.string().min(1).optional(),
+  /** Concise command shown in UI when `loginCommand` is a generated platform wrapper. */
+  loginCommandDisplay: z.string().min(1).optional(),
   /**
    * Prefer the terminal `loginCommand` over agent-owned/browser auth methods
    * in login UIs. Reported by the provider's capabilities probe (e.g. Grok's

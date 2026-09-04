@@ -2869,6 +2869,7 @@ msgstr "Codex"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
 msgstr "折りたたむ"
@@ -2913,6 +2914,10 @@ msgstr "フッターを折りたたむ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
 msgstr "グループを折りたたむ"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse images"
+msgstr "画像を折りたたむ"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -4977,6 +4982,7 @@ msgstr "コード{0}で終了しました。閉じて再試行してください
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
 msgstr "拡大する"
@@ -5009,6 +5015,10 @@ msgstr "フッターを展開する"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
 msgstr "グループを展開"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand images"
+msgstr "画像を展開"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -5410,8 +5420,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Poracode のネイティブ ランタイムを使用したファーストクラスの Kimi Code CLI 統合。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Poracode のネイティブなターミナル ランタイムを使用したファーストクラスの Muse Code CLI 統合。"
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Poracode のネイティブなターミナル ランタイムを使用したファーストクラスの Muse Code CLI 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Poracode のネイティブなターミナルおよび GUI ランタイムを使用したファーストクラスの Muse Code 統合。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -6086,6 +6100,7 @@ msgstr "画像"
 msgid "Image preview"
 msgstr "画像プレビュー"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
@@ -8754,6 +8769,10 @@ msgstr "モデルピッカーを開く"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "OpenCode request failed, retrying..."
+msgstr "OpenCode リクエストが失敗しました、再試行しています..."
+
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
@@ -10687,12 +10706,20 @@ msgstr "{0}を実行"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "このスレッドが実行される前に{0}を実行してください。"
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "このスレッドが実行される前に{0}を実行してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "{loginCommand}を実行してサインインします。"
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "{loginCommand}を実行してサインインします。"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "このスレッドが実行される前に{loginCommandDisplay}を実行してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "{loginCommandDisplay}を実行してサインインします。"
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

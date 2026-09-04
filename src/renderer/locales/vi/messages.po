@@ -2870,6 +2870,7 @@ msgstr "Codex"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
 msgstr "Thu gọn"
@@ -2914,6 +2915,10 @@ msgstr "Thu gọn chân thanh bên"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
 msgstr "Thu gọn nhóm"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse images"
+msgstr "Thu gọn hình ảnh"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -4978,6 +4983,7 @@ msgstr "Đã thoát với mã {0}. Đóng để thử lại."
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
 msgstr "Mở rộng"
@@ -5010,6 +5016,10 @@ msgstr "Mở rộng chân thanh bên"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
 msgstr "Mở rộng nhóm"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand images"
+msgstr "Mở rộng hình ảnh"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -5411,8 +5421,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Tích hợp Kimi Code CLI hạng nhất bằng cách sử dụng thời gian chạy gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Tích hợp Muse Code CLI hạng nhất bằng cách sử dụng thời gian chạy terminal gốc của Poracode."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Tích hợp Muse Code CLI hạng nhất bằng cách sử dụng thời gian chạy terminal gốc của Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Tích hợp Muse Code hạng nhất bằng thời gian chạy terminal và GUI gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -6087,6 +6101,7 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
@@ -8756,6 +8771,10 @@ msgstr "Mở bộ chọn mô hình"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "OpenCode request failed, retrying..."
+msgstr "Yêu cầu OpenCode thất bại, đang thử lại..."
+
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
@@ -10689,12 +10708,20 @@ msgstr "Chạy {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Chạy {0} trước khi luồng này có thể chạy."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Chạy {0} trước khi luồng này có thể chạy."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Chạy {loginCommand} để đăng nhập."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Chạy {loginCommand} để đăng nhập."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Chạy {loginCommandDisplay} trước khi luồng này có thể chạy."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Chạy {loginCommandDisplay} để đăng nhập."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

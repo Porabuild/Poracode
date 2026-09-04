@@ -122,16 +122,16 @@ function mapStatusUpdate(properties: { sessionID: string; status: { type: string
   status: ThreadStatus;
   attention: ThreadAttention;
 } {
-  // Note: the `retry` status carries `{ attempt, message, action }` with a
-  // provider link, but thread updates have no field for it — retry remains a
-  // working state and detail stays in the transcript's error/retry rows.
   switch (properties.status.type) {
     case "busy":
+    case "retry":
+      // Note: the `retry` status carries `{ attempt, message, action }`, but
+      // thread updates have no clearable field for it — retry detail stays in
+      // the transcript's error rows (canonical mapper) so a stale message can
+      // never persist on the thread after recovery.
       return { status: "working", attention: "working" };
     case "idle":
       return { status: "idle", attention: "none" };
-    case "retry":
-      return { status: "working", attention: "working" };
     default:
       return { status: "idle", attention: "none" };
   }
@@ -317,6 +317,14 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
     this.currentConfig = config;
+
+    // Reset the retry-dedup key synchronously at turn entry (before any
+    // await): the SSE stream runs concurrently with `promptAsync`, so a new
+    // turn's first retry arriving mid-flight must not match the previous
+    // turn's stale key and be silently dropped.
+    if (this.mapperState) {
+      this.mapperState.lastEmittedRetryKey = undefined;
+    }
 
     // Hand the runtime's optimistic user_message id to the mapper so the
     // SDK-side `message.updated` (role=user) reuses it instead of minting a
@@ -879,6 +887,10 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ...this.sessionRefUpdate(),
       });
       if (upd.status === "idle") this.emitTurnCompletedIfActive();
+      if (this.mapperState) {
+        const canonical = mapOpenCodeEvent(event, this.mapperState);
+        if (canonical.length > 0) this.emitRuntimeEvents(canonical);
+      }
       return;
     }
 
@@ -887,6 +899,12 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ...(this.pendingRequestStatus() ?? { status: "idle", attention: "none" }),
         ...this.sessionRefUpdate(),
       });
+      // `session.idle` is the normal turn-settling signal (distinct from
+      // `session.status` idle) — clear here too so the next turn's identical
+      // retry is not suppressed by a stale dedup key.
+      if (this.mapperState) {
+        this.mapperState.lastEmittedRetryKey = undefined;
+      }
       this.emitTurnCompletedIfActive();
       return;
     }

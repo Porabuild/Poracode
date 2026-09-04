@@ -2870,6 +2870,7 @@ msgstr "Codex"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
 msgstr "Recolher"
@@ -2914,6 +2915,10 @@ msgstr "Recolher rodapé"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
 msgstr "Recolher grupo"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse images"
+msgstr "Recolher imagens"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -4978,6 +4983,7 @@ msgstr "Saiu com o código {0}. Feche para tentar novamente."
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
 msgstr "Expandir"
@@ -5010,6 +5016,10 @@ msgstr "Expandir rodapé"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
 msgstr "Expandir grupo"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand images"
+msgstr "Expandir imagens"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -5411,8 +5421,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Integração Kimi Code CLI de primeira classe usando o tempo de execução nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Integração Muse Code CLI de primeira classe usando o tempo de execução de terminal nativo do Poracode."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Integração Muse Code CLI de primeira classe usando o tempo de execução de terminal nativo do Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Integração de primeira classe do Muse Code usando os runtimes nativos de terminal e GUI do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -6087,6 +6101,7 @@ msgstr "Imagem"
 msgid "Image preview"
 msgstr "Visualização da imagem"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
@@ -8756,6 +8771,10 @@ msgstr "Abra o seletor de modelo"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "OpenCode request failed, retrying..."
+msgstr "A solicitação do OpenCode falhou, tentando novamente..."
+
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
@@ -10689,12 +10708,20 @@ msgstr "Executar {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Execute {0} antes que este thread possa ser executado."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Execute {0} antes que este thread possa ser executado."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Execute {loginCommand} para fazer login."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Execute {loginCommand} para fazer login."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Execute {loginCommandDisplay} antes que este thread possa ser executado."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Execute {loginCommandDisplay} para fazer login."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx

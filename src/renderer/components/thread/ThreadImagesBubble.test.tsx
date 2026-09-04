@@ -5,23 +5,26 @@ import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import {
   closeImageLightbox,
   ImageLightboxHost,
 } from "@/renderer/components/composer/ImageLightbox";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
+import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { getThreadGalleryImages } from "./useThreadGalleryImages";
 
 const defaultLocalImageUrl = useRemoteServersStore.getState().localImageUrl;
 
-vi.mock("@heroui/react", () => {
+vi.mock("@heroui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heroui/react")>();
   const Tooltip = Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
     Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
     Content: (props: { children: ReactNode }) => <div role="tooltip">{props.children}</div>,
   });
-  return { Tooltip };
+  return { ...actual, Tooltip };
 });
 
 function seedThreadWithImages(threadId: string) {
@@ -259,6 +262,27 @@ describe("ThreadImagesBubble", () => {
 
     expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
   });
+
+  it("follows the persisted dock order beside informational bubbles", () => {
+    seedThreadWithImages("t-gallery");
+    useSharedSettings.setState({
+      threadDocksOrder: ["images", "backgroundTasks", "goal", "plan", "agents"],
+    });
+    const { container } = render(
+      <ThreadDockBubbles
+        threadId="t-gallery"
+        summary={{ goal: null, plan: null, agentCount: 0, backgroundTaskCount: 1 }}
+      />,
+    );
+
+    expect(
+      [...container.querySelectorAll("button")].map((button) =>
+        button.hasAttribute("data-images-bubble")
+          ? "images"
+          : button.getAttribute("data-dock-bubble"),
+      ),
+    ).toEqual(["images", "backgroundTasks"]);
+  });
 });
 
 describe("ThreadImagesDock", () => {
@@ -299,10 +323,40 @@ describe("ThreadImagesDock", () => {
     expect(imgs.length).toBe(4);
     for (const img of imgs) {
       expect(img.getAttribute("decoding")).toBe("async");
+      expect(img).toHaveClass("rounded-[inherit]", "[image-rendering:auto]");
+      expect(img.className).not.toContain("group-hover:scale");
     }
+    expect(tiles[0]).toHaveClass("rounded-3xl");
+    expect(tiles[0]!.querySelector("span[aria-hidden='true']")).toHaveClass(
+      "group-hover:bg-foreground/10",
+    );
     fireEvent.click(tiles[2]!);
     expect(document.querySelector(".poracode-image-lightbox")).not.toBeNull();
     expect(document.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("3 / 4");
+  });
+
+  it("collapses and expands the image mosaic from its header", () => {
+    seedThreadWithImages("t-gallery");
+    render(<ThreadImagesDock gallery={getThreadGalleryImages("t-gallery")} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
+    expect(screen.queryByRole("button", { name: /Open image \d+ of 4/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand images" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
+    expect(screen.getAllByRole("button", { name: /Open image \d+ of 4/ })).toHaveLength(4);
+  });
+
+  it("preserves existing thumbnail elements when a newer image arrives", () => {
+    const first = { src: "data:image/png;base64,AAA", alt: "first" };
+    const second = { src: "data:image/png;base64,BBB", alt: "second" };
+    const newer = { src: "data:image/png;base64,CCC", alt: "newer" };
+    const { container, rerender } = render(<ThreadImagesDock gallery={[first, second]} />);
+    const firstElement = container.querySelector('img[alt="first"]');
+
+    rerender(<ThreadImagesDock gallery={[newer, first, second]} />);
+
+    expect(container.querySelector('img[alt="first"]')).toBe(firstElement);
   });
 
   it("stays hidden when the thread holds no image", () => {

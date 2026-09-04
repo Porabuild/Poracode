@@ -2,11 +2,13 @@ import type { AgentCapability } from "@/shared/contracts";
 import {
   buildAgentLogoutCommand,
   detectAgentInstall,
+  type CreateStructuredSessionInput,
   type AgentAdapter,
   inheritBaseSpawnEnv,
 } from "../base";
 import { buildMuseArgs, buildMuseResumeArgs } from "./argv";
 import { MUSE_DEFAULT_MODEL_ID, museDefaultCapabilities, museDetectionSpec } from "./detection";
+import { MuseMspStructuredSession } from "./msp/session";
 import { formatMusePromptSegments } from "./prompt";
 import {
   makeMuseDiscoverSessionRef,
@@ -19,12 +21,8 @@ import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./termina
 // Docs: https://dev.meta.ai/docs/muse-code
 // Install: curl -fsSL https://dev.meta.ai/install.sh | bash
 //
-// Terminal-only: interactive TUI via PTY. 1.0.2 ships an MSP session host
-// (`muse serve` over stdio, schema via `muse schema`) with a `model/list`
-// catalog — the future structured-session and dynamic-model avenue. The MSP
-// transport/client/probe live in `muse/msp/`; no structured-session
-// integration (session factory) exists yet, so GUI presentation stays
-// deferred until one is built.
+// Terminal uses the interactive TUI via PTY; GUI uses Muse Session Protocol
+// (`muse serve` over stdio) through the provider-local structured session.
 
 export function createMuseAdapter(): AgentAdapter {
   let capabilities: AgentCapability = museDefaultCapabilities;
@@ -33,6 +31,7 @@ export function createMuseAdapter(): AgentAdapter {
     kind: museDetectionSpec.kind,
     label: museDetectionSpec.label,
     binary: museDetectionSpec.binary,
+    windowsProjectExecution: "wsl",
     // Surface the update spec on the adapter so the shared updater and the
     // Settings registry card can read `adapter.update` (not just status).
     ...(museDetectionSpec.update ? { update: museDetectionSpec.update } : {}),
@@ -75,6 +74,11 @@ export function createMuseAdapter(): AgentAdapter {
       return undefined;
     },
 
+    async createStructuredSession(input: CreateStructuredSessionInput) {
+      if (input.presentationMode !== "gui") return undefined;
+      return MuseMspStructuredSession.create(input);
+    },
+
     // Muse writes the date-sharded session dir shortly after launch; poll a
     // beat afterward and rely on watchSessionRef to catch creation.
     initialSessionRefDiscoveryDelayMs: 1000,
@@ -84,7 +88,7 @@ export function createMuseAdapter(): AgentAdapter {
     buildDirectInput(prompt) {
       // The TUI treats bulk writes as paste, so an embedded `\r` becomes a
       // literal newline. Pause briefly between text and Enter (kimi-style).
-      return [prompt, "@wait:200", "\r"];
+      return [prompt, "@wait:200", "\x1b[13;1u"];
     },
 
     // `muse resume <uuid>` accepts no positional prompt. Always hand the first

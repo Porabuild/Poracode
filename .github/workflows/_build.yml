@@ -44,6 +44,9 @@ env:
 
 jobs:
   build:
+    # Pinned off macos-latest (macos-26): image 20260831.0337 breaks
+    # electron-builder 26 code signing (`security set-key-partition-list`
+    # fails with SecKeychainUnlock). Stay on macos-15 until upstream fixes it.
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +61,7 @@ jobs:
             platform: linux
             rust-targets: x86_64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
-          - os: macos-latest
+          - os: macos-15
             artifact: dist-mac
             platform: mac
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
@@ -146,7 +149,7 @@ jobs:
         shell: bash
 
       - name: Upload Sentry source maps
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.platform == 'linux'
         run: |
           # Local `pnpm run dist` cleans source maps before packaging. Release CI
           # uploads them from the build output first, then removes them below.
@@ -176,7 +179,7 @@ jobs:
         shell: bash
 
       - name: Package Windows/Linux
-        if: matrix.os != 'macos-latest'
+        if: matrix.platform != 'mac'
         run: |
           pnpm run prepare:package-assets
           node scripts/build-desktop-artifact.mjs --platform "${{ matrix.platform }}" --skip-build
@@ -187,7 +190,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Package macOS
-        if: matrix.os == 'macos-latest'
+        if: matrix.platform == 'mac'
         run: |
           pnpm run prepare:package-assets
           node scripts/build-desktop-artifact.mjs --platform mac --skip-build
@@ -203,18 +206,34 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Verify macOS app bundle
-        if: matrix.os == 'macos-latest'
+      - name: Verify macOS app bundles and updater ZIPs
+        if: matrix.platform == 'mac'
         run: |
           set -euo pipefail
           shopt -s nullglob
-          apps=(release/mac*/Poracode*.app)
-          if [ "${#apps[@]}" -eq 0 ]; then
-            echo "::error::No packaged macOS app bundles found under release/mac*."
+
+          if [ -z "${APPLE_TEAM_ID:-}" ]; then
+            echo "::error::APPLE_TEAM_ID is required to verify macOS release signatures."
             exit 1
           fi
-          for app in "${apps[@]}"; do
+
+          verify_app() {
+            local app="$1"
+            local signature
+            local helper
+            local helper_signature
+
             codesign --verify --deep --strict --verbose=4 "$app"
+            signature="$(codesign --display --verbose=4 "$app" 2>&1)"
+            if ! grep -q '^Authority=Developer ID Application:' <<<"$signature"; then
+              echo "::error file=$app::$app is not signed with a Developer ID Application certificate."
+              exit 1
+            fi
+            if ! grep -q "^TeamIdentifier=${APPLE_TEAM_ID}$" <<<"$signature"; then
+              echo "::error file=$app::$app is not signed by the expected Apple team."
+              exit 1
+            fi
+
             helper="$app/Contents/Resources/computer-use-helper/darwin-universal/poracode-computer-use"
             codesign --verify --strict --verbose=4 "$helper"
             helper_signature="$(codesign -d --verbose=4 "$helper" 2>&1)"
@@ -222,6 +241,7 @@ jobs:
               echo "::error file=$helper::Computer-use helper is missing the hardened-runtime signature flag."
               exit 1
             fi
+
             main_executable="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
             expected_arch="$(lipo -archs "$main_executable")"
             if [[ "$expected_arch" == *arm64* ]]; then
@@ -233,8 +253,43 @@ jobs:
                 fi
               done < <(find "$app" -type f -print0)
             fi
+          }
+
+          apps=(release/mac*/Poracode*.app)
+          if [ "${#apps[@]}" -eq 0 ]; then
+            echo "::error::No branded macOS app bundles found under release/mac*."
+            exit 1
+          fi
+          for app in "${apps[@]}"; do
+            verify_app "$app"
+          done
+
+          zips=(release/Poracode-*.zip)
+          if [ "${#zips[@]}" -eq 2 ]; then
+            :
+          else
+            echo "::error::Expected one updater ZIP per macOS architecture, found ${#zips[@]}."
+            exit 1
+          fi
+
+          verify_root="$(mktemp -d "${RUNNER_TEMP}/poracode-update-verify.XXXXXX")"
+          trap 'rm -rf "$verify_root"' EXIT
+          zip_index=0
+          for zip in "${zips[@]}"; do
+            zip_index=$((zip_index + 1))
+            extract_dir="$verify_root/$zip_index"
+            mkdir -p "$extract_dir"
+            ditto -x -k "$zip" "$extract_dir"
+            zip_apps=("$extract_dir"/*.app)
+            if [ "${#zip_apps[@]}" -ne 1 ]; then
+              echo "::error file=$zip::Expected exactly one app bundle in updater ZIP, found ${#zip_apps[@]}."
+              exit 1
+            fi
+            verify_app "${zip_apps[0]}"
           done
         shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload built artifacts
         uses: actions/upload-artifact@v7

@@ -112,4 +112,39 @@ describe("formatWindowValue / formatWindowSecondaryValue", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("keeps percent primary for credit windows", () => {
+    expect(
+      formatWindowValue({
+        id: "monthly",
+        label: "Credits",
+        usedPercent: 12.8,
+        unit: "credits",
+        used: 766,
+        limit: 6000,
+      }),
+    ).toBe("13%");
+  });
+
+  it("puts credit counts in the muted secondary label", () => {
+    expect(
+      formatWindowSecondaryValue({
+        id: "monthly",
+        label: "Credits",
+        usedPercent: 12.8,
+        unit: "credits",
+        used: 766,
+        limit: 6000,
+      }),
+    ).toBe("766 / 6,000");
+    expect(
+      formatWindowSecondaryValue({
+        id: "monthly",
+        label: "Credits",
+        usedPercent: 5,
+        unit: "credits",
+        used: 300,
+      }),
+    ).toBe("300");
+  });
 });

@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import "./codex";
 import "./cursor";
+import "./muse";
 import {
   resolveAvailableSlashCommands,
   resolveLocalSlashCommandAction,
@@ -32,6 +33,18 @@ describe("provider slash-command registry", () => {
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: true }).map(({ id }) => id),
     ).toEqual(["model", "plan", "agent", "effort", "fast"]);
+  });
+
+  it("builds Muse commands without unsupported plan or goal modes", () => {
+    const registration = getGuiSlashCommands("muse");
+
+    expect(registration).toBeDefined();
+    expect(
+      registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
+    ).toEqual(["model"]);
+    expect(
+      registration?.buildCommands({ hasEffort: true, supportsFast: false }).map(({ id }) => id),
+    ).toEqual(["model", "effort"]);
   });
 
   it("offers Cursor local commands only under the SDK runtime", () => {
@@ -76,5 +89,16 @@ describe("provider slash-command registry", () => {
   ])("resolves local action %s", (typed, expected) => {
     expect(getGuiSlashCommands("codex")?.resolveLocalAction(typed)).toEqual(expected);
     expect(getGuiSlashCommands("cursor")?.resolveLocalAction(typed)).toEqual(expected);
+  });
+
+  it.each([
+    [" /MODEL ", { kind: "open-control", target: "model" }],
+    ["/effort", { kind: "open-control", target: "effort" }],
+    ["/fast", null],
+    ["/plan", null],
+    ["/agent", null],
+    ["/goal", null],
+  ])("resolves Muse local action %s", (typed, expected) => {
+    expect(getGuiSlashCommands("muse")?.resolveLocalAction(typed)).toEqual(expected);
   });
 });

@@ -46,6 +46,7 @@ import {
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
+import { effectiveProjectLocation } from "./sessionTypes";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
 import { rewriteSegmentsForWorkspace, rewriteSegmentsForWsl } from "./threadAttachments";
 
@@ -343,17 +344,18 @@ export class ThreadSessionManager {
     | undefined {
     const session = this.sessions.get(threadId);
     if (!session) return undefined;
+    const projectLocation = effectiveProjectLocation(session);
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
     const effectiveConfig = workspaceLaunchConfig(
-      session.projectLocation,
+      projectLocation,
       session.config,
       session.adapter,
       disabledIds,
       session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
     return {
-      projectLocation: session.projectLocation,
+      projectLocation,
       config: effectiveConfig,
       mcpLaunchSnapshot: session.mcpLaunchSnapshot,
     };
@@ -364,6 +366,7 @@ export class ThreadSessionManager {
     threadId: string,
     identity: McpThreadIdentity,
     targetAgentKind: AgentKind,
+    projectLocation: ProjectLocation,
   ): Promise<{ mcpServers?: ResolvedMcpServer[] }> {
     const session = this.sessions.get(threadId);
     if (!session) return {};
@@ -371,14 +374,15 @@ export class ThreadSessionManager {
     if (!targetAdapter) return {};
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
     const launchConfig = workspaceLaunchConfig(
-      session.projectLocation,
+      projectLocation,
       session.config,
       targetAdapter,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+      effectiveProjectLocation(session),
     );
     const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
-      location: session.projectLocation,
+      location: projectLocation,
       config: launchConfig,
       mcpLaunchSnapshot,
       identity,
@@ -416,6 +420,7 @@ export class ThreadSessionManager {
                 session.adapter,
                 session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
                 session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+                effectiveProjectLocation(session),
               ),
               session.mcpLaunchSnapshot,
               session.adapter,
@@ -602,7 +607,7 @@ export class ThreadSessionManager {
         ? { ...payload.config, mode: undefined }
         : payload.config;
     const effectiveConfig = applyHomeScopePermissions(
-      session.projectLocation,
+      effectiveProjectLocation(session),
       turnConfig,
       session.adapter.capabilities,
     );

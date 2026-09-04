@@ -133,7 +133,7 @@ describe("sharedSettingsFile", () => {
       agentInstances: {},
       collapseTerminalComposer: false,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       cliPickerTarget: "ask",
       staleThreadUnloadMinutes: 20,
       autoArchiveDoneAfterDays: 7,
@@ -277,7 +277,7 @@ describe("sharedSettingsFile", () => {
       agentInstances: {},
       collapseTerminalComposer: false,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       cliPickerTarget: "ask",
       staleThreadUnloadMinutes: 20,
       autoArchiveDoneAfterDays: 7,
@@ -522,13 +522,12 @@ describe("sharedSettingsFile", () => {
     });
   });
 
-  it("defaults thread dock settings for files written before they existed", () => {
+  it("defaults compact composer and thread dock settings for older files", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeFileSync(
       settingsPath,
       JSON.stringify({
         themeMode: "dark",
-        collapseTerminalComposer: true,
       }),
       "utf8",
     );
@@ -536,8 +535,8 @@ describe("sharedSettingsFile", () => {
     expect(readSharedSettingsFile(settingsPath)).toMatchObject({
       themeMode: "dark",
       collapseTerminalComposer: true,
-      threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksPlacement: "right",
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
     });
   });
 

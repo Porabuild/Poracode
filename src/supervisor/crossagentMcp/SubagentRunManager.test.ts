@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentCapability,
   ProjectLocation,
@@ -20,6 +20,27 @@ import {
 } from "./SubagentRunManager";
 import { parseWaitOptions } from "./toolResult";
 import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
+
+const resolveAgentProjectLocation = vi.hoisted(() =>
+  vi.fn<
+    (
+      adapter: AgentAdapter,
+      location: ProjectLocation,
+      executionEnvironment?: ThreadConfig["executionEnvironment"],
+    ) => Promise<ProjectLocation>
+  >(
+    async (
+      _adapter: AgentAdapter,
+      location: ProjectLocation,
+      _executionEnvironment?: ThreadConfig["executionEnvironment"],
+    ) => location,
+  ),
+);
+
+vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/supervisor/agents/base")>()),
+  resolveAgentProjectLocation,
+}));
 
 const PARENT = "parent";
 const PROJECT: ProjectLocation = { kind: "posix", path: "/tmp/project" };
@@ -79,6 +100,7 @@ interface Harness {
   inputs: CreateStructuredSessionInput[];
   appended: Array<{ threadId: string; event: RuntimeEvent }>;
   mcpTargets: string[];
+  mcpLocations: ProjectLocation[];
   releaseCreate: () => void;
 }
 
@@ -92,11 +114,15 @@ function makeHarness(options?: {
   deferCreate?: boolean;
   interruptError?: string;
   baseSpawnEnv?: Record<string, string>;
+  projectLocation?: ProjectLocation;
+  executionEnvironment?: ThreadConfig["executionEnvironment"];
+  windowsProjectExecution?: AgentAdapter["windowsProjectExecution"];
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
   const appended: Array<{ threadId: string; event: RuntimeEvent }> = [];
   const mcpTargets: string[] = [];
+  const mcpLocations: ProjectLocation[] = [];
   let createFailures = options?.createFailures ?? 0;
   let releaseCreate!: () => void;
   const createGate = new Promise<void>((resolve) => {
@@ -106,6 +132,9 @@ function makeHarness(options?: {
   const adapter = {
     kind: "codex",
     label: options?.providerLabel ?? "Codex",
+    ...(options?.windowsProjectExecution
+      ? { windowsProjectExecution: options.windowsProjectExecution }
+      : {}),
     ...(options?.baseSpawnEnv ? { baseSpawnEnv: options.baseSpawnEnv } : {}),
     capabilities: {
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
@@ -142,9 +171,12 @@ function makeHarness(options?: {
     getParentContext: (threadId) =>
       threadId === PARENT
         ? {
-            projectLocation: PROJECT,
+            projectLocation: options?.projectLocation ?? PROJECT,
             config: {
               model: "parent-model",
+              ...(options?.executionEnvironment
+                ? { executionEnvironment: options.executionEnvironment }
+                : {}),
               approvalPolicy: "never",
               sandboxMode: "workspace-write",
               browserMcp: true,
@@ -154,8 +186,9 @@ function makeHarness(options?: {
             },
           }
         : undefined,
-    resolveParentMcpAccess: async (_threadId, _identity, targetAgentKind) => {
+    resolveParentMcpAccess: async (_threadId, _identity, targetAgentKind, projectLocation) => {
       mcpTargets.push(targetAgentKind);
+      mcpLocations.push(projectLocation);
       return {
         mcpServers: ["browser", "computer_use", "chrome"].map((name) => ({
           id: name,
@@ -179,8 +212,12 @@ function makeHarness(options?: {
     ...(hasStatusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
     host,
   });
-  return { manager, handles, inputs, appended, mcpTargets, releaseCreate };
+  return { manager, handles, inputs, appended, mcpTargets, mcpLocations, releaseCreate };
 }
+
+beforeEach(() => {
+  resolveAgentProjectLocation.mockImplementation(async (_adapter, location) => location);
+});
 
 describe("SubagentRunManager", () => {
   it("uses a provider's declared unrestricted posture", () => {
@@ -1090,6 +1127,33 @@ describe("SubagentRunManager", () => {
         expect.objectContaining({ name: "chrome" }),
       ]),
     );
+  });
+
+  it("uses the target provider's resolved WSL location for launch and MCP setup", async () => {
+    const windowsProject: ProjectLocation = { kind: "windows", path: "C:\\work\\project" };
+    const wslProject: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu-24.04",
+      linuxPath: "/mnt/c/work/project",
+      uncPath: "\\\\wsl.localhost\\Ubuntu-24.04\\mnt\\c\\work\\project",
+    };
+    resolveAgentProjectLocation.mockResolvedValueOnce(wslProject);
+    const h = makeHarness({
+      projectLocation: windowsProject,
+      executionEnvironment: { kind: "wsl", distro: "Ubuntu-24.04" },
+      windowsProjectExecution: "wsl",
+    });
+
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(resolveAgentProjectLocation).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "codex" }),
+      windowsProject,
+      { kind: "wsl", distro: "Ubuntu-24.04" },
+    );
+    expect(h.inputs[0]!.projectLocation).toEqual(wslProject);
+    expect(h.mcpLocations).toEqual([wslProject]);
   });
 
   it("rejects selections that are not advertised by the structured composer surface", () => {

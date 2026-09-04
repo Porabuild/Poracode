@@ -112,6 +112,7 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
       x.acpSessionEstablished === b[i]!.acpSessionEstablished &&
       areAgentPresentationRuntimeFieldsEqual(x, b[i]!) &&
       x.loginCommand === b[i]!.loginCommand &&
+      x.loginCommandDisplay === b[i]!.loginCommandDisplay &&
       x.envKind === b[i]!.envKind &&
       x.envDistro === b[i]!.envDistro &&
       JSON.stringify(x.authMethods ?? []) === JSON.stringify(b[i]!.authMethods ?? []) &&
@@ -263,9 +264,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 19,
-      // v19 mirrors supervisor STATUS_CACHE_VERSION=22: Muse now reports
-      // authLogoutSupported so the Settings logout action appears.
+      version: 20,
+      // v20 mirrors supervisor STATUS_CACHE_VERSION=23: Muse now runs native
+      // Windows projects in WSL and advertises its MSP-backed GUI presentation.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
