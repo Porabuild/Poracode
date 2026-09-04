@@ -42,6 +42,16 @@ interface GitHubAccessTokenResponse {
   error?: string;
 }
 
+/** Read one search param from a captured login URL, if present. */
+function readUrlParam(url: string | undefined, param: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).searchParams.get(param) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class UsageLoginManager {
   private readonly inFlight = new Map<string, Promise<UsageLoginResult>>();
   private readonly deviceLoginCancel = new Map<string, () => void>();
@@ -156,6 +166,7 @@ export class UsageLoginManager {
       timeoutMs: LOGIN_TIMEOUT_MS,
       providerLabel: usageProviderLabel(providerId),
       ...(config.validateSession ? { validateSession: config.validateSession } : {}),
+      ...(config.validateTabUrl ? { validateTabUrl: config.validateTabUrl } : {}),
     });
     if (!result.ok || !result.cookie) {
       return {
@@ -165,6 +176,10 @@ export class UsageLoginManager {
       };
     }
     setUsageSecret(this.paths.cacheDir, providerId, "cookie", result.cookie);
+    for (const { param, secretKey } of config.captureUrlParams ?? []) {
+      const value = readUrlParam(result.url, param);
+      if (value) setUsageSecret(this.paths.cacheDir, providerId, secretKey, value);
+    }
     return { ok: true };
   }
 

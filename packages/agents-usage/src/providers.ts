@@ -111,7 +111,7 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * source of truth for the renderer's provider list and the supervisor's default
  * collection set so the two never drift.
  *
- * Most providers are HTTP collectors registered in `registry.ts`. A couple are
+ * Most providers are HTTP collectors registered in `registry.ts`. Several are
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
  * `antigravity` prefers its local language server and falls back to Cloud Code

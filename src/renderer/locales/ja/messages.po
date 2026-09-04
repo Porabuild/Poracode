@@ -326,7 +326,7 @@ msgid "{0} threads"
 msgstr "{0} 件のスレッド"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "{0} tokens"
 msgstr "{0}トークン"
 
@@ -696,7 +696,7 @@ msgid "<0>{passed}</0> of {0} checks passed"
 msgstr "<0>{passed}</0> 件の{0}チェックに合格しました"
 
 #. placeholder {0}: snapshot.cost.period
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens}·{0}· 推定。"
 

@@ -51,7 +51,7 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.14.0";
+const BRIDGE_VERSION = "2.15.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -360,6 +360,84 @@ function statHandler(req, body) {
   return { status: 200, data: { stats: results } };
 }
 
+function findEntryOlder(a, b) {
+  if (a.mtimeMs !== b.mtimeMs) return a.mtimeMs < b.mtimeMs;
+  return a.path < b.path;
+}
+
+function retainNewestFindEntry(heap, entry, limit) {
+  if (heap.length < limit) {
+    heap.push(entry);
+    let index = heap.length - 1;
+    while (index > 0) {
+      const parent = Math.floor((index - 1) / 2);
+      if (!findEntryOlder(heap[index], heap[parent])) break;
+      [heap[index], heap[parent]] = [heap[parent], heap[index]];
+      index = parent;
+    }
+    return;
+  }
+
+  const oldest = heap[0];
+  if (!oldest || !findEntryOlder(oldest, entry)) return;
+  heap[0] = entry;
+  let index = 0;
+  while (true) {
+    const left = index * 2 + 1;
+    const right = left + 1;
+    let oldestIndex = index;
+    if (left < heap.length && findEntryOlder(heap[left], heap[oldestIndex])) {
+      oldestIndex = left;
+    }
+    if (right < heap.length && findEntryOlder(heap[right], heap[oldestIndex])) {
+      oldestIndex = right;
+    }
+    if (oldestIndex === index) break;
+    [heap[index], heap[oldestIndex]] = [heap[oldestIndex], heap[index]];
+    index = oldestIndex;
+  }
+}
+
+function findNewestHandler(root, ignore, maxEntries, fileName) {
+  const newest = [];
+  const stack = [root];
+  let matched = 0;
+
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    let dirents;
+    try {
+      dirents = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const d of dirents) {
+      if (ignore.has(d.name)) continue;
+      const full = `${dir}/${d.name}`;
+      const rel = full.slice(root.length).replace(/^\/+/, "");
+      if (d.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!d.isFile() || (fileName && d.name !== fileName)) continue;
+      let mtimeMs;
+      try {
+        mtimeMs = statSync(full).mtimeMs;
+      } catch {
+        continue;
+      }
+      matched += 1;
+      retainNewestFindEntry(newest, { path: rel, name: d.name, type: "file", mtimeMs }, maxEntries);
+    }
+  }
+
+  newest.sort((a, b) => {
+    if (a.mtimeMs !== b.mtimeMs) return b.mtimeMs - a.mtimeMs;
+    return b.path.localeCompare(a.path);
+  });
+  return { entries: newest, truncated: matched > maxEntries };
+}
+
 function findHandler(req, body) {
   const root = resolveSafePath(body.projectRoot, body.root ?? body.projectRoot);
   if (!root) return { status: 400, code: "ESCAPE", message: "root escapes projectRoot" };
@@ -368,6 +446,11 @@ function findHandler(req, body) {
     typeof body.maxEntries === "number" && body.maxEntries > 0 ? body.maxEntries : MAX_FIND_ENTRIES,
     MAX_FIND_ENTRIES,
   );
+  const fileName =
+    typeof body.fileName === "string" && body.fileName.length > 0 ? body.fileName : null;
+  if (body.newestFirst === true) {
+    return { status: 200, data: findNewestHandler(root, ignore, maxEntries, fileName) };
+  }
 
   const entries = [];
   const stack = [root];
@@ -394,7 +477,7 @@ function findHandler(req, body) {
         stack.push(full);
         continue;
       }
-      if (d.isFile()) {
+      if (d.isFile() && (!fileName || d.name === fileName)) {
         entries.push({ path: rel, name: d.name, type: "file" });
         if (entries.length >= maxEntries) {
           truncated = true;

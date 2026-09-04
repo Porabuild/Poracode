@@ -28,6 +28,10 @@ export interface CookieLoginConfig {
    * reporting "Found a signed-in session".
    */
   validateSession?: (cookieHeader: string) => Promise<boolean>;
+  /** Replace the cookie-name candidate gate with a predicate on the login tab's URL. */
+  validateTabUrl?: (url: string) => boolean;
+  /** Map selected login URL search parameters to their stored secret keys. */
+  captureUrlParams?: readonly { param: string; secretKey: string }[];
 }
 
 export interface GitHubDeviceLoginConfig {

@@ -16,6 +16,7 @@ import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
+import { UsageCostLine } from "./UsageCostLine";
 import { UsageOverflowChip } from "./UsageOverflowChip";
 import { PaceLine } from "./UsageWindowBars";
 import {
@@ -132,6 +133,10 @@ function UsageTooltipBody(props: {
             );
           })}
         </div>
+      ) : snapshot?.status === "ok" && snapshot.cost ? (
+        // Providers that meter spend instead of quota windows (no `windowIds`)
+        // would otherwise render an empty tooltip body.
+        <UsageCostLine snapshot={snapshot} className="text-muted" />
       ) : (
         <div className="text-muted">{message ? t(message) : null}</div>
       )}

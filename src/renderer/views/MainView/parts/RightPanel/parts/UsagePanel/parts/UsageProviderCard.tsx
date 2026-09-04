@@ -6,10 +6,9 @@ import { usageWindowDisplayLabel } from "@poracode/agents-usage/formatters";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
+import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
 import {
   formatCreditBalance,
-  formatMoney,
-  formatTokens,
   formatWindowValue,
   hasDisplayableCredits,
   sharedWindowResetLabel,
@@ -216,7 +215,7 @@ export function UsageProviderCard(props: {
               {credits ? (
                 <UsageCreditsRow credits={credits} showSeparator={snapshot.windows.length > 0} />
               ) : null}
-              <UsageProviderMeta snapshot={snapshot} />
+              <UsageCostLine snapshot={snapshot} />
             </>
           ) : (
             <div className="space-y-2">
@@ -279,18 +278,4 @@ function UsageCreditsRow(props: {
       </span>
     </div>
   );
-}
-
-function UsageProviderMeta(props: { snapshot: UsageSnapshot }) {
-  const { t } = useLingui();
-  const { snapshot } = props;
-  if (!snapshot.cost) return null;
-
-  const tokens = snapshot.tokens?.total
-    ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
-    : "";
-  const money = formatMoney(snapshot.cost.amount, snapshot.cost.currency);
-  const line = t`~${money}${tokens} · ${snapshot.cost.period} · est.`;
-
-  return <p className="truncate text-[11px] text-muted">{line}</p>;
 }
