@@ -1,24 +1,51 @@
+import { readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
 import type { ProjectLocation, ScanSkillsPayload, SkillEntry } from "@/shared/contracts";
 import { requireProject, type AppControlsToolContext, type ToolDomain } from "./types";
 
-const listArgsSchema = z.object({ projectId: z.string().min(1).optional() });
+const listArgsSchema = z.object({
+  projectId: z.string().min(1).optional(),
+  query: z.string().trim().min(1).optional(),
+});
+const readArgsSchema = z.object({
+  skillId: z.string().min(1),
+  projectId: z.string().min(1).optional(),
+});
 const setEnabledArgsSchema = z.object({
   absolutePath: z.string().min(1),
   enabled: z.boolean(),
   projectId: z.string().min(1).optional(),
 });
+const MAX_READ_SKILL_BYTES = 1024 * 1024;
 
 export const skillTools: ToolDomain = {
   specs: [
     {
       name: "list_skills",
       description:
-        "List installed agent skills. Returns global skills always; pass projectId to also include that project's project-scoped skills. Read-only.",
+        "List installed agent skills. Pass query to filter by name, provider, or description; pass projectId to also include that project's project-scoped skills. Read-only.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
-        properties: { projectId: { type: "string" } },
+        properties: {
+          projectId: { type: "string" },
+          query: { type: "string", minLength: 1 },
+        },
+      },
+    },
+    {
+      name: "read_skill",
+      description:
+        "Read the SKILL.md content of one enabled, valid skill by id from list_skills. Pass projectId for project-scoped skills. Read-only.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["skillId"],
+        properties: {
+          skillId: { type: "string", minLength: 1 },
+          projectId: { type: "string" },
+        },
       },
     },
     {
@@ -39,16 +66,42 @@ export const skillTools: ToolDomain = {
   ],
   handlers: {
     list_skills: async (args, ctx) => {
-      const { projectId } = listArgsSchema.parse(args);
+      const { projectId, query } = listArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
       const result = await ctx.supervisor.scanSkills(scope);
-      const skills = result.skills.map(summarizeSkill);
+      const normalizedQuery = query?.toLowerCase();
+      const skills = result.skills
+        .filter((skill) => !normalizedQuery || skillMatchesQuery(skill, normalizedQuery))
+        .map(summarizeSkill);
+      const skillIds = new Set(skills.map((skill) => skill.id));
       return {
         ...(projectId ? { projectId } : {}),
+        ...(query ? { query } : {}),
         count: skills.length,
         global: skills.filter((skill) => skill.scope === "global"),
         project: skills.filter((skill) => skill.scope === "project"),
-        effectiveSkillIds: result.effectiveSkillIds,
+        effectiveSkillIds: result.effectiveSkillIds.filter((id) => skillIds.has(id)),
+      };
+    },
+    read_skill: async (args, ctx) => {
+      const { skillId, projectId } = readArgsSchema.parse(args);
+      const scope = projectId ? projectScope(ctx, projectId) : {};
+      const result = await ctx.supervisor.scanSkills(scope);
+      const skill = result.skills.find((entry) => entry.id === skillId);
+      if (!skill) throw new Error(`Unknown skill id: ${skillId}`);
+      if (!skill.enabled) throw new Error(`Skill is disabled: ${skillId}`);
+      if (!skill.valid) throw new Error(`Skill is invalid: ${skillId}`);
+      const skillFile = join(skill.absolutePath, "SKILL.md");
+      // Check the size before reading so an oversized file is never buffered.
+      if ((await stat(skillFile)).size > MAX_READ_SKILL_BYTES) {
+        throw new Error(`Skill is too large to read through app controls: ${skillId}`);
+      }
+      const content = await readFile(skillFile);
+      return {
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        content: content.toString("utf8"),
       };
     },
     set_skill_enabled: async (args, ctx) => {
@@ -59,6 +112,12 @@ export const skillTools: ToolDomain = {
     },
   },
 };
+
+function skillMatchesQuery(skill: SkillEntry, query: string): boolean {
+  return [skill.name, skill.providerLabel, skill.description].some((value) =>
+    value.toLowerCase().includes(query),
+  );
+}
 
 /** Build the project-scoped `scanSkills`/`setSkillEnabled` target for a projectId. */
 function projectScope(

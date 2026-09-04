@@ -3121,12 +3121,28 @@ msgstr "Uso del ordenador"
 #~ msgstr "Computer Use controla el escritorio emparejado. No uses esa máquina mientras el agente hace clic o escribe."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use activado: controla el escritorio emparejado; no uses esa máquina mientras el agente la controla"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use activado: controla el escritorio emparejado; no uses esa máquina mientras el agente la controla"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use activado: las acciones interactivas toman el control del escritorio; no uses la máquina mientras el agente la controla"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use activado: las acciones interactivas toman el control del escritorio; no uses la máquina mientras el agente la controla"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use activado: el agente controla aplicaciones en el escritorio emparejado en segundo plano; solo toma el control del ratón y el teclado de ese escritorio cuando un paso necesita explícitamente usar el primer plano"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "Computer Use está activado: el agente controla aplicaciones en segundo plano en el escritorio emparejado; solo toma el control del ratón y el teclado de ese escritorio cuando un paso necesita explícitamente el primer plano o cuando lo requiere el portal aprobado por el sistema de ese escritorio"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use activado: el agente controla aplicaciones de escritorio en segundo plano; solo toma el control del ratón y el teclado cuando un paso necesita explícitamente usar el primer plano"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "Computer Use está activado: el agente controla aplicaciones de escritorio en segundo plano; solo toma el control del ratón y el teclado cuando un paso necesita explícitamente el primer plano o cuando lo requiere un portal de escritorio aprobado por el sistema"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3343,8 +3359,12 @@ msgid "Control an external Chrome browser."
 msgstr "Controla un navegador Chrome externo."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Controla aplicaciones de escritorio y completa flujos visuales."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Controla aplicaciones de escritorio y completa flujos visuales."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Controla aplicaciones de escritorio en segundo plano y completa flujos de trabajo visuales."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3355,8 +3375,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "Controla qué archivos aparecen en la búsqueda de menciones @file. Las anulaciones por proyecto están en la configuración de cada proyecto."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Controla el escritorio emparejado mientras el agente hace clic o escribe"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Controla el escritorio emparejado mientras el agente hace clic o escribe"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4560,6 +4580,22 @@ msgstr "Arrastra para reordenar; doble clic para editar"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Unidades"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Controla aplicaciones en el escritorio emparejado en segundo plano; toma el control de ese escritorio solo cuando el agente solicita usar el primer plano"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Controla aplicaciones en segundo plano en el escritorio emparejado; solo toma el control de ese escritorio cuando el agente solicita el primer plano o cuando lo requiere su portal aprobado por el sistema"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Controla aplicaciones de escritorio en segundo plano; toma el control del escritorio solo cuando el agente solicita usar el primer plano"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Controla aplicaciones de escritorio en segundo plano; solo toma el control del escritorio cuando el agente solicita el primer plano o cuando lo requiere un portal aprobado por el sistema"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12378,8 +12414,8 @@ msgid "Take Screenshot"
 msgstr "Hacer captura de pantalla"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Toma el control del escritorio mientras el agente hace clic o escribe"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Toma el control del escritorio mientras el agente hace clic o escribe"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

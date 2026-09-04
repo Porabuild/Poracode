@@ -1406,6 +1406,27 @@ describe("ChatPane", () => {
     expect(screen.getByText(/check the diff/)).toBeInTheDocument();
   });
 
+  it("renders plugin-backed skills as plugin badges", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      {
+        kind: "skill",
+        name: "computer-use",
+        invocation: "$computer-use",
+        pluginId: "computer-use",
+        pluginName: "Computer Use",
+      },
+      { kind: "text", text: " inspect the desktop" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-plugin-id="computer-use"]');
+    expect(badge).toHaveTextContent("Computer Use");
+    expect(badge).toHaveAttribute("aria-label", "Computer Use");
+  });
+
   it("keeps a leading slash command when a later skill chip is present", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [

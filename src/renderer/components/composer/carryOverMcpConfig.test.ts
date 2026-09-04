@@ -58,16 +58,13 @@ describe("carryOverComposerMcpConfig", () => {
     ).toEqual(allEnabled);
   });
 
-  it("drops Computer Use on a Linux host, where the ingress never starts", () => {
+  it("carries Computer Use on a native Linux project", () => {
     expect(
-      carryOverComposerMcpConfig(
-        capabilities(),
-        "gui",
-        allEnabled,
-        { kind: "posix", path: "/home/dev/repo" },
-        "linux",
-      ),
-    ).toEqual({ browserMcp: true, chromeMcp: true, crossagentMcp: true });
+      carryOverComposerMcpConfig(capabilities(), "gui", allEnabled, {
+        kind: "posix",
+        path: "/home/dev/repo",
+      }),
+    ).toEqual(allEnabled);
   });
 
   it("drops Chrome and Computer Use in a WSL project, which cannot reach the host", () => {

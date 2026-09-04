@@ -1,14 +1,19 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
   ComputerUseApp,
   ComputerUseDriver,
+  ComputerUseDriverStatus,
   ComputerUseInteractiveResult,
+  ComputerUseListAppsInput,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
+import { legacyElementRefusal } from "./common";
+import { PersistentJsonLineHost } from "./jsonLineHost";
+import { validateWindowsLaunchAppInput } from "./launchAppValidation";
 
 const WINDOWS_HELPER = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -772,7 +777,7 @@ switch ([string]$request.action) {
   }
   "launch_app" {
     $app = [string]$request.input.app
-    if ($app.Trim().Length -eq 0) { throw "app is required" }
+    if ($app.Trim().Length -eq 0 -or $app.Contains([char]0)) { throw "app is required" }
     # Defense-in-depth: refuse UNC paths and URL schemes so launch_app can't pull
     # a remote payload or hand off to a protocol handler. shell:AppsFolder is an
     # explicit allow-listed exception for Store/UWP aliases (calc, etc.); drive
@@ -931,12 +936,6 @@ const REQUEST_TIMEOUT_MS = 20_000;
 // recycle the child.
 const MAX_STDOUT_BUFFER_BYTES = 64 * 1024 * 1024;
 
-interface PendingRequest {
-  reject: (error: Error) => void;
-  resolve: (value: unknown) => void;
-  timer: ReturnType<typeof setTimeout>;
-}
-
 // Escape every non-ASCII UTF-16 code unit so each request line is pure ASCII on
 // the wire. PowerShell's ConvertFrom-Json rebuilds the original string (incl.
 // emoji surrogate pairs) from the \uXXXX escapes, so correct Unicode input
@@ -951,190 +950,91 @@ function toAsciiRequestLine(payload: unknown): string {
   return `${out}\n`;
 }
 
-// Long-lived PowerShell host. The helper compiles its native shim once and then
-// serves newline-delimited JSON requests, eliminating the ~300ms Add-Type
-// recompile + ~112ms process spawn that the old one-shot model paid per action.
-// Requests are serialized over a single stdin/stdout pipe (SendInput is a global
-// machine action, so serializing shared-driver calls is also semantically
-// correct). Each request carries a monotonic id so responses are matched even
-// though the child processes them one at a time.
-class PersistentPowerShellHost {
-  private child: ChildProcessWithoutNullStreams | null = null;
-  private nextId = 1;
-  private readonly pending = new Map<number, PendingRequest>();
-  private stderrTail = "";
-  private stdoutBuffer = "";
-
-  request<T>(action: string, input?: unknown): Promise<T> {
-    const child = this.ensureChild();
-    const id = this.nextId++;
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const pending = this.pending.get(id);
-        if (!pending) return;
-        this.pending.delete(id);
-        pending.reject(
-          new Error(`computer-use action "${action}" timed out after ${REQUEST_TIMEOUT_MS}ms`),
-        );
-        // A hung native call poisons the shared pipe for every queued request,
-        // so recycle the child; the next request lazily respawns a clean host.
-        this.teardown(new Error("computer-use host was recycled after a timed-out action"), true);
-      }, REQUEST_TIMEOUT_MS);
-      this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
-      child.stdin.write(toAsciiRequestLine({ id, action, input: input ?? {} }), (error) => {
-        if (!error) return;
-        const pending = this.pending.get(id);
-        if (!pending) return;
-        this.pending.delete(id);
-        clearTimeout(pending.timer);
-        pending.reject(error);
-      });
-    });
-  }
-
-  dispose(): void {
-    this.teardown(new Error("computer-use host disposed"), true);
-  }
-
-  private ensureChild(): ChildProcessWithoutNullStreams {
-    if (this.child) return this.child;
-    const scriptPath = ensureWindowsHelperScript();
-    const child = spawn(
-      POWERSHELL_PATH,
-      [
-        "-NoLogo",
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        scriptPath,
-      ],
-      { windowsHide: true },
-    ) as ChildProcessWithoutNullStreams;
-    this.child = child;
-    this.stdoutBuffer = "";
-    this.stderrTail = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      if (this.child !== child) return;
-      this.onStdout(chunk);
-    });
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk: string) => {
-      this.stderrTail = (this.stderrTail + chunk).slice(-4096);
-    });
-    child.on("error", (error: Error) => {
-      if (this.child !== child) return;
-      this.teardown(new Error(`computer-use host failed: ${error.message}`), false);
-    });
-    child.on("exit", (code, signal) => {
-      if (this.child !== child) return;
-      const detail = this.stderrTail.trim();
-      this.teardown(
-        new Error(
-          `computer-use host exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"})${detail ? `: ${detail}` : ""}`,
-        ),
-        false,
-      );
-    });
-    return child;
-  }
-
-  private onStdout(chunk: string): void {
-    this.stdoutBuffer += chunk;
-    if (this.stdoutBuffer.length > MAX_STDOUT_BUFFER_BYTES) {
-      this.teardown(new Error("computer-use host response exceeded the buffer limit"), true);
-      return;
-    }
-    let newlineIndex = this.stdoutBuffer.indexOf("\n");
-    while (newlineIndex !== -1) {
-      const line = this.stdoutBuffer.slice(0, newlineIndex);
-      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIndex + 1);
-      // PowerShell writes CRLF; trim strips the trailing \r. base64 payloads
-      // contain no newlines, so each response is exactly one line.
-      this.dispatchLine(line.trim());
-      newlineIndex = this.stdoutBuffer.indexOf("\n");
-    }
-  }
-
-  private dispatchLine(line: string): void {
-    if (!line) return;
-    let message: { error?: unknown; id?: unknown; ok?: unknown; result?: unknown };
-    try {
-      message = JSON.parse(line) as typeof message;
-    } catch {
-      // Non-JSON noise on stdout — ignore rather than corrupt a pending request.
-      return;
-    }
-    if (typeof message.id !== "number") return;
-    const pending = this.pending.get(message.id);
-    if (!pending) return;
-    this.pending.delete(message.id);
-    clearTimeout(pending.timer);
-    if (message.ok) {
-      pending.resolve(message.result);
-    } else {
-      pending.reject(
-        new Error(typeof message.error === "string" ? message.error : "computer-use action failed"),
-      );
-    }
-  }
-
-  private teardown(error: Error, kill: boolean): void {
-    const child = this.child;
-    this.child = null;
-    this.stdoutBuffer = "";
-    this.stderrTail = "";
-    const pendings = [...this.pending.values()];
-    this.pending.clear();
-    for (const pending of pendings) {
-      clearTimeout(pending.timer);
-      pending.reject(error);
-    }
-    if (!child) return;
-    child.stdout.removeAllListeners();
-    child.stderr.removeAllListeners();
-    child.removeAllListeners();
-    if (kill) {
-      try {
-        child.kill();
-      } catch {
-        // The child may already be gone; nothing to clean up.
-      }
-    }
-  }
-}
-
 // Defense-in-depth: mirrored in the PowerShell helper's launch_app validation
 // across the process boundary — keep both sides in sync.
-export function validateWindowsLaunchAppInput(app: string): void {
-  if (app.trim().length === 0) throw new Error("app is required");
-  if (/^\\\\/.test(app)) throw new Error("UNC paths are not allowed for launch_app.");
-  const isShellAppsFolder = /^shell:AppsFolder\\/i.test(app);
-  const isDrivePath = /^[A-Za-z]:[\\/]/.test(app);
-  if (!isShellAppsFolder && !isDrivePath && /^[A-Za-z][A-Za-z0-9+.-]*:/.test(app)) {
-    throw new Error("URL schemes are not allowed for launch_app.");
-  }
-  if (!isShellAppsFolder && !isDrivePath && /[\\/]/.test(app)) {
-    throw new Error("Relative paths are not allowed for launch_app.");
-  }
-}
-
 function normalizeArray<T>(value: T | T[] | null | undefined): T[] {
   if (Array.isArray(value)) return value;
   return value == null ? [] : [value];
 }
 
+type LegacyInteractiveResult = {
+  ok: true;
+  mode: "interactive";
+  window?: ComputerUseWindow;
+};
+
+function withLegacyDelivery(result: LegacyInteractiveResult): ComputerUseInteractiveResult {
+  return {
+    ...result,
+    delivery: {
+      delivered: "foreground",
+      route: "input",
+      verified: "unverified",
+      notes: ["legacy_driver"],
+    },
+  };
+}
+
 export class WindowsComputerUseDriver implements ComputerUseDriver {
-  private readonly host = new PersistentPowerShellHost();
+  private readonly host = new PersistentJsonLineHost({
+    label: "computer-use host",
+    maxStdoutBufferBytes: MAX_STDOUT_BUFFER_BYTES,
+    requestTimeoutMs: REQUEST_TIMEOUT_MS,
+    encodeRequest: toAsciiRequestLine,
+    spawn: () => {
+      const scriptPath = ensureWindowsHelperScript();
+      return spawn(
+        POWERSHELL_PATH,
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          scriptPath,
+        ],
+        { windowsHide: true },
+      );
+    },
+  });
 
   dispose(): void {
     this.host.dispose();
   }
 
-  async listApps(): Promise<ComputerUseApp[]> {
-    return normalizeArray(await this.host.request<ComputerUseApp | ComputerUseApp[]>("list_apps"));
+  async describeStatus(): Promise<ComputerUseDriverStatus> {
+    return {
+      backend: "legacy",
+      helper: null,
+      capabilities: {
+        backgroundPointer: false,
+        backgroundKeyboard: false,
+        backgroundChords: false,
+        accessibilityTree: false,
+        elementActions: false,
+        occludedCapture: true,
+        foregroundInput: true,
+        launchApp: true,
+        stableWindowIds: false,
+      },
+      permissions: { accessibility: "not_required", screenRecording: "not_required" },
+      notes: ["Using the foreground-only legacy Windows driver."],
+    };
+  }
+
+  async listApps(input?: ComputerUseListAppsInput): Promise<ComputerUseApp[]> {
+    const apps = normalizeArray(
+      await this.host.request<ComputerUseApp | ComputerUseApp[]>("list_apps"),
+    );
+    const query = input?.query?.trim().toLowerCase();
+    if (!query) return apps;
+    return apps.filter(
+      (app) =>
+        app.id.toLowerCase().includes(query) ||
+        app.displayName?.toLowerCase().includes(query) ||
+        app.windows.some((window) => window.title?.toLowerCase().includes(query)),
+    );
   }
 
   async listWindows(): Promise<ComputerUseWindow[]> {
@@ -1157,32 +1057,36 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     return this.host.request("get_window_state", input);
   }
 
-  activateWindow(input: { window: ComputerUseWindow }): Promise<ComputerUseInteractiveResult> {
-    return this.host.request("activate_window", input);
+  async activateWindow(input: {
+    window: ComputerUseWindow;
+  }): Promise<ComputerUseInteractiveResult> {
+    return withLegacyDelivery(
+      await this.host.request<LegacyInteractiveResult>("activate_window", input),
+    );
   }
 
   click(input: {
     click_count?: number;
     mouse_button?: string;
     window: ComputerUseWindow;
-    x?: number;
-    y?: number;
+    x: number;
+    y: number;
   }): Promise<ComputerUseInteractiveResult> {
-    return this.host.request("click", input);
+    return this.host.request<LegacyInteractiveResult>("click", input).then(withLegacyDelivery);
   }
 
   typeText(input: {
     text: string;
     window: ComputerUseWindow;
   }): Promise<ComputerUseInteractiveResult> {
-    return this.host.request("type_text", input);
+    return this.host.request<LegacyInteractiveResult>("type_text", input).then(withLegacyDelivery);
   }
 
   pressKey(input: {
     key: string;
     window: ComputerUseWindow;
   }): Promise<ComputerUseInteractiveResult> {
-    return this.host.request("press_key", input);
+    return this.host.request<LegacyInteractiveResult>("press_key", input).then(withLegacyDelivery);
   }
 
   scroll(input: {
@@ -1192,7 +1096,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     x: number;
     y: number;
   }): Promise<ComputerUseInteractiveResult> {
-    return this.host.request("scroll", input);
+    return this.host.request<LegacyInteractiveResult>("scroll", input).then(withLegacyDelivery);
   }
 
   drag(input: {
@@ -1202,7 +1106,19 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     to_y: number;
     window: ComputerUseWindow;
   }): Promise<ComputerUseInteractiveResult> {
-    return this.host.request("drag", input);
+    return this.host.request<LegacyInteractiveResult>("drag", input).then(withLegacyDelivery);
+  }
+
+  findElements(input: Parameters<ComputerUseDriver["findElements"]>[0]) {
+    return Promise.resolve(legacyElementRefusal(input.window));
+  }
+
+  invokeElement(input: Parameters<ComputerUseDriver["invokeElement"]>[0]) {
+    return Promise.resolve(legacyElementRefusal(input.window));
+  }
+
+  setElementValue(input: Parameters<ComputerUseDriver["setElementValue"]>[0]) {
+    return Promise.resolve(legacyElementRefusal(input.window));
   }
 
   launchApp(input: { app: string }): Promise<{

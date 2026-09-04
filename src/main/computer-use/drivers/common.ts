@@ -1,8 +1,26 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { ComputerUseWindow } from "../mcp/types";
+import type { ComputerUseInteractiveResult, ComputerUseWindow } from "../mcp/types";
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Refusal returned by the legacy Windows/macOS drivers for every accessibility
+ * element tool. Those drivers exist only as a startup-degradation fallback and
+ * have no accessibility backend, so the refusal must read identically on both.
+ */
+export function legacyElementRefusal(window: ComputerUseWindow): ComputerUseInteractiveResult {
+  return {
+    ok: false,
+    mode: "interactive",
+    window,
+    refused: {
+      code: "capability_unavailable",
+      reason: "Accessibility element tools require the bundled native helper.",
+      hint: "Use get_window_state and coordinate input instead.",
+    },
+  };
+}
 
 export function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};

@@ -3121,12 +3121,28 @@ msgstr "计算机操作"
 #~ msgstr "Computer Use 会控制已配对的桌面。代理点击或输入时请勿使用该电脑。"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "已启用 Computer Use — 控制已配对的桌面；代理控制期间请勿使用该电脑"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "已启用 Computer Use — 控制已配对的桌面；代理控制期间请勿使用该电脑"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "已启用 Computer Use — 交互操作会接管桌面；代理控制期间请勿使用本机"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "已启用 Computer Use — 交互操作会接管桌面；代理控制期间请勿使用本机"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use 已启用 — 智能体会在后台操作已配对桌面上的应用；仅当某个步骤明确需要前台操作时，才会接管该桌面的鼠标和键盘"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "计算机使用已启用 — 智能体会在后台操控已配对桌面上的应用；仅当某个步骤明确需要前台操作，或该桌面经系统批准的门户有此要求时，才会接管该桌面的鼠标和键盘"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use 已启用 — 智能体会在后台操作桌面应用；仅当某个步骤明确需要前台操作时，才会接管鼠标和键盘"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "计算机使用已启用 — 智能体会在后台操控桌面应用；仅当某个步骤明确需要前台操作，或经系统批准的桌面门户有此要求时，才会接管鼠标和键盘"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3343,8 +3359,12 @@ msgid "Control an external Chrome browser."
 msgstr "控制外部 Chrome 浏览器。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "控制桌面应用并完成可视化工作流。"
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "控制桌面应用并完成可视化工作流。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "在后台控制桌面应用并完成可视化工作流。"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3355,8 +3375,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "控制哪些文件出现在 @file 提及搜索中。可在各项目的设置中进行项目级覆盖。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "代理点击或输入时控制已配对的桌面"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "代理点击或输入时控制已配对的桌面"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4560,6 +4580,22 @@ msgstr "拖动即可重新排序；双击进行编辑"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "驱动器"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "在后台操作已配对桌面上的应用；仅当智能体请求前台操作时才会接管该桌面"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "在后台操控已配对桌面上的应用；仅当智能体请求前台操作，或经系统批准的门户有此要求时，才会接管该桌面"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "在后台操作桌面应用；仅当智能体请求前台操作时才会接管桌面"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "在后台操控桌面应用；仅当智能体请求前台操作，或经系统批准的门户有此要求时，才会接管桌面"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12377,8 +12413,8 @@ msgid "Take Screenshot"
 msgstr "截图"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "代理点击或输入时会接管桌面"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "代理点击或输入时会接管桌面"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

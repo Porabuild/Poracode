@@ -3121,12 +3121,28 @@ msgstr "Bilgisayar Kullanımı"
 #~ msgstr "Computer Use eşleştirilmiş masaüstünü kontrol eder. Ajan tıklarken veya yazarken o makineyi kullanmayın."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use etkin — eşleştirilmiş masaüstünü kontrol eder; ajan kontrol ederken o makineyi kullanmayın"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use etkin — eşleştirilmiş masaüstünü kontrol eder; ajan kontrol ederken o makineyi kullanmayın"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use etkin — etkileşimli eylemler masaüstünü kontrol eder; ajan kontrol ederken makineyi kullanmayın"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use etkin — etkileşimli eylemler masaüstünü kontrol eder; ajan kontrol ederken makineyi kullanmayın"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use etkin — aracı, eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde bu masaüstünün fare ve klavyesini devralır"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "Bilgisayar Kullanımı etkin — aracı, eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde veya o masaüstünün sistem tarafından onaylanmış portalı bunu gerektirdiğinde fare ve klavyeyi devralır"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use etkin — aracı, masaüstü uygulamalarını arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde fare ve klavyeyi devralır"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "Bilgisayar Kullanımı etkin — aracı, masaüstü uygulamalarını arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde veya sistem tarafından onaylanmış bir masaüstü portalı bunu gerektirdiğinde fare ve klavyeyi devralır"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3343,8 +3359,12 @@ msgid "Control an external Chrome browser."
 msgstr "Harici bir Chrome tarayıcısını kontrol eder."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Masaüstü uygulamalarını denetleyin ve görsel iş akışlarını tamamlayın."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Masaüstü uygulamalarını denetleyin ve görsel iş akışlarını tamamlayın."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Masaüstü uygulamalarını arka planda kontrol edin ve görsel iş akışlarını tamamlayın."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3355,8 +3375,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "@file bahsetme aramasında hangi dosyaların görüneceğini kontrol edin. Projeye özel geçersiz kılmalar her projenin ayarlarında bulunur."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Ajan tıklarken veya yazarken eşleştirilmiş masaüstünü kontrol eder"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Ajan tıklarken veya yazarken eşleştirilmiş masaüstünü kontrol eder"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4560,6 +4580,22 @@ msgstr "Yeniden sıralamak için sürükleyin; düzenlemek için çift tıklayı
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Sürücüler"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca aracı ön planı istediğinde bu masaüstünü devralır"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca aracı ön planı istediğinde veya sistem tarafından onaylanmış portalı bunu gerektirdiğinde o masaüstünü devralır"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Masaüstü uygulamalarını arka planda yönetir; yalnızca aracı ön planı istediğinde masaüstünü devralır"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Masaüstü uygulamalarını arka planda yönetir; yalnızca aracı ön planı istediğinde veya sistem tarafından onaylanmış bir portal bunu gerektirdiğinde masaüstünü devralır"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12378,8 +12414,8 @@ msgid "Take Screenshot"
 msgstr "Ekran Görüntüsü Al"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Ajan tıklarken veya yazarken masaüstünü kontrol eder"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Ajan tıklarken veya yazarken masaüstünü kontrol eder"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

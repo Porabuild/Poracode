@@ -169,7 +169,6 @@ function resolveDefaultConfig(
   preferred?: Partial<ThreadConfig>,
   projectLocation?: ProjectLocation,
 ): ThreadConfig {
-  const hostPlatform = readBridge()?.platform;
   const capabilities = capabilitiesForPresentation(agent.capabilities, presentationMode);
   const model = resolveModelSelection(capabilities, preferred?.model);
   const effort = resolveReasoningSelection(capabilities, model, preferred?.effort);
@@ -202,13 +201,7 @@ function resolveDefaultConfig(
     ...(sandboxMode ? { sandboxMode } : {}),
     // The MCP servers the user turned on for this task follow it into the
     // target provider, minus the ones that provider cannot honor.
-    ...carryOverComposerMcpConfig(
-      capabilities,
-      presentationMode,
-      preferred ?? {},
-      projectLocation,
-      hostPlatform,
-    ),
+    ...carryOverComposerMcpConfig(capabilities, presentationMode, preferred ?? {}, projectLocation),
   };
 }
 
@@ -560,12 +553,7 @@ export function ContinueInProviderDialog(props: {
     mcpControlsAvailable &&
     disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
     targetCapabilities
-      ? getComputerUseScope(
-          targetCapabilities,
-          targetPresentationMode,
-          props.projectLocation,
-          readBridge()?.platform,
-        )
+      ? getComputerUseScope(targetCapabilities, targetPresentationMode, props.projectLocation)
       : "none";
   const providerComputerUseEnabled =
     mcpControlsAvailable &&
@@ -578,8 +566,7 @@ export function ContinueInProviderDialog(props: {
     (providerOwnsMcp
       ? providerComputerUseEnabled
       : computerUseScope !== "none" || targetConfig.computerUse === true) &&
-    props.projectLocation.kind !== "wsl" &&
-    readBridge()?.platform !== "linux";
+    props.projectLocation.kind !== "wsl";
   const mcpMentions: McpMentionItem[] =
     mcpControlsAvailable && targetCapabilities
       ? [

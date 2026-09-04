@@ -3121,12 +3121,28 @@ msgstr "Sử dụng máy tính"
 #~ msgstr "Computer Use điều khiển máy tính đã ghép nối. Đừng dùng máy đó khi agent đang nhấp hoặc gõ."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use đã bật — điều khiển máy tính đã ghép nối; đừng dùng máy đó khi agent đang điều khiển"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use đã bật — điều khiển máy tính đã ghép nối; đừng dùng máy đó khi agent đang điều khiển"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use đã bật — thao tác tương tác chiếm quyền điều khiển máy tính; đừng dùng máy khi agent đang điều khiển"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use đã bật — thao tác tương tác chiếm quyền điều khiển máy tính; đừng dùng máy khi agent đang điều khiển"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Đã bật Computer Use — tác nhân điều khiển ứng dụng trên máy tính đã ghép nối ở chế độ nền; tác nhân chỉ tiếp quản chuột và bàn phím của máy đó khi một bước yêu cầu rõ ràng chế độ tiền cảnh"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "Đã bật Sử dụng máy tính — tác nhân điều khiển ứng dụng trên máy tính đã ghép nối ở chế độ nền; tác nhân chỉ chiếm quyền chuột và bàn phím của máy tính đó khi một bước yêu cầu rõ ràng chế độ tiền cảnh hoặc khi cổng được hệ thống phê duyệt của máy tính đó yêu cầu"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Đã bật Computer Use — tác nhân điều khiển ứng dụng máy tính ở chế độ nền; tác nhân chỉ tiếp quản chuột và bàn phím khi một bước yêu cầu rõ ràng chế độ tiền cảnh"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "Đã bật Sử dụng máy tính — tác nhân điều khiển ứng dụng máy tính ở chế độ nền; tác nhân chỉ chiếm quyền chuột và bàn phím khi một bước yêu cầu rõ ràng chế độ tiền cảnh hoặc khi cổng máy tính được hệ thống phê duyệt yêu cầu"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3343,8 +3359,12 @@ msgid "Control an external Chrome browser."
 msgstr "Điều khiển trình duyệt Chrome bên ngoài."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Điều khiển ứng dụng máy tính và hoàn thành quy trình trực quan."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Điều khiển ứng dụng máy tính và hoàn thành quy trình trực quan."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Điều khiển ứng dụng máy tính ở chế độ nền và hoàn thành quy trình làm việc trực quan."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3355,8 +3375,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "Kiểm soát những tập tin nào xuất hiện trong tìm kiếm đề cập đến @file. Ghi đè cho mỗi dự án trực tiếp trong cài đặt của từng dự án."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Điều khiển máy tính đã ghép nối khi agent nhấp hoặc gõ"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Điều khiển máy tính đã ghép nối khi agent nhấp hoặc gõ"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4560,6 +4580,22 @@ msgstr "Kéo để sắp xếp lại; nhấp đúp để chỉnh sửa"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Ổ đĩa"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Điều khiển ứng dụng trên máy tính đã ghép nối ở chế độ nền; chỉ tiếp quản máy đó khi tác nhân yêu cầu chế độ tiền cảnh"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Điều khiển ứng dụng trên máy tính đã ghép nối ở chế độ nền; chỉ chiếm quyền máy tính đó khi tác nhân yêu cầu chế độ tiền cảnh hoặc khi cổng được hệ thống phê duyệt yêu cầu"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Điều khiển ứng dụng máy tính ở chế độ nền; chỉ tiếp quản máy tính khi tác nhân yêu cầu chế độ tiền cảnh"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Điều khiển ứng dụng máy tính ở chế độ nền; chỉ chiếm quyền máy tính khi tác nhân yêu cầu chế độ tiền cảnh hoặc khi cổng được hệ thống phê duyệt yêu cầu"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12378,8 +12414,8 @@ msgid "Take Screenshot"
 msgstr "Chụp ảnh màn hình"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Chiếm quyền điều khiển máy tính khi agent nhấp hoặc gõ"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Chiếm quyền điều khiển máy tính khi agent nhấp hoặc gõ"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

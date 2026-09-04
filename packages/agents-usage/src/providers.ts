@@ -52,6 +52,15 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     // Monthly credit pool plus rolling 5h / weekly USD caps from windowLimits.
     windowIds: ["session-5h", "weekly", "monthly"],
   },
+  muse: {
+    id: "muse",
+    label: "Muse Code",
+    mechanism: "oauth-endpoint",
+    needsLogin: false,
+    // Subscription plan + account from the key endpoint; rolling 5h / weekly
+    // quota windows only when the endpoint reports `subs_usage`.
+    windowIds: ["session-5h", "weekly"],
+  },
   factory: {
     id: "factory",
     label: "Droid",

@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "computer-use",
-  "version": "1.2.0",
-  "description": "Control desktop apps and complete visual workflows.",
+  "version": "1.5.0",
+  "description": "Control desktop apps in the background and complete visual workflows.",
   "author": {
     "name": "Poracode",
     "url": "https://poracode.com"
@@ -16,7 +16,7 @@
       "category": "automation",
       "featured": true,
       "examplePrompt": "Operate the requested desktop app in small verified steps and report the final window state",
-      "platforms": ["win32", "darwin"],
+      "platforms": ["win32", "darwin", "linux"],
       "projectKinds": ["windows", "posix"],
       "coreSkill": "computer-use",
       "nativePluginNames": ["computer-use"],
