@@ -165,6 +165,7 @@ function formatCodexFamilyModelLabel(baseId: string): string | undefined {
  */
 function codexLimitLabel(limitName: string | undefined): string {
   const base = limitName?.trim() || "Additional Codex";
+  if (codexUsageModelId(base) === "gpt-reserve") return "Reserve";
   return formatCodexFamilyModelLabel(codexUsageModelId(base)) ?? base;
 }
 
